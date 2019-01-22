@@ -5,7 +5,7 @@ import pytest
 from io import StringIO
 
 from nucypher.cli.main import NucypherClickConfig
-from nucypher.cli.protocol import UrsulaCommandProtocol
+from nucypher.cli.processes import UrsulaCommandProtocol
 
 # Disable click sentry and file logging
 

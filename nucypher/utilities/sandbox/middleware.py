@@ -14,13 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from apistar import TestClient
-
 from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
-from nucypher.crypto.kits import RevocationKit
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 
@@ -42,7 +37,8 @@ class MockRestMiddleware(RestMiddleware):
     def _get_mock_client_by_port(self, port):
         ursula = self._get_ursula_by_port(port)
         rest_app = ursula.rest_app
-        mock_client = TestClient(rest_app)
+        rest_app.testing = True
+        mock_client = rest_app.test_client()
         return mock_client
 
     def _get_ursula_by_port(self, port):
@@ -58,13 +54,15 @@ class MockRestMiddleware(RestMiddleware):
 
     def consider_arrangement(self, arrangement):
         mock_client = self._get_mock_client_by_ursula(arrangement.ursula)
-        response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
+        response = mock_client.post("http://localhost/consider_arrangement",
+                                    data=bytes(arrangement),
+                                    content_type='application/octet')
         assert response.status_code == 200
         return response
 
     def enact_policy(self, ursula, id, payload):
         mock_client = self._get_mock_client_by_ursula(ursula)
-        response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), payload)
+        response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), data=payload)
         assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
@@ -72,26 +70,30 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(work_order.ursula)
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
-        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
+        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), data=payload)
 
     def get_treasure_map_from_node(self, node, map_id):
         mock_client = self._get_mock_client_by_ursula(node)
-        return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
+        response = mock_client.get("http://localhost/treasure_map/{}".format(map_id))
+        response.content = response.data
+        return response
 
     def node_information(self, host, port, certificate_filepath):
         mock_client = self._get_mock_client_by_port(port)
         response = mock_client.get("http://localhost/public_information")
-        return response
+        if not response.status_code == 200:
+            raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
+        return response.data
 
     def get_nodes_via_rest(self, url, *args, **kwargs):
-        return super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
+        response = super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
+        response.content = response.data  # Little hack for compatibility.
+        return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         mock_client = self._get_mock_client_by_ursula(node)
-        certificate_filepath = node.certificate_filepath
-
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
-                                    data=map_payload, verify=certificate_filepath)
+                                    data=map_payload)
         return response
 
     def revoke_arrangement(self, ursula, revocation):
@@ -117,7 +119,6 @@ class EvilMiddleWare(MockRestMiddleware):
         """
         mock_client = self._get_mock_client_by_ursula(ursula)
         response = mock_client.post("http://localhost/node_metadata".format(mock_client),
-                                    verify=False,
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response

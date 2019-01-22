@@ -55,7 +55,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.utilities.decorators import validate_checksum_address
 
 
@@ -522,7 +522,7 @@ class Ursula(Teacher, Character, Miner):
                 #
                 # REST Server (Ephemeral Self-Ursula)
                 #
-                rest_routes = ProxyRESTRoutes(
+                rest_app, datastore = make_rest_app(
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,  # TODO: 466
@@ -543,7 +543,8 @@ class Ursula(Teacher, Character, Miner):
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, checksum_public_address=self.checksum_public_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
-                                                   routes=rest_routes, hosting_power=tls_hosting_power)
+                                                   rest_app=rest_app, datastore=datastore,
+                                                   hosting_power=tls_hosting_power)
 
             #
             # Stranger-Ursula
@@ -650,11 +651,9 @@ class Ursula(Teacher, Character, Miner):
                       federated_only: bool = False,
                       *args, **kwargs
                       ):
-        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
+        response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args,
+        stranger_ursula_from_public_keys = cls.from_bytes(response_data, federated_only=federated_only, *args,
                                                           **kwargs)
 
         return stranger_ursula_from_public_keys
@@ -869,7 +868,7 @@ class Ursula(Teacher, Character, Miner):
     @property
     def datastore(self):
         try:
-            return self.rest_server.routes.datastore
+            return self.rest_server.datastore
         except AttributeError:
             raise AttributeError("No rest server attached")
 

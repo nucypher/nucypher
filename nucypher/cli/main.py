@@ -32,7 +32,7 @@ from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PE
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes, paint_contract_status
-from nucypher.cli.protocol import UrsulaCommandProtocol
+from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,

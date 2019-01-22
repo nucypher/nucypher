@@ -17,19 +17,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
-from typing import Callable
+from typing import Callable, Tuple
 
-from apistar import Route, App
-from apistar.http import Response, Request, QueryParams
+from flask import Flask, Response
+from flask import request
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
 from umbral import pre
-from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import NO_KNOWN_NODES
+from constant_sorrow.constants import FLEET_STATES_MATCH
+from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -48,6 +49,10 @@ from nucypher.network.protocols import InterfaceInfo
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
+with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
+    _status_template_content = f.read()
+status_template = Template(_status_template_content)
+
 
 class ProxyRESTServer:
     log = Logger("characters")
@@ -58,14 +63,14 @@ class ProxyRESTServer:
                  rest_host: str,
                  rest_port: int,
                  hosting_power=None,
-                 routes: 'ProxyRESTRoutes' = None,
+                 rest_app=None,
+                 datastore=None,
                  ) -> None:
 
-        self.routes = routes
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-        if routes:  # if is me
-            self.rest_app = routes.rest_app
-            self.db_filepath = routes.db_filepath
+        if rest_app:  # if is me
+            self.rest_app = rest_app
+            self.datastore = datastore
         else:
             self.rest_app = constants.PUBLIC_ONLY
 
@@ -75,157 +80,109 @@ class ProxyRESTServer:
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
 
-class ProxyRESTRoutes:
-    log = Logger("network-server")
+def make_rest_app(
+        db_filepath: str,
+        network_middleware: RestMiddleware,
+        federated_only: bool,
+        treasure_map_tracker: dict,
+        node_tracker: 'FleetStateTracker',
+        node_bytes_caster: Callable,
+        work_order_tracker: list,
+        node_recorder: Callable,
+        stamp: SignatureStamp,
+        verifier: Callable,
+        suspicious_activity_tracker: dict,
+        serving_domains,
+        log=Logger("http-application-layer")
+) -> Tuple:
+    forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
-    def __init__(self,
-                 db_filepath: str,
-                 network_middleware: RestMiddleware,
-                 federated_only: bool,
-                 treasure_map_tracker: dict,
-                 node_tracker: 'FleetStateTracker',
-                 node_bytes_caster: Callable,
-                 work_order_tracker: list,
-                 node_recorder: Callable,
-                 stamp: SignatureStamp,
-                 verifier: Callable,
-                 suspicious_activity_tracker: dict,
-                 serving_domains,
-                 ) -> None:
+    from nucypher.keystore import keystore
+    from nucypher.keystore.db import Base
+    from sqlalchemy.engine import create_engine
 
-        self.network_middleware = network_middleware
-        self.federated_only = federated_only
+    log.info("Starting datastore {}".format(db_filepath))
 
-        self.__forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
+    # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
+    if db_filepath:
+        db_uri = f'sqlite:///{db_filepath}'
+    else:
+        db_uri = 'sqlite://'  # TODO: Is this a sane default? See #667
 
-        self._treasure_map_tracker = treasure_map_tracker
-        self._work_order_tracker = work_order_tracker
-        self._node_tracker = node_tracker
-        self._node_bytes_caster = node_bytes_caster
-        self._node_recorder = node_recorder
-        self._stamp = stamp
-        self._verifier = verifier
-        self._suspicious_activity_tracker = suspicious_activity_tracker
-        self.serving_domains = serving_domains
+    engine = create_engine(db_uri)
 
-        routes = [
-            Route('/kFrag/{id_as_hex}',
-                  'POST',
-                  self.set_policy),
-            Route('/kFrag/{id_as_hex}/reencrypt',
-                  'POST',
-                  self.reencrypt_via_rest),
-            Route('/kFrag/{id_as_hex}',
-                  'DELETE',
-                  self.revoke_arrangement),
-            Route('/public_information', 'GET',
-                  self.public_information),
-            Route('/node_metadata', 'GET',
-                  self.all_known_nodes),
-            Route('/node_metadata', 'POST',
-                  self.node_metadata_exchange),
-            Route('/consider_arrangement',
-                  'POST',
-                  self.consider_arrangement),
-            Route('/treasure_map/{treasure_map_id}',
-                  'GET',
-                  self.provide_treasure_map),
-            Route('/status',
-                  'GET',
-                  self.status),
-            Route('/treasure_map/{treasure_map_id}',
-                  'POST',
-                  self.receive_treasure_map),
-        ]
+    Base.metadata.create_all(engine)
+    datastore = keystore.KeyStore(engine)
+    db_engine = engine
 
-        self.rest_app = App(routes=routes)
-        self.db_filepath = db_filepath
+    from nucypher.characters.lawful import Alice, Ursula
+    _alice_class = Alice
+    _node_class = Ursula
 
-        from nucypher.keystore import keystore
-        from nucypher.keystore.db import Base
-        from sqlalchemy.engine import create_engine
+    rest_app = rest_app = Flask("ursula-service")
 
-        self.log.info("Starting datastore {}".format(self.db_filepath))
-
-        # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-        if self.db_filepath:
-            db_uri = f'sqlite:///{self.db_filepath}'
-        else:
-            db_uri = 'sqlite://'   # TODO: Is this a sane default? See #667
-
-        engine = create_engine(db_uri)
-
-        Base.metadata.create_all(engine)
-        self.datastore = keystore.KeyStore(engine)
-        self.db_engine = engine
-
-        from nucypher.characters.lawful import Alice, Ursula
-        self._alice_class = Alice
-        self._node_class = Ursula
-
-        with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
-            _status_template_content = f.read()
-        self._status_template = Template(_status_template_content)
-
-    def public_information(self):
+    @rest_app.route("/public_information")
+    def public_information():
         """
         REST endpoint for public keys and address..
         """
-        headers = {'Content-Type': 'application/octet-stream'}
         response = Response(
-            content=self._node_bytes_caster(),
-            headers=headers)
+            response=node_bytes_caster(),
+            mimetype='application/octet-stream')
 
         return response
 
-    def all_known_nodes(self, request: Request):
+    @rest_app.route('/node_metadata', methods=["GET"])
+    def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
 
-        if self._node_tracker.checksum is NO_KNOWN_NODES:
-            return Response(b"", headers=headers, status_code=204)
+        if node_tracker.checksum is NO_KNOWN_NODES:
+            return Response(b"", headers=headers, status=204)
 
-        payload = self._node_tracker.snapshot()
+        payload = node_tracker.snapshot()
 
-        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self._node_tracker)
+        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in node_tracker)
         ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(self._node_bytes_caster())
+        ursulas_as_bytes += VariableLengthBytestring(node_bytes_caster())
 
         payload += ursulas_as_bytes
-        signature = self._stamp(payload)
+        signature = stamp(payload)
         return Response(bytes(signature) + payload, headers=headers)
 
-    def node_metadata_exchange(self, request: Request, query_params: QueryParams):
+    @rest_app.route('/node_metadata', methods=["POST"])
+    def node_metadata_exchange():
         # If these nodes already have the same fleet state, no exchange is necessary.
 
-        learner_fleet_state = query_params.get('fleet')
-        if learner_fleet_state == self._node_tracker.checksum:
-            self.log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
+        learner_fleet_state = request.args.get('fleet')
+        if learner_fleet_state == node_tracker.checksum:
+            log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
             headers = {'Content-Type': 'application/octet-stream'}
-            payload = self._node_tracker.snapshot()
-            signature = self._stamp(payload)
-            return Response(bytes(signature) + payload, headers=headers, status_code=204)
+            payload = node_tracker.snapshot() + bytes(FLEET_STATES_MATCH)
+            signature = stamp(payload)
+            return Response(bytes(signature) + payload, headers=headers)
 
-        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)  # TODO: 466
+        nodes = _node_class.batch_from_bytes(request.data, federated_only=federated_only)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
         for node in nodes:
-            if GLOBAL_DOMAIN not in self.serving_domains:
-                if not self.serving_domains.intersection(node.serving_domains):
+            if GLOBAL_DOMAIN not in serving_domains:
+                if not serving_domains.intersection(node.serving_domains):
                     continue  # This node is not serving any of our domains.
 
-            if node in self._node_tracker:
-                if node.timestamp <= self._node_tracker[node.checksum_public_address].timestamp:
+            if node in node_tracker:
+                if node.timestamp <= node_tracker[node.checksum_public_address].timestamp:
                     continue
 
             @crosstown_traffic()
             def learn_about_announced_nodes():
 
                 try:
-                    certificate_filepath = self.__forgetful_node_storage.store_node_certificate(certificate=node.certificate)
+                    certificate_filepath = forgetful_node_storage.store_node_certificate(
+                        certificate=node.certificate)
 
-                    node.verify_node(self.network_middleware,
-                                     accept_federated_only=self.federated_only,  # TODO: 466
+                    node.verify_node(network_middleware,
+                                     accept_federated_only=federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
 
                 # Suspicion
@@ -234,33 +191,34 @@ class ProxyRESTRoutes:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     # TODO: Maybe also record the bytes representation separately to disk?
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  Announced via REST."
-                    self.log.warn(message)
-                    self._suspicious_activity_tracker['vladimirs'].append(node)
+                    log.warn(message)
+                    suspicious_activity_tracker['vladimirs'].append(node)
 
                 # Async Sentinel
                 except Exception as e:
-                    self.log.critical(str(e))
+                    log.critical(str(e))
                     raise
 
                 # Believable
                 else:
-                    self.log.info("Learned about previously unknown node: {}".format(node))
-                    self._node_recorder(node)
+                    log.info("Learned about previously unknown node: {}".format(node))
+                    node_recorder(node)
                     # TODO: Record new fleet state
 
                 # Cleanup
                 finally:
-                    self.__forgetful_node_storage.forget()
+                    forgetful_node_storage.forget()
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
-        return self.all_known_nodes(request)
+        return all_known_nodes()
 
-    def consider_arrangement(self, request: Request):
+    @rest_app.route('/consider_arrangement', methods=['POST'])
+    def consider_arrangement():
         from nucypher.policy.models import Arrangement
-        arrangement = Arrangement.from_bytes(request.body)
+        arrangement = Arrangement.from_bytes(request.data)
 
-        with ThreadedSession(self.db_engine) as session:
-            new_policy_arrangement = self.datastore.add_policy_arrangement(
+        with ThreadedSession(db_engine) as session:
+            new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
@@ -273,7 +231,8 @@ class ProxyRESTRoutes:
         # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
-    def set_policy(self, id_as_hex, request: Request):
+    @rest_app.route("/kFrag/<id_as_hex>", methods=['POST'])
+    def set_policy(id_as_hex):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type
@@ -281,70 +240,72 @@ class ProxyRESTRoutes:
         TODO: Validate that the kfrag being saved is pursuant to an approved
             Policy (see #121).
         """
-        policy_message_kit = UmbralMessageKit.from_bytes(request.body)
+        policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
         alices_verifying_key = policy_message_kit.sender_pubkey_sig
-        alice = self._alice_class.from_public_keys({SigningPower: alices_verifying_key})
+        alice = _alice_class.from_public_keys({SigningPower: alices_verifying_key})
 
         try:
-            cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
-        except self.InvalidSignature:
+            cleartext = verifier(alice, policy_message_kit, decrypt=True)
+        except InvalidSignature:
             # TODO: Perhaps we log this?
             return Response(status_code=400)
 
         kfrag = KFrag.from_bytes(cleartext)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
-            raise self.InvalidSignature("{} is invalid".format(kfrag))
+            raise InvalidSignature("{} is invalid".format(kfrag))
 
-        with ThreadedSession(self.db_engine) as session:
-            self.datastore.attach_kfrag_to_saved_arrangement(
+        with ThreadedSession(db_engine) as session:
+            datastore.attach_kfrag_to_saved_arrangement(
                 alice,
                 id_as_hex,
                 kfrag,
                 session=session)
 
         # TODO: Sign the arrangement here.  #495
-        return  # TODO: Return A 200, with whatever policy metadata.
+        return ""  # TODO: Return A 200, with whatever policy metadata.
 
-    def revoke_arrangement(self, id_as_hex, request: Request):
+    @rest_app.route('/kFrag/<id_as_hex>', methods=["DELETE"])
+    def revoke_arrangement(id_as_hex):
         """
         REST endpoint for revoking/deleting a KFrag from a node.
         """
         from nucypher.policy.models import Revocation
 
-        revocation = Revocation.from_bytes(request.body)
-        self.log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
+        revocation = Revocation.from_bytes(request.data)
+        log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
         try:
-            with ThreadedSession(self.db_engine) as session:
+            with ThreadedSession(db_engine) as session:
                 # Verify the Notice was signed by Alice
-                policy_arrangement = self.datastore.get_policy_arrangement(
+                policy_arrangement = datastore.get_policy_arrangement(
                     id_as_hex.encode(), session=session)
                 alice_pubkey = UmbralPublicKey.from_bytes(
                     policy_arrangement.alice_pubkey_sig.key_data)
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
-                    self.log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
+                    log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
                     return Response(status_code=400)
                 elif revocation.verify_signature(alice_pubkey):
-                    self.datastore.del_policy_arrangement(
+                    datastore.del_policy_arrangement(
                         id_as_hex.encode(), session=session)
         except (NotFound, InvalidSignature) as e:
-            self.log.debug("Exception attempting to revoke: {}".format(e))
-            return Response(content='KFrag not found or revocation signature is invalid.', status_code=404)
+            log.debug("Exception attempting to revoke: {}".format(e))
+            return Response(response='KFrag not found or revocation signature is invalid.', status=404)
         else:
-            self.log.info("KFrag successfully removed.")
-            return Response(content='KFrag deleted!', status_code=200)
+            log.info("KFrag successfully removed.")
+            return Response(response='KFrag deleted!', status=200)
 
-    def reencrypt_via_rest(self, id_as_hex, request: Request):
+    @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
+    def reencrypt_via_rest(id_as_hex):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
-        self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
-        with ThreadedSession(self.db_engine) as session:
-            policy_arrangement = self.datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                       session=session)
+        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
+        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
+        with ThreadedSession(db_engine) as session:
+            policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                  session=session)
 
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
@@ -358,42 +319,44 @@ class ProxyRESTRoutes:
             # This is the capsule signed by Bob
             capsule_signature = bytes(capsule_signature)
             # Ursula signs on top of it. Now both are committed to the same capsule.
-            capsule_signed_by_both = bytes(self._stamp(capsule_signature))
+            capsule_signed_by_both = bytes(stamp(capsule_signature))
 
             capsule.set_correctness_keys(verifying=alices_verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
-            self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
-            signature = self._stamp(bytes(cfrag) + bytes(capsule))
+            log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
+            signature = stamp(bytes(cfrag) + bytes(capsule))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
         # TODO: Put this in Ursula's datastore
-        self._work_order_tracker.append(work_order)
+        work_order_tracker.append(work_order)
 
         headers = {'Content-Type': 'application/octet-stream'}
 
-        return Response(content=cfrag_byte_stream, headers=headers)
+        return Response(response=cfrag_byte_stream, headers=headers)
 
-    def provide_treasure_map(self, treasure_map_id):
+    @rest_app.route('/treasure_map/<treasure_map_id>')
+    def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map = self._treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
-            response = Response(content=bytes(treasure_map), headers=headers)
-            self.log.info("{} providing TreasureMap {}".format(self._node_bytes_caster(),
-                                                               treasure_map_id))
+            treasure_map = treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
+            response = Response(bytes(treasure_map), headers=headers)
+            log.info("{} providing TreasureMap {}".format(node_bytes_caster(),
+                                                          treasure_map_id))
         except KeyError:
-            self.log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
+            log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
-                                status_code=404, headers=headers)
+                                status=404, headers=headers)
 
         return response
 
-    def receive_treasure_map(self, treasure_map_id, request: Request):
+    @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
+    def receive_treasure_map(treasure_map_id):
         from nucypher.policy.models import TreasureMap
 
         try:
             treasure_map = TreasureMap.from_bytes(
-                bytes_representation=request.body,
+                bytes_representation=request.data,
                 verify=True)
         except TreasureMap.InvalidSignature:
             do_store = False
@@ -401,7 +364,7 @@ class ProxyRESTRoutes:
             do_store = treasure_map.public_id() == treasure_map_id
 
         if do_store:
-            self.log.info("{} storing TreasureMap {}".format(self, treasure_map_id))
+            log.info("{} storing TreasureMap {}".format(stamp, treasure_map_id))
 
             # # # #
             # TODO: Now that the DHT is retired, let's do this another way.
@@ -410,31 +373,34 @@ class ProxyRESTRoutes:
             # # # #
 
             # TODO 341 - what if we already have this TreasureMap?
-            self._treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
-            return Response(content=bytes(treasure_map), status_code=202)
+            treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
+            return Response(bytes(treasure_map), status=202)
         else:
             # TODO: Make this a proper 500 or whatever.
-            self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
+            log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
-    def status(self, request: Request):
+    @rest_app.route('/status')
+    def status():
         # TODO: Seems very strange to deserialize *this node* when we can just pass it in.
         #       Might be a sign that we need to rethnk this composition.
 
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
-        this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
+        this_node = _node_class.from_bytes(node_bytes_caster(), federated_only=federated_only)
 
-        previous_states = list(reversed(self._node_tracker.states.values()))[:5]
+        previous_states = list(reversed(node_tracker.states.values()))[:5]
 
         try:
-            content = self._status_template.render(this_node=this_node,
-                                                   known_nodes=self._node_tracker,
-                                                   previous_states=previous_states)
+            content = status_template.render(this_node=this_node,
+                                             known_nodes=node_tracker,
+                                             previous_states=previous_states)
         except Exception as e:
-            self.log.debug("Template Rendering Exception: ".format(str(e)))
+            log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e
 
-        return Response(content=content, headers=headers)
+        return Response(response=content, headers=headers)
+
+    return rest_app, datastore
 
 
 class TLSHostingPower(KeyPairBasedPower):
