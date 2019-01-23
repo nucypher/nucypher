@@ -15,7 +15,7 @@
 1. Deploy `NuCypherToken` with all future supply tokens
 2. Deploy `MinersEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
-4. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial supply
+4. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial allocations.
 5. Run the `initialize()` method to initialize the `MinersEscrow` contract
 6. Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
 7. Pre-deposit tokens to the `MinersEscrow` if necessary:
