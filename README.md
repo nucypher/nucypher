@@ -14,6 +14,7 @@ About
    :maxdepth: 1
 
    architecture/contracts
+   architecture/upgradeable_proxy_contracts
 
 
 Guides
