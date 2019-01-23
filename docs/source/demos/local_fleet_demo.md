@@ -20,7 +20,7 @@ For a full installation guide see the [NuCypher Installation Guide](../guides/in
 
 ### 2. Run a Lonely Ursula
 
-The first step is to launch to first Ursula on the network by running:
+The first step is to launch the first Ursula on the network by running:
 
 `$ python run_lonely_demo_ursula.py`
 
