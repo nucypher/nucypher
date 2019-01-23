@@ -12,9 +12,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
@@ -46,6 +46,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
+    'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
 ]
@@ -158,7 +159,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'NuCypher', 'NuCypher Documentation',
-     author, 'NuCypher', 'One line description of project.',
+     author, 'NuCypher', 'A proxy re-encryption network to empower privacy in decentralized systems.',
      'Miscellaneous'),
 ]
 
@@ -190,8 +191,15 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # -- Options for todo extension ----------------------------------------------
 
+
+def remove_module_docstring(app, what, name, obj, options, lines):
+    if what == "module":
+        del lines[:]
+
+
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = True
+todo_include_todos = False
+
 
 def setup(app):
     github_doc_root = 'https://github.com/nucypher/nucypher/tree/master/docs'
@@ -202,3 +210,4 @@ def setup(app):
             'auto_toc_tree_section': 'Contents',
             }, True)
     app.add_transform(AutoStructify)
+    app.connect("autodoc-process-docstring", remove_module_docstring)
