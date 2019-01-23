@@ -2,13 +2,28 @@
 
 ## Install NuCypher
 
-`$ pip install nucypher`
+```bash
+$ pip install nucypher
+```
 
 ## Run a Federated-Only Development Ursula
 
-`$ nucypher ursula run --dev --federated-only`
+```bash
+$ nucypher ursula run --dev --federated-only
+```
 
 ## Run a Geth-Connected Development Ursula
 
-`$ geth --dev`
-`$ nucypher ursula run --dev --provider-uri /tmp/geth.ipc`
+Run a local geth node in development mode:
+
+```bash
+$ geth --dev
+```
+
+Run a local development Ursula connected to the geth node
+
+```bash
+$ nucypher ursula run --dev --provider-uri /tmp/geth.ipc --checksum-address <GETH_ADDRESS>
+```
+
+Replace `<GETH_ADDRESS>` with the geth node's public checksum address.

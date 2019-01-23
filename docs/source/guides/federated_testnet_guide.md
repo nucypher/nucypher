@@ -23,7 +23,7 @@ If you encounter issues, we’d love to hear your feedback in our #staking chann
 
 ### Stage A | Install The Nucypher Environment
 
-1) Install Python and Git
+1. Install Python and Git
 
 If you don’t already have them, install Python and git. 
 As of November 2018, we are working with Python 3.6, 3.7, and 3.8. 
@@ -31,7 +31,7 @@ As of November 2018, we are working with Python 3.6, 3.7, and 3.8.
 Official Python Website: https://www.python.org/downloads/ 
 Git Install Guide: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
 
-2)  Create Virtual Environment
+2.  Create Virtual Environment
 
 Create a system directory for the nucypher application code
 
