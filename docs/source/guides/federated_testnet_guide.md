@@ -14,7 +14,7 @@ If you encounter issues, we’d love to hear your feedback in our #staking chann
 - NuFT transmits application errors and crash reports to NuCypher’s sentry server.  This functionality is enabled by default for NuFT only and will be deactivated by default for mainnet.
 
 
-### Overview
+## Overview
 
 - Stage A - Install The Nucypher Environment
 - Stage B -  Configure Ursula
@@ -200,7 +200,9 @@ To restart your node service
 
 `$ sudo systemctl restart ursula`
 
-Updating Nucypher Application Code
+
+
+## Updating Nucypher Application Code
 
 Since Nucypher is under active development, you can expect frequent code changes to occur as bugs are discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated to use the most up-to-date version of the application code. The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed:
 
