@@ -1,13 +1,13 @@
 # Nucypher's Approaches to Upgradeable Contracts
 
 Smart contracts in Ethereum are not really changeable.
-Even if it can be deleted - the contract still exists in blockchain after `selfdestruct`, and only the storage cleared.
+Even if a contract can be deleted, it still exists in the blockchain after `selfdestruct`, and only the storage is cleared.
 In order to fix bugs and provide upgrade logic it is possible to change the contract (address) and save the original contract's storage values.
 
 
 ## Approach A
 
-One simple way to achieve this is to create new contract, copy the original storage values to the new contract, then self-destruct (mark as deleted) the old contract.
+One simple way to achieve this is to create a new contract, copy the original storage values to the new contract, then self-destruct (mark as deleted) the old contract.
 When this happens, the client changes the address used for a requested contract.
 
 *Note: (There will be two deployed versions of the contract during storage migration)*
@@ -20,14 +20,14 @@ This is similar to the previous option, but this proxy doesn't have interface me
 
 This approach is not ideal, and has some restrictions:
 
-* Sending Ether from client's account to contract uses the fallback function - Such transaction can only consume 2300 gas (http://solidity.readthedocs.io/en/develop/contracts.html#fallback-function)
+* Sending Ether from a client's account to the contract uses the fallback function and such transactions can only consume 2300 gas (http://solidity.readthedocs.io/en/develop/contracts.html#fallback-function)
 * Proxy contracts (Dispatcher) hold storage (not in the contract itself). While upgrading storage, values must be the same or equivalent (see below).
 
 
 ## Approach C
 
 A more convenient way is to use a proxy contract with an interface where each method redirects to the *target* contract.
-This option is advantageous because the client uses one address most of the time but also has it's own methods.
+This option is advantageous because the client uses one address most of the time but also has its own methods.
 
 *Note: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.*
 
@@ -37,7 +37,7 @@ This option is advantageous because the client uses one address most of the time
 ![Interaction scheme](../.static/img/Dispatcher.png)
 
 * Dispatcher - proxy contract that redirects requests to the target address.
-It also holds it's own values (owner and target address) and stores the values of the target contract, but not explicitly.
+It also holds its own values (owner and target address) and stores the values of the target contract, but not explicitly.
 The client should use the resulting contract or interface ABI while sending request to the `Dispatcher` address.
 The contract's owner can change the target address by using the `Dispatcher`'s ABI.
 The `Dispatcher` contract uses `delegatecall` for redirecting requests, so `msg.sender` remains as the client address
@@ -47,8 +47,8 @@ and uses the dispatcher's storage when executing methods in the target contract.
 
 * Contract - upgradeable contract, each version must have the same ordering of storage values.
 New versions of the contract can expand values, but must contain all the old values (containing values from dispatcher **first**).
-This contract is like a library because it's storage is not used.
-If a client sends a request to the contract directly to it's deployed address without using the dispatcher,
+This contract is like a library because its storage is not used.
+If a client sends a request to the contract directly to its deployed address without using the dispatcher,
 then the request may execute (without exception) using the wrong target address.
 
 
@@ -64,6 +64,6 @@ then the request may execute (without exception) using the wrong target address.
 ## Sources
 
 More examples:
-* https://github.com/maraoz/solidity-proxy - Realization of using libraries (not contracts) but too complex and some ideas is obsolete after Byzantium hard fork
-* https://github.com/willjgriff/solidity-playground - Most of the upgradeable proxy contract code taken from this repository
+* https://github.com/maraoz/solidity-proxy - Realization of using libraries (not contracts) but too complex and some ideas are obsolete after Byzantium hard fork
+* https://github.com/willjgriff/solidity-playground - Most of the upgradeable proxy contract code is taken from this repository
 * https://github.com/0v1se/contracts-upgradeable - Source code for verifying upgrade

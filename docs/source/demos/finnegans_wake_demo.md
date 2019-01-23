@@ -2,8 +2,8 @@
 
 ## Overview
 
-This demo is an example of a NuCypher decentralized network allowing Alice to share a
-data with Bob using proxy re-encryption paradigm. This enables the private sharing of data between
+This demo is an example of a NuCypher decentralized network allowing Alice to share
+data with Bob using proxy re-encryption. This enables the private sharing of data between
 participants in public consensus networks, without revealing data keys to intermediary entities.
 
 |Step | Character | Operation                                                                                       |

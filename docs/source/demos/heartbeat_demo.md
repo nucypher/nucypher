@@ -13,13 +13,13 @@ data as she sees fit.
 The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements;
 This file is uploaded to a storage layer (e.g., IPFS, S3, whatever).
 
-At some moment, she wants to share this information with other people, such as her Doctor.
+At some future point, she wants to share this information with other people, such as her Doctor.
 Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him.
 After this, her Doctor can read the file with encrypted data (which was uploaded by the Heart Monitor) and
 request a re-encrypted ciphertext for each measurement, which can be opened with the Doctor's private key.
 
 This simple example showcases many interesting and distinctive aspects of NuCypher:
-  - Alicia can create policy public keys **before knowing** who can be the potential consumers.
+  - Alicia can create policy public keys **before knowing** the potential consumers.
   - Alicia, or anyone knowing the policy public key (e.g., the Heart Monitor), can produce encrypted data that belongs to the policy. Again, this can happen before granting access to any consumer.
   - As a consequence of the previous point, Data Sources, like the Heart Monitor, are completely unaware of the recipients. In their mind, they are producing data **for Alicia**.
   - Alicia never interacts with the Doctor: she only needs the Doctor's public key.
