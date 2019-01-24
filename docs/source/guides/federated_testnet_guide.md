@@ -32,9 +32,11 @@ Before getting started, please note:
 
 1. Install Python and Git
     
-    If you don’t already have them, install Python and git. 
+
+    If you don’t already have them, install Python and git.
     As of January 2019, we are working with Python 3.6, 3.7, and 3.8. 
-    
+
+
     * Official Python Website: <https://www.python.org/downloads/> 
     * Git Install Guide: <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>
 
