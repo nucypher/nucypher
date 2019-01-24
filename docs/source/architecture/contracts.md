@@ -6,7 +6,7 @@
 * `NuCypherToken` ERC20 token contract with additional function - burn own tokens (only for owners)
 * `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity and assigns a reward for participating in the NuCypher network. The `Issuer` contract is part of the `MinersEscrow` and uses only to split code
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
-* `Upgradeable` Base contract for upgrading (<nucypher.blockchain.eth/project/contracts/proxy/README.MD>)
+* `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
 * `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as a stake in the `MinersEscrow` contract
 
