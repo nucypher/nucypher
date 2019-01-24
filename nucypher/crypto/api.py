@@ -76,7 +76,7 @@ def keccak_digest(*messages: bytes) -> bytes:
     Although we use SHA256 in many cases, we keep keccak handy in order
     to provide compatibility with the Ethereum blockchain.
 
-    :param bytes *messages: Data to hash
+    :param bytes: Data to hash
 
     :rtype: bytes
     :return: bytestring of digested data
