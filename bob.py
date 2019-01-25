@@ -9,6 +9,7 @@ import pandas as pd
 from plotly.graph_objs import Scatter, Layout, Figure
 from plotly.graph_objs.layout import Margin
 from plotly.graph_objs.scatter import *
+import random
 import sqlite3
 import time
 
@@ -29,7 +30,7 @@ from umbral.keys import UmbralPublicKey
 from enrico import DATA_SOURCE_INFO_FILE
 from alicia import POLICY_INFO_FILE
 
-ACCESS_REVOKED = "Access Disallowed"
+ACCESS_DISALLOWED = "Access Disallowed"
 
 
 ######################
@@ -40,13 +41,22 @@ SEEDNODE_URL = "127.0.0.1:10151"
 
 bob_instances = dict()  # Map: bob_id -> bob instance
 
+# different entities that Bob could be - Doctor should always be in index 0
+ID_PREFIXES = ['Doctor', 'Cardiologist', 'Nutritionist', 'Nurse', 'Dietitian']
+
 
 #############
 # UI Layout #
 #############
 
-def get_layout():
-    unique_id = os.urandom(4).hex()
+def get_layout(first_bob: bool):
+    prefix = ID_PREFIXES[0]
+    if not first_bob:
+        # prefix from random index in prefixes list
+        index = random.randint(0, (len(ID_PREFIXES) - 1))
+        prefix = ID_PREFIXES[index]
+
+    unique_id = '{}-{}'.format(prefix, os.urandom(4).hex())
 
     # create bob instance
     bob = _create_bob(unique_id)
@@ -65,12 +75,12 @@ def get_layout():
                 ], className='two columns'),
                 html.Div([
                     html.Div([
-                        html.H2('DR. BOB'),
+                        html.H2('{} BOB'.format(prefix.upper())),
                         html.P(
-                            "Dr. Bob is Alicia's doctor and will be granted access by Alicia to access the encrypted "
-                            "heart rate measurements database (which was populated by the Heart Monitor) and requests "
+                            "{} Bob is the {} who Alicia will grant access to her encrypted heart rate measurements "
+                            "(which was populated by the Heart Monitor) and requests "
                             "a re-encrypted ciphertext for each measurement, which can then be decrypted "
-                            "using the doctor's private key."),
+                            "using their private key.".format(prefix, prefix)),
                     ], className="row")
                 ], className='five columns'),
             ], className='row'),
@@ -80,7 +90,7 @@ def get_layout():
             html.H3('Properties'),
             html.Div([
                 html.Div('Unique Bob Id:', className='two columns'),
-                html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='one column'),
+                html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='two columns'),
             ], className='row'),
             html.Br(),
             html.Button('Get Public Keys',
@@ -131,7 +141,7 @@ def _create_bob(unique_id: str) -> Bob:
     sig_power = SigningPower(keypair=bob_sig_keypair)
     power_ups = [enc_power, sig_power]
 
-    print("Creating Bob ...")
+    print('Creating Bob with id: {}...'.format(unique_id))
 
     bob = Bob(
         is_me=True,
@@ -199,7 +209,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
             policy_data = json.load(f)
     except FileNotFoundError:
         print("No policy file available")
-        return None
+        return ACCESS_DISALLOWED
 
     policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_pubkey']))
     alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_sig_pubkey']))
@@ -215,7 +225,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
         data_source_metadata = msgpack.load(file, raw=False)
 
     cached_hb_values = collections.OrderedDict()
-    if (json_latest_values is not None) and (json_latest_values != ACCESS_REVOKED):
+    if (json_latest_values is not None) and (json_latest_values != ACCESS_DISALLOWED):
         cached_hb_values = json.loads(json_latest_values, object_pairs_hook=collections.OrderedDict)
 
     last_timestamp = time.time() - 5  # last 5s
@@ -275,7 +285,7 @@ def update_graph(json_cached_readings):
     if json_cached_readings is None:
         return ''
 
-    if json_cached_readings == ACCESS_REVOKED:
+    if json_cached_readings == ACCESS_DISALLOWED:
         return html.Div('Your access has either not been granted or has been revoked!', style={'color': 'red'})
 
     cached_hb_values = json.loads(json_cached_readings, object_pairs_hook=collections.OrderedDict)

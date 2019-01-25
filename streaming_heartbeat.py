@@ -21,7 +21,7 @@ index_page = html.Div([
     html.Br(),
     html.A('ENRICO (HEART_MONITOR)', href='/enrico', target='_blank'),
     html.Br(),
-    html.A('DR. BOB', href='/bob', target='_blank'),
+    html.A('BOB', href='/bob', target='_blank'),
     html.Br(),
     html.Hr(),
     html.H2('Overview'),
@@ -29,6 +29,8 @@ index_page = html.Div([
         html.Img(src='./assets/heartbeat_demo_overview.png'),
     ], className='overview')
 ])
+
+first_bob_already_created = list()
 
 
 @app.callback(Output('page-content', 'children'),
@@ -39,7 +41,11 @@ def display_page(pathname):
     elif pathname == '/enrico':
         return enrico.layout
     elif pathname == '/bob':
-        return bob.get_layout()
+        if not first_bob_already_created:
+            first_bob_already_created.append(1)
+            return bob.get_layout(True)
+        else:
+            return bob.get_layout(False)
     else:
         return index_page
 
