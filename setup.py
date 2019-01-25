@@ -99,7 +99,7 @@ BENCHMARKS_REQUIRE = [
     'pytest-benchmark'
 ]
 
-EXTRAS_REQUIRE = {'test': TESTS_REQUIRE,
+EXTRAS_REQUIRE = {'development': TESTS_REQUIRE,
                   'deployment': DEPLOY_REQUIRES,
                   'docs': DOCS_REQUIRE,
                   'benchmark': BENCHMARKS_REQUIRE}
