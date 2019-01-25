@@ -77,7 +77,7 @@ class TesterBlockchain(Blockchain):
         # For use with Proof-Of-Authority test-blockchains
         if poa is True:
             w3 = self.interface.w3
-            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         # Generate additional ethereum accounts for testing
         enough_accounts = len(self.interface.w3.eth.accounts) >= NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
