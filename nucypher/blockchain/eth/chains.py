@@ -77,7 +77,7 @@ class Blockchain:
             interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
 
             if poa is True:
-                interface.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+                interface.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
             cls._instance = cls(interface=interface)
         else:
