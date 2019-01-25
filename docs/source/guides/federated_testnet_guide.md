@@ -12,7 +12,7 @@ Before getting started, please note:
 * NuFT transmits application errors and crash reports to NuCypher’s sentry server.  This functionality is enabled by default for NuFT only and will be deactivated by default for mainnet.
 
 
-``` warning:: WARNING The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. Do not perform transactions on NuFT node addresses.
+``` warning:: WARNING The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. **DO NOT** perform transactions using NuFT node addresses.
 ```
 
 ``` important:: Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (<https://github.com/nucypher/nucypher/issues>)
@@ -226,12 +226,17 @@ See the *“System Service Method”* section below.
     ```bash
     $ sudo systemctl restart ursula
     ```
-    
 
 
 ## Updating a NuFT Node
 
-Since Nucypher is under active development, you can expect frequent code changes to occur as bugs are discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated to use the most up-to-date version of the application code. The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed:
+Nucypher is under active development, you can expect frequent code changes to occur as bugs are
+discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated
+to use the most up-to-date version of the application code.
+
+``` important:: The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed.
+```
+
 
 1. Stop the node 
 
@@ -276,4 +281,3 @@ Since Nucypher is under active development, you can expect frequent code changes
     ```bash
     $ sudo systemctl start ursula
     ```
-

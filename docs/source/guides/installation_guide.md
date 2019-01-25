@@ -4,12 +4,12 @@
 ## System Requirements
 
 * At least 1 GB or RAM is required for key derivation functionality (SCrypt).
-* We have tested `nucypher` with windows, mac OS, and linux.
+* We have tested `nucypher` with windows, mac OS, and linux (Linux is recommended).
 
 
 ## System Dependencies
 
-If you don’t already have them, install Python;.
+If you don’t already have it, install Python;.
 As of January 2019, we are working with Python 3.6, 3.7, and 3.8.
 
 * Official Python Website: <https://www.python.org/downloads/>
@@ -109,6 +109,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 Additional dependencies and setup steps are required to perform a "developer installation".
 Ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
 
+
 ### Acquire NuCypher Codebase
     
 ```
@@ -145,7 +146,7 @@ $(nucypher) pipenv run install-solc
 Alternately, you can install the development dependencies with pip:
 
 ```bash
-$ pip install -e .[testing]
+$ pip install -e .[development]
 $ ./scripts/install_solc.sh
 ```
 

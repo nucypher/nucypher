@@ -10,6 +10,7 @@
 
 There are several test implementations in `nucypher`; However, the vast majority
 of test are written for execution with `pytest`.
+For more details see the [Pytest Documentation](https://docs.pytest.org/en/latest/)
 
 To run the tests:
 
@@ -23,10 +24,9 @@ Optionally, to run the full, slow, verbose test suite run:
 (nucypher)$ pytest --runslow -s
 ```
 
-
 ## Building Documentation
 
-``` note:: 'spinx', 'recommonmark', and 'sphinx_rtd_theme' are non-stantdard dependencies that need to be installed as part the development installation or independently in order to build documentation.
+``` note:: 'spinx', 'recommonmark', and 'sphinx_rtd_theme' are non-stantdard dependencies that be installed by running 'pip install -e .[docs]' from the project directory.
 ```
 
 Documentation for `nucypher` is hosted on Read The Docs, and it automatically built without intervention by following the release procedure.
@@ -38,6 +38,9 @@ To build the project dependencies locally:
 (nucypher)$ cd nucypher/docs/
 (nucypher)$ make html
 ```
+
+If the build is successful, the resulting html output can be found in `nucypher/docs/build/html`;
+Opening `nucypher/docs/build/html/index.html` in a web browser is a reasonable next step.
 
 
 ## Building Docker
@@ -53,9 +56,9 @@ We provide both a `docker-compose.yml` and a `Dockerfile` which can be used as f
 (nucypher)$ docker-compose -f deploy/docker/docker-compose.yml build .
 ```
 
-## Issuing a New Release with `bumpversion`
+## Issuing a New Release
 
-``` note:: 'bumpversion' is a non-stantdard dependency that may need to be installed as part the development installation or independently in order to issue a release.
+``` note:: 'bumpversion' is a non-stantdard dependency that can be installed by running 'pip install -e .[deployment]' or 'pip install bumpversion'.
 ```
 
 1. Ensure your local tree has no uncommitted changes
