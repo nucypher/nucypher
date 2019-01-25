@@ -28,7 +28,7 @@ Whitepapers
 
 **Network**
 
-    https://www.nucypher.com/static/whitepapers/english.pdf
+    https://github.com/nucypher/whitepaper/blob/master/whitepaper.pdf
 
     *"NuCypher - A proxy re-encryption network to empower privacy in decentralized systems"*
     *by Michael Egorov, David Nuñez, and MacLane Wilkison - NuCypher*
@@ -36,7 +36,7 @@ Whitepapers
 
 **Economics**
 
-    https://www.nucypher.com/static/whitepapers/mining-paper.pdf
+    https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf
 
     *"NuCypher - Mining & Staking Economics"*
     *by Michael Egorov, MacLane Wilkison - NuCypher*

@@ -3,7 +3,7 @@
 
 ## System Requirements
 
-* At least 1 GB or RAM is required for key derivation functionality (SCrypt).
+* At least 1 GB of RAM is required for key derivation functionality (SCrypt).
 * We have tested `nucypher` with windows, mac OS, and linux (Linux is recommended).
 
 
@@ -31,9 +31,9 @@ We recommend installing nucypher with either `pip` or `pipenv`
 ### Standard Pip Installation
 
 In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
-using `python-vitrualenv`, Installing `nucypher` and it's dependencies inside a dedicated virtual environment.
+using `python-vitrualenv` to install `nucypher` inside a dedicated virtual environment.
 
-Full full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
+For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
 
 Here is the recommended procedure for setting up `nucypher` in this fashion:
 
