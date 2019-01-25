@@ -21,7 +21,7 @@ sqlalchemy = "*"
 maya = "*"
 flask = "*"
 # Third-Party Ethereum
-py-evm = "==0.2.0a39"
+py-evm = "*"
 eth-tester = "*"
 py-solc = "*"
 web3 = "*"
@@ -40,11 +40,20 @@ pytest-mypy = "*"
 pytest-twisted = "*"
 pytest-cov = "==2.5.1"
 pytest-mock = "*"
+# Tools
 moto = "*"
 mypy = "*"
+# Coverage
 coverage = "*"
 python-coveralls = "*"
+# Deployment
 ansible = "*"
+bumpversion = "*"
+# Documentation
+sphinx = "*"
+recommonmark = "*"
+sphinx_rtd_theme = "*"
+# CLI
 nucypher = {editable = true,path = "."}
 
 [scripts]
