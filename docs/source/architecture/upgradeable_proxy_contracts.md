@@ -15,6 +15,14 @@ When this happens, the client changes the address used for a requested contract.
 
 ## Approach B
 
+A more convenient way is to use a proxy contract with an interface where each method redirects to the *target* contract.
+This option is advantageous because the client uses one address most of the time but also has its own methods.
+
+*Note: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.*
+
+
+## Approach C
+
 Another way is using a fallback function in the proxy contract - this function will execute on any request, redirecting the request to the target and returning the resulting value (using opcodes).
 This is similar to the previous option, but this proxy doesn't have interface methods, only a fallback function, so there is no need to change the proxy address if contract methods are changed.
 
@@ -22,14 +30,6 @@ This approach is not ideal, and has some restrictions:
 
 * Sending Ether from a client's account to the contract uses the fallback function and such transactions can only consume 2300 gas (http://solidity.readthedocs.io/en/develop/contracts.html#fallback-function)
 * Proxy contracts (Dispatcher) hold storage (not in the contract itself). While upgrading storage, values must be the same or equivalent (see below).
-
-
-## Approach C
-
-A more convenient way is to use a proxy contract with an interface where each method redirects to the *target* contract.
-This option is advantageous because the client uses one address most of the time but also has its own methods.
-
-*Note: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.*
 
 
 ## Interaction scheme
