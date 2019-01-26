@@ -8,19 +8,19 @@
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
-* `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as a stake in the `MinersEscrow` contract
+* `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `MinersEscrow` contract
 
 ## Deployment Procedure
 
 1. Deploy `NuCypherToken` with all future supply tokens
 2. Deploy `MinersEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
-4. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial allocations.
+4. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial allocations
 5. Run the `initialize()` method to initialize the `MinersEscrow` contract
 6. Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
 7. Pre-deposit tokens to the `MinersEscrow` if necessary:
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
-	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of token miner, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
+	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
 8. `UserEscrowLibraryLinker`, `UserEscrowProxy` TBD
 9. Pre-deposit tokens to the `UserEscrow` if necessary:
 	* Create new instance of the `UserEscrow` contract 
@@ -36,13 +36,13 @@ Alice uses a network of Ursula miners to deploy policies.
 In order to take advantage of the network, Alice chooses miners and deploys policies with fees for those miners.
 Alice can choose miners by herself ("handpicked") or by using `findCumSum(uint256, uint256, uint256)` method of the contract `MinersEscrow` ("sampling").
 `findCumSum` parameters are:
-    * The start index (if the method is not called the first time)
-    * The delta of the step
-    * minimum number of periods during which tokens are locked.
+	* The start index (if the method is not called the first time)
+	* The delta of the step
+	* minimum number of periods during which tokens are locked.
 This method will return only active miners.
 
-In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes20, uint256, uint256, address[])`;
-By specifying a miner address, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
+In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes20, uint256, uint256, address[])`,
+by specifying a miner address, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
 Payment should be added to the transaction in ETH and the amount is `firstReward * miners.length + rewardRate * periods * miners.length`.
 The reward rate must be greater than or equal to the minimum reward for each miner in the list. The first period's reward is not refundable, and can be zero.
 
@@ -50,7 +50,7 @@ The reward rate must be greater than or equal to the minimum reward for each min
 
 When Alice wants to revoke a policy, she calls the `PolicyManager.revokePolicy(bytes20)` or `PolicyManager.revokeArrangement(bytes20, address)`.
 Execution of these methods results in Alice recovering all fees for future periods, and also for periods when the miners were inactive.
-Alice can refund ETH for any inactive miners periods without revoking the policy by using methods `PolicyManager.refund(bytes20)` or `PolicyManager.refund(bytes20, address)`.
+Alice can refund ETH for any inactive miners' periods without revoking the policy by using methods `PolicyManager.refund(bytes20)` or `PolicyManager.refund(bytes20, address)`.
 
 
 ## Ursula's Contract Interaction
@@ -65,11 +65,11 @@ The miner allows the (mining) contract to perform a transaction using the `Miner
 After that, the miner transfers some quantity of tokens (`MinersEscrow.deposit(uint256, uint256)`), locking them at the same time.
 Alternately the `NucypherToken.approveAndCall(address, uint256, bytes)` method can be used.
 The parameters are:
-    * The address of the `MinersEscrow` contract,
-    * The amount of staked tokens
-    * The periods for locking (which are serialized into an array of bytes).
+	* The address of the `MinersEscrow` contract
+	* The amount of staked tokens
+	* The periods for locking (which are serialized into an array of bytes)
 
-When staking tokens, the miner sets the number of periods the tokens will be locked, but it must be no less than some minimal locking time (30 periods).
+When staking tokens, the miner sets the number of periods the tokens will be locked, which must be no less than some minimal locking time (30 periods).
 In order to unlock tokens, the miner must be active during the time of locking (and confirm activity each period).
 Each stake is represented by the amount of tokens locked, and the stake's duration in periods.
 The miner can add a new stake using `MinersEscrow.deposit(uint256, uint256)` or `MinersEscrow.lock(uint256, uint256)` methods.

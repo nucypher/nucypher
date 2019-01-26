@@ -5,17 +5,17 @@
 
 ## Running the Tests
 
-``` note:: A development installation including the solidity comppiler is required to run the tests
+``` note:: A development installation including the solidity compiler is required to run the tests
 ```
 
-There are several test implementations in `nucypher`; However, the vast majority
+There are several test implementations in `nucypher`, however, the vast majority
 of test are written for execution with `pytest`.
 For more details see the [Pytest Documentation](https://docs.pytest.org/en/latest/)
 
 To run the tests:
 
 ```bash
-(nucypher)$ pytest -s`
+(nucypher)$ pytest -s
 ```
 
 Optionally, to run the full, slow, verbose test suite run:
@@ -26,10 +26,10 @@ Optionally, to run the full, slow, verbose test suite run:
 
 ## Building Documentation
 
-``` note:: 'spinx', 'recommonmark', and 'sphinx_rtd_theme' are non-stantdard dependencies that be installed by running 'pip install -e .[docs]' from the project directory.
+``` note:: 'sphinx', 'recommonmark', and 'sphinx_rtd_theme' are non-standard dependencies that can be installed by running 'pip install -e .[docs]' from the project directory.
 ```
 
-Documentation for `nucypher` is hosted on Read The Docs, and it automatically built without intervention by following the release procedure.
+Documentation for `nucypher` is hosted on [Read The Docs](https://nucypher.readthedocs.io/en/latest/), and is automatically built without intervention by following the release procedure.
 However, you may want to build the documentation html locally for development.
 
 To build the project dependencies locally:
@@ -45,7 +45,7 @@ Opening `nucypher/docs/build/html/index.html` in a web browser is a reasonable n
 
 ## Building Docker
 
-Docker builds are automated as part of the publication workflow on circleCI and pushed to docker cloud;
+Docker builds are automated as part of the publication workflow on circleCI and pushed to docker cloud.
 However you may want to build a local version of docker for development.
 
 We provide both a `docker-compose.yml` and a `Dockerfile` which can be used as follows:
@@ -58,7 +58,7 @@ We provide both a `docker-compose.yml` and a `Dockerfile` which can be used as f
 
 ## Issuing a New Release
 
-``` note:: 'bumpversion' is a non-stantdard dependency that can be installed by running 'pip install -e .[deployment]' or 'pip install bumpversion'.
+``` note:: 'bumpversion' is a non-standard dependency that can be installed by running 'pip install -e .[deployment]' or 'pip install bumpversion'.
 ```
 
 1. Ensure your local tree has no uncommitted changes

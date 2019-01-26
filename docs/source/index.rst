@@ -25,7 +25,7 @@ NuCypher
     :target: https://www.gnu.org/licenses/gpl-3.0.html
 
 
-- GitHub https://www.gihub.com/nucypher/nucypher
+- GitHub https://www.github.com/nucypher/nucypher
 - Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/
 
@@ -54,12 +54,12 @@ Whitepapers
     https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
     *"Umbral A Threshold Proxy Re-Encryption Scheme"*
-    *by David Nuñez*
+    *by David Nuñez - NuCypher*
 
 
 .. warning::
 
-   NuCypher is currently in the *Alpha* development stage and is **not** intended for use production.
+   NuCypher is currently in the *Alpha* development stage and is **not** intended for use in production.
 
 
 .. toctree::

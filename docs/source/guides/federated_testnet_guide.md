@@ -5,9 +5,9 @@ while working with the NuCypher team to improve user experience, comfort, and co
 Following the steps will launch a functioning federated-only Ursula node operating from a machine you control. 
 Before getting started, please note: 
 
-* We encourage you to launch your node on a machine that is able to remain online with as few interruptions as possible, for as long as possible. Although it is possible to restart a node, excessive deactivation/reactivation can contribute to a lack of usable feedback from the test network. Additionally, node uptime will be important for proper functioning of Mainnet. Thus, it’s worthwhile to start working with a reliable machine now so that your nodes are compliant with our uptime requirements when the time comes.
+* We encourage you to launch your node on a machine that is able to remain online with as few interruptions as possible, for as long as possible. Although it is possible to restart a node, excessive deactivation/reactivation can contribute to a lack of usable feedback from the test network. Additionally, node uptime will be important for proper functioning of Mainnet. Thus, it’s worthwhile to start working with a reliable machine now so that your nodes are compliant with the network's uptime requirements when the time comes.
 
-* Setup requires knowledge of your machine’s public-facing IPv4 address and local network configuration. It advised to use a static IP address since changing IP addresses will require node reconfiguration. Configure port-forwarding rules on port 9151 if you are operating a node behind a firewall.  Once successfully up and running, your node will be discoverable by all other nodes in the test network.
+* Setup requires knowledge of your machine’s public-facing IPv4 address and local network configuration. It is advised to use a static IP address since changing IP addresses will require node reconfiguration. Configure port-forwarding rules on port 9151 if you are operating a node behind a firewall.  Once successfully up and running, your node will be discoverable by all other nodes in the test network.
 
 * NuFT transmits application errors and crash reports to NuCypher’s sentry server.  This functionality is enabled by default for NuFT only and will be deactivated by default for mainnet.
 
@@ -87,7 +87,7 @@ Before getting started, please note:
 
 1. Verify that the installation was successful
     
-    Activate your virtual environment and run the nucypher --help command
+    Activate your virtual environment and run the `nucypher --help` command
     
     ```bash
     $ source nucypher/bin/activate
@@ -95,7 +95,7 @@ Before getting started, please note:
     (nucypher)$ nucypher --help
     ```
     
-    You will see a list of possible usage options (--version, -v, --dev, etc.) and commands (accounts, configure, deploy, etc.). For example, you can use nucypher configure destroy to delete all files associated with the node.
+    You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.). For example, you can use `nucypher configure destroy` to delete all files associated with the node.
 
 
 2. Configure a new Ursula node
@@ -121,7 +121,7 @@ Before getting started, please note:
     - There is no password recovery process for NuFT nodes
     - Do not use a password that you use anywhere else
     - Your password may be displayed in logs or other recorded output.
-    - Security audits are ongoing on this codebase; for now, treat it as un-audited.
+    - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
 ## Running a NuFT Node
 
@@ -140,7 +140,7 @@ Before getting started, please note:
 
 2. Verify Connection
 
-    This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.  Verify that the node setup was successful by running the status command.
+    This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.  Verify that the node setup was successful by running the `status` command.
     
     ```bash
     Ursula >>> status
@@ -154,7 +154,11 @@ Before getting started, please note:
     ...
     ```
     
-    You can also view your node’s network status webpage by navigating your web browser to https://<your-node-ip-address>:9151/status.  Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+    You can also view your node’s network status webpage by navigating your web browser to `https://<your-node-ip-address>:9151/status`.
+
+    .. NOTE::
+        Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+ 
     
     To stop your node from the interactive console and return to the terminal session
     

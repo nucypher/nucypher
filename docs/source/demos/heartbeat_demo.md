@@ -11,7 +11,7 @@ a _policy public key_ for her Heart Monitor to use, so she can read and delegate
 data as she sees fit.
 
 The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements;
-This file is uploaded to a storage layer (e.g., IPFS, S3, whatever).
+This file is uploaded to a storage layer (e.g., IPFS, S3, or whatever you choose).
 
 At some future point, she wants to share this information with other people, such as her Doctor.
 Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him.
@@ -29,8 +29,8 @@ This simple example showcases many interesting and distinctive aspects of NuCyph
 
 ## Install Nucypher
 
-Acquire the nucypher application code and install the dependencies;
-For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide)
+Acquire the nucypher application code and install the dependencies.
+For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide).
 
 ## Run the Demo
 

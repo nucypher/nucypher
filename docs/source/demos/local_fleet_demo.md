@@ -18,8 +18,8 @@ All Demo Ursulas:
 
 ### 1. Install Nucypher
 
-Acquire the nucypher application code and install the dependencies;
-For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide)
+Acquire the nucypher application code and install the dependencies.
+For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide).
 
 ### 2. Run a Lonely Ursula
 

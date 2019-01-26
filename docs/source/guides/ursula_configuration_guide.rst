@@ -6,7 +6,7 @@ Interactive Federated Ursula Configuration
 
 1. Verify your `nucypher` Installation and Entry Points are functional
 
-    Activate your virtual environment and run the nucypher `--help` command
+    Activate your virtual environment and run the `nucypher --help` command
 
     .. code:: bash
 
@@ -15,8 +15,8 @@ Interactive Federated Ursula Configuration
         (nucypher)$ nucypher --help
 
 
-    You will see a list of possible usage options (--version, -v, --dev, etc.) and commands (accounts, configure, deploy, etc.).
-    For example, you can use nucypher configure destroy to delete all files associated with the node.
+    You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.).
+    For example, you can use `nucypher configure destroy` to delete all files associated with the node.
 
     If your installation in non-functional, be sure you have the latest version installed, and see the `Installation Guide`_
 
@@ -50,7 +50,7 @@ Interactive Federated Ursula Configuration
     - There is no password recovery process for NuFT nodes
     - Do not use a password that you use anywhere else
     - Your password may be displayed in logs or other recorded output.
-    - Security audits are ongoing on this codebase; for now, treat it as un-audited.
+    - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
 5. Connect to a Federation
 
@@ -62,14 +62,14 @@ Interactive Federated Ursula Configuration
 6. Verify Node Connection
 
     This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.
-    Verify that the node setup was successful by running the status command.
+    Verify that the node setup was successful by running the `status` command.
 
     .. code:: bash
 
         Ursula >>> status
 
 
-7. To view a list of known nodes, execute the known_nodes command
+7. To view a list of known nodes, execute the `known_nodes` command
 
     .. code:: bash
 
