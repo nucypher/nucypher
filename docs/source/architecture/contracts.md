@@ -36,9 +36,10 @@ Alice uses a network of Ursula miners to deploy policies.
 In order to take advantage of the network, Alice chooses miners and deploys policies with fees for those miners.
 Alice can choose miners by herself ("handpicked") or by using `findCumSum(uint256, uint256, uint256)` method of the contract `MinersEscrow` ("sampling").
 `findCumSum` parameters are:
-	* The start index (if the method is not called the first time)
-	* The delta of the step
-	* minimum number of periods during which tokens are locked.
+* The start index (if the method is not called the first time)
+* The delta of the step
+* The minimum number of periods during which tokens are locked.
+
 This method will return only active miners.
 
 In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes20, uint256, uint256, address[])`,
