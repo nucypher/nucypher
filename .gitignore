@@ -37,3 +37,4 @@ variables*.yml
 *ansible/inventory/*
 .env
 /tests/metrics/results/
+/docs/build
