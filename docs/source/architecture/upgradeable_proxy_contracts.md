@@ -18,7 +18,7 @@ When this happens, the client changes the address used for a requested contract.
 A more convenient way is to use a proxy contract with an interface where each method redirects to the *target* contract.
 This option is advantageous because the client uses one address most of the time but also has its own methods.
 
-*Note: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.*
+``` important:: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.
 
 
 ## Approach C

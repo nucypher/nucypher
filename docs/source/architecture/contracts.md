@@ -22,7 +22,7 @@
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
 	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
 8. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
-9. Pre-deposit tokens to the `UserEscrow` if necessary:
+ 9. Pre-deposits tokens to the `UserEscrow`, and if necessary:
 	* Create new instance of the `UserEscrow` contract 
 	* Transfer ownership of the instance of the `UserEscrow` contract to the user
 	* Approve the transfer of tokens for the `UserEscrow`
@@ -34,14 +34,14 @@
 
 Alice uses a network of Ursula miners to deploy policies.
 In order to take advantage of the network, Alice chooses miners and deploys policies with fees for those miners.
-Alice can choose miners by herself ("handpicked") or by using `sample(uint256[], uint16)` method of the contract `MinersEscrow` ("sampling").
+Alice can choose miners by herself ("handpicked") or by using `MinersEscrow.sample(uint256[], uint16)` - This is  known as ("sampling").
 `sample` parameters are:
 * The array of absolute values
 * Minimum number of periods during which tokens are locked
 This method will return only active miners.
 
 In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`,
-by specifying miners addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
+, specifying the miner's addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
 Payment should be added to the transaction in ETH and the amount is `firstReward * miners.length + rewardRate * periods * miners.length`.
 The reward rate must be greater than or equal to the minimum reward for each miner in the list. The first period's reward is not refundable, and can be zero.
 
@@ -49,7 +49,7 @@ The reward rate must be greater than or equal to the minimum reward for each min
 
 When Alice wants to revoke a policy, she calls the `PolicyManager.revokePolicy(bytes16)` or `PolicyManager.revokeArrangement(bytes16, address)`.
 Execution of these methods results in Alice recovering all fees for future periods, and also for periods when the miners were inactive.
-Alice can refund ETH for any inactive miners' periods without revoking the policy by using methods `PolicyManager.refund(bytes16)` or `PolicyManager.refund(bytes16, address)`.
+Alice can refund ETH for any inactive periods without revoking the policy by using the method `PolicyManager.refund(bytes16)` or `PolicyManager.refund(bytes16, address)`.
 
 
 ## Ursula's Contract Interaction
@@ -98,7 +98,7 @@ Miners can claim their rewards by using the `witdraw(uint256)` method. Only non-
 
 ### Ursula Generates Policy Rewards
 Also the miner gets rewards for policies deployed.
-Computation of the reward happens every time `mint()` is called by the `updateReward(address, uint16)` method.
+Computation of a policy reward happens every time `mint()` is called by the `updateReward(address, uint16)` method.
 In order to take the reward, the miner needs to call method `withdraw()` of the contract `PolicyManager`.
 The miner can set a minimum reward rate for a policy. For that, the miner should call the `setMinRewardRate(uint256)` method.
 
