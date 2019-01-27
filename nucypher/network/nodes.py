@@ -378,8 +378,6 @@ class Learner:
         address = node.checksum_public_address
 
         self.known_nodes[address] = node
-        if self in self.known_nodes:
-            raise RuntimeError
 
         if self.save_metadata:
             node.certificate_filepath = certificate_filepath
