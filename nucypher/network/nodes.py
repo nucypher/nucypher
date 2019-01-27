@@ -53,29 +53,6 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
-def icon_from_checksum(checksum,
-                       nickname_metadata,
-                       number_of_nodes="Unknown number of "):
-    if checksum is NO_KNOWN_NODES:
-        return "NO FLEET STATE AVAILABLE"
-    icon_template = """
-    <div class="nucypher-nickname-icon" style="border-color:{color};">
-    <div class="small">{number_of_nodes} nodes</div>
-    <div class="symbols">
-        <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
-    </div>
-    <br/>
-    <span class="small-address">{fleet_state_checksum}</span>
-    </div>
-    """.replace("  ", "").replace('\n', "")
-    return icon_template.format(
-        number_of_nodes=number_of_nodes,
-        color=nickname_metadata[0][0]['hex'],
-        symbol=nickname_metadata[0][1],
-        fleet_state_checksum=checksum[0:8]
-    )
-
-
 class FleetStateTracker:
     """
     A representation of a fleet of NuCypher nodes.
@@ -150,11 +127,6 @@ class FleetStateTracker:
 
     def addresses(self):
         return self._nodes.keys()
-
-    def icon_html(self):
-        return icon_from_checksum(checksum=self.checksum,
-                                  number_of_nodes=str(len(self)),
-                                  nickname_metadata=self.nickname_metadata)
 
     def snapshot(self):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
@@ -903,14 +875,19 @@ class Teacher:
         return proper_address == self.checksum_public_address
 
     def update_snapshot(self, checksum, updated, number_of_known_nodes):
+        """
+        # TODO: Kind of an interesting pattern here - with VerifiableNode increasingly looking like it will be Teacher.
+
         # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
         # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
+        """
         self.fleet_state_nickname, self.fleet_state_nickname_metadata = nickname_from_seed(checksum, number_of_pairs=1)
         self.fleet_state_checksum = checksum
         self.fleet_state_updated = updated
-        self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
-                                                   nickname_metadata=self.fleet_state_nickname_metadata,
-                                                   number_of_nodes=number_of_known_nodes)
+        # self.fleet_state_icon = self.icon_from_checksum(self.fleet_state_checksum,
+        #                                            nickname_metadata=self.fleet_state_nickname_metadata,
+        #                                            number_of_nodes=number_of_known_nodes)
+        self.fleet_state_color_data, self.fleet_state_symbol = self.fleet_state_nickname_metadata[0]
 
     #
     # Stamp

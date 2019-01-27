@@ -411,8 +411,15 @@ def make_rest_app(
 
         previous_states = list(reversed(node_tracker.states.values()))[:5]
 
+        short_fleet_state_checksum = node_tracker.checksum[2:8]
+        fleet_state_color_data, fleet_state_symbol = node_tracker.nickname_metadata[0]
+        fleet_state_color = fleet_state_color_data['hex']
+
         try:
             content = status_template.render(this_node=this_node,
+                                             number_of_nodes=len(node_tracker),
+                                             fleet_state_hex_color=fleet_state_color,
+                                             short_fleet_state_checksum=short_fleet_state_checksum,
                                              known_nodes=node_tracker,
                                              previous_states=previous_states)
         except Exception as e:
