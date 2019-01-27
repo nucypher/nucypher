@@ -228,6 +228,7 @@ class Learner:
     LEARNER_VERSION = LEARNING_LOOP_VERSION
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+    tracker_class = FleetStateTracker
 
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
@@ -264,7 +265,7 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.__known_nodes = FleetStateTracker()
+        self.__known_nodes = self.tracker_class()
 
         self.lonely = lonely
         self.done_seeding = False
