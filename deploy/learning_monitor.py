@@ -36,6 +36,20 @@ class Moe(Character):
     A monitor (lizard?)
     """
     tracker_class = MonitoringTracker
+    _SHORT_LEARNING_DELAY = .5
+
+    def remember_node(self, *args, **kwargs):
+        new_node_or_none = super().remember_node(*args, **kwargs)
+        if new_node_or_none:
+            hey_joe.send({new_node_or_none.checksum_public_address: MonitoringTracker.abridged_node_details(new_node_or_none)}, "nodes")
+
+    def learn_from_teacher_node(self, *args, **kwargs):
+        teacher = self.current_teacher_node(cycle=False)
+        new_nodes = super().learn_from_teacher_node(*args, **kwargs)
+        hey_joe.send({teacher.checksum_public_address: MonitoringTracker.abridged_node_details(teacher)}, "nodes")
+        new_teacher = self.current_teacher_node(cycle=False)
+        hey_joe.send({"current_teacher": new_teacher.checksum_public_address}, "teachers")
+        return new_nodes
 
 
 monitor = Moe(

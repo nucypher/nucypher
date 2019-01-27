@@ -14,6 +14,14 @@
             border: 1px solid black;
         }
 
+        .currentTeacher {
+            background-color: red;
+        }
+
+        .previousTeacher {
+            background-color: orange;
+        }
+
         .nucypher-nickname-icon {
             border-width: 10px;
             border-style: solid;
@@ -128,7 +136,7 @@
                 </td>
                 <td>{{ timestamp }}</td>
                 <td>{{ last_seen }}</td>
-                <td>{{ fleet_state_icon }}</td>
+                <td>{{{ fleet_state_icon }}}</td>
     </script>
 
     {% endraw %}
@@ -145,6 +153,7 @@
             socket.onopen = function () {
                 socket.send(JSON.stringify({'hx_subscribe': 'states'}));
                 socket.send(JSON.stringify({'hx_subscribe': 'nodes'}));
+                socket.send(JSON.stringify({'hx_subscribe': 'teachers'}));
                 isopen = true;
             }
 
@@ -184,6 +193,22 @@
                         console.log(node[1]);
                     })
                 };
+
+                if (event.data.startsWith("[\"teachers\"")) {
+                    previousTeacher = document.getElementsByClassName("previousTeacher")[0];
+                    if (previousTeacher) {
+                        previousTeacher.classList.remove("previousTeacher");
+                    }
+                    currentTeacher = document.getElementsByClassName("currentTeacher")[0];
+                    if (currentTeacher) {
+                        currentTeacher.classList.remove("currentTeacher");
+                        currentTeacher.classList.add("previousTeacher");
+                    }
+                    message = JSON.parse(event.data);
+                    newTeacher = document.getElementById(message[1].current_teacher);
+                    newTeacher.classList.add("currentTeacher");
+
+                }
             });
 
             socket.onerror = function (error) {

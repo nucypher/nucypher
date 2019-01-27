@@ -313,14 +313,15 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(
+                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None   # type: Teacher
+        self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-        self._learning_round = 0            # type: int
+        self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
         self.unresponsive_seed_nodes = set()
@@ -395,7 +396,8 @@ class Learner:
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
+                             accept_federated_only=self.federated_only,
+                             # TODO: 466 - move federated-only up to Learner?
                              certificate_filepath=certificate_filepath)
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
@@ -421,7 +423,7 @@ class Learner:
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
 
-        return True
+        return node
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
@@ -946,8 +948,8 @@ class Teacher:
 
         # The node's metadata is valid; let's be sure the interface is in order.
         response_data = network_middleware.node_information(host=self.rest_information()[0].host,
-                                                       port=self.rest_information()[0].port,
-                                                       certificate_filepath=certificate_filepath)
+                                                            port=self.rest_information()[0].port,
+                                                            certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
 
