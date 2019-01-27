@@ -64,9 +64,9 @@ The miner allows the (mining) contract to perform a transaction using the `NuCyp
 After that, the miner transfers some quantity of tokens (`MinersEscrow.deposit(uint256, uint16)`), locking them at the same time.
 Alternately the `NucypherToken.approveAndCall(address, uint256, bytes)` method can be used.
 The parameters are:
-	* The address of the `MinersEscrow` contract
-	* The amount of staked tokens
-	* The periods for locking (which are serialized into an array of bytes)
+* The address of the `MinersEscrow` contract
+* The amount of staked tokens
+* The periods for locking (which are serialized into an array of bytes)
 
 When staking tokens, the miner sets the number of periods the tokens will be locked, which must be no less than some minimal locking time (30 periods).
 In order to unlock tokens, the miner must be active during the time of locking (and confirm activity each period).
@@ -106,5 +106,5 @@ The miner can set a minimum reward rate for a policy. For that, the miner should
 ### NuCypher Partner Ursula Staking
 Some users will have locked but not staked tokens.
 In that case, an instance of the `UserEscrow` contract will hold their tokens (method `initialDeposit(uint256, uint256)`).
-All tokens will be unlocked after a specified time and the user can get them by method `withdraw(uint256)`.
+All tokens will be unlocked after a specified time and the user can retrieve them using the `withdraw(uint256)` method.
 When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow` and `PolicyManager` contracts.

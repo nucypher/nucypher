@@ -15,7 +15,7 @@ Before getting started, please note:
 ``` warning:: WARNING The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. **DO NOT** perform transactions using NuFT node addresses.
 ```
 
-``` important:: Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (<https://github.com/nucypher/nucypher/issues>)
+``` important:: Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (https://github.com/nucypher/nucypher/issues)
 ```
 
 ## Contents

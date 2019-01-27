@@ -64,6 +64,6 @@ then the request may execute (without exception) using the wrong target address.
 ## Sources
 
 More examples:
-* https://github.com/maraoz/solidity-proxy - Realization of using libraries (not contracts) but too complex and some ideas are obsolete after Byzantium hard fork
-* https://github.com/willjgriff/solidity-playground - Most of the upgradeable proxy contract code is taken from this repository
-* https://github.com/0v1se/contracts-upgradeable - Source code for verifying upgrade
+* <https://github.com/maraoz/solidity-proxy> - Realization of using libraries (not contracts) but too complex and some ideas are obsolete after Byzantium hard fork
+* <https://github.com/willjgriff/solidity-playground> - Most of the upgradeable proxy contract code is taken from this repository
+* <https://github.com/0v1se/contracts-upgradeable> - Source code for verifying upgrade
