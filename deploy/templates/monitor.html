@@ -106,7 +106,7 @@
             font-size: 2em;
         }
 
-        #known-nodes {
+        #nodes {
             float: left;
             clear: left;
         }
@@ -120,12 +120,24 @@
             </div>
     </script>
 
+    <script id="node-template" type="text/x-handlebars-template">
+            <td>{{ nickname_icon }}</td>
+                <td>
+                    <a href="https://{{rest_url}}/status">{{ nickname }}</a>
+                    <br/><span class="small">{{ checksum_address }}</span>
+                </td>
+                <td>{{ timestamp }}</td>
+                <td>{{ last_seen }}</td>
+                <td>{{ fleet_state_icon }}</td>
+    </script>
+
     {% endraw %}
 
     <script type="text/javascript">
         window.onload = function () {
 
             var stateTemplate = Handlebars.compile(document.getElementById("state-template").innerHTML);
+            var nodeTemplate = Handlebars.compile(document.getElementById("node-template").innerHTML);
 
             const socket = new WebSocket("ws://localhost:9000");
             socket.binaryType = "arraybuffer";
@@ -154,8 +166,24 @@
                         console.log(state[1]);
 
                     })
-                }
-                ;
+                };
+
+                if (event.data.startsWith("[\"nodes\"")) {
+                    message = JSON.parse(event.data);
+                    Object.entries(message[1]).forEach((node) => {
+                        var nodeRow = document.getElementById(node[0]);
+                        if (nodeRow == null) {
+                            var nodeRow = document.createElement("tr");
+                            nodeRow.setAttribute("id", node[0]);
+                            nodeRow.classname = "node";
+                            nodesTable = document.getElementById("nodes");
+                            nodesTable.prepend(nodeRow);
+                        }
+                        var nodeHtml = nodeTemplate(node[1]);
+                        nodeRow.innerHTML = nodeHtml;
+                        console.log(node[1]);
+                    })
+                };
             });
 
             socket.onerror = function (error) {
@@ -169,5 +197,8 @@
 </head>
 
 <div id="states"></div>
+<hr/>
+<table id="nodes"></table>
+
 
 </html>
