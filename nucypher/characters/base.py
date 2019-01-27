@@ -211,7 +211,10 @@ class Character(Learner):
 
     def __repr__(self):
         r = "⇀{}↽ ({})"
-        r = r.format(self.nickname, self.checksum_public_address)
+        try:
+            r = r.format(self.nickname, self.checksum_public_address)
+        except NoSigningPower:
+            r = r.format(self.__class__.__name__, self.nickname)
         return r
 
     @property
