@@ -22,7 +22,7 @@
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
 	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
 8. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
- 9. Pre-deposits tokens to the `UserEscrow`, and if necessary:
+ 9. Pre-deposit tokens to the `UserEscrow`, and if necessary:
 	* Create new instance of the `UserEscrow` contract 
 	* Transfer ownership of the instance of the `UserEscrow` contract to the user
 	* Approve the transfer of tokens for the `UserEscrow`
@@ -40,7 +40,7 @@ Alice can choose miners by herself ("handpicked") or by using `MinersEscrow.samp
 * Minimum number of periods during which tokens are locked
 This method will return only active miners.
 
-In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`,
+In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`
 , specifying the miner's addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
 Payment should be added to the transaction in ETH and the amount is `firstReward * miners.length + rewardRate * periods * miners.length`.
 The reward rate must be greater than or equal to the minimum reward for each miner in the list. The first period's reward is not refundable, and can be zero.
@@ -75,7 +75,7 @@ The miner can add a new stake using `MinersEscrow.deposit(uint256, uint16)` or `
 The miner can split stake into two parts: one with the same duration and another with an extended duration.
 For this purpose, the `MinersEscrow.divideStake(uint256, uint256, uint16)` method is used.
 The first parameter is used to identify the stake to divide and the last two for the extended part of the stake.
-When calculating locked tokens (`MinersEscrow.getLockedTokens(address, uint16)` method), all stakes that are active during the specified period are summed.
+When calculating locked tokens using the `MinersEscrow.getLockedTokens(address, uint16)` method, all stakes that are active during the specified period are summed.
 
 
 ### Ursula Confirms Activity
