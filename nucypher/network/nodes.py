@@ -15,21 +15,18 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
+import json
 import random
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
+from typing import Set, Tuple
 
 import maya
 import requests
 import time
-from bytestring_splitter import BytestringSplitter
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
@@ -37,8 +34,11 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
-from typing import Set, Tuple
 
+from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
 from nucypher.config.constants import SeednodeMetadata, GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
@@ -85,7 +85,7 @@ class FleetStateTracker:
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
-    state_template = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
+    state_template = namedtuple("FleetState", ("nickname", "metadata", "icon", "nodes", "updated"))
 
     def __init__(self):
         self.additional_nodes_to_track = []
@@ -175,6 +175,7 @@ class FleetStateTracker:
             # For now we store the sorted node list.  Someday we probably spin this out into
             # its own class, FleetState, and use it as the basis for partial updates.
             self.states[checksum] = self.state_template(nickname=self.nickname,
+                                                        metadata=self.nickname_metadata,
                                                         nodes=sorted_nodes,
                                                         icon=self.icon,
                                                         updated=self.updated,
