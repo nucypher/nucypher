@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
 import random
 from collections import defaultdict, OrderedDict
 from collections import deque
@@ -174,12 +173,14 @@ class FleetStateTracker:
             self.updated = maya.now()
             # For now we store the sorted node list.  Someday we probably spin this out into
             # its own class, FleetState, and use it as the basis for partial updates.
-            self.states[checksum] = self.state_template(nickname=self.nickname,
-                                                        metadata=self.nickname_metadata,
-                                                        nodes=sorted_nodes,
-                                                        icon=self.icon,
-                                                        updated=self.updated,
-                                                        )
+            new_state = self.state_template(nickname=self.nickname,
+                                            metadata=self.nickname_metadata,
+                                            nodes=sorted_nodes,
+                                            icon=self.icon,
+                                            updated=self.updated,
+                                            )
+            self.states[checksum] = new_state
+            return checksum, new_state
 
     def start_tracking_state(self, additional_nodes_to_track=None):
         if additional_nodes_to_track is None:
@@ -200,12 +201,16 @@ class FleetStateTracker:
     def abridged_states_dict(self):
         abridged_states = {}
         for k, v in self.states.items():
-            abridged_states[k] = {"nickname": v.nickname,
-                                  "metadata": v.metadata,
-                                  "updated": v.updated.iso8601()
-                                  }
+            abridged_states[k] = self.abridged_state_details(v)
 
         return abridged_states
+
+    @staticmethod
+    def abridged_state_details(state):
+        return {"nickname": state.nickname,
+                "metadata": state.metadata,
+                "updated": state.updated.iso8601()
+                }
 
 
 class Learner:

@@ -138,9 +138,9 @@
 
             socket.addEventListener('message', function (event) {
                 console.log("Message from server ", event.data);
-                if (event.data.startsWith("{\"states\"")) {
+                if (event.data.startsWith("[\"states\"")) {
                     message = JSON.parse(event.data);
-                    Object.entries(message.states).forEach((state) => {
+                    Object.entries(message[1]).forEach((state) => {
                         var stateDiv = document.getElementById(state[0]);
                         if (stateDiv == null) {
                             var stateDiv = document.createElement("div");
