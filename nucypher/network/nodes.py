@@ -205,12 +205,35 @@ class FleetStateTracker:
 
         return abridged_states
 
+    def abridged_nodes_dict(self):
+        abridged_nodes = {}
+        for checksum_address, node in self._nodes.items():
+            abridged_nodes[checksum_address] = self.abridged_node_details(node)
+
+        return abridged_nodes
+
     @staticmethod
     def abridged_state_details(state):
         return {"nickname": state.nickname,
                 "metadata": state.metadata,
                 "updated": state.updated.iso8601()
                 }
+
+    @staticmethod
+    def abridged_node_details(node):
+        try:
+            last_seen = node.last_seen.iso8601()
+        except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
+            last_seen = str(node.last_seen)
+        return {"nickname_metadata": node.nickname_metadata,
+                "rest_url": node.rest_url(),
+                "nickname": node.nickname,
+                "checksum_address": node.checksum_public_address,
+                "timestamp": node.timestamp.iso8601(),
+                "last_seen": last_seen,
+                "fleet_state_icon": node.fleet_state_icon,
+                }
+
 
 
 class Learner:
@@ -238,6 +261,7 @@ class Learner:
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
+    fleet_state_icon = ""
 
     class NotEnoughTeachers(RuntimeError):
         pass

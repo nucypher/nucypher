@@ -56,7 +56,13 @@ def send_states(subscriber):
     subscriber.sendMessage(json.dumps(message).encode())
 
 
+def send_nodes(subscriber):
+    message = ["nodes", monitor.known_nodes.abridged_nodes_dict()]
+    subscriber.sendMessage(json.dumps(message).encode())
+
+
 websocket_service.register_followup("states", send_states)
+websocket_service.register_followup("nodes", send_nodes)
 
 
 @rest_app.route("/")
