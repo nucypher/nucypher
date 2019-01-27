@@ -197,6 +197,16 @@ class FleetStateTracker:
         random.shuffle(nodes_we_know_about)
         return nodes_we_know_about
 
+    def abridged_states_dict(self):
+        abridged_states = {}
+        for k, v in self.states.items():
+            abridged_states[k] = {"nickname": v.nickname,
+                                  "metadata": v.metadata,
+                                  "updated": v.updated.iso8601()
+                                  }
+
+        return abridged_states
+
 
 class Learner:
     """
