@@ -1,0 +1,12 @@
+build:
+  image: latest
+requirements_file: requirements.txt
+python:
+  version: 3.6
+  pip_install: true
+  extra_requirements:
+    - development
+    - docs
+formats:
+    - epub
+    - pdf
