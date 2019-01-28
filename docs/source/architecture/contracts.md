@@ -4,7 +4,7 @@
 ## Contract Listing
 
 * `NuCypherToken` ERC20 token contract
-* `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity and assigns a reward for participating in the NuCypher network. The `Issuer` contract is part of the `MinersEscrow` and uses only to split code
+* `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity and assigns a reward for participating in the NuCypher network. (The `Issuer` contract is part of the `MinersEscrow`)
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts

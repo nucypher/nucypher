@@ -66,15 +66,6 @@ Whitepapers
    :maxdepth: 2
 
 
-Architecture
-------------
-
-.. toctree::
-   :maxdepth: 1
-
-   architecture/contracts
-   architecture/upgradeable_proxy_contracts
-
 
 Guides
 ------
@@ -83,9 +74,9 @@ Guides
    :maxdepth: 2
 
    guides/quickstart
-   guides/ursula_configuration_guide
    guides/federated_testnet_guide
    guides/installation_guide
+   guides/ursula_configuration_guide
    guides/contribution_guide
 
 
@@ -98,6 +89,16 @@ Demos
    demos/local_fleet_demo
    demos/finnegans_wake_demo
    demos/heartbeat_demo
+
+
+Architecture
+------------
+
+.. toctree::
+   :maxdepth: 1
+
+   architecture/contracts
+   architecture/upgradeable_proxy_contracts
 
 
 API

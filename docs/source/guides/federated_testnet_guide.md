@@ -120,7 +120,6 @@ Before getting started, please note:
     - Minimum password length is 16 characters
     - There is no password recovery process for NuFT nodes
     - Do not use a password that you use anywhere else
-    - Your password may be displayed in logs or other recorded output.
     - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
 ## Running a NuFT Node
@@ -156,8 +155,8 @@ Before getting started, please note:
     
     You can also view your node’s network status webpage by navigating your web browser to `https://<your-node-ip-address>:9151/status`.
 
-    .. NOTE::
-        Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+    ``` note:: Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+    ```
  
     
     To stop your node from the interactive console and return to the terminal session

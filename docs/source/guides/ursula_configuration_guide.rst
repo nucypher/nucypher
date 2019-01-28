@@ -4,7 +4,7 @@ Ursula Configuration Guide
 Interactive Federated Ursula Configuration
 ------------------------------------------
 
-1. Verify your `nucypher` Installation and Entry Points are functional
+1. Verify your `nucypher` installation and entry points are functional
 
     Activate your virtual environment and run the `nucypher --help` command
 
