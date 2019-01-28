@@ -15,8 +15,8 @@ Interactive Federated Ursula Configuration
         (nucypher)$ nucypher --help
 
 
-    You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.).
-    For example, you can use `nucypher configure destroy` to delete all files associated with the node.
+    You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`status`, `ursula`).
+    For example, you can use `nucypher ursula destroy` to delete all files associated with the node.
 
     If your installation in non-functional, be sure you have the latest version installed, and see the `Installation Guide`_
 

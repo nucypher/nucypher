@@ -1,4 +1,4 @@
-# NuCypher Ethereum Contracts
+# Nucypher Ethereum Contracts
 
 
 ## Contract Listing
@@ -93,7 +93,7 @@ Also, the reward depends on the number of periods during which the tokens will b
 The minimum coefficient is 1 (when tokens will get unlocked in the next period), and the maximum is 2 (when the time is 1 year or more).
 The reward is calculated separately for each stake that is active during the mining period and all rewards are summed up.
 The order of calling `mint` by miners (e.g. who calls first, second etc) doesn't matter.
-Miners can claim their rewards by using the `witdraw(uint256)` method. Only non-locked tokens can be withdrawn.
+Miners can claim their rewards by using the `withdraw(uint256)` method. Only non-locked tokens can be withdrawn.
 
 
 ### Ursula Generates Policy Rewards

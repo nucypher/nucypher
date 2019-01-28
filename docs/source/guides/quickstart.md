@@ -1,8 +1,8 @@
-# NuCypher Quickstart
+# Nucypher Quickstart
 
 ## Ursula
 
-### Install NuCypher
+### Install Nucypher
 
 ```bash
 $ pip3 install -U nucypher

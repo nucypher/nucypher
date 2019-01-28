@@ -20,7 +20,7 @@ participants in public consensus networks, without revealing data keys to interm
 +------+-----------+----------------------------------------------------------------------------------------------+
 | Step | Character | Operation                                                                                    |
 +======+===========+==============================================================================================+
-| 1    | Alice     | Alice sets a Policy on the NuCypher network (2/3) and grants access to Bob                   |
+| 1    | Alice     | Alice sets a Policy on the NuCypher network (2-of-3) and grants access to Bob                   |
 +------+-----------+----------------------------------------------------------------------------------------------+
 | 2    | Alice     | Label and Alice's key public key provided to Bob                                             |
 +------+-----------+----------------------------------------------------------------------------------------------+

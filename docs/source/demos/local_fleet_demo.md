@@ -55,9 +55,9 @@ This will run a single temporary Ursula:
 ## Connecting to the Local Fleet
 
 Alternately, you can connect any node run from the CLI by specifying one of the nodes
-in the local fleet as a teacher, the same network domain, and the same operating mode,
-by default nodes started with the `--dev` flag run on a dedicated domain (`TEMPORARY_DOMAIN`) and
-on a different port then the production default port (`9151`).
+in the local fleet as a teacher, the same network domain, and the same operating mode.
+By default, nodes started with the `--dev` flag run on a dedicated domain (`TEMPORARY_DOMAIN`) and
+on a different port than the production default port (`9151`).
 Local fleet Ursulas range from ports `11500` to `11506` by default.
 
 Here is an example of connecting to a node in the local development fleet:
