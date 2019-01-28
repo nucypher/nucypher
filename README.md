@@ -9,6 +9,7 @@
 ![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
 ![](https://circleci.com/gh/nucypher/nucypher/tree/master.svg?style=svg)
 ![](https://img.shields.io/discord/411401661714792449.svg)
+[![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/?badge=latest)
 ![](https://img.shields.io/pypi/l/nucypher.svg)
 
 
