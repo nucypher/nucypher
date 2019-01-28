@@ -291,8 +291,6 @@ class NucypherKeyring:
     Handles keys for a single identity, recognized by account.
     Warning: This class handles private keys!
 
-    Keyring filesystem tree
-    ------------------------
     - keyring
         - .private
             - key.priv
