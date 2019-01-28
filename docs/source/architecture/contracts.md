@@ -22,11 +22,12 @@
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
 	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
 8. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
- 9. Pre-deposit tokens to the `UserEscrow`, and if necessary:
-	* Create new instance of the `UserEscrow` contract 
-	* Transfer ownership of the instance of the `UserEscrow` contract to the user
-	* Approve the transfer of tokens for the `UserEscrow`
-	* Deposit tokens by the `initialDeposit(uint256, uint256)` method
+9. Pre-deposit tokens to the `UserEscrow`, and if necessary:
+
+* Create new instance of the `UserEscrow` contract 
+* Transfer ownership of the instance of the `UserEscrow` contract to the user
+* Approve the transfer of tokens for the `UserEscrow`
+* Deposit tokens by the `initialDeposit(uint256, uint256)` method
 
 ## Alice's Contract Interaction
 
