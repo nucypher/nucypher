@@ -19,6 +19,7 @@ A more convenient way is to use a proxy contract with an interface where each me
 This option is advantageous because the client uses one address most of the time but also has its own methods.
 
 ``` important:: If updates to the proxy contract's methods are made, then the client will need to change proxy address also.
+```
 
 
 ## Approach C
@@ -36,16 +37,18 @@ This approach is not ideal, and has some restrictions:
 
 ![Interaction scheme](../.static/img/Dispatcher.png)
 
-* Dispatcher - proxy contract that redirects requests to the target address.
+
+Dispatcher - proxy contract that redirects requests to the target address.
 It also holds its own values (owner and target address) and stores the values of the target contract, but not explicitly.
 The client should use the resulting contract or interface ABI while sending request to the `Dispatcher` address.
 The contract's owner can change the target address by using the `Dispatcher`'s ABI.
 The `Dispatcher` contract uses `delegatecall` for redirecting requests, so `msg.sender` remains as the client address
 and uses the dispatcher's storage when executing methods in the target contract.
 
-*WARNING: If target address is not set, or the target contract does not exist, results may be unpredictable because `delegatecall` will return `true`.*
+``` warning:: If target address is not set, or the target contract does not exist, results may be unpredictable because `delegatecall` will return `true`.
+```
 
-* Contract - upgradeable contract, each version must have the same ordering of storage values.
+Contract - upgradeable contract, each version must have the same ordering of storage values.
 New versions of the contract can expand values, but must contain all the old values (containing values from dispatcher **first**).
 This contract is like a library because its storage is not used.
 If a client sends a request to the contract directly to its deployed address without using the dispatcher,
@@ -64,6 +67,7 @@ then the request may execute (without exception) using the wrong target address.
 ## Sources
 
 More examples:
+
 * <https://github.com/maraoz/solidity-proxy> - Realization of using libraries (not contracts) but too complex and some ideas are obsolete after Byzantium hard fork
 * <https://github.com/willjgriff/solidity-playground> - Most of the upgradeable proxy contract code is taken from this repository
 * <https://github.com/0v1se/contracts-upgradeable> - Source code for verifying upgrade
