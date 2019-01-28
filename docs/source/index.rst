@@ -21,6 +21,10 @@ NuCypher
 .. image:: https://img.shields.io/discord/411401661714792449.svg
     :target: https://discord.gg/M5B7Nh
 
+.. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
+    :target: https://nucypher.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://img.shields.io/pypi/l/nucypher.svg
     :target: https://www.gnu.org/licenses/gpl-3.0.html
 
