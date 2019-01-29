@@ -14,6 +14,9 @@
 #
 import os
 import sys
+
+from recommonmark.parser import CommonMarkParser
+
 sys.path.insert(0, os.path.abspath('..'))
 
 
@@ -40,7 +43,6 @@ release = '0.1.0-alpha.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'recommonmark',
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
@@ -57,6 +59,12 @@ templates_path = ['.templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
+
+source_parsers = {
+    '.md': CommonMarkParser,
+}
+
+
 source_suffix = ['.rst', '.md', '.txt']
 
 # The master toctree document.
@@ -184,12 +192,8 @@ epub_exclude_files = ['search.html']
 
 # -- Extension configuration -------------------------------------------------
 
-# -- Options for intersphinx extension ---------------------------------------
-
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
-
-# -- Options for todo extension ----------------------------------------------
 
 
 def remove_module_docstring(app, what, name, obj, options, lines):
@@ -197,12 +201,9 @@ def remove_module_docstring(app, what, name, obj, options, lines):
         del lines[:]
 
 
-# If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-
 def setup(app):
-    github_doc_root = 'https://github.com/nucypher/nucypher/tree/master/docs'
     local_source_root = './'
 
     app.add_config_value('recommonmark_config', {
