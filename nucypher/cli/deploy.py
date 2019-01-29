@@ -147,7 +147,7 @@ def deploy(click_config,
             __deployment_transactions.update(txhashes)
 
         # User Escrow Proxy
-        deployer.deploy_escrow_proxy(secret=secrets.escrow_proxy_secret)
+        deployer.deploy_escrow_proxy(secret=bytes(secrets.escrow_proxy_secret, encoding='utf-8'))
         click.secho("Deployed!", fg='green', bold=True)
 
         #

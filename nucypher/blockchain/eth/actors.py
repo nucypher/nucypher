@@ -168,7 +168,7 @@ class Deployer(NucypherTokenActor):
         return txhashes
 
     def deploy_miner_contract(self, secret: bytes):
-
+        secret = self.blockchain.interface.w3.keccak(secret)
         miner_escrow_deployer = MinerEscrowDeployer(blockchain=self.blockchain,
                                                     deployer_address=self.deployer_address,
                                                     secret_hash=secret)
@@ -178,7 +178,7 @@ class Deployer(NucypherTokenActor):
         return txhashes
 
     def deploy_policy_contract(self, secret: bytes):
-
+        secret = self.blockchain.interface.w3.keccak(secret)
         policy_manager_deployer = PolicyManagerDeployer(blockchain=self.blockchain,
                                                         deployer_address=self.deployer_address,
                                                         secret_hash=secret)
@@ -188,7 +188,7 @@ class Deployer(NucypherTokenActor):
         return txhashes
 
     def deploy_escrow_proxy(self, secret: bytes):
-
+        secret = self.blockchain.interface.w3.keccak(secret)
         escrow_proxy_deployer = UserEscrowProxyDeployer(blockchain=self.blockchain,
                                                         deployer_address=self.deployer_address,
                                                         secret_hash=secret)
