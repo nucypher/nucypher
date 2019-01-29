@@ -4,7 +4,7 @@
 ## Contract Listing
 
 * `NuCypherToken` ERC20 token contract
-* `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity and assigns a reward for participating in the NuCypher network. (The `Issuer` contract is part of the `MinersEscrow`)
+* `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity, and assigns a reward for participating in the NuCypher network. (The `Issuer` contract is part of the `MinersEscrow`)
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
@@ -41,8 +41,8 @@ Alice can choose miners by herself ("handpicked") or by using `MinersEscrow.samp
 * Minimum number of periods during which tokens are locked
 This method will return only active miners.
 
-In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`
-, specifying the miner's addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
+In order to place the fee for a policy, Alice calls the method `PolicyManager.createPolicy(bytes16, uint16, uint256, address[])`,
+specifying the miner's addresses, the policy ID (off-chain generation), the policy duration in periods, and the first period's reward.
 Payment should be added to the transaction in ETH and the amount is `firstReward * miners.length + rewardRate * periods * miners.length`.
 The reward rate must be greater than or equal to the minimum reward for each miner in the list. The first period's reward is not refundable, and can be zero.
 

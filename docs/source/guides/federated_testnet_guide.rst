@@ -190,12 +190,12 @@ See the *“System Service Method”* section below.
 
 Stage C | Run the Node (System Service Method)
 ----------------------------------------------
-*NOTE - This is an alternative to the “Interactive Method”.*
+*NOTE - This is an alternative to the “Interactive Method” and assumes you're using systemd.*
 
 
 1. Create Ursula System Service
     
-Use this template to create a file named  ursula.service and place it in */etc/systemd/system/*.
+Use this template to create a file named *ursula.service* and place it in */etc/systemd/system/*.
     
 .. code::
 

@@ -10,7 +10,7 @@
    
    3. And cryptographers said, Let there be encapsulation: and there was encapsulation.
    
-   4. And they saw* the light, that it was good: and divided* the symmetric ciphertext from the encapsulated key.
+   4. And they saw *the light, that it was good: and divided* the symmetric ciphertext from the encapsulated key.
    
    5. And they called the symmetric ciphertext "bulk data", and the encapsulated key the "*Capsule*". And the encryption and the decryption were the first secure message.
    
@@ -22,7 +22,7 @@
    
    9. And they said, Let the ciphertext fragments under the interwebs be gathered together unto one place, and let the Capsule appear: and it was so.
    
-   10. And they called the total number of framents **`n`**, and the number that Bob needed to reassamble **`m`**: and they saw that it was good.
+   10. And they called the total number of fragments **`n`**, and the number that Bob needed to reassamble **`m`**: and they saw that it was good.
    
    11. And they said, Let the interwebs bring forth a Character, *Alice*, who yields the *Policy*, and a Character, *Enrico*, who yields the encrypted message after his kind, whose symmetric key is in itself, and let the Ursulas that are participating in the *Policy* be listed in a *TreasureMap*, upon the interwebs: and it was so.
    
@@ -30,6 +30,6 @@
    
    13. And the complete access management flow was the third secure message.
    
-   14. And they said, Let there be a coherent metaphor and API in the  of cryptology of the interwebs, and let Policies expire at a specific datetime or upon revocation, and let them be for signs, and for seasons, and for days, and years:
+   14. And they said, Let there be a coherent metaphor and API in the cryptology of the interwebs, and let Policies expire at a specific datetime or upon revocation, and let them be for signs, and for seasons, and for days, and years:
    
    15. And let them be for decentralized re-encryption tooling in the cryptography of the interwebs to give privacy upon the blockchain: and it was so.

@@ -48,7 +48,7 @@ Interaction scheme
     :target: ../.static/img/Dispatcher.png
 
 
-Dispatcher - proxy contract that redirects requests to the target address.
+`Dispatcher` - a proxy contract that redirects requests to the target address.
 It also holds its own values (owner and target address) and stores the values of the target contract, but not explicitly.
 The client should use the resulting contract or interface ABI while sending request to the `Dispatcher` address.
 The contract's owner can change the target address by using the `Dispatcher`'s ABI.

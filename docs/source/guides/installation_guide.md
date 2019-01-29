@@ -4,12 +4,12 @@
 ## System Requirements
 
 * At least 1 GB of RAM is required for key derivation functionality (SCrypt).
-* We have tested `nucypher` with windows, mac OS, and linux (Linux is recommended).
+* We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
 
 
 ## System Dependencies
 
-If you don’t already have it, install Python;.
+If you don’t already have it, install Python.
 As of January 2019, we are working with Python 3.6, 3.7, and 3.8.
 
 * Official Python Website: <https://www.python.org/downloads/>
@@ -31,7 +31,7 @@ We recommend installing nucypher with either `pip` or `pipenv`
 ### Standard Pip Installation
 
 In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
-using `python-vitrualenv` to install `nucypher` inside a dedicated virtual environment.
+using `python-virtualenv` to install `nucypher` inside a dedicated virtual environment.
 
 For full documentation on virtualenv see: <https://virtualenv.pypa.io/en/latest/>
 
@@ -83,7 +83,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 1. Install Application code with Pipenv
     
     Ensure you have `pipenv` installed (See full documentation for pipenv here: [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)).
-    Then, to install nucypher with pipenv run:
+    Then to install nucypher with pipenv, run:
     
     ```bash
     $ pipenv install nucypher
@@ -135,7 +135,7 @@ $ pipenv shell
 
 If this is successful, your terminal command prompt will be prepended with `(nucypher)`
 
-Install the solidity compiler:
+Install the Solidity compiler (solc):
 
 ```bash
 $(nucypher) pipenv run install-solc
@@ -152,7 +152,7 @@ $ ./scripts/install_solc.sh
 
 ## Systemd Service Installation
 
-1. Use this template to create a file named  ursula.service and place it in */etc/systemd/system/*.
+1. Use this template to create a file named _ursula.service_ and place it in */etc/systemd/system/*.
 
     ```
     [Unit]
