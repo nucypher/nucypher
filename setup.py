@@ -149,6 +149,7 @@ setup(name=ABOUT['__title__'],
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
           "Programming Language :: Python :: 3.8",
-          "Topic:: Security"],
+          "Topic :: Security"
+      ],
       python_requires='>=3'
       )
