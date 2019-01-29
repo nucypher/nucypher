@@ -26,7 +26,7 @@ __title__ = "nucypher"
 
 __url__ = "https://github.com/nucypher/nucypher"
 
-__summary__ = 'A proxy re-encryption network to empower privacy in decentralized systems.',
+__summary__ = 'A proxy re-encryption network to empower privacy in decentralized systems.'
 
 __version__ = "0.1.0-alpha.2"
 

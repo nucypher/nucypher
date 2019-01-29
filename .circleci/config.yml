@@ -620,7 +620,5 @@ jobs:
       - deploy:
           name: Push NuCypher Docker Image
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              docker tag nucypher "nucypher/nucypher:${CIRCLE_TAG}"
-              docker push "nucypher/nucypher:${CIRCLE_TAG}"
-            fi
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+            docker push nucypher/nucypher:$CIRCLE_TAG
