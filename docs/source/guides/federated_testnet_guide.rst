@@ -1,4 +1,6 @@
-# NuCypher Federated Testnet (NuFT) Setup Guide
+=============================================
+NuCypher Federated Testnet (NuFT) Setup Guide
+=============================================
 
 This guide is for individuals who intend to spin-up and maintain an Ursula node in the early stages of the NuFT 
 while working with the NuCypher team to improve user experience, comfort, and code-quality of the NuCypher network. 
@@ -12,178 +14,191 @@ Before getting started, please note:
 * NuFT transmits application errors and crash reports to NuCypher’s sentry server.  This functionality is enabled by default for NuFT only and will be deactivated by default for mainnet.
 
 
-``` warning::
+.. warning::
+
   The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. **DO NOT** perform transactions using NuFT node addresses.
-```
 
-``` important::
+.. important::
+
   Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (https://github.com/nucypher/nucypher/issues)
-```
 
-## Contents
+Contents
+--------
 
-* Stage A [Install The Nucypher Environment](#stage-a-install-the-nucypher-environment)
-* Stage B [Configure Ursula](#stage-b-configure-ursula)
-* Stage C [(Interactive Method) - Run the Node](#stage-c-run-the-node-interactive-method)
-* Stage C [(System Service Method) - Run the Node](#stage-c-run-the-node-system-service-method)
+* `Stage A | Install The Nucypher Environment`_
+* `Stage B | Configure Ursula`_
+* `Stage C | Run the Node (Interactive Method)`_
+* `Stage C | Run the Node (System Service Method)`_
 
-## Configure a NuFT Node
 
-### Stage A | Install The Nucypher Environment
+Configure a NuFT Node
+---------------------
 
+Stage A | Install The Nucypher Environment
+------------------------------------------
 
 1. Install Python and Git
     
-    If you don’t already have them, install Python and git.
-    As of January 2019, we are working with Python 3.6, 3.7, and 3.8. 
+If you don’t already have them, install Python and git.
+As of January 2019, we are working with Python 3.6, 3.7, and 3.8.
 
-    * Official Python Website: <https://www.python.org/downloads/> 
-    * Git Install Guide: <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>
+* Official Python Website: https://www.python.org/downloads/
+* Git Install Guide: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
 
 
 2.  Create Virtual Environment
     
-    Create a system directory for the nucypher application code
+Create a system directory for the nucypher application code
     
-    ```
-    $ mkdir nucypher
-    ```
+.. code::
 
-    Create a virtual environment for your node to run in using virtualenv
+    $ mkdir nucypher
+
+
+Create a virtual environment for your node to run in using virtualenv
     
-    ```bash
+.. code::
+
     $ virtualenv nucypher -p python3
     ...
-    ```
+
+Activate your virtual environment
     
-    Activate your virtual environment
-    
-    ```bash
+.. code::
+
     $ source nucypher/bin/activate
     ...
     (nucypher)$
-    ```
 
 
 3. Install Nucypher
     
-    Install nucypher with git and pip3 into your virtual environment
+Install nucypher with git and pip3 into your virtual environment
     
-    ```bash
+.. code::
+
     (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@master
-    ```
+
+Re-activate your environment after installing
     
-    Re-activate your environment after installing
-    
-    ```bash
+.. code::
+
     $ source nucypher/bin/activate
     ...
     (nucypher)$ 
-    ```
 
 
-### Stage B | Configure Ursula
-
+Stage B | Configure Ursula
+--------------------------
 
 1. Verify that the installation was successful
     
-    Activate your virtual environment and run the `nucypher --help` command
+Activate your virtual environment and run the `nucypher --help` command
     
-    ```bash
+.. code::
+
     $ source nucypher/bin/activate
     ...
     (nucypher)$ nucypher --help
-    ```
-    
-    You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.). For example, you can use `nucypher configure destroy` to delete all files associated with the node.
+
+You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.). For example, you can use `nucypher configure destroy` to delete all files associated with the node.
 
 2. Configure a new Ursula node
     
-    ```bash
+.. code::
+
     (nucypher)$ nucypher ursula init --federated-only
     ...
-    ```
 
 3. Enter your public-facing IPv4 address when prompted
+
+.. code::
 
     `Enter Node's Public IPv4 Address: <YOUR NODE IP HERE>`
 
 4. Enter a password when prompted
 
-    `Enter a passphrase to encrypt your keyring: <YOUR PASSWORD HERE>`
-    
+.. code::
+
+    Enter a passphrase to encrypt your keyring: <YOUR PASSWORD HERE>
+
+
+.. important::
+
     Save your password as you will need it to relaunch the node, and please note:
-    
+
     - Minimum password length is 16 characters
     - There is no password recovery process for NuFT nodes
     - Do not use a password that you use anywhere else
     - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
-## Running a NuFT Node
 
-### Stage C | Run the Node (Interactive Method)
+Running a NuFT Node
+-------------------
 
+Stage C | Run the Node (Interactive Method)
+-------------------------------------------
 
 1. Connect to Testnet
 
-    NuCypher is maintaining a purpose-built endpoint to initially connect to the test network. To connect to the swarm run:
-    
-    ```bash
+NuCypher is maintaining a purpose-built endpoint to initially connect to the test network. To connect to the swarm run:
+
+.. code:: bash
+
     $(nucypher) nucypher ursula run --teacher-uri <SEEDNODE_URI>
     ...
-    ```
 
 2. Verify Connection
 
-    This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.  Verify that the node setup was successful by running the `status` command.
-    
-    ```bash
+This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.  Verify that the node setup was successful by running the `status` command.
+
+.. code::
+
     Ursula >>> status
     ...
-    ```
 
-    To view a list of known nodes, execute the known_nodes command
-    
-    ```bash
-    Ursula >>> known_nodes 
-    ...
-    ```
-    
-    You can also view your node’s network status webpage by navigating your web browser to `https://<your-node-ip-address>:9151/status`.
+To view a list of known nodes, execute the known_nodes command
 
-    ``` note:: Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
-    ```
- 
-    
-    To stop your node from the interactive console and return to the terminal session
-    
-    ```bash
-    Ursula >>> stop    
+.. code::
+
+    Ursula >>> known_nodes
     ...
-    ```
-    
-    Subsequent node restarts do not need the teacher endpoint specified.
-    
-    ```bash
-    (nucypher)$ nucypher ursula run 
+
+You can also view your node’s network status webpage by navigating your web browser to `https://<your-node-ip-address>:9151/status`.
+
+.. note::
+
+    Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+
+To stop your node from the interactive console and return to the terminal session
+
+.. code::
+
+    Ursula >>> stop
     ...
-    ```
+
+Subsequent node restarts do not need the teacher endpoint specified.
+
+.. code:: bash
+
+    (nucypher)$ nucypher ursula run
+    ...
 
 Alternately you can run your node as a system service.
 See the *“System Service Method”* section below.
 
 
-### Stage C | Run the Node (System Service Method)
+Stage C | Run the Node (System Service Method)
+----------------------------------------------
 *NOTE - This is an alternative to the “Interactive Method”.*
 
 
 1. Create Ursula System Service
     
-    Use this template to create a file named  ursula.service and place it in */etc/systemd/system/*.
+Use this template to create a file named  ursula.service and place it in */etc/systemd/system/*.
     
-    `/etc/systemd/system/ursula.service`
-    
-    ```
+.. code::
+
     [Unit]
     Description="Run 'Ursula', a NuCypher Staking Node."
     
@@ -195,88 +210,96 @@ See the *“System Service Method”* section below.
     
     [Install]
     WantedBy=multi-user.target
-    ```
 
 2. Enable Ursula System Service
     
-    ```bash
+.. code::
+
     $ sudo systemctl enable ursula
     ...
-    ```
 
 3. Run Ursula System Service
     
     To start Ursula services using systemd
     
-    ```bash
+.. code::
+
     $ sudo systemctl start ursula
     ...
-    ```
+
 
     Check Ursula service status
     
-    ```bash
+.. code::
+
     $ sudo systemctl status ursula
     ...    
-    ```
-    
+
+
     To restart your node service
     
-    ```bash
+.. code::
+
     $ sudo systemctl restart ursula
     ```
 
 
-## Updating a NuFT Node
+Updating a NuFT Node
+---------------------
 
 Nucypher is under active development, you can expect frequent code changes to occur as bugs are
 discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated
 to use the most up-to-date version of the application code.
 
-```important:: The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed.
-```
+.. important::
+
+  The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed.
 
 
 1. Stop the node 
 
-    Interactive method
+Interactive method
     
-    ```bash
+.. code::
+
     Ursula >>> stop
-    ```
+
+OR
+
+Systemd method
     
-    OR
-    
-    Systemd method
-    
-    ```bash
+.. code::
+
     $ sudo systemctl stop ursula
-    ```
+
 
 2. Update to the latest code version
 
-    Update your virtual environment
-    
-    ```bash
-    (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@federated`
-    ```
+Update your virtual environment
+
+.. code::
+
+  (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@federated`
+
 
 3. Restart Ursula Node
     
-    Re-activate your environment after updating
-    
-    Interactive method
-    
-    ```bash
+Re-activate your environment after updating
+
+Interactive method:
+
+.. code::
+
     $ source nucypher/bin/activate
     ...
     (nucypher)$ nucypher ursula run
-    ```
-    
-    OR
-    
-    Systemd Method
-    
-    ```bash
+
+
+OR
+
+Systemd Method:
+
+.. code::
+
     $ sudo systemctl start ursula
-    ```
+
