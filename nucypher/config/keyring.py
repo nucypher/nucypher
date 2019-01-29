@@ -19,8 +19,6 @@ import json
 import os
 import stat
 from json import JSONDecodeError
-
-from cryptography.hazmat.primitives.asymmetric import ec
 from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
 from constant_sorrow.constants import KEYRING_LOCKED
@@ -204,6 +202,7 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
     ).derive(key_material)
     return wrapping_key
 
+
 #
 # Keypair Generation
 #
@@ -317,8 +316,8 @@ class NucypherKeyring:
     def __init__(self,
                  account: str,
                  keyring_root: str = None,
-                 root_key_path: str = None,
-                 pub_root_key_path: str = None,
+                 decrypting_key_path: str = None,
+                 pub_decrypting_key_path: str = None,
                  signing_key_path: str = None,
                  pub_signing_key_path: str = None,
                  delegating_key_path: str = None,
@@ -345,14 +344,14 @@ class NucypherKeyring:
                                                                private_key_dir=self.__private_key_dir)
 
         # Private
-        self.__root_keypath = root_key_path or __default_key_filepaths['root']
+        self.__decrypting_keypath = decrypting_key_path or __default_key_filepaths['decrypting']
         self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
         self.__delegating_keypath = delegating_key_path or __default_key_filepaths['delegating']
         self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
         self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
 
         # Public
-        self.__root_pub_keypath = pub_root_key_path or __default_key_filepaths['root_pub']
+        self.__decrypting_pub_keypath = pub_decrypting_key_path or __default_key_filepaths['decrypting_pub']
         self.__signing_pub_keypath = pub_signing_key_path or __default_key_filepaths['signing_pub']
         self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
@@ -389,7 +388,7 @@ class NucypherKeyring:
 
     @property
     def encrypting_public_key(self):
-        encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, deserializer=None)
+        encrypting_pubkey_bytes = _read_keyfile(keypath=self.__decrypting_pub_keypath, deserializer=None)
         encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes)
         return encrypting_pubkey
 
@@ -411,11 +410,11 @@ class NucypherKeyring:
                                 private_key_dir: str,
                                 account: str) -> dict:
         __key_filepaths = {
-            'root': os.path.join(private_key_dir, 'root-{}.priv'.format(account)),
-            'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(account)),
+            'decrypting': os.path.join(private_key_dir, 'decrypting-{}.priv'.format(account)),
+            'decrypting_pub': os.path.join(public_key_dir, 'decrypting-{}.pub'.format(account)),
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(account)),
-            'delegating': os.path.join(private_key_dir, 'delegating-{}.priv'.format(account)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(account)),
+            'delegating': os.path.join(private_key_dir, 'delegating-{}.priv'.format(account)),
             'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(account)),
             'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(account)),
             'tls_certificate': os.path.join(public_key_dir, '{}.pem'.format(account))
@@ -458,7 +457,7 @@ class NucypherKeyring:
     def unlock(self, password: str) -> bool:
         if self.is_unlocked:
             return self.is_unlocked
-        key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
+        key_data = _read_keyfile(keypath=self.__signing_keypath, deserializer=self._private_key_serializer)
         try:
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
         except CryptoError:
@@ -470,17 +469,15 @@ class NucypherKeyring:
     @unlock_required
     def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
-        Takes either a SigningPower or an DecryptingPower and returns
+        Takes either a SigningPower or a DecryptingPower and returns
         either a SigningPower or DecryptingPower with the coinciding
         private key.
-
-        TODO: Derive a key from the root_key.
         """
         # Keypair-Based
         if issubclass(power_class, KeyPairBasedPower):
 
             codex = {SigningPower: self.__signing_keypath,
-                     DecryptingPower: self.__root_keypath,
+                     DecryptingPower: self.__decrypting_keypath,
                      TLSHostingPower: self.__tls_keypath,    # TODO
                      # BlockchainPower: self.__wallet_path,    # TODO
                     }
@@ -613,25 +610,25 @@ class NucypherKeyring:
                                                          wrap_salt=delegating_salt)
 
             # Write Private Keys
-            rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
-                                                  key_data=encrypting_key_metadata,
-                                                  serializer=cls._private_key_serializer)
+            decrypting_key_path = _write_private_keyfile(keypath=__key_filepaths['decrypting'],
+                                                         key_data=encrypting_key_metadata,
+                                                         serializer=cls._private_key_serializer)
             delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
                                                          key_data=delegating_key_metadata,
                                                          serializer=cls._private_key_serializer)
 
             # Write Public Keys
-            root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-
+            pub_decrypting_key_keypath = _write_public_keyfile(__key_filepaths['decrypting_pub'],
+                                                               encrypting_public_key.to_bytes())
 
             # Commit
             keyring_args.update(
-                root_key_path=rootkey_path,
-                pub_root_key_path=root_keypath,
+                decrypting_key_path=decrypting_key_path,
+                pub_decrypting_key_path=pub_decrypting_key_keypath,
                 delegating_key_path=delegating_key_path,
             )
 
-        if rest is True:
+        if rest:
             if not all((host, curve, new_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
                 raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. "
                                  "Got {}, {}".format(host, curve))
