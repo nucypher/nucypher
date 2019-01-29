@@ -317,8 +317,7 @@ class Character(Learner):
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
 
-        :return: Whether or not the signature is valid, the decrypted plaintext
-            or NO_DECRYPTION_PERFORMED
+        :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
         sender_pubkey_sig = stranger.stamp.as_umbral_pubkey()
         with suppress(AttributeError):
@@ -386,7 +385,7 @@ class Character(Learner):
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
-    def public_keys(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
+    def public_keys(self, power_up_class: ClassVar):
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
         class - whatever type of object that may be.

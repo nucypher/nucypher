@@ -187,7 +187,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
-    def public_key(self):
+    def public_key(self) -> 'UmbralPublicKey':
         return self.keypair.pubkey
 
 
