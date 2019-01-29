@@ -237,19 +237,6 @@ commands:
       - run:
           name: Check NuCypher CLI Entrypoint
           command: pipenv run nucypher --help
-#      - run:
-#          name: Store requirements.txt and dev-requirements.txt generated with pipenv lock
-#          command: |
-#            mkdir /tmp/pipenv-lock
-#            pipenv lock --clear --pre --requirements > /tmp/pipenv-lock/requirements.txt
-#            pipenv lock --clear --pre --dev --requirements > /tmp/pipenv-lock/dev-requirements.txt
-#      - store_artifacts:
-#          path: /tmp/pipenv-lock
-#      - run:
-#          name: Verify original requirements files wrt those generated with pipenv lock
-#          command: |
-#            diff requirements.txt /tmp/pipenv-lock/requirements.txt
-#            diff dev-requirements.txt /tmp/pipenv-lock/dev-requirements.txt
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
@@ -273,7 +260,7 @@ commands:
           command: pip3 install --user .
       - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install --user .[testing]
+          command: pip3 install --user .[development]
       - run:
           name: Install Solidity Compiler
           command: ./scripts/install_solc.sh
@@ -514,15 +501,11 @@ jobs:
           command: |
             pipenv run python setup.py sdist
             pipenv run python setup.py bdist_wheel
-      - run:
-          name: Install Nucypher via Wheel
-          command: pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
-      - check_nucypher_entrypoints
 
   build_docker:
-    <<: *python_36_base
+    working_directory: ~/nucypher
     docker:
-      - image: docker:18.06.1-ce
+      - image: docker:18.06.1-ce-git
     steps:
       - checkout
       - setup_remote_docker
@@ -539,12 +522,12 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher .
+            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher/nucypher:$CIRCLE_TAG .
       - run:
           name: Save Docker Image Layer Cache
           command: |
             mkdir -p ~/docker
-            docker save -o ~/docker/nucypher.tar nucypher
+            docker save -o ~/docker/nucypher.tar nucypher/nucypher:$CIRCLE_TAG
       - save_cache:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
@@ -557,10 +540,10 @@ jobs:
       - pip_install
       - run:
           name: Install Twine
-          command: pip install --user twine
+          command: pip3 install --user twine
       - run:
           name: Verify git tag == __version__ (Test Deploy)
-          command: pipenv run python setup.py verify
+          command: python setup.py verify
       - run:
           name: Initialize .pypirc (Test Deploy)
           command: |
@@ -576,29 +559,28 @@ jobs:
       - run:
           name: Build Python Wheel (Test Deploy)
           command: |
-            pipenv run python setup.py sdist
-            pipenv run python setup.py bdist_wheel
+            python3 setup.py sdist
+            python3 setup.py bdist_wheel
       - run:
           name: upload to TestPyPI
-          command: pipenv run twine upload --repository testpypi dist/* --verbose
+          command: python3 -m twine upload --repository testpypi dist/* --verbose
       - run:
           name: pip install from TestPyPI
           command: |
-            pip install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nucypher --verbose
-            python -c "import nucypher; print(nucypher.__version__)"
+            pip3 install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nucypher --verbose
+            python3 -c "import nucypher; print(nucypher.__version__)"
 
   publish_pypi:
     <<: *python_36_base
     steps:
       - checkout
+      - pip_install
       - run:
-          name: Install dependencies
-          command: |
-              pipenv install --three --dev --skip-lock --pre
-              pipenv install --dev --skip-lock twine
+          name: Install Twine
+          command: pip3 install --user twine
       - run:
           name: Verify git tag == __version__
-          command: pipenv run python setup.py verify
+          command: python3 setup.py verify
       - run:
           name: Initialize .pypirc
           command: |
@@ -612,18 +594,19 @@ jobs:
       - run:
           name: Build Python Wheel
           command: |
-            pipenv run python setup.py sdist
-            pipenv run python setup.py bdist_wheel
+            python3 setup.py sdist
+            python3 setup.py bdist_wheel
       - deploy:
           name: Upload to PyPI
-          command: pipenv run twine upload dist/*  --verbose
+          command: python3 -m twine upload dist/* --verbose
 
   publish_docker:
-    <<: *python_36_base
+    working_directory: ~/nucypher
     docker:
-      - image: docker:18.09.0-ce-git
+      - image: docker:18.06.1-ce-git
     steps:
       - checkout
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
@@ -637,7 +620,5 @@ jobs:
       - deploy:
           name: Push NuCypher Docker Image
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              docker tag nucypher "nucypher/nucypher:${CIRCLE_TAG}"
-              docker push "nucypher/nucypher:${CIRCLE_TAG}"
-            fi
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+            docker push nucypher/nucypher:$CIRCLE_TAG

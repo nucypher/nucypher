@@ -138,7 +138,7 @@ setup(name=ABOUT['__title__'],
       cmdclass={'verify': VerifyVersionCommand},
 
       classifiers=[
-          "Development Status :: 2 - Pre-Alpha",
+          "Development Status :: 3 - Alpha",
           "Intended Audience :: Developers",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
           "Natural Language :: English",
@@ -149,6 +149,7 @@ setup(name=ABOUT['__title__'],
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
           "Programming Language :: Python :: 3.8",
-          "Topic:: Security"],
+          "Topic :: Security"
+      ],
       python_requires='>=3'
       )

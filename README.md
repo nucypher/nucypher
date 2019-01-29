@@ -4,6 +4,8 @@
 
 ----
 
+v0.1.0-alpha.4
+
 ![](https://img.shields.io/pypi/wheel/nucypher.svg)
 ![](https://img.shields.io/pypi/pyversions/nucypher.svg)
 ![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
