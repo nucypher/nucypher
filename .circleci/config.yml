@@ -516,13 +516,13 @@ jobs:
             pipenv run python setup.py bdist_wheel
       - run:
           name: Install Nucypher via Wheel
-          command: pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
+          command: pip3 install --user ./dist/nucypher-0.1.0a1-py3-none-any.whl[development]
       - check_nucypher_entrypoints
 
   build_docker:
-    <<: *python_36_base
+    working_directory: ~/nucypher
     docker:
-      - image: docker:18.06.1-ce
+      - image: docker:18.06.1-ce-git
     steps:
       - checkout
       - setup_remote_docker
@@ -619,11 +619,12 @@ jobs:
           command: pipenv run twine upload dist/*  --verbose
 
   publish_docker:
-    <<: *python_36_base
+    working_directory: ~/nucypher
     docker:
-      - image: docker:18.09.0-ce-git
+      - image: docker:18.06.1-ce-git
     steps:
       - checkout
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
