@@ -522,12 +522,12 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher .
+            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher/nucypher:$CIRCLE_TAG .
       - run:
           name: Save Docker Image Layer Cache
           command: |
             mkdir -p ~/docker
-            docker save -o ~/docker/nucypher.tar nucypher
+            docker save -o ~/docker/nucypher.tar nucypher/nucypher:$CIRCLE_TAG
       - save_cache:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
