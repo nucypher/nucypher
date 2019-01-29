@@ -36,13 +36,13 @@ For a full installation guide see the [NuCypher Installation Guide](/guides/inst
 
 Assuming you already have `nucypher` installed with the `demos` extra, running the Heartbeat demo only involves running the `alicia.py` and `doctor.py` scripts; Run `alicia.py` first:
 
-```sh
+```bash
 (nucypher)$ python alicia.py
 ```
 
 This will create a temporal directory called `alicia-files` that contains the data for making Alicia persistent (i.e., her private keys). Apart from that, it will also generate data and keys for the demo. What's left is running the `doctor.py` script:
 
-```sh
+```bash
 (nucypher)$ python doctor.py
 ```
 
