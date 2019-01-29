@@ -4,7 +4,7 @@
 
 ## Overview
 
-``` note:: Currently only "Federated Only" mode is supported for local fleets
+```note:: Currently only "Federated Only" mode is supported for local fleets
 ```
 
 All Demo Ursulas:

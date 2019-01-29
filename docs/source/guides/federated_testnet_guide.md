@@ -12,10 +12,12 @@ Before getting started, please note:
 * NuFT transmits application errors and crash reports to NuCypher’s sentry server.  This functionality is enabled by default for NuFT only and will be deactivated by default for mainnet.
 
 
-``` warning:: WARNING The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. **DO NOT** perform transactions using NuFT node addresses.
+``` warning::
+  The “NuCypher Federated Testnet” (NuFT) is an experimental pre-release of nucypher.  Expect bugs, downtime, and unannounced domain-wide restarts. NuFT nodes do not connect to any blockchain. **DO NOT** perform transactions using NuFT node addresses.
 ```
 
-``` important:: Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (https://github.com/nucypher/nucypher/issues)
+``` important::
+  Exiting the setup process prior to completion may lead to issues/bugs. If you encounter issues, report feedback by opening an Issue on our GitHub (https://github.com/nucypher/nucypher/issues)
 ```
 
 ## Contents
@@ -32,10 +34,8 @@ Before getting started, please note:
 
 1. Install Python and Git
     
-
     If you don’t already have them, install Python and git.
     As of January 2019, we are working with Python 3.6, 3.7, and 3.8. 
-
 
     * Official Python Website: <https://www.python.org/downloads/> 
     * Git Install Guide: <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>
@@ -97,7 +97,6 @@ Before getting started, please note:
     
     You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.). For example, you can use `nucypher configure destroy` to delete all files associated with the node.
 
-
 2. Configure a new Ursula node
     
     ```bash
@@ -105,11 +104,9 @@ Before getting started, please note:
     ...
     ```
 
-
 3. Enter your public-facing IPv4 address when prompted
 
     `Enter Node's Public IPv4 Address: <YOUR NODE IP HERE>`
-
 
 4. Enter a password when prompted
 
@@ -135,7 +132,6 @@ Before getting started, please note:
     $(nucypher) nucypher ursula run --teacher-uri <SEEDNODE_URI>
     ...
     ```
-
 
 2. Verify Connection
 
@@ -237,7 +233,7 @@ Nucypher is under active development, you can expect frequent code changes to oc
 discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated
 to use the most up-to-date version of the application code.
 
-``` important:: The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed.
+```important:: The steps to update an Ursula running on NuFT are as follows and depends on the type of installation that was employed.
 ```
 
 

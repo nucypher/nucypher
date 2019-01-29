@@ -5,10 +5,9 @@ NuCypher
 .. image:: .static/img/nucypher_logo.svg
     :width: 60%
 
+
 ----
 
-.. image:: https://circleci.com/gh/nucypher/nucypher/tree/master.svg?style=svg
-    :target: https://circleci.com/gh/nucypher/nucypher/tree/master
 
 .. image:: https://img.shields.io/pypi/wheel/nucypher.svg
     :target: https://pypi.org/project/nucypher/
