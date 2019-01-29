@@ -4,7 +4,7 @@
 
 ----
 
-v0.1.0-alpha.1
+v0.1.0-alpha.2
 
 ![](https://img.shields.io/pypi/wheel/nucypher.svg)
 ![](https://img.shields.io/pypi/pyversions/nucypher.svg)
