@@ -38,7 +38,8 @@ Building Documentation
 
 .. note::
 
-  `sphinx`, `recommonmark`, and `sphinx_rtd_theme` are non-standard dependencies that can be installed by running `pip install -e .[docs]` from the project directory.
+  `sphinx`, `recommonmark`, and `sphinx_rtd_theme` are non-standard dependencies that can be installed
+  by running `pip install -e .[docs]` from the project directory.
 
 
 .. _Read The Docs: https://nucypher.readthedocs.io/en/latest/
@@ -77,10 +78,36 @@ Issuing a New Release
 ---------------------
 
 .. note::
+
   `bumpversion` is a non-standard dependency that can be installed by running `pip install -e .[deployment]` or 'pip install bumpversion'.
 
-1. Ensure your local tree has no uncommitted changes
-2. Run `$ bumpversion devnum`
-3. Ensure you have the intended history and tag: `git log`
-4. Push the resulting tagged commit to the originating remote, and directly upstream `$ git push origin <TAG> && git push upstream <TAG>`
-5. Monitor the triggered deployment build on circleCI for manual approval
+.. important::
+
+   Ensure your local tree is based on `master` and has no uncommitted changes.
+
+1. Increment the desired version part (options are `major`, `minor`, `patch`, `stage`, `devnum`), for example:
+
+.. code:: bash
+
+  (nucypher)$ bumpversion devnum
+
+3. Ensure you have the intended history and incremented version tag:
+
+.. code:: bash
+
+   (nucypher)$ git log
+
+4. Push the resulting tagged commit to the originating remote by tag and branch to ensure they remain synchronized.
+
+.. code:: bash
+
+   (nucypher)$ git push origin master && git push origin <TAG>
+
+5. Push the tag directly upstream by its name to trigger the publication webhooks on circleCI:
+
+.. code:: bash
+
+   (nucypher)$ git push upstream <TAG>
+
+7. Monitor the triggered deployment build on circleCI for manual approval
+8. Open a pull request with the resulting history in order to update `master`
