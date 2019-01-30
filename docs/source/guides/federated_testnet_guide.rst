@@ -81,7 +81,7 @@ Install nucypher with git and pip3 into your virtual environment
     
 .. code::
 
-    (nucypher)$ pip3 install nucypher
+    (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@master
 
 Re-activate your environment after installing
     
@@ -283,7 +283,7 @@ Update your virtual environment
 
 .. code::
 
-  (nucypher)$ pip3 install nucypher
+  (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@master`
 
 
 3. Restart Ursula Node
