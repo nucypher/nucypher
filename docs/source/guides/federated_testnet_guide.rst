@@ -97,7 +97,7 @@ Stage B | Configure Ursula
 
 1. Verify that the installation was successful
     
-Activate your virtual environment and run the `nucypher --help` command
+Activate your virtual environment and run the ``nucypher --help`` command
     
 .. code::
 
@@ -105,7 +105,7 @@ Activate your virtual environment and run the `nucypher --help` command
     ...
     (nucypher)$ nucypher --help
 
-You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.) and commands (`accounts`, `configure`, `deploy`, etc.). For example, you can use `nucypher configure destroy` to delete all files associated with the node.
+You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``). For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
 
 2. Configure a new Ursula node
     
@@ -118,7 +118,7 @@ You will see a list of possible usage options (`--version`, `-v`, `--dev`, etc.)
 
 .. code::
 
-    `Enter Node's Public IPv4 Address: <YOUR NODE IP HERE>`
+    Enter Node's Public IPv4 Address: <YOUR NODE IP HERE>
 
 4. Enter a password when prompted
 
@@ -154,21 +154,21 @@ NuCypher is maintaining a purpose-built endpoint to initially connect to the tes
 
 2. Verify Connection
 
-This will drop your terminal session into the “Ursula Interactive Console” indicated by the `>>>`.  Verify that the node setup was successful by running the `status` command.
+This will drop your terminal session into the “Ursula Interactive Console” indicated by the ``>>>``.  Verify that the node setup was successful by running the ``status`` command.
 
 .. code::
 
     Ursula >>> status
     ...
 
-To view a list of known nodes, execute the known_nodes command
+To view a list of known nodes, execute the ``known_nodes`` command
 
 .. code::
 
     Ursula >>> known_nodes
     ...
 
-You can also view your node’s network status webpage by navigating your web browser to `https://<your-node-ip-address>:9151/status`.
+You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
 
 .. note::
 
@@ -199,7 +199,7 @@ Stage C | Run the Node (System Service Method)
 
 1. Create Ursula System Service
     
-Use this template to create a file named *ursula.service* and place it in */etc/systemd/system/*.
+Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
     
 .. code::
 
@@ -220,32 +220,31 @@ Use this template to create a file named *ursula.service* and place it in */etc/
 .. code::
 
     $ sudo systemctl enable ursula
-    ...
+
 
 3. Run Ursula System Service
     
-    To start Ursula services using systemd
+To start Ursula services using systemd
     
 .. code::
 
     $ sudo systemctl start ursula
-    ...
 
 
-    Check Ursula service status
+
+Check Ursula service status
     
 .. code::
 
     $ sudo systemctl status ursula
-    ...    
 
 
-    To restart your node service
+To restart your node service
     
 .. code::
 
     $ sudo systemctl restart ursula
-    ```
+
 
 
 Updating a NuFT Node
