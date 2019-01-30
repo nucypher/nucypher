@@ -48,21 +48,21 @@ As of January 2019, we are working with Python 3.6, 3.7, and 3.8.
 
 2.  Create Virtual Environment
     
-Create a system directory for the nucypher application code
+Create a system directory for the nucypher application code:
     
 .. code::
 
     $ mkdir nucypher
 
 
-Create a virtual environment for your node to run in using virtualenv
+Create a virtual environment for your node to run in using ``virtualenv``:
     
 .. code::
 
     $ virtualenv nucypher -p python3
     ...
 
-Activate your virtual environment
+Activate your virtual environment:
     
 .. code::
 
@@ -73,15 +73,16 @@ Activate your virtual environment
 
 3. Install Nucypher
     
-Install nucypher with git and pip3 into your virtual environment
+Install ``nucypher`` with ``git`` and ``pip3`` into your virtual environment.
+
+.. code::
+
+    (nucypher)$ pip3 install nucypher
 
 .. note::
 
    We recommend NuFT nodes install directly from master to help ensure your node is using pre-released features and hotfixes
-    
-.. code::
 
-    (nucypher)$ pip3 install nucypher
 
 Re-activate your environment after installing
     

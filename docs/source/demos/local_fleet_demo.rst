@@ -12,9 +12,9 @@ Overview
   Currently only "Federated Only" mode is supported for local fleets
 
 All Demo Ursulas:
- * Run on `localhost`
- * In `--federated-only` mode
- * On the `TEMPORARY_DOMIAN` (Implied by `--dev`)
+ * Run on ``localhost``
+ * In ``--federated-only`` mode
+ * On the ``TEMPORARY_DOMIAN`` (implied by ``--dev``)
  * Using temporary resources (files, database, etc.)
 
 
@@ -23,8 +23,8 @@ Running A Local Fleet
 
 1. Install Nucypher
 
-Acquire the nucypher application code and install the dependencies.
-For a full installation guide see the [NuCypher Installation Guide](/guides/installation_guide).
+Acquire the Nucypher application code and install the dependencies.
+For a full installation guide see the :doc:`/guides/installation_guide`.
 
 2. Run a Lonely Ursula
 
@@ -37,7 +37,7 @@ The first step is to launch the first Ursula on the network by running:
 
 This will start an Ursula node:
  * With seednode discovery disabled
- * On port `11500`
+ * On port ``11500``
 
 
 3. Run a Local Fleet of Ursulas
@@ -51,13 +51,13 @@ Next, launch subsequent Ursulas, informing them of the first Ursula:
 
 This will run 5 temporary Ursulas that:
  * All specify the lonely Ursula as a seednode
- * Run on ports `11501` through `11506`
+ * Run on ports ``11501`` through ``11506``
 
 
 4. Run an Entry-Point Ursula (Optional)
 
 While the local fleet is running, you may want an entry-point to introspect the code in a debugger.
-For this we provide the optional script `run_single_demo_ursula.py` for your convenience.
+For this we provide the optional script ``run_single_demo_ursula.py`` for your convenience.
 
 
 .. code::
@@ -75,9 +75,9 @@ Connecting to the Local Fleet
 
 Alternately, you can connect any node run from the CLI by specifying one of the nodes
 in the local fleet as a teacher, the same network domain, and the same operating mode.
-By default, nodes started with the `--dev` flag run on a dedicated domain (`TEMPORARY_DOMAIN`) and
-on a different port than the production default port (`9151`).
-Local fleet Ursulas range from ports `11500` to `11506` by default.
+By default, nodes started with the ``--dev`` flag run on a dedicated domain (``TEMPORARY_DOMAIN``) and
+on a different port than the production default port (``9151``).
+Local fleet Ursulas range from ports ``11500`` to ``11506`` by default.
 
 Here is an example of connecting to a node in the local development fleet:
 
