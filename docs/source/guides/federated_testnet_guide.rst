@@ -74,6 +74,10 @@ Activate your virtual environment
 3. Install Nucypher
     
 Install nucypher with git and pip3 into your virtual environment
+
+.. note::
+
+   We recommend NuFT nodes install directly from master to help ensure your node is using pre-released features and hotfixes
     
 .. code::
 
@@ -279,7 +283,7 @@ Update your virtual environment
 
 .. code::
 
-  (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@federated`
+  (nucypher)$ pip3 install git+https://github.com/nucypher/nucypher.git@master`
 
 
 3. Restart Ursula Node
