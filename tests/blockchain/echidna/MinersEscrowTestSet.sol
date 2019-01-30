@@ -66,7 +66,7 @@ contract MinersEscrowTest2 is MinersEscrowABI {
         token.transfer(address(escrow), 1000);
     }
 
-    function echidnaLockedValuedTest() public view returns (bool) {
+    function echidnaLockedTokensTest() public view returns (bool) {
         (uint256 value,,,) = escrow.minerInfo(miner);
         return value >= 900 && value <= 1000;
     }

@@ -14,8 +14,6 @@ contract MasterContract {
     NuCypherToken token;
     MinersEscrow escrow;
     PolicyManager policyManager;
-//    UserEscrowProxy userEscrowProxy;
-//    UserEscrowLibraryLinker userEscrowLinker;
     UserEscrow userEscrow;
 
     function build(address _token, address _escrow, address _policyManager) internal {
@@ -29,6 +27,12 @@ contract MasterContract {
 
         token.transfer(address(escrow), 100000);
         escrow.initialize();
+    }
+
+    function build(address _token, address _escrow, address _policyManager, address _userEscrow) internal {
+        build(_token, _escrow, _policyManager);
+        userEscrow = _userEscrow != 0x0 ? UserEscrow(_userEscrow) :
+            new UserEscrow(Fixtures.createDefaultUserEscrowLinker(token, escrow, policyManager), token);
     }
 
 }
@@ -59,7 +63,7 @@ contract MinersEscrowABI is MasterContract {
     function preDeposit(address[] _miners, uint256[] _values, uint16[] _periods) public {
         escrow.preDeposit(_miners, _values, _periods);
     }
-    function receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData) external {
+    function receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData) public {
         escrow.receiveApproval(_from, _value, _tokenContract, _extraData);
     }
     function deposit(uint256 _value, uint16 _periods) public {
@@ -74,7 +78,7 @@ contract MinersEscrowABI is MasterContract {
     function withdraw(uint256 _value) public {
         escrow.withdraw(_value);
     }
-    function confirmActivity() external {
+    function confirmActivity() public {
         escrow.confirmActivity();
     }
     function mint() public {
@@ -88,7 +92,7 @@ contract MinersEscrowABI is MasterContract {
 
 contract PolicyManagerABI is MasterContract {
 
-    function register(address _node, uint16 _period) external {
+    function register(address _node, uint16 _period) public {
         policyManager.register(_node, _period);
     }
     function setMinRewardRate(uint256 _minRewardRate) public {
@@ -104,7 +108,7 @@ contract PolicyManagerABI is MasterContract {
     {
         policyManager.createPolicy(_policyId, _numberOfPeriods, _firstPartialReward, _nodes);
     }
-    function updateReward(address _node, uint16 _period) external {
+    function updateReward(address _node, uint16 _period) public {
         policyManager.updateReward(_node, _period);
     }
     function withdraw() public returns (uint256) {
@@ -141,6 +145,9 @@ contract UserEscrowABI is MasterContract {
     function withdrawETH() public {
         userEscrow.withdrawETH();
     }
+    function transferOwnership(address newOwner) public {
+        userEscrow.transferOwnership(newOwner);
+    }
 
 }
 
@@ -159,10 +166,10 @@ contract UserEscrowProxyABI is MasterContract {
     function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public{
         UserEscrowProxy(userEscrow).divideStake(_index, _newValue, _periods);
     }
-    function confirmActivity() external {
+    function confirmActivity() public {
         UserEscrowProxy(userEscrow).confirmActivity();
     }
-    function mint() external {
+    function mint() public {
         UserEscrowProxy(userEscrow).mint();
     }
     function withdrawPolicyReward() public {

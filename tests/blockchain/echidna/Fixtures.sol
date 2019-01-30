@@ -4,6 +4,8 @@ pragma solidity ^0.4.25;
 import "contracts/NuCypherToken.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
+import "contracts/UserEscrowProxy.sol";
+import "contracts/UserEscrow.sol";
 
 
 library Fixtures {
@@ -37,7 +39,7 @@ library Fixtures {
     }
 
     function createDefaultToken() internal returns (NuCypherToken) {
-        return new NuCypherToken(1000000);
+        return new NuCypherToken(10000000);
     }
 
     function createDefaultMinersEscrow(NuCypherToken _token) internal returns (MinersEscrow) {
@@ -56,12 +58,26 @@ library Fixtures {
         return new PolicyManager(createDefaultMinersEscrow());
     }
 
+    function createDefaultUserEscrowLinker(NuCypherToken _token, MinersEscrow _escrow, PolicyManager _policyManager)
+        internal returns (UserEscrowLibraryLinker)
+    {
+        UserEscrowProxy userEscrowProxy = new UserEscrowProxy(_token, _escrow, _policyManager);
+        return new UserEscrowLibraryLinker(userEscrowProxy, bytes32(1));
+    }
+
+    function createDefaultUserEscrow(NuCypherToken _token, MinersEscrow _escrow, PolicyManager _policyManager)
+        internal returns (UserEscrow)
+    {
+        UserEscrowLibraryLinker userEscrowLinker = createDefaultUserEscrowLinker(_token, _escrow, _policyManager);
+        return new UserEscrow(userEscrowLinker, _token);
+    }
+
 }
 
 
 contract DefaultMinersEscrow is MinersEscrow {
 
-    constructor(NuCypherToken _token) public MinersEscrow(_token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500) {
+    constructor(NuCypherToken _token) public MinersEscrow(_token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 0, 100000) {
     }
 
     function getCurrentPeriod() public view returns (uint16) {

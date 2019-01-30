@@ -66,7 +66,7 @@ contract UserEscrowProxy {
     function depositAsMiner(uint256 _value, uint16 _periods) public {
         UserEscrowProxy state = getStateContract();
         NuCypherToken tokenFromState = state.token();
-        require(tokenFromState.balanceOf(address(this)) > _value);
+        require(tokenFromState.balanceOf(address(this)) >= _value);
         MinersEscrow escrowFromState = state.escrow();
         tokenFromState.approve(address(escrowFromState), _value);
         escrowFromState.deposit(_value, _periods);
