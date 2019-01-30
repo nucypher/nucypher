@@ -200,14 +200,21 @@ class Character(Learner):
             self.known_nodes.record_fleet_state()
 
     def __eq__(self, other) -> bool:
-        return bytes(self.stamp) == bytes(other.stamp)
+        try:
+            other_stamp = other.stamp
+        except (AttributeError, NoSigningPower):
+            return False
+        return bytes(self.stamp) == bytes(other_stamp)
 
     def __hash__(self):
         return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
         r = "⇀{}↽ ({})"
-        r = r.format(self.nickname, self.checksum_public_address)
+        try:
+            r = r.format(self.nickname, self.checksum_public_address)
+        except NoSigningPower:
+            r = r.format(self.__class__.__name__, self.nickname)
         return r
 
     @property
