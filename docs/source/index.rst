@@ -15,11 +15,16 @@ NuCypher
 .. image:: https://img.shields.io/pypi/pyversions/nucypher.svg
     :target: https://pypi.org/project/nucypher/
 
+.. image:: https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci
+    :target: https://circleci.com/gh/nucypher/nucypher/tree/master
+    :alt: CircleCI build status
+
 .. image:: https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master
     :target: https://coveralls.io/github/nucypher/nucypher?branch=master
 
-.. image:: https://img.shields.io/discord/411401661714792449.svg
-    :target: https://discord.gg/M5B7Nh
+.. image:: https://img.shields.io/discord/411401661714792449.svg?logo=discord
+    :target: https://discord.gg/7rmXa3S
+    :alt: Discord
 
 .. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
     :target: https://nucypher.readthedocs.io/en/latest/?badge=latest
