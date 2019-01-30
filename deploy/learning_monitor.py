@@ -1,4 +1,5 @@
 import sys
+import os.path
 
 from flask import Flask, render_template
 from twisted.logger import globalLogPublisher
@@ -19,7 +20,7 @@ known_node = Ursula.from_seed_and_stake_info(seed_uri=sys.argv[1],
                                              federated_only=True,
                                              minimum_stake=0)
 
-rest_app = Flask("fleet-monitor")
+rest_app = Flask("fleet-monitor", root_path=os.path.dirname(__file__))
 
 
 class MonitoringTracker(FleetStateTracker):
