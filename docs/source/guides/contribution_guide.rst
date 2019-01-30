@@ -15,9 +15,9 @@ Running the Tests
 
 .. _Pytest Documentation: https://docs.pytest.org/en/latest/
 
-There are several test implementations in `nucypher`, however, the vast majority
-of test are written for execution with `pytest`.
-For more details see the `Pytest Documentation`_
+There are several test implementations in ``nucypher``, however, the vast majority
+of test are written for execution with ``pytest``.
+For more details see the `Pytest Documentation`_.
 
 
 To run the tests:
@@ -38,13 +38,13 @@ Building Documentation
 
 .. note::
 
-  `sphinx`, `recommonmark`, and `sphinx_rtd_theme` are non-standard dependencies that can be installed
-  by running `pip install -e .[docs]` from the project directory.
+  ``sphinx``, ``recommonmark``, and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
+  by running ``pip install -e .[docs]`` from the project directory.
 
 
 .. _Read The Docs: https://nucypher.readthedocs.io/en/latest/
 
-Documentation for `nucypher` is hosted on `Read The Docs`_, and is automatically built without intervention by following the release procedure.
+Documentation for ``nucypher`` is hosted on `Read The Docs`_, and is automatically built without intervention by following the release procedure.
 However, you may want to build the documentation html locally for development.
 
 To build the project dependencies locally:
@@ -55,8 +55,8 @@ To build the project dependencies locally:
     (nucypher)$ make html
 
 
-If the build is successful, the resulting html output can be found in `nucypher/docs/build/html`;
-Opening `nucypher/docs/build/html/index.html` in a web browser is a reasonable next step.
+If the build is successful, the resulting html output can be found in ``nucypher/docs/build/html``;
+Opening ``nucypher/docs/build/html/index.html`` in a web browser is a reasonable next step.
 
 
 Building Docker
@@ -65,7 +65,7 @@ Building Docker
 Docker builds are automated as part of the publication workflow on circleCI and pushed to docker cloud.
 However you may want to build a local version of docker for development.
 
-We provide both a `docker-compose.yml` and a `Dockerfile` which can be used as follows:
+We provide both a ``docker-compose.yml`` and a ``Dockerfile`` which can be used as follows:
 
 *Docker Compose:*
 
@@ -79,13 +79,13 @@ Issuing a New Release
 
 .. note::
 
-  `bumpversion` is a non-standard dependency that can be installed by running `pip install -e .[deployment]` or 'pip install bumpversion'.
+  ``bumpversion`` is a non-standard dependency that can be installed by running ``pip install -e .[deployment]`` or ``pip install bumpversion``.
 
 .. important::
 
-   Ensure your local tree is based on `master` and has no uncommitted changes.
+   Ensure your local tree is based on ``master`` and has no uncommitted changes.
 
-1. Increment the desired version part (options are `major`, `minor`, `patch`, `stage`, `devnum`), for example:
+1. Increment the desired version part (options are ``major``, ``minor``, ``patch``, ``stage``, ``devnum``), for example:
 
 .. code:: bash
 
@@ -103,11 +103,11 @@ Issuing a New Release
 
    (nucypher)$ git push origin master && git push origin <TAG>
 
-5. Push the tag directly upstream by its name to trigger the publication webhooks on circleCI:
+5. Push the tag directly upstream by its name to trigger the publication webhooks on CircleCI:
 
 .. code:: bash
 
    (nucypher)$ git push upstream <TAG>
 
-7. Monitor the triggered deployment build on circleCI for manual approval
-8. Open a pull request with the resulting history in order to update `master`
+7. Monitor the triggered deployment build on CircleCI for manual approval.
+8. Open a pull request with the resulting history in order to update ``master``.

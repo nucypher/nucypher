@@ -9,7 +9,7 @@ Overview
 
 .. important::
 
-    This demo requires connecting to a running network. By default the demo is hardcoded to connect to the local demo fleet.
+    This demo requires connecting to a running network. By default the demo is hardcoded to connect to the :doc:`local demo fleet </demos/local_fleet_demo>`.
 
 
 This demo is an example of a NuCypher decentralized network allowing Alice to share
@@ -40,16 +40,24 @@ Install Nucypher
 ----------------
 
     Acquire the nucypher application code and install the dependencies.
-    For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide).
+    For a full installation guide see the :doc:`/guides/installation_guide`.
 
 Download the Book Text
 ----------------------
-    For your convienence we have provided a bash script to acquire the "Finnegan's Wake" text. However,
+    For your convenience we have provided a bash script to acquire the "Finnegan's Wake" text. However,
     feel free to use any text of your choice, as long you you edit the demo code accordingly.
 
-    To run the script:  `./download_finnegans_wake.sh`
+    To run the script:
+
+.. code::
+
+    (nucypher)$ ./download_finnegans_wake.sh
 
 Run the Demo
 ---------------
 
-    After acquiring a text file to re-encrypt, execute the demo by running: `python3 finnegans-wake-demo.py`
+    After acquiring a text file to re-encrypt, execute the demo by running:
+
+.. code::
+
+    (nucypher)$ python3 finnegans-wake-demo.py
