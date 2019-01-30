@@ -223,13 +223,11 @@ def ursula(click_config,
         globalLogPublisher.removeObserver(getJsonFileObserver())
 
     #
-    # Launch Warnings
+    # Pre-Launch Warnings
     #
     if not quiet:
         if dev:
             click.secho("WARNING: Running in development mode", fg='yellow')
-        if federated_only:
-            click.secho("WARNING: Running in Federated mode", fg='yellow')
         if force:
             click.secho("WARNING: Force is enabled", fg='yellow')
 
@@ -380,6 +378,14 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
+
+    #
+    # Launch Warnings
+    #
+    if not quiet:
+        if ursula_config.federated_only:
+            click.secho("WARNING: Running in Federated mode", fg='yellow')
+
     #
     # Action Switch
     #
@@ -391,7 +397,9 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
         #
         teacher_nodes = list()
         if teacher_uri:
-            node = Ursula.from_teacher_uri(teacher_uri=teacher_uri, min_stake=min_stake, federated_only=federated_only)
+            node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
+                                           min_stake=min_stake,
+                                           federated_only=ursula_config.federated_only)
             teacher_nodes.append(node)
 
         #
