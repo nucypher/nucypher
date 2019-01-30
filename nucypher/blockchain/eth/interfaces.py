@@ -409,8 +409,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     @deployer_address.setter
     def deployer_address(self, checksum_address: str) -> None:
-        if self.deployer_address is not NO_DEPLOYER_CONFIGURED:
-            raise RuntimeError("{} already has a deployer address set: {}.".format(self.__class__.__name__, self.deployer_address))
         self.__deployer_address = checksum_address
 
     def deploy_contract(self, contract_name: str, *constructor_args, enroll: bool = True, **kwargs) -> Tuple[Contract, str]:
