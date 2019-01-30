@@ -1,9 +1,15 @@
-NuCypher
-========
-*A proxy re-encryption network to empower privacy in decentralized systems*
+.. warning::
 
-.. image:: .static/img/nucypher_logo.svg
-    :width: 60%
+   NuCypher is currently in the *Alpha* development stage and is **not** intended for use in production.
+
+
+NuCypher: Decentralized Access Control
+======================================
+
+NuCypher enables censorship-resistant, end-to-end encrypted data sharing via *threshold proxy re-encryption* and a distributed network of service-providers.
+
+.. image:: .static/img/AliceBobNC.png
+    :width: 100%
 
 
 ----
@@ -34,6 +40,28 @@ NuCypher
 - Website https://www.nucypher.com/
 
 
+A short and efficient love story 
+--------------------------------
+
+Alice composes and sends a romantic poem to her lover, Bob. Sadly, she then drops her device into a pond. A few hours later, Bob turns on his mobile. How will he receive the poem? 
+
+.. code::
+
+    $ delivered_cleartexts = BOB.retrieve(message_kit=single_passage_ciphertext,
+                                          data_source=enrico_as_understood_by_bob, 
+                                          alice_verifying_key=alice_pubkey_restored_from_ancient_scroll)
+
+
+Bob's .retrieve() power sets off a series of exciting events, leading to the involvement of Ursula, an untrusted but diligent *proxy*. Ursula takes the ciphertext associated with Alice's message, then uses a special *re-encryption key* to transform it into a form decryptable by Bob. 
+
+.. code::
+
+    $ cfrag = pre.reencrypt(kfrag, 
+                            capsule, 
+                            metadata=capsule_signed_by_both)
+
+Bob hunts transformed ciphertexts from other participating Ursulas, re-combines them and finally, uses his private key to decrypt the underlying message. The poem is disappointing, and Bob is grateful that no third-party entity was trusted with the plaintext version. 
+
 Whitepapers
 -----------
 
@@ -61,9 +89,6 @@ Whitepapers
     *by David Nuñez - NuCypher*
 
 
-.. warning::
-
-   NuCypher is currently in the *Alpha* development stage and is **not** intended for use in production.
 
 
 .. toctree::
