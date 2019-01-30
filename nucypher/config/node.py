@@ -405,7 +405,7 @@ class NodeConfiguration(ABC):
         del payload['is_me']  # TODO
 
         # Serialize domains
-        domains = list(str(d) for d in self.domains)
+        domains = list(str(domain) for domain in self.domains)
 
         # Save node connection data
         payload.update(dict(node_storage=self.node_storage.payload(), domains=domains))

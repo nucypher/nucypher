@@ -4,7 +4,6 @@ import os
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -14,7 +13,6 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH, TESTER_DOMAIN)
-
 
 STAKE_VALUE = MIN_ALLOWED_LOCKED * 2
 
