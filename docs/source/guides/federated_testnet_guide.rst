@@ -145,7 +145,7 @@ NuCypher is maintaining a purpose-built endpoint to initially connect to the tes
 
 .. code:: bash
 
-    $(nucypher) nucypher ursula run --teacher-uri <SEEDNODE_URI>
+    $(nucypher) nucypher ursula run --network <NETWORK_DOMAIN> --teacher-uri <SEEDNODE_URI>
     ...
 
 2. Verify Connection
@@ -181,7 +181,7 @@ Subsequent node restarts do not need the teacher endpoint specified.
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run
+    (nucypher)$ nucypher ursula run --network <NETWORK_DOMAIN>
     ...
 
 Alternately you can run your node as a system service.
@@ -206,7 +206,7 @@ Use this template to create a file named *ursula.service* and place it in */etc/
     User=<YOUR USER>
     Type=simple
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run <SEEDNODE_URI>
+    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --network <NETWORK_DOMAIN> --teacher-uri <SEEDNODE_URI>
     
     [Install]
     WantedBy=multi-user.target
@@ -292,7 +292,7 @@ Interactive method:
 
     $ source nucypher/bin/activate
     ...
-    (nucypher)$ nucypher ursula run
+    (nucypher)$ nucypher ursula run --network <NETWORK_DOMAIN>
 
 
 OR
