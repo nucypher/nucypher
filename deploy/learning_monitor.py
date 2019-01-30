@@ -1,11 +1,12 @@
 import sys
+import json
 import os.path
 
 from flask import Flask, render_template
 from twisted.logger import globalLogPublisher
 
 from hendrix.deploy.base import HendrixDeploy
-from hendrix.experience import crosstown_traffic, hey_joe
+from hendrix.experience import hey_joe
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import GLOBAL_DOMAIN
@@ -62,9 +63,6 @@ monitor = Moe(
 
 monitor.start_learning_loop()
 
-import time
-import json
-
 
 def send_states(subscriber):
     message = ["states", monitor.known_nodes.abridged_states_dict()]
@@ -82,10 +80,8 @@ websocket_service.register_followup("nodes", send_nodes)
 
 @rest_app.route("/")
 def status():
-
-
-        # for node in monitor.known_nodes:
-        #     hey_joe.send(node.status_json(), topic="nodes")
+    # for node in monitor.known_nodes:
+    #     hey_joe.send(node.status_json(), topic="nodes")
 
     return render_template('monitor.html')
 
