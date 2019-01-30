@@ -45,18 +45,22 @@ class UrsulaCommandProtocol(LineReceiver):
         # Expose Ursula functional entry points
         self.__commands = {
 
+             # Help
+            '?': self.paintHelp,
+            'help': self.paintHelp,
+
             # Status
             'status': self.paintStatus,
             'known_nodes': self.paintKnownNodes,
             'fleet_state': self.paintFleetState,
 
             # Learning Control
-            'cycle_teacher': self.ursula.cycle_teacher_node,
-            'start_learning': self.ursula.start_learning_loop,
-            'stop_learning': self.ursula.stop_learning_loop,
+            'cycle_teacher': self.cycle_teacher,
+            'start_learning': self.start_learning,
+            'stop_learning': self.stop_learning,
 
             # Process Control
-            'stop': reactor.stop,
+            'stop': self.stop,
 
         }
 
@@ -64,15 +68,37 @@ class UrsulaCommandProtocol(LineReceiver):
     def commands(self):
         return self.__commands.keys()
 
+    def paintHelp(self):
+        """
+        Display this help message.
+        """
+        click.secho("\nUrsula Command Help\n===================\n")
+        for command, func in self.__commands.items():
+            if '?' not in command:
+                try:
+                    click.secho(f'{command}\n{"-"*len(command)}\n{func.__doc__.lstrip()}')
+                except AttributeError:
+                    raise AttributeError("Ursula Command method is missing a docstring,"
+                                         " which is required for generating help text.")
+
     def paintKnownNodes(self):
+        """
+        Display a list of all known nucypher peers.
+        """
         from nucypher.cli.painting import paint_known_nodes
         paint_known_nodes(ursula=self.ursula)
 
     def paintStatus(self):
+        """
+        Display the current status of the attached Ursula node.
+        """
         from nucypher.cli.painting import paint_node_status
         paint_node_status(ursula=self.ursula, start_time=self.start_time)
 
     def paintFleetState(self):
+        """
+        Display information about the network-wide fleet state as the attached Ursula node sees it.
+        """
         line = '{}'.format(build_fleet_state_status(ursula=self.ursula))
         click.secho(line)
 
@@ -112,3 +138,27 @@ class UrsulaCommandProtocol(LineReceiver):
 
         # Loop
         self.transport.write(self.prompt)
+
+    def cycle_teacher(self):
+        """
+        Manually direct the attached Ursula node to start learning from a different teacher.
+        """
+        return self.ursula.cycle_teacher_node()
+
+    def start_learning(self):
+        """
+        Manually start the attached Ursula's node learning protocol.
+        """
+        return self.ursula.start_learning_loop()
+
+    def stop_learning(self):
+        """
+        Manually stop the attached Ursula's node learning protocol.
+        """
+        return self.ursula.stop_learning_loop()
+
+    def stop(self):
+        """
+        Shutdown the attached running Ursula node.
+        """
+        return reactor.stop()
