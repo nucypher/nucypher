@@ -2,6 +2,7 @@ import os
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, UserEscrowAgent
 from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
@@ -64,7 +65,8 @@ def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
     beneficiary = testerchain.interface.w3.eth.accounts[-1]
-    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary)
+    allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
+    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == MAX_ALLOWED_LOCKED
 
 
