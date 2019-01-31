@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+import json
 import os
 import shutil
 
@@ -26,11 +27,13 @@ from click.testing import CliRunner
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED, ONE_YEAR_IN_SECONDS
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry, \
+    AllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
+    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
@@ -47,6 +50,24 @@ def nominal_federated_configuration_fields():
     del config_fields['is_me']
     yield tuple(config_fields.keys())
     del config
+
+
+@pytest.fixture(scope='module')
+def mock_allocation_infile(testerchain):
+    accounts = testerchain.interface.w3.eth.accounts[5::]
+    allocation_data = [{'address': addr, 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS} for addr in accounts]
+    with open(MOCK_ALLOCATION_INFILE, 'w') as file:
+        file.write(json.dumps(allocation_data))
+    registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_INFILE)
+    yield registry
+    os.remove(MOCK_ALLOCATION_INFILE)
+
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_primary_registry_filepath():
+    yield MOCK_REGISTRY_FILEPATH
+    if os.path.isfile(MOCK_REGISTRY_FILEPATH):
+        os.remove(MOCK_REGISTRY_FILEPATH)
 
 
 @pytest.fixture(scope='module')
@@ -97,7 +118,6 @@ def deployed_blockchain():
     # Delpoyer
     #
     deployer = Deployer(blockchain=blockchain,
-                        allocation_registry=allocation_registry,
                         deployer_address=origin)
 
     deployer_address, *all_yall = deployer.blockchain.interface.w3.eth.accounts
@@ -112,6 +132,6 @@ def deployed_blockchain():
     # Start with some hard-coded cases...
     allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS}]
 
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data)
+    deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
 
     yield blockchain, deployer_address
