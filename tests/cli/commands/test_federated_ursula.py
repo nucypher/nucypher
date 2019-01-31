@@ -149,24 +149,27 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
 
-@pytest.mark.skip("Results in ReactorAlreadyRunning")  # TODO: Find a way to execute this test (contains reactor.run call)
-def test_run_ursula(custom_filepath, click_runner):
+def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
 
     # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Run Ursula
-    run_args = ('ursula', 'run', '--config-file', custom_config_filepath)
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, run_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
 
     # CLI Output
     assert result.exit_code == 0
-    assert 'password' in result.output, 'WARNING: User was not prompted for password'
-    assert '? [y/N]:' in result.output, 'WARNING: User was to run Ursula'
-    assert '>>>' in result.output
+    assert 'Federated' in result.output, 'WARNING: Federated ursula is not running in federated mode'
+    assert 'Connecting' in result.output
+    assert 'Running' in result.output
+    assert 'Attached' in result.output
+    assert "'help' or '?'" in result.output
 
 
 def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_runner):
