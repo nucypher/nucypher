@@ -93,6 +93,8 @@ MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-re
 
 TESTER_DOMAIN = 'tester'
 
+TEMPORARY_DOMAIN = ':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
+
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 
 PYEVM_DEV_URI = "tester://pyevm"
@@ -109,3 +111,4 @@ MOCK_IP_ADDRESS = '0.0.0.0'
 MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
+
