@@ -19,13 +19,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import click
-from constant_sorrow import constants
 from constant_sorrow.constants import TEMPORARY_DOMAIN
-from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
+from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -186,7 +185,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
 
-        ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
+        ursula_config = UrsulaConfiguration.generate(password=click_config._get_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
@@ -228,6 +227,7 @@ def ursula(click_config,
                                      config_root=config_root,
                                      force=force,
                                      log=log)
+
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
         return
@@ -251,29 +251,16 @@ def ursula(click_config,
     # Authenticated Configurations
     else:
 
-        # Deserialize network domain name if override passed
-        if network:
-            domain_constant = getattr(constants, network.upper())
-            domains = {domain_constant}
-        else:
-            domains = None
-
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    domains=domains,
+                                                                    domains=[str(network)] if network else None,
                                                                     registry_filepath=registry_filepath,
                                                                     provider_uri=provider_uri,
                                                                     rest_host=rest_host,
                                                                     rest_port=rest_port,
                                                                     db_filepath=db_filepath,
-                                                                    poa=poa
-                                                                    )
+                                                                    poa=poa)
 
-        try:  # Unlock Keyring
-            if not quiet:
-                click.secho('Decrypting keyring...', fg='blue')
-            ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
-        except CryptoError:
-            raise ursula_config.keyring.AuthenticationFailed
+        click_config.unlock_keyring(node_configuration=ursula_config, quiet=quiet)
 
     #
     # Connect to Blockchain

@@ -16,20 +16,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import os
 
 import click
 from constant_sorrow.constants import NO_PASSWORD
+from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
 from nucypher.cli.painting import BANNER
+from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
     initialize_sentry,
     getJsonFileObserver)
 
+
+#
+# Click CLI Config
+#
 
 class NucypherClickConfig:
 
@@ -55,7 +60,7 @@ class NucypherClickConfig:
         self.log = Logger(self.__class__.__name__)
         self.__keyring_password = NO_PASSWORD
 
-    def get_password(self, confirm: bool =False) -> str:
+    def _get_password(self, confirm: bool =False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
 
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
@@ -64,6 +69,14 @@ class NucypherClickConfig:
 
         self.__keyring_password = keyring_password
         return self.__keyring_password
+
+    def unlock_keyring(self, node_configuration: NodeConfiguration, quiet: bool=False):
+        try:  # Unlock Keyring
+            if not quiet:
+                click.secho('Decrypting keyring...', fg='blue')
+            node_configuration.keyring.unlock(password=self._get_password())  # Takes ~3 seconds, ~1GB Ram
+        except CryptoError:
+            raise node_configuration.keyring.AuthenticationFailed
 
 
 # Register the above click configuration class as a decorator

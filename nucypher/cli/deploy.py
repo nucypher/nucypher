@@ -115,7 +115,7 @@ def deploy(click_config,
            force):
     """Manage contract and registry deployment"""
 
-    # Ensure config root exists, because we need a place to put outfiles.
+    # Ensure config root exists, because we need a default place to put outfiles.
     if not os.path.exists(DEFAULT_CONFIG_ROOT):
         os.makedirs(DEFAULT_CONFIG_ROOT)
 
