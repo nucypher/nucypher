@@ -35,18 +35,37 @@ library UmbralDeserializer {
         CorrectnessProof proof;
     }
 
-    // TODO rename
     struct PreComputedData {
-        bytes data;
+        uint256 pointEyCoord;
+        uint256 pointEZxCoord;
+        uint256 pointEZyCoord;
+        uint256 pointE1yCoord;
+        uint256 pointE1HxCoord;
+        uint256 pointE1HyCoord;
+        uint256 pointE2yCoord;
+        uint256 pointVyCoord;
+        uint256 pointVZxCoord;
+        uint256 pointVZyCoord;
+        uint256 pointV1yCoord;
+        uint256 pointV1HxCoord;
+        uint256 pointV1HyCoord;
+        uint256 pointV2yCoord;
+        uint256 pointUZxCoord;
+        uint256 pointUZyCoord;
+        uint256 pointU1yCoord;
+        uint256 pointU1HxCoord;
+        uint256 pointU1HyCoord;
+        uint256 pointU2yCoord;
     }
 
-    uint8 constant BIG_NUM_SIZE = 32;
-    uint8 constant POINT_SIZE = 33;
-    uint8 constant SIGNATURE_SIZE = 64;
-    uint8 constant ORIGINAL_CAPSULE_SIZE = 2 * POINT_SIZE + BIG_NUM_SIZE;
-    uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIG_NUM_SIZE + SIGNATURE_SIZE;
-    uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIG_NUM_SIZE;
-    uint8 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
+    uint256 constant BIGNUM_SIZE = 32;
+    uint256 constant POINT_SIZE = 33;
+    uint256 constant SIGNATURE_SIZE = 64;
+    uint256 constant CAPSULE_SIZE = 2 * POINT_SIZE + BIGNUM_SIZE;
+    uint256 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
+    uint256 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
+    uint256 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
+    uint256 constant PRECOMPUTED_DATA_SIZE = 20 * BIGNUM_SIZE;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -54,7 +73,7 @@ library UmbralDeserializer {
     function toCapsule(bytes memory _capsuleBytes)
         internal pure returns (Capsule memory capsule)
     {
-        require(_capsuleBytes.length == ORIGINAL_CAPSULE_SIZE);
+        require(_capsuleBytes.length == CAPSULE_SIZE);
         uint256 pointer = getPointer(_capsuleBytes);
         pointer = copyPoint(pointer, capsule.pointE);
         pointer = copyPoint(pointer, capsule.pointV);
@@ -76,7 +95,7 @@ library UmbralDeserializer {
         _pointer = copyPoint(_pointer, proof.pointKFragCommitment);
         _pointer = copyPoint(_pointer, proof.pointKFragPok);
         proof.bnSig = uint256(getBytes32(_pointer));
-        _pointer += BIG_NUM_SIZE;
+        _pointer += BIGNUM_SIZE;
 
         proof.kFragSignature = new bytes(SIGNATURE_SIZE);
         // TODO optimize, just two mload->mstore
@@ -98,7 +117,7 @@ library UmbralDeserializer {
     }
 
     /**
-    * @notice Deserialize to capsule frag
+    * @notice Deserialize to CapsuleFrag
     **/
     function toCapsuleFrag(bytes memory _cFragBytes)
         internal pure returns (CapsuleFrag memory cFrag)
@@ -110,20 +129,79 @@ library UmbralDeserializer {
         pointer = copyPoint(pointer, cFrag.pointE1);
         pointer = copyPoint(pointer, cFrag.pointV1);
         cFrag.kFragId = getBytes32(pointer);
-        pointer += BIG_NUM_SIZE;
+        pointer += BIGNUM_SIZE;
         pointer = copyPoint(pointer, cFrag.pointPrecursor);
 
         cFrag.proof = toCorrectnessProof(pointer, cFragBytesLength - CAPSULE_FRAG_SIZE);
     }
 
     /**
-    * @notice Deserialize to pre calculated data
+    * @notice Deserialize to precomputed data
     **/
-    // TODO rename
     function toPreComputedData(bytes memory _preComputedData)
         internal pure returns (PreComputedData memory data)
     {
-        data.data = _preComputedData;
+        require(_preComputedData.length == PRECOMPUTED_DATA_SIZE);
+        uint256 pointer = getPointer(_preComputedData);
+
+        data.pointEyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointEZxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointEZyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1HxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1HyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE2yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVZxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVZyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1HxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1HyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV2yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointUZxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointUZyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointU1yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointU1HxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointU1HyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointU2yCoord = uint256(getBytes32(pointer));
     }
 
     // TODO extract to external library if needed
