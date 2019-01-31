@@ -91,7 +91,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(miner_umbral_public_key_bytes)
     miner_umbral_public_key_hash = hash_ctx.finalize()
-    provider = testerchain.interface.providers[0]
+    provider = testerchain.interface.provider
     address = to_canonical_address(miner)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
