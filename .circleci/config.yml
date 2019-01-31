@@ -151,6 +151,13 @@ workflows:
           requires:
             - cli
             - ursula_command
+      - build_docs:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - cli
+            - ursula_command
       - test_build:
           filters:
             tags:
@@ -158,6 +165,7 @@ workflows:
           requires:
             - cli
             - ursula_command
+            - build_docs
       - build_docker:
           filters:
             tags:
@@ -487,6 +495,20 @@ jobs:
             pipenv run python tests/metrics/estimate_gas.py
       - store_artifacts:
           path: tests/metrics/results/
+
+  build_docs:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - pip_install
+      - run:
+          name: Install Documentation Build Dependencies
+          command: pip3 install --user sphinx recommonmark sphinx-rtd-theme
+      - run:
+          name: Build Sphinx Documentation
+          command: |
+            cd docs
+            make html
 
   test_build:
     <<: *python_36_base
