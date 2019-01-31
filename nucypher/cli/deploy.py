@@ -96,9 +96,10 @@ nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--registry-infile', help="Input path for contract registry file", type=click.STRING)
-@click.option('--registry-outfile', help="Output path for contract registry file", type=click.STRING)
+@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
+@click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
+@click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
 @nucypher_deployer_config
 def deploy(click_config,
            action,
@@ -107,6 +108,7 @@ def deploy(click_config,
            deployer_address,
            contract_name,
            allocation_infile,
+           allocation_outfile,
            registry_infile,
            registry_outfile,
            no_compile,
@@ -119,7 +121,7 @@ def deploy(click_config,
 
     # Establish a contract Registry
     registry, registry_filepath = None, (registry_outfile or registry_infile)
-    if registry_filepath:
+    if registry_filepath is not None:
         registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
     # Connect to Blockchain
@@ -132,7 +134,8 @@ def deploy(click_config,
     # OK - Let's init a Deployment actor
     if not deployer_address:
         etherbase = blockchain.interface.w3.eth.accounts[0]
-        deployer_address = etherbase
+        deployer_address = etherbase  # TODO: Make this required instead, perhaps interactive
+
     click.confirm("Deployer Address is {} - Continue?".format(deployer_address), abort=True)
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
@@ -151,7 +154,7 @@ def deploy(click_config,
             txhashes, agents = deployer.deploy_network_contracts(miner_secret=bytes(secrets.miner_secret, encoding='utf-8'),
                                                                  policy_secret=bytes(secrets.policy_secret, encoding='utf-8'))
         except BlockchainInterface.InterfaceError:
-            raise  # TODO: Handle registry management here (it may already exists)
+            raise  # TODO: Handle registry management here (contract may already exist)
         else:
             __deployment_transactions.update(txhashes)
 
@@ -206,7 +209,9 @@ def deploy(click_config,
     elif action == "allocations":
         if not allocation_infile:
             allocation_infile = click.prompt("Enter allocation data filepath")
-        deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile)
+        click.confirm("Continue deploying and allocating?", abort=True)
+        deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
+                                                allocation_outfile=allocation_outfile)
 
     elif action == "destroy-registry":
         registry_filepath = deployer.blockchain.interface.registry.filepath
