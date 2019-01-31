@@ -228,7 +228,8 @@ class Deployer(NucypherTokenActor):
 
     def deploy_beneficiary_contracts(self,
                                      allocations: List[Dict[str, Union[str, int]]],
-                                     allocation_outfile: str = None
+                                     allocation_outfile: str = None,
+                                     allocation_registry: AllocationRegistry = None,
                                      ) -> None:
         """
 
@@ -238,7 +239,10 @@ class Deployer(NucypherTokenActor):
                 {'address': '0xabced120', 'amount': 133432, 'duration': 31540000*2},
                 {'address': '0xf7aefec2', 'amount': 999, 'duration': 31540000*3}]
         """
-        allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
+        if allocation_registry and allocation_outfile:
+            raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
+        if allocation_registry is None:
+            allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
         for allocation in allocations:
             deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
             deployer.deliver(value=allocation['amount'],

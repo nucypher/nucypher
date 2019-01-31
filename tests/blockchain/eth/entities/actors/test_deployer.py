@@ -43,7 +43,6 @@ def test_rapid_deployment():
     origin, *everyone = blockchain.interface.w3.eth.accounts
 
     deployer = Deployer(blockchain=blockchain,
-                        allocation_registry=allocation_registry,
                         deployer_address=origin)
 
     deployer_address, *all_yall = deployer.blockchain.interface.w3.eth.accounts
@@ -73,4 +72,4 @@ def test_rapid_deployment():
         random_allocation = {'address': beneficiary_address, 'amount': amount, 'duration': duration}
         allocation_data.append(random_allocation)
 
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data)
+    deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
