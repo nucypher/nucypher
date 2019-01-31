@@ -108,7 +108,6 @@ class Deployer(NucypherTokenActor):
     def __init__(self,
                  blockchain: Blockchain,
                  deployer_address: str = None,
-                 allocation_registry: AllocationRegistry = None,
                  bare: bool = True
                  ) -> None:
 
@@ -122,7 +121,6 @@ class Deployer(NucypherTokenActor):
             self.miner_agent = MinerAgent(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
 
-        self.allocation_registy = allocation_registry
         self.user_escrow_deployers = dict()
 
         self.deployers = {
@@ -196,10 +194,10 @@ class Deployer(NucypherTokenActor):
         txhashes = escrow_proxy_deployer.deploy()
         return txhashes
 
-    def deploy_user_escrow(self):
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
         user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
                                                   deployer_address=self.deployer_address,
-                                                  allocation_registry=self.allocation_registy)
+                                                  allocation_registry=allocation_registry)
 
         user_escrow_deployer.deploy()
         principal_address = user_escrow_deployer.contract.address
@@ -228,7 +226,10 @@ class Deployer(NucypherTokenActor):
 
         return txhashes, agents
 
-    def deploy_beneficiary_contracts(self, allocations: List[Dict[str, Union[str, int]]]) -> None:
+    def deploy_beneficiary_contracts(self,
+                                     allocations: List[Dict[str, Union[str, int]]],
+                                     allocation_outfile: str = None
+                                     ) -> None:
         """
 
         Example allocation dataset (one year is 31540000 seconds):
@@ -237,8 +238,9 @@ class Deployer(NucypherTokenActor):
                 {'address': '0xabced120', 'amount': 133432, 'duration': 31540000*2},
                 {'address': '0xf7aefec2', 'amount': 999, 'duration': 31540000*3}]
         """
+        allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
         for allocation in allocations:
-            deployer = self.deploy_user_escrow()
+            deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
             deployer.deliver(value=allocation['amount'],
                              duration=allocation['duration'],
                              beneficiary_address=allocation['address'])
@@ -253,9 +255,9 @@ class Deployer(NucypherTokenActor):
                 raise
         return allocation_data
 
-    def deploy_beneficiaries_from_file(self, allocation_data_filepath: str):
+    def deploy_beneficiaries_from_file(self, allocation_data_filepath: str, allocation_outfile: str = None):
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        self.deploy_beneficiary_contracts(allocations=allocations)
+        self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
 
 
 class Miner(NucypherTokenActor):
