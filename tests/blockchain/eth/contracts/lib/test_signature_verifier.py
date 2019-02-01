@@ -53,7 +53,7 @@ def test_recover(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
-    signer_address = bytearray(testerchain.interface.w3.soliditySha3(['bytes32'], [umbral_pubkey_bytes[1:]]))
+    signer_address = bytearray(testerchain.interface.w3.solidityKeccak(['bytes32'], [umbral_pubkey_bytes[1:]]))
     signer_address = to_normalized_address(signer_address[12:])
 
     # Sign message using SHA-256 hash (because only 32 bytes hash can be used in the `ecrecover` method)
@@ -101,7 +101,7 @@ def test_address(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
-    signer_address = bytearray(testerchain.interface.w3.soliditySha3(['bytes32'], [umbral_pubkey_bytes[1:]]))
+    signer_address = bytearray(testerchain.interface.w3.solidityKeccak(['bytes32'], [umbral_pubkey_bytes[1:]]))
     signer_address = to_normalized_address(signer_address[12:])
 
     # Check extracting address in library

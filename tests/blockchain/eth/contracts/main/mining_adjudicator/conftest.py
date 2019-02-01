@@ -36,7 +36,7 @@ def adjudicator_contract(testerchain, escrow, request):
         'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 100, 10, 5, 2)
 
     if request.param:
-        secret_hash = testerchain.interface.w3.sha3(secret)
+        secret_hash = testerchain.interface.w3.keccak(secret)
         dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
