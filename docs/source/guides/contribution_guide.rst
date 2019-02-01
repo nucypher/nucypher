@@ -150,6 +150,19 @@ Generally speaking the preferred process of doing so is with an `interactive reb
    $ git add path/to/resolved/conflict/file.py
    $ git rebase --continue
    ... ( repeat as needed )
+
+
+4. Push Rebased History
+
+After resolving all conflicts, you will need to force push to your fork's repository, since the commits
+are rewritten.
+
+.. warning::
+
+   Force pushing will override any changes on the remote you push to, proceed with caution.
+
+.. code-block:: bash
+
    $ git push origin my-branch -f
 
 
