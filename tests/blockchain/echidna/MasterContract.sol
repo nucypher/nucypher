@@ -9,6 +9,10 @@ import "contracts/UserEscrowProxy.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Contract to prepare all contracts on-chain for tests
+* @dev Inherit one or many of child contracts choosing which ABI must be tested
+**/
 contract MasterContract {
 
     NuCypherToken token;
@@ -16,6 +20,11 @@ contract MasterContract {
     PolicyManager policyManager;
     UserEscrow userEscrow;
 
+    /**
+    * @notice Builds main contracts
+    * @dev Value 0x0 means default contract
+    * Don't use custom escrow with default token or custom policy manager with default miners escrow
+    **/
     function build(address _token, address _escrow, address _policyManager) internal {
         token = _token != 0x0 ? NuCypherToken(_token) : Fixtures.createDefaultToken();
         escrow = _escrow != 0x0 ? MinersEscrow(_escrow) : Fixtures.createDefaultMinersEscrow(token);
@@ -29,6 +38,12 @@ contract MasterContract {
         escrow.initialize();
     }
 
+    /**
+    * @notice Builds main contracts and one UserEscrow
+    * @dev Value 0x0 means default contract
+    * Don't use custom escrow with default token, custom policy manager with default miners escrow
+    * or custom user escrow with any other default
+    **/
     function build(address _token, address _escrow, address _policyManager, address _userEscrow) internal {
         build(_token, _escrow, _policyManager);
         userEscrow = _userEscrow != 0x0 ? UserEscrow(_userEscrow) :
@@ -38,6 +53,9 @@ contract MasterContract {
 }
 
 
+/**
+* @notice ABI for test NuCypherToken using MasterContract
+**/
 contract NuCypherTokenABI is MasterContract {
 
     function transfer(address to, uint256 value) public returns (bool) {
@@ -55,6 +73,9 @@ contract NuCypherTokenABI is MasterContract {
 }
 
 
+/**
+* @notice ABI for test MinersEscrow using MasterContract
+**/
 contract MinersEscrowABI is MasterContract {
 
     function initialize() public {
@@ -90,6 +111,9 @@ contract MinersEscrowABI is MasterContract {
 }
 
 
+/**
+* @notice ABI for test PolicyManager using MasterContract
+**/
 contract PolicyManagerABI is MasterContract {
 
     function register(address _node, uint16 _period) public {
@@ -134,6 +158,9 @@ contract PolicyManagerABI is MasterContract {
 }
 
 
+/**
+* @notice ABI for test UserEscrow using MasterContract
+**/
 contract UserEscrowABI is MasterContract {
 
     function initialDeposit(uint256 _value, uint256 _duration) public {
@@ -152,6 +179,9 @@ contract UserEscrowABI is MasterContract {
 }
 
 
+/**
+* @notice ABI for test UserEscrowProxy using MasterContract
+**/
 contract UserEscrowProxyABI is MasterContract {
 
     function depositAsMiner(uint256 _value, uint16 _periods) public {

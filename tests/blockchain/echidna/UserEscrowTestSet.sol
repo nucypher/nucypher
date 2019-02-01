@@ -5,6 +5,10 @@ import "./MasterContract.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Tests that owner can't get tokens before cliff
+**/
+// TODO This test is not working (but running) because of error in `delegateCall` in echidna
 contract UserEscrowTest1 is UserEscrowABI, UserEscrowProxyABI {
 
     address user = address(this);
@@ -24,6 +28,9 @@ contract UserEscrowTest1 is UserEscrowABI, UserEscrowProxyABI {
 }
 
 
+/**
+* @notice Tests that nobody can get ownership of the UserEscrow contract
+**/
 contract UserEscrowTest2 is UserEscrowABI, UserEscrowProxyABI {
 
     constructor() public {

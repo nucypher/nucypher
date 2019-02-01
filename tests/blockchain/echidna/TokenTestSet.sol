@@ -5,6 +5,9 @@ import "contracts/NuCypherToken.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Tests that caller can transfer only approved tokens
+**/
 contract TokenTest1 is NuCypherToken {
 
     constructor() public NuCypherToken(0) {
@@ -27,6 +30,9 @@ contract TokenTest1 is NuCypherToken {
 }
 
 
+/**
+* @notice Tests that caller can't just get tokens from nowhere
+**/
 contract TokenTest2 is NuCypherToken {
 
     constructor() public NuCypherToken(0) {

@@ -1,5 +1,5 @@
 #Arguments to solc
-solcArgs: zeppelin=/nucypher/zeppelin contracts=/nucypher/contracts --allow-paths /nucypher/zeppelin,/nucypher/contracts
+solcArgs: zeppelin=nucypher/blockchain/eth/sol/source/zeppelin contracts=nucypher/blockchain/eth/sol/source/contracts --allow-paths .
 #Number of tests that will run for each property
 testLimit: 100000
 #Contract's address in the EVM

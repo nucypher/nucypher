@@ -7,6 +7,9 @@ import "./MasterContract.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Prepares one active miner which can mine in current period
+**/
 contract MinersEscrow1 is DefaultMinersEscrow {
 
     constructor(NuCypherToken _token, address _miner) public DefaultMinersEscrow(_token) {
@@ -24,6 +27,9 @@ contract MinersEscrow1 is DefaultMinersEscrow {
 }
 
 
+/**
+* @notice Tests that specified miner can only mine and get reward and can't withdraw
+**/
 contract MinersEscrowTest1 is MinersEscrowABI {
 
     address miner = address(this);
@@ -43,6 +49,9 @@ contract MinersEscrowTest1 is MinersEscrowABI {
 }
 
 
+/**
+* @notice Prepares one miner that were active in a past and have partially unlocked tokens
+**/
 contract MinersEscrow2 is MinersEscrow1 {
 
     constructor(NuCypherToken _token, address _miner) public MinersEscrow1(_token, _miner) {
@@ -55,6 +64,9 @@ contract MinersEscrow2 is MinersEscrow1 {
 }
 
 
+/**
+* @notice Tests that specified miner can only withdraw unlocked tokens
+**/
 contract MinersEscrowTest2 is MinersEscrowABI {
 
     address miner = address(this);

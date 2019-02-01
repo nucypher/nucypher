@@ -8,6 +8,9 @@ import "contracts/proxy/Dispatcher.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Tests that even owner can't upgrade without secret
+**/
 contract UserEscrowLibraryLinkerTest is UserEscrowLibraryLinker {
 
     constructor() public UserEscrowLibraryLinker(0x1, bytes32(1)) {
@@ -31,6 +34,10 @@ contract UpgradeableImplementation is Upgradeable {
 }
 
 
+/**
+* @notice Tests that even owner can't upgrade without secret
+**/
+// TODO This test is not working because of error in `delegateCall` in echidna
 contract DispatcherTest is Dispatcher {
 
     address initialTarget;

@@ -9,6 +9,9 @@ import "./MasterContract.sol";
 import "./MinersEscrowTestSet.sol";
 
 
+/**
+* @notice Prepares and tests one node with reward
+**/
 contract PolicyManagerTest1 is PolicyManager {
 
     constructor() public PolicyManager(Fixtures.createDefaultMinersEscrow()) {
@@ -17,13 +20,16 @@ contract PolicyManagerTest1 is PolicyManager {
 
     function echidnaRewardTest() public view returns (bool) {
         // TODO this test should fail after withdraw reward
-        // but need to transfer ETH somehow to PolicyManager contract
+        // but need to transfer ETH somehow to PolicyManager contract in tests preparation
         return nodes[Fixtures.echidnaCaller()].reward == 1000;
     }
 
 }
 
 
+/**
+* @notice Prepares one node with reward  and one policy for that node
+**/
 contract PolicyManager2 is PolicyManager {
 
     constructor(MinersEscrow _escrow, address _node) public PolicyManager(_escrow) {
@@ -32,7 +38,7 @@ contract PolicyManager2 is PolicyManager {
         nodeInfo.lastMinedPeriod = getCurrentPeriod() - 2;
 
         Policy storage policy = policies[bytes16(1)];
-        policy.client  = Fixtures.address3();
+        policy.client  = Fixtures.addressList(3);
         policy.rewardRate = 100;
         policy.firstPartialReward = 0;
         policy.startPeriod = getCurrentPeriod() - 1;
@@ -50,6 +56,9 @@ contract PolicyManager2 is PolicyManager {
 }
 
 
+/**
+* @notice Tests that node can get only reward for available policy
+**/
 contract PolicyManagerTest2 is MinersEscrowABI, PolicyManagerABI {
 
     address miner = address(this);

@@ -5,6 +5,9 @@ import "contracts/Seeder.sol";
 import "./Fixtures.sol";
 
 
+/**
+* @notice Tests invariants of array of seeds
+**/
 contract SeederTest is Seeder {
 
     constructor() public Seeder(2) {
