@@ -5,6 +5,53 @@ Contributing
     :target: https://cdn-images-1.medium.com/max/800/1*J31AEMsTP6o_E5QOohn0Hw.png
 
 
+Acquiring the Codebase
+----------------------
+
+.. _`NuCypher GitHub`: https://github.com/nucypher/nucypher
+
+In order to contribute new code or documentation changes, you will need a local copy
+of the source code which is located on the `NuCypher GitHub`_.
+
+.. note::
+
+   NuCypher uses ``git`` for version control; Be sure you have it installed.
+
+Here is the recommended procedure for acquiring the code in preparation for
+contributing proposed changes:
+
+
+1. Use GitHub to Fork the `nucypher/nucypher` repository
+
+2. Clone your fork's repository to your local machine
+
+.. code-block:: bash
+
+   $ git clone https://github.com/<YOUR-GITHUB-USERNAME>/nucypher.git
+
+3. Change Directories into ``nucypher``
+
+.. code-block:: bash
+
+   cd nucypher
+
+3. Add `nucypher/nucypher` as an upstream remote
+
+.. code-block:: bash
+
+   $ git remote add upstream https://github.com/nucypher/nucypher.git
+
+4. Update your remote tracking branches
+
+.. code-block:: bash
+
+   $ git remote update
+
+.. _`Developer Installation Guide`: /guides/installation_guide
+
+5. Install the project dependencies: see the `Developer Installation Guide`_
+
+
 Running the Tests
 -----------------
 
@@ -32,6 +79,79 @@ Optionally, to run the full, slow, verbose test suite run:
 .. code:: bash
 
   (nucypher)$ pytest --runslow -s
+
+
+Making A Commit
+---------------
+
+NuCypher takes pride in it's commit history.
+
+When making a commit that you intend to contribute, keep your commit descriptive and succinct.
+Commit messages are best written in full sentences that make an attempt to accurately
+describe what effect the changeset represents in the simplest form.  (It takes practice!)
+
+Imagine you are the one reviewing the code, commit-by-commit as a means of understanding
+the thinking behind the PRs history. Does your commit history tell an honest and accurate story?
+
+We understand that different code authors have different development preferences, and others
+are first-time contributors to open source, so feel free to join our discord and let us know
+how we can best support the submission of your proposed changes.
+
+
+Opening A Pull Request
+----------------------
+
+When considering including commits as part of a pull request into `nucypher/nucypher`,
+we *highly* recommend opening the pull request early, before it is finished with
+the mark "[WIP]" prepended to the title.  We understand PRs marked "WIP" to be subject to change,
+history rewrites, and CI failures. Generally we will not review a WIP PR until the "[WIP]" marker
+has been removed from the PR title - However this does give other contributors an opportunity
+to provide early feedback and assists in facilitating an iterative contribution process.
+
+
+Pull Request Conflicts
+----------------------
+
+As an effort to preserve authorship and a cohesive commit history, we prefer if proposed contributions
+are rebased over master (or appropriate branch) when a merge conflict arises,
+instead of making a merge commit back into the contributors fork.
+
+Generally speaking the preferred process of doing so is with an `interactive rebase`:
+
+.. important::
+
+   Be certain you do not have uncommitted changes before continuing.
+
+1. Update your remote tracking branches
+
+.. code-block:: bash
+
+   $ git remote update
+   ...  (some upstream changes are reported)
+
+2. Initiate an interactive rebase over `nucypher/nucypher@master`
+
+.. note::
+
+   This example specifies the remote name ``upstream`` for the NuCypher organizational repository as
+   used in the `Acquiring the Codebase`_ section.
+
+.. code-block:: bash
+
+   $ git rebase -i upstream/master
+   ...  (edit & save rebase TODO list)
+
+3. Resolve Conflicts
+
+.. code-block:: bash
+
+   $ git status
+   ... (resolve local conflict)
+   $ git add path/to/resolved/conflict/file.py
+   $ git rebase --continue
+   ... ( repeat as needed )
+   $ git push origin my-branch -f
+
 
 Building Documentation
 ----------------------
