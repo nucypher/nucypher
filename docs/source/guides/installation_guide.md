@@ -1,6 +1,14 @@
 # Installation Guide
 
 
+## Contents
+
+* [Running Ursula with Systemd] (#System-Requirements)
+* [Running Ursula with Systemd] (#Systemd-Service-Installation)
+* [Standard Installation] (#Standard-Installation)
+* [Development Installation] (#Development-Installation)
+* [Running Ursula with Systemd] (#Systemd Service Installation)
+
 ## System Requirements
 
 * At least 1 GB of RAM is required for key derivation functionality (SCrypt).
@@ -111,9 +119,12 @@ Ensure you have `git` installed ([Git Documentation](https://git-scm.com/doc)).
 
 
 ### Acquire NuCypher Codebase
+
+Fork the nucypher repository on GitHub, as explained in the [Contribution Guide](/guides/contribution_guide),
+then clone your fork's repository to your local machine:
     
 ```
-$ git clone https://github.com/nucypher/nucypher.git
+$ git clone https://github.com/<YOUR_GITHUB_USERNAME>/nucypher.git
 ```
 
 After acquiring a local copy of the application code, you will need to
