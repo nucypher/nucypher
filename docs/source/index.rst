@@ -72,15 +72,8 @@ Whitepapers
 
 
 .. toctree::
-   :maxdepth: 2
-
-
-
-Guides
-------
-
-.. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Guides
 
    guides/quickstart
    guides/federated_testnet_guide
@@ -88,33 +81,24 @@ Guides
    guides/ursula_configuration_guide
    guides/contribution_guide
 
-
-Demos
------
-
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Demos
 
    demos/local_fleet_demo
    demos/finnegans_wake_demo
    demos/heartbeat_demo
 
-
-Architecture
-------------
-
 .. toctree::
    :maxdepth: 1
+   :caption: Architecture
 
    architecture/contracts
    architecture/upgradeable_proxy_contracts
 
-
-API
----
-
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: API
 
    api/characters
    api/config
@@ -130,6 +114,7 @@ Release Notes
 
 .. toctree::
    :maxdepth: 1
+   :caption: Release Notes
 
    release_notes/genesis_release
 
