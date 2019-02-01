@@ -307,8 +307,8 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
 def test_upgrading(testerchain):
     creator = testerchain.interface.w3.eth.accounts[0]
 
-    secret_hash = testerchain.interface.w3.sha3(secret)
-    secret2_hash = testerchain.interface.w3.sha3(secret2)
+    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
 
     # Deploy contracts
     escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
