@@ -509,6 +509,8 @@ jobs:
           command: |
             cd docs
             make html
+      - store_artifacts:
+          path: docs/build
 
   test_build:
     <<: *python_36_base
