@@ -1,3 +1,4 @@
+import json
 import sys
 import json
 import os.path
@@ -13,6 +14,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import SimpleObserver
+
 
 websocket_service = hey_joe.WebSocketService("127.0.0.1", 9000)
 globalLogPublisher.addObserver(SimpleObserver())
@@ -39,11 +41,17 @@ class Moe(Character):
     """
     tracker_class = MonitoringTracker
     _SHORT_LEARNING_DELAY = .5
+    _LONG_LEARNING_DELAY = 30
+    LEARNING_TIMEOUT = 10
+    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
 
     def remember_node(self, *args, **kwargs):
         new_node_or_none = super().remember_node(*args, **kwargs)
         if new_node_or_none:
-            hey_joe.send({new_node_or_none.checksum_public_address: MonitoringTracker.abridged_node_details(new_node_or_none)}, "nodes")
+            hey_joe.send(
+                {new_node_or_none.checksum_public_address: MonitoringTracker.abridged_node_details(new_node_or_none)},
+                "nodes")
+        return new_node_or_none
 
     def learn_from_teacher_node(self, *args, **kwargs):
         teacher = self.current_teacher_node(cycle=False)
@@ -80,9 +88,6 @@ websocket_service.register_followup("nodes", send_nodes)
 
 @rest_app.route("/")
 def status():
-    # for node in monitor.known_nodes:
-    #     hey_joe.send(node.status_json(), topic="nodes")
-
     return render_template('monitor.html')
 
 
