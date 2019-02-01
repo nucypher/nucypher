@@ -215,8 +215,10 @@ class FleetStateTracker:
     @staticmethod
     def abridged_state_details(state):
         return {"nickname": state.nickname,
-                "metadata": state.metadata,
-                "updated": state.updated.iso8601()
+                "symbol": state.metadata[0][1],
+                "color_hex": state.metadata[0][0]['hex'],
+                "color_name": state.metadata[0][0]['color'],
+                "updated": state.updated.rfc2822()
                 }
 
     @staticmethod
@@ -224,8 +226,9 @@ class FleetStateTracker:
         try:
             last_seen = node.last_seen.iso8601()
         except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
-            last_seen = str(node.last_seen)
-        return {"nickname_metadata": node.nickname_metadata,
+            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
+        return {
+                "icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
                 "rest_url": node.rest_url(),
                 "nickname": node.nickname,
                 "checksum_address": node.checksum_public_address,
@@ -233,7 +236,6 @@ class FleetStateTracker:
                 "last_seen": last_seen,
                 "fleet_state_icon": node.fleet_state_icon,
                 }
-
 
 
 class Learner:
@@ -1053,7 +1055,10 @@ class Teacher:
         <span class="small-address">{address_first6}</span>
         </div>
         """.replace("  ", "").replace('\n', "")
-        return icon_template.format(
+        return icon_template.format(**self.nickname_icon_details)
+
+    def nickname_icon_details(self):
+        return dict(
             node_class=self.__class__.__name__,
             version=self.TEACHER_VERSION,
             first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
