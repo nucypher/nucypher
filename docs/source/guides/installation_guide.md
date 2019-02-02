@@ -3,11 +3,11 @@
 
 ## Contents
 
-* [Running Ursula with Systemd] (#System-Requirements)
-* [Running Ursula with Systemd] (#Systemd-Service-Installation)
-* [Standard Installation] (#Standard-Installation)
-* [Development Installation] (#Development-Installation)
-* [Running Ursula with Systemd] (#Systemd Service Installation)
+* [Running Ursula with Systemd](#System-Requirements)
+* [Running Ursula with Systemd](#Systemd-Service-Installation)
+* [Standard Installation](#Standard-Installation)
+* [Development Installation](#Development-Installation)
+* [Running Ursula with Systemd](#Systemd-Service-Installation)
 
 ## System Requirements
 

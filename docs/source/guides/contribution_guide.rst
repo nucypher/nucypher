@@ -15,7 +15,7 @@ of the source code which is located on the `NuCypher GitHub`_.
 
 .. note::
 
-   NuCypher uses ``git`` for version control; Be sure you have it installed.
+   NuCypher uses ``git`` for version control. Be sure you have it installed.
 
 Here is the recommended procedure for acquiring the code in preparation for
 contributing proposed changes:
@@ -84,7 +84,7 @@ Optionally, to run the full, slow, verbose test suite run:
 Making A Commit
 ---------------
 
-NuCypher takes pride in it's commit history.
+NuCypher takes pride in its commit history.
 
 When making a commit that you intend to contribute, keep your commit descriptive and succinct.
 Commit messages are best written in full sentences that make an attempt to accurately
@@ -105,7 +105,7 @@ When considering including commits as part of a pull request into `nucypher/nucy
 we *highly* recommend opening the pull request early, before it is finished with
 the mark "[WIP]" prepended to the title.  We understand PRs marked "WIP" to be subject to change,
 history rewrites, and CI failures. Generally we will not review a WIP PR until the "[WIP]" marker
-has been removed from the PR title - However this does give other contributors an opportunity
+has been removed from the PR title, however, this does give other contributors an opportunity
 to provide early feedback and assists in facilitating an iterative contribution process.
 
 
