@@ -31,15 +31,25 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 class RestMiddleware:
     log = Logger()
 
-    def consider_arrangement(self, arrangement):
-        node = arrangement.ursula
-        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
-                                 bytes(arrangement),
-                                 verify=node.certificate_filepath, timeout=2)
+    class _Client:
 
-        if not response.status_code == 200:
-            raise RuntimeError("Bad response: {}".format(response.content))
-        return response
+        def __init__(self, library, response_cleaner=None):
+            if self.response_cleaner is not None:
+                self.response_cleaner = response_cleaner
+            else:
+                self.response_cleaner = lambda r: r
+
+            self._library = library
+
+        def __getattr__(self, item):
+            def method_wrapper(*args, **kwargs):
+                method = getattr(self._library, item)
+                response = method(*args, **kwargs)
+                cleaned_response = self.response_cleaner(response)
+                return cleaned_response
+            return method_wrapper
+
+    client = _Client(requests)
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
@@ -64,9 +74,21 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
+    def consider_arrangement(self, arrangement):
+        node = arrangement.ursula
+        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
+                                 bytes(arrangement),
+                                 verify=node.certificate_filepath, timeout=2)
+
+        if not response.status_code == 200:
+            raise RuntimeError("Bad response: {}".format(response.content))
+        return response
+
     def enact_policy(self, ursula, id, payload):
-        response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()), payload,
-                                 verify=ursula.certificate_filepath, timeout=2)
+        response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
+                                 payload,
+                                 verify=ursula.certificate_filepath,
+                                 timeout=2)
         if not response.status_code == 200:
             raise RuntimeError("Bad response: {}".format(response.content))
         return True, ursula.stamp.as_umbral_pubkey()
