@@ -58,7 +58,7 @@ class RestMiddleware:
                     if cleaned_response.status_code == 404:
                         raise NotFound("Server claims not to have found it: {}".format(cleaned_response.content))
                     else:
-                        raise UnexpectedResponse("Unexpected response: {}".format(cleaned_response.content))
+                        raise UnexpectedResponse("Unexpected response for {},{}: {}".format(args, kwargs, cleaned_response.content))
                 return cleaned_response
             return method_wrapper
 
@@ -115,14 +115,6 @@ class RestMiddleware:
                                                                 revocation.arrangement_id.hex()),
                                    bytes(revocation),
                                    verify=ursula.certificate_filepath)
-        if response.status_code == 200:
-            return response
-        elif response.status_code == 404:
-            raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(revocation.arrangement_id),
-                               response.status_code)
-        else:
-            self.log.debug("Bad response during revocation: {}".format(response))
-            raise RuntimeError("Bad response: {}".format(response.content), response.status_code)
         return response
 
     def get_competitive_rate(self):
