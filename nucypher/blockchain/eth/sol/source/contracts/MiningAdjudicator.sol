@@ -35,7 +35,7 @@ contract MiningAdjudicator is Upgradeable {
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
     uint256 public basePenalty;
     uint256 public penaltyHistoryCoefficient;
-    uint256 public percentagePenalty;
+    uint256 public percentagePenaltyCoefficient;
     uint256 public rewardCoefficient;
     mapping (address => uint256) public penaltyHistory;
     mapping (bytes32 => bool) public evaluatedCFrags;
@@ -45,7 +45,7 @@ contract MiningAdjudicator is Upgradeable {
     * @param _hashAlgorithm Hashing algorithm
     * @param _basePenalty Base for the penalty calculation
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
-    * @param _percentagePenalty Coefficient for calculating the percentage penalty
+    * @param _percentagePenaltyCoefficient Coefficient for calculating the percentage penalty
     * @param _rewardCoefficient Coefficient for calculating the reward
     **/
     constructor(
@@ -53,18 +53,18 @@ contract MiningAdjudicator is Upgradeable {
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,
-        uint256 _percentagePenalty,
+        uint256 _percentagePenaltyCoefficient,
         uint256 _rewardCoefficient
     )
         public
     {
         require(address(_escrow) != 0x0 &&
-            _percentagePenalty != 0 &&
+            _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
         escrow = _escrow;
         hashAlgorithm = _hashAlgorithm;
         basePenalty = _basePenalty;
-        percentagePenalty = _percentagePenalty;
+        percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
         penaltyHistoryCoefficient = _penaltyHistoryCoefficient;
         rewardCoefficient = _rewardCoefficient;
     }
@@ -141,9 +141,9 @@ contract MiningAdjudicator is Upgradeable {
         internal returns (uint256 penalty, uint256 reward)
     {
         penalty = basePenalty.add(penaltyHistoryCoefficient.mul(penaltyHistory[_miner]));
-        penalty = Math.min256(penalty, _minerValue.div(percentagePenalty));
+        penalty = Math.min256(penalty, _minerValue.div(percentagePenaltyCoefficient));
         reward = penalty.div(rewardCoefficient);
-        // TODO add maximum condition or other overflow protection
+        // TODO add maximum condition or other overflow protection or other penalty condition
         penaltyHistory[_miner] = penaltyHistory[_miner].add(1);
     }
 
@@ -172,8 +172,7 @@ contract MiningAdjudicator is Upgradeable {
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
     )
-        // TODO make public when possible
-        internal pure returns (bool)
+        public pure returns (bool)
     {
         UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
@@ -433,7 +432,7 @@ contract MiningAdjudicator is Upgradeable {
         require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
         require(uint256(delegateGet(_testTarget, "basePenalty()")) == basePenalty);
         require(uint256(delegateGet(_testTarget, "penaltyHistoryCoefficient()")) == penaltyHistoryCoefficient);
-        require(uint256(delegateGet(_testTarget, "percentagePenalty()")) == percentagePenalty);
+        require(uint256(delegateGet(_testTarget, "percentagePenaltyCoefficient()")) == percentagePenaltyCoefficient);
         require(uint256(delegateGet(_testTarget, "rewardCoefficient()")) == rewardCoefficient);
         require(uint256(delegateGet(_testTarget, "penaltyHistory(address)", bytes32(RESERVED_ADDRESS))) ==
             penaltyHistory[RESERVED_ADDRESS]);
@@ -448,7 +447,7 @@ contract MiningAdjudicator is Upgradeable {
         hashAlgorithm = targetContract.hashAlgorithm();
         basePenalty = targetContract.basePenalty();
         penaltyHistoryCoefficient = targetContract.penaltyHistoryCoefficient();
-        percentagePenalty = targetContract.percentagePenalty();
+        percentagePenaltyCoefficient = targetContract.percentagePenaltyCoefficient();
         rewardCoefficient = targetContract.rewardCoefficient();
         // preparation for the verifyState method
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
