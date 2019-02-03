@@ -26,6 +26,10 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    def response_cleaner(self, response):
+        response.content = response.data
+        return response
+
     def _get_mock_client_by_ursula(self, ursula):
         port = ursula.rest_information()[0].port
         return self._get_mock_client_by_port(port)
@@ -38,7 +42,7 @@ class MockRestMiddleware(RestMiddleware):
         ursula = self._get_ursula_by_port(port)
         rest_app = ursula.rest_app
         rest_app.testing = True
-        mock_client = rest_app.test_client()
+        mock_client = self._Client(rest_app.test_client(), response_cleaner=self.response_cleaner)
         return mock_client
 
     def _get_ursula_by_port(self, port):
