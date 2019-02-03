@@ -51,7 +51,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
@@ -194,9 +194,12 @@ class Alice(Character, PolicyAuthor):
             for node_id in policy.revocation_kit.revokable_addresses:
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
-                response = self.network_middleware.revoke_arrangement(ursula, revocation)
-                if response.status_code != 200:
-                    failed_revocations[node_id] = (revocation, response.status_code)
+                try:
+                    response = self.network_middleware.revoke_arrangement(ursula, revocation)
+                except NotFound:
+                    failed_revocations[node_id] = (revocation, NotFound)
+                except UnexpectedResponse:
+                    failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
 
 
