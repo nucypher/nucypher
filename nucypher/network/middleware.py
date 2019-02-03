@@ -46,6 +46,8 @@ class RestMiddleware:
                 method = getattr(self._library, item)
                 response = method(*args, **kwargs)
                 cleaned_response = self.response_cleaner(response)
+                if cleaned_response.status_code >= 300:
+                    raise RuntimeError("Unexpected response: {}".format(cleaned_response.content))
                 return cleaned_response
             return method_wrapper
 
@@ -79,9 +81,6 @@ class RestMiddleware:
         response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
                                  bytes(arrangement),
                                  verify=node.certificate_filepath, timeout=2)
-
-        if not response.status_code == 200:
-            raise RuntimeError("Bad response: {}".format(response.content))
         return response
 
     def enact_policy(self, ursula, id, payload):
