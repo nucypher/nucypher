@@ -28,6 +28,14 @@ from umbral.signing import Signature
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 
+class UnexpectedResponse(Exception):
+    pass
+
+
+class NotFound(UnexpectedResponse):
+    pass
+
+
 class RestMiddleware:
     log = Logger()
 
@@ -47,7 +55,10 @@ class RestMiddleware:
                 response = method(*args, **kwargs)
                 cleaned_response = self.response_cleaner(response)
                 if cleaned_response.status_code >= 300:
-                    raise RuntimeError("Unexpected response: {}".format(cleaned_response.content))
+                    if cleaned_response.status_code == 404:
+                        raise NotFound("Server claims not to have found it: {}".format(cleaned_response.content))
+                    else:
+                        raise UnexpectedResponse("Unexpected response: {}".format(cleaned_response.content))
                 return cleaned_response
             return method_wrapper
 
