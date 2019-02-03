@@ -89,18 +89,16 @@ class RestMiddleware:
 
     def consider_arrangement(self, arrangement):
         node = arrangement.ursula
-        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
+        response = self.client.post("https://{}/consider_arrangement".format(node.rest_interface),
                                  bytes(arrangement),
                                  verify=node.certificate_filepath, timeout=2)
         return response
 
     def enact_policy(self, ursula, id, payload):
-        response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
+        response = self.client.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
                                  payload,
                                  verify=ursula.certificate_filepath,
                                  timeout=2)
-        if not response.status_code == 200:
-            raise RuntimeError("Bad response: {}".format(response.content))
         return True, ursula.stamp.as_umbral_pubkey()
 
     def reencrypt(self, work_order):
@@ -113,8 +111,9 @@ class RestMiddleware:
 
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
-        response = requests.delete(f"https://{ursula.rest_interface}/kFrag/{revocation.arrangement_id.hex()}",
-                                   data=bytes(revocation),
+        response = self.client.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
+                                                                revocation.arrangement_id.hex()),
+                                   bytes(revocation),
                                    verify=ursula.certificate_filepath)
         if response.status_code == 200:
             return response
@@ -131,25 +130,23 @@ class RestMiddleware:
 
     def get_treasure_map_from_node(self, node, map_id):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = requests.get(endpoint, verify=node.certificate_filepath, timeout=2)
+        response = self.client.get(endpoint, verify=node.certificate_filepath, timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = requests.post(endpoint, data=map_payload, verify=node.certificate_filepath, timeout=2)
+        response = self.client.post(endpoint, data=map_payload, verify=node.certificate_filepath, timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
-        return requests.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
+        return self.client.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
 
     def node_information(self, host, port, certificate_filepath):
         endpoint = "https://{}:{}/public_information".format(host, port)
-        response = requests.get(endpoint, verify=certificate_filepath, timeout=2)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
+        response = self.client.get(endpoint, verify=certificate_filepath, timeout=2)
         return response.content
 
     def get_nodes_via_rest(self,
