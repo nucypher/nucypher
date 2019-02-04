@@ -2,7 +2,14 @@ version: 2.1
 
 workflows:
   version: 2
-  test:
+  test_build_deploy:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
     jobs:
       - pipenv_install_36:
           filters:
@@ -509,6 +516,8 @@ jobs:
           command: |
             cd docs
             make html
+      - store_artifacts:
+          path: docs/build
 
   test_build:
     <<: *python_36_base

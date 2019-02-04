@@ -283,7 +283,7 @@ Update your virtual environment
 
 .. code::
 
-  (nucypher)$ pip3 install nucypher
+  (nucypher)$ pip3 install -U nucypher
 
 
 3. Restart Ursula Node
