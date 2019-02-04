@@ -67,6 +67,7 @@ def make_recoverable_signature(data_hash, signature, umbral_pubkey_bytes):
         recoverable_signature = bytes(signature) + bytes([1])
     return recoverable_signature
 
+
 # TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
 def fragments(metadata):
     delegating_privkey = UmbralPrivateKey.gen_key()
@@ -89,7 +90,7 @@ def fragments(metadata):
 
 @pytest.mark.slow
 def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
-    creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, miner, wrong_miner, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
 
     # TODO: Move this to an integration test?
@@ -136,8 +137,8 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # Bob prepares supporting Evidence
     evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
 
-    some_data = evidence.precompute_values()
-    assert len(some_data) == 20 * 32
+    evidence_data = evidence.precompute_values()
+    assert len(evidence_data) == 20 * 32
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
     assert proof_signature == adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
@@ -166,19 +167,20 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             requester_umbral_public_key_bytes,
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
-            some_data)
-    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
+            evidence_data)
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     assert 1000 == escrow.functions.minerInfo(miner).call()[0]
+    assert 0 == escrow.functions.rewardInfo(investigator).call()
 
     events = evaluation_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert data_hash == event_args['evaluationHash']
     assert miner == event_args['miner']
-    assert creator == event_args['investigator']
+    assert investigator == event_args['investigator']
     assert event_args['correctness']
 
     # Can't evaluate miner with data that already was checked
@@ -186,7 +188,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
         tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
         testerchain.wait_for_receipt(tx)
 
-    # # Challenge using bad data
+    # Challenge using bad data
     metadata = os.urandom(34)
     capsule, cfrag = fragments(metadata)
     capsule_bytes = capsule.to_bytes()
@@ -212,11 +214,20 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             evidence_data)
 
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     assert 900 == escrow.functions.minerInfo(miner).call()[0]
+    assert 50 == escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
 
     # Prepare hash of the data
     metadata = os.urandom(34)
@@ -293,21 +304,69 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # Can't evaluate nonexistent miner
     address = to_canonical_address(wrong_miner)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
-    signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+    signed_wrong_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
     wrong_args = args[:]
-    wrong_args[7] = signed_miner_umbral_public_key
+    wrong_args[7] = signed_wrong_miner_umbral_public_key
     with pytest.raises((TransactionFailed, ValueError)):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     # Initial arguments were correct
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    # Penalty was increased because it's the second violation
     assert 790 == escrow.functions.minerInfo(miner).call()[0]
-    # TODO tests for penalty/reward calculation
-    # TODO tests for events
+    assert 105 == escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
+
+    # Prepare corrupted data again
+    capsule, cfrag = fragments(metadata)
+    capsule_bytes = capsule.to_bytes()
+    # Corrupt proof
+    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    cfrag_bytes = cfrag.to_bytes()
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(capsule_bytes + cfrag_bytes)
+    data_hash = hash_ctx.finalize()
+    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
+    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
+    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+    args = (capsule_bytes,
+            capsule_signature_by_requester,
+            capsule_signature_by_requester_and_miner,
+            cfrag_bytes,
+            cfrag_signature_by_miner,
+            requester_umbral_public_key_bytes,
+            miner_umbral_public_key_bytes,
+            signed_miner_umbral_public_key,
+            evidence_data)
+
+    assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
+    testerchain.wait_for_receipt(tx)
+    assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    # Penalty was decreased because it's more than maximum available percentage of value
+    assert 692 == escrow.functions.minerInfo(miner).call()[0]
+    assert 154 == escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
 
 
 @pytest.mark.slow
