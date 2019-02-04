@@ -94,7 +94,7 @@ Imagine you are the one reviewing the code, commit-by-commit as a means of under
 the thinking behind the PRs history. Does your commit history tell an honest and accurate story?
 
 We understand that different code authors have different development preferences, and others
-are first-time contributors to open source, so feel free to join our discord and let us know
+are first-time contributors to open source, so feel free to join our `Discord <https://discord.gg/7rmXa3S>`_ and let us know
 how we can best support the submission of your proposed changes.
 
 
