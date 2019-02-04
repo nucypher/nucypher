@@ -28,18 +28,41 @@ from umbral.signing import Signature
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 
+class UnexpectedResponse(Exception):
+    pass
+
+
+class NotFound(UnexpectedResponse):
+    pass
+
+
 class RestMiddleware:
     log = Logger()
 
-    def consider_arrangement(self, arrangement):
-        node = arrangement.ursula
-        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
-                                 bytes(arrangement),
-                                 verify=node.certificate_filepath, timeout=2)
+    class _Client:
 
-        if not response.status_code == 200:
-            raise RuntimeError("Bad response: {}".format(response.content))
-        return response
+        def __init__(self, library, response_cleaner=None):
+            if response_cleaner is not None:
+                self.response_cleaner = response_cleaner
+            else:
+                self.response_cleaner = lambda r: r
+
+            self._library = library
+
+        def __getattr__(self, item):
+            def method_wrapper(*args, **kwargs):
+                method = getattr(self._library, item)
+                response = method(*args, **kwargs)
+                cleaned_response = self.response_cleaner(response)
+                if cleaned_response.status_code >= 300:
+                    if cleaned_response.status_code == 404:
+                        raise NotFound("While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(item, args, kwargs, cleaned_response.content))
+                    else:
+                        raise UnexpectedResponse("Unexpected response while trying to {} {},{}: {} {}".format(item, args, kwargs, cleaned_response.status_code, cleaned_response.content))
+                return cleaned_response
+            return method_wrapper
+
+    client = _Client(requests)
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
@@ -64,34 +87,34 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
+    def consider_arrangement(self, arrangement):
+        node = arrangement.ursula
+        response = self.client.post("https://{}/consider_arrangement".format(node.rest_interface),
+                                 bytes(arrangement),
+                                 verify=node.certificate_filepath, timeout=2)
+        return response
+
     def enact_policy(self, ursula, id, payload):
-        response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()), payload,
-                                 verify=ursula.certificate_filepath, timeout=2)
-        if not response.status_code == 200:
-            raise RuntimeError("Bad response: {}".format(response.content))
+        response = self.client.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
+                                 payload,
+                                 verify=ursula.certificate_filepath,
+                                 timeout=2)
         return True, ursula.stamp.as_umbral_pubkey()
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
         # TODO: Check status code.
         splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
-        cfrags_and_signatures = splitter.repeat(ursula_rest_response.data)
+        cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
         cfrags = work_order.complete(cfrags_and_signatures)
         return cfrags
 
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
-        response = requests.delete(f"https://{ursula.rest_interface}/kFrag/{revocation.arrangement_id.hex()}",
-                                   data=bytes(revocation),
+        response = self.client.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
+                                                                revocation.arrangement_id.hex()),
+                                   bytes(revocation),
                                    verify=ursula.certificate_filepath)
-        if response.status_code == 200:
-            return response
-        elif response.status_code == 404:
-            raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(revocation.arrangement_id),
-                               response.status_code)
-        else:
-            self.log.debug("Bad response during revocation: {}".format(response))
-            raise RuntimeError("Bad response: {}".format(response.content), response.status_code)
         return response
 
     def get_competitive_rate(self):
@@ -99,25 +122,23 @@ class RestMiddleware:
 
     def get_treasure_map_from_node(self, node, map_id):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = requests.get(endpoint, verify=node.certificate_filepath, timeout=2)
+        response = self.client.get(endpoint, verify=node.certificate_filepath, timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = requests.post(endpoint, data=map_payload, verify=node.certificate_filepath, timeout=2)
+        response = self.client.post(endpoint, data=map_payload, verify=node.certificate_filepath, timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
-        return requests.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
+        return self.client.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
 
     def node_information(self, host, port, certificate_filepath):
         endpoint = "https://{}:{}/public_information".format(host, port)
-        response = requests.get(endpoint, verify=certificate_filepath, timeout=2)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
+        response = self.client.get(endpoint, verify=certificate_filepath, timeout=2)
         return response.content
 
     def get_nodes_via_rest(self,

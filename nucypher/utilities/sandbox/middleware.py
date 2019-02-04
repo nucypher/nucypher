@@ -26,6 +26,10 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    def response_cleaner(self, response):
+        response.content = response.data
+        return response
+
     def _get_mock_client_by_ursula(self, ursula):
         port = ursula.rest_information()[0].port
         return self._get_mock_client_by_port(port)
@@ -38,7 +42,7 @@ class MockRestMiddleware(RestMiddleware):
         ursula = self._get_ursula_by_port(port)
         rest_app = ursula.rest_app
         rest_app.testing = True
-        mock_client = rest_app.test_client()
+        mock_client = self._Client(rest_app.test_client(), response_cleaner=self.response_cleaner)
         return mock_client
 
     def _get_ursula_by_port(self, port):
@@ -57,13 +61,11 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.post("http://localhost/consider_arrangement",
                                     data=bytes(arrangement),
                                     content_type='application/octet')
-        assert response.status_code == 200
         return response
 
     def enact_policy(self, ursula, id, payload):
         mock_client = self._get_mock_client_by_ursula(ursula)
         response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), data=payload)
-        assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
     def send_work_order_payload_to_ursula(self, work_order):
@@ -75,19 +77,15 @@ class MockRestMiddleware(RestMiddleware):
     def get_treasure_map_from_node(self, node, map_id):
         mock_client = self._get_mock_client_by_ursula(node)
         response = mock_client.get("http://localhost/treasure_map/{}".format(map_id))
-        response.content = response.data
         return response
 
     def node_information(self, host, port, certificate_filepath):
         mock_client = self._get_mock_client_by_port(port)
         response = mock_client.get("http://localhost/public_information")
-        if not response.status_code == 200:
-            raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        return response.data
+        return response.content
 
     def get_nodes_via_rest(self, url, *args, **kwargs):
         response = super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
-        response.content = response.data  # Little hack for compatibility.
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
@@ -101,10 +99,6 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.delete('http://localhost/kFrag/{}'.format(
                                       revocation.arrangement_id.hex()),
                                       data=bytes(revocation))
-        
-        if response.status_code != 200:
-            if response.status_code != 404:
-                raise RuntimeError("Bad response: {}".format(response.status_code))
         return response
 
 

@@ -1,7 +1,7 @@
+from collections import namedtuple
 from functools import partial
 
 import pytest
-from apistar.http import Response
 from eth_keys.datatypes import Signature as EthSignature
 from twisted.logger import globalLogPublisher, LogLevel
 
@@ -153,7 +153,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     # Now let's go a little further: make the version totally unrecognizable.
     crazy_bytes_representation = int(learner.LEARNER_VERSION + 1).to_bytes(2,
                                                                            byteorder="big") + b"totally unintelligible nonsense"
-
+    Response = namedtuple("MockResponse", ("content", "status_code"))
     response = Response(content=crazy_bytes_representation, status_code=200)
     learner.network_middleware.get_nodes_via_rest = lambda *args, **kwargs: response
     learner.learn_from_teacher_node()

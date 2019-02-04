@@ -30,6 +30,7 @@
             text-align: center;
             box-shadow: 1px 1px black, -1px -1px black;
             width: 100px;
+            height: 100px;
         }
 
         .small {
@@ -73,11 +74,6 @@
             border-right: 3px solid black;
         }
 
-        #states .nucypher-nickname-icon {
-            height: 75px;
-            width: 75px;
-        }
-
         #states .single-symbol {
             font-size: 2em;
         }
@@ -105,11 +101,6 @@
             border-right: 3px solid black;
         }
 
-        #states .nucypher-nickname-icon {
-            height: 75px;
-            width: 75px;
-        }
-
         #states .single-symbol {
             font-size: 2em;
         }
@@ -122,15 +113,25 @@
     {% raw %}
     <script id="state-template" type="text/x-handlebars-template">
             <h5>{{nickname}}</h5>
-            <div class="body">
-                <div class="single-symbol">{{metadata.[0].[1]}}</div>
+            <div class="nucypher-nickname-icon" style="border-color:{{color_hex}};">
+                <div class="single-symbol">{{symbol}}</div>
                 <span>{{checksum}}</span>
-                {{updated}}
+                <span class="small">{{updated}}</span>
             </div>
     </script>
 
     <script id="node-template" type="text/x-handlebars-template">
-            <td>{{ nickname_icon }}</td>
+            <td>
+                <div class="nucypher-nickname-icon" style="border-top-color:{{icon_details.first_color}}; border-left-color:{{icon_details.first_color}}; border-bottom-color:{{icon_details.second_color}}; border-right-color:{{icon_details.second_color}};">
+                    <span class="small">{{icon_details.node_class}} v{{icon_details.version}}</span>
+                    <div class="symbols">
+                        <span class="single-symbol" style="color: {{icon_details.first_color}}">{{icon_details.first_symbol}}&#xFE0E;</span>
+                        <span class="single-symbol" style="color: {{icon_details.second_color}}">{{icon_details.second_symbol}}&#xFE0E;</span>
+                    </div>
+                    <br/>
+                    <span class="small-address">{{icon_details.address_first6}}</span>
+                </div>
+            </td>
                 <td>
                     <a href="https://{{rest_url}}/status">{{ nickname }}</a>
                     <br/><span class="small">{{ checksum_address }}</span>
