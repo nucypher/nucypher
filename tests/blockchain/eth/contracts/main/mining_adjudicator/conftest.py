@@ -33,7 +33,7 @@ def escrow(testerchain):
 @pytest.fixture(params=[False, True])
 def adjudicator_contract(testerchain, escrow, request):
     contract, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 100, 10, 5, 2)
+        'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 100, 10, 8, 2)
 
     if request.param:
         secret_hash = testerchain.interface.w3.keccak(secret)
