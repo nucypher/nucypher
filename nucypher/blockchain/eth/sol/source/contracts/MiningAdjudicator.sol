@@ -81,6 +81,7 @@ contract MiningAdjudicator is Upgradeable {
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
     * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
+    // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
         bytes _capsuleBytes,
         bytes _capsuleSignatureByRequester,
