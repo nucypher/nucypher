@@ -117,7 +117,7 @@ class RestMiddleware:
 
     def enact_policy(self, ursula, id, payload):
         response = self.client.post(node=ursula,
-                                    path='kFrag/{}'.format(ursula.rest_interface, id.hex()),
+                                    path='kFrag/{}'.format(id.hex()),
                                     data=payload,
                                     timeout=2)
         return True, ursula.stamp.as_umbral_pubkey()
@@ -147,8 +147,10 @@ class RestMiddleware:
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = self.client.post(endpoint, data=map_payload, timeout=2)
+        response = self.client.post(node=node,
+                                    path="treasure_map/{}".format(map_id),
+                                    data=map_payload,
+                                    timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):

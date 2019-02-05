@@ -75,18 +75,6 @@ class MockRestMiddleware(RestMiddleware):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate
 
-    def consider_arrangement(self, arrangement):
-        mock_client = self._get_mock_client_by_ursula(arrangement.ursula)
-        response = mock_client.post("http://localhost/consider_arrangement",
-                                    data=bytes(arrangement),
-                                    content_type='application/octet')
-        return response
-
-    def enact_policy(self, ursula, id, payload):
-        mock_client = self._get_mock_client_by_ursula(ursula)
-        response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), data=payload)
-        return True, ursula.stamp.as_umbral_pubkey()
-
     def send_work_order_payload_to_ursula(self, work_order):
         mock_client = self._get_mock_client_by_ursula(work_order.ursula)
         payload = work_order.payload()
@@ -100,12 +88,6 @@ class MockRestMiddleware(RestMiddleware):
 
     def get_nodes_via_rest(self, url, *args, **kwargs):
         response = super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
-        return response
-
-    def put_treasure_map_on_node(self, node, map_id, map_payload):
-        mock_client = self._get_mock_client_by_ursula(node)
-        response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
-                                    data=map_payload)
         return response
 
     def revoke_arrangement(self, ursula, revocation):
