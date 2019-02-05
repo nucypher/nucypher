@@ -35,6 +35,13 @@ v0.1.0-alpha.5
 
 ### Cryptography
 
-[*"Umbral A Threshold Proxy Re-Encryption Scheme"*](https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf)
+[*"Umbral: A Threshold Proxy Re-Encryption Scheme"*](https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf)
 
 *by David Nuñez*
+
+# Security
+
+To coordinate a vulnerability disclosure in any nucypher code, email security@nucypher.com with any relevant information to your findings.
+Our team will work with researchers to resolve and mitigate issues should they arise.
+
+If you require encrypted communications, email security@nucypher.com and we will coordinate a more secure channel than email.
