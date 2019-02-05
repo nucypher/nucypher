@@ -49,9 +49,12 @@ class RestMiddleware:
 
             self._library = library
 
-        def __getattr__(self, item):
+        def __getattr__(self, method_name):
+            # Quick sanity check.
+            if not method_name in ("post", "get", "put", "patch", "delete"):
+                raise TypeError("This client is for HTTP only - you need to use a real HTTP verb.")
             def method_wrapper(*args, **kwargs):
-                method = getattr(self._library, item)
+                method = getattr(self._library, method_name)
                 response = method(*args, **kwargs)
                 cleaned_response = self.response_cleaner(response)
                 if cleaned_response.status_code >= 300:
