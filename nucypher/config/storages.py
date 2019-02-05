@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import glob
 import os
@@ -40,7 +39,6 @@ from nucypher.utilities.decorators import validate_checksum_address
 
 
 class NodeStorage(ABC):
-
     _name = NotImplemented
     _TYPE_LABEL = 'storage_type'
     NODE_SERIALIZER = binascii.hexlify
@@ -110,7 +108,8 @@ class NodeStorage(ABC):
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
         if host and (host != common_name_on_certificate):
-            raise ValueError('You passed a hostname ("{}") that does not match the certificat\'s common name.'.format(host))
+            raise ValueError(
+                'You passed a hostname ("{}") that does not match the certificat\'s common name.'.format(host))
 
         certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
         certificate_already_exists = os.path.isfile(certificate_filepath)
@@ -126,7 +125,6 @@ class NodeStorage(ABC):
         self.log.debug("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
 
         return certificate_filepath
-
 
     @abstractmethod
     def store_node_certificate(self, certificate: Certificate) -> str:
@@ -178,7 +176,6 @@ class NodeStorage(ABC):
 
 
 class ForgetfulNodeStorage(NodeStorage):
-
     _name = ':memory:'
     __base_prefix = "nucypher-tmp-certs-"
 
@@ -231,7 +228,8 @@ class ForgetfulNodeStorage(NodeStorage):
             raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
         self.__certificates[checksum_address] = certificate
         self._write_tls_certificate(certificate=certificate)
-        return self.generate_certificate_filepath(checksum_address=checksum_address)
+        filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
+        return filepath
 
     def store_node_metadata(self, node):
         self.__metadata[node.checksum_public_address] = node
@@ -282,7 +280,6 @@ class ForgetfulNodeStorage(NodeStorage):
 
 
 class LocalFileBasedNodeStorage(NodeStorage):
-
     _name = 'local'
     __METADATA_FILENAME_TEMPLATE = '{}.node'
 
@@ -348,7 +345,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_tls_public_certificate(self, filepath: str = None, checksum_address: str=None) -> Certificate:
+    def __read_tls_public_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
         if not bool(filepath) ^ bool(checksum_address):
             raise ValueError("Either pass filepath or checksum_address; Not both.")
@@ -407,7 +404,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             known_nodes = set()
             for filename in filenames:
                 metadata_path = os.path.join(self.metadata_dir, filename)
-                node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)   # TODO: 466
+                node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
                 known_nodes.add(node)
             return known_nodes
 
@@ -417,7 +414,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             certificate = self.__read_tls_public_certificate(checksum_address=checksum_address)
             return certificate
         metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
-        node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)   # TODO: 466
+        node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
         return node
 
     def store_node_certificate(self, certificate: Certificate):
@@ -513,7 +510,6 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
             shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
     def initialize(self) -> bool:
-
         # Metadata
         self.__temp_metadata_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
         self.metadata_dir = self.__temp_metadata_dir
@@ -526,7 +522,6 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
 
 
 class S3NodeStorage(NodeStorage):
-
     _name = 's3'
     S3_ACL = 'private'  # Canned S3 Permissions
 
