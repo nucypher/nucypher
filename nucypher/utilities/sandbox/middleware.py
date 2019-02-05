@@ -53,13 +53,13 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         if node:
             if any((host, port)):
                 raise ValueError("Don't pass host and port if you are passing the node.")
+            mock_client = self._get_mock_client_by_ursula(node)
         elif all((host, port)):
             node = self._get_ursula_by_port(port)
+            mock_client = self._get_mock_client_by_port(port)
         else:
             raise ValueError("You need to pass either the node or a host and port.")
-        rest_app = node.rest_app
-        rest_app.testing = True
-        mock_client = rest_app.test_client()
+
         return node.rest_url(), node.certificate_filepath, mock_client
 
     def invoke_method(self, method, url, *args, **kwargs):
