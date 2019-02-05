@@ -51,7 +51,12 @@ class NucypherMiddlewareClient:
             raise TypeError(
                 "This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
 
+        def method_wrapper(path, node=None, host=None, port=None, *args, **kwargs):
+            host, http_client = self.url_from_node_or_host_and_port(node, host, port)
+            method = getattr(http_client, method_name)
 
+            url = "https://{}/{}".format(host, path)
+            response = self.invoke_method(method, url, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
                 if cleaned_response.status_code == 404:
@@ -102,17 +107,17 @@ class RestMiddleware:
             return certificate
 
     def consider_arrangement(self, arrangement):
-        node = arrangement.ursula
-        response = self.client.post("https://{}/consider_arrangement".format(node.rest_interface),
-                                 bytes(arrangement),
-                                 verify=node.certificate_filepath, timeout=2)
+        response = self.client.post(node=arrangement.ursula,
+                                    path="consider_arrangement",
+                                    data=bytes(arrangement),
+                                    timeout=2)
         return response
 
     def enact_policy(self, ursula, id, payload):
         response = self.client.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
-                                 payload,
-                                 verify=ursula.certificate_filepath,
-                                 timeout=2)
+                                    payload,
+                                    verify=ursula.certificate_filepath,
+                                    timeout=2)
         return True, ursula.stamp.as_umbral_pubkey()
 
     def reencrypt(self, work_order):
@@ -126,9 +131,9 @@ class RestMiddleware:
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
         response = self.client.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
-                                                                revocation.arrangement_id.hex()),
-                                   bytes(revocation),
-                                   verify=ursula.certificate_filepath)
+                                                                   revocation.arrangement_id.hex()),
+                                      bytes(revocation),
+                                      verify=ursula.certificate_filepath)
         return response
 
     def get_competitive_rate(self):

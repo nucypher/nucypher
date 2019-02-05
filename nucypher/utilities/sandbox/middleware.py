@@ -46,6 +46,25 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
+    def url_from_node_or_host_and_port(self, node, host, port):
+        if node:
+            if any((host, port)):
+                raise ValueError("Don't pass host and port if you are passing the node.")
+        elif all((host, port)):
+            node = self._get_ursula_by_port(port)
+            rest_app = node.rest_app
+            rest_app.testing = True
+            mock_client = rest_app.test_client()
+            return node.rest_url(), mock_client
+        else:
+            raise ValueError("You need to pass either the node or a host and port.")
+
+    def invoke_method(self, method, url, *args, **kwargs):
+        cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
+        kwargs.pop("timeout", None)  # Just get rid of timeout; not needed for the test client.
+        response = method(url, *args, **kwargs)
+        return response
+
 
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None
