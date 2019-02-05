@@ -24,20 +24,6 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
     def node_selector(self, node):
         assert False
 
-
-class MockRestMiddleware(RestMiddleware):
-    _ursulas = None
-
-    @staticmethod
-    def response_cleaner(self, response):
-        response.content = response.data
-        return response
-
-    client = _TestMiddlewareClient(response_cleaner=response_cleaner)
-
-    class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
-        pass
-
     def _get_mock_client_by_ursula(self, ursula):
         port = ursula.rest_information()[0].port
         return self._get_mock_client_by_port(port)
@@ -60,7 +46,22 @@ class MockRestMiddleware(RestMiddleware):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2, current_attempt: int = 0):
+
+class MockRestMiddleware(RestMiddleware):
+    _ursulas = None
+
+    @staticmethod
+    def response_cleaner(self, response):
+        response.content = response.data
+        return response
+
+    client = _TestMiddlewareClient(response_cleaner=response_cleaner)
+
+    class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
+        pass
+
+    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
+                        current_attempt: int = 0):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate
 
@@ -105,8 +106,8 @@ class MockRestMiddleware(RestMiddleware):
     def revoke_arrangement(self, ursula, revocation):
         mock_client = self._get_mock_client_by_ursula(ursula)
         response = mock_client.delete('http://localhost/kFrag/{}'.format(
-                                      revocation.arrangement_id.hex()),
-                                      data=bytes(revocation))
+            revocation.arrangement_id.hex()),
+            data=bytes(revocation))
         return response
 
 
