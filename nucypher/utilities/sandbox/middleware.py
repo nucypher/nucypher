@@ -75,28 +75,6 @@ class MockRestMiddleware(RestMiddleware):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate
 
-    def send_work_order_payload_to_ursula(self, work_order):
-        mock_client = self._get_mock_client_by_ursula(work_order.ursula)
-        payload = work_order.payload()
-        id_as_hex = work_order.arrangement_id.hex()
-        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), data=payload)
-
-    def get_treasure_map_from_node(self, node, map_id):
-        mock_client = self._get_mock_client_by_ursula(node)
-        response = mock_client.get("http://localhost/treasure_map/{}".format(map_id))
-        return response
-
-    def get_nodes_via_rest(self, url, *args, **kwargs):
-        response = super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
-        return response
-
-    def revoke_arrangement(self, ursula, revocation):
-        mock_client = self._get_mock_client_by_ursula(ursula)
-        response = mock_client.delete('http://localhost/kFrag/{}'.format(
-            revocation.arrangement_id.hex()),
-            data=bytes(revocation))
-        return response
-
 
 class EvilMiddleWare(MockRestMiddleware):
     """
