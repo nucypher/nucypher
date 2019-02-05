@@ -394,6 +394,7 @@ class Learner:
 
         # Store node's certificate - It has been seen.
         certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+        self.log.info("Saved TLS certificate for {}: {}".format(node.nickname, certificate_filepath))
 
         try:
             node.verify_node(force=force_verification_check,
