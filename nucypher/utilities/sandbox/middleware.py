@@ -35,6 +35,13 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         port = int(url.split(":")[1])
         return self._get_mock_client_by_port(port)
 
+    def _get_mock_client_by_port(self, port):
+        ursula = self._get_ursula_by_port(port)
+        rest_app = ursula.rest_app
+        rest_app.testing = True
+        mock_client = rest_app.test_client()
+        return mock_client
+
     def _get_ursula_by_port(self, port):
         try:
             return MOCK_KNOWN_URSULAS_CACHE[port]
