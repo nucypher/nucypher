@@ -3,13 +3,6 @@ version: 2.1
 workflows:
   version: 2
   test_build_deploy:
-    triggers:
-      - schedule:
-          cron: "0 0 * * *"
-          filters:
-            branches:
-              only:
-                - master
     jobs:
       - pipenv_install_36:
           filters:
