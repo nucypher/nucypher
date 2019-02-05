@@ -37,16 +37,13 @@ class NotFound(UnexpectedResponse):
 
 
 class NucypherMiddlewareClient:
-
     library = requests
 
-    def __init__(self,
-                 response_cleaner=None,
-                 ):
-        if response_cleaner is not None:
-            self.response_cleaner = response_cleaner
-        else:
-            self.response_cleaner = lambda r: r
+    def url_from_node_or_host_and_port(self, node, host, port):
+        raise NotImplementedError()
+
+    def invoke_method(self, method, url, *args, **kwargs):
+        raise NotImplementedError()
 
     def __getattr__(self, method_name):
         # Quick sanity check.
