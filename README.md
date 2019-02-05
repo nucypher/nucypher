@@ -6,7 +6,6 @@
 
 v0.1.0-alpha.5
 
-![](https://img.shields.io/pypi/wheel/nucypher.svg)
 ![](https://img.shields.io/pypi/pyversions/nucypher.svg)
 ![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
 ![](https://circleci.com/gh/nucypher/nucypher/tree/master.svg?style=svg)
