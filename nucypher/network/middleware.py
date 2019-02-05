@@ -48,20 +48,8 @@ class NucypherMiddlewareClient:
     def __getattr__(self, method_name):
         # Quick sanity check.
         if not method_name in ("post", "get", "put", "patch", "delete"):
-            raise TypeError("This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
-        def method_wrapper(node=None, host=None, port=None, *args, **kwargs):
-            if (not node and not all((host, port))) or (node and any(host, port)):
-                raise ValueError("Pass either node or host and port.")
-            if node:
-                if any((host, port)):
-                    raise ValueError("Don't pass host and port if you are passing the node.")
-            elif all((host, port)):
-                assert False
-            else:
-                raise ValueError("You need to pass either the node or a host and port.")
-            node = kwargs.pop('node')
-            self._node_selector(node)
-            response = method(*args, **kwargs)
+            raise TypeError(
+                "This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
 
 
             cleaned_response = self.response_cleaner(response)
