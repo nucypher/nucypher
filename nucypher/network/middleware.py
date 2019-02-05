@@ -167,7 +167,10 @@ class RestMiddleware:
 
     def node_information(self, host, port, certificate_filepath):
         endpoint = "https://{}:{}/public_information".format(host, port)
-        response = self.client.get(endpoint, verify=certificate_filepath, timeout=2)
+        response = self.client.get(host=host, port=port,
+                                   path=endpoint,
+                                   verify=certificate_filepath,
+                                   timeout=2)
         return response.content
 
     def get_nodes_via_rest(self,
