@@ -65,12 +65,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None
 
-    @staticmethod
-    def response_cleaner(self, response):
-        response.content = response.data
-        return response
-
-    client = _TestMiddlewareClient(response_cleaner=response_cleaner)
+    client = _TestMiddlewareClient()
 
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
