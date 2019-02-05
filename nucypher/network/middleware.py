@@ -61,10 +61,11 @@ class NucypherMiddlewareClient:
             if cleaned_response.status_code >= 300:
                 if cleaned_response.status_code == 404:
                     raise NotFound(
-                        "While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(item,
-                                                                                                               args,
-                                                                                                               kwargs,
-                                                                                                               cleaned_response.content))
+                        "While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(
+                            method_name,
+                            args,
+                            kwargs,
+                            cleaned_response.content))
                 else:
                     raise UnexpectedResponse(
                         "Unexpected response while trying to {} {},{}: {} {}".format(item, args, kwargs,
@@ -132,18 +133,20 @@ class RestMiddleware:
 
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
-        response = self.client.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
-                                                                   revocation.arrangement_id.hex()),
-                                      bytes(revocation),
-                                      )
+        response = self.client.delete(
+            node=ursula,
+            path="kFrag/{}".format(revocation.arrangement_id.hex()),
+            data=bytes(revocation),
+        )
         return response
 
     def get_competitive_rate(self):
         return NotImplemented
 
     def get_treasure_map_from_node(self, node, map_id):
-        endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = self.client.get(endpoint, timeout=2)
+        response = self.client.get(node=node,
+                                   path="treasure_map/{}".format(map_id),
+                                   timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
