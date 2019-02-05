@@ -36,6 +36,49 @@ class NotFound(UnexpectedResponse):
     pass
 
 
+class NucypherMiddlewareClient:
+
+    library = requests
+
+    def __init__(self,
+                 response_cleaner=None,
+                 ):
+        if response_cleaner is not None:
+            self.response_cleaner = response_cleaner
+        else:
+            self.response_cleaner = lambda r: r
+
+    def __getattr__(self, method_name):
+        # Quick sanity check.
+        if not method_name in ("post", "get", "put", "patch", "delete"):
+            raise TypeError("This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
+        def method_wrapper(*args, **kwargs):
+            node = kwargs.pop('node')
+            self._node_selector(node)
+            response = method(*args, **kwargs)
+
+
+            cleaned_response = self.response_cleaner(response)
+            if cleaned_response.status_code >= 300:
+                if cleaned_response.status_code == 404:
+                    raise NotFound(
+                        "While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(item,
+                                                                                                               args,
+                                                                                                               kwargs,
+                                                                                                               cleaned_response.content))
+                else:
+                    raise UnexpectedResponse(
+                        "Unexpected response while trying to {} {},{}: {} {}".format(item, args, kwargs,
+                                                                                     cleaned_response.status_code,
+                                                                                     cleaned_response.content))
+            return cleaned_response
+
+        return method_wrapper
+
+    def node_selector(self, node):
+        return node.rest_url(), self.library
+
+
 class RestMiddleware:
     log = Logger()
 
