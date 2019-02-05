@@ -38,6 +38,16 @@
 
 *by David Nuñez*
 
+# Getting Involved
+
+NuCypher is a community-driven project and we're very open to outside contributions.
+
+All our development discussions happen in our [Discord server](https://discord.gg/7rmXa3S), where we're happy to answer technical questions, discuss feature requests,
+and accept bug reports.
+
+If you're interested in contributing code, please check out our [Contribution Guide](https://docs.nucypher.com/en/latest/guides/contribution_guide.html)
+and browse our [Open Issues](https://github.com/nucypher/nucypher/issues) for potential areas to contribute.
+
 # Security
 
 If you identify vulnerabilities with _any_ nucypher code, please email security@nucypher.com with relevant information to your findings.
@@ -54,3 +64,4 @@ A great place to begin your research is by working on our testnet.
 Please see our [documentation](https://docs.nucypher.com) to get started.
 We ask that you please respect testnet machines and their owners.
 If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what you're doing and immediately email security@nucypher.com.
+
