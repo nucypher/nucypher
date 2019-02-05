@@ -16,19 +16,27 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
+
+
+class _TestMiddlewareClient(NucypherMiddlewareClient):
+    def node_selector(self, node):
+        assert False
 
 
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None
 
-    class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
-        pass
-
+    @staticmethod
     def response_cleaner(self, response):
         response.content = response.data
         return response
+
+    client = _TestMiddlewareClient(response_cleaner=response_cleaner)
+
+    class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
+        pass
 
     def _get_mock_client_by_ursula(self, ursula):
         port = ursula.rest_information()[0].port
