@@ -98,11 +98,6 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/treasure_map/{}".format(map_id))
         return response
 
-    def node_information(self, host, port, certificate_filepath):
-        mock_client = self._get_mock_client_by_port(port)
-        response = mock_client.get("http://localhost/public_information")
-        return response.content
-
     def get_nodes_via_rest(self, url, *args, **kwargs):
         response = super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
         return response

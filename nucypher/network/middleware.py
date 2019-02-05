@@ -156,9 +156,8 @@ class RestMiddleware:
         return self.client.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
 
     def node_information(self, host, port, certificate_filepath):
-        endpoint = "https://{}:{}/public_information".format(host, port)
         response = self.client.get(host=host, port=port,
-                                   path=endpoint,
+                                   path="public_information",
                                    verify=certificate_filepath,
                                    timeout=2)
         return response.content
