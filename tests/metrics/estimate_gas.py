@@ -18,33 +18,40 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import coincurve
 import json
 import os
-from typing import List, Tuple
+
+from cryptography.hazmat.primitives.asymmetric import ec
+from eth_utils import to_canonical_address
+
+from nucypher.policy.models import IndisputableEvidence
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer, Signature
 
 import time
 from os.path import abspath, dirname
 
 import io
 import re
+
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
-from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import (
-    DISPATCHER_SECRET_LENGTH,
     MIN_ALLOWED_LOCKED,
     MIN_LOCKED_PERIODS,
     POLICY_ID_LENGTH
 )
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.constants import CONTRACT_ROOT
-from nucypher.config.constants import BASE_DIR
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+
+
+ALGORITHM_SHA256 = 1
 
 
 class AnalyzeGas:
@@ -57,12 +64,6 @@ class AnalyzeGas:
     LOG_FILENAME = '{}.log.json'.format(LOG_NAME)
     OUTPUT_DIR = os.path.join(abspath(dirname(__file__)), 'results')
     JSON_OUTPUT_FILENAME = '{}.json'.format(LOG_NAME)
-
-    # Tweaks
-    CONTRACT_DIR = CONTRACT_ROOT
-    TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts',  'contracts')
-    PROVIDER_URI = "tester://pyevm"
-    TEST_ACCOUNTS = 10
 
     _PATTERN = re.compile(r'''
                           ^          # Anchor at the start of a string
@@ -118,6 +119,76 @@ class AnalyzeGas:
         globalLogPublisher.addObserver(self)
 
 
+# TODO organize support functions
+def generate_args_for_slashing(testerchain, miner, corrupt: bool = True):
+    def sign_data(data, umbral_privkey):
+        umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
+
+        # Prepare hash of the data
+        hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+        hash_ctx.update(data)
+        data_hash = hash_ctx.finalize()
+
+        # Sign data and calculate recoverable signature
+        cryptography_priv_key = umbral_privkey.to_cryptography_privkey()
+        signature_der_bytes = cryptography_priv_key.sign(data, ec.ECDSA(hashes.SHA256()))
+        signature = Signature.from_bytes(signature_der_bytes, der_encoded=True)
+        recoverable_signature = bytes(signature) + bytes([0])
+        pubkey_bytes = coincurve.PublicKey.from_signature_and_message(recoverable_signature, data_hash, hasher=None) \
+            .format(compressed=False)
+        if pubkey_bytes != umbral_pubkey_bytes:
+            recoverable_signature = bytes(signature) + bytes([1])
+        return recoverable_signature
+
+    delegating_privkey = UmbralPrivateKey.gen_key()
+    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
+    signing_privkey = UmbralPrivateKey.gen_key()
+    signer = Signer(signing_privkey)
+    priv_key_bob = UmbralPrivateKey.gen_key()
+    pub_key_bob = priv_key_bob.get_pubkey()
+    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
+                                 signer=signer,
+                                 receiving_pubkey=pub_key_bob,
+                                 threshold=2,
+                                 N=4,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=os.urandom(34))
+    capsule_bytes = capsule.to_bytes()
+    if corrupt:
+        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    cfrag_bytes = cfrag.to_bytes()
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(capsule_bytes + cfrag_bytes)
+    requester_umbral_private_key = UmbralPrivateKey.gen_key()
+    requester_umbral_public_key_bytes = requester_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)
+    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
+    miner_umbral_private_key = UmbralPrivateKey.gen_key()
+    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)
+    # Sign Umbral public key using eth-key
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(miner_umbral_public_key_bytes)
+    miner_umbral_public_key_hash = hash_ctx.finalize()
+    address = to_canonical_address(miner)
+    sig_key = testerchain.interface.provider.ethereum_tester.backend._key_lookup[address]
+    signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+
+    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
+    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+    return (capsule_bytes,
+            capsule_signature_by_requester,
+            capsule_signature_by_requester_and_miner,
+            cfrag_bytes,
+            cfrag_signature_by_miner,
+            requester_umbral_public_key_bytes,
+            miner_umbral_public_key_bytes,
+            signed_miner_umbral_public_key,
+            evidence_data)
+
+
 def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     """
     Execute a linear sequence of NyCypher transactions mimicking
@@ -164,12 +235,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log.info("Pre-deposit tokens for 5 owners = " + str(miner_functions.preDeposit(everyone_else[0:5],
                                                                                    [MIN_ALLOWED_LOCKED] * 5,
                                                                                    [MIN_LOCKED_PERIODS] * 5)
-                                                                                   .estimateGas({'from': origin})))
+                                                        .estimateGas({'from': origin})))
 
     #
     # Give Ursula and Alice some coins
     #
-    log.info("Transfer tokens = " + str(token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).estimateGas({'from': origin})))
+    log.info("Transfer tokens = " + str(
+        token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).estimateGas({'from': origin})))
     tx = token_functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
     tx = token_functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
@@ -181,7 +253,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice give Escrow rights to transfer
     #
     log.info("Approving transfer = "
-             + str(token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
+             + str(
+        token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
     tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
@@ -193,15 +266,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
     log.info("First initial deposit tokens = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second initial deposit tokens = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third initial deposit tokens = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -210,15 +283,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     log.info("First confirm activity = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
     tx = miner_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
     tx = miner_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -237,15 +310,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     log.info("First confirm activity again = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity again = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
     tx = miner_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity again = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
     tx = miner_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -254,15 +327,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     log.info("First confirm activity + mint = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity + mint = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
     tx = miner_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity + mint = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
     tx = miner_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -290,15 +363,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     log.info("First confirm activity after downtime = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity after downtime  = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
     tx = miner_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity after downtime  = " +
-          str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
     tx = miner_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -306,15 +379,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice deposit some tokens to the escrow again
     #
     log.info("First deposit tokens again = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second deposit tokens again = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third deposit tokens again = " +
-          str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -339,12 +412,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 10
     log.info("First creating policy (1 node, 10 periods) = " +
-             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).estimateGas({'from': alice1, 'value': 10000})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).transact({'from': alice1, 'value': 10000})
+             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).estimateGas(
+                 {'from': alice1, 'value': 10000})))
+    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1]).transact(
+        {'from': alice1, 'value': 10000})
     testerchain.wait_for_receipt(tx)
     log.info("Second creating policy (1 node, 10 periods) = " +
-             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).estimateGas({'from': alice1, 'value': 10000})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).transact({'from': alice1, 'value': 10000})
+             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).estimateGas(
+                 {'from': alice1, 'value': 10000})))
+    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1]).transact(
+        {'from': alice1, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -364,17 +441,23 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     log.info("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).estimateGas({'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).transact({'from': alice1, 'value': 10050})
+             str(policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).estimateGas(
+                 {'from': alice1, 'value': 10050})))
+    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2]).transact(
+        {'from': alice1, 'value': 10050})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
     log.info("Second creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).estimateGas({'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).transact({'from': alice1, 'value': 10050})
+             str(policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).estimateGas(
+                 {'from': alice1, 'value': 10050})))
+    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2]).transact(
+        {'from': alice1, 'value': 10050})
     testerchain.wait_for_receipt(tx)
     log.info("Third creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
-             str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).estimateGas({'from': alice1, 'value': 10050})))
-    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).transact({'from': alice1, 'value': 10050})
+             str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).estimateGas(
+                 {'from': alice1, 'value': 10050})))
+    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1]).transact(
+        {'from': alice1, 'value': 10050})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -396,15 +479,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     testerchain.time_travel(periods=10)
     log.info("First revoking policy after downtime = " +
-          str(policy_functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
+             str(policy_functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
     tx = policy_functions.revokePolicy(policy_id_1).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
     log.info("Second revoking policy after downtime = " +
-          str(policy_functions.revokePolicy(policy_id_2).estimateGas({'from': alice1})))
+             str(policy_functions.revokePolicy(policy_id_2).estimateGas({'from': alice1})))
     tx = policy_functions.revokePolicy(policy_id_2).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
     log.info("Second revoking policy after downtime = " +
-          str(policy_functions.revokePolicy(policy_id_3).estimateGas({'from': alice1})))
+             str(policy_functions.revokePolicy(policy_id_3).estimateGas({'from': alice1})))
     tx = policy_functions.revokePolicy(policy_id_3).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
@@ -419,17 +502,21 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
              str(policy_functions
                  .createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3])
                  .estimateGas({'from': alice1, 'value': 30150})))
-    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact({'from': alice1, 'value': 30150})
+    tx = policy_functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact(
+        {'from': alice1, 'value': 30150})
     testerchain.wait_for_receipt(tx)
     log.info("Second creating policy (3 nodes, 100 periods, first reward) = " +
              str(policy_functions
                  .createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3])
                  .estimateGas({'from': alice1, 'value': 30150})))
-    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact({'from': alice1, 'value': 30150})
+    tx = policy_functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3]).transact(
+        {'from': alice1, 'value': 30150})
     testerchain.wait_for_receipt(tx)
     log.info("Third creating policy (2 nodes, 100 periods, first reward) = " +
-          str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).estimateGas({'from': alice1, 'value': 20100})))
-    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).transact({'from': alice1, 'value': 20100})
+             str(policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).estimateGas(
+                 {'from': alice1, 'value': 20100})))
+    tx = policy_functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2]).transact(
+        {'from': alice1, 'value': 20100})
     testerchain.wait_for_receipt(tx)
 
     for index in range(5):
@@ -451,13 +538,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Check regular deposit
     #
-    log.info("First deposit tokens = " + str(miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    log.info("First deposit tokens = " + str(
+        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second deposit tokens = " + str(miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    log.info("Second deposit tokens = " + str(
+        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    log.info("Third deposit tokens = " + str(miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+    log.info("Third deposit tokens = " + str(
+        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -510,25 +600,27 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     log.info("First locking tokens = " +
-          str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
     tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second locking tokens = " +
-          str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = miner_functions.lock(MIN_ALLOWED_LOCKED,MIN_LOCKED_PERIODS).transact({'from': ursula2})
+             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third locking tokens = " +
-          str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
     tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Divide stake
     #
-    log.info("First divide stake = " + str(miner_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    log.info("First divide stake = " + str(
+        miner_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
     tx = miner_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second divide stake = " + str(miner_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    log.info("Second divide stake = " + str(
+        miner_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
     tx = miner_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
@@ -539,10 +631,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
-    log.info("Divide stake (next period is not confirmed) = " + str(miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    log.info("Divide stake (next period is not confirmed) = " + str(
+        miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Divide stake (next period is confirmed) = " + str(miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    log.info("Divide stake (next period is confirmed) = " + str(
+        miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
 
     # Slashing tests
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
@@ -550,16 +644,17 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     # Deploy adjudicator mock to estimate slashing method in MinersEscrow contract
     adjudicator, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicatorForMinersEscrowMock', miner_agent.contract.address
+        'MiningAdjudicator', miner_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
     )
     tx = miner_functions.setMiningAdjudicator(adjudicator.address).transact()
     testerchain.wait_for_receipt(tx)
     adjudicator_functions = adjudicator.functions
 
     # Slashing
-    amount = MIN_ALLOWED_LOCKED
-    log.info("Slash just value = " + str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
-    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    log.info("Slash just value = " + str(
+        adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     deposit = miner_functions.minerInfo(ursula1).call()[0]
@@ -568,25 +663,31 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
     log.info("First slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
-    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
-    testerchain.wait_for_receipt(tx)
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    log.info("Second slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
-    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
-    testerchain.wait_for_receipt(tx)
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    log.info("Third slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.slashMiner(ursula1, amount - 1, alice1, amount // 2).estimateGas()))
-    tx = adjudicator_functions.slashMiner(ursula1, amount - 1, alice1, amount // 2).transact()
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    log.info("Second slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
+
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    log.info("Third slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
+
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
     log.info("Slashing two sub stakes and saving old one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator_functions.slashMiner(ursula1, 2, alice1, amount // 2).estimateGas()))
-    tx = adjudicator_functions.slashMiner(ursula1, 2, alice1, amount // 2).transact()
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     for index in range(18):
@@ -601,20 +702,25 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    amount = MIN_ALLOWED_LOCKED - 1
     sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
     log.info("Slashing two sub stakes, shortest and new one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
-    tx = adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(testerchain, ursula1)
     log.info("Slashing three sub stakes, two shortest and new one (" + sug_stakes_length + " sub stakes) = " +
-             str(adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
-    tx = adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    # TODO estimate MiningAdjudicator
+    slashing_args = generate_args_for_slashing(testerchain, ursula1, corrupt=False)
+    log.info("Evaluating correct CFrag = " +
+             str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
+    tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
 
     print("********* All Done! *********")
 
