@@ -39,7 +39,7 @@ class NotFound(UnexpectedResponse):
 class NucypherMiddlewareClient:
     library = requests
 
-    def url_from_node_or_host_and_port(self, node, host, port):
+    def parse_node_or_host_and_port(self, node, host, port):
         raise NotImplementedError()
 
     def invoke_method(self, method, url, *args, **kwargs):
@@ -52,11 +52,11 @@ class NucypherMiddlewareClient:
                 "This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
 
         def method_wrapper(path, node=None, host=None, port=None, *args, **kwargs):
-            host, http_client = self.url_from_node_or_host_and_port(node, host, port)
+            host, certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
             method = getattr(http_client, method_name)
 
             url = "https://{}/{}".format(host, path)
-            response = self.invoke_method(method, url, *args, **kwargs)
+            response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
                 if cleaned_response.status_code == 404:
@@ -107,16 +107,18 @@ class RestMiddleware:
             return certificate
 
     def consider_arrangement(self, arrangement):
-        response = self.client.post(node=arrangement.ursula,
+        node = arrangement.ursula
+        response = self.client.post(node=node,
                                     path="consider_arrangement",
                                     data=bytes(arrangement),
-                                    timeout=2)
+                                    timeout=2,
+                                    )
         return response
 
     def enact_policy(self, ursula, id, payload):
-        response = self.client.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()),
-                                    payload,
-                                    verify=ursula.certificate_filepath,
+        response = self.client.post(node=ursula,
+                                    path='kFrag/{}'.format(ursula.rest_interface, id.hex()),
+                                    data=payload,
                                     timeout=2)
         return True, ursula.stamp.as_umbral_pubkey()
 
@@ -133,7 +135,7 @@ class RestMiddleware:
         response = self.client.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
                                                                    revocation.arrangement_id.hex()),
                                       bytes(revocation),
-                                      verify=ursula.certificate_filepath)
+                                      )
         return response
 
     def get_competitive_rate(self):
@@ -141,24 +143,23 @@ class RestMiddleware:
 
     def get_treasure_map_from_node(self, node, map_id):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = self.client.get(endpoint, verify=node.certificate_filepath, timeout=2)
+        response = self.client.get(endpoint, timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         endpoint = "https://{}/treasure_map/{}".format(node.rest_interface, map_id)
-        response = self.client.post(endpoint, data=map_payload, verify=node.certificate_filepath, timeout=2)
+        response = self.client.post(endpoint, data=map_payload, timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
-        return self.client.post(endpoint, payload, verify=work_order.ursula.certificate_filepath, timeout=2)
+        return self.client.post(endpoint, payload, timeout=2)
 
     def node_information(self, host, port, certificate_filepath):
         response = self.client.get(host=host, port=port,
                                    path="public_information",
-                                   verify=certificate_filepath,
                                    timeout=2)
         return response.content
 
