@@ -171,11 +171,9 @@ class RestMiddleware:
         return response.content
 
     def get_nodes_via_rest(self,
-                           url,
-                           certificate_filepath,
+                           node,
                            announce_nodes=None,
                            nodes_i_need=None,
-                           client=requests,
                            fleet_checksum=None):
         if nodes_i_need:
             # TODO: This needs to actually do something.
@@ -188,21 +186,16 @@ class RestMiddleware:
         else:
             params = {}
 
-        req_kwargs = {}
-
-        if client is requests:
-            req_kwargs["verify"] = certificate_filepath
-            req_kwargs["timeout"] = 2
-            req_kwargs["params"] = params
-        else:
-            req_kwargs["query_string"] = params
-
         if announce_nodes:
             payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
-            response = client.post("https://{}/node_metadata".format(url),
-                                   data=payload,
-                                   **req_kwargs)
+            response = self.client.post(node=node,
+                                        path="node_metadata",
+                                        params=params,
+                                        data=payload,
+                                        )
         else:
-            response = client.get("https://{}/node_metadata".format(url), **req_kwargs)
+            response = self.client.get(node=node,
+                                       path="node_metadata",
+                                       params=params)
 
         return response

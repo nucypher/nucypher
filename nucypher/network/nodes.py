@@ -673,8 +673,6 @@ class Learner:
             self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
-        teacher_uri = current_teacher.rest_interface
-
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
         else:
@@ -685,10 +683,9 @@ class Learner:
             # TODO: Streamline path generation
             certificate_filepath = self.node_storage.generate_certificate_filepath(
                 checksum_address=current_teacher.checksum_public_address)
-            response = self.network_middleware.get_nodes_via_rest(url=teacher_uri,
+            response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_filepath=certificate_filepath,
                                                                   fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
