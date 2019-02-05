@@ -418,7 +418,7 @@ class Learner:
             node.certificate_filepath = certificate_filepath
             self.node_storage.store_node_metadata(node=node)
 
-        self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
+        self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_public_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)

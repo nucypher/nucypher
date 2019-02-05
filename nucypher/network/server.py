@@ -274,6 +274,7 @@ def make_rest_app(
         from nucypher.policy.models import Revocation
 
         revocation = Revocation.from_bytes(request.data)
+        # TODO: This line sometimes raises an error because it tries to log the bytes of the revocation, which can have a "{"  # 724
         log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
         try:
             with ThreadedSession(db_engine) as session:
