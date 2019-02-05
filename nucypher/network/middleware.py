@@ -82,33 +82,7 @@ class NucypherMiddlewareClient:
 class RestMiddleware:
     log = Logger()
 
-    class _Client:
-
-        def __init__(self, library, response_cleaner=None):
-            if response_cleaner is not None:
-                self.response_cleaner = response_cleaner
-            else:
-                self.response_cleaner = lambda r: r
-
-            self._library = library
-
-        def __getattr__(self, method_name):
-            # Quick sanity check.
-            if not method_name in ("post", "get", "put", "patch", "delete"):
-                raise TypeError("This client is for HTTP only - you need to use a real HTTP verb.")
-            def method_wrapper(*args, **kwargs):
-                method = getattr(self._library, method_name)
-                response = method(*args, **kwargs)
-                cleaned_response = self.response_cleaner(response)
-                if cleaned_response.status_code >= 300:
-                    if cleaned_response.status_code == 404:
-                        raise NotFound("While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(item, args, kwargs, cleaned_response.content))
-                    else:
-                        raise UnexpectedResponse("Unexpected response while trying to {} {},{}: {} {}".format(item, args, kwargs, cleaned_response.status_code, cleaned_response.content))
-                return cleaned_response
-            return method_wrapper
-
-    client = _Client(requests)
+    client = NucypherMiddlewareClient()
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
