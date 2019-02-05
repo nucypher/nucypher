@@ -21,8 +21,11 @@ from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
-    def node_selector(self, node):
-        assert False
+
+    @staticmethod
+    def response_cleaner(response):
+        response.content = response.data
+        return response
 
     def _get_mock_client_by_ursula(self, ursula):
         port = ursula.rest_information()[0].port
