@@ -38,6 +38,7 @@ def test_one_node_stores_a_bunch_of_others(federated_ursulas, ursula_federated_t
     assert not newcomer.known_nodes
 
     newcomer.start_learning_loop(now=True)
+
     def start_lonely_learning_loop():
         newcomer.start_learning_loop()
         start = maya.now()

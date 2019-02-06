@@ -83,9 +83,11 @@ class NucypherMiddlewareClient:
             host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
 
             if certificate_filepath:
-                if node_certificate_filepath is not CERTIFICATE_NOT_SAVED:
+                filepaths_are_different = node_certificate_filepath != certificate_filepath
+                node_has_a_cert = node_certificate_filepath is not CERTIFICATE_NOT_SAVED
+                if node_has_a_cert and filepaths_are_different:
                     raise ValueError(
-                        "Don't try to pass a certificate_filepath while also passing a node with a certificate_filepath.  What do you even expect?")
+                        "Don't try to pass a node with a certificate_filepath while also passing a different certificate_filepath.  What do you even expect?")
             else:
                 certificate_filepath = node_certificate_filepath
 
@@ -194,7 +196,7 @@ class RestMiddleware:
             path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
 
-    def node_information(self, host, port, certificate_filepath):
+    def node_information(self, host, port, certificate_filepath=None):
         response = self.client.get(host=host, port=port,
                                    path="public_information",
                                    timeout=2,

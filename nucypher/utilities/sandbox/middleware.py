@@ -18,6 +18,7 @@ from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
@@ -60,7 +61,8 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         else:
             raise ValueError("You need to pass either the node or a host and port.")
 
-        return node.rest_url(), node.certificate_filepath, mock_client
+        # We don't use certs in mock-style tests anyway.
+        return node.rest_url(), CERTIFICATE_NOT_SAVED, mock_client
 
     def invoke_method(self, method, url, *args, **kwargs):
         _cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
