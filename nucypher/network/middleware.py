@@ -74,8 +74,20 @@ class NucypherMiddlewareClient:
             raise TypeError(
                 "This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
 
-        def method_wrapper(path, node=None, host=None, port=None, *args, **kwargs):
-            host, certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
+        def method_wrapper(path,
+                           node=None,
+                           host=None,
+                           port=None,
+                           certificate_filepath=None,
+                           *args, **kwargs):
+            host, node_certificate_filepath, http_client = self.parse_node_or_host_and_port(node, host, port)
+
+            if certificate_filepath:
+                if node_certificate_filepath is not CERTIFICATE_NOT_SAVED:
+                    raise ValueError("Don't try to pass a certificate_filepath while also passing a node with a certificate_filepath.  What do you even expect?")
+            else:
+                certificate_filepath = node_certificate_filepath
+
             method = getattr(http_client, method_name)
 
             url = "https://{}/{}".format(host, path)
@@ -190,7 +202,8 @@ class RestMiddleware:
     def node_information(self, host, port, certificate_filepath):
         response = self.client.get(host=host, port=port,
                                    path="public_information",
-                                   timeout=2)
+                                   timeout=2,
+                                   certificate_filepath=certificate_filepath)
         return response.content
 
     def get_nodes_via_rest(self,
