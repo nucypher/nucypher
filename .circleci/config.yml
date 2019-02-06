@@ -92,9 +92,13 @@ workflows:
           filters:
             tags:
               only: /.*/
-          requires:
-            # - blockchain (Removed dependency to speed up overall workflow execution)
-            # - contracts  (Removed dependency to speed up overall workflow execution)
+          requires:   #  (Prioritizing this task given that it's awfully slow)
+              - pip_install_36
+              - pipenv_install_36
+              - pip_install_37
+              - pipenv_install_37
+            # - blockchain
+            # - contracts
       - deployers:
           context: "NuCypher Tests"
           filters:
