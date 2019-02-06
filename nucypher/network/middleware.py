@@ -51,7 +51,7 @@ class NucypherMiddlewareClient:
             host = node.rest_url()
             certificate_filepath = node.certificate_filepath
         elif all((host, port)):
-            host = "{}:{}".format(host, port)
+            host = f"{host}:{port}"
             certificate_filepath = CERTIFICATE_NOT_SAVED
         else:
             raise ValueError("You need to pass either the node or a host and port.")
@@ -72,7 +72,7 @@ class NucypherMiddlewareClient:
         # Quick sanity check.
         if not method_name in ("post", "get", "put", "patch", "delete"):
             raise TypeError(
-                "This client is for HTTP only - you need to use a real HTTP verb, not '{}'.".format(method_name))
+                f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
 
         def method_wrapper(path,
                            node=None,
@@ -84,28 +84,23 @@ class NucypherMiddlewareClient:
 
             if certificate_filepath:
                 if node_certificate_filepath is not CERTIFICATE_NOT_SAVED:
-                    raise ValueError("Don't try to pass a certificate_filepath while also passing a node with a certificate_filepath.  What do you even expect?")
+                    raise ValueError(
+                        "Don't try to pass a certificate_filepath while also passing a node with a certificate_filepath.  What do you even expect?")
             else:
                 certificate_filepath = node_certificate_filepath
 
             method = getattr(http_client, method_name)
 
-            url = "https://{}/{}".format(host, path)
+            url = f"https://{host}/{path}"
             response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
                 if cleaned_response.status_code == 404:
-                    raise NotFound(
-                        "While trying to {} {} ({}), server claims not to have found it.  Response: {}".format(
-                            method_name,
-                            args,
-                            kwargs,
-                            cleaned_response.content))
+                    m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
+                    raise NotFound(m)
                 else:
-                    raise UnexpectedResponse(
-                        "Unexpected response while trying to {} {},{}: {} {}".format(item, args, kwargs,
-                                                                                     cleaned_response.status_code,
-                                                                                     cleaned_response.content))
+                    m = f"Unexpected response while trying to {method_name} {args},{kwargs}: {cleaned_response.status_code} {cleaned_response.content}"
+                    raise UnexpectedResponse(m)
             return cleaned_response
 
         return method_wrapper
@@ -125,13 +120,13 @@ class RestMiddleware:
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
 
         try:
-            self.log.info("Fetching seednode {}:{} TLS certificate".format(host, port))
+            self.log.info(f"Fetching seednode {host}:{port} TLS certificate")
             seednode_certificate = ssl.get_server_certificate(addr=(host, port))
 
         except socket.timeout:
             if current_attempt == retry_attempts:
-                message = "No Response from seednode {}:{} after {} attempts"
-                self.log.info(message.format(host, port, retry_attempts))
+                message = f"No Response from seednode {host}:{port} after {retry_attempts} attempts"
+                self.log.info(message)
                 raise RuntimeError("No response from {}:{}".format(host, port))
             self.log.info("No Response from seednode {}. Retrying in {} seconds...".format(host, retry_rate))
             time.sleep(retry_rate)
@@ -151,9 +146,9 @@ class RestMiddleware:
                                     )
         return response
 
-    def enact_policy(self, ursula, id, payload):
+    def enact_policy(self, ursula, kfrag_id, payload):
         response = self.client.post(node=ursula,
-                                    path='kFrag/{}'.format(id.hex()),
+                                    path=f'kFrag/{kfrag_id.hex()}',
                                     data=payload,
                                     timeout=2)
         return True, ursula.stamp.as_umbral_pubkey()
@@ -170,7 +165,7 @@ class RestMiddleware:
         # TODO: Implement revocation confirmations
         response = self.client.delete(
             node=ursula,
-            path="kFrag/{}".format(revocation.arrangement_id.hex()),
+            path=f"kFrag/{revocation.arrangement_id.hex()}",
             data=bytes(revocation),
         )
         return response
@@ -180,13 +175,13 @@ class RestMiddleware:
 
     def get_treasure_map_from_node(self, node, map_id):
         response = self.client.get(node=node,
-                                   path="treasure_map/{}".format(map_id),
+                                   path=f"treasure_map/{map_id}",
                                    timeout=2)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         response = self.client.post(node=node,
-                                    path="treasure_map/{}".format(map_id),
+                                    path=f"treasure_map/{map_id}",
                                     data=map_payload,
                                     timeout=2)
         return response
@@ -196,7 +191,7 @@ class RestMiddleware:
         id_as_hex = work_order.arrangement_id.hex()
         return self.client.post(
             node=work_order.ursula,
-            path="kFrag/{}/reencrypt".format(id_as_hex),
+            path=f"kFrag/{id_as_hex}/reencrypt",
             data=payload, timeout=2)
 
     def node_information(self, host, port, certificate_filepath):

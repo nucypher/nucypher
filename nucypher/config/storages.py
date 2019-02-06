@@ -109,8 +109,7 @@ class NodeStorage(ABC):
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
         if host and (host != common_name_on_certificate):
             raise ValueError(
-                'You passed a hostname ("{}") that does not match the certificat\'s common name.'.format(host))
-
+                f"You passed a hostname ('{host}') that does not match the certificate's common name.")
         certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
         certificate_already_exists = os.path.isfile(certificate_filepath)
         if force is False and certificate_already_exists:
@@ -122,7 +121,7 @@ class NodeStorage(ABC):
             certificate_file.write(public_pem_bytes)
 
         self.certificate_filepath = certificate_filepath
-        self.log.debug("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
+        self.log.debug(f"Saved TLS certificate for {self}: {certificate_filepath}")
 
         return certificate_filepath
 
