@@ -96,8 +96,8 @@ class EvilMiddleWare(MockRestMiddleware):
         """
         Try to get Ursula to propagate a malicious (or otherwise shitty) interface ID.
         """
-        mock_client = self._get_mock_client_by_ursula(ursula)
-        response = mock_client.post("http://localhost/node_metadata".format(mock_client),
+        response = self.client.post(node=ursula,
+                                    path="node_metadata",
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response
