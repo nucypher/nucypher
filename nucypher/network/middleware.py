@@ -40,6 +40,10 @@ class NotFound(UnexpectedResponse):
 class NucypherMiddlewareClient:
     library = requests
 
+    @staticmethod
+    def response_cleaner(response):
+        return response
+
     def parse_node_or_host_and_port(self, node, host, port):
         if node:
             if any((host, port)):
@@ -55,7 +59,14 @@ class NucypherMiddlewareClient:
         return host, certificate_filepath, self.library
 
     def invoke_method(self, method, url, *args, **kwargs):
-        raise NotImplementedError()
+        self.clean_params(kwargs)
+        response = method(url, *args, **kwargs)
+        return response
+
+    def clean_params(self, request_kwargs):
+        """
+        No cleaning needed.
+        """
 
     def __getattr__(self, method_name):
         # Quick sanity check.
