@@ -394,6 +394,7 @@ class Learner:
 
         # Store node's certificate - It has been seen.
         certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+        node.certificate_filepath = certificate_filepath  # In some cases (seed nodes or other temp stored certs), this will update the filepath from the temp location to this one.
         self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
 
         try:
@@ -415,7 +416,6 @@ class Learner:
         self.known_nodes[address] = node
 
         if self.save_metadata:
-            node.certificate_filepath = certificate_filepath
             self.node_storage.store_node_metadata(node=node)
 
         self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_public_address, len(listeners)))

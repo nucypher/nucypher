@@ -1,11 +1,12 @@
 import json
 import os
-import sys
 import shutil
 import msgpack
 import maya
 import traceback
 from timeit import default_timer as timer
+
+from twisted.logger import globalLogPublisher
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.crypto.kits import UmbralMessageKit
@@ -16,6 +17,9 @@ from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey
 
+from nucypher.utilities.logging import SimpleObserver
+
+globalLogPublisher.addObserver(SimpleObserver())
 
 ######################
 # Boring setup stuff #
@@ -35,6 +39,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
 
 # To create a Bob, we need the doctor's private keys previously generated.
 from doctor_keys import get_doctor_privkeys
+
 doctor_keys = get_doctor_privkeys()
 
 bob_enc_keypair = DecryptingKeypair(private_key=doctor_keys["enc"])
@@ -79,9 +84,9 @@ message_kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
 
 # The doctor also needs to create a view of the Data Source from its public keys
 data_source = DataSource.from_public_keys(
-        policy_public_key=policy_pubkey,
-        datasource_public_key=data['data_source'],
-        label=label
+    policy_public_key=policy_pubkey,
+    datasource_public_key=data['data_source'],
+    label=label
 )
 
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
@@ -106,13 +111,12 @@ for message_kit in message_kits:
         terminal_size = shutil.get_terminal_size().columns
         max_width = min(terminal_size, 120)
         columns = max_width - 12 - 27
-        scale = columns/40
+        scale = columns / 40
         scaled_heart_rate = int(scale * (heart_rate - 60))
-        retrieval_time = "Retrieval time: {:8.2f} ms".format(1000*(end - start))
+        retrieval_time = "Retrieval time: {:8.2f} ms".format(1000 * (end - start))
         line = ("-" * scaled_heart_rate) + "❤︎ ({} BPM)".format(heart_rate)
         line = line.ljust(max_width - 27, " ") + retrieval_time
         print(line)
     except Exception as e:
         # We just want to know what went wrong and continue the demo
         traceback.print_exc()
-

@@ -741,6 +741,8 @@ class Ursula(Teacher, Character, Miner):
             *args,
             **kwargs)  # TODO: 466
 
+        potential_seed_node.certificate_filepath = certificate_filepath
+
         if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_address == potential_seed_node.checksum_public_address:
