@@ -24,6 +24,7 @@ from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
@@ -40,7 +41,18 @@ class NucypherMiddlewareClient:
     library = requests
 
     def parse_node_or_host_and_port(self, node, host, port):
-        raise NotImplementedError()
+        if node:
+            if any((host, port)):
+                raise ValueError("Don't pass host and port if you are passing the node.")
+            host = node.rest_url()
+            certificate_filepath = node.certificate_filepath
+        elif all((host, port)):
+            host = "{}:{}".format(host, port)
+            certificate_filepath = CERTIFICATE_NOT_SAVED
+        else:
+            raise ValueError("You need to pass either the node or a host and port.")
+
+        return host, certificate_filepath, self.library
 
     def invoke_method(self, method, url, *args, **kwargs):
         raise NotImplementedError()
