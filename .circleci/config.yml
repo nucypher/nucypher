@@ -500,7 +500,8 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - pip_install
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Install Documentation Build Dependencies
           command: pip3 install --user sphinx recommonmark sphinx-rtd-theme
