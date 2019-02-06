@@ -86,15 +86,15 @@ workflows:
               only: /.*/
           requires:
             - blockchain
-            - contracts
+            # - contracts  (Removed dependency to speed up overall workflow execution)
       - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - blockchain
-            - contracts
+            # - blockchain (Removed dependency to speed up overall workflow execution)
+            # - contracts  (Removed dependency to speed up overall workflow execution)
       - deployers:
           context: "NuCypher Tests"
           filters:
@@ -102,7 +102,7 @@ workflows:
               only: /.*/
           requires:
             - blockchain
-            - contracts
+            # - contracts  (Removed dependency to speed up overall workflow execution)
       - config:
           context: "NuCypher Tests"
           filters:
@@ -339,7 +339,7 @@ jobs:
 
   agents:
     <<: *python_36_base
-    parallelism: 2
+    parallelism: 4
     steps:
       - prepare_environment
       - run:
@@ -445,7 +445,7 @@ jobs:
 
   cli:
     <<: *python_36_base
-    parallelism: 4
+    parallelism: 6
     steps:
       - prepare_environment
       - run:
