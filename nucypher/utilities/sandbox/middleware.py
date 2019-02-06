@@ -83,7 +83,7 @@ class MockRestMiddleware(RestMiddleware):
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
-        ursula = self._get_ursula_by_port(port)
+        ursula = self.client._get_ursula_by_port(port)
         return ursula.certificate
 
 
