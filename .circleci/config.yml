@@ -463,10 +463,14 @@ jobs:
           mkdir /tmp/ursulas-logs
           export PATH=~/.local/bin:$PATH
           source ~/.bashrc
-          python3 examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/lonely.log.txt 2>&1 &
-          sleep 25
-          python3 examples/run_demo_ursula_fleet.py > /tmp/ursulas-logs/fleet.log.txt 2>&1 &
-          sleep 60
+          export NUCYPHER_SENTRY_LOGS=0
+          export NUCYPHER_FILE_LOGS=0
+          python3 examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/ursula-11500.txt 2>&1 &
+          sleep 15
+          nucypher ursula run --dev --debug --federated-only --teacher-uri localhost:11500 --rest-port 11501 > /tmp/ursulas-logs/ursula-11501.txt 2>&1 &
+          sleep 15
+          nucypher ursula run --dev --debug --federated-only --teacher-uri localhost:11500 --rest-port 11502 > /tmp/ursulas-logs/ursula-11502.txt 2>&1 &
+          sleep 15
           python3 examples/heartbeat_demo/alicia.py
           python3 examples/heartbeat_demo/doctor.py
     - store_artifacts:
