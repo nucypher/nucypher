@@ -25,11 +25,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-          requires:
-          - pip_install_36
-          - pipenv_install_36
-          - pip_install_37
-          - pipenv_install_37
       - contracts:
           context: "NuCypher Tests"
           filters:
@@ -460,17 +455,20 @@ jobs:
   heartbeat_demo:
     <<: *python_36_base
     steps:
-    - prepare_environment
+    - checkout
+    - pip_install
     - run:
         name: Run demo Ursula fleet, Alicia and the Doctor
         command: |
           mkdir /tmp/ursulas-logs
-          pipenv run python examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/lonely.log.txt 2>&1 &
+          export PATH=~/.local/bin:$PATH
+          source ~/.bashrc
+          python3 examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/lonely.log.txt 2>&1 &
           sleep 25
-          pipenv run python examples/run_demo_ursula_fleet.py > /tmp/ursulas-logs/fleet.log.txt 2>&1 &
+          python3 examples/run_demo_ursula_fleet.py > /tmp/ursulas-logs/fleet.log.txt 2>&1 &
           sleep 60
-          pipenv run python examples/heartbeat_demo/alicia.py
-          pipenv run python examples/heartbeat_demo/doctor.py
+          python3 examples/heartbeat_demo/alicia.py
+          python3 examples/heartbeat_demo/doctor.py
     - store_artifacts:
           path: /tmp/ursulas-logs
 
