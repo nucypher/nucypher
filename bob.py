@@ -12,7 +12,7 @@ from plotly.graph_objs.scatter import *
 import sqlite3
 import time
 
-from app import app, DB_FILE, DB_NAME, PROPERTIES
+from app import app, DB_FILE, DB_NAME, PROPERTIES, SEEDNODE_URL
 
 import shutil
 import msgpack
@@ -35,8 +35,6 @@ ACCESS_REVOKED = "Access Disallowed"
 ######################
 # Boring setup stuff #
 ######################
-
-SEEDNODE_URL = "127.0.0.1:10151"
 
 # TODO: path joins?
 TEMP_DOCTOR_DIR = "{}/bob-files".format(os.path.dirname(os.path.abspath(__file__)))

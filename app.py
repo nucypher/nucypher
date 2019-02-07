@@ -41,3 +41,6 @@ SHARED_FOLDER = './shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 
+# We expect the url of the seednode to be local
+SEEDNODE_URL = "localhost:11500"
+
