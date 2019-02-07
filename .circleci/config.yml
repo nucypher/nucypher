@@ -20,6 +20,16 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - heartbeat_demo:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+          - pip_install_36
+          - pipenv_install_36
+          - pip_install_37
+          - pipenv_install_37
       - contracts:
           context: "NuCypher Tests"
           filters:
@@ -446,6 +456,20 @@ jobs:
           name: Learner Tests
           command: pipenv run pytest tests/learning
       - capture_test_results
+
+  heartbeat_demo:
+    <<: *python_36_base
+    steps:
+    - prepare_environment
+    - run:
+        name: Run demo Ursula fleet, Alicia and the Doctor
+        command: |
+          pipenv run python examples/run_lonely_demo_ursula.py > /dev/null 2>&1 &
+          sleep 25
+          pipenv run python examples/run_demo_ursula_fleet.py > /dev/null 2>&1 &
+          sleep 60
+          pipenv run python examples/heartbeat_demo/alicia.py
+          pipenv run python examples/heartbeat_demo/doctor.py
 
   cli:
     <<: *python_36_base
