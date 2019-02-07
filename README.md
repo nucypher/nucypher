@@ -16,27 +16,22 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
 
 ### How to run the demo
 #### Run a local node
-The code for the NuCypher node can be obtained from [fix-demo](https://github.com/cygnusv/nucypher/tree/fix-demo)
+The code for the NuCypher node can be obtained from [NuCypher (v0.1.0-alpha.8)](https://github.com/nucypher/nucypher/tree/v0.1.0-alpha.8)
 
-Install dependencies (only for the first time):
+Install dependencies (only for the first time): <http://docs.nucypher.com/en/latest/guides/installation_guide.html#pipenv-development-installation>
+
+Run the node (after previously running `pipenv shell`)
 ```sh
-$ pipenv install --pre --skip-lock --dev
-```
-
-Run the node
-```sh
-$ pipenv shell
-
 (nucypher)$ nucypher ursula run --dev --debug --federated-only
 ```
 
 #### Run the demo
 Install dependencies (only for the first time):
 ```sh
-$ pipenv install --pre --skip-lock --dev
+$ pipenv install --dev --skip-lock --pre
 ```
 
-Run the demo:
+Start the demo:
 ```sh
 $ pipenv shell
 
