@@ -3,7 +3,7 @@ from dash.dependencies import Output, Input, State, Event
 import dash_html_components as html
 import os
 
-from app import app, SHARED_FOLDER
+from app import app, SHARED_FOLDER, SEEDNODE_URL
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
@@ -30,9 +30,6 @@ globalLogPublisher.addObserver(SimpleObserver())
 # # Temporary file storage
 TEMP_ALICE_DIR = "{}/alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
 TEMP_URSULA_CERTIFICATE_DIR = "{}/ursula-certs".format(TEMP_ALICE_DIR)
-
-# We expect the url of the seednode as the first argument.
-SEEDNODE_URL = "127.0.0.1:10151"
 
 #######################################
 # Alicia, the Authority of the Policy #
@@ -217,11 +214,9 @@ def grant_access(revoke_time, grant_time, policy_label,
     # Here are our remaining Policy details, such as:
     # - Policy duration
     policy_end_datetime = maya.now() + datetime.timedelta(days=int(days))
+
     # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
     #               she requires Bob to seek collaboration of at least 3 Ursulas
-    # TODO: Let's put just one Ursula for the moment.
-    m, n = 1, 1
-
     # With this information, Alicia creates a policy granting access to Bob.
     # The policy is sent to the NuCypher network.
     print('Creating access to policy {} for the Bob with public key {}...'

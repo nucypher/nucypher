@@ -30,3 +30,6 @@ os.mkdir(SHARED_FOLDER)
 BOB_FILES = './bob-files'
 shutil.rmtree(BOB_FILES, ignore_errors=True)
 os.mkdir(BOB_FILES)
+
+# We expect the url of the seednode to be local
+SEEDNODE_URL = "localhost:11500"

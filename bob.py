@@ -13,7 +13,7 @@ import random
 import sqlite3
 import time
 
-from app import app, DB_FILE, DB_NAME
+from app import app, DB_FILE, DB_NAME, SEEDNODE_URL
 
 import shutil
 import msgpack
@@ -36,8 +36,6 @@ ACCESS_DISALLOWED = "Access Disallowed"
 ######################
 # Boring setup stuff #
 ######################
-
-SEEDNODE_URL = "127.0.0.1:10151"
 
 bob_instances = dict()  # Map: bob_id -> bob instance
 
