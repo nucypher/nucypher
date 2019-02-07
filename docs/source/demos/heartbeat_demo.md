@@ -10,7 +10,7 @@ Since Alicia knows that she may want to share this data in the future, she uses 
 a _policy public key_ for her Heart Monitor to use, so she can read and delegate access to the encrypted
 data as she sees fit.
 
-The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements;
+The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements. 
 This file is uploaded to a storage layer (e.g., IPFS, S3, or whatever you choose).
 
 At some future point, she wants to share this information with other people, such as her Doctor.
@@ -29,12 +29,13 @@ This simple example showcases many interesting and distinctive aspects of NuCyph
 
 ## Install Nucypher
 
-Acquire the nucypher application code and install the dependencies.
-For a full installation guide see the [NuCypher Installation Guide](/guides/installation_guide).
+Acquire the `nucypher` application code and install the dependencies.
+For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide).
 
 ## Run the Demo
 
-Assuming you already have `nucypher` installed with the `demos` extra, running the Heartbeat demo only involves running the `alicia.py` and `doctor.py` scripts; Run `alicia.py` first:
+Assuming you already have `nucypher` installed with the `demos` extra and a [local fleet of Ursulas running](local_fleet_demo), running the Heartbeat demo only involves executing the `alicia.py` and `doctor.py` scripts, contained in the `examples/heartbeat_demo` directory. 
+Run `alicia.py` first:
 
 ```bash
 (nucypher)$ python alicia.py

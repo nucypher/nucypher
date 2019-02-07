@@ -15,15 +15,15 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
   - The Doctor never interacts with Alicia or the Heart Monitor: he only needs the encrypted data and some policy metadata.
 
 ### How to run the demo 
-Assuming you already have `nucypher` installed (specifically, the `federated` branch), running the demo only involves running the `alicia.py` and `doctor.py` scripts. You should run `alicia.py` first:
+Assuming you already have `nucypher` installed and a local demo fleet of Ursulas deployed, running the demo only involves running the `alicia.py` and `doctor.py` scripts. You should run `alicia.py` first:
 
 ```sh
-(nucypher)$ python alicia.py <seednode_url>
+(nucypher)$ python examples/heartbeat_demo/alicia.py
 ```
 This will create a temporal directory called `alicia-files` that contains the data for making Alicia persistent (i.e., her private keys). Apart from that, it will also generate data and keys for the demo. What's left is running the `doctor.py` script:
 
 ```sh
-(nucypher)$ python doctor.py <seednode_url>
+(nucypher)$ python examples/heartbeat_demo/doctor.py
 ```
 This script will read the data generated in the previous step and retrieve re-encrypted ciphertexts by means of the NuCypher network. The result is printed in the console:
 
