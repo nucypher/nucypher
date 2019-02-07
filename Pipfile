@@ -13,7 +13,7 @@ dash-table = "==3.1.11"
 pandas = "==0.23.4"
 plotly = "==3.5.0"
 umbral = "==0.1.3a0"
-nucypher = {git = 'https://github.com/cygnusv/nucypher.git',ref = 'fix-demo',editable = true}
+nucypher = "==0.1.0a8"
 
 [requires]
 python_version = "3.7"
