@@ -31,7 +31,7 @@ Install dependencies (only for the first time):
 $ pipenv install --dev --skip-lock --pre
 ```
 
-Run the demo:
+Start the demo:
 ```sh
 $ pipenv shell
 
