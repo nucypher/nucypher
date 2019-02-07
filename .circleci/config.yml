@@ -464,12 +464,15 @@ jobs:
     - run:
         name: Run demo Ursula fleet, Alicia and the Doctor
         command: |
-          pipenv run python examples/run_lonely_demo_ursula.py > /dev/null 2>&1 &
+          mkdir /tmp/ursulas-logs
+          pipenv run python examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/lonely.log.txt 2>&1 &
           sleep 25
-          pipenv run python examples/run_demo_ursula_fleet.py > /dev/null 2>&1 &
+          pipenv run python examples/run_demo_ursula_fleet.py > /tmp/ursulas-logs/fleet.log.txt 2>&1 &
           sleep 60
           pipenv run python examples/heartbeat_demo/alicia.py
           pipenv run python examples/heartbeat_demo/doctor.py
+    - store_artifacts:
+          path: /tmp/ursulas-logs
 
   cli:
     <<: *python_36_base
