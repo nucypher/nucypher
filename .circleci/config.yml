@@ -20,11 +20,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - heartbeat_demo:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
       - contracts:
           context: "NuCypher Tests"
           filters:
@@ -144,6 +139,14 @@ workflows:
             - deployers
             - config
             - character
+      - heartbeat_demo:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+          - cli
+          - ursula_command
       - mypy:
           context: "NuCypher Tests"
           filters:
