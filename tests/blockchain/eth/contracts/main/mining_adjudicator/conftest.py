@@ -21,6 +21,11 @@ from web3.contract import Contract
 
 
 ALGORITHM_SHA256 = 1
+BASE_PENALTY = 100
+PENALTY_HISTORY_COEFFICIENT = 10
+PERCENTAGE_PENALTY_COEFFICIENT = 8
+REWARD_COEFFICIENT = 2
+
 secret = (123456).to_bytes(32, byteorder='big')
 
 
@@ -33,7 +38,13 @@ def escrow(testerchain):
 @pytest.fixture(params=[False, True])
 def adjudicator_contract(testerchain, escrow, request):
     contract, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 100, 10, 8, 2)
+        'MiningAdjudicator',
+        escrow.address,
+        ALGORITHM_SHA256,
+        BASE_PENALTY,
+        PENALTY_HISTORY_COEFFICIENT,
+        PERCENTAGE_PENALTY_COEFFICIENT,
+        REWARD_COEFFICIENT)
 
     if request.param:
         secret_hash = testerchain.interface.w3.keccak(secret)
