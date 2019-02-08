@@ -11,7 +11,7 @@ python_version = "3"
 umbral = "==0.1.3a0"
 constant-sorrow = ">=0.1.0a8"
 bytestring-splitter = ">=1.0.0a4"
-hendrix = ">=3.2.1"
+hendrix = ">=3.2.2"
 # Third-Party
 pyopenssl = "*"
 cryptography = ">=2.3"
