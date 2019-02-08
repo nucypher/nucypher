@@ -178,14 +178,12 @@ def test_node_posts_future_version(federated_ursulas):
     globalLogPublisher.addObserver(warning_trapper)
 
     crazy_node = b"invalid-node"
-    middleware.get_nodes_via_rest(ursula.rest_url(),
-                                  certificate_filepath=ursula.certificate_filepath,
+    middleware.get_nodes_via_rest(node=ursula,
                                   announce_nodes=(crazy_node,))
     assert len(warnings) == 1
     future_node = list(federated_ursulas)[1]
     future_node.TEACHER_VERSION = future_node.TEACHER_VERSION + 10
     future_node_bytes = bytes(future_node)
-    middleware.get_nodes_via_rest(ursula.rest_url(),
-                                  certificate_filepath=ursula.certificate_filepath,
+    middleware.get_nodes_via_rest(node=ursula,
                                   announce_nodes=(future_node_bytes,))
     assert len(warnings) == 2

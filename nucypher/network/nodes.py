@@ -394,13 +394,15 @@ class Learner:
 
         # Store node's certificate - It has been seen.
         certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+        node.certificate_filepath = certificate_filepath  # In some cases (seed nodes or other temp stored certs), this will update the filepath from the temp location to this one.
+        self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
 
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
                              accept_federated_only=self.federated_only,
                              # TODO: 466 - move federated-only up to Learner?
-                             certificate_filepath=certificate_filepath)
+                             )
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
 
@@ -414,10 +416,9 @@ class Learner:
         self.known_nodes[address] = node
 
         if self.save_metadata:
-            node.certificate_filepath = certificate_filepath
             self.node_storage.store_node_metadata(node=node)
 
-        self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
+        self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_public_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
@@ -672,8 +673,6 @@ class Learner:
             self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
-        teacher_uri = current_teacher.rest_interface
-
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
         else:
@@ -684,10 +683,9 @@ class Learner:
             # TODO: Streamline path generation
             certificate_filepath = self.node_storage.generate_certificate_filepath(
                 checksum_address=current_teacher.checksum_public_address)
-            response = self.network_middleware.get_nodes_via_rest(url=teacher_uri,
+            response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_filepath=certificate_filepath,
                                                                   fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)

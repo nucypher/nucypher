@@ -49,7 +49,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
-from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
@@ -741,6 +741,8 @@ class Ursula(Teacher, Character, Miner):
             *args,
             **kwargs)  # TODO: 466
 
+        potential_seed_node.certificate_filepath = certificate_filepath
+
         if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_address == potential_seed_node.checksum_public_address:
@@ -888,7 +890,7 @@ class Ursula(Teacher, Character, Miner):
 
         if rest_app_on_server is PUBLIC_ONLY or not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
-            raise AttributeError(m)
+            raise PowerUpError(m)
         else:
             return rest_app_on_server
 

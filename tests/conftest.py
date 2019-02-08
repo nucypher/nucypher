@@ -54,8 +54,3 @@ def pytest_collection_modifyitems(config, items):
     log_level_name = config.getoption("--log-level", "info", skip=True)
     observer = SimpleObserver(log_level_name)
     globalLogPublisher.addObserver(observer)
-
-    # Timber!
-    log_level_name = config.getoption("--log-level", "info", skip=True)
-    observer = SimpleObserver(log_level_name)
-    globalLogPublisher.addObserver(observer)
