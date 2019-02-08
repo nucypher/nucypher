@@ -39,6 +39,10 @@ from nucypher.policy.models import IndisputableEvidence
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
+BASE_PENALTY = 100
+PENALTY_HISTORY_COEFFICIENT = 10
+PERCENTAGE_PENALTY_COEFFICIENT = 8
+REWARD_COEFFICIENT = 2
 secret = (123456).to_bytes(32, byteorder='big')
 secret2 = (654321).to_bytes(32, byteorder='big')
 
@@ -141,7 +145,8 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     assert len(evidence_data) == 20 * 32
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
-    assert proof_signature == adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+    assert proof_signature == \
+           adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
@@ -168,11 +173,12 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
             evidence_data)
+    value = escrow.functions.minerInfo(miner).call()[0]
     tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    assert 1000 == escrow.functions.minerInfo(miner).call()[0]
+    assert value == escrow.functions.minerInfo(miner).call()[0]
     assert 0 == escrow.functions.rewardInfo(investigator).call()
 
     events = evaluation_log.get_all_entries()
@@ -218,8 +224,8 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    assert 900 == escrow.functions.minerInfo(miner).call()[0]
-    assert 50 == escrow.functions.rewardInfo(investigator).call()
+    assert value - BASE_PENALTY == escrow.functions.minerInfo(miner).call()[0]
+    assert BASE_PENALTY / REWARD_COEFFICIENT == escrow.functions.rewardInfo(investigator).call()
 
     events = evaluation_log.get_all_entries()
     assert 2 == len(events)
@@ -312,13 +318,16 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
         testerchain.wait_for_receipt(tx)
 
     # Initial arguments were correct
+    value = escrow.functions.minerInfo(miner).call()[0]
+    reward = escrow.functions.rewardInfo(investigator).call()
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     # Penalty was increased because it's the second violation
-    assert 790 == escrow.functions.minerInfo(miner).call()[0]
-    assert 105 == escrow.functions.rewardInfo(investigator).call()
+    assert value - (BASE_PENALTY + PENALTY_HISTORY_COEFFICIENT) == escrow.functions.minerInfo(miner).call()[0]
+    assert reward + (BASE_PENALTY + PENALTY_HISTORY_COEFFICIENT) / REWARD_COEFFICIENT == \
+           escrow.functions.rewardInfo(investigator).call()
 
     events = evaluation_log.get_all_entries()
     assert 3 == len(events)
@@ -352,13 +361,16 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             signed_miner_umbral_public_key,
             evidence_data)
 
+    value = escrow.functions.minerInfo(miner).call()[0]
+    reward = escrow.functions.rewardInfo(investigator).call()
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     # Penalty was decreased because it's more than maximum available percentage of value
-    assert 692 == escrow.functions.minerInfo(miner).call()[0]
-    assert 154 == escrow.functions.rewardInfo(investigator).call()
+    assert value - value // PERCENTAGE_PENALTY_COEFFICIENT == escrow.functions.minerInfo(miner).call()[0]
+    assert reward + value // PERCENTAGE_PENALTY_COEFFICIENT / REWARD_COEFFICIENT == \
+           escrow.functions.rewardInfo(investigator).call()
 
     events = evaluation_log.get_all_entries()
     assert 4 == len(events)
@@ -418,11 +430,11 @@ def test_upgrading(testerchain):
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = testerchain.interface.deploy_contract('MiningAdjudicatorBad')
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
+        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash)\
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
@@ -443,6 +455,6 @@ def test_upgrading(testerchain):
 
     # Try to upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)

@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 
 import coincurve
@@ -31,6 +32,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer, Signature
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
+
 
 NULL_ADDR = '0x' + '0' * 40
 
@@ -62,6 +64,10 @@ user_escrow_secret = os.urandom(SECRET_LENGTH)
 adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 ALGORITHM_SHA256 = 1
+BASE_PENALTY = 300
+PENALTY_HISTORY_COEFFICIENT = 10
+PERCENTAGE_PENALTY_COEFFICIENT = 2
+REWARD_COEFFICIENT = 2
 
 
 @pytest.fixture()
@@ -128,7 +134,13 @@ def adjudicator(testerchain, escrow):
 
     # Creator deploys the contract
     contract, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 300, 10, 2, 2)
+        'MiningAdjudicator',
+        escrow.address,
+        ALGORITHM_SHA256,
+        BASE_PENALTY,
+        PENALTY_HISTORY_COEFFICIENT,
+        PERCENTAGE_PENALTY_COEFFICIENT,
+        REWARD_COEFFICIENT)
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
@@ -687,14 +699,14 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
     assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    assert tokens_amount - 300 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
+    assert tokens_amount - BASE_PENALTY == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(ursula1, 1).call()
     assert lock == escrow.functions.getLockedTokens(ursula1).call()
     assert next_lock == escrow.functions.getLockedTokens(ursula1, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
     assert total_lock == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
-    assert alice1_balance + 150 == token.functions.balanceOf(alice1).call()
+    assert alice1_balance + BASE_PENALTY / REWARD_COEFFICIENT == token.functions.balanceOf(alice1).call()
 
     # Slash part of the one sub stake
     tokens_amount = escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
@@ -709,20 +721,26 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
     assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    assert lock - 300 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
+    assert lock - BASE_PENALTY == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
-    assert lock - 300 == escrow.functions.getLockedTokens(ursula2).call()
-    assert next_lock - 300 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert lock - BASE_PENALTY == escrow.functions.getLockedTokens(ursula2).call()
+    assert next_lock - BASE_PENALTY == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
-    assert total_lock - 300 == escrow.functions.lockedPerPeriod(period).call()
+    assert total_lock - BASE_PENALTY == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
-    assert alice1_balance + 300 == token.functions.balanceOf(alice1).call()
+    assert alice1_balance + BASE_PENALTY == token.functions.balanceOf(alice1).call()
 
     # Upgrade the adjudicator
     # Deploy the same contract as the second version
     adjudicator_v1 = adjudicator.functions.target().call()
     adjudicator_v2, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator', escrow.address, ALGORITHM_SHA256, 300, 10, 2, 2)
+        'MiningAdjudicator',
+        escrow.address,
+        ALGORITHM_SHA256,
+        BASE_PENALTY,
+        PENALTY_HISTORY_COEFFICIENT,
+        PERCENTAGE_PENALTY_COEFFICIENT,
+        REWARD_COEFFICIENT)
     adjudicator_secret2 = os.urandom(SECRET_LENGTH)
     adjudicator_secret2_hash = testerchain.interface.w3.keccak(adjudicator_secret2)
     # Ursula and Alice can't upgrade library, only owner can
@@ -769,6 +787,7 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     previous_lock = escrow.functions.getLockedTokensInPast(ursula1, 1).call()
     lock = escrow.functions.getLockedTokens(ursula1).call()
     next_lock = escrow.functions.getLockedTokens(ursula1, 1).call()
+    total_lock = escrow.functions.lockedPerPeriod(period).call()
     alice2_balance = token.functions.balanceOf(alice2).call()
     data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula1)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
@@ -780,14 +799,15 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
     testerchain.wait_for_receipt(tx)
     assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    assert lock - 630 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
+    penalty = (2 * BASE_PENALTY + 3 * PENALTY_HISTORY_COEFFICIENT)
+    assert lock - penalty == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(ursula1, 1).call()
-    assert lock - 630 == escrow.functions.getLockedTokens(ursula1).call()
-    assert next_lock - 130 == escrow.functions.getLockedTokens(ursula1, 1).call()
+    assert lock - penalty == escrow.functions.getLockedTokens(ursula1).call()
+    assert next_lock - (penalty - (lock - next_lock)) == escrow.functions.getLockedTokens(ursula1, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
-    assert total_lock - 930 == escrow.functions.lockedPerPeriod(period).call()
+    assert total_lock - penalty == escrow.functions.lockedPerPeriod(period).call()
     assert 0 == escrow.functions.lockedPerPeriod(period + 1).call()
-    assert alice2_balance + 315 == token.functions.balanceOf(alice2).call()
+    assert alice2_balance + penalty / REWARD_COEFFICIENT == token.functions.balanceOf(alice2).call()
 
     # Unlock and withdraw all tokens in MinersEscrow
     for index in range(9):
@@ -814,6 +834,9 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_2.address).call()
 
+    ursula1_balance = token.functions.balanceOf(ursula1).call()
+    ursula2_balance = token.functions.balanceOf(ursula2).call()
+    user_escrow_1_balance = token.functions.balanceOf(user_escrow_1.address).call()
     tokens_amount = escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     tx = escrow.functions.withdraw(tokens_amount).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -823,19 +846,21 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tokens_amount = escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
     tx = user_escrow_proxy_1.functions.withdrawAsMiner(tokens_amount).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
-    assert 9370 < token.functions.balanceOf(ursula1).call()
-    assert 1000 < token.functions.balanceOf(ursula2).call()
-    assert 9400 < token.functions.balanceOf(user_escrow_1.address).call()
+    assert ursula1_balance < token.functions.balanceOf(ursula1).call()
+    assert ursula2_balance < token.functions.balanceOf(ursula2).call()
+    assert user_escrow_1_balance < token.functions.balanceOf(user_escrow_1.address).call()
 
     # Unlock and withdraw all tokens in UserEscrow
     testerchain.time_travel(hours=1)
     assert 0 == user_escrow_1.functions.getLockedTokens().call()
     assert 0 == user_escrow_2.functions.getLockedTokens().call()
+    ursula3_balance = token.functions.balanceOf(ursula3).call()
+    ursula4_balance = token.functions.balanceOf(ursula4).call()
     tokens_amount = token.functions.balanceOf(user_escrow_1.address).call()
     tx = user_escrow_1.functions.withdrawTokens(tokens_amount).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     tokens_amount = token.functions.balanceOf(user_escrow_2.address).call()
     tx = user_escrow_2.functions.withdrawTokens(tokens_amount).transact({'from': ursula4})
     testerchain.wait_for_receipt(tx)
-    assert 9400 < token.functions.balanceOf(ursula3).call()
-    assert 10000 == token.functions.balanceOf(ursula4).call()
+    assert ursula3_balance < token.functions.balanceOf(ursula3).call()
+    assert ursula4_balance < token.functions.balanceOf(ursula4).call()
