@@ -6,8 +6,8 @@ attrdict==2.0.1
 attrs==18.2.0
 autobahn==19.1.1
 automat==0.7.0
-boto3==1.9.88
-botocore==1.12.88
+boto3==1.9.90
+botocore==1.12.90
 bytestring-splitter==1.0.0a4
 certifi==2018.11.29
 cffi==1.11.5
@@ -32,7 +32,7 @@ eth-typing==2.0.0
 eth-utils==1.4.1
 ethpm==0.1.4a10
 flask==1.0.2
-hendrix==3.2.1
+hendrix==3.2.2
 hexbytes==0.1.0
 humanize==0.5.1
 hyperlink==18.0.0
@@ -71,10 +71,10 @@ python-dateutil==2.8.0 ; python_version >= '2.7'
 pytz==2018.9
 pytzdata==2018.9
 pyyaml==4.2b4
-regex==2019.2.5
+regex==2019.2.7
 requests==2.21.0
 rlp==1.1.0
-s3transfer==0.1.13
+s3transfer==0.2.0
 semantic-version==2.6.0
 sentry-sdk==0.5.2
 service-identity==18.1.0
