@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -80,7 +80,7 @@ contract PolicyManager is Upgradeable {
     }
 
     bytes16 constant RESERVED_POLICY_ID = bytes16(0);
-    address constant RESERVED_NODE = 0x0;
+    address constant RESERVED_NODE = address(0);
 
     MinersEscrow public escrow;
     uint32 public secondsPerPeriod;
@@ -92,7 +92,7 @@ contract PolicyManager is Upgradeable {
     * @param _escrow Escrow contract
     **/
     constructor(MinersEscrow _escrow) public {
-        require(address(_escrow) != 0x0);
+        require(address(_escrow) != address(0));
         escrow = _escrow;
         secondsPerPeriod = escrow.secondsPerPeriod();
     }
@@ -145,7 +145,7 @@ contract PolicyManager is Upgradeable {
         bytes16 _policyId,
         uint16 _numberOfPeriods,
         uint256 _firstPartialReward,
-        address[] _nodes
+        address[] memory _nodes
     )
         public payable
     {
@@ -210,7 +210,7 @@ contract PolicyManager is Upgradeable {
     * @notice Withdraw reward by node
     * @param _recipient Recipient of the reward
     **/
-    function withdraw(address _recipient) public returns (uint256) {
+    function withdraw(address payable _recipient) public returns (uint256) {
         NodeInfo storage node = nodes[msg.sender];
         uint256 reward = node.reward;
         require(reward != 0);
@@ -264,7 +264,7 @@ contract PolicyManager is Upgradeable {
             if (lastActivePeriod < _policy.startPeriod - 1) {
                 refundValue = _policy.firstPartialReward;
             } else if (_arrangement.indexOfDowntimePeriods < length) {
-                (startPeriod, endPeriod) = escrow.getPastDowntime(
+                (uint16 startPeriod, uint16 endPeriod) = escrow.getPastDowntime(
                     _arrangement.node, _arrangement.indexOfDowntimePeriods);
                 if (_policy.startPeriod > startPeriod && _policy.startPeriod - 1 <= endPeriod) {
                     refundValue = _policy.firstPartialReward;
@@ -288,7 +288,8 @@ contract PolicyManager is Upgradeable {
         require(policy.client == msg.sender && !policy.disabled);
         uint16 endPeriod = policy.lastPeriod.add16(1);
         uint256 numberOfActive = policy.arrangements.length;
-        for (uint256 i = 0; i < policy.arrangements.length; i++) {
+        uint256 i = 0;
+        for (; i < policy.arrangements.length; i++) {
             ArrangementInfo storage arrangement = policy.arrangements[i];
             address node = arrangement.node;
             if (node == RESERVED_NODE || _node != RESERVED_NODE && _node != node) {
@@ -345,7 +346,8 @@ contract PolicyManager is Upgradeable {
     {
         Policy storage policy = policies[_policyId];
         require(msg.sender == policy.client && !policy.disabled);
-        for (uint256 i = 0; i < policy.arrangements.length; i++) {
+        uint256 i = 0;
+        for (; i < policy.arrangements.length; i++) {
             ArrangementInfo storage arrangement = policy.arrangements[i];
             if (arrangement.node == RESERVED_NODE || _node != RESERVED_NODE && _node != arrangement.node) {
                 continue;
@@ -491,14 +493,14 @@ contract PolicyManager is Upgradeable {
     function delegateGetNodeInfo(address _target, address _node)
         internal returns (NodeInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, "nodes(address)", 1, bytes32(_node), 0);
+        bytes32 memoryAddress = delegateGetData(_target, "nodes(address)", 1, bytes32(uint256(_node)), 0);
         assembly {
             result := memoryAddress
         }
     }
 
     function verifyState(address _testTarget) public onlyOwner {
-        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
+        require(address(uint160(delegateGet(_testTarget, "escrow()"))) == address(escrow));
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
@@ -509,8 +511,8 @@ contract PolicyManager is Upgradeable {
             policyToCheck.lastPeriod == policy.lastPeriod &&
             policyToCheck.disabled == policy.disabled);
 
-        require(uint256(delegateGet(_testTarget, "getArrangementsLength(bytes16)",
-            RESERVED_POLICY_ID)) == policy.arrangements.length);
+        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)",
+            RESERVED_POLICY_ID) == policy.arrangements.length);
         ArrangementInfo storage arrangement = policy.arrangements[0];
         ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
             _testTarget, RESERVED_POLICY_ID, 0);
@@ -526,7 +528,7 @@ contract PolicyManager is Upgradeable {
             nodeInfoToCheck.minRewardRate == nodeInfo.minRewardRate);
 
         require(int256(delegateGet(_testTarget, "getNodeRewardDelta(address,uint16)",
-            bytes32(RESERVED_NODE), 11)) == nodeInfo.rewardDelta[11]);
+            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.rewardDelta[11]);
     }
 
     function finishUpgrade(address _target) public onlyOwner {
@@ -535,7 +537,7 @@ contract PolicyManager is Upgradeable {
         secondsPerPeriod = policyManager.secondsPerPeriod();
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
-        policy.client = owner;
+        policy.client = owner();
         policy.startPeriod = 1;
         policy.lastPeriod = 2;
         policy.rewardRate = 3;

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -20,7 +20,7 @@ contract UserEscrowLibraryLinker is Ownable {
     * @param _newSecretHash Secret hash (keccak256)
     **/
     constructor(address _target, bytes32 _newSecretHash) public {
-        require(_target != 0x0);
+        require(_target != address(0));
         target = _target;
         secretHash = _newSecretHash;
     }
@@ -31,8 +31,8 @@ contract UserEscrowLibraryLinker is Ownable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
-    function upgrade(address _target, bytes _secret, bytes32 _newSecretHash) public onlyOwner {
-        require(_target != 0x0);
+    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
+        require(_target != address(0));
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         target = _target;
         secretHash = _newSecretHash;
@@ -64,7 +64,7 @@ contract UserEscrow is Ownable {
     * @param _token Token contract
     **/
     constructor(UserEscrowLibraryLinker _linker, NuCypherToken _token) public {
-        require(address(_token) != 0x0 && address(_linker) != 0x0);
+        require(address(_token) != address(0) && address(_linker) != address(0));
         linker = _linker;
         token = _token;
     }
@@ -98,8 +98,8 @@ contract UserEscrow is Ownable {
     **/
     function withdrawTokens(uint256 _value) public onlyOwner {
         require(token.balanceOf(address(this)).sub(getLockedTokens()) >= _value);
-        token.safeTransfer(owner, _value);
-        emit TokensWithdrawn(owner, _value);
+        token.safeTransfer(msg.sender, _value);
+        emit TokensWithdrawn(msg.sender, _value);
     }
 
     /**
@@ -108,17 +108,17 @@ contract UserEscrow is Ownable {
     function withdrawETH() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
-        owner.transfer(balance);
-        emit ETHWithdrawn(owner, balance);
+        msg.sender.transfer(balance);
+        emit ETHWithdrawn(msg.sender, balance);
     }
 
     /**
     * @dev Fallback function send all requests to the target proxy contract
     **/
-    function () public payable onlyOwner {
+    function () external payable onlyOwner {
         address libraryTarget = linker.target();
-        require(libraryTarget != 0x0);
-        bool callSuccess = libraryTarget.delegatecall(msg.data);
+        require(libraryTarget != address(0));
+        (bool callSuccess,) = libraryTarget.delegatecall(msg.data);
         if (callSuccess) {
             assembly {
                 returndatacopy(0x0, 0x0, returndatasize)

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "./ContractV2.sol";
@@ -20,6 +20,6 @@ contract ContractV3 is ContractV2 {
 
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
-        require(uint(delegateGet(_testTarget, "anotherStorageValue()")) == anotherStorageValue);
+        require(delegateGet(_testTarget, "anotherStorageValue()") == anotherStorageValue);
     }
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.5.3;
 
 
 import "./Upgradeable.sol";
@@ -19,11 +19,12 @@ contract Dispatcher is Upgradeable {
     * @param _newSecretHash Secret hash (keccak256)
     **/
     constructor(address _target, bytes32 _newSecretHash) public {
-        require(_target != 0x0);
+        require(_target != address(0));
         target = _target;
         secretHash = _newSecretHash;
-        require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        emit Upgraded(0x0, _target, msg.sender);
+        (bool callSuccess,) = target.delegatecall(abi.encodeWithSignature("finishUpgrade(address)", target));
+        require(callSuccess);
+        emit Upgraded(address(0), _target, msg.sender);
     }
 
     /**
@@ -32,23 +33,24 @@ contract Dispatcher is Upgradeable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
-    function upgrade(address _target, bytes _secret, bytes32 _newSecretHash) public onlyOwner {
+    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         verifyState(_target);
         verifyUpgradeableState(target, _target);
         previousTarget = target;
         target = _target;
         secretHash = _newSecretHash;
-        require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
+        (bool callSuccess,) = target.delegatecall(abi.encodeWithSignature("finishUpgrade(address)", target));
+        require(callSuccess);
         emit Upgraded(previousTarget, _target, msg.sender);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
         //checks equivalence accessing target through new contract and current storage
-        require(address(delegateGet(_testTarget, "owner()")) == owner);
-        require(address(delegateGet(_testTarget, "target()")) == target);
-        require(address(delegateGet(_testTarget, "previousTarget()")) == previousTarget);
-        require(delegateGet(_testTarget, "secretHash()") == secretHash);
+        require(address(uint160(delegateGet(_testTarget, "owner()"))) == owner());
+        require(address(uint160(delegateGet(_testTarget, "target()"))) == target);
+        require(address(uint160(delegateGet(_testTarget, "previousTarget()"))) == previousTarget);
+        require(bytes32(delegateGet(_testTarget, "secretHash()")) == secretHash);
     }
 
     /**
@@ -57,22 +59,24 @@ contract Dispatcher is Upgradeable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
-    function rollback(bytes _secret, bytes32 _newSecretHash) public onlyOwner {
-        require(previousTarget != 0x0);
+    function rollback(bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
+        require(previousTarget != address(0));
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         emit RolledBack(target, previousTarget, msg.sender);
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
-        previousTarget = 0x0;
+        previousTarget = address(0);
         secretHash = _newSecretHash;
-        require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
+        (bool callSuccess,) = target.delegatecall(abi.encodeWithSignature("finishUpgrade(address)", target));
+        require(callSuccess);
     }
 
     /**
     * @dev Call verifyState method for Upgradeable contract
     **/
     function verifyUpgradeableState(address _from, address _to) internal {
-        require(_from.delegatecall(bytes4(keccak256("verifyState(address)")), _to));
+        (bool callSuccess,) = _from.delegatecall(abi.encodeWithSignature("verifyState(address)", _to));
+        require(callSuccess);
     }
 
     function finishUpgrade(address) public {}
@@ -81,9 +85,9 @@ contract Dispatcher is Upgradeable {
     * @dev Fallback function send all requests to the target contract.
     * If contract not exists then result will be unpredictable (see DELEGATECALL)
     **/
-    function () public payable {
-        assert(target != 0x0);
-        bool callSuccess = target.delegatecall(msg.data);
+    function () external payable {
+        assert(target != address(0));
+        (bool callSuccess,) = target.delegatecall(msg.data);
         if (callSuccess) {
             assembly {
                 returndatacopy(0x0, 0x0, returndatasize)

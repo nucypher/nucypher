@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "contracts/PolicyManager.sol";
@@ -36,7 +36,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
-        require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
+        require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
     }
 }
 

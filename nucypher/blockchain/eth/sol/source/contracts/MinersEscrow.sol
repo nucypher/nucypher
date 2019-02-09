@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -208,7 +208,7 @@ contract MinersEscrow is Issuer {
     * @param _values Amount of tokens to deposit for each miner
     * @param _periods Amount of periods during which tokens will be locked for each miner
     **/
-    function preDeposit(address[] _miners, uint256[] _values, uint16[] _periods)
+    function preDeposit(address[] memory _miners, uint256[] memory _values, uint16[] memory _periods)
         public isInitialized
     {
         require(_miners.length != 0 &&
@@ -256,13 +256,13 @@ contract MinersEscrow is Issuer {
     * @param _from Miner
     * @param _value Amount of tokens to deposit
     * @param _tokenContract Token contract address
-    * @notice (param _extraData) Amount of periods during which tokens will be locked
+    * @param _extraData Amount of periods during which tokens will be locked
     **/
     function receiveApproval(
         address _from,
         uint256 _value,
         address _tokenContract,
-        bytes /* _extraData */
+        bytes calldata _extraData
     )
         external
     {
@@ -390,7 +390,7 @@ contract MinersEscrow is Issuer {
         MinerInfo storage info = minerInfo[msg.sender];
         // the max locked tokens in most cases will be in the current period
         // but when the miner stakes more then we should use the next period
-        uint256 lockedTokens = Math.max256(getLockedTokens(msg.sender, 1),
+        uint256 lockedTokens = Math.max(getLockedTokens(msg.sender, 1),
             getLockedTokens(msg.sender, 0));
         require(_value <= token.balanceOf(address(this)) &&
             _value <= info.value.sub(lockedTokens));
@@ -606,8 +606,8 @@ contract MinersEscrow is Issuer {
     * the last values in the resulting array will be zeros addresses.
     * The length of this array is always equal to the number of points.
     **/
-    function sample(uint256[] _points, uint16 _periods)
-        external view returns (address[] result)
+    function sample(uint256[] calldata _points, uint16 _periods)
+        external view returns (address[] memory result)
     {
         require(_periods > 0 && _points.length > 0);
         uint16 currentPeriod = getCurrentPeriod();
@@ -646,7 +646,7 @@ contract MinersEscrow is Issuer {
     * @notice Set policy manager address
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
-        require(address(policyManager) == 0x0 &&
+        require(address(policyManager) == address(0) &&
             _policyManager.escrow() == address(this));
         policyManager = _policyManager;
     }
@@ -703,10 +703,10 @@ contract MinersEscrow is Issuer {
     /**
     * @dev Get MinerInfo structure by delegatecall
     **/
-    function delegateGetMinerInfo(address _target, address _miner)
+    function delegateGetMinerInfo(address _target, bytes32 _miner)
         internal returns (MinerInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, "minerInfo(address)", 1, bytes32(_miner), 0);
+        bytes32 memoryAddress = delegateGetData(_target, "minerInfo(address)", 1, _miner, 0);
         assembly {
             result := memoryAddress
         }
@@ -715,11 +715,11 @@ contract MinersEscrow is Issuer {
     /**
     * @dev Get StakeInfo structure by delegatecall
     **/
-    function delegateGetStakeInfo(address _target, address _miner, uint256 _index)
+    function delegateGetStakeInfo(address _target, bytes32 _miner, uint256 _index)
         internal returns (StakeInfo memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getStakeInfo(address,uint256)", 2, bytes32(_miner), bytes32(_index));
+            _target, "getStakeInfo(address,uint256)", 2, _miner, bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -728,11 +728,11 @@ contract MinersEscrow is Issuer {
     /**
     * @dev Get Downtime structure by delegatecall
     **/
-    function delegateGetPastDowntime(address _target, address _miner, uint256 _index)
+    function delegateGetPastDowntime(address _target, bytes32 _miner, uint256 _index)
         internal returns (Downtime memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getPastDowntime(address,uint256)", 2, bytes32(_miner), bytes32(_index));
+            _target, "getPastDowntime(address,uint256)", 2, _miner, bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -742,41 +742,41 @@ contract MinersEscrow is Issuer {
         super.verifyState(_testTarget);
         require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) ==
             minLockedPeriods);
-        require(uint256(delegateGet(_testTarget, "minAllowableLockedTokens()")) ==
+        require(delegateGet(_testTarget, "minAllowableLockedTokens()") ==
             minAllowableLockedTokens);
-        require(uint256(delegateGet(_testTarget, "maxAllowableLockedTokens()")) ==
+        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") ==
             maxAllowableLockedTokens);
-        require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
-        require(uint256(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
-            bytes32(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
+        require(address(uint160(delegateGet(_testTarget, "policyManager()"))) == address(policyManager));
+        require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
+            bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
 
-        require(uint256(delegateGet(_testTarget, "getMinersLength()")) == miners.length);
+        require(delegateGet(_testTarget, "getMinersLength()") == miners.length);
         if (miners.length == 0) {
             return;
         }
         address minerAddress = miners[0];
-        bytes32 miner = bytes32(minerAddress);
-        require(address(delegateGet(_testTarget, "miners(uint256)", 0)) == minerAddress);
+        require(address(uint160(delegateGet(_testTarget, "miners(uint256)", 0))) == minerAddress);
         MinerInfo storage info = minerInfo[minerAddress];
-        MinerInfo memory infoToCheck = delegateGetMinerInfo(_testTarget, minerAddress);
+        bytes32 miner = bytes32(uint256(minerAddress));
+        MinerInfo memory infoToCheck = delegateGetMinerInfo(_testTarget, miner);
         require(infoToCheck.value == info.value &&
             infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod);
 
-        require(uint256(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner)) ==
+        require(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner) ==
             info.pastDowntime.length);
-        for (i = 0; i < info.pastDowntime.length && i < MAX_CHECKED_VALUES; i++) {
+        for (uint256 i = 0; i < info.pastDowntime.length && i < MAX_CHECKED_VALUES; i++) {
             Downtime storage downtime = info.pastDowntime[i];
-            Downtime memory downtimeToCheck = delegateGetPastDowntime(_testTarget, minerAddress, i);
+            Downtime memory downtimeToCheck = delegateGetPastDowntime(_testTarget, miner, i);
             require(downtimeToCheck.startPeriod == downtime.startPeriod &&
                 downtimeToCheck.endPeriod == downtime.endPeriod);
         }
 
-        require(uint256(delegateGet(_testTarget, "getStakesLength(address)", miner)) == info.stakes.length);
+        require(delegateGet(_testTarget, "getStakesLength(address)", miner) == info.stakes.length);
         for (uint256 i = 0; i < info.stakes.length && i < MAX_CHECKED_VALUES; i++) {
             StakeInfo storage stakeInfo = info.stakes[i];
-            StakeInfo memory stakeInfoToCheck = delegateGetStakeInfo(_testTarget, minerAddress, i);
+            StakeInfo memory stakeInfoToCheck = delegateGetStakeInfo(_testTarget, miner, i);
             require(stakeInfoToCheck.firstPeriod == stakeInfo.firstPeriod &&
                 stakeInfoToCheck.lastPeriod == stakeInfo.lastPeriod &&
                 stakeInfoToCheck.periods == stakeInfo.periods &&

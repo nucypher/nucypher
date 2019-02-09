@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -40,12 +40,13 @@ contract Seeder is Ownable {
     * @param _ip IPv4 address of the seed node
     * @param _port TCP port of the seed node
     **/
-    function enroll(address _seed, string _ip, uint16 _port) public onlyOwner {
+    function enroll(address _seed, string memory _ip, uint16 _port) public onlyOwner {
         seeds[_seed] = SeedInfo(_ip, _port);
 
-        for (uint256 i = 0; i < seedArray.length; i++) {
+        uint256 i = 0;
+        for (; i < seedArray.length; i++) {
             address currentSeed = seedArray[i];
-            if (currentSeed == 0x0) {
+            if (currentSeed == address(0)) {
                 seedArray[i] = _seed;
                 break;
             } else if (currentSeed == _seed) {
@@ -61,8 +62,8 @@ contract Seeder is Ownable {
     * @param _ip Updated IPv4 address of the existing seed node
     * @param _port Updated TCP port of the existing seed node
     **/
-    function refresh(string _ip, uint16 _port) public {
-        SeedInfo seed = seeds[msg.sender];
+    function refresh(string memory _ip, uint16 _port) public {
+        SeedInfo storage seed = seeds[msg.sender];
         require(seed.port != 0);
         seed.ip = _ip;
         seed.port = _port;

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 /**
@@ -15,7 +15,7 @@ contract ReceiveApprovalMethodMock {
         address _from,
         uint256 _value,
         address _tokenContract,
-        bytes _extraData
+        bytes calldata _extraData
     )
         external
     {

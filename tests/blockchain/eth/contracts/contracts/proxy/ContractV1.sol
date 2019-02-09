@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "./ContractInterface.sol";
@@ -56,10 +56,10 @@ contract ContractV1 is ContractInterface, Upgradeable {
         return storageValue;
     }
 
-    function setDynamicallySizedValue(string _dynamicValue) public {
+    function setDynamicallySizedValue(string memory _dynamicValue) public {
         dynamicallySizedValue = _dynamicValue;
     }
-    function getDynamicallySizedValue() public view returns (string) {
+    function getDynamicallySizedValue() public view returns (string memory) {
         return dynamicallySizedValue;
     }
 
@@ -125,50 +125,50 @@ contract ContractV1 is ContractInterface, Upgradeable {
     }
 
     function verifyState(address _testTarget) public onlyOwner {
-        require(uint(delegateGet(_testTarget, "storageValue()")) == storageValue);
+        require(delegateGet(_testTarget, "storageValue()") == storageValue);
         bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
         require(value.length == bytes(dynamicallySizedValue).length &&
             keccak256(value) == keccak256(bytes(dynamicallySizedValue)));
 
         require(uint(delegateGet(_testTarget, "getArrayValueLength()")) == arrayValues.length);
         for (uint i = 0; i < arrayValues.length; i++) {
-            require(uint(delegateGet(_testTarget, "getArrayValue(uint256)", bytes32(i))) ==
+            require(delegateGet(_testTarget, "getArrayValue(uint256)", bytes32(i)) ==
                 arrayValues[i]);
         }
-        for (i = 0; i < mappingIndices.length; i++) {
+        for (uint i = 0; i < mappingIndices.length; i++) {
             uint256 index = mappingIndices[i];
-            require(uint(delegateGet(_testTarget, "getMappingValue(uint256)", bytes32(index))) ==
+            require(delegateGet(_testTarget, "getMappingValue(uint256)", bytes32(index)) ==
                 mappingValues[index]);
         }
 
-        require(uint(delegateGet(_testTarget, "getStructureLength1()")) == arrayStructures.length);
-        for (i = 0; i < arrayStructures.length; i++) {
+        require(delegateGet(_testTarget, "getStructureLength1()") == arrayStructures.length);
+        for (uint i = 0; i < arrayStructures.length; i++) {
             Structure1 memory structure1 = delegateGetStructure1(_testTarget, "arrayStructures(uint256)", bytes32(i));
             require(structure1.value == arrayStructures[i].value);
-            require(uint(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i))) ==
+            require(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i)) ==
                 arrayStructures[i].arrayValues.length);
             for (uint j = 0; j < arrayStructures[i].arrayValues.length; j++) {
-                require(uint(delegateGet(
-                        _testTarget, "getStructureArrayValue1(uint256,uint256)", bytes32(i), bytes32(j))) ==
+                require(delegateGet(
+                        _testTarget, "getStructureArrayValue1(uint256,uint256)", bytes32(i), bytes32(j)) ==
                     arrayStructures[i].arrayValues[j]);
             }
         }
 
-        require(uint(delegateGet(_testTarget, "getStructureLength2()")) == mappingStructuresLength);
-        for (i = 0; i < mappingStructuresLength; i++) {
+        require(delegateGet(_testTarget, "getStructureLength2()") == mappingStructuresLength);
+        for (uint i = 0; i < mappingStructuresLength; i++) {
             Structure2 memory structure2 = delegateGetStructure2(_testTarget, "mappingStructures(uint256)", bytes32(i));
             require(structure2.value == mappingStructures[i].value);
-            require(uint(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i))) ==
+            require(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i)) ==
                 mappingStructures[i].arrayValues.length);
-            for (j = 0; j < mappingStructures[i].arrayValues.length; j++) {
-                require(uint(delegateGet(
-                        _testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j))) ==
+            for (uint j = 0; j < mappingStructures[i].arrayValues.length; j++) {
+                require(delegateGet(
+                        _testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j)) ==
                     mappingStructures[i].arrayValues[j]);
             }
         }
     }
 
-    function delegateGetStructure1(address _target, string _signature, bytes32 _argument)
+    function delegateGetStructure1(address _target, string memory _signature, bytes32 _argument)
         internal returns (Structure1 memory result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
@@ -177,7 +177,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
         }
     }
 
-    function delegateGetStructure2(address _target, string _signature, bytes32 _argument)
+    function delegateGetStructure2(address _target, string memory _signature, bytes32 _argument)
         internal returns (Structure2 memory result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
@@ -186,7 +186,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
         }
     }
 
-    function delegateGetBytes(address _target, string _signature)
+    function delegateGetBytes(address _target, string memory _signature)
         internal returns (bytes memory result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
