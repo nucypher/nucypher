@@ -55,7 +55,6 @@ protobuf==3.7.0rc2
 py-ecc==1.4.7
 py-evm==0.2.0a39
 py-geth==2.0.1
-py-solc==3.2.0
 pyasn1-modules==0.2.4
 pyasn1==0.4.5
 pychalk==2.0.1
