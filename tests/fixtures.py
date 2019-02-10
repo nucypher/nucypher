@@ -328,10 +328,11 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
 @pytest.fixture(scope='module')
 def alice_control(federated_alice):
+    federated_alice.start_learning_loop(now=True)
     alice_control = make_alice_control(federated_alice)
     alice_control.config['DEBUG'] = True
     alice_control.config['TESTING'] = True
-    return alice_control.test_client()
+    yield alice_control.test_client()
 
 
 #
