@@ -30,7 +30,7 @@ This simple example showcases many interesting and distinctive aspects of NuCyph
 ## Install Nucypher
 
 Acquire the `nucypher` application code and install the dependencies.
-For a full installation guide see the [NuCypher Installation Guide](../guides/installation_guide).
+For a full installation guide see the [NuCypher Installation Guide](../../guides/installation_guide).
 
 ## Run the Demo
 
