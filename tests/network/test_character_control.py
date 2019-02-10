@@ -33,4 +33,7 @@ def test_alice_character_control_grant(alice_control, federated_bob):
         'payment': {'tx': 'blah'},
     }
     response = alice_control.put('/grant', query_string=request_data)
-    treasure_map = TreasureMap.from_bytes(response.data)
+    assert response.status_code == 200
+
+    encrypted_map = TreasureMap.from_bytes(response.data)
+    assert encrypted_map._hrac != None

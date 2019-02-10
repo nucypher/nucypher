@@ -61,7 +61,6 @@ def make_alice_control(drone_alice: Alice):
         new_policy = drone_alice.grant(bob, label, m=m, n=n,
                                        expiration=expiration_time)
         # TODO: Serialize the policy
-        import pudb; pudb.set_trace()
         return Response(bytes(new_policy.treasure_map), status=200)
 
     return alice_control
