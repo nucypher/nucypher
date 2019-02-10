@@ -204,7 +204,7 @@ def remove_module_docstring(app, what, name, obj, options, lines):
 todo_include_todos = False
 
 def setup(app):
-    local_source_root = './'
+    local_source_root = 'https://docs.nucypher.com/'
 
     app.add_config_value('recommonmark_config', {
             'url_resolver': lambda url: local_source_root + url,
