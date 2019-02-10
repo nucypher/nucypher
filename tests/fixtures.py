@@ -38,6 +38,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.network.character_control.alice_control import make_alice_control
+from nucypher.network.character_control.bob_control import make_bob_control
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
@@ -331,6 +332,15 @@ def alice_control(federated_alice):
     alice_control.config['DEBUG'] = True
     alice_control.config['TESTING'] = True
     yield alice_control.test_client()
+
+
+@pytest.fixture(scope='module')
+def bob_control(federated_bob):
+    federated_bob.start_learning_loop(now=True)
+    bob_control = make_bob_control(federated_bob)
+    bob_control.config['DEBUG'] = True
+    bob_control.config['TESTING'] = True
+    yield bob_control.test_client()
 
 
 #
