@@ -6,6 +6,7 @@ import pytest
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.data_sources import DataSource
+from nucypher.policy.models import TreasureMap
 from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from nucypher.keystore.keypairs import SigningKeypair
 
@@ -109,3 +110,13 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         _cleartexts = bob.retrieve(message_kit=message_kit,
                                    data_source=data_source,
                                    alice_verifying_key=alices_verifying_key)
+
+
+def test_treasure_map_serialization(enacted_federated_policy):
+    treasure_map = enacted_federated_policy.treasure_map
+
+    serialized_map = bytes(treasure_map)
+    deserialized_map = TreasureMap.from_bytes(serialized_map)
+    assert deserialized_map._hrac == treasure_map._hrac
+    assert deserialized_map.m == treasure_map.m
+    assert deserialized_map.destinations == treasure_map.destinations
