@@ -46,6 +46,8 @@ def select_test_port() -> int:
         return port
 
 
+MOCK_POLICY_DEFAULT_M = 3
+
 MOCK_URSULA_STARTING_PORT = select_test_port()
 
 MOCK_KNOWN_URSULAS_CACHE = {}

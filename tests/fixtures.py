@@ -16,16 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import contextlib
-import glob
 import os
 import tempfile
 
 import datetime
 import maya
 import pytest
-import re
-import shutil
 from sqlalchemy.engine import create_engine
 
 from constant_sorrow.constants import NON_PAYMENT
@@ -44,7 +40,8 @@ from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.network.character_control.alice_control import make_alice_control
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
+                                                  MOCK_POLICY_DEFAULT_M)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -212,9 +209,10 @@ def idle_federated_policy(federated_alice, federated_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
+    m = MOCK_POLICY_DEFAULT_M
     n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
-    policy = federated_alice.create_policy(federated_bob, label=random_label, m=3, n=n, federated=True)
+    policy = federated_alice.create_policy(federated_bob, label=random_label, m=m, n=n, federated=True)
     return policy
 
 

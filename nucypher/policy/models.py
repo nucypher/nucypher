@@ -361,12 +361,12 @@ class TreasureMap:
         if m is not None:
             if m > 255:
                 raise ValueError("Largest allowed value for m is 255.")
-            self.m = m
+            self._m = m
 
-            self.destinations = destinations or {}
+            self._destinations = destinations or {}
         else:
-            self.m = constants.NO_DECRYPTION_PERFORMED
-            self.destinations = constants.NO_DECRYPTION_PERFORMED
+            self._m = constants.NO_DECRYPTION_PERFORMED
+            self._destinations = constants.NO_DECRYPTION_PERFORMED
 
         self.message_kit = message_kit
         self._signature_for_bob = None
@@ -380,7 +380,7 @@ class TreasureMap:
                                 alice_stamp,
                                 label):
 
-        plaintext = self.m.to_bytes(1, "big") + self.nodes_as_bytes()
+        plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
 
         self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
                                                                 plaintext=plaintext,
@@ -416,6 +416,18 @@ class TreasureMap:
     @property
     def _verifying_key(self):
         return self.message_kit.sender_pubkey_sig
+
+    @property
+    def m(self):
+        if self._m == constants.NO_DECRYPTION_PERFORMED:
+            raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
+        return self._m
+
+    @property
+    def destinations(self):
+        if self._destinations == constants.NO_DECRYPTION_PERFORMED:
+            raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
+        return self._destinations
 
     def nodes_as_bytes(self):
         if self.destinations == constants.NO_DECRYPTION_PERFORMED:
@@ -472,8 +484,8 @@ class TreasureMap:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
         else:
-            self.m = map_in_the_clear[0]
-            self.destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
+            self._m = map_in_the_clear[0]
+            self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
