@@ -335,8 +335,11 @@ def alice_control(federated_alice):
 
 
 @pytest.fixture(scope='module')
-def bob_control(federated_bob):
+def bob_control(federated_bob, federated_ursulas):
+    known_ursula = list(federated_ursulas)[0]
+    federated_bob.remember_node(known_ursula)
     federated_bob.start_learning_loop(now=True)
+    federated_bob.block_until_number_of_known_nodes_is(3, learn_on_this_thread=True)
     bob_control = make_bob_control(federated_bob)
     bob_control.config['DEBUG'] = True
     bob_control.config['TESTING'] = True
