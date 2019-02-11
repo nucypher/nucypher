@@ -13,9 +13,9 @@ All documented API endpoints use JSON and are REST-like.
 
 Some common returned status codes you may encounter are:
 
-- 200 OK -- The request has succeeded.
-- 400 BAD REQUEST -- The server cannot or will not process the request do to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
-- 500 INTERNAL SERVER ERROR -- The server encountered an unexpected condition that prevented it from fulfilling the request.
+- `200 OK` -- The request has succeeded.
+- `400 BAD REQUEST` -- The server cannot or will not process the request do to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
+- `500 INTERNAL SERVER ERROR` -- The server encountered an unexpected condition that prevented it from fulfilling the request.
 
 Typically, you will want to ensure that any given response from a character control endpoint results in a 200 status code.
 This tells you that the server successfully completed the call.
@@ -82,7 +82,7 @@ See the above "Status Codes" section on what to do in the event of a 400 or 500.
 
 # Character Control APIs
 
-### Alice
+## Alice
 
 #### grant
 
@@ -100,7 +100,7 @@ This endpoint controls the `Alice.grant` method.
 
 For more details on these arguments, see the nucypher documentation on the `Alice.grant` Python API method.
 
-### Bob
+## Bob
 
 #### retrieve
 
@@ -118,7 +118,7 @@ This endpoint controls the `Bob.retrieve` method.
 
 For more details on these arguments, see the nucypher documentation on the `Bob.retrieve` Python API method.
 
-### Enrico (DataSource)
+## Enrico (DataSource)
 
 #### encrypt_message
 
