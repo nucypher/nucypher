@@ -3,12 +3,17 @@ from flask import Flask, request, Response
 
 from umbral.keys import UmbralPublicKey
 
-from nucypher.characters.lawful import Bob
+from nucypher.characters.lawful import Bob, Ursula
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.data_sources import DataSource
 
-def make_bob_control(drone_bob: Bob):
+
+def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
     bob_control = Flask('bob-control')
+
+    teacher_node.verify_node(drone_bob.network_middleware)
+    drone_bob.remember_node(teacher_node)
+    drone_bob.start_learning_loop(now=True)
 
     @bob_control.route('/join_policy', methods=['POST'])
     def join_policy():

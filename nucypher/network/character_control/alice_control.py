@@ -1,12 +1,16 @@
 from flask import Flask, request, Response
 import maya
 
-from nucypher.characters.lawful import Alice, Bob
+from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 
 
-def make_alice_control(drone_alice: Alice):
+def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
     alice_control = Flask("alice-control")
+
+    teacher_node.verify_node(drone_alice.network_middleware)
+    drone_alice.remember_node(teacher_node)
+    drone_alice.start_learning_loop(now=True)
 
     @alice_control.route("/create_policy", methods=['PUT'])
     def create_policy():
