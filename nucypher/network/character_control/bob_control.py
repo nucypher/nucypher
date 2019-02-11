@@ -69,7 +69,9 @@ def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
 
         plaintexts = [b64encode(plaintext).decode() for plaintext in plaintexts]
         response_data = {
-            'result': plaintexts
+            'result': {
+                'plaintext': plaintexts,
+            }
         }
 
         return Response(json.dumps(response_data), status=200)

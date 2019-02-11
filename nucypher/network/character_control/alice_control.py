@@ -74,7 +74,9 @@ def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
                                        expiration=expiration_time)
         # TODO: Serialize the policy
         response_data = {
-            'result': b64encode(bytes(new_policy.treasure_map)).decode(),
+            'result': {
+                'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
+            }
         }
 
         return Response(json.dumps(response_data), status=200)

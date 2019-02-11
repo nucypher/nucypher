@@ -45,9 +45,10 @@ def test_alice_character_control_grant(alice_control, federated_bob):
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
+    assert 'treasure_map' in response_data['result']
 
-    result_bytes = b64decode(response_data['result'])
-    encrypted_map = TreasureMap.from_bytes(result_bytes)
+    map_bytes = b64decode(response_data['result']['treasure_map'])
+    encrypted_map = TreasureMap.from_bytes(map_bytes)
     assert encrypted_map._hrac is not None
 
     # Send bad data to assert error returns
@@ -88,10 +89,12 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
     }
 
     response = bob_control.post('/retrieve', data=json.dumps(request_data))
+    assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    assert response.status_code == 200
-    for plaintext in response_data['result']:
+    assert 'plaintext' in response_data['result']
+
+    for plaintext in response_data['result']['plaintext']:
         assert b64decode(plaintext) == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
