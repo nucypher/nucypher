@@ -22,6 +22,13 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
     assert response.status_code == 200
     assert response.data == b'Policy created!'
 
+    # Send bad data to assert error returns
+    response = alice_control.put('/create_policy', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['bob_encrypting_key'])
+    response = alice_control.put('/create_policy', data=json.dumps(request_data))
+
 
 def test_alice_character_control_grant(alice_control, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
@@ -42,6 +49,13 @@ def test_alice_character_control_grant(alice_control, federated_bob):
     encrypted_map = TreasureMap.from_bytes(result_bytes)
     assert encrypted_map._hrac is not None
 
+    # Send bad data to assert error returns
+    response = alice_control.put('/grant', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['bob_encrypting_key'])
+    response = alice_control.put('/grant', data=json.dumps(request_data))
+
 
 def test_bob_character_control_join_policy(bob_control, enacted_federated_policy):
     request_data = {
@@ -52,6 +66,13 @@ def test_bob_character_control_join_policy(bob_control, enacted_federated_policy
     response = bob_control.post('/join_policy', data=json.dumps(request_data))
     assert response.data == b'Policy joined!'
     assert response.status_code == 200
+
+    # Send bad data to assert error returns
+    response = bob_control.post('/join_policy', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['alice_signing_pubkey'])
+    response = bob_control.put('/join_policy', data=json.dumps(request_data))
 
 
 def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, capsule_side_channel):
@@ -71,3 +92,10 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
     assert response.status_code == 200
     for plaintext in response_data['result']:
         assert b64decode(plaintext) == b'Welcome to the flippering.'
+
+    # Send bad data to assert error returns
+    response = bob_control.post('/retrieve', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['alice_signing_pubkey'])
+    response = bob_control.put('/retrieve', data=json.dumps(request_data))

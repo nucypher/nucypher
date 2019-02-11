@@ -3,6 +3,7 @@ import json
 from base64 import b64encode, b64decode
 from flask import Flask, request, Response
 
+from json.decoder import JSONDecodeError
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Bob, Ursula
@@ -26,9 +27,10 @@ def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
         """
         try:
             request_data = json.loads(request.data)
+
             label = b64decode(request_data['label'])
             alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
-        except KeyError as e:
+        except (KeyError, JSONDecodeError) as e:
             return Response(e, status=400)
 
         drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
@@ -44,12 +46,13 @@ def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
         """
         try:
             request_data = json.loads(request.data)
+
             label = b64decode(request_data['label'])
             policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
             alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
             datasource_pubkey_sig = bytes.fromhex(request_data['datasource_signing_pubkey'])
             message_kit = b64decode(request_data['message_kit'])
-        except KeyError as e:
+        except (KeyError, JSONDecodeError) as e:
             return Response(e, status=400)
 
         policy_pubkey_enc = UmbralPublicKey.from_bytes(policy_pubkey_enc)

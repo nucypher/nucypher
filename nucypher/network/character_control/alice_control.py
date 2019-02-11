@@ -3,6 +3,7 @@ import maya
 
 from base64 import b64encode, b64decode
 from flask import Flask, request, Response
+from json.decoder import JSONDecodeError
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -25,8 +26,9 @@ def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
         """
         # TODO: Needs input cleansing and validation
         # TODO: Provide more informative errors
-        request_data = json.loads(request.data)
         try:
+            request_data = json.loads(request.data)
+
             bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
             label = b64decode(request_data['label'])
             # TODO: Do we change this to something like "threshold"
@@ -36,7 +38,7 @@ def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
             bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
                                         SigningPower: None},
                                        federated_only=True)
-        except KeyError as e:
+        except (KeyError, JSONDecodeError) as e:
             return Response(str(e), status=400)
 
         new_policy = drone_alice.create_policy(bob, label, m, n,
@@ -53,6 +55,7 @@ def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
         # TODO: Provide more informative errors
         try:
             request_data = json.loads(request.data)
+
             bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
             label = b64decode(request_data['label'])
             # TODO: Do we change this to something like "threshold"
@@ -64,7 +67,7 @@ def make_alice_control(drone_alice: Alice, teacher_node: Ursula):
             bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
                                         SigningPower: None},
                                        federated_only=True)
-        except KeyError as e:
+        except (KeyError, JSONDecodeError) as e:
             return Response(str(e), status=400)
 
         new_policy = drone_alice.grant(bob, label, m=m, n=n,
