@@ -4,6 +4,7 @@ import maya
 
 from base64 import b64encode, b64decode
 
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
 
@@ -99,3 +100,29 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
 
     del(request_data['alice_signing_pubkey'])
     response = bob_control.put('/retrieve', data=json.dumps(request_data))
+
+
+def test_enrico_character_control_encrypt_message(enrico_control):
+
+    request_data = {
+        'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
+    }
+
+    response = enrico_control.post('/encrypt_message', data=json.dumps(request_data))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'message_kit' in response_data['result']
+    assert 'signature' in response_data['result']
+
+    # Check that it serializes correctly.
+    message_kit = UmbralMessageKit.from_bytes(
+                            b64decode(response_data['result']['message_kit']))
+
+    # Send bad data to assert error return
+    response = enrico_control.post('/encrypt_message', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['message'])
+    response = enrico_control.post('/encrypt_message', data=request_data)
+    assert response.status_code == 400
