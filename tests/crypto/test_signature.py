@@ -14,15 +14,19 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import pytest
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.crypto.api import ecdsa_sign
-from nucypher.crypto.signing import Signature
+from nucypher.crypto.signing import Signature, Signer
+from nucypher.crypto.utils import recover_pubkey_from_signature
 
 
 def test_signature_can_verify():
     privkey = UmbralPrivateKey.gen_key()
-    message = b"attack at dawn"
+    message = b"peace at dawn"
     der_sig_bytes = ecdsa_sign(message, privkey)
     signature = Signature.from_bytes(der_sig_bytes, der_encoded=True)
     assert signature.verify(message, privkey.get_pubkey())
@@ -30,7 +34,7 @@ def test_signature_can_verify():
 
 def test_signature_rs_serialization():
     privkey = UmbralPrivateKey.gen_key()
-    message = b"attack at dawn"
+    message = b"peace at dawn"
     der_sig_bytes = ecdsa_sign(message, privkey)
 
     signature_from_der = Signature.from_bytes(der_sig_bytes, der_encoded=True)
@@ -42,3 +46,29 @@ def test_signature_rs_serialization():
     assert signature_from_rs == signature_from_der
     assert signature_from_rs == der_sig_bytes
     assert signature_from_rs.verify(message, privkey.get_pubkey())
+
+
+@pytest.mark.parametrize('execution_number', range(100))  # Run this test 100 times.
+def test_recover_pubkey_from_signature(execution_number):
+    privkey = UmbralPrivateKey.gen_key()
+    pubkey = privkey.get_pubkey()
+    signer = Signer(private_key=privkey)
+    message = b"peace at dawn"
+    signature = signer(message=message)
+
+    assert signature.verify(message, pubkey)
+
+    hash_function = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_function.update(message)
+    prehashed_message = hash_function.finalize()
+
+    v_value = 27
+    pubkey_bytes = recover_pubkey_from_signature(prehashed_message=prehashed_message,
+                                                 signature=signature,
+                                                 v_value_to_try=v_value)
+    if not pubkey_bytes == pubkey.to_bytes():
+        v_value = 28
+        pubkey_bytes = recover_pubkey_from_signature(prehashed_message=prehashed_message,
+                                                     signature=signature,
+                                                     v_value_to_try=v_value)
+    assert pubkey_bytes == pubkey.to_bytes()
