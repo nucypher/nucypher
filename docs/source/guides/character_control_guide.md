@@ -6,7 +6,7 @@ Character control is currently a Work-In-Progress. Expect large, and even breaki
 **Warning: Character control is currently not intended for use over remote connections or on shared machines.
 The current API has not been secured and should not be used for production applications.**
 
-# API request structure overview
+# API Request/Response Structure Overview
 
 #### Status Codes
 All documented API endpoints use JSON and are REST-like.
@@ -80,8 +80,54 @@ If any data is returned, like a treasure map or a message kit, it will be serial
 Be sure to also check the returned status code of the request. All successful calls will be 200.
 See the above "Status Codes" section on what to do in the event of a 400 or 500.
 
-## Alice
+# Character Control APIs
 
-## Bob
+### Alice
 
-# Enrico (DataSource)
+#### grant
+
+This endpoint controls the `Alice.grant` method.
+
+- URL: `/grant`
+- HTTP Method: `PUT`
+- Required arguments:
+    - `bob_encrypting_key` -- encoded as hex
+    - `label` -- encoded as base64
+    - `m` -- an integer
+    - `n` -- an integer
+    - `expiration_time` -- an ISO-8601 formatted datetime string.
+- Returns: a base64-encoded `treasure_map`
+
+For more details on these arguments, see the nucypher documentation on the `Alice.grant` Python API method.
+
+### Bob
+
+#### retrieve
+
+This endpoint controls the `Bob.retrieve` method.
+
+- URL: `/retrieve`
+- HTTP Method: `POST`
+- Required arguments:
+    - `policy_encrypting_pubkey` -- encoded as hex
+    - `alice_signing_pubkey` -- encoded as hex
+    - `datasource_signing_pubkey` -- encoded as hex
+    - `label` -- encoded as base64
+    - `message_kit` -- encoded as base64
+- Returns: a JSON-array of base64-encoded decrypted plaintexts as `plaintext`
+
+For more details on these arguments, see the nucypher documentation on the `Bob.retrieve` Python API method.
+
+### Enrico (DataSource)
+
+#### encrypt_message
+
+This endpoint controls the `DataSource.encrypt_message` method.
+
+- URL: `/encrypt_message`
+- HTTP Method: `POST`
+- Required arguments:
+    - `message` -- encoded as base64
+- Returns: `message_kit` and `signature` encoded as base64
+
+For more details on these arguments, see the nucypher documentation on the `DataSource.encrypt_message` Python API method.
