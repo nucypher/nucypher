@@ -1,11 +1,9 @@
-import time
-
 import pytest_twisted as pt
+import requests
 from twisted.internet import threads
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.network.nodes import Learner
 from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, select_test_port
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
