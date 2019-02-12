@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import os
 import socket
+import time
 from datetime import datetime
 from random import SystemRandom
 from string import digits, ascii_uppercase

@@ -200,4 +200,4 @@ def test_ursula_collect_staking_rewards(click_runner, deployed_blockchain):
     new_eth_balance = miner.eth_balance
 
     assert new_token_balance > original_token_balance
-    assert new_eth_balance >= new_eth_balance
+    assert new_eth_balance >= original_eth_balance
