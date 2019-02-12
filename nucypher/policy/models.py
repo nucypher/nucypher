@@ -43,7 +43,7 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -855,6 +855,19 @@ class IndisputableEvidence:
         # Get Alice's verifying pubkey as ETH address
         alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
 
+        # Get KFrag signature's v value
+        v_value = 27
+        pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
+                                                     signature=self.cfrag.proof.kfrag_signature,
+                                                     v_value_to_try=v_value)
+        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
+            v_value = 28
+            pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
+                                                         signature=self.cfrag.proof.kfrag_signature,
+                                                         v_value_to_try=v_value)
+        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
+            raise InvalidSignature("Bad signature: Not possible to recover public key from it.")
+
         # Bundle everything together
         pieces = (
             e_y, ez_xy, e1_y, e1h_xy, e2_y,
@@ -862,5 +875,6 @@ class IndisputableEvidence:
             uz_xy, u1_y, u1h_xy, u2_y,
             hashed_kfrag_validity_message,
             alice_address,
+            v_value.to_bytes(1, 'big'),
         )
         return b''.join(pieces)
