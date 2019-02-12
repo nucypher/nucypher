@@ -1,0 +1,10 @@
+[Unit]
+Description="Run 'Moe', A NuCypher Network Monitor."
+
+[Service]
+User=ubuntu
+Type=simple
+ExecStart={{ virtualenv_path }}/bin/nucypher moe --network {{ nucypher_network_domain }} --teacher-uri {{ teacher_checksum_address }}@https://{{ teacher_rest_host }}:{{ teacher_rest_port }}
+
+[Install]
+WantedBy=multi-user.target
