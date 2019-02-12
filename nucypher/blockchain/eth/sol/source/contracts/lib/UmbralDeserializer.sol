@@ -252,9 +252,12 @@ library UmbralDeserializer {
     * @notice Read 1 byte from memory in the pointer position
     **/
     function getByte(uint256 _pointer) internal pure returns (byte result) {
+        bytes32 word;
         assembly {
-            result := byte(0, _pointer)
+            word := mload(_pointer)
         }
+        result = word[0];
+        return result;
     }
 
     /**
