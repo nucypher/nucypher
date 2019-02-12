@@ -145,7 +145,8 @@ library UmbralDeserializer {
         internal pure returns (PreComputedData memory data)
     {
         require(_preComputedData.length == PRECOMPUTED_DATA_SIZE);
-        uint256 pointer = getPointer(_preComputedData);
+        uint256 initial_pointer = getPointer(_preComputedData);
+        uint256 pointer = initial_pointer;
 
         data.pointEyCoord = uint256(getBytes32(pointer));
         pointer += BIGNUM_SIZE;
@@ -216,8 +217,7 @@ library UmbralDeserializer {
         data.kfragSignatureV = getByte(pointer);
         pointer += 1;
 
-        // TODO: add require as post-condition to check that the pointer has advanced exactly what is intended
-
+        require(pointer == initial_pointer + PRECOMPUTED_DATA_SIZE);
     }
 
     // TODO extract to external library if needed
