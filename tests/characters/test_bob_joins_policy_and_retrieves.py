@@ -3,11 +3,14 @@ import datetime
 import os
 import pytest
 
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
+
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.data_sources import DataSource
-from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from nucypher.keystore.keypairs import SigningKeypair
+from nucypher.policy.models import TreasureMap
+from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def test_federated_bob_retrieves(federated_ursulas,
@@ -109,3 +112,27 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         _cleartexts = bob.retrieve(message_kit=message_kit,
                                    data_source=data_source,
                                    alice_verifying_key=alices_verifying_key)
+
+
+def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
+    treasure_map = enacted_federated_policy.treasure_map
+    assert treasure_map.m != None
+    assert treasure_map.m != NO_DECRYPTION_PERFORMED
+    assert treasure_map.m == MOCK_POLICY_DEFAULT_M, 'm value is not correct'
+
+    serialized_map = bytes(treasure_map)
+    deserialized_map = TreasureMap.from_bytes(serialized_map)
+    assert deserialized_map._hrac == treasure_map._hrac
+
+    # TreasureMap is currently encrypted
+    with pytest.raises(TypeError):
+        deserialized_map.m
+
+    with pytest.raises(TypeError):
+        deserialized_map.destinations
+
+    compass = federated_bob.make_compass_for_alice(
+                                            enacted_federated_policy.alice)
+    deserialized_map.orient(compass)
+    assert deserialized_map.m == treasure_map.m
+    assert deserialized_map.destinations == treasure_map.destinations

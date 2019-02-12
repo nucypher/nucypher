@@ -79,7 +79,9 @@ Whitepapers
    guides/federated_testnet_guide
    guides/installation_guide
    guides/ursula_configuration_guide
+   guides/contract_deployment_guide
    guides/contribution_guide
+   guides/character_control_guide
 
 .. toctree::
    :maxdepth: 1
@@ -107,10 +109,6 @@ Whitepapers
    api/keystore
    api/network
    api/policy
-
-
-Release Notes
--------------
 
 .. toctree::
    :maxdepth: 1

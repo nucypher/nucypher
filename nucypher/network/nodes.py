@@ -855,7 +855,10 @@ class Teacher:
     # Known Nodes
     #
 
-    def seed_node_metadata(self):
+    def seed_node_metadata(self, as_teacher_uri=False):
+        if as_teacher_uri:
+            teacher_uri = f'{self.checksum_public_address}@{self.rest_server.rest_interface.host}:{self.rest_server.rest_interface.port}'
+            return teacher_uri
         return SeednodeMetadata(self.checksum_public_address,  # type: str
                                 self.rest_server.rest_interface.host,  # type: str
                                 self.rest_server.rest_interface.port)  # type: int

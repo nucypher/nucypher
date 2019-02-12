@@ -16,16 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import contextlib
-import glob
 import os
 import tempfile
 
 import datetime
 import maya
 import pytest
-import re
-import shutil
 from sqlalchemy.engine import create_engine
 
 from constant_sorrow.constants import NON_PAYMENT
@@ -41,9 +37,13 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
+from nucypher.network.control.alice import make_alice_control
+from nucypher.network.control.bob import make_bob_control
+from nucypher.network.control.enrico import make_enrico_control
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
+                                                  MOCK_POLICY_DEFAULT_M)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -211,9 +211,10 @@ def idle_federated_policy(federated_alice, federated_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
+    m = MOCK_POLICY_DEFAULT_M
     n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
-    policy = federated_alice.create_policy(federated_bob, label=random_label, m=3, n=n, federated=True)
+    policy = federated_alice.create_policy(federated_bob, label=random_label, m=m, n=n, federated=True)
     return policy
 
 
@@ -323,6 +324,33 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
     token_agent.blockchain.time_travel(periods=1)
     yield _ursulas
+
+
+@pytest.fixture(scope='module')
+def alice_control(federated_alice, federated_ursulas):
+    teacher_node = list(federated_ursulas)[0]
+    alice_control = make_alice_control(federated_alice, teacher_node)
+    alice_control.config['DEBUG'] = True
+    alice_control.config['TESTING'] = True
+    yield alice_control.test_client()
+
+
+@pytest.fixture(scope='module')
+def bob_control(federated_bob, federated_ursulas):
+    teacher_node = list(federated_ursulas)[0]
+    bob_control = make_bob_control(federated_bob, teacher_node)
+    bob_control.config['DEBUG'] = True
+    bob_control.config['TESTING'] = True
+    yield bob_control.test_client()
+
+
+@pytest.fixture(scope='module')
+def enrico_control(capsule_side_channel):
+    _, data_source = capsule_side_channel
+    enrico_control = make_enrico_control(data_source)
+    enrico_control.config['DEBUG'] = True
+    enrico_control.config['TESTING'] = True
+    yield enrico_control.test_client()
 
 
 #
