@@ -37,14 +37,14 @@ from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -315,7 +315,20 @@ def make_rest_app(
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
 
-        # This is Alice's verifying key as ETH address, signed by Bob
+        alices_address = canonical_address_from_umbral_key(alices_verifying_key)
+        if not alices_address == work_order.alice_address:
+            message = f"This Bob ({work_order.bob}) sent an Alice's ETH address " \
+                      f"({work_order.alice_address}) that doesn't match " \
+                      f"the one I have ({alices_address})."
+            raise SuspiciousActivity(message)
+
+        bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
+        if not work_order.alice_address_signature.verify(message=alices_address,
+                                                         verifying_key=bob_pubkey):
+            message = f"This Bob ({work_order.bob}) sent an invalid signature of Alice's ETH address"
+            raise InvalidSignature(message)
+
+        # This is Bob's signature of Alice's verifying key as ETH address.
         alice_address_signature = bytes(work_order.alice_address_signature)
 
         for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
