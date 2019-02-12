@@ -24,7 +24,7 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_canonical_address
+from eth_utils import to_canonical_address, to_checksum_address
 from web3.contract import Contract
 
 from umbral import pre
@@ -142,11 +142,17 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
 
     evidence_data = evidence.precompute_values()
-    assert len(evidence_data) == 20 * 32 + 32 + 20
+    assert len(evidence_data) == 20 * 32 + 32 + 20 + 1
 
-    proof_signature = int(evidence.get_proof_challenge_scalar())
-    assert proof_signature == \
-           adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+    # This check is a workaround in order to test the signature validation is correct.
+    # In reality, this check should be part of the isCapsuleFragCorrect logic,
+    # but we're facing with "Stack too deep" errors at the moment.
+    address = adjudicator_contract.functions.aliceAddress(cfrag_bytes, evidence_data).call()
+    assert address == to_checksum_address(evidence_data[-21:-1].hex())
+
+    proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
+    computeProofChallengeScalar = adjudicator_contract.functions.computeProofChallengeScalar
+    assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)

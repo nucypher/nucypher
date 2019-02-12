@@ -58,6 +58,7 @@ library UmbralDeserializer {
         uint256 pointU2yCoord;
         bytes32 hashedKFragValidityMessage;
         address alicesKeyAsAddress;
+        byte kfragSignatureV;
     }
 
     uint256 constant BIGNUM_SIZE = 32;
@@ -67,7 +68,7 @@ library UmbralDeserializer {
     uint256 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
     uint256 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
     uint256 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
-    uint256 constant PRECOMPUTED_DATA_SIZE = (20 * BIGNUM_SIZE) + 32 + 20;
+    uint256 constant PRECOMPUTED_DATA_SIZE = (20 * BIGNUM_SIZE) + 32 + 20 + 1;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -211,6 +212,11 @@ library UmbralDeserializer {
 
         data.alicesKeyAsAddress = address(bytes20(getBytes32(pointer)));
         pointer += 20;
+
+        data.kfragSignatureV = getByte(pointer);
+        pointer += 1;
+
+        // TODO: add require as post-condition to check that the pointer has advanced exactly what is intended
 
     }
 
