@@ -27,14 +27,13 @@ All documented API endpoints use JSON and are REST-like.
 Some common returned status codes you may encounter are:
 
 - ``200 OK`` -- The request has succeeded.
-- ``400 BAD REQUEST`` -- The server cannot or will not process the request do to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
+- ``400 BAD REQUEST`` -- The server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
 - ``500 INTERNAL SERVER ERROR`` -- The server encountered an unexpected condition that prevented it from fulfilling the request.
 
 Typically, you will want to ensure that any given response from a character control endpoint results in a 200 status code.
 This tells you that the server successfully completed the call.
 
 If you are returned a 400, check the data that you're sending to the server.
-Chances are you might be sending some invalid data to the server.
 See below for what the character control API expects.
 
 .. _`Contribution Guide`: https://docs.nucypher.com/en/latest/guides/contribution_guide.html/
@@ -117,7 +116,7 @@ This endpoint controls the ``Alice.grant`` method.
     - ``label`` -- encoded as base64
     - ``m`` -- an integer
     - ``n`` -- an integer
-    - ``expiration_time`` -- an ISO-8601 formatted datetime string.
+    - ``expiration_time`` -- an ISO-8601 formatted datetime string
 - Returns: a base64-encoded ``treasure_map``
 
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
