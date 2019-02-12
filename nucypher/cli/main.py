@@ -18,6 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
+from constant_sorrow import constants
+from constant_sorrow.constants import TEMPORARY_DOMAIN
+from nucypher.characters.lawful import Ursula
 from nucypher.cli import moe, ursula, status, alice
 from nucypher.cli.config import echo_version, nucypher_click_config
 from nucypher.cli.painting import BANNER
