@@ -84,7 +84,7 @@ def bob(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
+        bob_config = BobConfiguration.generate(password=click_config._get_password(confirm=True),
                                                config_root=config_root,
                                                rest_host="localhost",
                                                domains={network} if network else None,
@@ -160,7 +160,7 @@ def bob(click_config,
             # Keyring
             try:
                 click.secho("Decrypting keyring...", fg='blue')
-                bob_config.keyring.unlock(password=click_config.get_password())
+                bob_config.keyring.unlock(password=click_config._get_password())
             except CryptoError:
                 raise bob_config.keyring.AuthenticationFailed
             finally:

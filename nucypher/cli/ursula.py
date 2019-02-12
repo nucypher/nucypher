@@ -154,7 +154,7 @@ def ursula(click_config,
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)  # Sentry
-        globalLogPublisher.addObserver(SimpleObserver(log_level_name='debug'))  # Print
+        GlobalConsoleLogger.set_log_level(log_level_name='debug')
 
     elif quiet:
         globalLogPublisher.removeObserver(logToSentry)
@@ -221,12 +221,16 @@ def ursula(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
+        if not force:
+            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
+            click_config.unlock_keyring(node_configuration=ursula_config, quiet=quiet)
+
+        # Destruction
         destroy_system_configuration(config_class=UrsulaConfiguration,
                                      config_file=config_file,
                                      network=network,
                                      config_root=config_root,
-                                     force=force,
-                                     log=log)
+                                     force=force)
 
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
