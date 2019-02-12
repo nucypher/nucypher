@@ -162,6 +162,26 @@ contract MiningAdjudicator is Upgradeable {
         }
     }
 
+
+
+    function aliceAddress(
+        bytes memory _cFragBytes,
+        bytes memory _precomputedBytes
+    )
+        public pure
+        returns (address)
+    {
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+        UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
+
+        // Extract Alice's address and check that it corresponds to the one provided
+        address alicesAddress = SignatureVerifier.recover(
+            _precomputed.hashedKFragValidityMessage,
+            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
+        );
+        return alicesAddress;
+    }
+
     /**
     * @notice Check correctness of re-encryption
     * @param _capsuleBytes Capsule
@@ -179,7 +199,13 @@ contract MiningAdjudicator is Upgradeable {
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
         UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
 
-        // TODO: Check KFrag signature by Alice. Depends on using ECDSA+SHA256 in umbral and nucypher
+        // TODO: Check ECDSA signature. Getting 'Stack too deep' error.
+        // Extract Alice's address and check that it corresponds to the one provided
+//        address alicesAddress = SignatureVerifier.recover(
+//            _precomputed.hashedKFragValidityMessage,
+//            _cFrag.proof.kFragSignature
+//        );
+//        require(alicesAddress == _precomputed.alicesKeyAsAddress, "JARL!");
 
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
