@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli import moe, ursula, status
+from nucypher.cli import moe, ursula, status, alice
 from nucypher.cli.config import echo_version, nucypher_click_config
 from nucypher.cli.painting import BANNER
 
@@ -39,5 +39,6 @@ def nucypher_cli(click_config, verbose):
 
 
 nucypher_cli.add_command(status.status)
+nucypher_cli.add_command(alice.alice)
 nucypher_cli.add_command(moe.moe)
 nucypher_cli.add_command(ursula.ursula)
