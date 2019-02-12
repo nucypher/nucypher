@@ -25,14 +25,26 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
+from web3.contract import Contract
 
 from umbral import pre
 from umbral.config import default_params
+from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 from umbral.signing import Signature, Signer
 
 from nucypher.policy.models import IndisputableEvidence
+
+
+ALGORITHM_KECCAK256 = 0
+ALGORITHM_SHA256 = 1
+BASE_PENALTY = 100
+PENALTY_HISTORY_COEFFICIENT = 10
+PERCENTAGE_PENALTY_COEFFICIENT = 8
+REWARD_COEFFICIENT = 2
+secret = (123456).to_bytes(32, byteorder='big')
+secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 def sign_data(data, umbral_privkey):
@@ -59,6 +71,7 @@ def make_recoverable_signature(data_hash, signature, umbral_pubkey_bytes):
         recoverable_signature = bytes(signature) + bytes([1])
     return recoverable_signature
 
+
 # TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
 def fragments(metadata):
     delegating_privkey = UmbralPrivateKey.gen_key()
@@ -81,7 +94,8 @@ def fragments(metadata):
 
 @pytest.mark.slow
 def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
-    creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, miner, wrong_miner, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
+    evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
 
     # TODO: Move this to an integration test?
     umbral_params = default_params()
@@ -127,11 +141,12 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # Bob prepares supporting Evidence
     evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
 
-    some_data = evidence.precompute_values()
-    assert len(some_data) == 20 * 32
+    evidence_data = evidence.precompute_values()
+    assert len(evidence_data) == 20 * 32
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
-    assert proof_signature == adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+    assert proof_signature == \
+           adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
@@ -157,51 +172,34 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             requester_umbral_public_key_bytes,
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
-            some_data)
-    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
+            evidence_data)
+    value = escrow.functions.minerInfo(miner).call()[0]
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    assert 1000 == escrow.functions.minerInfo(miner).call()[0]
+    assert value == escrow.functions.minerInfo(miner).call()[0]
+    assert 0 == escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert event_args['correctness']
 
     # Can't evaluate miner with data that already was checked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
         testerchain.wait_for_receipt(tx)
 
-    # TODO: Fix test for cfrag evaluation using bad data
-    # # Challenge using bad data
-    # metadata = os.urandom(34)
-    # capsule, cfrag = fragments(metadata)
-    # capsule_bytes = capsule.to_bytes()
-    # cfrag_bytes = cfrag.to_bytes()
-    # hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    # hash_ctx.update(capsule_bytes + cfrag_bytes)
-    # data_hash = hash_ctx.finalize()
-    # capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
-    # capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
-    # cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
-    # args = (capsule_bytes,
-    #         capsule_signature_by_requester,
-    #         capsule_signature_by_requester_and_miner,
-    #         cfrag_bytes,
-    #         cfrag_signature_by_miner,
-    #         requester_umbral_public_key_bytes,
-    #         miner_umbral_public_key_bytes,
-    #         signed_miner_umbral_public_key,
-    #         some_data)
-    #
-    # assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    # tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
-    # testerchain.wait_for_receipt(tx)
-    # # Hash of the data is saved and miner was slashed
-    # assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    # assert 900 == escrow.functions.minerInfo(miner).call()[0]
-    #
-    # Prepare hash of the data
+    # Challenge using bad data
     metadata = os.urandom(34)
     capsule, cfrag = fragments(metadata)
     capsule_bytes = capsule.to_bytes()
+    # Corrupt proof
+    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
     cfrag_bytes = cfrag.to_bytes()
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
@@ -209,6 +207,49 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
     capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
     cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+    args = (capsule_bytes,
+            capsule_signature_by_requester,
+            capsule_signature_by_requester_and_miner,
+            cfrag_bytes,
+            cfrag_signature_by_miner,
+            requester_umbral_public_key_bytes,
+            miner_umbral_public_key_bytes,
+            signed_miner_umbral_public_key,
+            evidence_data)
+
+    assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
+    testerchain.wait_for_receipt(tx)
+    # Hash of the data is saved and miner was slashed
+    assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    assert value - BASE_PENALTY == escrow.functions.minerInfo(miner).call()[0]
+    assert BASE_PENALTY / REWARD_COEFFICIENT == escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
+
+    # Prepare hash of the data
+    metadata = os.urandom(34)
+    capsule, cfrag = fragments(metadata)
+    capsule_bytes = capsule.to_bytes()
+    # Corrupt proof
+    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    cfrag_bytes = cfrag.to_bytes()
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(capsule_bytes + cfrag_bytes)
+    data_hash = hash_ctx.finalize()
+    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
+    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
+    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
     args = [capsule_bytes,
             capsule_signature_by_requester,
             capsule_signature_by_requester_and_miner,
@@ -217,7 +258,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             requester_umbral_public_key_bytes,
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
-            some_data]
+            evidence_data]
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
 
     # Can't evaluate miner using broken signatures
@@ -254,33 +295,166 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
-    # TODO: Fix remaining tests
-    # # Can't use signature for another data
-    # wrong_args = args[:]
-    # wrong_args[0] = bytes(args[0][0] + 1) + args[0][1:]
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
-    #     testerchain.wait_for_receipt(tx)
-    # wrong_args = args[:]
-    # wrong_args[3] = bytes(args[3][0] + 1) + args[3][1:]
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
-    #     testerchain.wait_for_receipt(tx)
-    #
-    # # Can't evaluate nonexistent miner
-    # address = to_canonical_address(wrong_miner)
-    # sig_key = provider.ethereum_tester.backend._key_lookup[address]
-    # signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
-    # wrong_args = args[:]
-    # wrong_args[7] = signed_miner_umbral_public_key
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
-    #     testerchain.wait_for_receipt(tx)
-    #
-    # # Initial arguments were correct
-    # assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    # tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
-    # testerchain.wait_for_receipt(tx)
-    # assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    # assert 800 == escrow.functions.minerInfo(miner).call()[0]
+    # Can't use signature for another data
+    wrong_args = args[:]
+    wrong_args[0] = bytes(args[0][0] + 1) + args[0][1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[3] = bytes(args[3][0] + 1) + args[3][1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
 
+    # Can't evaluate nonexistent miner
+    address = to_canonical_address(wrong_miner)
+    sig_key = provider.ethereum_tester.backend._key_lookup[address]
+    signed_wrong_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+    wrong_args = args[:]
+    wrong_args[7] = signed_wrong_miner_umbral_public_key
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Initial arguments were correct
+    value = escrow.functions.minerInfo(miner).call()[0]
+    reward = escrow.functions.rewardInfo(investigator).call()
+    assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
+    testerchain.wait_for_receipt(tx)
+    assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    # Penalty was increased because it's the second violation
+    assert value - (BASE_PENALTY + PENALTY_HISTORY_COEFFICIENT) == escrow.functions.minerInfo(miner).call()[0]
+    assert reward + (BASE_PENALTY + PENALTY_HISTORY_COEFFICIENT) / REWARD_COEFFICIENT == \
+           escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
+
+    # Prepare corrupted data again
+    capsule, cfrag = fragments(metadata)
+    capsule_bytes = capsule.to_bytes()
+    # Corrupt proof
+    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    cfrag_bytes = cfrag.to_bytes()
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(capsule_bytes + cfrag_bytes)
+    data_hash = hash_ctx.finalize()
+    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
+    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
+    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+    args = (capsule_bytes,
+            capsule_signature_by_requester,
+            capsule_signature_by_requester_and_miner,
+            cfrag_bytes,
+            cfrag_signature_by_miner,
+            requester_umbral_public_key_bytes,
+            miner_umbral_public_key_bytes,
+            signed_miner_umbral_public_key,
+            evidence_data)
+
+    value = escrow.functions.minerInfo(miner).call()[0]
+    reward = escrow.functions.rewardInfo(investigator).call()
+    assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
+    testerchain.wait_for_receipt(tx)
+    assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
+    # Penalty was decreased because it's more than maximum available percentage of value
+    assert value - value // PERCENTAGE_PENALTY_COEFFICIENT == escrow.functions.minerInfo(miner).call()[0]
+    assert reward + value // PERCENTAGE_PENALTY_COEFFICIENT / REWARD_COEFFICIENT == \
+           escrow.functions.rewardInfo(investigator).call()
+
+    events = evaluation_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert investigator == event_args['investigator']
+    assert not event_args['correctness']
+
+
+@pytest.mark.slow
+def test_upgrading(testerchain):
+    creator = testerchain.interface.w3.eth.accounts[0]
+
+    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
+
+    # Deploy contracts
+    escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    address1 = escrow1.address
+    address2 = escrow2.address
+    contract_library_v1, _ = testerchain.interface.deploy_contract(
+        'MiningAdjudicator', address1, ALGORITHM_KECCAK256, 1, 2, 3, 4)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+
+    # Deploy second version of the contract
+    contract_library_v2, _ = testerchain.interface.deploy_contract(
+        'MiningAdjudicatorV2Mock', address2, ALGORITHM_SHA256, 5, 6, 7, 8)
+    contract = testerchain.interface.w3.eth.contract(
+        abi=contract_library_v2.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    # Upgrade to the second version
+    assert address1 == contract.functions.escrow().call()
+    assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    assert 1 == contract.functions.basePenalty().call()
+    assert 2 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 3 == contract.functions.percentagePenaltyCoefficient().call()
+    assert 4 == contract.functions.rewardCoefficient().call()
+    tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    # Check constructor and storage values
+    assert contract_library_v2.address == dispatcher.functions.target().call()
+    assert address2 == contract.functions.escrow().call()
+    assert ALGORITHM_SHA256 == contract.functions.hashAlgorithm().call()
+    assert 5 == contract.functions.basePenalty().call()
+    assert 6 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 7 == contract.functions.percentagePenaltyCoefficient().call()
+    assert 8 == contract.functions.rewardCoefficient().call()
+    # Check new ABI
+    tx = contract.functions.setValueToCheck(3).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 3 == contract.functions.valueToCheck().call()
+
+    # Can't upgrade to the previous version or to the bad version
+    contract_library_bad, _ = testerchain.interface.deploy_contract('MiningAdjudicatorBad')
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash) \
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash) \
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # But can rollback
+    tx = dispatcher.functions.rollback(secret2, secret_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert contract_library_v1.address == dispatcher.functions.target().call()
+    assert address1 == contract.functions.escrow().call()
+    assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    assert 1 == contract.functions.basePenalty().call()
+    assert 2 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 3 == contract.functions.percentagePenaltyCoefficient().call()
+    assert 4 == contract.functions.rewardCoefficient().call()
+    # After rollback new ABI is unavailable
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setValueToCheck(2).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Try to upgrade to the bad version
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash) \
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)

@@ -1,43 +1,72 @@
 pragma solidity ^0.4.25;
 
 
-import "./lib/UmbralDeserializer.sol";
-import "./lib/SignatureVerifier.sol";
-import "./lib/Numerology.sol";
-import "./MinersEscrow.sol";
+import "contracts/lib/UmbralDeserializer.sol";
+import "contracts/lib/SignatureVerifier.sol";
+import "contracts/lib/Numerology.sol";
+import "contracts/MinersEscrow.sol";
+import "contracts/proxy/Upgradeable.sol";
+import "zeppelin/math/SafeMath.sol";
+import "zeppelin/math/Math.sol";
 
 
 /**
 * @notice Supervises miners' behavior and punishes when something's wrong.
 **/
-contract MiningAdjudicator {
+contract MiningAdjudicator is Upgradeable {
+    using UmbralDeserializer for bytes;
+    using SafeMath for uint256;
+
+    event CFragEvaluated(
+        bytes32 indexed evaluationHash,
+        address indexed miner,
+        address indexed investigator,
+        bool correctness
+    );
 
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
-
-    using UmbralDeserializer for bytes;
-
-    // TODO events
-    uint256 constant PENALTY = 100; // TODO
+    // used only for upgrading
+    bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
+    address constant RESERVED_ADDRESS = 0x0;
 
     MinersEscrow public escrow;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
+    uint256 public basePenalty;
+    uint256 public penaltyHistoryCoefficient;
+    uint256 public percentagePenaltyCoefficient;
+    uint256 public rewardCoefficient;
+    mapping (address => uint256) public penaltyHistory;
     mapping (bytes32 => bool) public evaluatedCFrags;
 
     /**
     * @param _escrow Escrow contract
     * @param _hashAlgorithm Hashing algorithm
+    * @param _basePenalty Base for the penalty calculation
+    * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
+    * @param _percentagePenaltyCoefficient Coefficient for calculating the percentage penalty
+    * @param _rewardCoefficient Coefficient for calculating the reward
     **/
     constructor(
         MinersEscrow _escrow,
-        SignatureVerifier.HashAlgorithm _hashAlgorithm
+        SignatureVerifier.HashAlgorithm _hashAlgorithm,
+        uint256 _basePenalty,
+        uint256 _penaltyHistoryCoefficient,
+        uint256 _percentagePenaltyCoefficient,
+        uint256 _rewardCoefficient
     )
         public
     {
-        require(address(_escrow) != 0x0);
+        require(address(_escrow) != 0x0 &&
+            _percentagePenaltyCoefficient != 0 &&
+            _rewardCoefficient != 0);
         escrow = _escrow;
         hashAlgorithm = _hashAlgorithm;
+        basePenalty = _basePenalty;
+        percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
+        penaltyHistoryCoefficient = _penaltyHistoryCoefficient;
+        rewardCoefficient = _rewardCoefficient;
     }
 
     /**
@@ -52,6 +81,7 @@ contract MiningAdjudicator {
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
     * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
+    // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
         bytes _capsuleBytes,
         bytes _capsuleSignatureByRequester,
@@ -95,10 +125,27 @@ contract MiningAdjudicator {
         // Verify correctness of re-encryption
         evaluatedCFrags[evaluationHash] = true;
         if (!isCapsuleFragCorrect(_capsuleBytes, _cFragBytes, _preComputedData)) {
-            // TODO calculate penalty - depends on how many time was slashed
-            // TODO set reward
-            escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
+            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
+            escrow.slashMiner(miner, penalty, msg.sender, reward);
+            emit CFragEvaluated(evaluationHash, miner, msg.sender, false);
+        } else {
+            emit CFragEvaluated(evaluationHash, miner, msg.sender, true);
         }
+    }
+
+    /**
+    * @notice Calculate penalty to the miner and reward to the investigator
+    * @param _miner Miner's address
+    * @param _minerValue Amount of tokens that belong to the miner
+    **/
+    function calculatePenaltyAndReward(address _miner, uint256 _minerValue)
+        internal returns (uint256 penalty, uint256 reward)
+    {
+        penalty = basePenalty.add(penaltyHistoryCoefficient.mul(penaltyHistory[_miner]));
+        penalty = Math.min256(penalty, _minerValue.div(percentagePenaltyCoefficient));
+        reward = penalty.div(rewardCoefficient);
+        // TODO add maximum condition or other overflow protection or other penalty condition
+        penaltyHistory[_miner] = penaltyHistory[_miner].add(1);
     }
 
     /**
@@ -126,8 +173,7 @@ contract MiningAdjudicator {
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
     )
-        // TODO make public when possible
-        internal pure returns (bool)
+        public pure returns (bool)
     {
         UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
@@ -380,5 +426,34 @@ contract MiningAdjudicator {
 
         uint256 upper_half = mulmod(uint256(upper), delta, n_minus_1);
         return 1 + addmod(upper_half, uint256(lower), n_minus_1);
+    }
+
+    function verifyState(address _testTarget) public onlyOwner {
+        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
+        require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
+        require(uint256(delegateGet(_testTarget, "basePenalty()")) == basePenalty);
+        require(uint256(delegateGet(_testTarget, "penaltyHistoryCoefficient()")) == penaltyHistoryCoefficient);
+        require(uint256(delegateGet(_testTarget, "percentagePenaltyCoefficient()")) == percentagePenaltyCoefficient);
+        require(uint256(delegateGet(_testTarget, "rewardCoefficient()")) == rewardCoefficient);
+        require(uint256(delegateGet(_testTarget, "penaltyHistory(address)", bytes32(RESERVED_ADDRESS))) ==
+            penaltyHistory[RESERVED_ADDRESS]);
+        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
+        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != bytes32(0));
+    }
+
+    function finishUpgrade(address _target) public onlyOwner {
+        MiningAdjudicator targetContract = MiningAdjudicator(_target);
+        escrow = targetContract.escrow();
+        hashAlgorithm = targetContract.hashAlgorithm();
+        basePenalty = targetContract.basePenalty();
+        penaltyHistoryCoefficient = targetContract.penaltyHistoryCoefficient();
+        percentagePenaltyCoefficient = targetContract.percentagePenaltyCoefficient();
+        rewardCoefficient = targetContract.rewardCoefficient();
+        // preparation for the verifyState method
+        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
+        evaluatedCFrags[evaluationCFragHash] = true;
+        penaltyHistory[RESERVED_ADDRESS] = 123;
     }
 }
