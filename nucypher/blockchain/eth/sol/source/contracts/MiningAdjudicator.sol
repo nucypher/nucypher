@@ -199,13 +199,13 @@ contract MiningAdjudicator is Upgradeable {
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
         UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
 
-        // TODO: Check ECDSA signature. Getting 'Stack too deep' error.
         // Extract Alice's address and check that it corresponds to the one provided
-//        address alicesAddress = SignatureVerifier.recover(
-//            _precomputed.hashedKFragValidityMessage,
-//            _cFrag.proof.kFragSignature
-//        );
-//        require(alicesAddress == _precomputed.alicesKeyAsAddress, "JARL!");
+        address alicesAddress = SignatureVerifier.recover(
+            _precomputed.hashedKFragValidityMessage,
+            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
+        );
+        require(alicesAddress == _precomputed.alicesKeyAsAddress, "Bad KFrag signature");
+
 
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
@@ -222,7 +222,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: z*E
         require(Numerology.is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord));
-        bool ez_is_correct = Numerology.ecmulVerify(
+        bool left_hand_element_is_correct = Numerology.ecmulVerify(
             _capsule.pointE.xCoord,     // E_x
             _precomputed.pointEyCoord,  // E_y
             _cFrag.proof.bnSig,         // z
@@ -239,7 +239,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: h*E_1
         require(Numerology.is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord));
-        bool e1h_is_correct = Numerology.ecmulVerify(
+        bool rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.pointE1.xCoord,          // E1_x
             _precomputed.pointE1yCoord,     // E1_y
             h,
@@ -254,7 +254,7 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointE2yCoord        // E2_y
         ));
 
-        bool sum_is_correct = Numerology.eqAffineJacobian(
+        bool equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointEZxCoord,  _precomputed.pointEZyCoord],
             Numerology.addAffineJacobian(
                 [_cFrag.proof.pointE2.xCoord, _precomputed.pointE2yCoord],
@@ -262,7 +262,7 @@ contract MiningAdjudicator is Upgradeable {
             )
         );
 
-        if (!(ez_is_correct && e1h_is_correct && sum_is_correct)){
+        if (!(left_hand_element_is_correct && rhs_element_is_correct && equation_holds)){
             return false;
         }
 
@@ -279,7 +279,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: z*V
         require(Numerology.is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord));
-        bool vz_is_correct = Numerology.ecmulVerify(
+        left_hand_element_is_correct = Numerology.ecmulVerify(
             _capsule.pointV.xCoord,     // V_x
             _precomputed.pointVyCoord,  // V_y
             _cFrag.proof.bnSig,         // z
@@ -296,7 +296,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: h*V_1
         require(Numerology.is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord));
-        bool v1h_is_correct = Numerology.ecmulVerify(
+        rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.pointV1.xCoord,          // V1_x
             _precomputed.pointV1yCoord,     // V1_y
             h,
@@ -311,7 +311,7 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointV2yCoord        // V2_y
         ));
 
-        sum_is_correct = Numerology.eqAffineJacobian(
+        equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointVZxCoord,  _precomputed.pointVZyCoord],
             Numerology.addAffineJacobian(
                 [_cFrag.proof.pointV2.xCoord, _precomputed.pointV2yCoord],
@@ -319,7 +319,7 @@ contract MiningAdjudicator is Upgradeable {
             )
         );
 
-        if (!(vz_is_correct && v1h_is_correct && sum_is_correct)){
+        if (!(left_hand_element_is_correct && rhs_element_is_correct && equation_holds)){
             return false;
         }
 
@@ -331,7 +331,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: z*U
         require(Numerology.is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord));
-        bool uz_is_correct = Numerology.ecmulVerify(
+        left_hand_element_is_correct = Numerology.ecmulVerify(
             UMBRAL_PARAMETER_U_XCOORD,  // U_x
             UMBRAL_PARAMETER_U_YCOORD,  // U_y
             _cFrag.proof.bnSig,         // z
@@ -348,7 +348,7 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: h*U_1
         require(Numerology.is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord));
-        bool u1h_is_correct = Numerology.ecmulVerify(
+        rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
             _precomputed.pointU1yCoord,                 // U1_y
             h,
@@ -363,7 +363,7 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointU2yCoord          // U2_y
         ));
 
-        sum_is_correct = Numerology.eqAffineJacobian(
+        equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointUZxCoord,  _precomputed.pointUZyCoord],
             Numerology.addAffineJacobian(
                 [_cFrag.proof.pointKFragPok.xCoord, _precomputed.pointU2yCoord],
@@ -371,7 +371,7 @@ contract MiningAdjudicator is Upgradeable {
             )
         );
 
-        return uz_is_correct && u1h_is_correct && sum_is_correct;
+        return left_hand_element_is_correct && rhs_element_is_correct && equation_holds;
     }
 
 
