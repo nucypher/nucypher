@@ -46,7 +46,7 @@ def test_deposit_tokens(testerchain, three_agents):
     # Check the receipt for the contract address success code
     receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][1]['address'] == agent.contract_address
+    assert receipt['logs'][2]['address'] == agent.contract_address
 
     testerchain.time_travel(periods=1)
     assert agent.get_locked_tokens(miner_address=someone) == MIN_ALLOWED_LOCKED
