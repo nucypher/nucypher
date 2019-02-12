@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -71,7 +71,7 @@ contract PolicyManagerForUserEscrowMock {
 
     uint256 public minRewardRate;
 
-    function withdraw(address _recipient) public returns (uint256) {
+    function withdraw(address payable _recipient) public returns (uint256) {
         uint256 value = address(this).balance;
         require(value > 0);
         _recipient.transfer(value);
@@ -86,7 +86,7 @@ contract PolicyManagerForUserEscrowMock {
         minRewardRate = _minRewardRate;
     }
 
-    function () public payable {}
+    function () external payable {}
 }
 
 
@@ -109,7 +109,7 @@ contract UserEscrowLibraryMockV1 {
 **/
 contract UserEscrowLibraryMockV2 {
 
-    function () public payable {
+    function () external payable {
         // can only use with ETH
         require(msg.value > 0);
     }

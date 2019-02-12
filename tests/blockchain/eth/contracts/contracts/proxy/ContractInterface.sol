@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 // Note we don't need to use this interface (although it is advised if it's unlikely it will change).
 // We can cast the UpgradableContractProxy as the specific implementations eg ContractV1.sol or ContractV2.sol.
@@ -13,8 +13,8 @@ contract ContractInterface {
     function setStorageValue(uint _value) public;
     function getStorageValue() public view returns (uint);
 
-    function setDynamicallySizedValue(string _dynamicValue) public;
-    function getDynamicallySizedValue() public view returns (string);
+    function setDynamicallySizedValue(string memory _dynamicValue) public;
+    function getDynamicallySizedValue() public view returns (string memory);
 
     function pushArrayValue(uint _value) public;
     function getArrayValue(uint _index) public view returns (uint);

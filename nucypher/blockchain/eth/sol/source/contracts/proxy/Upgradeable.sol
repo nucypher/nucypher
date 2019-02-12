@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -53,7 +53,7 @@ contract Upgradeable is Ownable {
     **/
     function delegateGetData(
         address _target,
-        string _signature,
+        string memory _signature,
         uint8 _numberOfArguments,
         bytes32 _argument1,
         bytes32 _argument2
@@ -85,8 +85,8 @@ contract Upgradeable is Ownable {
     * @dev Call "getter" without parameters.
     * Result should not exceed 32 bytes
     **/
-    function delegateGet(address _target, string _signature)
-        internal returns (bytes32 result)
+    function delegateGet(address _target, string memory _signature)
+        internal returns (uint256 result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
         assembly {
@@ -98,8 +98,8 @@ contract Upgradeable is Ownable {
     * @dev Call "getter" with one parameter.
     * Result should not exceed 32 bytes
     **/
-    function delegateGet(address _target, string _signature, bytes32 _argument)
-        internal returns (bytes32 result)
+    function delegateGet(address _target, string memory _signature, bytes32 _argument)
+        internal returns (uint256 result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
         assembly {
@@ -113,11 +113,11 @@ contract Upgradeable is Ownable {
     **/
     function delegateGet(
         address _target,
-        string _signature,
+        string memory _signature,
         bytes32 _argument1,
         bytes32 _argument2
     )
-        internal returns (bytes32 result)
+        internal returns (uint256 result)
     {
         bytes32 memoryAddress = delegateGetData(_target, _signature, 2, _argument1, _argument2);
         assembly {

@@ -62,12 +62,6 @@ def test_create_token(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 10 == token.functions.balanceOf(token.address).call()
 
-    # Can burn own tokens
-    tx = token.functions.burn(1).transact({'from': account2})
-    testerchain.wait_for_receipt(tx)
-    assert 9 == token.functions.balanceOf(account2).call()
-    assert 10 ** 9 - 1 == token.functions.totalSupply().call()
-
 
 @pytest.mark.slow()
 def test_approve_and_call(testerchain):
@@ -104,3 +98,24 @@ def test_approve_and_call(testerchain):
     assert 25 == mock.functions.value().call()
     assert token.address == mock.functions.tokenContract().call()
     assert 111 == testerchain.interface.w3.toInt(mock.functions.extraData().call())
+
+    # Can't approve non zero value
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = token.functions.approve(account1, 100).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    assert 50 == token.functions.allowance(creator, account1).call()
+    # Change to zero value and set new one
+    tx = token.functions.approve(account1, 0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 0 == token.functions.allowance(creator, account1).call()
+    tx = token.functions.approve(account1, 100).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 100 == token.functions.allowance(creator, account1).call()
+
+    # Decrease value
+    tx = token.functions.decreaseAllowance(account1, 60).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 40 == token.functions.allowance(creator, account1).call()
+    tx = token.functions.increaseAllowance(account1, 10).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 50 == token.functions.allowance(creator, account1).call()

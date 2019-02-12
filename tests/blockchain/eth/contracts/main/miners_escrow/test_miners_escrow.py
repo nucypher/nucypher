@@ -49,9 +49,9 @@ def test_staking(testerchain, token, escrow_contract):
     assert 10000 == token.functions.balanceOf(ursula2).call()
 
     # Ursula and Ursula(2) give Escrow rights to transfer
-    tx = token.functions.approve(escrow.address, 1100).transact({'from': ursula1})
+    tx = token.functions.approve(escrow.address, 1000).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert 1100 == token.functions.allowance(ursula1, escrow.address).call()
+    assert 1000 == token.functions.allowance(ursula1, escrow.address).call()
     tx = token.functions.approve(escrow.address, 500).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 500 == token.functions.allowance(ursula2, escrow.address).call()

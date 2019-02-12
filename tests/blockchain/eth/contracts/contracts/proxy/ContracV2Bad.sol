@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "./ContractInterface.sol";
@@ -38,8 +38,8 @@ contract ContractV2Bad is ContractInterface, Upgradeable {
         return storageValue;
     }
 
-    function setDynamicallySizedValue(string) public {}
-    function getDynamicallySizedValue() public view returns (string) {}
+    function setDynamicallySizedValue(string memory) public {}
+    function getDynamicallySizedValue() public view returns (string memory) {}
 
     function pushArrayValue(uint) public {}
     function getArrayValue(uint _index) public view returns (uint) {

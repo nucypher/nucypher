@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -56,7 +56,7 @@ contract Issuer is Upgradeable {
     )
         public
     {
-        require(address(_token) != 0x0 &&
+        require(address(_token) != address(0) &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
@@ -115,10 +115,10 @@ contract Issuer is Upgradeable {
         internal returns (uint256 amount)
     {
         uint256 currentSupply = _period <= lastMintedPeriod ?
-            Math.min256(currentSupply1, currentSupply2) :
-            Math.max256(currentSupply1, currentSupply2);
+            Math.min(currentSupply1, currentSupply2) :
+            Math.max(currentSupply1, currentSupply2);
         if (currentSupply == totalSupply) {
-            return;
+            return 0;
         }
 
         //totalSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
@@ -158,15 +158,15 @@ contract Issuer is Upgradeable {
     }
 
     function verifyState(address _testTarget) public onlyOwner {
-        require(address(delegateGet(_testTarget, "token()")) == address(token));
-        require(uint256(delegateGet(_testTarget, "miningCoefficient()")) == miningCoefficient);
-        require(uint256(delegateGet(_testTarget, "lockedPeriodsCoefficient()")) == lockedPeriodsCoefficient);
+        require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
+        require(delegateGet(_testTarget, "miningCoefficient()") == miningCoefficient);
+        require(delegateGet(_testTarget, "lockedPeriodsCoefficient()") == lockedPeriodsCoefficient);
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         require(uint16(delegateGet(_testTarget, "rewardedPeriods()")) == rewardedPeriods);
         require(uint16(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
-        require(uint256(delegateGet(_testTarget, "currentSupply1()")) == currentSupply1);
-        require(uint256(delegateGet(_testTarget, "currentSupply2()")) == currentSupply2);
-        require(uint256(delegateGet(_testTarget, "totalSupply()")) == totalSupply);
+        require(delegateGet(_testTarget, "currentSupply1()") == currentSupply1);
+        require(delegateGet(_testTarget, "currentSupply2()") == currentSupply2);
+        require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
     }
 
     function finishUpgrade(address _target) public onlyOwner {

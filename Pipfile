@@ -23,7 +23,6 @@ flask = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
-py-solc = "*"
 web3 = "*"
 # CLI / Configuration
 sentry-sdk = "==0.5.2"
@@ -47,6 +46,7 @@ mypy = "*"
 coverage = "*"
 python-coveralls = "*"
 # Deployment
+py-solc = {editable = true,git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"
 bumpversion = "*"
 # Documentation

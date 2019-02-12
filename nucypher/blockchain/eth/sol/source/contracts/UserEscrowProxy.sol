@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "./UserEscrow.sol";
@@ -40,9 +40,9 @@ contract UserEscrowProxy {
     )
         public
     {
-        require(address(_token) != 0x0 &&
-            address(_escrow) != 0x0 &&
-            address(_policyManager) != 0x0);
+        require(address(_token) != address(0) &&
+            address(_escrow) != address(0) &&
+            address(_policyManager) != address(0));
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;
@@ -53,7 +53,8 @@ contract UserEscrowProxy {
     * @dev Assume that `this` is the UserEscrow contract
     **/
     function getStateContract() internal view returns (UserEscrowProxy) {
-        UserEscrowLibraryLinker linker = UserEscrow(address(this)).linker();
+        address payable userEscrowAddress = address(bytes20(address(this)));
+        UserEscrowLibraryLinker linker = UserEscrow(userEscrowAddress).linker();
         return UserEscrowProxy(linker.target());
     }
 
