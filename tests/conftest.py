@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from twisted.logger import globalLogPublisher
 
-from nucypher.cli.main import NucypherClickConfig
+from nucypher.cli.config import NucypherClickConfig
 #
 from nucypher.utilities.logging import SimpleObserver
 
