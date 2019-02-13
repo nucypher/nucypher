@@ -29,16 +29,11 @@ from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTok
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.lawful import Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
-from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
-from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.network.character_control import bob
-from nucypher.network.character_control import enrico
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
@@ -262,10 +257,9 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    data_source = DataSource(policy_pubkey_enc=enacted_federated_policy.public_key,
-                             signing_keypair=SigningKeypair(),
-                             label=enacted_federated_policy.label
-                             )
+    data_source = Enrico(policy_encrypting_key=enacted_federated_policy.public_key,
+                         label=enacted_federated_policy.label
+                         )
     message_kit, _signature = data_source.encrypt_message(b"Welcome to the flippering.")
     return message_kit, data_source
 
@@ -337,7 +331,7 @@ def alice_control(federated_alice, federated_ursulas):
 @pytest.fixture(scope='module')
 def bob_control(federated_bob, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
-    bob_control = bob.make_bob_control(federated_bob, teacher_node)
+    bob_control = make_bob_control(federated_bob, teacher_node)
     bob_control.config['DEBUG'] = True
     bob_control.config['TESTING'] = True
     yield bob_control.test_client()
@@ -346,7 +340,7 @@ def bob_control(federated_bob, federated_ursulas):
 @pytest.fixture(scope='module')
 def enrico_control(capsule_side_channel):
     _, data_source = capsule_side_channel
-    enrico_control = enrico.make_enrico_control(data_source)
+    enrico_control = make_enrico_control(data_source)
     enrico_control.config['DEBUG'] = True
     enrico_control.config['TESTING'] = True
     yield enrico_control.test_client()
