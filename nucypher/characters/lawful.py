@@ -558,7 +558,7 @@ class Bob(Character):
             message_kit = UmbralMessageKit.from_bytes(message_kit)
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
-                                                  policy_encrypting_key=policy_encrypting_key,
+                                                  policy_pubkey_enc=policy_encrypting_key,
                                                   label=label)
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
@@ -1068,8 +1068,8 @@ class Enrico(Character):
 
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, label, *args, **kwargs):
-        self.policy_pubkey = policy_encrypting_key
+    def __init__(self, policy_pubkey_enc, label, *args, **kwargs):
+        self.policy_pubkey = policy_pubkey_enc
         self.label = label
 
         # Encrico never uses the blockchain, hence federated_only)
@@ -1084,6 +1084,12 @@ class Enrico(Character):
                                                   signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
         return message_kit, signature
+
+    @classmethod
+    def from_alice(cls, alice: Alice, label: bytes):
+        policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
+        return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
+                   policy_pubkey_enc=policy_pubkey_enc, label=label)
 
     def make_wsgi_app(drone_enrico):
         enrico_control = Flask("enrico-control")
