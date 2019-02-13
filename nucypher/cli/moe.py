@@ -62,7 +62,7 @@ class Moe(Character):
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=12500)
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-def moe(teacher_uri, min_stake, network, rest_port, ws_port, dry_run):
+def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
     """
     "Moe" NuCypher node monitor CLI.
     """
@@ -71,14 +71,17 @@ def moe(teacher_uri, min_stake, network, rest_port, ws_port, dry_run):
     # Teacher
     #
 
-    known_node = Ursula.from_seed_and_stake_info(seed_uri=teacher_uri,
-                                                 federated_only=True,
-                                                 minimum_stake=min_stake)
+    teacher_nodes = list()
+    if teacher_uri:
+        teacher_node = Ursula.from_seed_and_stake_info(seed_uri=teacher_uri,
+                                                       federated_only=True,
+                                                       minimum_stake=min_stake)
+        teacher_nodes.append(teacher_node)
 
     monitor = Moe(
         domains=network or GLOBAL_DOMAIN,
         network_middleware=RestMiddleware(),
-        known_nodes=[known_node],
+        known_nodes=teacher_nodes,
         federated_only=True,
     )
 
@@ -115,8 +118,10 @@ def moe(teacher_uri, min_stake, network, rest_port, ws_port, dry_run):
     # Server
     #
 
-    deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": rest_port})
+    deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
     deployer.add_non_tls_websocket_service(websocket_service)
+
+    click.secho(f"Running Moe on 127.0.0.1:{http_port}")
 
     if not dry_run:
         deployer.run()

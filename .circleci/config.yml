@@ -282,7 +282,7 @@ commands:
           command: pip3 install --user .
       - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install --user .[development]
+          command: pip3 install -r dev-requirements.txt --user .
       - run:
           name: Install Solidity Compiler
           command: ./scripts/install_solc.sh
