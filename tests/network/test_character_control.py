@@ -46,6 +46,9 @@ def test_alice_character_control_grant(alice_control, federated_bob):
 
     response_data = json.loads(response.data)
     assert 'treasure_map' in response_data['result']
+    assert 'policy_encrypting_pubkey' in response_data['result']
+    assert 'alice_signing_pubkey' in response_data['result']
+    assert 'label' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
     encrypted_map = TreasureMap.from_bytes(map_bytes)
@@ -148,6 +151,15 @@ def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
 
     alice_response_data = json.loads(response.data)
     assert 'treasure_map' in alice_response_data['result']
+    assert 'policy_encrypting_pubkey' in alice_response_data['result']
+    assert 'alice_signing_pubkey' in alice_response_data['result']
+    assert 'label' in alice_response_data['result']
+
+    # This is sidechannel policy metadata. It should be given to Bob by the
+    # application developer at some point.
+    policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_pubkey']
+    alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_pubkey']
+    label = b64decode(alice_response_data['result']['label'])
 
     # Encrypt some data via Enrico control
     enrico_request_data = {
@@ -166,5 +178,18 @@ def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
 
     # Retrieve data via Bob control
     bob_request_data = {
-        'label': b64encode(b'test'),
+        'label': b64encode(label).decode(),
+        'policy_encrypting_pubkey': policy_pubkey_enc_hex,
+        'alice_signing_pubkey': alice_pubkey_sig_hex,
+        'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),
     }
+
+    response = bob_control.post('/retrieve', data=json.dumps(bob_request_data))
+    assert response.status_code == 200
+
+    bob_response_data = json.loads(response.data)
+    assert 'plaintext' in bob_response_data['result']
+
+    for plaintext in bob_response_data['result']['plaintext']:
+        plaintext_bytes = b64decode(plaintext)
+        assert plaintext_bytes == b"I'm bereaved, not a sap!"
