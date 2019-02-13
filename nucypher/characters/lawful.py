@@ -553,15 +553,13 @@ class Bob(Character):
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
 
-            policy_pubkey_enc = UmbralPublicKey.from_bytes(policy_pubkey_enc)
+            policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
             alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
             message_kit = UmbralMessageKit.from_bytes(message_kit)
 
-            datasource_pubkey_sig = bytes(message_kit.sender_pubkey_sig)
-
-            data_source = DataSource.from_public_keys(policy_pubkey_enc,
-                                                      datasource_pubkey_sig,
-                                                      label=label)
+            data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
+                                                  policy_encrypting_key=policy_encrypting_key,
+                                                  label=label)
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
                                             data_source=data_source,
@@ -577,9 +575,6 @@ class Bob(Character):
             return Response(json.dumps(response_data), status=200)
 
         return bob_control
-
-
-
 
 
 class Ursula(Teacher, Character, Miner):
@@ -1078,7 +1073,8 @@ class Enrico(Character):
         self.label = label
 
         # Encrico never uses the blockchain, hence federated_only)
-        super().__init__(federated_only=True, *args, **kwargs)
+        kwargs['federated_only'] = True
+        super().__init__(*args, **kwargs)
 
     def encrypt_message(self,
                         message: bytes
@@ -1088,3 +1084,32 @@ class Enrico(Character):
                                                   signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
         return message_kit, signature
+
+    def make_wsgi_app(drone_enrico):
+        enrico_control = Flask("enrico-control")
+
+        @enrico_control.route('/encrypt_message', methods=['POST'])
+        def encrypt_message():
+            """
+            Character control endpoint for encrypting data for a policy and
+            receiving the messagekit (and signature) to give to Bob.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                message = b64decode(request_data['message'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            message_kit, signature = drone_enrico.encrypt_message(message)
+
+            response_data = {
+                'result': {
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),
+                    'signature': b64encode(bytes(signature)).decode(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        return enrico_control
