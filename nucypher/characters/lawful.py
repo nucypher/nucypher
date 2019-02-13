@@ -511,6 +511,76 @@ class Bob(Character):
         cleartexts.append(delivered_cleartext)
         return cleartexts
 
+    def make_wsgi_app(drone_bob, teacher_node: "Ursula"):
+        bob_control = Flask('bob-control')
+
+        teacher_node.verify_node(drone_bob.network_middleware)
+        drone_bob.remember_node(teacher_node)
+        drone_bob.start_learning_loop(now=True)
+
+        @bob_control.route('/join_policy', methods=['POST'])
+        def join_policy():
+            """
+            Character control endpoint for joining a policy on the network.
+
+            This is an unfinished endpoint. You're probably looking for retrieve.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(e, status=400)
+
+            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
+
+            return Response('Policy joined!', status=200)
+
+        @bob_control.route('/retrieve', methods=['POST'])
+        def retrieve():
+            """
+            Character control endpoint for re-encrypting and decrypting policy
+            data.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+                message_kit = b64decode(request_data['message_kit'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(e, status=400)
+
+            policy_pubkey_enc = UmbralPublicKey.from_bytes(policy_pubkey_enc)
+            alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
+            message_kit = UmbralMessageKit.from_bytes(message_kit)
+
+            datasource_pubkey_sig = bytes(message_kit.sender_pubkey_sig)
+
+            data_source = DataSource.from_public_keys(policy_pubkey_enc,
+                                                      datasource_pubkey_sig,
+                                                      label=label)
+            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
+            plaintexts = drone_bob.retrieve(message_kit=message_kit,
+                                            data_source=data_source,
+                                            alice_verifying_key=alice_pubkey_sig)
+
+            plaintexts = [b64encode(plaintext).decode() for plaintext in plaintexts]
+            response_data = {
+                'result': {
+                    'plaintext': plaintexts,
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        return bob_control
+
+
+
+
 
 class Ursula(Teacher, Character, Miner):
     _alice_class = Alice
@@ -624,7 +694,8 @@ class Ursula(Teacher, Character, Miner):
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
                 #
-                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, checksum_public_address=self.checksum_public_address)
+                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
+                                                     checksum_public_address=self.checksum_public_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
@@ -753,7 +824,8 @@ class Ursula(Teacher, Character, Miner):
         """
 
         return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_public_address,
-                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
+                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host,
+                                                                    seednode_metadata.rest_port),
                                             *args, **kwargs)
 
     @classmethod
@@ -779,7 +851,7 @@ class Ursula(Teacher, Character, Miner):
                 log = Logger(cls.__name__)
                 log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
                 time.sleep(interval)
-                return __attempt(round=round+1)
+                return __attempt(round=round + 1)
             else:
                 return teacher
 
@@ -791,7 +863,7 @@ class Ursula(Teacher, Character, Miner):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_address: str = None,   # TODO: Why is this unused?
+                                 checksum_address: str = None,  # TODO: Why is this unused?
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs

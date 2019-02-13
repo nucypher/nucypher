@@ -331,7 +331,7 @@ def alice_control(federated_alice, federated_ursulas):
 @pytest.fixture(scope='module')
 def bob_control(federated_bob, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
-    bob_control = make_bob_control(federated_bob, teacher_node)
+    bob_control = Bob.make_wsgi_app(federated_bob, teacher_node)
     bob_control.config['DEBUG'] = True
     bob_control.config['TESTING'] = True
     yield bob_control.test_client()
@@ -399,7 +399,7 @@ def three_agents(testerchain):
 
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()              # 1: Token
+    token_agent = token_deployer.make_agent()  # 1: Token
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -408,7 +408,7 @@ def three_agents(testerchain):
 
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
+    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -417,6 +417,6 @@ def three_agents(testerchain):
 
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
+    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     return token_agent, miner_agent, policy_agent
