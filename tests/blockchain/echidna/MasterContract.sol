@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -19,6 +19,7 @@ contract MasterContract {
     MinersEscrow escrow;
     PolicyManager policyManager;
     UserEscrow userEscrow;
+    UserEscrowProxy userEscrowAsProxy;
 
     /**
     * @notice Builds main contracts
@@ -26,11 +27,11 @@ contract MasterContract {
     * Don't use custom escrow with default token or custom policy manager with default miners escrow
     **/
     function build(address _token, address _escrow, address _policyManager) internal {
-        token = _token != 0x0 ? NuCypherToken(_token) : Fixtures.createDefaultToken();
-        escrow = _escrow != 0x0 ? MinersEscrow(_escrow) : Fixtures.createDefaultMinersEscrow(token);
-        policyManager = _policyManager != 0x0 ? PolicyManager(_policyManager) :
+        token = _token != address(0) ? NuCypherToken(_token) : Fixtures.createDefaultToken();
+        escrow = _escrow != address(0) ? MinersEscrow(_escrow) : Fixtures.createDefaultMinersEscrow(token);
+        policyManager = _policyManager != address(0) ? PolicyManager(_policyManager) :
             Fixtures.createDefaultPolicyManager(escrow);
-        if (address(escrow.policyManager()) == 0x0) {
+        if (address(escrow.policyManager()) == address(0)) {
             escrow.setPolicyManager(PolicyManagerInterface(address(policyManager)));
         }
 
@@ -44,10 +45,11 @@ contract MasterContract {
     * Don't use custom escrow with default token, custom policy manager with default miners escrow
     * or custom user escrow with any other default
     **/
-    function build(address _token, address _escrow, address _policyManager, address _userEscrow) internal {
+    function build(address _token, address _escrow, address _policyManager, address payable _userEscrow) internal {
         build(_token, _escrow, _policyManager);
-        userEscrow = _userEscrow != 0x0 ? UserEscrow(_userEscrow) :
+        userEscrow = _userEscrow != address(0) ? UserEscrow(_userEscrow) :
             new UserEscrow(Fixtures.createDefaultUserEscrowLinker(token, escrow, policyManager), token);
+        userEscrowAsProxy = UserEscrowProxy(address(userEscrow));
     }
 
 }
@@ -67,7 +69,9 @@ contract NuCypherTokenABI is MasterContract {
     function approve(address spender, uint256 value) public returns (bool) {
         return token.approve(spender, value);
     }
-    function approveAndCall(address _spender, uint256 _value, bytes _extraData) public returns (bool success) {
+    function approveAndCall(address _spender, uint256 _value, bytes memory _extraData)
+        public returns (bool success)
+    {
         return token.approveAndCall(_spender, _value, _extraData);
     }
 }
@@ -81,10 +85,10 @@ contract MinersEscrowABI is MasterContract {
     function initialize() public {
         escrow.initialize();
     }
-    function preDeposit(address[] _miners, uint256[] _values, uint16[] _periods) public {
+    function preDeposit(address[] memory _miners, uint256[] memory _values, uint16[] memory _periods) public {
         escrow.preDeposit(_miners, _values, _periods);
     }
-    function receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData) public {
+    function receiveApproval(address _from, uint256 _value, address _tokenContract, bytes memory _extraData) public {
         escrow.receiveApproval(_from, _value, _tokenContract, _extraData);
     }
     function deposit(uint256 _value, uint16 _periods) public {
@@ -126,7 +130,7 @@ contract PolicyManagerABI is MasterContract {
         bytes16 _policyId,
         uint16 _numberOfPeriods,
         uint256 _firstPartialReward,
-        address[] _nodes
+        address[] memory _nodes
     )
         public payable
     {
@@ -138,7 +142,7 @@ contract PolicyManagerABI is MasterContract {
     function withdraw() public returns (uint256) {
         return policyManager.withdraw();
     }
-    function withdraw(address _recipient) public returns (uint256) {
+    function withdraw(address payable _recipient) public returns (uint256) {
         return policyManager.withdraw(_recipient);
     }
     function revokePolicy(bytes16 _policyId) public {
@@ -185,28 +189,28 @@ contract UserEscrowABI is MasterContract {
 contract UserEscrowProxyABI is MasterContract {
 
     function depositAsMiner(uint256 _value, uint16 _periods) public {
-        UserEscrowProxy(userEscrow).depositAsMiner(_value, _periods);
+        userEscrowAsProxy.depositAsMiner(_value, _periods);
     }
     function withdrawAsMiner(uint256 _value) public {
-        UserEscrowProxy(userEscrow).withdrawAsMiner(_value);
+        userEscrowAsProxy.withdrawAsMiner(_value);
     }
     function lock(uint256 _value, uint16 _periods) public {
-        UserEscrowProxy(userEscrow).lock(_value, _periods);
+        userEscrowAsProxy.lock(_value, _periods);
     }
     function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public{
-        UserEscrowProxy(userEscrow).divideStake(_index, _newValue, _periods);
+        userEscrowAsProxy.divideStake(_index, _newValue, _periods);
     }
     function confirmActivity() public {
-        UserEscrowProxy(userEscrow).confirmActivity();
+        userEscrowAsProxy.confirmActivity();
     }
     function mint() public {
-        UserEscrowProxy(userEscrow).mint();
+        userEscrowAsProxy.mint();
     }
     function withdrawPolicyReward() public {
-        UserEscrowProxy(userEscrow).withdrawPolicyReward();
+        userEscrowAsProxy.withdrawPolicyReward();
     }
     function setMinRewardRate(uint256 _minRewardRate) public {
-        UserEscrowProxy(userEscrow).setMinRewardRate(_minRewardRate);
+        userEscrowAsProxy.setMinRewardRate(_minRewardRate);
     }
 
 }

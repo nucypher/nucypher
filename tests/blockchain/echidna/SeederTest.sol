@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/Seeder.sol";
@@ -13,7 +13,7 @@ contract SeederTest is Seeder {
     constructor() public Seeder(2) {
         seeds[Fixtures.addressList(1)] = SeedInfo("host1", 1);
         seedArray[0] = Fixtures.addressList(1);
-        owner = Fixtures.echidnaCaller();
+        transferOwnership(Fixtures.echidnaCaller());
     }
 
     function echidnaArrayTest() public view returns (bool) {

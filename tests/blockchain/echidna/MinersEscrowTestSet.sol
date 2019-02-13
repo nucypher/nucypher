@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -37,7 +37,7 @@ contract MinersEscrowTest1 is MinersEscrowABI {
     constructor() public {
         NuCypherToken token = Fixtures.createDefaultToken();
         MinersEscrow escrow = new MinersEscrow1(token, miner);
-        build(token, escrow, 0x0);
+        build(address(token), address(escrow), address(0));
         token.transfer(address(escrow), 1000);
     }
 
@@ -74,7 +74,7 @@ contract MinersEscrowTest2 is MinersEscrowABI {
     constructor() public {
         NuCypherToken token = Fixtures.createDefaultToken();
         MinersEscrow escrow = new MinersEscrow2(token, miner);
-        build(token, escrow, 0x0);
+        build(address(token), address(escrow), address(0));
         token.transfer(address(escrow), 1000);
     }
 

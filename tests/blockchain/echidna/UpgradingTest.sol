@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/UserEscrow.sol";
@@ -13,12 +13,12 @@ import "./Fixtures.sol";
 **/
 contract UserEscrowLibraryLinkerTest is UserEscrowLibraryLinker {
 
-    constructor() public UserEscrowLibraryLinker(0x1, bytes32(1)) {
-        owner = Fixtures.echidnaCaller();
+    constructor() public UserEscrowLibraryLinker(address(1), bytes32(uint256(1))) {
+        transferOwnership(Fixtures.echidnaCaller());
     }
 
     function echidnaTargetTest() public view returns (bool) {
-        return target == 0x1 && bytes32(1) == secretHash;
+        return target == address(1) && bytes32(uint256(1)) == secretHash;
     }
 
 }
@@ -42,13 +42,13 @@ contract DispatcherTest is Dispatcher {
 
     address initialTarget;
 
-    constructor() public Dispatcher(new UpgradeableImplementation(), bytes32(1)) {
-        owner = Fixtures.echidnaCaller();
+    constructor() public Dispatcher(address(new UpgradeableImplementation()), bytes32(uint256(1))) {
+        transferOwnership(Fixtures.echidnaCaller());
         initialTarget = target;
     }
 
     function echidnaTargetTest() public view returns (bool) {
-        return target == initialTarget && bytes32(1) == secretHash;
+        return target == initialTarget && bytes32(uint256(1)) == secretHash;
     }
 
 }

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "./MasterContract.sol";
@@ -15,8 +15,8 @@ contract UserEscrowTest1 is UserEscrowABI, UserEscrowProxyABI {
     uint256 balance;
 
     constructor() public {
-        build(0x0, 0x0, 0x0, 0x0);
-        token.approve(userEscrow, 110000);
+        build(address(0), address(0), address(0), address(0));
+        token.approve(address(userEscrow), 110000);
         userEscrow.initialDeposit(110000, 1000000);
         balance = token.balanceOf(user);
     }
@@ -34,8 +34,8 @@ contract UserEscrowTest1 is UserEscrowABI, UserEscrowProxyABI {
 contract UserEscrowTest2 is UserEscrowABI, UserEscrowProxyABI {
 
     constructor() public {
-        build(0x0, 0x0, 0x0, 0x0);
-        token.approve(userEscrow, 100000);
+        build(address(0), address(0), address(0), address(0));
+        token.approve(address(userEscrow), 100000);
         userEscrow.initialDeposit(100000, 1000000);
         userEscrow.transferOwnership(Fixtures.addressList(1));
     }

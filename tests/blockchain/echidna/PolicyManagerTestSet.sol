@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -37,7 +37,7 @@ contract PolicyManager2 is PolicyManager {
         nodeInfo.reward = 1000;
         nodeInfo.lastMinedPeriod = getCurrentPeriod() - 2;
 
-        Policy storage policy = policies[bytes16(1)];
+        Policy storage policy = policies[bytes16(uint128(1))];
         policy.client  = Fixtures.addressList(3);
         policy.rewardRate = 100;
         policy.firstPartialReward = 0;
@@ -67,7 +67,7 @@ contract PolicyManagerTest2 is MinersEscrowABI, PolicyManagerABI {
         NuCypherToken token = Fixtures.createDefaultToken();
         MinersEscrow escrow = new MinersEscrow1(token, miner);
         PolicyManager policyManager = new PolicyManager2(escrow, miner);
-        build(token, escrow, policyManager);
+        build(address(token), address(escrow), address(policyManager));
         token.transfer(address(escrow), 1000);
     }
 

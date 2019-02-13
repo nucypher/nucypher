@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/NuCypherToken.sol";
@@ -33,11 +33,11 @@ library Fixtures {
     **/
     function addressList(uint256 _index) internal pure returns (address) {
         if (_index == 1) {
-            return 0x1;
+            return address(1);
         } else if (_index == 2) {
-            return 0x2;
+            return address(2);
         } else if (_index == 3) {
-            return 0x3;
+            return address(3);
         }
         revert();
     }
@@ -84,7 +84,7 @@ library Fixtures {
         internal returns (UserEscrowLibraryLinker)
     {
         UserEscrowProxy userEscrowProxy = new UserEscrowProxy(_token, _escrow, _policyManager);
-        return new UserEscrowLibraryLinker(userEscrowProxy, bytes32(1));
+        return new UserEscrowLibraryLinker(address(userEscrowProxy), bytes32(uint256(1)));
     }
 
     /**
