@@ -39,13 +39,52 @@ def alice(click_config,
           config_file,
           provider_uri,
           registry_filepath,
+          dev,
           dry_run):
 
     if action == 'init':
-        pass
+        """Create a brand-new persistent Alice"""
 
-    if action == "start-controller":
-        alice_config = AliceConfiguration.from_configuration_file(
+        if dev and not quiet:
+            click.secho("WARNING: Using temporary storage area", fg='yellow')
+
+        if not config_root:                         # Flag
+            config_root = click_config.config_file  # Envvar
+
+        alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
+                                                     config_root=config_root,
+                                                     rest_host="localhost",
+                                                     domains={network} if network else None,
+                                                     federated_only=True,
+                                                     no_registry=True,  # Yes we have no registry
+                                                     provider_uri=provider_uri,
+                                                     )
+
+        if not quiet:
+            click.secho("Generated keyring {}".format(alice_config.keyring_dir), fg='green')
+            click.secho("Saved configuration file {}".format(alice_config.config_file_location), fg='green')
+
+            # Give the use a suggestion as to what to do next...
+            how_to_run_message = "\nTo run an Alice node from the default configuration filepath run: \n\n'{}'\n"
+            suggested_command = 'nucypher alice run'
+            if config_root is not None:
+                config_file_location = os.path.join(config_root, config_file or AliceConfiguration.CONFIG_FILENAME)
+                suggested_command += ' --config-file {}'.format(config_file_location)
+            click.secho(how_to_run_message.format(suggested_command), fg='green')
+            return  # FIN
+
+        else:
+            click.secho("OK")
+
+    if action == "run":
+        if dev:
+            alice_config = AliceConfiguration(dev_mode=True,
+                                              domains={network},
+                                              provider_uri=provider_uri,
+                                              federated_only=True,
+                                              )
+        else:
+            alice_config = AliceConfiguration.from_configuration_file(
                                             filepath=config_file,
                                             domains={network or GLOBAL_DOMAIN},
                                             rest_port=rest_port,
@@ -70,7 +109,7 @@ def alice(click_config,
             teacher_nodes.append(teacher_node)
 
         drone_alice = alice_config(known_nodes=teacher_nodes)
-        alice_control = make_alice_control(alice, teacher_node)
+        alice_control = Alice.make_wsgi_app(alice, teacher_node)
 
         if dry_run:
             return
