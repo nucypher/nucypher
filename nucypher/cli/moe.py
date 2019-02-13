@@ -2,6 +2,7 @@ import json
 import os.path
 
 import click
+from constant_sorrow import constants
 from flask import Flask, render_template
 from twisted.logger import globalLogPublisher
 
@@ -10,11 +11,9 @@ from hendrix.experience import hey_joe
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import NETWORK_PORT
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import SimpleObserver
-
 
 globalLogPublisher.addObserver(SimpleObserver())
 
@@ -78,8 +77,15 @@ def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
                                                        minimum_stake=min_stake)
         teacher_nodes.append(teacher_node)
 
+    # Deserialize network domain name if override passed
+    if network:
+        domain_constant = getattr(constants, network.upper())
+        domains = {domain_constant}
+    else:
+        domains = None
+
     monitor = Moe(
-        domains=network or GLOBAL_DOMAIN,
+        domains=domains,
         network_middleware=RestMiddleware(),
         known_nodes=teacher_nodes,
         federated_only=True,
