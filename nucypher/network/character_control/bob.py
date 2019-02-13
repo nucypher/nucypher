@@ -50,7 +50,6 @@ def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
             label = b64decode(request_data['label'])
             policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
             alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
-            datasource_pubkey_sig = bytes.fromhex(request_data['datasource_signing_pubkey'])
             message_kit = b64decode(request_data['message_kit'])
         except (KeyError, JSONDecodeError) as e:
             return Response(e, status=400)
@@ -58,6 +57,8 @@ def make_bob_control(drone_bob: Bob, teacher_node: Ursula):
         policy_pubkey_enc = UmbralPublicKey.from_bytes(policy_pubkey_enc)
         alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
         message_kit = UmbralMessageKit.from_bytes(message_kit)
+
+        datasource_pubkey_sig = bytes(message_kit.sender_pubkey_sig)
 
         data_source = DataSource.from_public_keys(policy_pubkey_enc,
                                                   datasource_pubkey_sig,

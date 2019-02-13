@@ -273,6 +273,9 @@ class Alice(Character, PolicyAuthor):
             response_data = {
                 'result': {
                     'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
+                    'policy_encrypting_pubkey': bytes(new_policy.public_key).hex(),
+                    'alice_signing_pubkey': bytes(new_policy.alice.stamp).hex(),
+                    'label': b64encode(new_policy.label).decode(),
                 }
             }
 
