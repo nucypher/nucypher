@@ -22,8 +22,12 @@ from os.path import abspath, dirname
 
 import itertools
 import shutil
-from solc import install_solc, compile_files
-from solc.exceptions import SolcError
+
+try:
+    from solc import install_solc, compile_files
+    from solc.exceptions import SolcError
+except ImportError:
+    pass  # TODO: Issue #461 and #758 - Include precompiled ABI; Do not use py-solc in standard installation
 
 
 class SolidityCompiler:

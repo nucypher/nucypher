@@ -274,12 +274,13 @@ commands:
             nucypher --help
 
   pip_install:
-    description: "Install Python dependencies with Pip"
+    description: "Install NuCypher with Pip"
     steps:
       - checkout
       - run:
           name: Install Python Dependencies with Pip
           command: pip3 install --user .
+      - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
       - run:
           name: Install Python Development Dependencies with Pip
           command: pip3 install -r dev-requirements.txt --user .
