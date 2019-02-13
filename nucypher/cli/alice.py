@@ -7,13 +7,15 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.network.control.alice import make_alice_control
+from nucypher import network
 from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.network import character_control
 
 
 @click.command()
 @click.argument('action')
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-port', help="The host port to run Alice's character control service on", type=NETWORK_PORT)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
@@ -27,6 +29,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @nucypher_click_config
 def alice(click_config,
           action,
+          quiet,
           teacher_uri,
           min_stake,
           rest_port,
