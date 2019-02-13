@@ -102,6 +102,7 @@ class AliceConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+    DEFAULT_REST_PORT = 8151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
@@ -119,3 +120,4 @@ class BobConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+    DEFAULT_REST_PORT = 7151
