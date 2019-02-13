@@ -3,7 +3,9 @@ import json
 import maya
 
 from base64 import b64encode, b64decode
+from umbral.keys import UmbralPublicKey
 
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
@@ -134,7 +136,8 @@ def test_enrico_character_control_encrypt_message(enrico_control):
     assert response.status_code == 400
 
 
-def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
+def test_character_control_lifecycle(alice_control, bob_control,
+                                     enrico_control_from_alice,
                                      federated_alice, federated_bob):
 
     # Create a policy via Alice control
@@ -162,11 +165,13 @@ def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
     label = b64decode(alice_response_data['result']['label'])
 
     # Encrypt some data via Enrico control
+    # Alice will also be Enrico via Enrico.from_alice
+    # (see enrico_control_from_alice fixture)
     enrico_request_data = {
         'message': b64encode(b"I'm bereaved, not a sap!").decode(),
     }
 
-    response = enrico_control.post('/encrypt_message', data=json.dumps(enrico_request_data))
+    response = enrico_control_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
     assert response.status_code == 200
 
     enrico_response_data = json.loads(response.data)
