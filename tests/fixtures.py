@@ -258,9 +258,8 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key,
-                         label=enacted_federated_policy.label
-                         )
+    enrico = Enrico(policy_pubkey_enc=enacted_federated_policy.public_key,
+                    label=enacted_federated_policy.label)
     message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
     return message_kit, enrico
 
@@ -342,6 +341,16 @@ def bob_control(federated_bob, federated_ursulas):
 def enrico_control(capsule_side_channel):
     _, data_source = capsule_side_channel
     message_kit, enrico = capsule_side_channel
+    enrico_control = enrico.make_wsgi_app()
+    enrico_control.config['DEBUG'] = True
+    enrico_control.config['TESTING'] = True
+    yield enrico_control.test_client()
+
+
+@pytest.fixture(scope='module')
+def enrico_control_from_alice(federated_alice):
+    enrico = Enrico.from_alice(federated_alice, b'test')
+
     enrico_control = enrico.make_wsgi_app()
     enrico_control.config['DEBUG'] = True
     enrico_control.config['TESTING'] = True
