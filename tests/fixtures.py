@@ -29,6 +29,7 @@ from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTok
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
@@ -257,11 +258,11 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    data_source = Enrico(policy_encrypting_key=enacted_federated_policy.public_key,
+    enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key,
                          label=enacted_federated_policy.label
                          )
-    message_kit, _signature = data_source.encrypt_message(b"Welcome to the flippering.")
-    return message_kit, data_source
+    message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
+    return message_kit, enrico
 
 
 #
@@ -331,7 +332,7 @@ def alice_control(federated_alice, federated_ursulas):
 @pytest.fixture(scope='module')
 def bob_control(federated_bob, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
-    bob_control = Bob.make_wsgi_app(federated_bob, teacher_node)
+    bob_control = federated_bob.make_wsgi_app(teacher_node)
     bob_control.config['DEBUG'] = True
     bob_control.config['TESTING'] = True
     yield bob_control.test_client()
@@ -340,7 +341,8 @@ def bob_control(federated_bob, federated_ursulas):
 @pytest.fixture(scope='module')
 def enrico_control(capsule_side_channel):
     _, data_source = capsule_side_channel
-    enrico_control = make_enrico_control(data_source)
+    message_kit, enrico = capsule_side_channel
+    enrico_control = enrico.make_wsgi_app()
     enrico_control.config['DEBUG'] = True
     enrico_control.config['TESTING'] = True
     yield enrico_control.test_client()
