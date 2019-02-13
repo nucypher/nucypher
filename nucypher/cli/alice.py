@@ -1,4 +1,5 @@
 import click
+import os
 
 from nacl.exceptions import CryptoError
 
