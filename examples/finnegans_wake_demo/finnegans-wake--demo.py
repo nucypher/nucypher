@@ -7,7 +7,7 @@ from twisted.logger import globalLogPublisher
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
-from nucypher.data_sources import DataSource as Enrico
+from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
 
@@ -122,7 +122,7 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     enrico_as_understood_by_bob = Enrico.from_public_keys(
         policy_public_key=policy_pubkey,
-        datasource_public_key=data_source_public_key,
+        enrico_public_key=data_source_public_key,
         label=label
     )
 

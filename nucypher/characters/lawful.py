@@ -16,31 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 import random
-import socket
-from collections import OrderedDict
-
-from flask import Flask, request, Response
-from functools import partial
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
-from json.decoder import JSONDecodeError
 from base64 import b64encode, b64decode
+from collections import OrderedDict
+from json.decoder import JSONDecodeError
 
 import maya
 import requests
+import socket
 import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
+from flask import Flask, request, Response
+from functools import partial
 from twisted.internet import threads
 from twisted.logger import Logger
-
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
+from typing import Tuple
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -51,8 +50,9 @@ from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
@@ -995,3 +995,24 @@ class Ursula(Teacher, Character, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+
+class Enrico(Character):
+
+    _default_crypto_powerups = [SigningPower]
+
+    def __init__(self, policy_encrypting_key, label, *args, **kwargs):
+        self.policy_pubkey = policy_encrypting_key
+        self.label = label
+
+        # Encrico never uses the blockchain, hence federated_only)
+        super().__init__(federated_only=True, *args, **kwargs)
+
+    def encrypt_message(self,
+                        message: bytes
+                        ) -> Tuple[UmbralMessageKit, Signature]:
+        message_kit, signature = encrypt_and_sign(self.policy_pubkey,
+                                                  plaintext=message,
+                                                  signer=self.stamp)
+        message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
+        return message_kit, signature

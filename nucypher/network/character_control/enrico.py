@@ -4,10 +4,10 @@ from base64 import b64encode, b64decode
 from flask import Flask, request, Response
 from json.decoder import JSONDecodeError
 
-from nucypher.data_sources import DataSource
+from nucypher.characters.lawful import Enrico
 
 
-def make_enrico_control(drone_enrico: DataSource):
+def make_enrico_control(drone_enrico: Enrico):
     enrico_control = Flask("enrico-control")
 
     @enrico_control.route('/encrypt_message', methods=['POST'])

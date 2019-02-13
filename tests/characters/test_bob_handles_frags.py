@@ -299,6 +299,6 @@ def test_federated_bob_retrieves(federated_bob,
                                                   data_source=the_data_source,
                                                   alice_verifying_key=alices_verifying_key)
 
-    # We show that indeed this is the passage originally encrypted by the DataSource.
+    # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to the flippering." == delivered_cleartexts[0]
 

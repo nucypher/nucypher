@@ -6,7 +6,7 @@ import pytest
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 
 from nucypher.characters.lawful import Bob, Ursula
-from nucypher.data_sources import DataSource
+from nucypher.characters.lawful import Enrico
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.policy.models import TreasureMap
 from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
@@ -38,7 +38,7 @@ def test_federated_bob_retrieves(federated_ursulas,
                                                   data_source=the_data_source,
                                                   alice_verifying_key=alices_verifying_key)
 
-    # We show that indeed this is the passage originally encrypted by the DataSource.
+    # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to the flippering." == delivered_cleartexts[0]
 
 
@@ -86,20 +86,19 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     # In the end, Bob should know all the Ursulas
     assert len(bob.known_nodes) == len(federated_ursulas)
 
-    # DataSource becomes
-    data_source = DataSource(policy_pubkey_enc=policy.public_key,
-                             signing_keypair=SigningKeypair(),
+    # Enrico becomes
+    enrico = Enrico(policy_encrypting_key=policy.public_key,
                              label=label
                              )
 
     plaintext = b"What's your approach?  Mississippis or what?"
-    message_kit, _signature = data_source.encrypt_message(plaintext)
+    message_kit, _signature = enrico.encrypt_message(plaintext)
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve(message_kit=message_kit,
-                                        data_source=data_source,
+                                        data_source=enrico,
                                         alice_verifying_key=alices_verifying_key)
 
     assert plaintext == delivered_cleartexts[0]
@@ -110,7 +109,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit=message_kit,
-                                   data_source=data_source,
+                                   data_source=enrico,
                                    alice_verifying_key=alices_verifying_key)
 
 
