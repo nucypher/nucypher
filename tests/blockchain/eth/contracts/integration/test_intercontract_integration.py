@@ -264,7 +264,7 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
         return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
 
     def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
-        provider = testerchain.interface.providers[0]
+        provider = testerchain.interface.provider
         address = to_canonical_address(account)
         key = provider.ethereum_tester.backend._key_lookup[address]._raw_key
         signed_data = testerchain.interface.w3.eth.account.signHash(data_hash, key)

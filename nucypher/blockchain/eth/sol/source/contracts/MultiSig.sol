@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -28,13 +28,13 @@ contract MultiSig {
         _;
     }
 
-    function () public payable {}
+    function () external payable {}
 
     /**
     * @param _required Number of required signings
     * @param _owners List of initial owners.
     **/
-    constructor (uint8 _required, address[] _owners) public {
+    constructor (uint8 _required, address[] memory _owners) public {
         require(_owners.length > 0 &&
             _owners.length <= MAX_OWNER_COUNT &&
             _required <= _owners.length &&
@@ -42,7 +42,7 @@ contract MultiSig {
 
         for (uint256 i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
-            require(!isOwner[owner] && owner != 0x0);
+            require(!isOwner[owner] && owner != address(0));
             isOwner[owner] = true;
         }
         owners = _owners;
@@ -62,7 +62,7 @@ contract MultiSig {
         address _sender,
         address _destination,
         uint256 _value,
-        bytes _data,
+        bytes memory _data,
         uint256 _nonce
     )
         public view returns (bytes32)
@@ -81,12 +81,12 @@ contract MultiSig {
     * @param _data Call data
     **/
     function execute(
-        uint8[] _sigV,
-        bytes32[] _sigR,
-        bytes32[] _sigS,
+        uint8[] calldata _sigV,
+        bytes32[] calldata _sigR,
+        bytes32[] calldata _sigS,
         address _destination,
         uint256 _value,
-        bytes _data
+        bytes calldata _data
     )
         external
     {
@@ -95,7 +95,7 @@ contract MultiSig {
             _sigR.length == _sigV.length);
 
         bytes32 txHash = getUnsignedTransactionHash(msg.sender, _destination, _value, _data, nonce);
-        address lastAdd = 0x0;
+        address lastAdd = address(0);
         for (uint256 i = 0; i < required; i++) {
             address recovered = ecrecover(txHash, _sigV[i], _sigR[i], _sigS[i]);
             require(recovered > lastAdd && isOwner[recovered]);
@@ -104,7 +104,8 @@ contract MultiSig {
 
         emit Executed(msg.sender, nonce, _destination, _value);
         nonce = nonce.add(1);
-        require(_destination.call.value(_value)(_data));
+        (bool callSuccess,) = _destination.call.value(_value)(_data);
+        require(callSuccess);
     }
 
     /**
@@ -117,7 +118,7 @@ contract MultiSig {
         onlyThisContract
     {
         require(owners.length < MAX_OWNER_COUNT &&
-            _owner != 0x0 &&
+            _owner != address(0) &&
             !isOwner[_owner]);
         isOwner[_owner] = true;
         owners.push(_owner);
