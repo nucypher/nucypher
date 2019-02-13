@@ -345,7 +345,7 @@ def make_rest_app(
             log.info("{} providing TreasureMap {}".format(node_bytes_caster(),
                                                           treasure_map_id))
         except KeyError:
-            log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
+            log.info("{} doesn't have requested TreasureMap {}".format(stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
                                 status=404, headers=headers)
 
