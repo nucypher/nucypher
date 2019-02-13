@@ -129,3 +129,42 @@ def test_enrico_character_control_encrypt_message(enrico_control):
     del(request_data['message'])
     response = enrico_control.post('/encrypt_message', data=request_data)
     assert response.status_code == 400
+
+
+def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
+                                     federated_alice, federated_bob):
+
+    # Create a policy via Alice control
+    alice_request_data = {
+        'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
+        'label': b64encode(b'test').decode(),
+        #'bob_signing_key': bytes(federated_bob.stamp).hex(),
+        'm': 2, 'n': 3,
+        'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+    }
+
+    response = alice_control.put('/grant', data=json.dumps(alice_request_data))
+    assert response.status_code == 200
+
+    alice_response_data = json.loads(response.data)
+    assert 'treasure_map' in alice_response_data['result']
+
+    # Encrypt some data via Enrico control
+    enrico_request_data = {
+        'message': b64encode(b"I'm bereaved, not a sap!").decode(),
+    }
+
+    response = enrico_control.post('/encrypt_message', data=json.dumps(enrico_request_data))
+    assert response.status_code == 200
+
+    enrico_response_data = json.loads(response.data)
+    assert 'message_kit' in enrico_response_data['result']
+    assert 'signature' in enrico_response_data['result']
+
+    kit_bytes = b64decode(enrico_response_data['result']['message_kit'])
+    bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
+
+    # Retrieve data via Bob control
+    bob_request_data = {
+        'label': b64encode(b'test'),
+    }
