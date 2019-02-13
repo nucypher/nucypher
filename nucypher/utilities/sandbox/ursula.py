@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import random
 
+from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from typing import Union, Set
 
@@ -112,3 +113,19 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
     return ursulas
 
+
+def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
+    """
+    Takes an ursula and starts its learning
+    services when running tests with pytest twisted.
+    """
+
+    node_deployer = ursula.get_deployer()
+
+    node_deployer.addServices()
+    node_deployer.catalogServers(node_deployer.hendrix)
+    node_deployer.start()
+
+    _certificate_as_deployed = node_deployer.cert.to_cryptography()
+
+    return _certificate_as_deployed
