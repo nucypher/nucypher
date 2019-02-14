@@ -79,9 +79,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert label == policy.label
 
     # Now, Bob joins the policy
-    bob.join_policy(label=label,
-                    alice_pubkey_sig=federated_alice.stamp,
-                    )
+    bob.join_policy(label=label, alice_pubkey_sig=federated_alice.stamp)
 
     # In the end, Bob should know all the Ursulas
     assert len(bob.known_nodes) == len(federated_ursulas)
