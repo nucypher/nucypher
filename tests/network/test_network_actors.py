@@ -16,8 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
-
 import pytest
 from binascii import unhexlify
 from hendrix.experience import crosstown_traffic
@@ -43,8 +41,8 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
             if address == propagating_ursula.checksum_public_address:
                 continue
             else:
-                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}".format(propagating_ursula,
-                                                                                                                nickname_from_seed(address))
+                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}".\
+                    format(propagating_ursula, nickname_from_seed(address))
 
 
 @pytest.mark.slow()
@@ -52,8 +50,6 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
     blockchain_alice.known_nodes = {}
-
-    some_ursula_interface = blockchain_ursulas.pop().rest_interface
 
     new_nodes = blockchain_alice.learn_from_teacher_node()
 
@@ -86,7 +82,8 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice, federated_bob, federated_ursulas, enacted_federated_policy):
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice, federated_bob, federated_ursulas,
+                                                                  enacted_federated_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """

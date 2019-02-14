@@ -117,5 +117,3 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents):
 
     final_balance = token_agent.get_balance(miner.checksum_public_address)
     assert final_balance > initial_balance
-
-

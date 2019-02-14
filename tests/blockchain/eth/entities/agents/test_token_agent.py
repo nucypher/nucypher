@@ -93,4 +93,3 @@ def test_transfer(agent):
 
     new_balance = agent.get_balance(someone)
     assert new_balance == old_balance + MIN_ALLOWED_LOCKED
-

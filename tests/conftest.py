@@ -19,8 +19,7 @@ import pytest
 from twisted.logger import globalLogPublisher
 
 from nucypher.cli.config import NucypherClickConfig
-#
-from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger, logToSentry
+from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
 
 # Logger Configuration
 #

@@ -17,8 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from functools import partial
 
-import maya
-import pytest
 import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
@@ -66,7 +64,8 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
         any_other_ursula.log.info(
             "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
         any_other_ursula.start_learning_loop()
-        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_public_address]), timeout=2)
+        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_public_address]),
+                                                                       timeout=2)
         assert result
 
     yield deferToThread(start_lonely_learning_loop)

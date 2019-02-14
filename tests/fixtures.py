@@ -242,7 +242,7 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob):
 
 @pytest.fixture(scope="module")
 def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
-    # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
+    # Alice has a policy in mind and knows of enough qualified Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()

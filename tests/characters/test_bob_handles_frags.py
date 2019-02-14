@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 import pytest_twisted
-from tempfile import TemporaryDirectory
 from twisted.internet import threads
 
 from umbral import pre
@@ -48,7 +47,8 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
     assert len(known) == 0
 
 
-def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, federated_ursulas, federated_bob, federated_alice):
+def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, federated_ursulas, federated_bob,
+                                                     federated_alice):
     # Bob knows of no Ursulas.
     assert len(federated_bob.known_nodes) == 0
 
@@ -125,7 +125,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, federated_bob,
                                                          federated_alice, federated_ursulas, capsule_side_channel):
     """
-    Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
+    Now that Bob has his list of Ursulas, he can issue a WorkOrder to one. Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
@@ -136,13 +136,11 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
     map_id = treasure_map.public_id()
     federated_bob.treasure_maps[map_id] = treasure_map
-    d = federated_bob.start_learning_loop()
+    federated_bob.start_learning_loop()
 
     federated_bob.follow_treasure_map(map_id=map_id, block=True, timeout=1)
 
     assert len(federated_bob.known_nodes) == len(federated_ursulas)
-
-    the_hrac = enacted_federated_policy.hrac()
 
     # Bob has no saved work orders yet, ever.
     assert len(federated_bob._saved_work_orders) == 0
@@ -185,13 +183,13 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert len(federated_bob._saved_work_orders.by_ursula[ursula_id]) == 1
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
-    # the correct cFrag (ie, that Ursula performed reencryption properly).
+    # the correct cFrag (ie, that Ursula performed re-encryption properly).
     for u in federated_ursulas:
         if u.rest_information()[0].port == work_order.ursula.rest_information()[0].port:
             ursula = u
             break
     else:
-        raise RuntimeError("We've lost track of the Ursula that has the WorkOrder.  Can't really proceed.")
+        raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
         work_order.arrangement_id.hex().encode()).kfrag
@@ -199,7 +197,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
-    assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(the_correct_cfrag)[:CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
+    assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(
+        the_correct_cfrag)[:CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
 
     assert the_correct_cfrag.verify_correctness(capsule)
 
@@ -217,11 +216,11 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert len(capsule_side_channel[0].capsule._attached_cfrags) == 1
 
     # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
-    workorders_by_capsule = federated_bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)
+    work_orders_by_capsule = federated_bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)
 
     # Bob has just one WorkOrder from that one Ursula.
-    assert len(workorders_by_capsule) == 1
-    saved_work_order = list(workorders_by_capsule.values())[0]
+    assert len(work_orders_by_capsule) == 1
+    saved_work_order = list(work_orders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     generated_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
@@ -230,7 +229,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
-    id_of_ursula_from_whom_we_already_have_a_cfrag = list(workorders_by_capsule.keys())[0]
+    id_of_ursula_from_whom_we_already_have_a_cfrag = list(work_orders_by_capsule.keys())[0]
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
     # ...and, although this WorkOrder has the same capsules as the saved one...

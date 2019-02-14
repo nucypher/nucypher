@@ -74,4 +74,3 @@ def test_rapid_deployment():
         allocation_data.append(random_allocation)
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data)
-

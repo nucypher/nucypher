@@ -76,7 +76,8 @@ def test_old_state_is_preserved(federated_ursulas, ursula_federated_test_config)
     proper_first_state = sorted([some_ursula_in_the_fleet, lonely_learner], key=lambda n: n.checksum_public_address)
     assert lonely_learner.known_nodes.states[checksum_after_learning_one].nodes == proper_first_state
 
-    proper_second_state = sorted([some_ursula_in_the_fleet, another_ursula_in_the_fleet, lonely_learner], key=lambda n: n.checksum_public_address)
+    proper_second_state = sorted([some_ursula_in_the_fleet, another_ursula_in_the_fleet, lonely_learner],
+                                 key=lambda n: n.checksum_public_address)
     assert lonely_learner.known_nodes.states[checksum_after_learning_two].nodes == proper_second_state
 
 

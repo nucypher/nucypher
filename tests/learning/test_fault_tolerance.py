@@ -106,7 +106,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     """
     his_target = list(blockchain_ursulas)[4]
 
-    fraduluent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)
+    fraudulent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)
 
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
@@ -147,6 +147,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 1
+    #TODO: Why no assert? Is this in progress?
     warnings[0]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
                                                                         learner.LEARNER_VERSION)
 
@@ -159,6 +160,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 2
+    # TODO: Why no assert? Is this in progress?
     warnings[1]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
                                                                         learner.LEARNER_VERSION)
 

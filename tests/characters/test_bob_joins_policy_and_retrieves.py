@@ -113,7 +113,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
     treasure_map = enacted_federated_policy.treasure_map
-    assert treasure_map.m != None
+    assert treasure_map.m is not None
     assert treasure_map.m != NO_DECRYPTION_PERFORMED
     assert treasure_map.m == MOCK_POLICY_DEFAULT_M, 'm value is not correct'
 

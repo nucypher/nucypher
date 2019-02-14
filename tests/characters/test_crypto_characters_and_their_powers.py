@@ -40,11 +40,11 @@ def test_actor_without_signing_power_cannot_sign():
                            federated_only=True)
 
     # The non-signer's stamp doesn't work for signing...
-    with pytest.raises(NoSigningPower) as e_info:
+    with pytest.raises(NoSigningPower):
         non_signer.stamp("something")
 
     # ...or as a way to cast the (non-existent) public key to bytes.
-    with pytest.raises(NoSigningPower) as e_info:
+    with pytest.raises(NoSigningPower):
         bytes(non_signer.stamp)
 
 
@@ -111,7 +111,7 @@ def test_character_blockchain_power(testerchain):
     sig = power.sign_message(data_to_sign)
 
     is_verified = power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign, sig)
-    assert is_verified == True
+    assert is_verified is True
 
     # Test a bad message:
     with pytest.raises(PowerUpError):
