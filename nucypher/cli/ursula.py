@@ -49,6 +49,7 @@ from nucypher.utilities.logging import (
     getJsonFileObserver,
     SimpleObserver)
 
+from nucypher.cli.actions import destroy_system_configuration
 
 @click.command()
 @click.argument('action')
@@ -194,47 +195,14 @@ def ursula(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        try:
-            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file, domains={network})
-
-        except FileNotFoundError:
-            config_root = config_root or DEFAULT_CONFIG_ROOT
-            config_file_location = config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
-
-            if not force:
-                message = "No configuration file found at {}; \n" \
-                          "Destroy top-level configuration directory: {}?".format(config_file_location, config_root)
-                click.confirm(message, abort=True)  # ABORT
-
-            shutil.rmtree(config_root, ignore_errors=False)
-
-        else:
-            if not force:
-                click.confirm('''
-*Permanently and irreversibly delete all* nucypher files including
-    - Private and Public Keys
-    - Known Nodes
-    - TLS certificates
-    - Node Configurations
-    - Log Files
-
-Delete {}?'''.format(ursula_config.config_root), abort=True)
-
-            try:
-                ursula_config.destroy(force=force)
-            except FileNotFoundError:
-                message = 'Failed: No nucypher files found at {}'.format(ursula_config.config_root)
-                click.secho(message, fg='red')
-                log.debug(message)
-                raise click.Abort()
-            else:
-                message = "Deleted configuration files at {}".format(ursula_config.config_root)
-                click.secho(message, fg='green')
-                log.debug(message)
-
+        destroy_system_configuration(config_class=UrsulaConfiguration,
+                                     config_file=config_file,
+                                     network=network,
+                                     config_root=config_root,
+                                     force=force,
+                                     log=log)
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
-
         return
 
     # Development Configuration
