@@ -260,6 +260,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 def capsule_side_channel(enacted_federated_policy):
     enrico = Enrico(policy_pubkey_enc=enacted_federated_policy.public_key,
                     label=enacted_federated_policy.label)
+
     message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
     return message_kit, enrico
 
