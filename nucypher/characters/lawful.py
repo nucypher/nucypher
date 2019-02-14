@@ -121,7 +121,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
+    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None, timeout=10):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -151,7 +151,7 @@ class Alice(Character, PolicyAuthor):
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < n:
-            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True, timeout=timeout)
             if not good_to_go:
                 raise ValueError(
                     "To make a Policy in federated mode, you need to know about\
