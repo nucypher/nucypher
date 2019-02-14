@@ -1,0 +1,10 @@
+[Unit]
+Description="Go Ethereum Discovery Bootnode Service"
+
+[Service]
+User=root
+Type=simple
+ExecStart=/usr/bin/bootnode --nodekey /home/ubuntu/bootnode.key --verbosity 6
+
+[Install]
+WantedBy=multi-user.target

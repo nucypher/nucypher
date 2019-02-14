@@ -1,0 +1,13 @@
+[Unit]
+Description="Ethereum Netstats Service"
+
+[Service]
+User=ubuntu
+Type=simple
+WorkingDirectory=/home/ubuntu/code
+Environment=PORT={{ port }}
+Environment=WS_SECRET={{ secret }}
+ExecStart=/usr/bin/npm start
+
+[Install]
+WantedBy=multi-user.target

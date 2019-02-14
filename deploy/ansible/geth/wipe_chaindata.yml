@@ -1,0 +1,86 @@
+---
+
+- name: "Reset Geth Nodes"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_miners' }}"
+  user: ubuntu
+  gather_facts: false
+
+  pre_tasks:
+    - name: "Install Python2.7 for Ansible Control"
+      raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
+
+  tasks:
+    - name: "Stop Geth Node Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: stopped
+        name: "geth_miner"
+
+    - name: "Destroy Custom Blockchain Data Directory"
+      become: yes
+      become_flags: "-H -S"
+      file:
+        path: /home/ubuntu/chaindata
+        state: absent
+        mode: 0755
+
+    - name: "Create Custom Blockchain Data Directory"
+      file:
+        path: /home/ubuntu/chaindata
+        state: directory
+        mode: 0755
+
+    - name: "Render Genesis Configuration"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ./files/genesis.j2
+        dest: /home/ubuntu/genesis.json
+        mode: 0755
+
+    - name: "Learn About Existing Accounts"
+      shell: geth account list --datadir {{datadir}}
+      register: geth_accounts
+      vars:
+        datadir: "/home/ubuntu/chaindata"
+
+    - name: "Initialize Blockchain Database"
+      become: yes
+      become_flags: "-H -S"
+      shell: geth --datadir {{datadir}} --networkid {{networkid}} init {{genesis_file}}
+      vars:
+        networkid: "112358"
+        datadir: "/home/ubuntu/chaindata"
+        genesis_file: "/home/ubuntu/genesis.json"
+
+    - name: "Render Geth Node Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../../services/geth_miner.j2
+        dest: /etc/systemd/system/geth_miner.service
+        mode: 0755
+      vars:
+        etherbase: "0"
+        datadir: "/home/ubuntu/chaindata"
+        networkid: "112358"
+        syncmode: "full"
+        nickname: "testnet-miner-{{ inventory_hostname }}"
+        eth_netstats_secret: "{{ lookup('env', 'ETH_NETSTATS_SECRET') }}"
+        eth_netstats_ip: "{{ hostvars[groups['tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_eth_netstats'][0]].ansible_host }}"
+        eth_netstats_port: "3000"
+        bootnode_uri: "{{ lookup('file', './files/bootnodes.txt') }}"
+
+    - name: "Enable and Start Geth Node Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "geth_miner"

@@ -149,7 +149,8 @@
             var stateTemplate = Handlebars.compile(document.getElementById("state-template").innerHTML);
             var nodeTemplate = Handlebars.compile(document.getElementById("node-template").innerHTML);
 
-            const socket = new WebSocket("ws://localhost:9000");
+            const origin_hostname = window.location.hostname;
+            const socket = new WebSocket("ws://"+ origin_hostname +":9000");
             socket.binaryType = "arraybuffer";
 
             socket.onopen = function () {
