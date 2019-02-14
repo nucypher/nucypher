@@ -101,14 +101,26 @@ class NodeIsDownMiddleware(MockRestMiddleware):
                                  "get_treasure_map_from_node",
                                  "put_treasure_map_on_node",
                                  "get_nodes_via_rest",
+                                 "consider_arrangement",
                                  )
 
-        def see_if_node_is_pretending_to_be_down(node, *args, **kwargs):
-            if getattr(node, "_is_pretending_to_be_down", False):
-                raise socket.gaierror
-            else:
-                method = getattr(MockRestMiddleware, method_name)
-                return method(self, node, *args, **kwargs)
+        def see_if_node_is_pretending_to_be_down(*args, **kwargs):
+            node = kwargs.get("node")
+            arrangement = kwargs.get("arrangement")
+            if node:
+                if getattr(node, "_is_pretending_to_be_down", False):
+                    raise socket.gaierror
+            elif arrangement:
+                    # In the case that this is actually an arrangement.
+                    if getattr(arrangement.ursula, "_is_pretending_to_be_down", False):
+                        raise ConnectionRefusedError
+                    else:
+                        print(f"{arrangement.ursula} is up.")
+
+            # If we didn't raise...
+            method = getattr(MockRestMiddleware, method_name)
+            return method(self, *args, **kwargs)
+
 
         if method_name in methods_that_are_down:
             return see_if_node_is_pretending_to_be_down
