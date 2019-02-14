@@ -90,6 +90,32 @@ class MockRestMiddleware(RestMiddleware):
         return ursula.certificate
 
 
+class NodeIsDownMiddleware(MockRestMiddleware):
+    """
+    Modified middleware to emulate one node being down amongst many.
+    """
+
+    def __getattribute__(self, method_name):
+        methods_that_are_down = ("enact_policy",
+                                 "revoke_arrangement",
+                                 "get_treasure_map_from_node",
+                                 "put_treasure_map_on_node",
+                                 "get_nodes_via_rest",
+                                 )
+
+        def see_if_node_is_pretending_to_be_down(node, *args, **kwargs):
+            if getattr(node, "_is_pretending_to_be_down", False):
+                raise socket.gaierror
+            else:
+                method = getattr(MockRestMiddleware, method_name)
+                return method(self, node, *args, **kwargs)
+
+        if method_name in methods_that_are_down:
+            return see_if_node_is_pretending_to_be_down
+        else:
+            return MockRestMiddleware.__getattribute__(self, method_name)
+
+
 class EvilMiddleWare(MockRestMiddleware):
     """
     Middleware for assholes.
