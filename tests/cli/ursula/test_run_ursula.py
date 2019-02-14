@@ -74,7 +74,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
                                          input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
     assert result.exit_code == 0
-    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
+    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT+101)
 
     reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert MOCK_URSULA_STARTING_PORT not in reserved_ports
