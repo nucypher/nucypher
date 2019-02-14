@@ -79,17 +79,13 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert label == policy.label
 
     # Now, Bob joins the policy
-    bob.join_policy(label=label,
-                    alice_pubkey_sig=federated_alice.stamp,
-                    )
+    bob.join_policy(label=label, alice_pubkey_sig=federated_alice.stamp)
 
     # In the end, Bob should know all the Ursulas
     assert len(bob.known_nodes) == len(federated_ursulas)
 
     # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=policy.public_key,
-                             label=label
-                             )
+    enrico = Enrico(policy_pubkey_enc=policy.public_key, label=label)
 
     plaintext = b"What's your approach?  Mississippis or what?"
     message_kit, _signature = enrico.encrypt_message(plaintext)

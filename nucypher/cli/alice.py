@@ -5,7 +5,7 @@ from nacl.exceptions import CryptoError
 
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
-from nucypher.characters.lawful import Ursula
+from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher import network
 from nucypher.config.constants import GLOBAL_DOMAIN
