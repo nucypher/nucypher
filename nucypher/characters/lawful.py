@@ -206,12 +206,9 @@ class Alice(Character, PolicyAuthor):
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
 
-    def make_wsgi_app(drone_alice, teacher_node: "Ursula"):
+    def make_wsgi_app(drone_alice, start_learning=True):
         alice_control = Flask("alice-control")
-
-        teacher_node.verify_node(drone_alice.network_middleware)
-        drone_alice.remember_node(teacher_node)
-        drone_alice.start_learning_loop(now=True)
+        drone_alice.start_learning_loop(now=start_learning)
 
         @alice_control.route("/create_policy", methods=['PUT'])
         def create_policy():
