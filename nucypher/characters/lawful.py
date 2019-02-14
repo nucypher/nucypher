@@ -55,6 +55,7 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
@@ -434,18 +435,21 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self.known_nodes:
-            response = networky_stuff.get_treasure_map_from_node(node, map_id)
+        from nucypher.policy.models import TreasureMap
+        for node in self.known_nodes.shuffled():
+            try:
+                response = networky_stuff.get_treasure_map_from_node(node, map_id)
+            except NodeSeemsToBeDown:
+                continue
 
             if response.status_code == 200 and response.content:
-                from nucypher.policy.models import TreasureMap
                 treasure_map = TreasureMap.from_bytes(response.content)
                 break
             else:
                 continue  # TODO: Actually, handle error case here.
         else:
             # TODO: Work out what to do in this scenario - if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
-            assert False
+            raise TreasureMap.NowhereToBeFound
 
         return treasure_map
 
@@ -866,7 +870,7 @@ class Ursula(Teacher, Character, Miner):
                                                        checksum_address=checksum_address,
                                                        minimum_stake=min_stake)
 
-            except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
+            except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
                 log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
                 time.sleep(interval)

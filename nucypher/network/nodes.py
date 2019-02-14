@@ -44,6 +44,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
@@ -406,7 +407,7 @@ class Learner:
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
 
-        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+        except NodeSeemsToBeDown:
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
             return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
 
