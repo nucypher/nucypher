@@ -49,7 +49,6 @@ try:
     alicia = new_alice_config(passphrase=passphrase)
 
 except:
-
     # If anything fails, let's create Alicia from scratch
     # Remove previous demo files and create new ones
 

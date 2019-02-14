@@ -387,7 +387,7 @@ class TreasureMap:
                                                                 signer=alice_stamp,
                                                                 )
         """
-        Here's our "hashed resource authentication code".
+        Here's our "hashed resource access code".
 
         A hash of:
         * Alice's public key

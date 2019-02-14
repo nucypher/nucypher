@@ -7,9 +7,7 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher import network
 from nucypher.config.constants import GLOBAL_DOMAIN
-from nucypher.network import character_control
 
 
 @click.command()
