@@ -243,6 +243,29 @@ class Alice(Character, PolicyAuthor):
             # TODO: Serialize the policy
             return Response('Policy created!', status=200)
 
+        @alice_control.route('/derive_policy_pubkey', methods=['POST'])
+        def derive_policy_pubkey():
+            """
+            Character control endpoint for deriving a policy pubkey given
+            a label.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label)
+
+            response_data = {
+                'result': {
+                    'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
         @alice_control.route("/grant", methods=['PUT'])
         def grant():
             """
@@ -253,7 +276,8 @@ class Alice(Character, PolicyAuthor):
             try:
                 request_data = json.loads(request.data)
 
-                bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
                 label = b64decode(request_data['label'])
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
@@ -261,8 +285,8 @@ class Alice(Character, PolicyAuthor):
                     request_data['expiration_time'])
                 federated_only = True  # const for now
 
-                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
-                                            SigningPower: None},
+                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
+                                            SigningPower: bob_pubkey_sig},
                                            federated_only=True)
             except (KeyError, JSONDecodeError) as e:
                 return Response(str(e), status=400)
@@ -558,7 +582,7 @@ class Bob(Character):
             message_kit = UmbralMessageKit.from_bytes(message_kit)
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
-                                                  policy_encrypting_key=policy_encrypting_key,
+                                                  policy_pubkey_enc=policy_encrypting_key,
                                                   label=label)
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
@@ -1068,8 +1092,8 @@ class Enrico(Character):
 
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, label, *args, **kwargs):
-        self.policy_pubkey = policy_encrypting_key
+    def __init__(self, policy_pubkey_enc, label, *args, **kwargs):
+        self.policy_pubkey = policy_pubkey_enc
         self.label = label
 
         # Encrico never uses the blockchain, hence federated_only)
@@ -1084,6 +1108,12 @@ class Enrico(Character):
                                                   signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
         return message_kit, signature
+
+    @classmethod
+    def from_alice(cls, alice: Alice, label: bytes):
+        policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
+        return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
+                   policy_pubkey_enc=policy_pubkey_enc, label=label)
 
     def make_wsgi_app(drone_enrico):
         enrico_control = Flask("enrico-control")

@@ -243,7 +243,7 @@ def test_alice_can_decrypt(federated_alice):
 
     policy_pubkey = federated_alice.get_policy_pubkey_from_label(label)
 
-    enrico = Enrico(policy_encrypting_key=policy_pubkey,
+    enrico = Enrico(policy_pubkey_enc=policy_pubkey,
                     label=label)
 
     message = b"boring test message"

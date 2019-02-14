@@ -3,7 +3,9 @@ import json
 import maya
 
 from base64 import b64encode, b64decode
+from umbral.keys import UmbralPublicKey
 
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
@@ -14,6 +16,7 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
@@ -31,11 +34,31 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
     response = alice_control.put('/create_policy', data=json.dumps(request_data))
 
 
+def test_alice_character_control_derive_policy_pubkey(alice_control):
+    request_data = {
+        'label': b64encode(b'test').decode(),
+    }
+    response = alice_control.post('/derive_policy_pubkey', data=json.dumps(request_data))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'policy_encrypting_pubkey' in response_data['result']
+
+    # Test bad data returns an error
+    response = alice_control.post('/derive_policy_pubkey', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['label'])
+    response = alice_control.post('/derive_policy_pubkey', data=request_data)
+    assert response.status_code == 400
+
+
 def test_alice_character_control_grant(alice_control, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
@@ -109,7 +132,6 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
 
 
 def test_enrico_character_control_encrypt_message(enrico_control):
-
     request_data = {
         'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
     }
@@ -134,14 +156,15 @@ def test_enrico_character_control_encrypt_message(enrico_control):
     assert response.status_code == 400
 
 
-def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
+def test_character_control_lifecycle(alice_control, bob_control,
+                                     enrico_control_from_alice,
                                      federated_alice, federated_bob):
 
     # Create a policy via Alice control
     alice_request_data = {
         'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
         'label': b64encode(b'test').decode(),
-        #'bob_signing_key': bytes(federated_bob.stamp).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'm': 2, 'n': 3,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
@@ -162,11 +185,13 @@ def test_character_control_lifecycle(alice_control, bob_control, enrico_control,
     label = b64decode(alice_response_data['result']['label'])
 
     # Encrypt some data via Enrico control
+    # Alice will also be Enrico via Enrico.from_alice
+    # (see enrico_control_from_alice fixture)
     enrico_request_data = {
         'message': b64encode(b"I'm bereaved, not a sap!").decode(),
     }
 
-    response = enrico_control.post('/encrypt_message', data=json.dumps(enrico_request_data))
+    response = enrico_control_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
     assert response.status_code == 200
 
     enrico_response_data = json.loads(response.data)
