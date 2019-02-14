@@ -26,7 +26,7 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
 
 ### How to run the demo
 #### Run local node/fleet of nodes
-The code for the NuCypher node can be obtained from [NuCypher (v0.1.0-alpha.8)](https://github.com/nucypher/nucypher/tree/v0.1.0-alpha.8)
+The code for the NuCypher node can be obtained from [NuCypher (v0.1.0-alpha.12)](https://github.com/nucypher/nucypher/tree/v0.1.0-alpha.12)
 
 Install dependencies (only for the first time): <http://docs.nucypher.com/en/latest/guides/installation_guide.html#pipenv-development-installation>
 

@@ -23,7 +23,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.data_sources import DataSource
 from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, UnexpectedResponse
 
 from umbral.keys import UmbralPublicKey
 
@@ -259,8 +259,13 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
                 )
 
                 hb = msgpack.loads(retrieved_plaintexts[0], raw=False)
+            except UnexpectedResponse as e:
+                # for the demo, this happens when bob's access is revoked
+                print(e)
+                policy_joined.pop(bob_id, None)
+                return ACCESS_DISALLOWED
             except Exception as e:
-                print(str(e))
+                print(e)
                 continue
 
             timestamp = row['Timestamp']
