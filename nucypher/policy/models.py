@@ -37,6 +37,7 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
 
@@ -190,10 +191,15 @@ class Policy:
         responses = dict()
         for node in self.alice.known_nodes:
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
-            response = network_middleware.put_treasure_map_on_node(node,
-                                                                   self.treasure_map.public_id(),
-                                                                   bytes(self.treasure_map)
-                                                                   )  # TODO: Certificate filepath needs to be looked up and passed here
+            try:
+                response = network_middleware.put_treasure_map_on_node(node,
+                                                                       self.treasure_map.public_id(),
+                                                                       bytes(self.treasure_map)
+                                                                       )  # TODO: Certificate filepath needs to be looked up and passed here
+            except NodeSeemsToBeDown:
+                # TODO: Introduce good failure mode here if too few nodes receive the map.
+                continue
+
             if response.status_code == 202:
                 responses[node] = response
                 # TODO: Handle response wherein node already had a copy of this TreasureMap.  341
@@ -299,10 +305,14 @@ class Policy:
                                                   value=deposit,
                                                   expiration=expiration,
                                                   )
-
-            self.consider_arrangement(ursula=selected_ursula,
-                                      arrangement=arrangement,
-                                      network_middleware=network_middleware)
+            try:
+                self.consider_arrangement(ursula=selected_ursula,
+                                          arrangement=arrangement,
+                                          network_middleware=network_middleware)
+            except NodeSeemsToBeDown:
+                # This arrangment won't be added to the accepted bucket.
+                # If too many nodes are down, it will fail in make_arrangements.
+                continue
 
 
 class FederatedPolicy(Policy):
