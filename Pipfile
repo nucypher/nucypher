@@ -14,7 +14,7 @@ dash-table = "==3.1.11"
 pandas = "==0.23.4"
 plotly = "==3.5.0"
 umbral = "==0.1.3a0"
-nucypher = "==0.1.0a8"
+nucypher = "==0.1.0a12"
 
 [requires]
 python_version = "3.7"

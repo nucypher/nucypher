@@ -152,6 +152,9 @@ layout = html.Div([
     ])
 ])
 
+# store and track policies pub_key_hex -> policy
+granted_policies = dict()
+
 
 @app.callback(
     Output('policy-label', 'children'),
@@ -188,8 +191,7 @@ def create_policy_key(policy_label):
     [Event('grant-button', 'click'),
      Event('revoke-button', 'click')]
 )
-def grant_access(revoke_time, grant_time, policy_label,
-                 days, m, n, recipient_enc_pubkey_hex, recipient_sig_pubkey_hex):
+def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_enc_pubkey_hex, recipient_sig_pubkey_hex):
     if policy_label is None:
         # policy not yet created so can't grant access
         return ''
@@ -240,6 +242,8 @@ def grant_access(revoke_time, grant_time, policy_label,
     with open(POLICY_INFO_FILE.format(recipient_enc_pubkey_hex), 'w') as f:
         json.dump(policy_info, f)
 
+    granted_policies[recipient_enc_pubkey_hex] = policy
+
     return 'Access to policy {} granted to recipient with encryption public key: {}!'\
         .format(policy_label, recipient_enc_pubkey_hex)
 
@@ -257,4 +261,17 @@ def revoke_access(grant_time, revoke_time, recipient_pubkey_hex):
         # either triggered at start or because grant was executed
         return ''
 
-    return 'Access revoked to recipient with public key {}! - Not implemented as yet'.format(recipient_pubkey_hex)
+    policy = granted_policies.pop(recipient_pubkey_hex, None)
+    if policy is None:
+        return 'Policy has not been previously granted for recipient with public key {}'.format(recipient_pubkey_hex)
+
+    print("Revoking access to recipient", recipient_pubkey_hex)
+    try:
+        failed_revocations = alicia.revoke(policy=policy)
+        if failed_revocations:
+            return 'WARNING: Access revoked to recipient with public key {} - but {} nodes failed to revoke'\
+                .format(recipient_pubkey_hex, len(failed_revocations))
+
+        return 'Access revoked to recipient with public key {}!'.format(recipient_pubkey_hex)
+    finally:
+        os.remove(POLICY_INFO_FILE.format(recipient_pubkey_hex))
