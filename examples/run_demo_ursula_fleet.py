@@ -70,6 +70,9 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
             def __init__(self, command):
                 self.command = command
 
+            def processEnded(self, reason, *args, **kwargs):
+                print(reason.value)
+
         processProtocol = UrsulaProcessProtocol(command=args)
         p = reactor.spawnProcess(processProtocol, 'nucypher', args, env=env, childFDs=childFDs)
         ursula_processes.append(p)
