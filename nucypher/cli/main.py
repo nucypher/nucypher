@@ -16,16 +16,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import click
 
+import click
+from twisted.logger import Logger
+from twisted.logger import globalLogPublisher
+
+from constant_sorrow import constants
+from constant_sorrow.constants import TEMPORARY_DOMAIN
+from nucypher.characters.lawful import Ursula
 from nucypher.cli import moe, ursula, status, alice
 from nucypher.cli.config import echo_version, nucypher_click_config
-from nucypher.cli.painting import BANNER
+from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes
+from nucypher.cli.processes import UrsulaCommandProtocol
+from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.utilities.logging import GlobalConsoleLogger
 
+GlobalConsoleLogger.start_if_not_started()
 
-#
-# Common CLI
-#
 
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)

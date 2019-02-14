@@ -29,6 +29,7 @@ from zope.interface import provider
 
 import nucypher
 from nucypher.config.constants import USER_LOG_DIR
+from twisted.logger import globalLogPublisher
 
 
 def initialize_sentry(dsn: str):
@@ -66,17 +67,39 @@ def getTextFileObserver(name="ursula.log", path=USER_LOG_DIR):
 
 class SimpleObserver:
 
-    def __init__(self, log_level_name="info"):
-        self.log_level = LogLevel.levelWithName(log_level_name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @provider(ILogObserver)
     def __call__(self, event):
-        if event['log_level'] >= self.log_level:
+        if event['log_level'] >= GlobalConsoleLogger.log_level:
             event['log_format'] = event['log_format']
             print(formatEvent(event))
 
 
-def logToSentry(event):
+class GlobalConsoleLogger:
+
+    log_level = LogLevel.levelWithName("info")
+    started = False
+
+    @classmethod
+    def set_log_level(cls, log_level_name):
+        cls.log_level = LogLevel.levelWithName(log_level_name)
+        if not cls.started:
+            cls.start()
+
+    @classmethod
+    def start(cls):
+        globalLogPublisher.addObserver(SimpleObserver())
+        cls.started = True
+
+    @classmethod
+    def start_if_not_started(cls):
+        if not cls.started:
+            cls.start()
+
+
+def logToSentry(cls,  event):
 
     # Handle Logs...
     if not event.get('isError') or 'failure' not in event:
