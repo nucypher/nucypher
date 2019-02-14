@@ -455,7 +455,7 @@ class Learner:
 
             learning_deferreds = list()
             if not self.lonely:
-                seeder_deferred = deferToThreadPool(reactor, self.load_seednodes)
+                seeder_deferred = deferToThreadPool(reactor, self._learning_threadpool, self.load_seednodes)
                 seeder_deferred.addErrback(self.handle_learning_errors)
                 learning_deferreds.append(seeder_deferred)
 
