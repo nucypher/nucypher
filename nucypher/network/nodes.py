@@ -21,6 +21,8 @@ from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
+
+from twisted.python.threadpool import ThreadPool
 from typing import Set, Tuple
 
 import maya
@@ -31,7 +33,7 @@ from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
-from twisted.internet.threads import deferToThread
+from twisted.internet.threads import deferToThread, deferToThreadPool
 from twisted.logger import Logger
 
 from bytestring_splitter import BytestringSplitter
@@ -260,6 +262,7 @@ class Learner:
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetStateTracker
+    _learning_threadpool = ThreadPool(name="learning-loop", maxthreads=10)
 
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
@@ -445,13 +448,14 @@ class Learner:
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
+            self._learning_threadpool.start()
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
 
             learning_deferreds = list()
             if not self.lonely:
-                seeder_deferred = deferToThread(self.load_seednodes)
+                seeder_deferred = deferToThreadPool(reactor, self.load_seednodes)
                 seeder_deferred.addErrback(self.handle_learning_errors)
                 learning_deferreds.append(seeder_deferred)
 
@@ -460,12 +464,14 @@ class Learner:
             learning_deferreds.append(learner_deferred)
 
             self.learning_deferred = defer.DeferredList(learning_deferreds)
+            self._learning_threadpool.start()
             return self.learning_deferred
 
     def stop_learning_loop(self, reason=None):
         """
         Only for tests at this point.  Maybe some day for graceful shutdowns.
         """
+        self._learning_threadpool.stop()
         self._learning_task.stop()
 
     def handle_learning_errors(self, *args, **kwargs):
@@ -538,7 +544,8 @@ class Learner:
         """
         Continually learn about new nodes.
         """
-        self.learn_from_teacher_node(eager=False)  # TODO: Allow the user to set eagerness?
+        # TODO: Allow the user to set eagerness?
+        return deferToThreadPool(reactor, self._learning_threadpool, self.learn_from_teacher_node, eager=False)
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
@@ -688,9 +695,9 @@ class Learner:
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
-        except requests.exceptions.ConnectionError as e:
+        except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e.args[0]))
+            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
             return
         finally:
             self.cycle_teacher_node()
