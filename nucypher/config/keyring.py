@@ -306,6 +306,8 @@ class NucypherKeyring:
     _private_key_serializer = _PrivateKeySerializer()
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
+    log = Logger("keys")
+
     class KeyringError(Exception):
         pass
 
@@ -461,7 +463,9 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
         try:
+            self.log.info("Unlocking keyring.")
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
+            self.log.info("Finished unlocking.")
         except CryptoError:
             raise
         else:
@@ -577,6 +581,8 @@ class NucypherKeyring:
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+
+            cls.log.info("About to derive key from password.")
             derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)

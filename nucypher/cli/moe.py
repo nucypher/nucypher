@@ -15,8 +15,6 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import SimpleObserver
 
-globalLogPublisher.addObserver(SimpleObserver())
-
 
 class MonitoringTracker(FleetStateTracker):
     def record_fleet_state(self, *args, **kwargs):
@@ -62,6 +60,7 @@ class Moe(Character):
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
+
     """
     "Moe" NuCypher node monitor CLI.
     """

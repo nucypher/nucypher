@@ -38,9 +38,6 @@ TEACHER_URI = f'127.0.0.1:11500'
 
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
-    # Logger
-    globalLogPublisher.addObserver(SimpleObserver())
-
     # Ports
     starting_port = DEMO_NODE_STARTING_PORT
     ports = list(map(str, range(starting_port, starting_port + quantity)))

@@ -47,7 +47,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
-    SimpleObserver)
+    SimpleObserver, GlobalConsoleLogger)
 
 
 @click.command()
@@ -127,7 +127,7 @@ def ursula(click_config,
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
-        globalLogPublisher.addObserver(SimpleObserver(log_level_name='debug'))  # Print
+        GlobalConsoleLogger.set_log_level("debug")
 
     elif quiet:
         globalLogPublisher.removeObserver(logToSentry)
