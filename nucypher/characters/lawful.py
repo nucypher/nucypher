@@ -429,7 +429,7 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id):
         """
         Iterate through swarm, asking for the TreasureMap.
         Return the first one who has it.
@@ -438,7 +438,7 @@ class Bob(Character):
         from nucypher.policy.models import TreasureMap
         for node in self.known_nodes.shuffled():
             try:
-                response = networky_stuff.get_treasure_map_from_node(node, map_id)
+                response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
             except NodeSeemsToBeDown:
                 continue
 
