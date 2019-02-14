@@ -1,4 +1,5 @@
 from nucypher.cli.main import nucypher_cli
+
 from nucypher.config.characters import AliceConfiguration
 from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, INSECURE_DEVELOPMENT_PASSWORD, \
     MOCK_IP_ADDRESS
