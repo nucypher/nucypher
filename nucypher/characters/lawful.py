@@ -161,7 +161,7 @@ class Alice(Character, PolicyAuthor):
 
             if len(handpicked_ursulas) < n:
                 number_of_ursulas_needed = n - len(handpicked_ursulas)
-                new_ursulas = random.sample(list(self.known_nodes.values()), number_of_ursulas_needed)
+                new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
 
         policy.make_arrangements(network_middleware=self.network_middleware,
