@@ -87,7 +87,7 @@ tzlocal==2.0.0b1
 umbral==0.1.3a0
 urllib3==1.24.1 ; python_version >= '3.4'
 watchdog==0.9.0
-web3[tester]==5.0.0a4
+web3[tester]==5.0.0a5
 websockets==7.0
 werkzeug==0.14.1
 zope.interface==4.6.0
