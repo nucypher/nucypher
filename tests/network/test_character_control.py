@@ -34,6 +34,25 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
     response = alice_control.put('/create_policy', data=json.dumps(request_data))
 
 
+def test_alice_character_control_derive_policy_pubkey(alice_control):
+    request_data = {
+        'label': b64encode(b'test').decode(),
+    }
+    response = alice_control.post('/derive_policy_pubkey', data=json.dumps(request_data))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'policy_encrypting_pubkey' in response_data['result']
+
+    # Test bad data returns an error
+    response = alice_control.post('/derive_policy_pubkey', data='bad')
+    assert response.status_code == 400
+
+    del(request_data['label'])
+    response = alice_control.post('/derive_policy_pubkey', data=request_data)
+    assert response.status_code == 400
+
+
 def test_alice_character_control_grant(alice_control, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
@@ -113,7 +132,6 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
 
 
 def test_enrico_character_control_encrypt_message(enrico_control):
-
     request_data = {
         'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
     }

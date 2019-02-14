@@ -243,6 +243,29 @@ class Alice(Character, PolicyAuthor):
             # TODO: Serialize the policy
             return Response('Policy created!', status=200)
 
+        @alice_control.route('/derive_policy_pubkey', methods=['POST'])
+        def derive_policy_pubkey():
+            """
+            Character control endpoint for deriving a policy pubkey given
+            a label.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label)
+
+            response_data = {
+                'result': {
+                    'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
         @alice_control.route("/grant", methods=['PUT'])
         def grant():
             """
