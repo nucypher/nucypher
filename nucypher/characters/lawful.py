@@ -253,7 +253,8 @@ class Alice(Character, PolicyAuthor):
             try:
                 request_data = json.loads(request.data)
 
-                bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
                 label = b64decode(request_data['label'])
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
@@ -261,8 +262,8 @@ class Alice(Character, PolicyAuthor):
                     request_data['expiration_time'])
                 federated_only = True  # const for now
 
-                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
-                                            SigningPower: None},
+                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
+                                            SigningPower: bob_pubkey_sig},
                                            federated_only=True)
             except (KeyError, JSONDecodeError) as e:
                 return Response(str(e), status=400)

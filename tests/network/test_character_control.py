@@ -16,6 +16,7 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
@@ -38,6 +39,7 @@ def test_alice_character_control_grant(alice_control, federated_bob):
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
@@ -144,7 +146,7 @@ def test_character_control_lifecycle(alice_control, bob_control,
     alice_request_data = {
         'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
         'label': b64encode(b'test').decode(),
-        #'bob_signing_key': bytes(federated_bob.stamp).hex(),
+        'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'm': 2, 'n': 3,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
