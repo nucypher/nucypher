@@ -2,9 +2,6 @@ NuCypher
 ========
 *A proxy re-encryption network to empower privacy in decentralized systems*
 
-.. image:: .static/img/nucypher_logo.svg
-    :width: 60%
-
 
 ----
 
