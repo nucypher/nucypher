@@ -37,7 +37,7 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, NotFound
 
 
 class Arrangement:
@@ -347,6 +347,12 @@ class TreasureMap:
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
+
+    class NowhereToBeFound(NotFound):
+        """
+        Called when no known nodes have it.
+        """
+
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), Arrangement.ID_LENGTH)
 
     from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
