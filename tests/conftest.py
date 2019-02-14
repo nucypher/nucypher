@@ -20,10 +20,11 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.cli.config import NucypherClickConfig
 #
-from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger
+from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger, logToSentry
 
 # Logger Configuration
 #
+globalLogPublisher.removeObserver(logToSentry)
 
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
