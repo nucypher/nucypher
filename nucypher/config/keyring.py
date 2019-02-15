@@ -20,10 +20,6 @@ import os
 import stat
 from json import JSONDecodeError
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from typing import ClassVar, Tuple, Callable, Union, Dict, List
-
-from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -38,8 +34,11 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
+from twisted.logger import Logger
+from typing import ClassVar, Tuple, Callable, Union, Dict, List
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
+from constant_sorrow.constants import KEYRING_LOCKED
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
@@ -67,10 +66,12 @@ __HKDF_HASH_ALGORITHM = BLAKE2B
 
 def unlock_required(func):
     """Method decorator"""
+
     def wrapped(keyring=None, *args, **kwargs):
         if not keyring.is_unlocked:
             raise NucypherKeyring.KeyringLocked("{} is locked. Unlock with .unlock".format(keyring.account))
         return func(keyring, *args, **kwargs)
+
     return wrapped
 
 
@@ -164,7 +165,6 @@ def _write_tls_certificate(certificate: Certificate,
                            full_filepath: str,
                            force: bool = False,
                            ) -> str:
-
     cert_already_exists = os.path.isfile(full_filepath)
     if force is False and cert_already_exists:
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
@@ -203,6 +203,7 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
         backend=default_backend()
     ).derive(key_material)
     return wrapping_key
+
 
 #
 # Keypair Generation
@@ -304,6 +305,8 @@ class NucypherKeyring:
     __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
     _private_key_serializer = _PrivateKeySerializer()
     __DEFAULT_TLS_CURVE = ec.SECP384R1
+
+    log = Logger("keys")
 
     class KeyringError(Exception):
         pass
@@ -460,7 +463,9 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
         try:
+            self.log.info("Unlocking keyring.")
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
+            self.log.info("Finished unlocking.")
         except CryptoError:
             raise
         else:
@@ -576,6 +581,8 @@ class NucypherKeyring:
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+
+            cls.log.info("About to derive key from password.")
             derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)

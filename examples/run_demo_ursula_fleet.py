@@ -38,9 +38,6 @@ TEACHER_URI = f'127.0.0.1:11500'
 
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
-    # Logger
-    globalLogPublisher.addObserver(SimpleObserver())
-
     # Ports
     starting_port = DEMO_NODE_STARTING_PORT
     ports = list(map(str, range(starting_port, starting_port + quantity)))
@@ -72,6 +69,9 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
             def __init__(self, command):
                 self.command = command
+
+            def processEnded(self, reason, *args, **kwargs):
+                print(reason.value)
 
         processProtocol = UrsulaProcessProtocol(command=args)
         p = reactor.spawnProcess(processProtocol, 'nucypher', args, env=env, childFDs=childFDs)

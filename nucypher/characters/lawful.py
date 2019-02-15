@@ -14,29 +14,32 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import json
 import random
-import socket
+from base64 import b64encode, b64decode
 from collections import OrderedDict
-from functools import partial
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
+from json.decoder import JSONDecodeError
 
 import maya
 import requests
+import socket
 import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
+from flask import Flask, request, Response
+from functools import partial
 from twisted.internet import threads
 from twisted.logger import Logger
-
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
+from typing import Tuple
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -47,10 +50,12 @@ from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
@@ -116,7 +121,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
+    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None, timeout=10):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -146,7 +151,7 @@ class Alice(Character, PolicyAuthor):
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < n:
-            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True, timeout=timeout)
             if not good_to_go:
                 raise ValueError(
                     "To make a Policy in federated mode, you need to know about\
@@ -156,7 +161,7 @@ class Alice(Character, PolicyAuthor):
 
             if len(handpicked_ursulas) < n:
                 number_of_ursulas_needed = n - len(handpicked_ursulas)
-                new_ursulas = random.sample(list(self.known_nodes.values()), number_of_ursulas_needed)
+                new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
 
         policy.make_arrangements(network_middleware=self.network_middleware,
@@ -201,6 +206,104 @@ class Alice(Character, PolicyAuthor):
                 except UnexpectedResponse:
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
+
+    def make_wsgi_app(drone_alice, start_learning=True):
+        alice_control = Flask("alice-control")
+        drone_alice.start_learning_loop(now=start_learning)
+
+        @alice_control.route("/create_policy", methods=['PUT'])
+        def create_policy():
+            """
+            Character control endpoint for creating a policy and making
+            arrangements with Ursulas.
+
+            This is an unfinished API endpoint. You are probably looking for grant.
+            """
+            # TODO: Needs input cleansing and validation
+            # TODO: Provide more informative errors
+            try:
+                request_data = json.loads(request.data)
+
+                bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
+                label = b64decode(request_data['label'])
+                # TODO: Do we change this to something like "threshold"
+                m, n = request_data['m'], request_data['n']
+                federated_only = True  # const for now
+
+                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
+                                            SigningPower: None},
+                                           federated_only=True)
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            new_policy = drone_alice.create_policy(bob, label, m, n,
+                                                   federated=federated_only)
+            # TODO: Serialize the policy
+            return Response('Policy created!', status=200)
+
+        @alice_control.route('/derive_policy_pubkey', methods=['POST'])
+        def derive_policy_pubkey():
+            """
+            Character control endpoint for deriving a policy pubkey given
+            a label.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label)
+
+            response_data = {
+                'result': {
+                    'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        @alice_control.route("/grant", methods=['PUT'])
+        def grant():
+            """
+            Character control endpoint for policy granting.
+            """
+            # TODO: Needs input cleansing and validation
+            # TODO: Provide more informative errors
+            try:
+                request_data = json.loads(request.data)
+
+                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
+                label = b64decode(request_data['label'])
+                # TODO: Do we change this to something like "threshold"
+                m, n = request_data['m'], request_data['n']
+                expiration_time = maya.MayaDT.from_iso8601(
+                    request_data['expiration_time'])
+                federated_only = True  # const for now
+
+                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
+                                            SigningPower: bob_pubkey_sig},
+                                           federated_only=True)
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            new_policy = drone_alice.grant(bob, label, m=m, n=n,
+                                           expiration=expiration_time)
+            # TODO: Serialize the policy
+            response_data = {
+                'result': {
+                    'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
+                    'policy_encrypting_pubkey': bytes(new_policy.public_key).hex(),
+                    'alice_signing_pubkey': bytes(new_policy.alice.stamp).hex(),
+                    'label': b64encode(new_policy.label).decode(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        return alice_control
 
 
 class Bob(Character):
@@ -323,24 +426,27 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id):
         """
         Iterate through swarm, asking for the TreasureMap.
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self.known_nodes:
-            response = networky_stuff.get_treasure_map_from_node(node, map_id)
+        from nucypher.policy.models import TreasureMap
+        for node in self.known_nodes.shuffled():
+            try:
+                response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
+            except NodeSeemsToBeDown:
+                continue
 
             if response.status_code == 200 and response.content:
-                from nucypher.policy.models import TreasureMap
                 treasure_map = TreasureMap.from_bytes(response.content)
                 break
             else:
                 continue  # TODO: Actually, handle error case here.
         else:
             # TODO: Work out what to do in this scenario - if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
-            assert False
+            raise TreasureMap.NowhereToBeFound
 
         return treasure_map
 
@@ -391,21 +497,23 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, label, alice_pubkey_sig, node_list=None):
+    def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
-        self.follow_treasure_map(treasure_map=treasure_map)
+        self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key):
+    def retrieve(self, message_kit, data_source, alice_verifying_key, label):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
 
-        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+
+        # TODO: Consider blocking until map is done being followed.
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
@@ -429,6 +537,69 @@ class Bob(Character):
 
         cleartexts.append(delivered_cleartext)
         return cleartexts
+
+    def make_wsgi_app(drone_bob, start_learning=True):
+        bob_control = Flask('bob-control')
+        drone_bob.start_learning_loop(now=start_learning)
+
+        @bob_control.route('/join_policy', methods=['POST'])
+        def join_policy():
+            """
+            Character control endpoint for joining a policy on the network.
+
+            This is an unfinished endpoint. You're probably looking for retrieve.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(e, status=400)
+
+            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
+
+            return Response('Policy joined!', status=200)
+
+        @bob_control.route('/retrieve', methods=['POST'])
+        def retrieve():
+            """
+            Character control endpoint for re-encrypting and decrypting policy
+            data.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                label = b64decode(request_data['label'])
+                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+                message_kit = b64decode(request_data['message_kit'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(e, status=400)
+
+            policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
+            alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
+            message_kit = UmbralMessageKit.from_bytes(message_kit)
+
+            data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
+                                                  policy_encrypting_key=policy_encrypting_key,
+                                                  label=label)
+            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
+            plaintexts = drone_bob.retrieve(message_kit=message_kit,
+                                            data_source=data_source,
+                                            alice_verifying_key=alice_pubkey_sig,
+                                            label=label)
+
+            plaintexts = [b64encode(plaintext).decode() for plaintext in plaintexts]
+            response_data = {
+                'result': {
+                    'plaintext': plaintexts,
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        return bob_control
 
 
 class Ursula(Teacher, Character, Miner):
@@ -543,7 +714,8 @@ class Ursula(Teacher, Character, Miner):
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
                 #
-                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, checksum_public_address=self.checksum_public_address)
+                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
+                                                     checksum_public_address=self.checksum_public_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
@@ -672,7 +844,8 @@ class Ursula(Teacher, Character, Miner):
         """
 
         return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_public_address,
-                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
+                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host,
+                                                                    seednode_metadata.rest_port),
                                             *args, **kwargs)
 
     @classmethod
@@ -694,11 +867,11 @@ class Ursula(Teacher, Character, Miner):
                                                        checksum_address=checksum_address,
                                                        minimum_stake=min_stake)
 
-            except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
+            except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
                 log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
                 time.sleep(interval)
-                return __attempt(round=round+1)
+                return __attempt(round=round + 1)
             else:
                 return teacher
 
@@ -710,7 +883,7 @@ class Ursula(Teacher, Character, Miner):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_address: str = None,   # TODO: Why is this unused?
+                                 checksum_address: str = None,  # TODO: Why is this unused?
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
@@ -914,3 +1087,64 @@ class Ursula(Teacher, Character, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+
+class Enrico(Character):
+
+    _default_crypto_powerups = [SigningPower]
+
+    def __init__(self, policy_encrypting_key, *args, **kwargs):
+        self.policy_pubkey = policy_encrypting_key
+
+        # Encrico never uses the blockchain, hence federated_only)
+        kwargs['federated_only'] = True
+        super().__init__(*args, **kwargs)
+
+    def encrypt_message(self,
+                        message: bytes
+                        ) -> Tuple[UmbralMessageKit, Signature]:
+        message_kit, signature = encrypt_and_sign(self.policy_pubkey,
+                                                  plaintext=message,
+                                                  signer=self.stamp)
+        message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
+        return message_kit, signature
+
+    @classmethod
+    def from_alice(cls, alice: Alice, label: bytes):
+        """
+        :param alice: Not a stranger.  This is your Alice who will derive the policy keypair, leaving Enrico with the public part.
+        :param label: The label with which to derive the key.
+        :return:
+        """
+        policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
+        return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
+                   policy_encrypting_key=policy_pubkey_enc)
+
+    def make_wsgi_app(drone_enrico):
+        enrico_control = Flask("enrico-control")
+
+        @enrico_control.route('/encrypt_message', methods=['POST'])
+        def encrypt_message():
+            """
+            Character control endpoint for encrypting data for a policy and
+            receiving the messagekit (and signature) to give to Bob.
+            """
+            try:
+                request_data = json.loads(request.data)
+
+                message = b64decode(request_data['message'])
+            except (KeyError, JSONDecodeError) as e:
+                return Response(str(e), status=400)
+
+            message_kit, signature = drone_enrico.encrypt_message(message)
+
+            response_data = {
+                'result': {
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),
+                    'signature': b64encode(bytes(signature)).decode(),
+                }
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        return enrico_control

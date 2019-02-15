@@ -104,6 +104,17 @@ Character Control Endpoints
 Alice
 -----
 
+derive_policy_pubkey
+~~~~~~~~~~~~~~~~~~~~
+
+This endpoint controls the ``Alice.get_policy_pubkey_from_label`` method.
+
+- URL: ``/derive_policy_pubkey``
+- HTTP Method: ``PUT``
+- Required arguments:
+   - ``label`` -- encoded as base64
+- Returns: a hex-encoded ``policy_encrypting_pubkey``
+
 grant
 ~~~~~
 
@@ -117,7 +128,10 @@ This endpoint controls the ``Alice.grant`` method.
     - ``m`` -- an integer
     - ``n`` -- an integer
     - ``expiration_time`` -- an ISO-8601 formatted datetime string
-- Returns: a base64-encoded ``treasure_map``
+- Returns:
+    - ``treasure_map`` -- encoded as base64
+    - ``policy_encrypting_pubkey`` -- encoded as hex
+    - ``alice_signing_pubkey`` -- encoded as hex
 
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
 

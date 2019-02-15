@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-import shutil
 
 import click
 from constant_sorrow import constants
@@ -31,6 +30,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
+from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
 from nucypher.cli.processes import UrsulaCommandProtocol
@@ -43,12 +43,29 @@ from nucypher.cli.types import (
     STAKE_DURATION
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
-    SimpleObserver)
+    SimpleObserver, GlobalConsoleLogger)
 
+
+URSULA_BANNER = r'''
+
+
+ ,ggg,         gg                                                     
+dP""Y8a        88                                   ,dPYb,            
+Yb, `88        88                                   IP'`Yb            
+ `"  88        88                                   I8  8I            
+     88        88                                   I8  8'            
+     88        88   ,gggggg,    ,g,     gg      gg  I8 dP    ,gggg,gg 
+     88        88   dP""""8I   ,8'8,    I8      8I  I8dP    dP"  "Y8I 
+     88        88  ,8'    8I  ,8'  Yb   I8,    ,8I  I8P    i8'    ,8I 
+     Y8b,____,d88,,dP     Y8,,8'_   8) ,d8b,  ,d8b,,d8b,_ ,d8,   ,d8b,
+      "Y888888P"Y88P      `Y8P' "YY8P8P8P'"Y88P"`Y88P'"Y88P"Y8888P"`Y8
+
+
+the Untrusted Re-Encryption Proxy.
+'''
 
 @click.command()
 @click.argument('action')
@@ -99,7 +116,7 @@ def ursula(click_config,
            registry_filepath
            ) -> None:
     """
-    Manage and run an Ursula node.
+    Manage and run an "Ursula" PRE node.
 
     \b
     Actions
@@ -118,6 +135,7 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
     if not quiet:
+        click.secho(URSULA_BANNER)
         log = Logger('ursula.cli')
 
     if debug and quiet:
@@ -127,7 +145,7 @@ def ursula(click_config,
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
-        globalLogPublisher.addObserver(SimpleObserver(log_level_name='debug'))  # Print
+        GlobalConsoleLogger.set_log_level("debug")
 
     elif quiet:
         globalLogPublisher.removeObserver(logToSentry)
@@ -194,47 +212,14 @@ def ursula(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        try:
-            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file, domains={network})
-
-        except FileNotFoundError:
-            config_root = config_root or DEFAULT_CONFIG_ROOT
-            config_file_location = config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
-
-            if not force:
-                message = "No configuration file found at {}; \n" \
-                          "Destroy top-level configuration directory: {}?".format(config_file_location, config_root)
-                click.confirm(message, abort=True)  # ABORT
-
-            shutil.rmtree(config_root, ignore_errors=False)
-
-        else:
-            if not force:
-                click.confirm('''
-*Permanently and irreversibly delete all* nucypher files including
-    - Private and Public Keys
-    - Known Nodes
-    - TLS certificates
-    - Node Configurations
-    - Log Files
-
-Delete {}?'''.format(ursula_config.config_root), abort=True)
-
-            try:
-                ursula_config.destroy(force=force)
-            except FileNotFoundError:
-                message = 'Failed: No nucypher files found at {}'.format(ursula_config.config_root)
-                click.secho(message, fg='red')
-                log.debug(message)
-                raise click.Abort()
-            else:
-                message = "Deleted configuration files at {}".format(ursula_config.config_root)
-                click.secho(message, fg='green')
-                log.debug(message)
-
+        destroy_system_configuration(config_class=UrsulaConfiguration,
+                                     config_file=config_file,
+                                     network=network,
+                                     config_root=config_root,
+                                     force=force,
+                                     log=log)
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
-
         return
 
     # Development Configuration

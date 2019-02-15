@@ -21,6 +21,8 @@ from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
+
+from twisted.python.threadpool import ThreadPool
 from typing import Set, Tuple
 
 import maya
@@ -44,6 +46,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
@@ -265,7 +268,10 @@ class Learner:
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
-    class NotEnoughTeachers(RuntimeError):
+    class NotEnoughNodes(RuntimeError):
+        pass
+
+    class NotEnoughTeachers(NotEnoughNodes):
         pass
 
     class UnresponsiveTeacher(ConnectionError):
@@ -406,7 +412,7 @@ class Learner:
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
 
-        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+        except NodeSeemsToBeDown:
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
             return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
 
@@ -537,7 +543,8 @@ class Learner:
         """
         Continually learn about new nodes.
         """
-        self.learn_from_teacher_node(eager=False)  # TODO: Allow the user to set eagerness?
+        # TODO: Allow the user to set eagerness?
+        self.learn_from_teacher_node(eager=False)
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
@@ -571,9 +578,9 @@ class Learner:
             # The rest of the fucking owl
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
-                    raise self.NotEnoughTeachers("Learning loop is not running.  Start it with start_learning().")
+                    raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find {} nodes".format(
+                    raise self.NotEnoughNodes("After {} seconds and {} rounds, didn't find {} nodes".format(
                         timeout, rounds_undertaken, number_of_nodes_to_know))
             else:
                 time.sleep(.1)
@@ -687,9 +694,9 @@ class Learner:
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
-        except requests.exceptions.ConnectionError as e:
+        except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e.args[0]))
+            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
             return
         finally:
             self.cycle_teacher_node()
@@ -771,6 +778,9 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
+            # This block is a mess of eagerness.  This can all be done better lazily.
+            except NodeSeemsToBeDown as e:
+                self.log.info(f"Can't connect to {node} to verify it right now.")
             except node.InvalidNode:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 self.log.warn(node.invalid_metadata_message.format(node))

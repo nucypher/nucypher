@@ -286,6 +286,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 def test_federated_bob_retrieves(federated_bob,
                                  federated_alice,
                                  capsule_side_channel,
+                                 enacted_federated_policy,
                                  ):
 
     # The side channel delivers all that Bob needs at this point:
@@ -297,8 +298,8 @@ def test_federated_bob_retrieves(federated_bob,
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
                                                   data_source=the_data_source,
-                                                  alice_verifying_key=alices_verifying_key)
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label)
 
-    # We show that indeed this is the passage originally encrypted by the DataSource.
+    # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to the flippering." == delivered_cleartexts[0]
-

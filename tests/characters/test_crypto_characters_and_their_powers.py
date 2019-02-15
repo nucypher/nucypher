@@ -16,13 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import eth_utils
 import pytest
-from constant_sorrow import constants
 
+from constant_sorrow import constants
 from nucypher.characters.lawful import Alice, Character, Bob
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
 from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
     BlockchainPower, PowerUpError
-from nucypher.data_sources import DataSource
 
 """
 Chapter 1: SIGNING
@@ -93,10 +93,10 @@ def test_anybody_can_verify():
 
 
 def test_character_blockchain_power(testerchain):
-
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
-    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
+    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[
+        eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, checksum_public_address=eth_address)
@@ -239,20 +239,19 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
 
 
 def test_alice_can_decrypt(federated_alice):
-
     label = b"boring test label"
 
     policy_pubkey = federated_alice.get_policy_pubkey_from_label(label)
 
-    data_source = DataSource(policy_pubkey_enc=policy_pubkey,
-                             label=label)
+    enrico = Enrico(policy_encrypting_key=policy_pubkey)
 
     message = b"boring test message"
-    message_kit, signature = data_source.encrypt_message(message=message)
+    message_kit, signature = enrico.encrypt_message(message=message)
 
-    cleartext = federated_alice.verify_from(stranger=data_source,
+    # Interesting thing: if Alice wants to decrypt, she needs to provide the label directly.
+    cleartext = federated_alice.verify_from(stranger=enrico,
                                             message_kit=message_kit,
                                             signature=signature,
-                                            decrypt=True)
+                                            decrypt=True,
+                                            label=label)
     assert cleartext == message
-

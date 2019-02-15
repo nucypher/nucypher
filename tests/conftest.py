@@ -20,10 +20,11 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.cli.config import NucypherClickConfig
 #
-from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger, logToSentry
 
 # Logger Configuration
 #
+globalLogPublisher.removeObserver(logToSentry)
 
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
@@ -52,5 +53,4 @@ def pytest_collection_modifyitems(config, items):
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
     log_level_name = config.getoption("--log-level", "info", skip=True)
-    observer = SimpleObserver(log_level_name)
-    globalLogPublisher.addObserver(observer)
+    GlobalConsoleLogger.set_log_level(log_level_name)

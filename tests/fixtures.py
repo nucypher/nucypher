@@ -15,31 +15,26 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
+from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from constant_sorrow.constants import NON_PAYMENT
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
-from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
-from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.network.control.alice import make_alice_control
-from nucypher.network.control.bob import make_bob_control
-from nucypher.network.control.enrico import make_enrico_control
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
@@ -103,7 +98,6 @@ def certificates_tempdir():
 
 @pytest.fixture(scope="module")
 def ursula_federated_test_config():
-
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         is_me=True,
@@ -120,7 +114,6 @@ def ursula_federated_test_config():
 @pytest.fixture(scope="module")
 @pytest.mark.usefixtures('three_agents')
 def ursula_decentralized_test_config(three_agents):
-
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
                                         provider_uri="tester://pyevm",
@@ -201,6 +194,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     yield config
     config.cleanup()
 
+
 #
 # Policies
 #
@@ -230,7 +224,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
 
-    responses = idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+    responses = idle_federated_policy.enact(
+        network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
 
@@ -263,12 +258,9 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    data_source = DataSource(policy_pubkey_enc=enacted_federated_policy.public_key,
-                             signing_keypair=SigningKeypair(),
-                             label=enacted_federated_policy.label
-                             )
-    message_kit, _signature = data_source.encrypt_message(b"Welcome to the flippering.")
-    return message_kit, data_source
+    enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
+    message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
+    return message_kit, enrico
 
 
 #
@@ -327,27 +319,38 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
 
 @pytest.fixture(scope='module')
-def alice_control(federated_alice, federated_ursulas):
+def alice_control_test_client(federated_alice, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
-    alice_control = make_alice_control(federated_alice, teacher_node)
+    alice_control = federated_alice.make_wsgi_app(teacher_node)
     alice_control.config['DEBUG'] = True
     alice_control.config['TESTING'] = True
     yield alice_control.test_client()
 
 
 @pytest.fixture(scope='module')
-def bob_control(federated_bob, federated_ursulas):
+def bob_control_test_client(federated_bob, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
-    bob_control = make_bob_control(federated_bob, teacher_node)
+    bob_control = federated_bob.make_wsgi_app(teacher_node)
     bob_control.config['DEBUG'] = True
     bob_control.config['TESTING'] = True
     yield bob_control.test_client()
 
 
 @pytest.fixture(scope='module')
-def enrico_control(capsule_side_channel):
+def enrico_control_test_client(capsule_side_channel):
     _, data_source = capsule_side_channel
-    enrico_control = make_enrico_control(data_source)
+    message_kit, enrico = capsule_side_channel
+    enrico_control = enrico.make_wsgi_app()
+    enrico_control.config['DEBUG'] = True
+    enrico_control.config['TESTING'] = True
+    yield enrico_control.test_client()
+
+
+@pytest.fixture(scope='module')
+def enrico_control_from_alice(federated_alice):
+    enrico = Enrico.from_alice(federated_alice, b'test')
+
+    enrico_control = enrico.make_wsgi_app()
     enrico_control.config['DEBUG'] = True
     enrico_control.config['TESTING'] = True
     yield enrico_control.test_client()
@@ -406,7 +409,7 @@ def three_agents(testerchain):
 
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()              # 1: Token
+    token_agent = token_deployer.make_agent()  # 1: Token
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -415,7 +418,7 @@ def three_agents(testerchain):
 
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
+    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -424,6 +427,6 @@ def three_agents(testerchain):
 
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
+    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     return token_agent, miner_agent, policy_agent

@@ -83,17 +83,6 @@ class UrsulaConfiguration(NodeConfiguration):
 
         return ursula
 
-    def __write(self, password: str, no_registry: bool):
-        _new_installation_path = self.initialize(password=password, import_registry=no_registry)
-        _configuration_filepath = self.to_configuration_file(filepath=self.config_file_location)
-
-    @classmethod
-    def generate(cls, password: str, no_registry: bool, *args, **kwargs) -> 'UrsulaConfiguration':
-        """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
-        ursula_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
-        ursula_config.__write(password=password, no_registry=no_registry)
-        return ursula_config
-
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         return super().write_keyring(password=password,
@@ -113,6 +102,7 @@ class AliceConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+    DEFAULT_REST_PORT = 8151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
@@ -130,3 +120,4 @@ class BobConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+    DEFAULT_REST_PORT = 7151

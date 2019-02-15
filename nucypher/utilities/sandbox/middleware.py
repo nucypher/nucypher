@@ -14,6 +14,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import requests
+import socket
+
 from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
@@ -88,6 +91,47 @@ class MockRestMiddleware(RestMiddleware):
         return ursula.certificate
 
 
+class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ports_that_are_down = set()
+        self.certs_are_broken = False
+
+    def _get_ursula_by_port(self, port):
+        if port in self.ports_that_are_down:
+            raise ConnectionRefusedError
+        else:
+            return super()._get_ursula_by_port(port)
+
+    def get(self, *args, **kwargs):
+        if kwargs.get("path") == "public_information":
+            if self.certs_are_broken:
+                raise requests.exceptions.SSLError
+            port = kwargs.get("port")
+            if port in self.ports_that_are_down:
+                raise socket.gaierror
+
+        real_get = super(_TestMiddlewareClient, self).__getattr__("get")
+        return real_get(*args, **kwargs)
+
+
+class NodeIsDownMiddleware(MockRestMiddleware):
+    """
+    Modified middleware to emulate one node being down amongst many.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client = _MiddlewareClientWithConnectionProblems()
+        self.ports_that_are_down = []
+
+    def node_is_down(self, node):
+        self.client.ports_that_are_down.add(node.rest_information()[0].port)
+
+    def node_is_up(self, node):
+        self.client.ports_that_are_down.remove(node.rest_information()[0].port)
+
+
 class EvilMiddleWare(MockRestMiddleware):
     """
     Middleware for assholes.
@@ -102,3 +146,4 @@ class EvilMiddleWare(MockRestMiddleware):
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response
+

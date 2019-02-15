@@ -49,7 +49,6 @@ try:
     alicia = new_alice_config(passphrase=passphrase)
 
 except:
-
     # If anything fails, let's create Alicia from scratch
     # Remove previous demo files and create new ones
 
@@ -98,7 +97,6 @@ print("The policy public key for "
 # heart rate measurements from a heart monitor
 import heart_monitor
 heart_monitor.generate_heart_rate_samples(policy_pubkey,
-                                          label=label,
                                           samples=50,
                                           save_as_file=True)
 

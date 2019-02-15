@@ -8,7 +8,7 @@ from timeit import default_timer as timer
 
 from twisted.logger import globalLogPublisher
 
-from nucypher.characters.lawful import Bob, Ursula
+from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.data_sources import DataSource
@@ -83,10 +83,9 @@ data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
 message_kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
 
 # The doctor also needs to create a view of the Data Source from its public keys
-data_source = DataSource.from_public_keys(
-    policy_public_key=policy_pubkey,
-    datasource_public_key=data['data_source'],
-    label=label
+data_source = Enrico.from_public_keys(
+    {SigningPower: data['data_source']},
+    policy_public_key=policy_pubkey
 )
 
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
@@ -94,6 +93,7 @@ for message_kit in message_kits:
     try:
         start = timer()
         retrieved_plaintexts = doctor.retrieve(
+            label=label,
             message_kit=message_kit,
             data_source=data_source,
             alice_verifying_key=alices_sig_pubkey
