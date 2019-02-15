@@ -157,20 +157,21 @@ def alice(click_config,
                                                federated_only=alice_config.federated_only)
         teacher_nodes.append(teacher_node)
 
+    if not dev:
+        # Keyring
+        try:
+            click.secho("Decrypting keyring...", fg='blue')
+            alice_config.keyring.unlock(password=click_config.get_password())
+        except CryptoError:
+            raise alice_config.keyring.AuthenticationFailed
+        finally:
+            click_config.alice_config = alice_config
+
     # Produce
     ALICE = alice_config(known_nodes=teacher_nodes)
 
     if action == "run":
 
-        if not dev:
-            # Keyring
-            try:
-                click.secho("Decrypting keyring...", fg='blue')
-                alice_config.keyring.unlock(password=click_config.get_password())
-            except CryptoError:
-                raise alice_config.keyring.AuthenticationFailed
-            finally:
-                click_config.alice_config = alice_config
 
         # Alice Control
         alice_control = ALICE.make_wsgi_app()

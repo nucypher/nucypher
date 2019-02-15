@@ -1,3 +1,4 @@
+import pytest
 import time
 
 import pytest_twisted as pt
@@ -10,6 +11,7 @@ from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, sele
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
+@pytest.mark.skip("Moe shows up when you least expect him.  Like in other people's tests on a different thread.")
 @pt.inlineCallbacks
 def test_run_moe(click_runner, federated_ursulas):
 
@@ -26,6 +28,7 @@ def test_run_moe(click_runner, federated_ursulas):
             '--network', ':fake-domain:',
             '--teacher-uri', teacher_uri,
             '--http-port', MOCK_URSULA_STARTING_PORT,
+            '--learn-on-launch',  # TODO: Dumb name.  Don't use this in production.
             '--dry-run')
 
     result = yield threads.deferToThread(click_runner.invoke,

@@ -17,6 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+
+import sys
 from twisted.logger import Logger
 from os.path import abspath, dirname
 
@@ -39,7 +41,7 @@ class SolidityCompiler:
 
     __default_sol_binary_path = shutil.which('solc')
     if __default_sol_binary_path is None:
-        __bin_path = os.path.dirname(shutil.which('python'))          # type: str
+        __bin_path = os.path.dirname(sys.executable)          # type: str
         __default_sol_binary_path = os.path.join(__bin_path, 'solc')  # type: str
 
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
