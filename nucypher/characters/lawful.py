@@ -1098,9 +1098,8 @@ class Enrico(Character):
 
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_pubkey_enc, label, *args, **kwargs):
-        self.policy_pubkey = policy_pubkey_enc
-        self.label = label
+    def __init__(self, policy_encrypting_key, *args, **kwargs):
+        self.policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
@@ -1117,6 +1116,11 @@ class Enrico(Character):
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
+        """
+        :param alice: Not a stranger.  This is your Alice who will derive the policy keypair, leaving Enrico with the public part.
+        :param label: The label with which to derive the key.
+        :return:
+        """
         policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_pubkey_enc=policy_pubkey_enc, label=label)
