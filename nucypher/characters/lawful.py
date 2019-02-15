@@ -500,11 +500,11 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, label, alice_pubkey_sig, node_list=None):
+    def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
-        self.follow_treasure_map(treasure_map=treasure_map)
+        self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key):
 
