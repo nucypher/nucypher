@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import json
 import random
 from base64 import b64encode, b64decode
@@ -241,20 +242,14 @@ class Alice(Character, PolicyAuthor):
             # TODO: Serialize the policy
             return Response('Policy created!', status=200)
 
-        @alice_control.route('/derive_policy_pubkey', methods=['POST'])
-        def derive_policy_pubkey():
+        @alice_control.route('/derive_policy_pubkey/<label>', methods=['POST'])
+        def derive_policy_pubkey(label):
             """
             Character control endpoint for deriving a policy pubkey given
             a label.
             """
-            try:
-                request_data = json.loads(request.data)
-
-                label = b64decode(request_data['label'])
-            except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=400)
-
-            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label)
+            label_bytes = label.encode()
+            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label_bytes)
 
             response_data = {
                 'result': {
@@ -279,8 +274,12 @@ class Alice(Character, PolicyAuthor):
                 label = b64decode(request_data['label'])
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
-                expiration_time = maya.MayaDT.from_iso8601(
-                    request_data['expiration_time'])
+                expiration = request_data.get("expiration_time")
+                if expiration:
+                    expiration_time = maya.MayaDT.from_iso8601(
+                        request_data['expiration_time'])
+                else:
+                    expiration_time = (maya.now() + datetime.timedelta(days=3))
                 federated_only = True  # const for now
 
                 bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,

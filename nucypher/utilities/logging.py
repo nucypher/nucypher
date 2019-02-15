@@ -99,7 +99,7 @@ class GlobalConsoleLogger:
             cls.start()
 
 
-def logToSentry(cls,  event):
+def logToSentry(event):
 
     # Handle Logs...
     if not event.get('isError') or 'failure' not in event:
