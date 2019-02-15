@@ -473,8 +473,8 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
-      - store_test_results:
+            pipenv run pytest tests/cli
+      - store_test_results:  # pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
           path: reports
 
   mypy:
