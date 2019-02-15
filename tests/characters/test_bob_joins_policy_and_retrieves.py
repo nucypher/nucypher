@@ -12,7 +12,7 @@ from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMEN
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
-def test_federated_bob_retrieves(federated_ursulas,
+def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                  federated_bob,
                                  federated_alice,
                                  capsule_side_channel,

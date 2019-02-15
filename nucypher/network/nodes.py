@@ -472,7 +472,7 @@ class Learner:
         Only for tests at this point.  Maybe some day for graceful shutdowns.
         """
         self._learning_task.stop()
- 
+
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_learning_error:
