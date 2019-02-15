@@ -7,17 +7,11 @@ from nucypher.characters.lawful import Enrico
 
 HEART_DATA_FILENAME = 'heart_data.msgpack'
 
-# Alicia defined a label to categorize all her heart-related data ❤️
-# All Enricos that produce this type of data will use this label.
-DEFAULT_LABEL = b"Alicia's heart data"
-
 
 def generate_heart_rate_samples(policy_pubkey,
-                                label: bytes = DEFAULT_LABEL,
                                 samples: int = 500,
                                 save_as_file: bool = False):
-    data_source = Enrico(policy_encrypting_key=policy_pubkey,
-                         label=label)
+    data_source = Enrico(policy_encrypting_key=policy_pubkey)
 
     data_source_public_key = bytes(data_source.stamp)
 
