@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.3;
 
 
 /// @title Numerology: A Solidity library for fast ECC arithmetics using curve secp256k1
@@ -227,7 +227,7 @@ library Numerology {
     function doubleJacobian(uint[3] memory P) internal pure returns (uint[3] memory Q) {
         uint256 z = P[2];
         if (z == 0)
-            return;
+            return Q;
         uint256 p = fieldOrder;
         uint256 x = P[0];
         uint256 _2y = mulmod(2, P[1], p);

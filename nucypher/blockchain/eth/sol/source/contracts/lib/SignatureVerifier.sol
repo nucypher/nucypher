@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 /**
@@ -14,7 +14,7 @@ library SignatureVerifier {
     * @param _hash 32 bytes message hash
     * @param _signature Signature of hash - 32 bytes r + 32 bytes s + 1 byte v (could be 0, 1, 27, 28)
     **/
-    function recover(bytes32 _hash, bytes _signature)
+    function recover(bytes32 _hash, bytes memory _signature)
         internal
         pure
         returns (address)
@@ -42,8 +42,8 @@ library SignatureVerifier {
     * @notice Transform public key to address
     * @param _publicKey secp256k1 public key
     **/
-    function toAddress(bytes _publicKey) internal pure returns (address) {
-        return address(keccak256(_publicKey));
+    function toAddress(bytes memory _publicKey) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(_publicKey))));
     }
 
     /**
@@ -51,7 +51,7 @@ library SignatureVerifier {
     * @param _message Signed message
     * @param _algorithm Hashing algorithm
     **/
-    function hash(bytes _message, HashAlgorithm _algorithm)
+    function hash(bytes memory _message, HashAlgorithm _algorithm)
         internal
         pure
         returns (bytes32 result)
@@ -73,7 +73,12 @@ library SignatureVerifier {
     * @param _publicKey secp256k1 public key
     * @param _algorithm Hashing algorithm
     **/
-    function verify(bytes _message, bytes _signature, bytes _publicKey, HashAlgorithm _algorithm)
+    function verify(
+        bytes memory _message,
+        bytes memory _signature,
+        bytes memory _publicKey,
+        HashAlgorithm _algorithm
+    )
         internal
         pure
         returns (bool)
