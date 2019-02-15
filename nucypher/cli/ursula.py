@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-import shutil
 
 import click
 from constant_sorrow import constants
@@ -31,6 +30,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
+from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
 from nucypher.cli.processes import UrsulaCommandProtocol
@@ -43,13 +43,29 @@ from nucypher.cli.types import (
     STAKE_DURATION
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
     SimpleObserver, GlobalConsoleLogger)
 
-from nucypher.cli.actions import destroy_system_configuration
+
+URSULA_BANNER = r'''
+
+
+ ,ggg,         gg                                                     
+dP""Y8a        88                                   ,dPYb,            
+Yb, `88        88                                   IP'`Yb            
+ `"  88        88                                   I8  8I            
+     88        88                                   I8  8'            
+     88        88   ,gggggg,    ,g,     gg      gg  I8 dP    ,gggg,gg 
+     88        88   dP""""8I   ,8'8,    I8      8I  I8dP    dP"  "Y8I 
+     88        88  ,8'    8I  ,8'  Yb   I8,    ,8I  I8P    i8'    ,8I 
+     Y8b,____,d88,,dP     Y8,,8'_   8) ,d8b,  ,d8b,,d8b,_ ,d8,   ,d8b,
+      "Y888888P"Y88P      `Y8P' "YY8P8P8P'"Y88P"`Y88P'"Y88P"Y8888P"`Y8
+
+
+the Untrusted Re-Encryption Proxy.
+'''
 
 @click.command()
 @click.argument('action')
@@ -100,7 +116,7 @@ def ursula(click_config,
            registry_filepath
            ) -> None:
     """
-    Manage and run an Ursula node.
+    Manage and run an "Ursula" PRE node.
 
     \b
     Actions
@@ -119,6 +135,7 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
     if not quiet:
+        click.secho(URSULA_BANNER)
         log = Logger('ursula.cli')
 
     if debug and quiet:
