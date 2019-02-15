@@ -34,7 +34,7 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
 
 def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
     request_data = {
-        'label': b64encode(b'test').decode(),
+        'label': 'test',
     }
     response = alice_control_test_client.post('/derive_policy_pubkey', data=json.dumps(request_data))
     assert response.status_code == 200
@@ -57,7 +57,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_signing_key': bytes(federated_bob.stamp).hex(),
-        'label': b64encode(bytes(b'test')).decode(),
+        'label': 'test',
         'm': 2,
         'n': 3,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
@@ -164,7 +164,7 @@ def test_character_control_lifecycle(alice_control_test_client, bob_control_test
     # Create a policy via Alice control
     alice_request_data = {
         'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
-        'label': b64encode(b'test').decode(),
+        'label': 'test',
         'bob_signing_key': bytes(federated_bob.stamp).hex(),
         'm': 2, 'n': 3,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
@@ -183,7 +183,7 @@ def test_character_control_lifecycle(alice_control_test_client, bob_control_test
     # application developer at some point.
     policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_pubkey']
     alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_pubkey']
-    label = b64decode(alice_response_data['result']['label'])
+    label = alice_response_data['result']['label']
 
     # Encrypt some data via Enrico control
     # Alice will also be Enrico via Enrico.from_alice
@@ -204,7 +204,7 @@ def test_character_control_lifecycle(alice_control_test_client, bob_control_test
 
     # Retrieve data via Bob control
     bob_request_data = {
-        'label': b64encode(label).decode(),
+        'label': label,
         'policy_encrypting_pubkey': policy_pubkey_enc_hex,
         'alice_signing_pubkey': alice_pubkey_sig_hex,
         'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),
