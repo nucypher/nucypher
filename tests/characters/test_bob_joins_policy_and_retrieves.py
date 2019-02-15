@@ -1,13 +1,12 @@
-import maya
-import datetime
 import os
+
+import datetime
+import maya
 import pytest
 
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
-
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.characters.lawful import Enrico
-from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.policy.models import TreasureMap
 from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -19,7 +18,6 @@ def test_federated_bob_retrieves(federated_ursulas,
                                  capsule_side_channel,
                                  enacted_federated_policy
                                  ):
-
     # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
@@ -36,7 +34,8 @@ def test_federated_bob_retrieves(federated_ursulas,
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
                                                   data_source=the_data_source,
-                                                  alice_verifying_key=alices_verifying_key)
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to the flippering." == delivered_cleartexts[0]
@@ -46,7 +45,6 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                         federated_ursulas,
                                         certificates_tempdir,
                                         ):
-
     # Let's partition Ursulas in two parts
     a_couple_of_ursulas = list(federated_ursulas)[:2]
     rest_of_ursulas = list(federated_ursulas)[2:]
@@ -87,7 +85,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert len(bob.known_nodes) == len(federated_ursulas)
 
     # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=policy.public_key, label=label)
+    enrico = Enrico(policy_encrypting_key=policy.public_key)
 
     plaintext = b"What's your approach?  Mississippis or what?"
     message_kit, _signature = enrico.encrypt_message(plaintext)
@@ -97,7 +95,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve(message_kit=message_kit,
                                         data_source=enrico,
-                                        alice_verifying_key=alices_verifying_key)
+                                        alice_verifying_key=alices_verifying_key,
+                                        label=policy.label)
 
     assert plaintext == delivered_cleartexts[0]
 
@@ -108,7 +107,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit=message_kit,
                                    data_source=enrico,
-                                   alice_verifying_key=alices_verifying_key)
+                                   alice_verifying_key=alices_verifying_key,
+                                   label=policy.label)
 
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
@@ -129,7 +129,7 @@ def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
         deserialized_map.destinations
 
     compass = federated_bob.make_compass_for_alice(
-                                            enacted_federated_policy.alice)
+        enacted_federated_policy.alice)
     deserialized_map.orient(compass)
     assert deserialized_map.m == treasure_map.m
     assert deserialized_map.destinations == treasure_map.destinations

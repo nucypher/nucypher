@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTok
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.lawful import Bob, Enrico
+from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
@@ -258,8 +258,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    enrico = Enrico(policy_pubkey_enc=enacted_federated_policy.public_key,
-                    label=enacted_federated_policy.label)
+    enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
     message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
     return message_kit, enrico
 
