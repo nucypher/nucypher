@@ -61,7 +61,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
-    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -170,6 +170,22 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     assert 'Running' in result.output
     assert 'Attached' in result.output
     assert "'help' or '?'" in result.output
+
+
+def test_empty_federated_status(click_runner, custom_filepath):
+
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+
+    status_args = ('status', '--config-file', custom_config_filepath)
+    result = click_runner.invoke(nucypher_cli, status_args, catch_exceptions=True)
+
+    assert result.exit_code == 0
+
+    assert 'Federated Only' in result.output
+    heading = 'Known Nodes (connected 0 / seen 0)'
+    assert heading in result.output
+    assert 'password' not in result.output
 
 
 def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_runner):

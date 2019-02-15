@@ -15,15 +15,15 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
+from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from constant_sorrow.constants import NON_PAYMENT
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -319,7 +319,7 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
 
 @pytest.fixture(scope='module')
-def alice_control(federated_alice, federated_ursulas):
+def alice_control_test_client(federated_alice, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
     alice_control = federated_alice.make_wsgi_app(teacher_node)
     alice_control.config['DEBUG'] = True
@@ -328,7 +328,7 @@ def alice_control(federated_alice, federated_ursulas):
 
 
 @pytest.fixture(scope='module')
-def bob_control(federated_bob, federated_ursulas):
+def bob_control_test_client(federated_bob, federated_ursulas):
     teacher_node = list(federated_ursulas)[0]
     bob_control = federated_bob.make_wsgi_app(teacher_node)
     bob_control.config['DEBUG'] = True
@@ -337,7 +337,7 @@ def bob_control(federated_bob, federated_ursulas):
 
 
 @pytest.fixture(scope='module')
-def enrico_control(capsule_side_channel):
+def enrico_control_test_client(capsule_side_channel):
     _, data_source = capsule_side_channel
     message_kit, enrico = capsule_side_channel
     enrico_control = enrico.make_wsgi_app()
