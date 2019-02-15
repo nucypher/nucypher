@@ -33,7 +33,7 @@ from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
-from twisted.internet.threads import deferToThread, deferToThreadPool
+from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
 from bytestring_splitter import BytestringSplitter
@@ -262,7 +262,6 @@ class Learner:
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetStateTracker
-    _learning_threadpool = ThreadPool(name="learning-loop", maxthreads=10)
 
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
@@ -451,14 +450,13 @@ class Learner:
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
-            self._learning_threadpool.start()
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
 
             learning_deferreds = list()
             if not self.lonely:
-                seeder_deferred = deferToThreadPool(reactor, self._learning_threadpool, self.load_seednodes)
+                seeder_deferred = deferToThread(self.load_seednodes)
                 seeder_deferred.addErrback(self.handle_learning_errors)
                 learning_deferreds.append(seeder_deferred)
 
@@ -467,16 +465,14 @@ class Learner:
             learning_deferreds.append(learner_deferred)
 
             self.learning_deferred = defer.DeferredList(learning_deferreds)
-            self._learning_threadpool.start()
             return self.learning_deferred
 
     def stop_learning_loop(self, reason=None):
         """
         Only for tests at this point.  Maybe some day for graceful shutdowns.
         """
-        self._learning_threadpool.stop()
         self._learning_task.stop()
-
+ 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_learning_error:
@@ -548,7 +544,7 @@ class Learner:
         Continually learn about new nodes.
         """
         # TODO: Allow the user to set eagerness?
-        return deferToThreadPool(reactor, self._learning_threadpool, self.learn_from_teacher_node, eager=False)
+        self.learn_from_teacher_node(eager=False)
 
     def learn_about_specific_nodes(self, addresses: Set):
         self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
