@@ -2,7 +2,7 @@ import os
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, INSECURE_DEVELOPMENT_PASSWORD, \
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
     MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH
 
 
@@ -11,7 +11,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     mocker.patch.object(AliceConfiguration, 'initialize', autospec=True)
     mocker.patch.object(AliceConfiguration, 'to_configuration_file', autospec=True)
 
-    # Use default ursula init args
+    # Use default alice init args
     init_args = ('alice', 'init', '--federated-only')
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)

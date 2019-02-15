@@ -1,17 +1,15 @@
 import datetime
 import json
+from base64 import b64encode, b64decode
+
 import maya
 
-from base64 import b64encode, b64decode
-from umbral.keys import UmbralPublicKey
-
-from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
 
 
-def test_alice_character_control_create_policy(alice_control, federated_bob):
+def test_alice_character_control_create_policy(alice_control_test_client, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
     request_data = {
@@ -22,38 +20,38 @@ def test_alice_character_control_create_policy(alice_control, federated_bob):
         'n': 3,
 
     }
-    response = alice_control.put('/create_policy', data=json.dumps(request_data))
+    response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
     assert response.status_code == 200
     assert response.data == b'Policy created!'
 
     # Send bad data to assert error returns
-    response = alice_control.put('/create_policy', data='bad')
+    response = alice_control_test_client.put('/create_policy', data='bad')
     assert response.status_code == 400
 
     del(request_data['bob_encrypting_key'])
-    response = alice_control.put('/create_policy', data=json.dumps(request_data))
+    response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
 
 
-def test_alice_character_control_derive_policy_pubkey(alice_control):
+def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
     request_data = {
         'label': b64encode(b'test').decode(),
     }
-    response = alice_control.post('/derive_policy_pubkey', data=json.dumps(request_data))
+    response = alice_control_test_client.post('/derive_policy_pubkey', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
     assert 'policy_encrypting_pubkey' in response_data['result']
 
     # Test bad data returns an error
-    response = alice_control.post('/derive_policy_pubkey', data='bad')
+    response = alice_control_test_client.post('/derive_policy_pubkey', data='bad')
     assert response.status_code == 400
 
     del(request_data['label'])
-    response = alice_control.post('/derive_policy_pubkey', data=request_data)
+    response = alice_control_test_client.post('/derive_policy_pubkey', data=request_data)
     assert response.status_code == 400
 
 
-def test_alice_character_control_grant(alice_control, federated_bob):
+def test_alice_character_control_grant(alice_control_test_client, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
     request_data = {
@@ -64,7 +62,7 @@ def test_alice_character_control_grant(alice_control, federated_bob):
         'n': 3,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
-    response = alice_control.put('/grant', data=json.dumps(request_data))
+    response = alice_control_test_client.put('/grant', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
@@ -78,32 +76,32 @@ def test_alice_character_control_grant(alice_control, federated_bob):
     assert encrypted_map._hrac is not None
 
     # Send bad data to assert error returns
-    response = alice_control.put('/grant', data='bad')
+    response = alice_control_test_client.put('/grant', data='bad')
     assert response.status_code == 400
 
     del(request_data['bob_encrypting_key'])
-    response = alice_control.put('/grant', data=json.dumps(request_data))
+    response = alice_control_test_client.put('/grant', data=json.dumps(request_data))
 
 
-def test_bob_character_control_join_policy(bob_control, enacted_federated_policy):
+def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
     request_data = {
         'label': b64encode(enacted_federated_policy.label).decode(),
         'alice_signing_pubkey': bytes(enacted_federated_policy.alice.stamp).hex(),
     }
 
-    response = bob_control.post('/join_policy', data=json.dumps(request_data))
+    response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.data == b'Policy joined!'
     assert response.status_code == 200
 
     # Send bad data to assert error returns
-    response = bob_control.post('/join_policy', data='bad')
+    response = bob_control_test_client.post('/join_policy', data='bad')
     assert response.status_code == 400
 
     del(request_data['alice_signing_pubkey'])
-    response = bob_control.put('/join_policy', data=json.dumps(request_data))
+    response = bob_control_test_client.put('/join_policy', data=json.dumps(request_data))
 
 
-def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, capsule_side_channel):
+def test_bob_character_control_retrieve(bob_control_test_client, enacted_federated_policy, capsule_side_channel):
     message_kit, data_source = capsule_side_channel
 
     request_data = {
@@ -114,7 +112,7 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
         'datasource_signing_pubkey': bytes(data_source.stamp).hex(),
     }
 
-    response = bob_control.post('/retrieve', data=json.dumps(request_data))
+    response = bob_control_test_client.post('/retrieve', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
@@ -124,19 +122,19 @@ def test_bob_character_control_retrieve(bob_control, enacted_federated_policy, c
         assert b64decode(plaintext) == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
-    response = bob_control.post('/retrieve', data='bad')
+    response = bob_control_test_client.post('/retrieve', data='bad')
     assert response.status_code == 400
 
     del(request_data['alice_signing_pubkey'])
-    response = bob_control.put('/retrieve', data=json.dumps(request_data))
+    response = bob_control_test_client.put('/retrieve', data=json.dumps(request_data))
 
 
-def test_enrico_character_control_encrypt_message(enrico_control):
+def test_enrico_character_control_encrypt_message(enrico_control_test_client):
     request_data = {
         'message': b64encode(b"The admiration I had for your work has completely evaporated!").decode(),
     }
 
-    response = enrico_control.post('/encrypt_message', data=json.dumps(request_data))
+    response = enrico_control_test_client.post('/encrypt_message', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
@@ -148,15 +146,15 @@ def test_enrico_character_control_encrypt_message(enrico_control):
                             b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
-    response = enrico_control.post('/encrypt_message', data='bad')
+    response = enrico_control_test_client.post('/encrypt_message', data='bad')
     assert response.status_code == 400
 
     del(request_data['message'])
-    response = enrico_control.post('/encrypt_message', data=request_data)
+    response = enrico_control_test_client.post('/encrypt_message', data=request_data)
     assert response.status_code == 400
 
 
-def test_character_control_lifecycle(alice_control, bob_control,
+def test_character_control_lifecycle(alice_control_test_client, bob_control_test_client,
                                      enrico_control_from_alice,
                                      federated_alice, federated_bob):
 
@@ -169,7 +167,7 @@ def test_character_control_lifecycle(alice_control, bob_control,
         'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
 
-    response = alice_control.put('/grant', data=json.dumps(alice_request_data))
+    response = alice_control_test_client.put('/grant', data=json.dumps(alice_request_data))
     assert response.status_code == 200
 
     alice_response_data = json.loads(response.data)
@@ -209,7 +207,7 @@ def test_character_control_lifecycle(alice_control, bob_control,
         'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),
     }
 
-    response = bob_control.post('/retrieve', data=json.dumps(bob_request_data))
+    response = bob_control_test_client.post('/retrieve', data=json.dumps(bob_request_data))
     assert response.status_code == 200
 
     bob_response_data = json.loads(response.data)
