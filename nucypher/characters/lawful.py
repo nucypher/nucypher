@@ -538,12 +538,9 @@ class Bob(Character):
         cleartexts.append(delivered_cleartext)
         return cleartexts
 
-    def make_wsgi_app(drone_bob, teacher_node: "Ursula"):
+    def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')
-
-        teacher_node.verify_node(drone_bob.network_middleware)
-        drone_bob.remember_node(teacher_node)
-        drone_bob.start_learning_loop(now=True)
+        drone_bob.start_learning_loop(now=start_learning)
 
         @bob_control.route('/join_policy', methods=['POST'])
         def join_policy():
