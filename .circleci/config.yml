@@ -128,17 +128,6 @@ workflows:
             - deployers
             - config
             - character
-      - ursula_command:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - agents
-            - actors
-            - deployers
-            - config
-            - character
       - heartbeat_demo:
           context: "NuCypher Tests"
           filters:
@@ -146,7 +135,6 @@ workflows:
               only: /.*/
           requires:
           - cli
-          - ursula_command
       - mypy:
           context: "NuCypher Tests"
           filters:
@@ -154,7 +142,6 @@ workflows:
               only: /.*/
           requires:
             - cli
-            - ursula_command
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
@@ -162,21 +149,18 @@ workflows:
               only: /.*/
           requires:
             - cli
-            - ursula_command
       - build_docs:
           filters:
             tags:
               only: /.*/
           requires:
             - cli
-            - ursula_command
       - test_build:
           filters:
             tags:
               only: /.*/
           requires:
             - cli
-            - ursula_command
             - build_docs
       - build_docker:
           filters:
@@ -491,16 +475,6 @@ jobs:
           name: Nucypher CLI Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
-      - store_test_results:
-          path: reports
-
-  ursula_command:
-    <<: *python_36_base
-    steps:
-      - prepare_environment
-      - run:
-          name: Ursula Command Tests
-          command: pipenv run pytest tests/cli/protocol
       - store_test_results:
           path: reports
 
