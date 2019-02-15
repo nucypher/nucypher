@@ -378,7 +378,7 @@ class NodeConfiguration(ABC):
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = node_storage_subclasses[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload,
-                                                  character_class=cls._CHARACTER_CLASS,
+                                                  # character_class=cls._CHARACTER_CLASS,  # TODO: Do not pass this here - Always Use Ursula
                                                   federated_only=payload['federated_only'],
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)

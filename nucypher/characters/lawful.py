@@ -552,7 +552,7 @@ class Bob(Character):
             try:
                 request_data = json.loads(request.data)
 
-                label = b64decode(request_data['label'])
+                label = request_data['label']
                 alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
