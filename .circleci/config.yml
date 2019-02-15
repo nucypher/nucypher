@@ -170,7 +170,6 @@ workflows:
               ignore: /.*/
           requires:
             - cli
-            - ursula_command
       - test_deploy:
           context: "NuCypher PyPI"
           requires:
