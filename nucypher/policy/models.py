@@ -309,7 +309,7 @@ class Policy:
                 self.consider_arrangement(ursula=selected_ursula,
                                           arrangement=arrangement,
                                           network_middleware=network_middleware)
-            except NodeSeemsToBeDown:
+            except NodeSeemsToBeDown:  # TODO: Also catch InvalidNode here?  355
                 # This arrangment won't be added to the accepted bucket.
                 # If too many nodes are down, it will fail in make_arrangements.
                 continue
