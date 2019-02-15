@@ -588,12 +588,13 @@ class Bob(Character):
             message_kit = UmbralMessageKit.from_bytes(message_kit)
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
-                                                  policy_pubkey_enc=policy_encrypting_key,
+                                                  policy_encrypting_key=policy_encrypting_key,
                                                   label=label)
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
                                             data_source=data_source,
-                                            alice_verifying_key=alice_pubkey_sig)
+                                            alice_verifying_key=alice_pubkey_sig,
+                                            label=label)
 
             plaintexts = [b64encode(plaintext).decode() for plaintext in plaintexts]
             response_data = {
@@ -1123,7 +1124,7 @@ class Enrico(Character):
         """
         policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
-                   policy_pubkey_enc=policy_pubkey_enc, label=label)
+                   policy_encrypting_key=policy_pubkey_enc)
 
     def make_wsgi_app(drone_enrico):
         enrico_control = Flask("enrico-control")

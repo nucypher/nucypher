@@ -313,6 +313,7 @@ class Character(Learner):
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
+                    label=None,
                     ) -> bytes:
         """
         Inverse of encrypt_for.
@@ -336,12 +337,6 @@ class Character(Learner):
         signature_from_kit = None
 
         if decrypt:
-            # Let's try to get the label from the Stranger.
-            try:
-                label = stranger.label
-            except AttributeError:
-                # The Stranger has no idea what we're talking about. Nothing to do here.
-                label = None
 
             # We are decrypting the message; let's do that first and see what the sig header says.
             cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
