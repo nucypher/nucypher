@@ -1,16 +1,33 @@
+import datetime
+import json
 import os
+from base64 import b64encode
 
 import click
+import maya
+import requests
 from nacl.exceptions import CryptoError
 
 from hendrix.deploy.base import HendrixDeploy
-from nucypher.characters.lawful import Alice, Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
+
+
+ALICE_BANNER = r"""
+
+    / \  | (_) ___ ___ 
+   / _ \ | | |/ __/ _ \
+  / ___ \| | | (_|  __/
+ /_/   \_|_|_|\___\___|
+ 
+ the Authority.
+
+"""
 
 
 @click.command()
@@ -26,6 +43,11 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
+@click.option('--bob-verifying-key', help="Bob's verifying key as a hexideicmal string", type=click.STRING)
+@click.option('--label', help="The label for a policy", type=click.STRING)
+@click.option('--m', help="M", type=click.INT)
+@click.option('--n', help="N", type=click.INT)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -45,7 +67,19 @@ def alice(click_config,
           registry_filepath,
           dev,
           force,
-          dry_run):
+          dry_run,
+          bob_encrypting_key,
+          bob_verifying_key,
+          label,
+          m,
+          n):
+
+    """
+    Start and manage an "Alice" character.
+    """
+
+    if not quiet:
+        click.secho(ALICE_BANNER)
 
     if action == 'init':
         """Create a brand-new persistent Alice"""
@@ -115,6 +149,17 @@ def alice(click_config,
             rest_port=discovery_port,
             provider_uri=provider_uri)
 
+    # Teacher
+    teacher_nodes = list()
+    if teacher_uri:
+        teacher_node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
+                                               min_stake=min_stake,
+                                               federated_only=alice_config.federated_only)
+        teacher_nodes.append(teacher_node)
+
+    # Produce
+    ALICE = alice_config(known_nodes=teacher_nodes)
+
     if action == "run":
 
         if not dev:
@@ -127,20 +172,11 @@ def alice(click_config,
             finally:
                 click_config.alice_config = alice_config
 
-        # Teacher
-        teacher_nodes = list()
-        if teacher_uri:
-            teacher_node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                                   min_stake=min_stake,
-                                                   federated_only=alice_config.federated_only)
-            teacher_nodes.append(teacher_node)
-
-        # Produce
-        ALICE = alice_config(known_nodes=teacher_nodes)
-
         # Alice Control
         alice_control = ALICE.make_wsgi_app()
         click.secho("Starting Alice Character Control...")
+
+        click.secho(f"Alice Signing Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
 
         # Run
         if dry_run:
@@ -153,6 +189,50 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         paint_configuration(config_filepath=config_file or alice_config.config_file_location)
         return
+
+    elif action == "create-policy":
+        if not all((bob_verifying_key, bob_encrypting_key, label)):
+            raise click.BadArgumentUsage(message="--bob-verifying-key, --bob-encrypting-key, and --label are "
+                                                 "required options to create a new policy.")
+
+        request_data = {
+            'bob_encrypting_key': bob_encrypting_key,
+            'bob_signing_key': bob_verifying_key,
+            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+            'm': m,
+            'n': n,
+        }
+
+        response = requests.put(f'http://localhost:{http_port}/create_policy', data=json.dumps(request_data))
+        click.secho(response.json())
+        return
+
+    elif action == "derive-policy":
+        request_data = {
+            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+        }
+        response = requests.post(f'http://localhost:{http_port}/derive_policy_pubkey', data=json.dumps(request_data))
+
+        response_data = response.json()
+        policy_encrypting_key = response_data['result']['policy_encrypting_pubkey']
+        click.secho(f"Created new Policy with label {label} | {policy_encrypting_key}", fg='green')
+
+    elif action == "grant":
+        request_data = {
+            'bob_encrypting_key': bob_encrypting_key,
+            'bob_signing_key': bob_verifying_key,
+            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+            'm': m,
+            'n': n,
+            'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+        }
+
+        response = requests.put(f'http://localhost:{http_port}/grant', data=json.dumps(request_data))
+        click.secho(response)
+        return
+
+    elif action == "revoke":
+        raise NotImplementedError  # TODO
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")
