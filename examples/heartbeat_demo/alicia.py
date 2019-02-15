@@ -97,7 +97,6 @@ print("The policy public key for "
 # heart rate measurements from a heart monitor
 import heart_monitor
 heart_monitor.generate_heart_rate_samples(policy_pubkey,
-                                          label=label,
                                           samples=50,
                                           save_as_file=True)
 
