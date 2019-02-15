@@ -11,7 +11,6 @@ from twisted.logger import globalLogPublisher
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.data_sources import DataSource
 from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 

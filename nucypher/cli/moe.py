@@ -15,9 +15,6 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import SimpleObserver
 
-
-globalLogPublisher.addObserver(SimpleObserver())
-
 MOE_BANNER = r"""
  _______               
 |   |   |.-----..-----.
