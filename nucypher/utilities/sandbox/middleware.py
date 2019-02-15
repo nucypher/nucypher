@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import requests
 import socket
 
 from bytestring_splitter import VariableLengthBytestring
@@ -90,42 +91,45 @@ class MockRestMiddleware(RestMiddleware):
         return ursula.certificate
 
 
+class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ports_that_are_down = set()
+        self.certs_are_broken = False
+
+    def _get_ursula_by_port(self, port):
+        if port in self.ports_that_are_down:
+            raise ConnectionRefusedError
+        else:
+            return super()._get_ursula_by_port(port)
+
+    def get(self, *args, **kwargs):
+        if kwargs.get("path") == "public_information":
+            if self.certs_are_broken:
+                raise requests.exceptions.SSLError
+            port = kwargs.get("port")
+            if port in self.ports_that_are_down:
+                raise socket.gaierror
+
+        real_get = super(_TestMiddlewareClient, self).__getattr__("get")
+        return real_get(*args, **kwargs)
+
+
 class NodeIsDownMiddleware(MockRestMiddleware):
     """
     Modified middleware to emulate one node being down amongst many.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client = _MiddlewareClientWithConnectionProblems()
+        self.ports_that_are_down = []
 
-    def __getattribute__(self, method_name):
-        methods_that_are_down = ("enact_policy",
-                                 "revoke_arrangement",
-                                 "get_treasure_map_from_node",
-                                 "put_treasure_map_on_node",
-                                 "get_nodes_via_rest",
-                                 "consider_arrangement",
-                                 )
+    def node_is_down(self, node):
+        self.client.ports_that_are_down.add(node.rest_information()[0].port)
 
-        def see_if_node_is_pretending_to_be_down(*args, **kwargs):
-            node = kwargs.get("node")
-            arrangement = kwargs.get("arrangement")
-            if node:
-                if getattr(node, "_is_pretending_to_be_down", False):
-                    raise socket.gaierror
-            elif arrangement:
-                    # In the case that this is actually an arrangement.
-                    if getattr(arrangement.ursula, "_is_pretending_to_be_down", False):
-                        raise ConnectionRefusedError
-                    else:
-                        print(f"{arrangement.ursula} is up.")
-
-            # If we didn't raise...
-            method = getattr(MockRestMiddleware, method_name)
-            return method(self, *args, **kwargs)
-
-
-        if method_name in methods_that_are_down:
-            return see_if_node_is_pretending_to_be_down
-        else:
-            return MockRestMiddleware.__getattribute__(self, method_name)
+    def node_is_up(self, node):
+        self.client.ports_that_are_down.remove(node.rest_information()[0].port)
 
 
 class EvilMiddleWare(MockRestMiddleware):
@@ -142,3 +146,4 @@ class EvilMiddleWare(MockRestMiddleware):
                                     data=bytes(VariableLengthBytestring(shitty_interface_id))
                                     )
         return response
+

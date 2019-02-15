@@ -269,7 +269,10 @@ class Learner:
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
-    class NotEnoughTeachers(RuntimeError):
+    class NotEnoughNodes(RuntimeError):
+        pass
+
+    class NotEnoughTeachers(NotEnoughNodes):
         pass
 
     class UnresponsiveTeacher(ConnectionError):
@@ -579,9 +582,9 @@ class Learner:
             # The rest of the fucking owl
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
-                    raise self.NotEnoughTeachers("Learning loop is not running.  Start it with start_learning().")
+                    raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find {} nodes".format(
+                    raise self.NotEnoughNodes("After {} seconds and {} rounds, didn't find {} nodes".format(
                         timeout, rounds_undertaken, number_of_nodes_to_know))
             else:
                 time.sleep(.1)
@@ -779,6 +782,9 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
+            # This block is a mess of eagerness.  This can all be done better lazily.
+            except NodeSeemsToBeDown as e:
+                self.log.info(f"Can't connect to {node} to verify it right now.")
             except node.InvalidNode:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 self.log.warn(node.invalid_metadata_message.format(node))
