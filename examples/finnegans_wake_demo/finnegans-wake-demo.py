@@ -106,7 +106,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     #########################
     # Enrico, the Encryptor #
     #########################
-    enrico = Enrico(policy_pubkey_enc=policy_pubkey)
+    enrico = Enrico(policy_encrypting_key=policy_pubkey)
 
     # In this case, the plaintext is a
     # single passage from James Joyce's Finnegan's Wake.

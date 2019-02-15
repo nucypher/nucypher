@@ -73,3 +73,6 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
 MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom-{}'.format(time.time())
+
+MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
+
