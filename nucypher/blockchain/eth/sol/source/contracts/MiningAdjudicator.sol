@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/lib/UmbralDeserializer.sol";
@@ -29,7 +29,7 @@ contract MiningAdjudicator is Upgradeable {
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
     // used only for upgrading
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
-    address constant RESERVED_ADDRESS = 0x0;
+    address constant RESERVED_ADDRESS = address(0);
 
     MinersEscrow public escrow;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
@@ -58,7 +58,7 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(address(_escrow) != 0x0 &&
+        require(address(_escrow) != address(0) &&
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
         escrow = _escrow;
@@ -83,15 +83,15 @@ contract MiningAdjudicator is Upgradeable {
     **/
     // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
-        bytes _capsuleBytes,
-        bytes _capsuleSignatureByRequester,
-        bytes _capsuleSignatureByRequesterAndMiner,
-        bytes _cFragBytes,
-        bytes _cFragSignatureByMiner,
-        bytes _requesterPublicKey,
-        bytes _minerPublicKey,
-        bytes _minerPublicKeySignature,
-        bytes _preComputedData
+        bytes memory _capsuleBytes,
+        bytes memory _capsuleSignatureByRequester,
+        bytes memory _capsuleSignatureByRequesterAndMiner,
+        bytes memory _cFragBytes,
+        bytes memory _cFragSignatureByMiner,
+        bytes memory _requesterPublicKey,
+        bytes memory _minerPublicKey,
+        bytes memory _minerPublicKeySignature,
+        bytes memory _preComputedData
     )
         public
     {
@@ -142,7 +142,7 @@ contract MiningAdjudicator is Upgradeable {
         internal returns (uint256 penalty, uint256 reward)
     {
         penalty = basePenalty.add(penaltyHistoryCoefficient.mul(penaltyHistory[_miner]));
-        penalty = Math.min256(penalty, _minerValue.div(percentagePenaltyCoefficient));
+        penalty = Math.min(penalty, _minerValue.div(percentagePenaltyCoefficient));
         reward = penalty.div(rewardCoefficient);
         // TODO add maximum condition or other overflow protection or other penalty condition
         penaltyHistory[_miner] = penaltyHistory[_miner].add(1);
@@ -435,7 +435,7 @@ contract MiningAdjudicator is Upgradeable {
 //    }
 
     // TODO: Consider changing to internal
-    function extendedKeccakToBN (bytes _data) public pure returns (uint256) {
+    function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
 
         bytes32 upper;
         bytes32 lower;
@@ -457,15 +457,15 @@ contract MiningAdjudicator is Upgradeable {
     function verifyState(address _testTarget) public onlyOwner {
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
-        require(uint256(delegateGet(_testTarget, "basePenalty()")) == basePenalty);
-        require(uint256(delegateGet(_testTarget, "penaltyHistoryCoefficient()")) == penaltyHistoryCoefficient);
-        require(uint256(delegateGet(_testTarget, "percentagePenaltyCoefficient()")) == percentagePenaltyCoefficient);
-        require(uint256(delegateGet(_testTarget, "rewardCoefficient()")) == rewardCoefficient);
-        require(uint256(delegateGet(_testTarget, "penaltyHistory(address)", bytes32(RESERVED_ADDRESS))) ==
+        require(delegateGet(_testTarget, "basePenalty()") == basePenalty);
+        require(delegateGet(_testTarget, "penaltyHistoryCoefficient()") == penaltyHistoryCoefficient);
+        require(delegateGet(_testTarget, "percentagePenaltyCoefficient()") == percentagePenaltyCoefficient);
+        require(delegateGet(_testTarget, "rewardCoefficient()") == rewardCoefficient);
+        require(delegateGet(_testTarget, "penaltyHistory(address)", bytes32(bytes20(RESERVED_ADDRESS))) ==
             penaltyHistory[RESERVED_ADDRESS]);
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
-        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != bytes32(0));
+        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != 0);
     }
 
     function finishUpgrade(address _target) public onlyOwner {

@@ -153,7 +153,7 @@ contract MinersEscrow is Issuer {
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
         require(address(policyManager) == address(0) &&
-            address(_policyManager) != 0x0 &&
+            address(_policyManager) != address(0) &&
             _policyManager.escrow() == address(this));
         policyManager = _policyManager;
     }
@@ -162,8 +162,8 @@ contract MinersEscrow is Issuer {
     * @notice Set mining adjudicator address
     **/
     function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
-        require(address(miningAdjudicator) == 0x0 &&
-            address(_miningAdjudicator) != 0x0 &&
+        require(address(miningAdjudicator) == address(0) &&
+            address(_miningAdjudicator) != address(0) &&
             _miningAdjudicator.escrow() == address(this));
         miningAdjudicator = _miningAdjudicator;
     }
@@ -346,13 +346,13 @@ contract MinersEscrow is Issuer {
     * @param _from Miner
     * @param _value Amount of tokens to deposit
     * @param _tokenContract Token contract address
-    * @param _extraData Amount of periods during which tokens will be locked
+    * @notice (param _extraData) Amount of periods during which tokens will be locked
     **/
     function receiveApproval(
         address _from,
         uint256 _value,
         address _tokenContract,
-        bytes calldata _extraData
+        bytes calldata /* _extraData */
     )
         external
     {
@@ -892,11 +892,14 @@ contract MinersEscrow is Issuer {
     )
         internal
     {
+        SubStakeInfo storage shortestSubStake = _info.subStakes[0];
+        uint16 minSubStakeLastPeriod = MAX_UINT16;
+        uint16 minSubStakeDuration = MAX_UINT16;
         while(_penalty > 0) {
             if (_shortestSubStakeIndex < MAX_SUB_STAKES) {
-                SubStakeInfo storage shortestSubStake = _info.subStakes[_shortestSubStakeIndex];
-                uint16 minSubStakeLastPeriod = getLastPeriodOfSubStake(shortestSubStake, _startPeriod);
-                uint16 minSubStakeDuration = minSubStakeLastPeriod.sub16(shortestSubStake.firstPeriod);
+                shortestSubStake = _info.subStakes[_shortestSubStakeIndex];
+                minSubStakeLastPeriod = getLastPeriodOfSubStake(shortestSubStake, _startPeriod);
+                minSubStakeDuration = minSubStakeLastPeriod.sub16(shortestSubStake.firstPeriod);
                 _shortestSubStakeIndex = MAX_SUB_STAKES;
             } else {
                 (shortestSubStake, minSubStakeDuration, minSubStakeLastPeriod) =
