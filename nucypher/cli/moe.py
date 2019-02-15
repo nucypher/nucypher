@@ -16,6 +16,18 @@ from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.logging import SimpleObserver
 
 
+globalLogPublisher.addObserver(SimpleObserver())
+
+MOE_BANNER = r"""
+ _______               
+|   |   |.-----..-----.
+|       ||  _  ||  -__|
+|__|_|__||_____||_____|
+
+the Monitor.
+"""
+
+
 class MonitoringTracker(FleetStateTracker):
     def record_fleet_state(self, *args, **kwargs):
         new_state_or_none = super(MonitoringTracker, self).record_fleet_state(*args, **kwargs)
@@ -64,6 +76,8 @@ def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
     """
     "Moe" NuCypher node monitor CLI.
     """
+
+    click.secho(MOE_BANNER)
 
     #
     # Teacher
