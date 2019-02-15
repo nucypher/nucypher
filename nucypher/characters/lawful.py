@@ -506,15 +506,17 @@ class Bob(Character):
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key):
+    def retrieve(self, message_kit, data_source, alice_verifying_key, label):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
 
-        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+
+        # TODO: Consider blocking until map is done being followed.
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
