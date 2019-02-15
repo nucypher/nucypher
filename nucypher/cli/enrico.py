@@ -36,7 +36,7 @@ def enrico(action, policy_encrypting_key, dry_run, http_port):
         enrico_control = ENRICO.make_wsgi_app()
         click.secho("Starting Enrico Character Control...")
 
-        click.secho(f"Enrico Signing Key {bytes(ENRICO.stamp).hex()}", fg="green", bold=True)
+        click.secho(f"Enrico Verifying Key {bytes(ENRICO.stamp).hex()}", fg="green", bold=True)
 
         # Run
         if dry_run:

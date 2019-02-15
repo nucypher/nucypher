@@ -271,7 +271,7 @@ class Alice(Character, PolicyAuthor):
 
                 bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
                 bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
-                label = b64decode(request_data['label'])
+                label = request_data['label'].encode()
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
                 expiration = request_data.get("expiration_time")
@@ -286,6 +286,7 @@ class Alice(Character, PolicyAuthor):
                                             SigningPower: bob_pubkey_sig},
                                            federated_only=True)
             except (KeyError, JSONDecodeError) as e:
+                print(e)  # TODO: Make this a genuine log.  Just for demos for now.
                 return Response(str(e), status=400)
 
             new_policy = drone_alice.grant(bob, label, m=m, n=n,
@@ -568,8 +569,7 @@ class Bob(Character):
             """
             try:
                 request_data = json.loads(request.data)
-
-                label = b64decode(request_data['label'])
+                label = request_data['label'].encode()
                 policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
                 alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
                 message_kit = b64decode(request_data['message_kit'])
