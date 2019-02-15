@@ -26,6 +26,8 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
 
+    timeout = None
+
     @staticmethod
     def response_cleaner(response):
         response.content = response.data

@@ -177,7 +177,7 @@ def alice(click_config,
         alice_control = ALICE.make_wsgi_app()
         click.secho("Starting Alice Character Control...")
 
-        click.secho(f"Alice Signing Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
+        click.secho(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
 
         # Run
         if dry_run:
