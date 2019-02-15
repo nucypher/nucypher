@@ -3,7 +3,7 @@ import click
 from hendrix.deploy.base import HendrixDeploy
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.types import NETWORK_PORT
-
+from umbral.keys import UmbralPublicKey
 
 ENRICO_BANNER = r"""
  ___                
@@ -29,6 +29,7 @@ def enrico(action, policy_encrypting_key, dry_run, http_port):
     click.secho(ENRICO_BANNER.format(policy_encrypting_key))
 
     if action == 'run':  # Forest
+        policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
         ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
 
         # Enrico Control
