@@ -38,3 +38,4 @@ variables*.yml
 .env
 /tests/metrics/results/
 /docs/build
+.python-version
