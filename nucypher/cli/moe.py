@@ -71,7 +71,8 @@ class Moe(Character):
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=12500)
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
+@click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
+def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
 
     """
     "Moe" NuCypher node monitor CLI.
@@ -104,7 +105,7 @@ def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port):
         federated_only=True,
     )
 
-    monitor.start_learning_loop()
+    monitor.start_learning_loop(now=learn_on_launch)
 
     #
     # Websocket Service
