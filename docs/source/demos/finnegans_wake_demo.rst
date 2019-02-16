@@ -26,20 +26,20 @@ without revealing data keys to intermediary entities.
 +------+-----------+----------------------------------------------------------------------------------------------+
 | 3    | Bob       | Bob joins the policy with Label and Alice's public key                                       |
 +------+-----------+----------------------------------------------------------------------------------------------+
-| 4    | Enrico    | DataSource created for the policy                                                            |
+| 4    | Enrico    | A data source created for the policy                                                         |
 +------+-----------+----------------------------------------------------------------------------------------------+
-| 5    | Enrico    | Each plaintext message gets encapsulated through the DataSource to messageKit                |
+| 5    | Enrico    | Each plaintext message gets encrypted by Enrico, which results in a messageKit               |
 +------+-----------+----------------------------------------------------------------------------------------------+
-| 6    | Bob       | Bob receives and reconstructs the DataSource from Policy public key and DataSource public key|
+| 6    | Bob       | Bob receives and reconstructs Enrico from the Policy's public key and Enrico's public key    |
 +------+-----------+----------------------------------------------------------------------------------------------+
-| 7    | Bob       | Bob retrieves the original message form DataSource and MessageKit                            |
+| 7    | Bob       | Bob retrieves the original message from Enrico and MessageKit                                |
 +------+-----------+----------------------------------------------------------------------------------------------+
 
 
 Install Nucypher
 ----------------
 
-    Acquire the nucypher application code and install the dependencies.
+    Acquire the ``nucypher`` application code and install the dependencies.
     For a full installation guide see the :doc:`/guides/installation_guide`.
 
 Download the Book Text

@@ -121,10 +121,11 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     enrico_as_understood_by_bob = Enrico.from_public_keys(
-        policy_public_key=policy_pubkey,
-        enrico_public_key=data_source_public_key,
-        label=label
+        {SigningPower: data_source_public_key},
+        policy_encrypting_key=policy_pubkey
     )
+
+
 
     # Now Bob can retrieve the original message.
     alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)

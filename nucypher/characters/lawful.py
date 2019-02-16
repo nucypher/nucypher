@@ -1090,6 +1090,7 @@ class Ursula(Teacher, Character, Miner):
 
 
 class Enrico(Character):
+    """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
     _default_crypto_powerups = [SigningPower]
 

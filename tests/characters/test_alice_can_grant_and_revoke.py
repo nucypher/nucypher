@@ -158,7 +158,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Even before creating the policies, we can know what will be its public key.
-    # This can be used by DataSources to encrypt messages before Alice grants access to Bobs
+    # This can be used by Enrico (i.e., a Data Source) to encrypt messages
+    # before Alice grants access to Bobs.
     policy_pubkey = alice.get_policy_pubkey_from_label(label)
 
     # Now, let's create a policy for some Bob.
