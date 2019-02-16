@@ -208,7 +208,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
 
     # Retrieve data via Bob control
-    encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
+    encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()
 
     bob_request_data = {
         'label': label,

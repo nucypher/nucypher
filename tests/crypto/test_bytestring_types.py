@@ -68,11 +68,11 @@ def test_message_kit_serialization_via_enrico(enacted_federated_policy, federate
     message_kit, signature = enrico.encrypt_message(message=plaintext_bytes)
 
     # Serialize
-    message_kit_bytes = bytes(message_kit)
+    message_kit_bytes = message_kit.to_bytes()
 
     # Deserialize
     the_same_message_kit = UmbralMessageKit.from_bytes(message_kit_bytes)
 
     # Confirm
-    assert message_kit == the_same_message_kit
+    assert message_kit_bytes == the_same_message_kit.to_bytes()
 

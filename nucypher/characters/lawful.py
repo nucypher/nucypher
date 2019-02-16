@@ -576,13 +576,13 @@ class Bob(Character):
                 label = request_data['label'].encode()
                 policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
                 alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
-                message_kit = b64decode(request_data['message_kit'])
+                message_kit = b64decode(request_data['message_kit'].encode())
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
 
             policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
             alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
-            message_kit = UmbralMessageKit.from_bytes(message_kit)   # TODO: May raise UnknownOpenSSLError... great.
+            message_kit = UmbralMessageKit.from_bytes(message_kit)   # TODO: May raise UnknownOpenSSLError and InvalidTag.
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
                                                   policy_encrypting_key=policy_encrypting_key,
@@ -1144,12 +1144,9 @@ class Enrico(Character):
             # Encrypt
             message_kit, signature = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
 
-            m = UmbralMessageKit.from_bytes(bytes(message_kit))
-            assert m == message_kit
-
             response_data = {
                 'result': {
-                    'message_kit': b64encode(bytes(message_kit)).decode(),
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),   # FIXME
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)
