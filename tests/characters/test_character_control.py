@@ -157,9 +157,10 @@ def test_character_control_lifecycle(alice_control_test_client,
                                      enrico_control_from_alice,
                                      federated_alice,
                                      federated_bob,
-                                     federated_ursulas):
+                                     federated_ursulas,
+                                     random_policy_label):
 
-    random_label = generate_random_label().decode()  # Unicode string
+    random_label = random_policy_label.decode()  # Unicode string
 
     # Create a policy via Alice control
     alice_request_data = {

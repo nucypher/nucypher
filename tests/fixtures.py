@@ -265,6 +265,11 @@ def capsule_side_channel(enacted_federated_policy):
     return message_kit, enrico
 
 
+@pytest.fixture(scope="module")
+def random_policy_label():
+    yield generate_random_label()
+
+
 #
 # Alice, Bob, and Ursula
 #
@@ -349,8 +354,8 @@ def enrico_control_test_client(capsule_side_channel):
 
 
 @pytest.fixture(scope='module')
-def enrico_control_from_alice(federated_alice):
-    enrico = Enrico.from_alice(federated_alice, b'test')
+def enrico_control_from_alice(federated_alice, random_policy_label):
+    enrico = Enrico.from_alice(federated_alice, random_policy_label)
 
     enrico_control = enrico.make_wsgi_app()
     enrico_control.config['DEBUG'] = True
