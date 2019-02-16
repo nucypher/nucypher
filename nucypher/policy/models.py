@@ -441,13 +441,13 @@ class TreasureMap:
 
     @property
     def m(self):
-        if self._m == constants.NO_DECRYPTION_PERFORMED:
+        if self._m == NO_DECRYPTION_PERFORMED:
             raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
         return self._m
 
     @property
     def destinations(self):
-        if self._destinations == constants.NO_DECRYPTION_PERFORMED:
+        if self._destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
         return self._destinations
 
