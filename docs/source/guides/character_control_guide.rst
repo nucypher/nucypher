@@ -161,7 +161,7 @@ Enrico (DataSource)
 encrypt_message
 ~~~~~~~~~~~~~~~
 
-This endpoint controls the ``DataSource.encrypt_message`` method.
+This endpoint controls the ``Enrico.encrypt_message`` method.
 
 - URL: ``/encrypt_message``
 - HTTP Method: ``POST``
