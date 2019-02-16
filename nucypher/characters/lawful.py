@@ -218,10 +218,11 @@ class Alice(Character, PolicyAuthor):
             Character control endpoint for creating a policy and making
             arrangements with Ursulas.
 
-            This is an unfinished API endpoint. You are probably looking for grant.
+            TODO: This is an unfinished API endpoint. You are probably looking for grant.
+            TODO: Needs input cleansing and validation
+            TODO: Provide more informative errors
             """
-            # TODO: Needs input cleansing and validation
-            # TODO: Provide more informative errors
+
             try:
                 request_data = json.loads(request.data)
 
@@ -552,7 +553,7 @@ class Bob(Character):
             try:
                 request_data = json.loads(request.data)
 
-                label = request_data['label']
+                label = request_data['label'].encode()
                 alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)

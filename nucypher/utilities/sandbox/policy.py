@@ -14,10 +14,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+import os
+import random
 from collections import OrderedDict
+from typing import Set
 
 import maya
-from typing import Set
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -76,3 +80,15 @@ class MockPolicyCreation:
         assert tx_hash == cls.tx_hash
         cls.waited_for_receipt = True
 
+
+def generate_random_label() -> bytes:
+    """
+    Generates a random bytestring for use as a test label.
+    :return: bytes
+    """
+    adjs = ('my', 'sesame street', 'black', 'cute')
+    nouns = ('lizard', 'super-secret', 'data', 'coffee')
+    combinations = list('-'.join((a, n)) for a in adjs for n in nouns)
+    selection = random.choice(combinations)
+    random_label = f'label://{selection}-{os.urandom(4).hex()}'
+    return bytes(random_label, encoding='utf-8')

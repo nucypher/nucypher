@@ -33,22 +33,12 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
 
 
 def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
-    request_data = {
-        'label': 'test',
-    }
-    response = alice_control_test_client.post('/derive_policy_pubkey', data=json.dumps(request_data))
+    label = 'test'
+    response = alice_control_test_client.post(f'/derive_policy_pubkey/{label}')
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
     assert 'policy_encrypting_pubkey' in response_data['result']
-
-    # Test bad data returns an error
-    response = alice_control_test_client.post('/derive_policy_pubkey', data='bad')
-    assert response.status_code == 400
-
-    del(request_data['label'])
-    response = alice_control_test_client.post('/derive_policy_pubkey', data=request_data)
-    assert response.status_code == 400
 
 
 def test_alice_character_control_grant(alice_control_test_client, federated_bob):
@@ -85,7 +75,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 
 def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
     request_data = {
-        'label': b64encode(enacted_federated_policy.label).decode(),
+        'label': enacted_federated_policy.label.decode(),
         'alice_signing_pubkey': bytes(enacted_federated_policy.alice.stamp).hex(),
     }
 
@@ -100,8 +90,10 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     response = bob_control_test_client.post('/join_policy', data='bad')
     assert response.status_code == 400
 
+    # Missing Key results in bad request
     del(request_data['alice_signing_pubkey'])
-    response = bob_control_test_client.put('/join_policy', data=json.dumps(request_data))
+    response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
+    assert response.status_code == 400
 
 
 def test_bob_character_control_retrieve(bob_control_test_client, enacted_federated_policy, capsule_side_channel):
