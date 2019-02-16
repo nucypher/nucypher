@@ -59,7 +59,8 @@ class BaseTestNodeStorageBackends:
         # Save more nodes
         all_known_nodes = set()
         for port in range(MOCK_URSULA_STARTING_PORT, MOCK_URSULA_STARTING_PORT+100):
-            node = Ursula(rest_host='127.0.0.1', db_filepath=MOCK_URSULA_DB_FILEPATH, rest_port=port, federated_only=True)
+            node = Ursula(rest_host='127.0.0.1', db_filepath=MOCK_URSULA_DB_FILEPATH, rest_port=port,
+                          federated_only=True)
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
 
@@ -97,7 +98,7 @@ class BaseTestNodeStorageBackends:
 
 
     #
-    # Storage Backed Tests
+    # Storage Backend Tests
     #
 
     def test_delete_node_in_storage(self, light_ursula):

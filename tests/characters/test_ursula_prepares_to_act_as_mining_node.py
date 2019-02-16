@@ -112,7 +112,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     """
     his_target = list(blockchain_ursulas)[4]
 
-    fraduluent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
+    fraudulent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
 
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 

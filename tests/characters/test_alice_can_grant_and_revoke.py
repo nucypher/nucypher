@@ -26,7 +26,6 @@ from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
-from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -48,7 +47,7 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
-    # Create the Policy, Grating access to Bob
+    # Create the Policy, Granting access to Bob
     policy = blockchain_alice.grant(blockchain_bob, label, m=2, n=n, expiration=policy_end_datetime)
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
@@ -61,9 +60,7 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
 
-        # Get the Arrangement from Ursula's datastore, looking up by hrac.
-        # This will be changed in 180, when we use the Arrangement ID.
-        proper_hrac = keccak_digest(bytes(blockchain_alice.stamp) + bytes(blockchain_bob.stamp) + label)
+        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
         retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
@@ -91,9 +88,7 @@ def test_federated_grant(federated_alice, federated_bob):
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
 
-        # Get the Arrangement from Ursula's datastore, looking up by hrac.
-        # This will be changed in 180, when we use the Arrangement ID.
-        proper_hrac = keccak_digest(bytes(federated_alice.stamp) + bytes(federated_bob.stamp) + label)
+        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
         retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
@@ -220,4 +215,3 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     # Both policies must share the same public key (i.e., the policy public key)
     assert policy_pubkey == roberto_policy.public_key
-

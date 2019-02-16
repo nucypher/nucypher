@@ -38,8 +38,6 @@ def test_key_sqlite_keystore(test_keystore, federated_bob):
 
 def test_policy_arrangement_sqlite_keystore(test_keystore):
     alice_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
-    alice_keypair_dec = keypairs.DecryptingKeypair(generate_keys_if_needed=True)
-    bob_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
     arrangement_id = b'test'
 

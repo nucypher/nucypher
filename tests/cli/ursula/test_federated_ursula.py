@@ -211,7 +211,8 @@ def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_ru
 def test_ursula_destroy_configuration(custom_filepath, click_runner):
 
     preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)
-    preexisting_live_configuration_file = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.CONFIG_FILENAME))
+    preexisting_live_configuration_file = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT,
+                                                                      UrsulaConfiguration.CONFIG_FILENAME))
 
     # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)

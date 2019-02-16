@@ -14,11 +14,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 def test_testerchain_creation(testerchain):
     # Ensure we are testing on the correct network...
     assert 'tester' in testerchain.interface.provider_uri
 
     # ... and that there are already some blocks mined
     assert testerchain.interface.w3.eth.blockNumber >= 0
-
-
