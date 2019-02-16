@@ -242,8 +242,12 @@ class Alice(Character, PolicyAuthor):
 
             new_policy = drone_alice.create_policy(bob, label, m, n,
                                                    federated=federated_only)
-            # TODO: Serialize the policy
-            return Response('Policy created!', status=200)
+
+            response_data = {'result': {'label': new_policy.label.decode(),
+                                         'policy_encrypting_key': new_policy.public_key.to_bytes().hex()},
+                             'version': str(nucypher.__version__)}
+
+            return Response(json.dumps(response_data), status=200)
 
         @alice_control.route('/derive_policy_pubkey/<label>', methods=['POST'])
         def derive_policy_pubkey(label):
@@ -256,7 +260,7 @@ class Alice(Character, PolicyAuthor):
 
             response_data = {
                 'result': {
-                    'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
+                    'policy_encrypting_key': bytes(policy_pubkey).hex(),
                 },
                 'version': str(nucypher.__version__)
             }
@@ -298,8 +302,8 @@ class Alice(Character, PolicyAuthor):
             response_data = {
                 'result': {
                     'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
-                    'policy_encrypting_pubkey': bytes(new_policy.public_key).hex(),
-                    'alice_signing_pubkey': bytes(new_policy.alice.stamp).hex(),
+                    'policy_encrypting_key': bytes(new_policy.public_key).hex(),
+                    'alice_signing_key': bytes(new_policy.alice.stamp).hex(),
                     'label': new_policy.label.decode(),
                 },
                 'version': str(nucypher.__version__)
@@ -557,7 +561,7 @@ class Bob(Character):
                 request_data = json.loads(request.data)
 
                 label = request_data['label'].encode()
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
 
@@ -574,8 +578,8 @@ class Bob(Character):
             try:
                 request_data = json.loads(request.data)
                 label = request_data['label'].encode()
-                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_key'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
                 message_kit = b64decode(request_data['message_kit'].encode())
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)

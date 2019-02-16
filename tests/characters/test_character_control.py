@@ -3,6 +3,7 @@ import json
 from base64 import b64encode, b64decode
 
 import maya
+import pytest
 
 import nucypher
 from nucypher.characters.lawful import Enrico
@@ -25,15 +26,19 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
     }
     response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
     assert response.status_code == 200
-    assert 'version' in response.data
-    assert response.data == b'Policy created!'
+
+    create_policy_response = json.loads(response.data)
+    assert 'version' in create_policy_response
+    assert 'label' in create_policy_response['result']
+
+    try:
+        bytes.fromhex(create_policy_response['result']['policy_encrypting_key'])
+    except (KeyError, ValueError):
+        pytest.fail("Invalid Policy Encrypting Key")
 
     # Send bad data to assert error returns
     response = alice_control_test_client.put('/create_policy', data='bad')
     assert response.status_code == 400
-
-    del(request_data['bob_encrypting_key'])
-    response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
 
 
 def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
@@ -42,7 +47,7 @@ def test_alice_character_control_derive_policy_pubkey(alice_control_test_client)
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    assert 'policy_encrypting_pubkey' in response_data['result']
+    assert 'policy_encrypting_key' in response_data['result']
 
 
 def test_alice_character_control_grant(alice_control_test_client, federated_bob):
@@ -61,8 +66,8 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 
     response_data = json.loads(response.data)
     assert 'treasure_map' in response_data['result']
-    assert 'policy_encrypting_pubkey' in response_data['result']
-    assert 'alice_signing_pubkey' in response_data['result']
+    assert 'policy_encrypting_key' in response_data['result']
+    assert 'alice_signing_key' in response_data['result']
     assert 'label' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
@@ -80,7 +85,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
-        'alice_signing_pubkey': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'alice_signing_key': bytes(enacted_federated_policy.alice.stamp).hex(),
     }
 
     # Simulate passing in a teacher-uri
@@ -95,7 +100,7 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     assert response.status_code == 400
 
     # Missing Key results in bad request
-    del(request_data['alice_signing_pubkey'])
+    del(request_data['alice_signing_key'])
     response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 
@@ -105,10 +110,10 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
 
     request_data = {
         'label': enacted_federated_policy.label.decode(),
-        'policy_encrypting_pubkey': bytes(enacted_federated_policy.public_key).hex(),
-        'alice_signing_pubkey': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
+        'alice_signing_key': bytes(enacted_federated_policy.alice.stamp).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
-        'datasource_signing_pubkey': bytes(data_source.stamp).hex(),
+        'datasource_signing_key': bytes(data_source.stamp).hex(),
     }
 
     response = bob_control_test_client.post('/retrieve', data=json.dumps(request_data))
@@ -124,7 +129,7 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
     response = bob_control_test_client.post('/retrieve', data='bad')
     assert response.status_code == 400
 
-    del(request_data['alice_signing_pubkey'])
+    del(request_data['alice_signing_key'])
     response = bob_control_test_client.put('/retrieve', data=json.dumps(request_data))
 
 
@@ -177,16 +182,16 @@ def test_character_control_lifecycle(alice_control_test_client,
     # Check Response Keys
     alice_response_data = json.loads(response.data)
     assert 'treasure_map' in alice_response_data['result']
-    assert 'policy_encrypting_pubkey' in alice_response_data['result']
-    assert 'alice_signing_pubkey' in alice_response_data['result']
+    assert 'policy_encrypting_key' in alice_response_data['result']
+    assert 'alice_signing_key' in alice_response_data['result']
     assert 'label' in alice_response_data['result']
     assert 'version' in alice_response_data
     assert str(nucypher.__version__) == alice_response_data['version']
 
     # This is sidechannel policy metadata. It should be given to Bob by the
     # application developer at some point.
-    policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_pubkey']
-    alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_pubkey']
+    policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
+    alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_key']
     label = alice_response_data['result']['label']
 
     # Encrypt some data via Enrico control
@@ -213,8 +218,8 @@ def test_character_control_lifecycle(alice_control_test_client,
 
     bob_request_data = {
         'label': label,
-        'policy_encrypting_pubkey': policy_pubkey_enc_hex,
-        'alice_signing_pubkey': alice_pubkey_sig_hex,
+        'policy_encrypting_key': policy_pubkey_enc_hex,
+        'alice_signing_key': alice_pubkey_sig_hex,
         'message_kit': encoded_message_kit,
     }
 
@@ -231,5 +236,3 @@ def test_character_control_lifecycle(alice_control_test_client,
     for plaintext in bob_response_data['result']['plaintext']:
         plaintext_bytes = b64decode(plaintext)
         assert plaintext_bytes == b"I'm bereaved, not a sap!"
-
-
