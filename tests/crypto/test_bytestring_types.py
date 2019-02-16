@@ -17,7 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError
 
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.api import secure_random
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
 
 
@@ -51,3 +53,26 @@ def test_trying_to_extract_too_many_bytes_raises_typeerror():
 
     with pytest.raises(BytestringSplittingError):
         rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes, return_remainder=True)
+
+
+def test_message_kit_serialization_via_enrico(enacted_federated_policy, federated_alice):
+
+    # Enrico
+    enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
+
+    # Plaintext
+    message = 'this is a message'
+    plaintext_bytes = bytes(message, encoding='utf-8')
+
+    # Create
+    message_kit, signature = enrico.encrypt_message(message=plaintext_bytes)
+
+    # Serialize
+    message_kit_bytes = bytes(message_kit)
+
+    # Deserialize
+    the_same_message_kit = UmbralMessageKit.from_bytes(message_kit_bytes)
+
+    # Confirm
+    assert message_kit == the_same_message_kit
+

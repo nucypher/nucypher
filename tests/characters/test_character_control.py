@@ -4,9 +4,12 @@ from base64 import b64encode, b64decode
 
 import maya
 
+import nucypher
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
+from nucypher.utilities.sandbox.policy import generate_random_label
 
 
 def test_alice_character_control_create_policy(alice_control_test_client, federated_bob):
@@ -227,3 +230,5 @@ def test_character_control_lifecycle(alice_control_test_client,
     for plaintext in bob_response_data['result']['plaintext']:
         plaintext_bytes = b64decode(plaintext)
         assert plaintext_bytes == b"I'm bereaved, not a sap!"
+
+
