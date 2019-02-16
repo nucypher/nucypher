@@ -609,6 +609,25 @@ class Bob(Character):
 
             return Response(json.dumps(response_data), status=200)
 
+        @bob_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Bob's encrypting and signing public keys
+            """
+
+            signing_public_key = drone_bob.public_keys(SigningPower)
+            encrypting_public_key = drone_bob.public_keys(DecryptingPower)
+
+            response_data = {
+                'result': {
+                    'bob_encrypting_key': encrypting_public_key.to_bytes().hex(),
+                    'bob_signing_key': signing_public_key.to_bytes().hex(),
+                },
+                'version': str(nucypher.__version__)
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
         return bob_control
 
 

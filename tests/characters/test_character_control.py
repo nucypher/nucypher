@@ -167,10 +167,22 @@ def test_character_control_lifecycle(alice_control_test_client,
 
     random_label = random_policy_label.decode()  # Unicode string
 
+    bob_keys_response = bob_control_test_client.get('/public_keys')
+    assert bob_keys_response.status_code == 200
+
+    response_data = json.loads(bob_keys_response.data)
+    assert str(nucypher.__version__) == response_data['version']
+    bob_keys = response_data['result']
+    assert 'bob_encrypting_key' in bob_keys
+    assert 'bob_signing_key' in bob_keys
+
+    bob_encrypting_key_hex = bob_keys['bob_encrypting_key']
+    bob_signing_key_hex = bob_keys['bob_signing_key']
+    
     # Create a policy via Alice control
     alice_request_data = {
-        'bob_signing_key': bytes(federated_bob.stamp).hex(),
-        'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
+        'bob_encrypting_key': bob_encrypting_key_hex,
+        'bob_signing_key': bob_signing_key_hex,
         'm': 1, 'n': 1,
         'label': random_label,
         # 'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
