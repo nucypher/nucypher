@@ -46,6 +46,8 @@ from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, constant_or_bytes
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+
+import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -255,7 +257,8 @@ class Alice(Character, PolicyAuthor):
             response_data = {
                 'result': {
                     'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
-                }
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -281,11 +284,10 @@ class Alice(Character, PolicyAuthor):
                         request_data['expiration_time'])
                 else:
                     expiration_time = (maya.now() + datetime.timedelta(days=3))
-                federated_only = True  # const for now
 
                 bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
                                             SigningPower: bob_pubkey_sig},
-                                           federated_only=True)
+                                           federated_only=True)  # TODO: Const for now
             except (KeyError, JSONDecodeError) as e:
                 print(e)  # TODO: Make this a genuine log.  Just for demos for now.
                 return Response(str(e), status=400)
@@ -298,8 +300,9 @@ class Alice(Character, PolicyAuthor):
                     'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
                     'policy_encrypting_pubkey': bytes(new_policy.public_key).hex(),
                     'alice_signing_pubkey': bytes(new_policy.alice.stamp).hex(),
-                    'label': b64encode(new_policy.label).decode(),
-                }
+                    'label': new_policy.label.decode(),
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -579,11 +582,12 @@ class Bob(Character):
 
             policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
             alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
-            message_kit = UmbralMessageKit.from_bytes(message_kit)
+            message_kit = UmbralMessageKit.from_bytes(message_kit)   # TODO: May raise UnknownOpenSSLError... great.
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
                                                   policy_encrypting_key=policy_encrypting_key,
                                                   label=label)
+
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
                                             data_source=data_source,
@@ -594,7 +598,8 @@ class Bob(Character):
             response_data = {
                 'result': {
                     'plaintext': plaintexts,
-                }
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -1132,18 +1137,22 @@ class Enrico(Character):
             """
             try:
                 request_data = json.loads(request.data)
-
-                message = b64decode(request_data['message'])
+                message = request_data['message']
             except (KeyError, JSONDecodeError) as e:
                 return Response(str(e), status=400)
 
-            message_kit, signature = drone_enrico.encrypt_message(message)
+            # Encrypt
+            message_kit, signature = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
+
+            m = UmbralMessageKit.from_bytes(bytes(message_kit))
+            assert m == message_kit
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),
+                    'message_kit': b64encode(bytes(message_kit)).decode(),
                     'signature': b64encode(bytes(signature)).decode(),
-                }
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)

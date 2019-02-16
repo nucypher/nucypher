@@ -22,6 +22,7 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
     }
     response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
     assert response.status_code == 200
+    assert 'version' in response.data
     assert response.data == b'Policy created!'
 
     # Send bad data to assert error returns
@@ -100,7 +101,7 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
     message_kit, data_source = capsule_side_channel
 
     request_data = {
-        'label': b64encode(enacted_federated_policy.label).decode(),
+        'label': enacted_federated_policy.label.decode(),
         'policy_encrypting_pubkey': bytes(enacted_federated_policy.public_key).hex(),
         'alice_signing_pubkey': bytes(enacted_federated_policy.alice.stamp).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
@@ -137,8 +138,7 @@ def test_enrico_character_control_encrypt_message(enrico_control_test_client):
     assert 'signature' in response_data['result']
 
     # Check that it serializes correctly.
-    message_kit = UmbralMessageKit.from_bytes(
-                            b64decode(response_data['result']['message_kit']))
+    message_kit = UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
     response = enrico_control_test_client.post('/encrypt_message', data='bad')
@@ -149,27 +149,35 @@ def test_enrico_character_control_encrypt_message(enrico_control_test_client):
     assert response.status_code == 400
 
 
-def test_character_control_lifecycle(alice_control_test_client, bob_control_test_client,
+def test_character_control_lifecycle(alice_control_test_client,
+                                     bob_control_test_client,
                                      enrico_control_from_alice,
-                                     federated_alice, federated_bob):
+                                     federated_alice,
+                                     federated_bob,
+                                     federated_ursulas):
+
+    random_label = generate_random_label().decode()  # Unicode string
 
     # Create a policy via Alice control
     alice_request_data = {
-        'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
-        'label': 'test',
         'bob_signing_key': bytes(federated_bob.stamp).hex(),
-        'm': 2, 'n': 3,
-        'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex(),
+        'm': 1, 'n': 1,
+        'label': random_label,
+        # 'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
     }
 
     response = alice_control_test_client.put('/grant', data=json.dumps(alice_request_data))
     assert response.status_code == 200
 
+    # Check Response Keys
     alice_response_data = json.loads(response.data)
     assert 'treasure_map' in alice_response_data['result']
     assert 'policy_encrypting_pubkey' in alice_response_data['result']
     assert 'alice_signing_pubkey' in alice_response_data['result']
     assert 'label' in alice_response_data['result']
+    assert 'version' in alice_response_data
+    assert str(nucypher.__version__) == alice_response_data['version']
 
     # This is sidechannel policy metadata. It should be given to Bob by the
     # application developer at some point.
@@ -180,8 +188,10 @@ def test_character_control_lifecycle(alice_control_test_client, bob_control_test
     # Encrypt some data via Enrico control
     # Alice will also be Enrico via Enrico.from_alice
     # (see enrico_control_from_alice fixture)
+
+    enrico_encoded_message = "I'm bereaved, not a sap!"  # type: str
     enrico_request_data = {
-        'message': b64encode(b"I'm bereaved, not a sap!").decode(),
+        'message': enrico_encoded_message,
     }
 
     response = enrico_control_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
@@ -191,16 +201,22 @@ def test_character_control_lifecycle(alice_control_test_client, bob_control_test
     assert 'message_kit' in enrico_response_data['result']
     assert 'signature' in enrico_response_data['result']
 
-    kit_bytes = b64decode(enrico_response_data['result']['message_kit'])
+    kit_bytes = b64decode(enrico_response_data['result']['message_kit'].encode())
     bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
 
     # Retrieve data via Bob control
+    encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
+
     bob_request_data = {
         'label': label,
         'policy_encrypting_pubkey': policy_pubkey_enc_hex,
         'alice_signing_pubkey': alice_pubkey_sig_hex,
-        'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),
+        'message_kit': encoded_message_kit,
     }
+
+    # Give bob a node to remember
+    teacher = list(federated_ursulas)[1]
+    federated_bob.remember_node(teacher)
 
     response = bob_control_test_client.post('/retrieve', data=json.dumps(bob_request_data))
     assert response.status_code == 200
