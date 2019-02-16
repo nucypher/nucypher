@@ -228,15 +228,16 @@ class Alice(Character, PolicyAuthor):
             try:
                 request_data = json.loads(request.data)
 
-                bob_pubkey = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
+                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
                 label = b64decode(request_data['label'])
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
                 federated_only = True  # const for now
 
-                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey,
-                                            SigningPower: None},
-                                           federated_only=True)
+                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
+                                            SigningPower: bob_pubkey_sig},
+                                           federated_only=federated_only)
             except (KeyError, JSONDecodeError) as e:
                 return Response(str(e), status=400)
 
@@ -602,6 +603,25 @@ class Bob(Character):
             response_data = {
                 'result': {
                     'plaintext': plaintexts,
+                },
+                'version': str(nucypher.__version__)
+            }
+
+            return Response(json.dumps(response_data), status=200)
+
+        @bob_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Bob's encrypting and signing public keys
+            """
+
+            signing_public_key = drone_bob.public_keys(SigningPower)
+            encrypting_public_key = drone_bob.public_keys(DecryptingPower)
+
+            response_data = {
+                'result': {
+                    'bob_encrypting_key': encrypting_public_key.to_bytes().hex(),
+                    'bob_signing_key': signing_public_key.to_bytes().hex(),
                 },
                 'version': str(nucypher.__version__)
             }
