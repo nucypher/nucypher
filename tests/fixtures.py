@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import os
+import random
 import tempfile
 
 import maya
@@ -40,6 +41,7 @@ from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPME
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
                                                   MOCK_POLICY_DEFAULT_M)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
@@ -207,7 +209,7 @@ def idle_federated_policy(federated_alice, federated_bob):
     """
     m = MOCK_POLICY_DEFAULT_M
     n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
-    random_label = b'label://' + os.urandom(32)
+    random_label = generate_random_label()
     policy = federated_alice.create_policy(federated_bob, label=random_label, m=m, n=n, federated=True)
     return policy
 
@@ -235,7 +237,7 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
-    random_label = b'label://' + os.urandom(32)
+    random_label = generate_random_label()
     policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
     return policy
 
@@ -261,6 +263,11 @@ def capsule_side_channel(enacted_federated_policy):
     enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
     message_kit, _signature = enrico.encrypt_message(b"Welcome to the flippering.")
     return message_kit, enrico
+
+
+@pytest.fixture(scope="module")
+def random_policy_label():
+    yield generate_random_label()
 
 
 #
@@ -347,8 +354,8 @@ def enrico_control_test_client(capsule_side_channel):
 
 
 @pytest.fixture(scope='module')
-def enrico_control_from_alice(federated_alice):
-    enrico = Enrico.from_alice(federated_alice, b'test')
+def enrico_control_from_alice(federated_alice, random_policy_label):
+    enrico = Enrico.from_alice(federated_alice, random_policy_label)
 
     enrico_control = enrico.make_wsgi_app()
     enrico_control.config['DEBUG'] = True

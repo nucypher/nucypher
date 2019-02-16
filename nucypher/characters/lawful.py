@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import json
 import random
 from base64 import b64encode, b64decode
@@ -45,6 +46,8 @@ from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, constant_or_bytes
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+
+import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -217,10 +220,11 @@ class Alice(Character, PolicyAuthor):
             Character control endpoint for creating a policy and making
             arrangements with Ursulas.
 
-            This is an unfinished API endpoint. You are probably looking for grant.
+            TODO: This is an unfinished API endpoint. You are probably looking for grant.
+            TODO: Needs input cleansing and validation
+            TODO: Provide more informative errors
             """
-            # TODO: Needs input cleansing and validation
-            # TODO: Provide more informative errors
+
             try:
                 request_data = json.loads(request.data)
 
@@ -238,28 +242,27 @@ class Alice(Character, PolicyAuthor):
 
             new_policy = drone_alice.create_policy(bob, label, m, n,
                                                    federated=federated_only)
-            # TODO: Serialize the policy
-            return Response('Policy created!', status=200)
 
-        @alice_control.route('/derive_policy_pubkey', methods=['POST'])
-        def derive_policy_pubkey():
+            response_data = {'result': {'label': new_policy.label.decode(),
+                                         'policy_encrypting_key': new_policy.public_key.to_bytes().hex()},
+                             'version': str(nucypher.__version__)}
+
+            return Response(json.dumps(response_data), status=200)
+
+        @alice_control.route('/derive_policy_pubkey/<label>', methods=['POST'])
+        def derive_policy_pubkey(label):
             """
             Character control endpoint for deriving a policy pubkey given
             a label.
             """
-            try:
-                request_data = json.loads(request.data)
-
-                label = b64decode(request_data['label'])
-            except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=400)
-
-            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label)
+            label_bytes = label.encode()
+            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label_bytes)
 
             response_data = {
                 'result': {
-                    'policy_encrypting_pubkey': bytes(policy_pubkey).hex(),
-                }
+                    'policy_encrypting_key': bytes(policy_pubkey).hex(),
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -276,17 +279,21 @@ class Alice(Character, PolicyAuthor):
 
                 bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
                 bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
-                label = b64decode(request_data['label'])
+                label = request_data['label'].encode()
                 # TODO: Do we change this to something like "threshold"
                 m, n = request_data['m'], request_data['n']
-                expiration_time = maya.MayaDT.from_iso8601(
-                    request_data['expiration_time'])
-                federated_only = True  # const for now
+                expiration = request_data.get("expiration_time")
+                if expiration:
+                    expiration_time = maya.MayaDT.from_iso8601(
+                        request_data['expiration_time'])
+                else:
+                    expiration_time = (maya.now() + datetime.timedelta(days=3))
 
                 bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
                                             SigningPower: bob_pubkey_sig},
-                                           federated_only=True)
+                                           federated_only=True)  # TODO: Const for now
             except (KeyError, JSONDecodeError) as e:
+                print(e)  # TODO: Make this a genuine log.  Just for demos for now.
                 return Response(str(e), status=400)
 
             new_policy = drone_alice.grant(bob, label, m=m, n=n,
@@ -295,10 +302,11 @@ class Alice(Character, PolicyAuthor):
             response_data = {
                 'result': {
                     'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
-                    'policy_encrypting_pubkey': bytes(new_policy.public_key).hex(),
-                    'alice_signing_pubkey': bytes(new_policy.alice.stamp).hex(),
-                    'label': b64encode(new_policy.label).decode(),
-                }
+                    'policy_encrypting_key': bytes(new_policy.public_key).hex(),
+                    'alice_signing_key': bytes(new_policy.alice.stamp).hex(),
+                    'label': new_policy.label.decode(),
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -552,8 +560,8 @@ class Bob(Character):
             try:
                 request_data = json.loads(request.data)
 
-                label = b64decode(request_data['label'])
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
+                label = request_data['label'].encode()
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
 
@@ -569,21 +577,21 @@ class Bob(Character):
             """
             try:
                 request_data = json.loads(request.data)
-
-                label = b64decode(request_data['label'])
-                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_pubkey'])
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_pubkey'])
-                message_kit = b64decode(request_data['message_kit'])
+                label = request_data['label'].encode()
+                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_key'])
+                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
+                message_kit = b64decode(request_data['message_kit'].encode())
             except (KeyError, JSONDecodeError) as e:
                 return Response(e, status=400)
 
             policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
             alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
-            message_kit = UmbralMessageKit.from_bytes(message_kit)
+            message_kit = UmbralMessageKit.from_bytes(message_kit)   # TODO: May raise UnknownOpenSSLError and InvalidTag.
 
             data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
                                                   policy_encrypting_key=policy_encrypting_key,
                                                   label=label)
+
             drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
             plaintexts = drone_bob.retrieve(message_kit=message_kit,
                                             data_source=data_source,
@@ -594,7 +602,8 @@ class Bob(Character):
             response_data = {
                 'result': {
                     'plaintext': plaintexts,
-                }
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)
@@ -1132,18 +1141,19 @@ class Enrico(Character):
             """
             try:
                 request_data = json.loads(request.data)
-
-                message = b64decode(request_data['message'])
+                message = request_data['message']
             except (KeyError, JSONDecodeError) as e:
                 return Response(str(e), status=400)
 
-            message_kit, signature = drone_enrico.encrypt_message(message)
+            # Encrypt
+            message_kit, signature = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),   # FIXME
                     'signature': b64encode(bytes(signature)).decode(),
-                }
+                },
+                'version': str(nucypher.__version__)
             }
 
             return Response(json.dumps(response_data), status=200)

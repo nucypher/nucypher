@@ -39,6 +39,7 @@ class NotFound(UnexpectedResponse):
 
 class NucypherMiddlewareClient:
     library = requests
+    timeout = 1.2
 
     @staticmethod
     def response_cleaner(response):
@@ -60,6 +61,9 @@ class NucypherMiddlewareClient:
 
     def invoke_method(self, method, url, *args, **kwargs):
         self.clean_params(kwargs)
+        if not kwargs.get("timeout"):
+            if self.timeout:
+                kwargs["timeout"] = self.timeout
         response = method(url, *args, **kwargs)
         return response
 

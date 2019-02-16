@@ -170,7 +170,7 @@ def bob(click_config,
         bob_control = BOB.make_wsgi_app()
         click.secho("Starting Bob Character Control...")
 
-        click.secho(f"Bob Signing Key {bytes(BOB.stamp).hex()}", fg="green", bold=True)
+        click.secho(f"Bob Verifying Key {bytes(BOB.stamp).hex()}", fg="green", bold=True)
         click.secho(f"Bob Encrypting Key {bytes(BOB.public_keys(DecryptingPower)).hex()}", fg="blue", bold=True)
 
         # Run
