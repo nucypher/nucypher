@@ -120,6 +120,7 @@ setup(name=ABOUT['__title__'],
 
       packages=find_packages(exclude=["tests"]),
       package_data={PACKAGE_NAME: [
+          'cli/templates',
           'network/templates/basic_status.j2',
           'network/nicknames/web_colors.json',
           'blockchain/eth/sol/source/contracts/*',
