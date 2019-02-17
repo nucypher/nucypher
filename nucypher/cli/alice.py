@@ -20,11 +20,11 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 
 ALICE_BANNER = r"""
 
-    / \  | (_) ___ ___ 
+    / \  | (_) ___ ___
    / _ \ | | |/ __/ _ \
   / ___ \| | | (_|  __/
  /_/   \_|_|_|\___\___|
- 
+
  the Authority.
 
 """
@@ -209,10 +209,7 @@ def alice(click_config,
         return
 
     elif action == "derive-policy":
-        request_data = {
-            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
-        }
-        response = requests.post(f'http://localhost:{http_port}/derive_policy_pubkey', data=json.dumps(request_data))
+        response = requests.post(f'http://localhost:{http_port}/derive_policy_pubkey/{label}')
 
         response_data = response.json()
         policy_encrypting_key = response_data['result']['policy_encrypting_pubkey']
