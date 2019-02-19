@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.3;
 
 
 import "contracts/lib/SignatureVerifier.sol";
@@ -10,7 +10,7 @@ import "contracts/lib/UmbralDeserializer.sol";
 **/
 contract SignatureVerifierMock {
 
-    function recover(bytes32 _hash, bytes _signature)
+    function recover(bytes32 _hash, bytes memory _signature)
         public
         pure
         returns (address)
@@ -18,11 +18,11 @@ contract SignatureVerifierMock {
         return SignatureVerifier.recover(_hash, _signature);
     }
 
-    function toAddress(bytes _publicKey) public pure returns (address) {
+    function toAddress(bytes memory _publicKey) public pure returns (address) {
         return SignatureVerifier.toAddress(_publicKey);
     }
 
-    function hash(bytes _message, SignatureVerifier.HashAlgorithm _algorithm)
+    function hash(bytes memory _message, SignatureVerifier.HashAlgorithm _algorithm)
         public
         pure
         returns (bytes32 result)
@@ -30,7 +30,12 @@ contract SignatureVerifierMock {
         return SignatureVerifier.hash(_message, _algorithm);
     }
 
-    function verify(bytes _message, bytes _signature, bytes _publicKey, SignatureVerifier.HashAlgorithm _algorithm)
+    function verify(
+        bytes memory _message,
+        bytes memory _signature,
+        bytes memory _publicKey,
+        SignatureVerifier.HashAlgorithm _algorithm
+    )
         public
         pure
         returns (bool)
@@ -75,8 +80,8 @@ contract UmbralDeserializerMock {
             byte pointKFragPokSign,
             bytes32 pointKFragPokXCoord,
             bytes32 bnSig,
-            bytes kFragSignature,
-            bytes metadata
+            bytes memory kFragSignature,
+            bytes memory metadata
         )
     {
         UmbralDeserializer.CorrectnessProof memory proof = _proofBytes.toCorrectnessProof();
@@ -105,8 +110,8 @@ contract UmbralDeserializerMock {
             byte pointKFragPokSign,
             bytes32 pointKFragPokXCoord,
             bytes32 bnSig,
-            bytes kFragSignature,
-            bytes metadata
+            bytes memory kFragSignature,
+            bytes memory metadata
         )
     {
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();

@@ -259,8 +259,8 @@ def test_refund(testerchain, escrow, policy_manager):
 
     # Create new policy
     testerchain.time_travel(hours=1)
-    period = escrow.call().getCurrentPeriod()
-    tx = escrow.transact().setLastActivePeriod(period)
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.setLastActivePeriod(period).transact()
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.createPolicy(policy_id_2, number_of_periods, int(0.5 * rate), [node1, node2, node3]) \
         .transact({'from': client, 'value': int(3 * value + 1.5 * rate), 'gas_price': 0})

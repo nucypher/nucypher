@@ -565,7 +565,7 @@ class Bob(Character):
         from nucypher.policy.models import IndisputableEvidence
         return IndisputableEvidence(capsule, cfrag, ursula)
 
-def make_wsgi_app(drone_bob, start_learning=True):
+    def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')
         drone_bob.start_learning_loop(now=start_learning)
 

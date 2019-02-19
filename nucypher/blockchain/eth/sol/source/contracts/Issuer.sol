@@ -115,7 +115,7 @@ contract Issuer is Upgradeable {
         internal returns (uint256 amount)
     {
         if (currentSupply1 == totalSupply || currentSupply2 == totalSupply) {
-            return;
+            return 0;
         }
         uint256 currentSupply = _currentPeriod <= currentMintingPeriod ?
             Math.min(currentSupply1, currentSupply2) :
@@ -170,7 +170,7 @@ contract Issuer is Upgradeable {
     * @notice Returns the number of tokens that can be mined
     **/
     function getReservedReward() public view returns (uint256) {
-        return totalSupply - Math.max256(currentSupply1, currentSupply2);
+        return totalSupply - Math.max(currentSupply1, currentSupply2);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
