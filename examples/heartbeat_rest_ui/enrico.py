@@ -6,14 +6,11 @@ import time
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
-import msgpack
 import pandas as pd
 import requests
 from app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
 from base64 import b64encode, b64decode
-
-from nucypher.crypto.kits import UmbralMessageKit
 
 ENRICO_URL = "http://localhost:5151"
 
@@ -97,8 +94,6 @@ def generate_heartbeat_data(gen_time, last_heart_rate):
 
     response_data = json.loads(response.content)
     message_kit = response_data['result']['message_kit']  # b64 str
-
-    assert UmbralMessageKit.from_bytes(b64decode(message_kit))
 
     timestamp = time.time()
     df = pd.DataFrame.from_dict({
