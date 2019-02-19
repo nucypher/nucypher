@@ -7,13 +7,11 @@ from base64 import b64encode, b64decode
 
 import dash_core_components as dcc
 import dash_html_components as html
-import msgpack
 import pandas as pd
 import requests
 from alicia import POLICY_INFO_FILE
 from app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
-from nucypher.crypto.kits import UmbralMessageKit
 from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
 from plotly.graph_objs.scatter import *
@@ -164,8 +162,6 @@ def update_cached_decrypted_heartbeats_list(read_time,
 
         for index, row in df.iterrows():
             message_kit_b64 = row['EncryptedData']
-
-            assert UmbralMessageKit.from_bytes(b64decode(message_kit_b64))
 
             # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
             # Use Bob's character control to retrieve re-encrypted data
