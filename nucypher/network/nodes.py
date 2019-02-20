@@ -277,6 +277,12 @@ class Learner:
     class UnresponsiveTeacher(ConnectionError):
         pass
 
+    class NotATeacher(ValueError):
+        """
+        Raised when a character cannot be properly utilized because
+        it does not have the proper attributes for learning or verification.
+        """
+
     def __init__(self,
                  domains: Set,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
@@ -398,9 +404,18 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
+        try:
+            stranger_certificate = node.certificate
+        except AttributeError:
+            # Whoops, we got an Alice, Bob, or someone...
+            raise self.NotATeacher(f"{node.__class__.__name__} cannot be remembered.")
+
         # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
-        node.certificate_filepath = certificate_filepath  # In some cases (seed nodes or other temp stored certs), this will update the filepath from the temp location to this one.
+        certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+
+        # In some cases (seed nodes or other temp stored certs),
+        # this will update the filepath from the temp location to this one.
+        node.certificate_filepath = certificate_filepath
         self.log.info(f"Saved TLS certificate for {node.nickname}: {certificate_filepath}")
 
         try:
