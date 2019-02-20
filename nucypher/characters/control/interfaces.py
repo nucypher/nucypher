@@ -99,11 +99,17 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          'alice_verifying_key': new_policy.alice.stamp}
-
         return response_data
 
     def revoke(self, policy_encrypting_key):
-        pass
+        policy = self.character.active_policies[policy_encrypting_key]
+
+        failed_revocations = self.character.revoke(policy)
+        if len(failed_revocations) == 0:
+            del(self.character.active_policies[policy_encrypting_key])
+
+        response_data = {'failed_revocations': len(failed_revocations)}
+        return response_data
 
     def public_keys(self):
         """

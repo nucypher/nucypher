@@ -101,6 +101,8 @@ class Alice(Character, PolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
+        self.active_policies = dict()
+
     def generate_kfrags(self, bob: 'Bob', label: bytes, m: int, n: int) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -235,8 +237,6 @@ class Alice(Character, PolicyAuthor):
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
-
-        self.revocation_kits[policy.public_key] = policy.revocation_kit
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:
@@ -327,7 +327,7 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    
+
     banner = BOB_BANNER
     _controller_class = BobJSONController
 
