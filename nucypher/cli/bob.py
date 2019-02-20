@@ -14,6 +14,7 @@ from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 
 
@@ -186,15 +187,17 @@ def bob(click_config,
         return
 
     elif action == "retrieve":
-        bob_request_data = {
-            'label': b64encode(label).decode(),
-            'policy_encrypting_pubkey': policy_encrypting_key,
-            'alice_signing_pubkey': alice_encrypting_key,
-            # 'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),  # TODO
-        }
+        # bob_request_data = {
+        #     'label': b64encode(label).decode(),
+        #     'policy_encrypting_key': policy_encrypting_key,
+        #     'alice_signing_pubkey': alice_encrypting_key,
+        #     # 'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),  # TODO
+        # }
 
-        response = requests.post('/retrieve', data=json.dumps(bob_request_data))
-        click.secho(response)
+        stdin_text = click.get_text_stream('stdin')
+        message_kit = UmbralMessageKit.from_bytes(bytes(stdin_text))
+        result = BOB.retrieve(label=label, alice_verifying_key=alice_encrypting_key, message_kit=message_kit)
+        click.secho(result)
         return
 
     else:

@@ -245,7 +245,7 @@ class Alice(Character, PolicyAuthor):
                                                    federated=federated_only)
 
             response_data = {'result': {'label': new_policy.label.decode(),
-                                         'policy_encrypting_key': new_policy.public_key.to_bytes().hex()},
+                                        'policy_encrypting_key': new_policy.public_key.to_bytes().hex()},
                              'version': str(nucypher.__version__)}
 
             return Response(json.dumps(response_data), status=200)
@@ -1068,6 +1068,7 @@ class Ursula(Teacher, Character, Miner):
                      federated_only: bool = False) -> 'Ursula':
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
+
 
     #
     # Properties
