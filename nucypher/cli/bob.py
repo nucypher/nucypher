@@ -7,6 +7,8 @@ import requests
 from nacl.exceptions import CryptoError
 
 from hendrix.deploy.base import HendrixDeploy
+
+from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
@@ -16,18 +18,6 @@ from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
-
-
-BOB_BANNER = r"""
-
-oooooooooo              oooo       
- 888    888   ooooooo    888ooooo  
- 888oooo88  888     888  888    888
- 888    888 888     888  888    888
-o888ooo888    88ooo88   o888ooo88  
-
-the BUIDLer.
-"""
 
 
 @click.command()

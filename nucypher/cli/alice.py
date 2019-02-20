@@ -6,6 +6,7 @@ import maya
 from hendrix.deploy.base import HendrixDeploy
 from nacl.exceptions import CryptoError
 
+from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.lawful import Ursula, Bob
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
@@ -14,17 +15,6 @@ from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-
-ALICE_BANNER = r"""
-
-    / \  | (_) ___ ___
-   / _ \ | | |/ __/ _ \
-  / ___ \| | | (_|  __/
- /_/   \_|_|_|\___\___|
-
- the Authority.
-
-"""
 
 
 @click.command()
