@@ -1,3 +1,4 @@
+import tempfile
 from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
@@ -25,7 +26,7 @@ def test_ursula_development_configuration(federated_only=True):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert '/tmp' in ursula_one.datastore.engine.url.database
+    assert tempfile.gettempdir() in ursula_one.datastore.engine.url.database
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert UrsulaConfiguration.TEMP_CONFIGURATION_DIR_PREFIX in ursula_one.keyring_dir
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
