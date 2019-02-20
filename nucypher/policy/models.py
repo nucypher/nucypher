@@ -262,8 +262,7 @@ class Policy:
 
         else:  # ...After *all* the policies are enacted
             # Create Alice's revocation kit
-            self.revocation_kit = RevocationKit(self.treasure_map,
-                                                self.alice.stamp)
+            self.revocation_kit = RevocationKit(self, self.alice.stamp)
 
             if publish is True:
                 return self.publish(network_middleware=network_middleware)

@@ -113,6 +113,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
+        self.revocation_kits = dict()
         bob_pubkey_enc = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
@@ -234,6 +235,8 @@ class Alice(Character, PolicyAuthor):
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
+
+        self.revocation_kits[policy.public_key] = policy.revocation_kit
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:

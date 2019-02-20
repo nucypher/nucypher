@@ -102,6 +102,9 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         return response_data
 
+    def revoke(self, policy_encrypting_key):
+        pass
+
     def public_keys(self):
         """
         Character control endpoint for getting Alice's public keys.

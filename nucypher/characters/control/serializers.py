@@ -149,6 +149,14 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
         return response_data
 
     @staticmethod
+    def parse_revoke_input(request: dict):
+        pass
+
+    @staticmethod
+    def dump_revoke_output(respnse: dict):
+        pass
+
+    @staticmethod
     def dump_public_keys_output(response: dict):
         verifying_key_hex = response['alice_verifying_key'].to_bytes().hex()
         response_data = {'alice_verifying_key': verifying_key_hex}

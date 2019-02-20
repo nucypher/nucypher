@@ -80,6 +80,10 @@ class AliceJSONController(AliceInterface, CharacterController):
         response_data = self.serializer.dump_public_keys_output(response=result)
         return response_data
 
+    @character_control_interface
+    def revoke(self, policy_encrypting_key, request):
+        pass
+
 
 class BobJSONController(BobInterface, CharacterController):
     """Serialized and validated JSON controller; Implements Bob's public interfaces"""

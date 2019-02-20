@@ -48,8 +48,8 @@ class AliceSpecification(CharacterSpecification):
                ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
 
     # TODO: Implement Revoke Spec
-    __revoke = ((),  # In
-                ())  # Out
+    __revoke = (('policy_encrypting_key'),  # In
+                ('failed_revocations'))  # Out
 
     __public_keys = ((),
                      ('alice_verifying_key',))
