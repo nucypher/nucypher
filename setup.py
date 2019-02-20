@@ -112,6 +112,7 @@ setup(name=ABOUT['__title__'],
       description=ABOUT['__summary__'],
       license=ABOUT['__license__'],
       long_description=long_description,
+      long_description_content_type="text/markdown",
 
       setup_requires=['pytest-runner'],  # required for `setup.py test`
       tests_require=TESTS_REQUIRE,
