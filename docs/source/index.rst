@@ -5,8 +5,7 @@ NuCypher
 
 ----
 
-
-.. image:: https://img.shields.io/pypi/wheel/nucypher.svg
+.. image:: https://img.shields.io/pypi/v/nucypher.svg?style=flat
     :target: https://pypi.org/project/nucypher/
 
 .. image:: https://img.shields.io/pypi/pyversions/nucypher.svg
@@ -24,7 +23,7 @@ NuCypher
     :alt: Discord
 
 .. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
-    :target: https://nucypher.readthedocs.io/en/latest/?badge=latest
+    :target: https://nucypher.readthedocs.io/en/latest/
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/pypi/l/nucypher.svg

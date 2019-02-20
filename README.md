@@ -2,13 +2,13 @@
 
 *A proxy re-encryption network to empower privacy in decentralized systems*
 
-![](https://img.shields.io/pypi/v/nucypher.svg?style=flat)
-![](https://img.shields.io/pypi/pyversions/nucypher.svg)
-![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
-[![](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
-![](https://img.shields.io/discord/411401661714792449.svg)
-[![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/?badge=latest)
-![](https://img.shields.io/pypi/l/nucypher.svg)
+[![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
+[![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
+[![coveralls](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)](https://coveralls.io/github/nucypher/nucypher?branch=master)
+[![circleci](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
+[![discord](https://img.shields.io/discord/411401661714792449.svg)](https://discord.gg/7rmXa3S)
+[![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/)
+[![license](https://img.shields.io/pypi/l/nucypher.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ----
 
