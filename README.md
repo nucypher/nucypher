@@ -2,16 +2,16 @@
 
 *A proxy re-encryption network to empower privacy in decentralized systems*
 
+![](https://img.shields.io/pypi/v/nucypher.svg?style=flat)
 ![](https://img.shields.io/pypi/pyversions/nucypher.svg)
 ![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
-![](https://circleci.com/gh/nucypher/nucypher/tree/master.svg?style=svg)
+[![](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
 ![](https://img.shields.io/discord/411401661714792449.svg)
 [![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/?badge=latest)
 ![](https://img.shields.io/pypi/l/nucypher.svg)
 
 ----
 
-![](https://img.shields.io/pypi/v/nucypher.svg?style=flat)
 
 - Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/
