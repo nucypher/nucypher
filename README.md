@@ -12,6 +12,26 @@
 
 ----
 
+The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral) threshold proxy re-encryption scheme to provide cryptographic access controls for distributed apps and protocols.
+
+01. Alice, the data owner, grants access to her encrypted data to 
+anyone she wants by creating a policy and uploading it to 
+the NuCypher network.
+
+02. Anyone can encrypt data using Alice's policy public key. 
+The resulting encrypted data can be uploaded to IPFS, Swarm, S3, 
+or any other storage layer.
+
+03. Ursula, a miner, receives the access policy and stands ready to 
+re-encrypt data in exchange for payment in fees and block rewards. 
+Thanks to the use of proxy re-encryption, 
+Ursula and the storage layer never have access to Alice's plaintext data.
+
+04. Bob, a data recipient, sends an access request to the NuCypher network. 
+If the policy is satisfied, the data is re-encrypted to his public key 
+and he can decrypt it with his private key.
+
+More detailed information:
 
 - Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/
