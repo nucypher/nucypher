@@ -76,3 +76,4 @@ MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom-{}'.format(time.t
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
 
+TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'
