@@ -27,7 +27,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.cli.painting import BANNER
+from nucypher.characters.banners import BANNER
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import getTextFileObserver

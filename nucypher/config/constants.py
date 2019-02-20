@@ -44,7 +44,12 @@ SEEDNODES = tuple()
 
 
 # Domains
-#If this domain is among those being learned or served, then domain checking is skipped.
-#A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
-#A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+"""
+If this domain is among those being learned or served, then domain checking is skipped.
+A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
+A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+"""
 GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'
+
+# Sentry
+NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher DNS domain
