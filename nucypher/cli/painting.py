@@ -24,24 +24,6 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import SEEDNODES
 
-#
-# Art
-#
-
-BANNER = """
-                                  _               
-                                 | |              
-     _ __  _   _  ___ _   _ _ __ | |__   ___ _ __ 
-    | '_ \| | | |/ __| | | | '_ \| '_ \ / _ \ '__|
-    | | | | |_| | (__| |_| | |_) | | | |  __/ |   
-    |_| |_|\__,_|\___|\__, | .__/|_| |_|\___|_|   
-                       __/ | |                    
-                      |___/|_|  
-
-    version {}
-
-""".format(nucypher.__version__)
-
 
 #
 # Paint

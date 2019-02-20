@@ -23,7 +23,8 @@ from constant_sorrow.constants import NO_PASSWORD
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from nucypher.cli.painting import BANNER
+from nucypher.characters.banners import BANNER
+from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
@@ -33,7 +34,7 @@ from nucypher.utilities.logging import (
 
 class NucypherClickConfig:
 
-    __sentry_endpoint = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher domain
+    __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
     # Environment Variables
     config_file = os.environ.get('NUCYPHER_CONFIG_FILE', None)
