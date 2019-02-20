@@ -31,7 +31,6 @@ NuCypher
 
 
 - GitHub https://www.github.com/nucypher/nucypher
-- Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/
 
 
