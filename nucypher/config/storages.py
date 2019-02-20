@@ -130,7 +130,7 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def store_node_metadata(self, node):
+    def store_node_metadata(self, node, filepath: str = None) -> str:
         """Save a single node's metadata and tls certificate"""
         raise NotImplementedError
 
@@ -230,7 +230,7 @@ class ForgetfulNodeStorage(NodeStorage):
         filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
         return filepath
 
-    def store_node_metadata(self, node):
+    def store_node_metadata(self, node, filepath: str = None):
         self.__metadata[node.checksum_public_address] = node
         return self.__metadata[node.checksum_public_address]
 
@@ -364,8 +364,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
     #
 
     @validate_checksum_address
-    def __generate_metadata_filepath(self, checksum_address: str) -> str:
-        metadata_path = os.path.join(self.metadata_dir, self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
+    def __generate_metadata_filepath(self, checksum_address: str, metadata_dir: str = None) -> str:
+        metadata_path = os.path.join(metadata_dir or self.metadata_dir,
+                                     self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
         return metadata_path
 
     def __read_metadata(self, filepath: str, federated_only: bool):
@@ -420,8 +421,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self._write_tls_certificate(certificate=certificate)
         return certificate_filepath
 
-    def store_node_metadata(self, node) -> str:
-        filepath = self.__generate_metadata_filepath(checksum_address=node.checksum_public_address)
+    def store_node_metadata(self, node, filepath: str = None) -> str:
+        address = node.checksum_public_address
+        filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
 
