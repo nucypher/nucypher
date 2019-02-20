@@ -280,6 +280,15 @@ class Character(Learner):
 
         return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
 
+    def store_metadata(self, filepath: str) -> str:
+        """
+        Save this node to the disk.
+        :param filepath: Output filepath to save node metadata.
+        :return: Output filepath
+        """
+
+        return self.node_storage.store_node_metadata(node=self, filepath=filepath)
+
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
