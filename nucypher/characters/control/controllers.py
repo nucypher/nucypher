@@ -1,5 +1,3 @@
-import functools
-from base64 import b64decode, b64encode
 from typing import Tuple, Callable
 
 import click
@@ -8,12 +6,13 @@ from hendrix.deploy.base import HendrixDeploy
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.base import CharacterControlSpecification
-from nucypher.characters.control.serializers import AliceCharacterControlJsonSerializer, CharacterControlJsonSerializer
+from nucypher.characters.control.serializers import AliceCharacterControlJsonSerializer, \
+    BobCharacterControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 
 
-def control_interface(func) -> Callable:
+def bytes_interface(func) -> Callable:
     """Manage protocol I/O validation and serialization"""
 
     def wrapped(instance, request, *args, **kwargs) -> bytes:
@@ -205,51 +204,17 @@ class AliceJSONControl(AliceControl, AliceCharacterControlJsonSerializer):
 
 class AliceJSONBytesControl(AliceJSONControl, AliceCharacterControlJsonSerializer):
 
-    @control_interface
+    @bytes_interface
     def create_policy(self, request):
         return super().create_policy(request=request)
 
-    @control_interface
+    @bytes_interface
     def derive_policy(self, request, label: str):
         return super().derive_policy(request=request, label=label)
 
-    @control_interface
+    @bytes_interface
     def grant(self, request):
         return super().grant(request=request)
-
-
-class BobCharacterControlJSONSerializer(CharacterControlJsonSerializer):
-
-    @staticmethod
-    def load_join_policy_input(request: dict):
-        label_bytes = request['label'].encode()
-        alice_signing_key_bytes = bytes.fromhex(request['alice_signing_key'])
-        return dict(label=label_bytes, alice_signing_key=alice_signing_key_bytes)
-
-    @staticmethod
-    def dump_join_policy_output(response: dict):
-        pass  # TODO
-
-    @staticmethod
-    def load_retrieve_input(request: dict):
-        parsed_input = dict(label=request['label'].encode(),
-                            policy_encrypting_key=bytes.fromhex(request['policy_encrypting_key']),
-                            alice_signing_key=bytes.fromhex(request['alice_signing_key']),
-                            message_kit=b64decode(request['message_kit'].encode()))
-        return parsed_input
-
-    @staticmethod
-    def dump_retrieve_output(response: dict):
-        plaintexts = [b64encode(plaintext).decode() for plaintext in response['plaintexts']]
-        response_data = {'plaintexts': plaintexts}
-        return response_data
-
-    @staticmethod
-    def dump_public_keys_output(response: dict):
-        encrypting_key_hex = response['bob_encrypting_key'].to_bytes().hex()
-        verifying_key_hex = response['bob_verifying_key'].to_bytes().hex()
-        response_data = {'bob_encrypting_key': encrypting_key_hex, 'bob_verifying_key': verifying_key_hex}
-        return response_data
 
 
 class BobJSONControl(BobControl, BobCharacterControlJSONSerializer):
@@ -281,21 +246,21 @@ class BobJSONControl(BobControl, BobCharacterControlJSONSerializer):
 
 class BobJSONBytesControl(BobJSONControl, BobCharacterControlJSONSerializer):
 
-    @control_interface
+    @bytes_interface
     def join_policy(self, request):
         """
         Character control endpoint for joining a policy on the network.
         """
         return super().join_policy(request=request)
 
-    @control_interface
+    @bytes_interface
     def retrieve(self, request):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
         return super().retrieve(request=request)
 
-    @control_interface
+    @bytes_interface
     def public_keys(self, request):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
