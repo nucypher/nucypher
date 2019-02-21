@@ -18,16 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
-from typing import Tuple
 from typing import Union, List
 
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
-from constant_sorrow import constants
 from constant_sorrow import default_constant_splitter
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_WSGI_APP
 from constant_sorrow.constants import (
     NO_NICKNAME,
     NO_BLOCKCHAIN_CONNECTION,
@@ -38,6 +32,11 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT
 )
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
@@ -199,6 +198,13 @@ class Character(Learner):
         if is_me is True:
             self.known_nodes.record_fleet_state()
 
+        #
+        # Character Control
+        #
+        self._control_protocol = NO_CONTROL_PROTOCOL
+        self._wsgi_app = NO_WSGI_APP
+        self._captured_status_codes = NO_WSGI_APP
+
     def __eq__(self, other) -> bool:
         try:
             other_stamp = other.stamp
@@ -220,6 +226,10 @@ class Character(Learner):
     @property
     def name(self):
         return self.__class__.__name__
+
+    @property
+    def control(self):
+        return self._control_protocol
 
     @property
     def rest_interface(self):
