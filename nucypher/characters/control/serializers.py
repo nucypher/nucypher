@@ -116,3 +116,38 @@ class AliceCharacterControlJsonSerializer(CharacterControlJsonSerializer):
                          'alice_signing_key': alice_signing_key_hex,
                          'label': unicode_label}
         return response_data
+
+
+class BobCharacterControlJSONSerializer(CharacterControlJsonSerializer):
+
+    @staticmethod
+    def load_join_policy_input(request: dict):
+        label_bytes = request['label'].encode()
+        alice_signing_key_bytes = bytes.fromhex(request['alice_signing_key'])
+        return dict(label=label_bytes, alice_signing_key=alice_signing_key_bytes)
+
+    @staticmethod
+    def dump_join_policy_output(response: dict):
+        pass  # TODO
+
+    @staticmethod
+    def load_retrieve_input(request: dict):
+        parsed_input = dict(label=request['label'].encode(),
+                            policy_encrypting_key=bytes.fromhex(request['policy_encrypting_key']),
+                            alice_signing_key=bytes.fromhex(request['alice_signing_key']),
+                            message_kit=b64decode(request['message_kit'].encode()))
+        return parsed_input
+
+    @staticmethod
+    def dump_retrieve_output(response: dict):
+        plaintexts = [b64encode(plaintext).decode() for plaintext in response['plaintexts']]
+        response_data = {'plaintexts': plaintexts}
+        return response_data
+
+    @staticmethod
+    def dump_public_keys_output(response: dict):
+        encrypting_key_hex = response['bob_encrypting_key'].to_bytes().hex()
+        verifying_key_hex = response['bob_verifying_key'].to_bytes().hex()
+        response_data = {'bob_encrypting_key': encrypting_key_hex, 'bob_verifying_key': verifying_key_hex}
+        return response_data
+
