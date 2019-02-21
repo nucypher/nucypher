@@ -171,20 +171,7 @@ def alice(click_config,
     ALICE = alice_config(known_nodes=teacher_nodes)
 
     if action == "run":
-
-
-        # Alice Control
-        alice_control = ALICE.make_wsgi_app()
-        click.secho("Starting Alice Character Control...")
-
-        click.secho(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
-
-        # Run
-        if dry_run:
-            return
-
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": alice_control, "http_port": http_port})
-        hx_deployer.run()  # <--- Blocking Call to Reactor
+        return ALICE.control.run(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
@@ -199,21 +186,20 @@ def alice(click_config,
         request_data = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_signing_key': bob_verifying_key,
-            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+            'label': label,
             'm': m,
             'n': n,
         }
 
-        response = requests.put(f'http://localhost:{http_port}/create_policy', data=json.dumps(request_data))
-        click.secho(response.json())
-        return
+        response = ALICE.control.create_policy(**request_data)
+        click.secho(response)
+        return response
 
     elif action == "derive-policy":
-        response = requests.post(f'http://localhost:{http_port}/derive_policy_pubkey/{label}')
-
-        response_data = response.json()
-        policy_encrypting_key = response_data['result']['policy_encrypting_pubkey']
-        click.secho(f"Created new Policy with label {label} | {policy_encrypting_key}", fg='green')
+        response = ALICE.control.derive_policy(label=label)
+        click.secho(response)
+        # click.secho(f"Created new Policy with label {label} | {policy_encrypting_key}", fg='green')
+        return response
 
     elif action == "grant":
         request_data = {
@@ -225,9 +211,9 @@ def alice(click_config,
             'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
         }
 
-        response = requests.put(f'http://localhost:{http_port}/grant', data=json.dumps(request_data))
+        response = ALICE.control.grant(**request_data)
         click.secho(response)
-        return
+        return response
 
     elif action == "revoke":
         raise NotImplementedError  # TODO
