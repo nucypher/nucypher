@@ -51,7 +51,7 @@ Ursula and the storage layer never have access to Alice's plaintext data.
 If the policy is satisfied, the data is re-encrypted to his public key
 and he can decrypt it with his private key.
 
-More information:
+More detailed information:
 
 - GitHub https://www.github.com/nucypher/nucypher
 - Website https://www.nucypher.com/
