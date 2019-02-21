@@ -1,20 +1,19 @@
 import datetime
 import os
+from base64 import b64encode
 
 import click
 import maya
-from hendrix.deploy.base import HendrixDeploy
 from nacl.exceptions import CryptoError
 
 from nucypher.characters.banners import ALICE_BANNER
-from nucypher.characters.lawful import Ursula, Bob
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
-from nucypher.crypto.powers import SigningPower, DecryptingPower
 
 
 @click.command()
@@ -161,19 +160,7 @@ def alice(click_config,
     ALICE = alice_config(known_nodes=teacher_nodes)
 
     if action == "run":
-
-        # Alice Control
-        alice_control = ALICE.make_wsgi_app()
-        click.secho("Starting Alice Character Control...")
-
-        click.secho(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
-
-        # Run
-        if dry_run:
-            return
-
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": alice_control, "http_port": http_port})
-        hx_deployer.run()  # <--- Blocking Call to Reactor
+        return ALICE.control.run(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
@@ -185,29 +172,37 @@ def alice(click_config,
             raise click.BadArgumentUsage(message="--bob-verifying-key, --bob-encrypting-key, and --label are "
                                                  "required options to create a new policy.")
 
-        bob = Bob.from_public_keys({SigningPower: bob_verifying_key, DecryptingPower: bob_encrypting_key})
-        policy = ALICE.create_policy(bob=bob, label=bytes(label, encoding='utf-8'), m=m, n=n)
+        request_data = {
+            'bob_encrypting_key': bob_encrypting_key,
+            'bob_signing_key': bob_verifying_key,
+            'label': label,
+            'm': m,
+            'n': n,
+        }
 
-        click.secho(policy.public_key.hex())
-        return
+        response = ALICE.control.create_policy(**request_data)
+        click.secho(response)
+        return response
 
     elif action == "derive-policy":
-        if not label:
-            raise click.BadArgumentUsage("--label is required to derive a new policy from a label.")
-        policy = ALICE.get_policy_pubkey_from_label(bytes(label, encoding='utf-8'))
-        click.secho(f"Created new Policy with label {label} | {bytes(policy).hex()}", fg='green')
+        response = ALICE.control.derive_policy(label=label)
+        click.secho(response)
+        # click.secho(f"Created new Policy with label {label} | {policy_encrypting_key}", fg='green')
+        return response
 
     elif action == "grant":
-        # 'expiration_time': ().iso8601(),  # TODO
+        request_data = {
+            'bob_encrypting_key': bob_encrypting_key,
+            'bob_signing_key': bob_verifying_key,
+            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+            'm': m,
+            'n': n,
+            'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+        }
 
-        bob = Bob.from_public_keys({SigningPower: bytes.fromhex(bob_verifying_key),
-                                    DecryptingPower: bytes.fromhex(bob_encrypting_key)})
-
-        expiry = maya.now() + datetime.timedelta(days=3)  # TODO: Default expiration configuration
-        policy = ALICE.grant(bob=bob, label=bytes(label, encoding='utf-8'),
-                             m=m, n=n, expiration=expiry)
-        click.secho(policy)
-        return
+        response = ALICE.control.grant(**request_data)
+        click.secho(response)
+        return response
 
     elif action == "revoke":
         raise NotImplementedError  # TODO
