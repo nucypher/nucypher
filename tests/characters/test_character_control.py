@@ -18,12 +18,13 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
-        'bob_signing_key': bytes(federated_bob.stamp).hex(),
+        'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
-
+        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601()
     }
+
     response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
     assert response.status_code == 200
 
@@ -37,13 +38,13 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
         pytest.fail("Invalid Policy Encrypting Key")
 
     # Send bad data to assert error returns
-    response = alice_control_test_client.put('/create_policy', data='bad')
+    response = alice_control_test_client.put('/create_policy', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
 
 def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
     label = 'test'
-    response = alice_control_test_client.post(f'/derive_policy_pubkey/{label}')
+    response = alice_control_test_client.post(f'/derive_policy/{label}')
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
@@ -55,11 +56,11 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
-        'bob_signing_key': bytes(federated_bob.stamp).hex(),
+        'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'label': 'test',
         'm': 2,
         'n': 3,
-        'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
     response = alice_control_test_client.put('/grant', data=json.dumps(request_data))
     assert response.status_code == 200
@@ -75,7 +76,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
     assert encrypted_map._hrac is not None
 
     # Send bad data to assert error returns
-    response = alice_control_test_client.put('/grant', data='bad')
+    response = alice_control_test_client.put('/grant', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     del(request_data['bob_encrypting_key'])
@@ -92,11 +93,11 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     enacted_federated_policy.bob.remember_node(enacted_federated_policy.ursulas[0])
 
     response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
-    assert response.data == b'Policy joined!'
+    assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data
     assert response.status_code == 200
 
     # Send bad data to assert error returns
-    response = bob_control_test_client.post('/join_policy', data='bad')
+    response = bob_control_test_client.post('/join_policy', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     # Missing Key results in bad request
@@ -120,13 +121,13 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    assert 'plaintext' in response_data['result']
+    assert 'plaintexts' in response_data['result']
 
-    for plaintext in response_data['result']['plaintext']:
+    for plaintext in response_data['result']['plaintexts']:
         assert b64decode(plaintext) == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
-    response = bob_control_test_client.post('/retrieve', data='bad')
+    response = bob_control_test_client.post('/retrieve', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     del(request_data['alice_signing_key'])
@@ -149,7 +150,7 @@ def test_enrico_character_control_encrypt_message(enrico_control_test_client):
     message_kit = UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
-    response = enrico_control_test_client.post('/encrypt_message', data='bad')
+    response = enrico_control_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     del(request_data['message'])
@@ -174,18 +175,19 @@ def test_character_control_lifecycle(alice_control_test_client,
     assert str(nucypher.__version__) == response_data['version']
     bob_keys = response_data['result']
     assert 'bob_encrypting_key' in bob_keys
-    assert 'bob_signing_key' in bob_keys
+    assert 'bob_verifying_key' in bob_keys
 
     bob_encrypting_key_hex = bob_keys['bob_encrypting_key']
-    bob_signing_key_hex = bob_keys['bob_signing_key']
+    bob_verifying_key_hex = bob_keys['bob_verifying_key']
     
     # Create a policy via Alice control
     alice_request_data = {
         'bob_encrypting_key': bob_encrypting_key_hex,
-        'bob_signing_key': bob_signing_key_hex,
-        'm': 1, 'n': 1,
+        'bob_verifying_key': bob_verifying_key_hex,
+        'm': 1,
+        'n': 1,
         'label': random_label,
-        # 'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
     }
 
     response = alice_control_test_client.put('/grant', data=json.dumps(alice_request_data))
@@ -243,8 +245,8 @@ def test_character_control_lifecycle(alice_control_test_client,
     assert response.status_code == 200
 
     bob_response_data = json.loads(response.data)
-    assert 'plaintext' in bob_response_data['result']
+    assert 'plaintexts' in bob_response_data['result']
 
-    for plaintext in bob_response_data['result']['plaintext']:
+    for plaintext in bob_response_data['result']['plaintexts']:
         plaintext_bytes = b64decode(plaintext)
         assert plaintext_bytes == b"I'm bereaved, not a sap!"
