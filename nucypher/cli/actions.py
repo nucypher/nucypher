@@ -1,14 +1,15 @@
 import shutil
+import sys
 from typing import List
 
 import click
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
+import nucypher
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including
@@ -22,6 +23,34 @@ Delete {}?'''
 
 
 LOG = Logger('cli.actions')
+
+
+def handle_control_output(response: dict = None,
+                          message: str = None,
+                          json: bool = False,
+                          quiet: bool = False,
+                          color: str = 'white',
+                          bold: bool = False,
+                          ) -> None:
+
+    try:
+        if not quiet and not json:
+            if response:
+                for k, v in response.items():
+                    click.secho(message=f'{k} ...... {v}', fg=color, bold=bold)
+            elif message:
+                if json:
+                    sys.stdout({'result': message, 'version': nucypher.__version__})
+                    click.secho(message=message, fg=color, bold=bold)
+                else:
+                    click.secho(message=message, fg=color, bold=bold)
+            else:
+                raise ValueError('Either "response" or "message" is required, but got neither.')
+        elif json:
+            sys.stdout(response)
+    except Exception:
+        LOG.debug("Error while formatting nucypher console output")
+        raise
 
 
 def load_seednodes(min_stake: int, federated_only: bool, teacher_uris: list = None) -> List[Ursula]:
@@ -44,11 +73,12 @@ def destroy_system_configuration(config_class,
                                  force=False,
                                  log=LOG):
 
+    config_root = config_root or DEFAULT_CONFIG_ROOT
+
     try:
         character_config = config_class.from_configuration_file(filepath=config_file, domains={network})
 
     except FileNotFoundError:
-        config_root = config_root or DEFAULT_CONFIG_ROOT
         config_file_location = config_file or config_class.DEFAULT_CONFIG_FILE_LOCATION
 
         if not force:
@@ -73,6 +103,8 @@ def destroy_system_configuration(config_class,
             message = "Deleted configuration files at {}".format(character_config.config_root)
             click.secho(message, fg='green')
             log.debug(message)
+
+    return config_root
 
 
 def unlock_keyring(configuration, password):

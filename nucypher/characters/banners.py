@@ -1,6 +1,6 @@
 import nucypher
 
-BANNER = """
+NUCYPHER_BANNER = """
                                   _               
                                  | |              
      _ __  _   _  ___ _   _ _ __ | |__   ___ _ __ 

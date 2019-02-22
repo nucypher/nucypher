@@ -19,22 +19,32 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.characters.banners import BANNER
-from nucypher.cli import moe, ursula, status, alice, bob, enrico
+from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.cli import status
+from nucypher.cli.characters import moe, ursula, alice, bob, enrico
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import BANNER, echo_version
+from nucypher.cli.painting import echo_version
 from nucypher.utilities.logging import GlobalConsoleLogger
-
-GlobalConsoleLogger.start_if_not_started()
 
 
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
+@click.option('-J', '--json', help="Send all output to stdout as JSON", is_flag=True, default=False)
+@click.option('--no-logs', help="Disable all logging output", is_flag=True, default=False)
 @nucypher_click_config
-def nucypher_cli(click_config, verbose):
-    click.echo(BANNER)
+def nucypher_cli(click_config, verbose, json, no_logs):
+
+    if not no_logs:
+        GlobalConsoleLogger.start_if_not_started()
+
+    if not json:
+        click.echo(NUCYPHER_BANNER)
+
     click_config.verbose = verbose
+    click_config.json = json
+    click_config.no_logs = no_logs
+
     if click_config.verbose:
         click.secho("Verbose mode is enabled", fg='blue')
 

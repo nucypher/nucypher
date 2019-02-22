@@ -30,7 +30,6 @@ from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PE
 from nucypher.cli import actions
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_configuration
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -151,14 +150,17 @@ def ursula(click_config,
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
-        if dev and not quiet:
-            click.secho("WARNING: Using temporary storage area", fg='yellow')
+        if dev:
+            actions.handle_control_output(message="WARNING: Using temporary storage area",
+                                          color='yellow',
+                                          quiet=quiet,
+                                          json=click_config.json)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step
 
         ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      config_root=config_root,
@@ -174,8 +176,16 @@ def ursula(click_config,
                                                      poa=poa)
 
         if not quiet:
-            click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
-            click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
+
+            actions.handle_control_output(message="Generated keyring {}".format(ursula_config.keyring_dir),
+                                          color='green',
+                                          quiet=quiet,
+                                          json=click_config.json)
+
+            actions.handle_control_output(message="Saved configuration file {}".format(ursula_config.config_file_location),
+                                          color='green',
+                                          quiet=quiet,
+                                          json=click_config.json)
 
             # Give the use a suggestion as to what to do next...
             how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
@@ -183,11 +193,11 @@ def ursula(click_config,
             if config_root is not None:
                 config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
                 suggested_command += ' --config-file {}'.format(config_file_location)
-            click.secho(how_to_run_message.format(suggested_command), fg='green')
-            return  # FIN
 
-        else:
-            click.secho("OK")
+            return actions.handle_control_output(message=how_to_run_message.format(suggested_command),
+                                                 color='green',
+                                                 quiet=quiet,
+                                                 json=click_config.json)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
@@ -200,11 +210,12 @@ def ursula(click_config,
                                      config_file=config_file,
                                      network=network,
                                      config_root=config_root,
-                                     force=force,
-                                     log=log)
-        if not quiet:
-            click.secho("Destroyed {}".format(config_root))
-        return
+                                     force=force)
+
+        return actions.handle_control_output(message="Destroyed {}".format(config_root),
+                                             color='green',
+                                             quiet=quiet,
+                                             json=click_config.json)
 
     # Development Configuration
     if dev:
@@ -253,10 +264,13 @@ def ursula(click_config,
     #
     # Launch Warnings
     #
-    if not quiet:
-        if ursula_config.federated_only:
-            click.secho("WARNING: Running in Federated mode", fg='yellow')
 
+    if ursula_config.federated_only:
+        actions.handle_control_output(
+            message="WARNING: Running in Federated mode",
+            color='yellow',
+            quiet=quiet,
+            json=click_config.json)
     #
     # Action Switch
     #
@@ -283,8 +297,20 @@ def ursula(click_config,
             #
             # Run - Step 3
             #
-            click.secho("Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)), fg='blue', bold=True)
-            click.secho("Running Ursula {} on {}".format(URSULA, URSULA.rest_interface), fg='green', bold=True)
+            actions.handle_control_output(
+                message="Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)),
+                color='green',
+                quiet=quiet,
+                json=click_config.json,
+                bold=True)
+
+            actions.handle_control_output(
+                message="Running Ursula {} on {}".format(URSULA, URSULA.rest_interface),
+                color='green',
+                bold=True,
+                quiet=quiet,
+                json=click_config.json)
+            
             if not debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
@@ -296,16 +322,27 @@ def ursula(click_config,
 
         except Exception as e:
             ursula_config.log.critical(str(e))
-            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
+            actions.handle_control_output(
+                message="{} {}".format(e.__class__.__name__, str(e)),
+                color='red',
+                quiet=quiet,
+                json=click_config.json,
+                bold=True)
             raise  # Crash :-(
 
         finally:
-            if not quiet:
-                click.secho("Stopping Ursula")
+            actions.handle_control_output(
+                message="Stopping Ursula",
+                color='green',
+                quiet=quiet,
+                json=click_config.json)
             ursula_config.cleanup()
             if not quiet:
-                click.secho("Ursula Stopped", fg='red')
-
+                actions.handle_control_output(
+                    message="Ursula Stopped",
+                    color='red',
+                    quiet=quiet,
+                    json=click_config.json)
         return
 
     elif action == "save-metadata":
@@ -313,15 +350,15 @@ def ursula(click_config,
 
         URSULA = ursula_config.produce(ursula_config=ursula_config)
         metadata_path = ursula.write_node_metadata(node=URSULA)
-        if not quiet:
-            click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
-        return
+        return actions.handle_control_output(message="Successfully saved node metadata to {}.".format(metadata_path),
+                                             color='green',
+                                             quiet=quiet,
+                                             json=click_config.json)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        json_config = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        paint_configuration(json_config=json_config)
-        return json_config
+        response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
+        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
 
     elif action == "forget":
         actions.forget(configuration=ursula_config)
