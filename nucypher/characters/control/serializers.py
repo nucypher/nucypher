@@ -2,12 +2,11 @@ import json
 from abc import ABC
 from base64 import b64decode, b64encode
 from json import JSONDecodeError
-from typing import Union
 
 import maya
 
 import nucypher
-from nucypher.characters.control.base import CharacterControlSpecification
+from nucypher.characters.control.specifications import CharacterControlSpecification
 
 
 class CharacterControlSerializer(ABC):
@@ -24,14 +23,6 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
     _serializer = json.dumps
     _deserializer = json.loads
 
-    def __call__(self, data: Union[bytes, dict], specification: tuple, *args, **kwargs):
-        if isinstance(data, bytes):
-            self.read(request_payload=data, input_specification=specification)
-        elif isinstance(data, dict):
-            self.write(response_data=data, output_specification=specification)
-        else:
-            raise self.SerializerError(f"Invalid serializer input types: Got {data.__class__.__name__}")
-
     @staticmethod
     def _build_response(response_data: dict):
         response_data = {'result': response_data, 'version': str(nucypher.__version__)}
@@ -39,6 +30,7 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
 
     @staticmethod
     def validate_input(request_data: dict, input_specification: tuple) -> bool:
+        # Handle client input
 
         # Invalid Fields
         input_fields = set(request_data.keys())
@@ -46,25 +38,28 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
 
         if extra_fields:
             raise CharacterControlSpecification.InvalidInputField(f"Invalid request fields '{', '.join(extra_fields)}'."
-                                                                    f"Valid fields are: {', '.join(input_specification)}.")
+                                                                  f"Valid fields are: {', '.join(input_specification)}.")
 
         # Missing Fields
         missing_fields = list()
         for field in input_specification:
             if field not in request_data:
-                missing_fields.append(missing_fields)
+                missing_fields.append(field)
         if missing_fields:
-            raise CharacterControlSpecification.MissingField(f"Request is missing fields: '{', '.join(missing_fields)}'.")
+            missing = ', '.join(missing_fields)
+            raise CharacterControlSpecification.MissingField(f"Request is missing fields: '{missing}'.")
         return True
 
     @staticmethod
     def validate_output(response_data: dict, output_specification: tuple) -> bool:
+        # Handle process output
+
         for field in output_specification:
             if field not in response_data['result']:
                 raise CharacterControlSpecification.InvalidOutputField(f"Response is missing the '{field}' field")
         return True
 
-    def read(self, request_payload: bytes, input_specification: tuple) -> dict:
+    def _read(self, request_payload: bytes) -> dict:
         if not request_payload:
             return dict()  # Handle Empty Request Body
         try:
@@ -72,13 +67,10 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
 
         except JSONDecodeError:
             raise self.SerializerError(f"Invalid protocol input: got {request_payload}")
-
-        self.validate_input(request_data=request_data, input_specification=input_specification)
         return request_data
 
-    def write(self, response_data: dict, output_specification) -> bytes:
+    def _write(self, response_data: dict, output_specification) -> bytes:
         response_payload = CharacterControlJsonSerializer._serializer(response_data)
-        self.validate_output(response_data=response_data, output_specification=output_specification)
         return response_payload
 
 

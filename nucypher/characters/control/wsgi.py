@@ -52,12 +52,13 @@ class WSGIController:
     def _handle_request(drone_character, interface, control_request, *args, **kwargs) -> Response:
 
         _400_exceptions = (drone_character.control.MissingField,
+                           drone_character.control.InvalidInputField,
                            drone_character.control.SerializerError)
         try:
             response = interface(request=control_request.data, *args, **kwargs)
 
         except _400_exceptions as e:
-            return drone_character.__handle_exception(e=e, log_level='critical', response_code=400)
+            return drone_character.__handle_exception(e=e, log_level='debug', response_code=400)
 
         except drone_character.control.SpecificationError as e:
             return drone_character.__handle_exception(e=e, log_level='critical', response_code=500)
