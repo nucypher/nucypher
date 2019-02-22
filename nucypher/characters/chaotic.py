@@ -1,5 +1,12 @@
+import json
+import os
+
+import click
+from flask import Flask, render_template
+from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 
+from nucypher.characters.banners import MOE_BANNER
 from nucypher.characters.base import Character
 from nucypher.network.nodes import FleetStateTracker
 
@@ -8,6 +15,11 @@ class Moe(Character):
     """
     A monitor (lizard?)
     """
+    banner = MOE_BANNER
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.log.info(self.banner)
 
     class MonitoringTracker(FleetStateTracker):
         def record_fleet_state(self, *args, **kwargs):
