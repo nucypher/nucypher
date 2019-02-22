@@ -95,7 +95,8 @@ class Alice(Character, PolicyAuthor, WSGIController):
 
         if is_me and controller:
             WSGIController.__init__(self, app_name='alice-control')
-            
+
+        self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
     def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:

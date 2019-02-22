@@ -4,7 +4,6 @@ import click
 
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
@@ -57,8 +56,11 @@ def bob(click_config,
     if action == 'init':
         """Create a brand-new persistent Bob"""
 
-        if dev and not quiet:
-            click.secho("WARNING: Using temporary storage area", fg='yellow')
+        if dev:
+            actions.handle_control_output(message="WARNING: Using temporary storage area",
+                                          quiet=quiet,
+                                          color='yellow',
+                                          json=click_config.json)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -74,11 +76,9 @@ def bob(click_config,
                                                    )
 
         if not quiet:
-            painting.paint_new_installation_help(new_configuration=new_bob_config)
-            return  # FIN
-
-        else:
-            click.secho("OK")
+            return painting.paint_new_installation_help(new_configuration=new_bob_config,
+                                                        config_file=config_file,
+                                                        quiet=quiet)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
@@ -87,14 +87,14 @@ def bob(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        actions.destroy_system_configuration(config_class=BobConfiguration,
-                                             config_file=config_file,
-                                             network=network,
-                                             config_root=config_root,
-                                             force=force)
-        if not quiet:
-            click.secho("Destroyed {}".format(config_root))
-        return
+        destroyed_path = actions.destroy_system_configuration(config_class=BobConfiguration,
+                                                              config_file=config_file,
+                                                              network=network,
+                                                              config_root=config_root,
+                                                              force=force)
+
+        return actions.handle_control_output(message=f"Destroyed {destroyed_path}", quiet=quiet, json=click_config.json)
+
 
     #
     # Get Bob Configuration
@@ -127,15 +127,22 @@ def bob(click_config,
         if not dev:
             actions.unlock_keyring(configuration=bob_config, password=click_config.get_password())
 
-        click.secho(f"Bob Verifying Key {bytes(BOB.stamp).hex()}", fg="green", bold=True)
-        click.secho(f"Bob Encrypting Key {bytes(BOB.public_keys(DecryptingPower)).hex()}", fg="blue", bold=True)
+        actions.handle_control_output(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}",
+                                      color='green',
+                                      bold=True,
+                                      quiet=quiet)
+
+        actions.handle_control_output(message=f"Bob Encrypting Key {bytes(BOB.public_keys(DecryptingPower)).hex()}",
+                                      color="blue",
+                                      bold=True,
+                                      quiet=quiet)
+
         BOB.control.start_wsgi_control(dry_run=dry_run, http_port=http_port)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        json_config = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-        paint_configuration(json_config=json_config)
-        return json_config
+        response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
+        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
 
     elif action == "retrieve":
 
@@ -147,8 +154,7 @@ def bob(click_config,
         }
 
         response = BOB.control.retrieve(request=bob_request_data)
-        click.secho(response)
-        return response
+        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

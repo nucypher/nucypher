@@ -20,27 +20,29 @@ import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
-import nucypher
+from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.cli import actions
 from nucypher.config.constants import SEEDNODES
 
-
-#
-# Paint
-#
 
 def echo_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(BANNER, bold=True)
+    click.secho(NUCYPHER_BANNER, bold=True)
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration, config_root=None, config_file=None):
+def paint_new_installation_help(new_configuration, config_root=None, config_file=None, quiet: bool = False):
     character_config_class = new_configuration.__class__
     character_name = character_config_class._CHARACTER_CLASS.__name__.lower()
 
-    click.secho("Generated keyring {}".format(new_configuration.keyring_dir), fg='green')
-    click.secho("Saved configuration file {}".format(new_configuration.config_file_location), fg='green')
+    actions.handle_control_output(message="Generated keyring {}".format(new_configuration.keyring_dir),
+                                  color='green',
+                                  quiet=quiet)
+
+    actions.handle_control_output(message="Saved configuration file {}".format(new_configuration.config_file_location),
+                                  color='green',
+                                  quiet=quiet)
 
     # Give the use a suggestion as to what to do next...
     suggested_command = f'nucypher {character_name} run'
@@ -49,6 +51,10 @@ def paint_new_installation_help(new_configuration, config_root=None, config_file
         config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)
         suggested_command += ' --config-file {}'.format(config_file_location)
     click.secho(how_to_run_message.format(suggested_command), fg='green')
+
+    return actions.handle_control_output(message=how_to_run_message.format(suggested_command),
+                                         color='green',
+                                         quiet=quiet)
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -66,12 +72,6 @@ def build_fleet_state_status(ursula) -> str:
         fleet_state = 'Unknown'
 
     return fleet_state
-
-
-def paint_configuration(json_config: dict) -> None:
-    click.secho("\n======== Character Configuration ======== \n", bold=True)
-    for key, value in json_config.items():
-        click.secho("{} = {}".format(key, value))
 
 
 def paint_node_status(ursula, start_time):

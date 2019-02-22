@@ -6,7 +6,6 @@ import maya
 
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
@@ -24,6 +23,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
 @click.option('--bob-verifying-key', help="Bob's verifying key as a hexideicmal string", type=click.STRING)
@@ -46,6 +46,7 @@ def alice(click_config,
           config_root,
           config_file,
           provider_uri,
+          no_registry,
           registry_filepath,
           dev,
           force,
@@ -66,8 +67,12 @@ def alice(click_config,
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
-        if dev and not quiet:
-            click.secho("WARNING: Using temporary storage area", fg='yellow')
+        if dev:
+
+            actions.handle_control_output(message="WARNING: Using temporary storage area",
+                                          color='yellow',
+                                          json=click_config.json,
+                                          quiet=quiet)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -77,18 +82,14 @@ def alice(click_config,
                                                        rest_host="localhost",
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       no_registry=True,  # Yes we have no registry,
+                                                       no_registry=no_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_uri=provider_uri)
 
-        if not quiet:
-            painting.paint_new_installation_help(new_configuration=new_alice_config,
-                                                 config_root=config_root,
-                                                 config_file=config_file)
-            return
-
-        else:
-            click.secho("OK")
+        return painting.paint_new_installation_help(new_configuration=new_alice_config,
+                                                    config_root=config_root,
+                                                    config_file=config_file,
+                                                    quiet=quiet)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
@@ -96,14 +97,13 @@ def alice(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        actions.destroy_system_configuration(config_class=AliceConfiguration,
-                                             config_file=config_file,
-                                             network=network,
-                                             config_root=config_root,
-                                             force=force)
-        if not quiet:
-            click.secho("Destroyed {}".format(config_root))
-        return
+        destroyed_path = actions.destroy_system_configuration(config_class=AliceConfiguration,
+                                                              config_file=config_file,
+                                                              network=network,
+                                                              config_root=config_root,
+                                                              force=force)
+
+        return actions.handle_control_output(message=f"Destroyed {destroyed_path}", quiet=quiet, json=click_config.json)
 
     #
     # Get Alice Configuration
@@ -134,14 +134,18 @@ def alice(click_config,
     ALICE = alice_config(known_nodes=teacher_nodes)
 
     if action == "run":
-        click.secho(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
+
+        actions.handle_control_output(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}",
+                                      color="green",
+                                      bold=True,
+                                      quiet=quiet)
+
         return ALICE.control.start_wsgi_controller(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        json_config = AliceConfiguration._read_configuration_file(filepath=config_file or alice_config.config_file_location)
-        paint_configuration(json_config=json_config)
-        return json_config
+        response = AliceConfiguration._read_configuration_file(filepath=config_file or alice_config.config_file_location)
+        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
 
     elif action == "create-policy":
         if not all((bob_verifying_key, bob_encrypting_key, label)):
@@ -157,14 +161,11 @@ def alice(click_config,
         }
 
         response = ALICE.control.create_policy(request=create_policy_request)
-        click.secho(response)
-        return response
+        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
 
     elif action == "derive-policy":
         response = ALICE.control.derive_policy(label=label)
-        for k, v in response.items():
-            click.secho(f'{k} ...... {v}')
-        return response
+        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
 
     elif action == "grant":
         grant_request = {
@@ -177,8 +178,7 @@ def alice(click_config,
         }
 
         response = ALICE.control.grant(request=grant_request)
-        click.secho(response)
-        return response
+        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
 
     elif action == "revoke":
         raise NotImplementedError  # TODO
