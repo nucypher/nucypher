@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import AliceJSONBytesControl, BobJSONBytesControl, AliceJSONControl
+from nucypher.characters.control.controllers import AliceJSONControl, BobJSONControl
 from nucypher.characters.control.wsgi import WSGIController
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
@@ -71,7 +71,6 @@ class Alice(Character, PolicyAuthor, WSGIController):
     
     banner = ALICE_BANNER
     _default_controller_class = AliceJSONControl
-    _wsgi_controller_class = AliceJSONBytesControl
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
@@ -265,8 +264,7 @@ class Alice(Character, PolicyAuthor, WSGIController):
 class Bob(Character, WSGIController):
     
     banner = BOB_BANNER
-    _default_controller_class = BobJSONBytesControl
-    _wsgi_controller_class = BobJSONBytesControl
+    _default_controller_class = BobJSONControl
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 

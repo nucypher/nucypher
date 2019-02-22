@@ -54,7 +54,7 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
             if field not in request_data:
                 missing_fields.append(missing_fields)
         if missing_fields:
-            raise CharacterControlSpecification.MissingField(f"Request is missing fields: '{', '.join(missing_fields)}' field")
+            raise CharacterControlSpecification.MissingField(f"Request is missing fields: '{', '.join(missing_fields)}'.")
         return True
 
     @staticmethod
@@ -77,7 +77,6 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
         return request_data
 
     def write(self, response_data: dict, output_specification) -> bytes:
-        response_data = self._build_response(response_data=response_data)
         response_payload = CharacterControlJsonSerializer._serializer(response_data)
         self.validate_output(response_data=response_data, output_specification=output_specification)
         return response_payload
