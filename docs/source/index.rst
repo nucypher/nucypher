@@ -5,8 +5,7 @@ NuCypher
 
 ----
 
-
-.. image:: https://img.shields.io/pypi/wheel/nucypher.svg
+.. image:: https://img.shields.io/pypi/v/nucypher.svg?style=flat
     :target: https://pypi.org/project/nucypher/
 
 .. image:: https://img.shields.io/pypi/pyversions/nucypher.svg
@@ -24,15 +23,37 @@ NuCypher
     :alt: Discord
 
 .. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
-    :target: https://nucypher.readthedocs.io/en/latest/?badge=latest
+    :target: https://nucypher.readthedocs.io/en/latest/
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/pypi/l/nucypher.svg
     :target: https://www.gnu.org/licenses/gpl-3.0.html
 
+.. _Umbral: https://github.com/nucypher/pyUmbral
+
+The NuCypher network uses the Umbral_ threshold proxy re-encryption scheme
+to provide cryptographic access controls for distributed apps and protocols.
+
+1. Alice, the data owner, grants access to her encrypted data to
+anyone she wants by creating a policy and uploading it to
+the NuCypher network.
+
+2. Anyone can encrypt data using Alice's policy public key.
+The resulting encrypted data can be uploaded to IPFS, Swarm, S3,
+or any other storage layer.
+
+3. Ursula, a miner, receives the access policy and stands ready to
+re-encrypt data in exchange for payment in fees and block rewards.
+Thanks to the use of proxy re-encryption,
+Ursula and the storage layer never have access to Alice's plaintext data.
+
+4. Bob, a data recipient, sends an access request to the NuCypher network.
+If the policy is satisfied, the data is re-encrypted to his public key
+and he can decrypt it with his private key.
+
+More detailed information:
 
 - GitHub https://www.github.com/nucypher/nucypher
-- Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/
 
 
