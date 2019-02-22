@@ -658,6 +658,7 @@ class Ursula(Teacher, Character, Miner):
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
+                    node_nickname=self.nickname,
                     work_order_tracker=self._work_orders,
                     node_recorder=self.remember_node,
                     stamp=self.stamp,
