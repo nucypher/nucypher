@@ -32,7 +32,25 @@ def bytes_interface(func) -> Callable:
     return wrapped
 
 
-class AliceControl(CharacterControlSpecification):
+class CharacterControl:
+
+    def __init__(self, character=None, *args, **kwargs):
+        self.character = character
+        super().__init__(*args, **kwargs)
+
+    def start_wsgi_controller(self, http_port: int, dry_run: bool = False):
+
+        character_wsgi_control = self.character.make_wsgi_app()
+        click.secho("Starting HTTP Character Control...")
+
+        if dry_run:
+            return
+
+        hx_deployer = HendrixDeploy(action="start", options={"wsgi": character_wsgi_control, "http_port": http_port})
+        hx_deployer.run()  # <--- Blocking Call to Reactor
+
+
+class AliceControl(CharacterControl, CharacterControlSpecification):
 
     __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
@@ -53,22 +71,7 @@ class AliceControl(CharacterControlSpecification):
                       'revoke': __revoke}
 
     def __init__(self, alice, *args, **kwargs):
-        self.alice = alice
-        super().__init__(*args, **kwargs)
-
-    def run(self,  http_port: int, dry_run: bool = False):
-        # Alice Control
-        alice_control = self.alice.make_wsgi_app()
-        click.secho("Starting Alice Character Control...")
-
-        click.secho(f"Alice Verifying Key {bytes(self.alice.stamp).hex()}", fg="green", bold=True)
-
-        # Run
-        if dry_run:
-            return
-
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": alice_control, "http_port": http_port})
-        hx_deployer.run()  # <--- Blocking Call to Reactor
+        super().__init__(character=alice, *args, **kwargs)
 
     def create_policy(self,
                       bob_encrypting_key: bytes,
@@ -83,12 +86,12 @@ class AliceControl(CharacterControlSpecification):
 
         crypto_powers = {DecryptingPower: bob_encrypting_key, SigningPower: bob_verifying_key}
         bob = Bob.from_public_keys(crypto_powers, federated_only=federated_only)
-        new_policy = self.alice.create_policy(bob, label, m, n, federated=federated_only)
+        new_policy = self.character.create_policy(bob, label, m, n, federated=federated_only)
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
     def derive_policy(self, label: bytes) -> dict:
-        policy_encrypting_key = self.alice.get_policy_pubkey_from_label(label)
+        policy_encrypting_key = self.character.get_policy_pubkey_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data
 
@@ -99,7 +102,7 @@ class AliceControl(CharacterControlSpecification):
               m: int,
               n: int,
               expiration: maya.MayaDT,
-              federated_only: bool = True # TODO: Default for now
+              federated_only: bool = True  # TODO: Default for now
               ) -> dict:
         from nucypher.characters.lawful import Bob
 
@@ -108,7 +111,7 @@ class AliceControl(CharacterControlSpecification):
                                     SigningPower: bob_verifying_key},
                                    federated_only=federated_only)
 
-        new_policy = self.alice.grant(bob, label, m=m, n=n, expiration=expiration)
+        new_policy = self.character.grant(bob, label, m=m, n=n, expiration=expiration)
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,

@@ -159,6 +159,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--config-file', custom_config_filepath)
+
     result = click_runner.invoke(nucypher_cli, run_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
