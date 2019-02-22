@@ -30,6 +30,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
+from nucypher.cli import actions
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
@@ -88,6 +89,7 @@ the Untrusted Re-Encryption Proxy.
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--metadata-dir', help="Custom known metadata directory", type=EXISTING_WRITABLE_DIRECTORY)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
@@ -112,6 +114,7 @@ def ursula(click_config,
            config_file,
            metadata_dir,  # TODO: Start nodes from an additional existing metadata dir
            provider_uri,
+           recompile_solidity,
            no_registry,
            registry_filepath
            ) -> None:
@@ -260,21 +263,11 @@ def ursula(click_config,
                                                                     # federated_only=federated_only,
                                                                     )
 
-        try:  # Unlock Keyring
-            if not quiet:
-                click.secho('Decrypting keyring...', fg='blue')
-            ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
-        except CryptoError:
-            raise ursula_config.keyring.AuthenticationFailed
+        actions.unlock_keyring(configuration=ursula_config,
+                               password=click_config.get_password())
 
     if not ursula_config.federated_only:
-        try:
-            ursula_config.connect_to_blockchain(recompile_contracts=False)
-            ursula_config.connect_to_contracts()
-        except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found; " \
-                      "Did you mean to pass --federated-only?"
-            raise EthereumContractRegistry.NoRegistry(message)
+        actions.connect_to_blockchain(configuration=ursula_config, recompile_contracts=recompile_solidity)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
@@ -295,17 +288,16 @@ def ursula(click_config,
         #
         # Seed - Step 1
         #
-        teacher_nodes = list()
-        if teacher_uri:
-            node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                           min_stake=min_stake,
-                                           federated_only=ursula_config.federated_only)
-            teacher_nodes.append(node)
+        teacher_uris = [teacher_uri] if teacher_uri else list()
+        teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                               min_stake=min_stake,
+                                               federated_only=federated_only)
+
 
         #
         # Produce - Step 2
         #
-        ursula = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
+        URSULA = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
 
         # GO!
         try:
@@ -314,15 +306,15 @@ def ursula(click_config,
             # Run - Step 3
             #
             click.secho("Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)), fg='blue', bold=True)
-            click.secho("Running Ursula {} on {}".format(ursula, ursula.rest_interface), fg='green', bold=True)
+            click.secho("Running Ursula {} on {}".format(URSULA, URSULA.rest_interface), fg='green', bold=True)
             if not debug:
-                stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))
+                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
             if dry_run:
                 # That's all folks!
                 return
 
-            ursula.get_deployer().run()  # <--- Blocking Call (Reactor)
+            URSULA.get_deployer().run()  # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))
@@ -341,23 +333,20 @@ def ursula(click_config,
     elif action == "save-metadata":
         """Manually save a node self-metadata file"""
 
-        ursula = ursula_config.produce(ursula_config=ursula_config)
-        metadata_path = ursula.write_node_metadata(node=ursula)
+        URSULA = ursula_config.produce(ursula_config=ursula_config)
+        metadata_path = ursula.write_node_metadata(node=URSULA)
         if not quiet:
             click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
         return
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        paint_configuration(config_filepath=config_file or ursula_config.config_file_location)
-        return
+        json_config = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
+        paint_configuration(json_config=json_config)
+        return json_config
 
     elif action == "forget":
-        """Forget all known nodes via storages"""
-        click.confirm("Permanently delete all known node data?", abort=True)
-        ursula_config.forget_nodes()
-        message = "Removed all stored node node metadata and certificates"
-        click.secho(message=message, fg='red')
+        actions.forget(configuration=ursula_config)
         return
 
     else:
@@ -413,7 +402,7 @@ def stake(click_config,
             click.echo(row)
 
         click.echo("Select ethereum address")
-        account_selection = click.prompt("Enter 0-{}".format(len(ur.accounts)), type=click.INT)
+        account_selection = click.prompt("Enter 0-{}".format(len(ursula_config.accounts)), type=click.INT)
         address = click_config.accounts[account_selection]
 
     if action == 'list':
