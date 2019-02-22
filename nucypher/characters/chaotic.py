@@ -50,3 +50,45 @@ class Moe(Character):
         new_teacher = self.current_teacher_node(cycle=False)
         hey_joe.send({"current_teacher": new_teacher.checksum_public_address}, "teachers")
         return new_nodes
+
+    def start(self, ws_port: int, http_port: int, dry_run: bool = False):
+
+        #
+        # Websocket Service
+        #
+
+        def send_states(subscriber):
+            message = ["states", self.known_nodes.abridged_states_dict()]
+            subscriber.sendMessage(json.dumps(message).encode())
+
+        def send_nodes(subscriber):
+            message = ["nodes", self.known_nodes.abridged_nodes_dict()]
+            subscriber.sendMessage(json.dumps(message).encode())
+
+        websocket_service = hey_joe.WebSocketService("127.0.0.1", ws_port)
+        websocket_service.register_followup("states", send_states)
+        websocket_service.register_followup("nodes", send_nodes)
+
+        #
+        # WSGI Service
+        #
+
+        self.rest_app = Flask("fleet-monitor", root_path=os.path.dirname(__file__))
+        rest_app = self.rest_app
+
+        @rest_app.route("/")
+        def status():
+            template_path = os.path.join('monitor.html')
+            return render_template(template_path)
+
+        #
+        # Server
+        #
+
+        deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
+        deployer.add_non_tls_websocket_service(websocket_service)
+
+        click.secho(f"Running Moe on 127.0.0.1:{http_port}")
+
+        if not dry_run:
+            deployer.run()
