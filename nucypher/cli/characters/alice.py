@@ -4,7 +4,6 @@ from base64 import b64encode
 import click
 import maya
 
-from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
@@ -60,9 +59,6 @@ def alice(click_config,
     """
     Start and manage an "Alice" character.
     """
-
-    if not quiet:
-        click.secho(ALICE_BANNER)
 
     if action == 'init':
         """Create a brand-new persistent Alice"""
@@ -152,7 +148,7 @@ def alice(click_config,
             raise click.BadArgumentUsage(message="--bob-verifying-key, --bob-encrypting-key, and --label are "
                                                  "required options to create a new policy.")
 
-        request_data = {
+        create_policy_request = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_signing_key': bob_verifying_key,
             'label': label,
@@ -160,26 +156,27 @@ def alice(click_config,
             'n': n,
         }
 
-        response = ALICE.control.create_policy(**request_data)
+        response = ALICE.control.create_policy(request=create_policy_request)
         click.secho(response)
         return response
 
     elif action == "derive-policy":
         response = ALICE.control.derive_policy(label=label)
-        click.secho(response)
+        for k, v in response.items():
+            click.secho(f'{k} ...... {v}')
         return response
 
     elif action == "grant":
-        request_data = {
+        grant_request = {
             'bob_encrypting_key': bob_encrypting_key,
-            'bob_signing_key': bob_verifying_key,
+            'bob_verifying_key': bob_verifying_key,
             'label': b64encode(bytes(label, encoding='utf-8')).decode(),
             'm': m,
             'n': n,
-            'expiration_time': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+            'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
         }
 
-        response = ALICE.control.grant(**request_data)
+        response = ALICE.control.grant(request=grant_request)
         click.secho(response)
         return response
 
