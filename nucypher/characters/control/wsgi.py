@@ -1,4 +1,4 @@
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_WSGI_APP
+from constant_sorrow.constants import NO_WSGI_APP
 from flask import Flask, Response
 
 

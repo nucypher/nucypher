@@ -33,22 +33,35 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
             raise self.SerializerError(f"Invalid serializer input types: Got {data.__class__.__name__}")
 
     @staticmethod
-    def __build_response(response_data: dict):
+    def _build_response(response_data: dict):
         response_data = {'result': response_data, 'version': str(nucypher.__version__)}
         return response_data
 
     @staticmethod
-    def __validate_input(request_data: dict, input_specification: tuple) -> bool:
+    def validate_input(request_data: dict, input_specification: tuple) -> bool:
+
+        # Invalid Fields
+        input_fields = set(request_data.keys())
+        extra_fields = input_fields - set(input_specification)
+
+        if extra_fields:
+            raise CharacterControlSpecification.InvalidInputField(f"Invalid request fields '{', '.join(extra_fields)}'."
+                                                                    f"Valid fields are: {', '.join(input_specification)}.")
+
+        # Missing Fields
+        missing_fields = list()
         for field in input_specification:
             if field not in request_data:
-                raise CharacterControlSpecification.MissingField(f"Request is missing the '{field}' field")
+                missing_fields.append(missing_fields)
+        if missing_fields:
+            raise CharacterControlSpecification.MissingField(f"Request is missing fields: '{', '.join(missing_fields)}' field")
         return True
 
     @staticmethod
-    def __validate_output(response_data: dict, output_specification: tuple) -> bool:
+    def validate_output(response_data: dict, output_specification: tuple) -> bool:
         for field in output_specification:
             if field not in response_data['result']:
-                raise CharacterControlSpecification.InvalidResponseField(f"Response is missing the '{field}' field")
+                raise CharacterControlSpecification.InvalidOutputField(f"Response is missing the '{field}' field")
         return True
 
     def read(self, request_payload: bytes, input_specification: tuple) -> dict:
@@ -60,13 +73,13 @@ class CharacterControlJsonSerializer(CharacterControlSerializer):
         except JSONDecodeError:
             raise self.SerializerError(f"Invalid protocol input: got {request_payload}")
 
-        self.__validate_input(request_data=request_data, input_specification=input_specification)
+        self.validate_input(request_data=request_data, input_specification=input_specification)
         return request_data
 
     def write(self, response_data: dict, output_specification) -> bytes:
-        response_data = self.__build_response(response_data=response_data)
+        response_data = self._build_response(response_data=response_data)
         response_payload = CharacterControlJsonSerializer._serializer(response_data)
-        self.__validate_output(response_data=response_data, output_specification=output_specification)
+        self.validate_output(response_data=response_data, output_specification=output_specification)
         return response_payload
 
 
@@ -91,7 +104,8 @@ class AliceCharacterControlJsonSerializer(CharacterControlJsonSerializer):
     @staticmethod
     def dump_derive_policy_output(response: dict):
         policy_encrypting_key_hex = bytes(response['policy_encrypting_key']).hex()
-        response_data = {'policy_encrypting_key': policy_encrypting_key_hex}
+        unicode_label = response['label'].decode()
+        response_data = {'policy_encrypting_key': policy_encrypting_key_hex, 'label': unicode_label}
         return response_data
 
     @staticmethod
