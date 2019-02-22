@@ -1,14 +1,11 @@
 import datetime
-import os
 from base64 import b64encode
 
 import click
 import maya
-from nacl.exceptions import CryptoError
 
 from nucypher.characters.banners import ALICE_BANNER
-from nucypher.characters.lawful import Ursula
-from nucypher.cli.actions import destroy_system_configuration
+from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_configuration
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
@@ -79,44 +76,35 @@ def alice(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
-                                                   config_root=config_root,
-                                                   rest_host="localhost",
-                                                   domains={network} if network else None,
-                                                   federated_only=federated_only,
-                                                   no_registry=True,  # Yes we have no registry,
-                                                   registry_filepath=registry_filepath,
-                                                   provider_uri=provider_uri,
-                                                   )
+        new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
+                                                       config_root=config_root,
+                                                       rest_host="localhost",
+                                                       domains={network} if network else None,
+                                                       federated_only=federated_only,
+                                                       no_registry=True,  # Yes we have no registry,
+                                                       registry_filepath=registry_filepath,
+                                                       provider_uri=provider_uri)
 
         if not quiet:
-            click.secho("Generated keyring {}".format(alice_config.keyring_dir), fg='green')
-            click.secho("Saved configuration file {}".format(alice_config.config_file_location), fg='green')
-
-            # Give the use a suggestion as to what to do next...
-            how_to_run_message = "\nTo run an Alice node from the default configuration filepath run: \n\n'{}'\n"
-            suggested_command = 'nucypher alice run'
-            if config_root is not None:
-                config_file_location = os.path.join(config_root, config_file or AliceConfiguration.CONFIG_FILENAME)
-                suggested_command += ' --config-file {}'.format(config_file_location)
-            click.secho(how_to_run_message.format(suggested_command), fg='green')
-            return  # FIN
+            painting.paint_new_installation_help(new_configuration=new_alice_config,
+                                                 config_root=config_root,
+                                                 config_file=config_file)
+            return
 
         else:
             click.secho("OK")
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
-
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        destroy_system_configuration(config_class=AliceConfiguration,
-                                     config_file=config_file,
-                                     network=network,
-                                     config_root=config_root,
-                                     force=force)
+        actions.destroy_system_configuration(config_class=AliceConfiguration,
+                                             config_file=config_file,
+                                             network=network,
+                                             config_root=config_root,
+                                             force=force)
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
         return
@@ -129,8 +117,8 @@ def alice(click_config,
         alice_config = AliceConfiguration(dev_mode=True,
                                           domains={network},
                                           provider_uri=provider_uri,
-                                          federated_only=True,
-                                          )
+                                          federated_only=True)
+
     else:
         alice_config = AliceConfiguration.from_configuration_file(
             filepath=config_file,
@@ -138,34 +126,26 @@ def alice(click_config,
             rest_port=discovery_port,
             provider_uri=provider_uri)
 
-    # Teacher
-    teacher_nodes = list()
-    if teacher_uri:
-        teacher_node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                               min_stake=min_stake,
-                                               federated_only=alice_config.federated_only)
-        teacher_nodes.append(teacher_node)
-
     if not dev:
-        # Keyring
-        try:
-            click.secho("Decrypting keyring...", fg='blue')
-            alice_config.keyring.unlock(password=click_config.get_password())
-        except CryptoError:
-            raise alice_config.keyring.AuthenticationFailed
-        finally:
-            click_config.alice_config = alice_config
+        actions.unlock_keyring(password=click_config.get_password(), configuration=alice_config)
 
+    # Teacher Ursula
+    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                           min_stake=min_stake,
+                                           federated_only=federated_only)
     # Produce
     ALICE = alice_config(known_nodes=teacher_nodes)
 
     if action == "run":
-        return ALICE.control.run(http_port=http_port, dry_run=dry_run)
+        click.secho(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", fg="green", bold=True)
+        return ALICE.control.start_wsgi_controller(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        paint_configuration(config_filepath=config_file or alice_config.config_file_location)
-        return
+        json_config = AliceConfiguration._read_configuration_file(filepath=config_file or alice_config.config_file_location)
+        paint_configuration(json_config=json_config)
+        return json_config
 
     elif action == "create-policy":
         if not all((bob_verifying_key, bob_encrypting_key, label)):
@@ -187,7 +167,6 @@ def alice(click_config,
     elif action == "derive-policy":
         response = ALICE.control.derive_policy(label=label)
         click.secho(response)
-        # click.secho(f"Created new Policy with label {label} | {policy_encrypting_key}", fg='green')
         return response
 
     elif action == "grant":

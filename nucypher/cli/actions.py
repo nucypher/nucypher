@@ -1,8 +1,12 @@
 import shutil
+from typing import List
 
 import click
+from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
@@ -18,6 +22,19 @@ Delete {}?'''
 
 
 LOG = Logger('cli.actions')
+
+
+def load_seednodes(min_stake: int, federated_only: bool, teacher_uris: list = None) -> List[Ursula]:
+    teacher_nodes = list()
+    if teacher_uris is None:
+        # Default teacher nodes can be placed here
+        return teacher_nodes
+    for uri in teacher_uris:
+        teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                               min_stake=min_stake,
+                                               federated_only=federated_only)
+        teacher_nodes.append(teacher_node)
+    return teacher_nodes
 
 
 def destroy_system_configuration(config_class,
@@ -56,3 +73,29 @@ def destroy_system_configuration(config_class,
             message = "Deleted configuration files at {}".format(character_config.config_root)
             click.secho(message, fg='green')
             log.debug(message)
+
+
+def unlock_keyring(configuration, password):
+    try:
+        click.secho("Decrypting keyring...", fg='blue')
+        configuration.keyring.unlock(password=password)
+    except CryptoError:
+        raise configuration.keyring.AuthenticationFailed
+
+
+def connect_to_blockchain(configuration, recompile_contracts: bool = False):
+    try:
+        configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
+        configuration.connect_to_contracts()
+    except EthereumContractRegistry.NoRegistry:
+        message = "Cannot configure blockchain character: No contract registry found; " \
+                  "Did you mean to pass --federated-only?"
+        raise EthereumContractRegistry.NoRegistry(message)
+
+
+def forget(configuration):
+    """Forget all known nodes via storages"""
+    click.confirm("Permanently delete all known node data?", abort=True)
+    configuration.forget_nodes()
+    message = "Removed all stored node node metadata and certificates"
+    click.secho(message=message, fg='red')
