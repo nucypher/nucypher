@@ -25,7 +25,9 @@ class WSGIController:
     def make_wsgi_app(drone_character):
 
         # Protocol and Flask App
-        drone_character._control_protocol = drone_character._wsgi_controller_class(drone_character)
+        drone_character._control_protocol = drone_character._default_controller_class(drone_character)
+        drone_character._control_protocol.as_bytes = True
+
         drone_character._wsgi_app = Flask(drone_character.app_name)
         done_control = drone_character._wsgi_app
 
@@ -57,7 +59,7 @@ class WSGIController:
         except _400_exceptions as e:
             return drone_character.__handle_exception(e=e, log_level='critical', response_code=400)
 
-        except drone_character.control.ProtocolError as e:
+        except drone_character.control.SpecificationError as e:
             return drone_character.__handle_exception(e=e, log_level='critical', response_code=500)
 
         except Exception as e:
