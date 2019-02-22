@@ -1040,6 +1040,8 @@ class Enrico(Character):
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
         super().__init__(*args, **kwargs)
+
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,

@@ -1,13 +1,13 @@
 import functools
-from typing import Tuple
 
 import click
 import maya
 from hendrix.deploy.base import HendrixDeploy
 from umbral.keys import UmbralPublicKey
 
-from nucypher.characters.control.base import CharacterControlSpecification
-from nucypher.characters.control.serializers import AliceCharacterControlJsonSerializer, BobCharacterControlJSONSerializer
+from nucypher.characters.control.specifications import AliceSpecification, BobSpecification
+from nucypher.characters.control.serializers import AliceCharacterControlJsonSerializer, \
+    BobCharacterControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 
@@ -23,7 +23,7 @@ def character_control_interface(func):
 
         # Read bytes
         if instance.as_bytes is True:
-            request = instance.read(request_payload=request, input_specification=input_specification)
+            request = instance._read(request_payload=request)
 
         # Validate request body (if there is one)
         if request:
@@ -38,14 +38,14 @@ def character_control_interface(func):
 
         # Write bytes
         if instance.as_bytes is True:
-            response = instance.write(response_data=response, output_specification=output_specification)
+            response = instance._write(response_data=response, output_specification=output_specification)
 
+        # Respond
         return response
-
     return wrapped
 
 
-class CharacterControl:
+class WSGICharacterController:
 
     def __init__(self, character=None, as_bytes: bool = False, *args, **kwargs):
         self.character = character
@@ -64,25 +64,7 @@ class CharacterControl:
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
 
-class AliceControl(CharacterControl, CharacterControlSpecification):
-
-    __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label'),  # In
-                       ('label', 'policy_encrypting_key'))                              # Out
-
-    __derive_policy = (('label', ),                 # In
-                       ('policy_encrypting_key', 'label'))  # Out
-
-    __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),   # In
-               ('treasure_map', 'policy_encrypting_key', 'alice_signing_key', 'label'))        # Out
-
-    # TODO: Implement Revoke Spec
-    __revoke = ((),  # In
-                ())  # Out
-
-    specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
-                      'derive_policy': __derive_policy,
-                      'grant': __grant,
-                      'revoke': __revoke}
+class AliceControl(WSGICharacterController, AliceSpecification):
 
     def __init__(self, alice, *args, **kwargs):
         super().__init__(character=alice, *args, **kwargs)
@@ -135,20 +117,7 @@ class AliceControl(CharacterControl, CharacterControlSpecification):
         return response_data
 
 
-class BobControl(CharacterControlSpecification):
-
-    __join_policy = (('label', 'alice_signing_key'),
-                     ('policy_encrypting_key', ))
-
-    __retrieve = (('label', 'policy_encrypting_key', 'alice_signing_key', 'message_kit'),
-                  ('plaintexts', ))
-
-    __public_keys = ((),
-                     ('bob_encrypting_key', 'bob_verifying_key'))
-
-    specifications = {'join_policy': __join_policy,
-                      'retrieve': __retrieve,
-                      'public_keys': __public_keys}
+class BobControl(WSGICharacterController, BobSpecification):
 
     def __init__(self, bob, *args, **kwargs):
         self.bob = bob
