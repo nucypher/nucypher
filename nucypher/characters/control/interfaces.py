@@ -6,6 +6,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.network.middleware import NotFound
 
 
 def character_control_interface(func):
@@ -105,7 +106,12 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         policy = self.character.active_policies[policy_encrypting_key]
 
         failed_revocations = self.character.revoke(policy)
-        if len(failed_revocations) == 0:
+        if len(failed_revocations) > 0:
+            for node_id, attempt in failed_revocations.items():
+                revocation, fail_reason = attempt
+                if fail_reason == NotFound:
+                    del(failed_revocations[node_id])
+        elif len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
             del(self.character.active_policies[policy_encrypting_key])
 
         response_data = {'failed_revocations': len(failed_revocations)}
