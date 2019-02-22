@@ -42,18 +42,13 @@ from flask import Flask, request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-from typing import Tuple
 from umbral.pre import UmbralCorrectnessError
-
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONBytesControl, BobJSONBytesControl, AliceJSONControl
 from nucypher.characters.control.wsgi import WSGIController
@@ -75,6 +70,8 @@ from nucypher.utilities.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor, WSGIController):
+    
+    banner = ALICE_BANNER
     _default_controller_class = AliceJSONControl
     _wsgi_controller_class = AliceJSONBytesControl
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -100,6 +97,8 @@ class Alice(Character, PolicyAuthor, WSGIController):
 
         if is_me and controller:
             WSGIController.__init__(self, app_name='alice-control')
+            
+        self.log.info(self.banner)
 
     def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:
         """
@@ -265,6 +264,8 @@ class Alice(Character, PolicyAuthor, WSGIController):
 
 
 class Bob(Character, WSGIController):
+    
+    banner = BOB_BANNER
     _default_controller_class = BobJSONBytesControl
     _wsgi_controller_class = BobJSONBytesControl
 
@@ -285,6 +286,9 @@ class Bob(Character, WSGIController):
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
+
+        self.log = Logger(self.__class__.__name__)
+        self.log.info(self.banner)
 
     def _pick_treasure_map(self, treasure_map=None, map_id=None):
         if not treasure_map:
@@ -553,6 +557,8 @@ class Bob(Character, WSGIController):
 
 
 class Ursula(Teacher, Character, Miner):
+
+    banner = URSULA_BANNER
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,
@@ -720,6 +726,7 @@ class Ursula(Teacher, Character, Miner):
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
+            self.log.info(self.banner)
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
@@ -1043,6 +1050,7 @@ class Ursula(Teacher, Character, Miner):
 class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
+    banner = ENRICO_BANNER
     _default_crypto_powerups = [SigningPower]
 
     def __init__(self, policy_encrypting_key, *args, **kwargs):
@@ -1051,6 +1059,7 @@ class Enrico(Character):
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
         super().__init__(*args, **kwargs)
+        self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,
                         message: bytes
