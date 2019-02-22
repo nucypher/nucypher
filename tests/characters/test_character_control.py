@@ -22,7 +22,6 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
-        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601()
     }
 
     response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
@@ -114,7 +113,6 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
         'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
         'alice_signing_key': bytes(enacted_federated_policy.alice.stamp).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
-        'datasource_signing_key': bytes(data_source.stamp).hex(),
     }
 
     response = bob_control_test_client.post('/retrieve', data=json.dumps(request_data))
