@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from twisted.logger import globalLogPublisher
 
+from nucypher.characters.control.wsgi import WSGIController
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
 
@@ -28,6 +29,10 @@ globalLogPublisher.removeObserver(logToSentry)
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False
+
+# Crash on server error by default
+WSGIController._crash_on_error_default = False
+
 
 #
 # Pytest configuration
