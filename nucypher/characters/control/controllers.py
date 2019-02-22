@@ -1,3 +1,4 @@
+import functools
 from typing import Tuple, Callable
 
 import click
@@ -12,21 +13,47 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 
 
+def dict_interface(func) -> Callable:
+    """Validate I/O specification for dictionary character control interfaces"""
+
+    @functools.wraps(func)
+    def wrapped(instance, request=None, *args, **kwargs) -> bytes:
+
+        # Get Specification
+        input_specification, output_specification = instance.get_specifications(interface_name=func.__name__)
+
+        if request:
+            instance.validate_input(request_data=request, input_specification=input_specification)
+
+        # Call Interface
+        response_dict = func(self=instance, request=request, *args, **kwargs)
+
+        # Output
+        response_dict = instance._build_response(response_data=response_dict)
+        instance.validate_output(response_data=response_dict, output_specification=output_specification)
+
+        return response_dict
+    return wrapped
+
+
 def bytes_interface(func) -> Callable:
     """Manage protocol I/O validation and serialization"""
 
-    def wrapped(instance, request, *args, **kwargs) -> bytes:
+    @functools.wraps(func)
+    def wrapped(instance, request=None, *args, **kwargs) -> bytes:
+
+        # Get Specification
+        input_specification, output_specification = instance.get_specifications(interface_name=func.__name__)
 
         # Read
-        interface_name = func.__name__
-        input_specification, output_specification = instance.get_specifications(interface_name=interface_name)
-        request_data = instance.read(request_payload=request, input_specification=input_specification)
+        if request:
+            request = instance.read(request_payload=request, input_specification=input_specification)
 
         # Inner Call
-        response_data = func(instance, request_data, *args, **kwargs)
+        response = func(self=instance, request=request, *args, **kwargs)
 
         # Write
-        response_bytes = instance.write(response_data=response_data, output_specification=output_specification)
+        response_bytes = instance.write(response_data=response, output_specification=output_specification)
 
         return response_bytes
     return wrapped
@@ -56,7 +83,7 @@ class AliceControl(CharacterControl, CharacterControlSpecification):
                        ('label', 'policy_encrypting_key'))                              # Out
 
     __derive_policy = (('label', ),                 # In
-                       ('policy_encrypting_key',))  # Out
+                       ('policy_encrypting_key', 'label'))  # Out
 
     __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),   # In
                ('treasure_map', 'policy_encrypting_key', 'alice_signing_key', 'label'))        # Out
@@ -187,18 +214,21 @@ class BobControl(CharacterControlSpecification):
 
 class AliceJSONControl(AliceControl, AliceCharacterControlJsonSerializer):
 
+    @dict_interface
     def create_policy(self, request):
         federated_only = True  # TODO: const for now
         result = super().create_policy(**self.load_create_policy_input(request=request), federated_only=federated_only)
         response_data = self.dump_create_policy_output(response=result)
         return response_data
 
-    def derive_policy(self, request, label: str):
+    @dict_interface
+    def derive_policy(self, label: str, request=None):
         label_bytes = label.encode()
         result = super().derive_policy(label=label_bytes)
         response_data = self.dump_derive_policy_output(response=result)
         return response_data
 
+    @dict_interface
     def grant(self, request):
         result = super().grant(**self.parse_grant_input(request=request))
         response_data = self.dump_grant_output(response=result)
@@ -222,6 +252,7 @@ class AliceJSONBytesControl(AliceJSONControl, AliceCharacterControlJsonSerialize
 
 class BobJSONControl(BobControl, BobCharacterControlJSONSerializer):
 
+    @dict_interface
     def join_policy(self, request):
         """
         Character control endpoint for joining a policy on the network.
@@ -230,6 +261,7 @@ class BobJSONControl(BobControl, BobCharacterControlJSONSerializer):
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
+    @dict_interface
     def retrieve(self, request):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
@@ -238,6 +270,7 @@ class BobJSONControl(BobControl, BobCharacterControlJSONSerializer):
         response_data = self.dump_retrieve_output(response=result)
         return response_data
 
+    @dict_interface
     def public_keys(self, request):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
