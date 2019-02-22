@@ -78,8 +78,10 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
     response = alice_control_test_client.put('/grant', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
+    # Malform the request
     del(request_data['bob_encrypting_key'])
     response = alice_control_test_client.put('/grant', data=json.dumps(request_data))
+    assert response.status_code == 400
 
 
 def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
