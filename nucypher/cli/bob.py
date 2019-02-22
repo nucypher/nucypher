@@ -1,12 +1,26 @@
-import json
 import os
 from base64 import b64encode
 
 import click
-import requests
 from nacl.exceptions import CryptoError
 
 from hendrix.deploy.base import HendrixDeploy
+from nucypher.characters.lawful import Ursula
+from nucypher.cli import actions, painting
+from nucypher.cli.actions import destroy_system_configuration
+from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.painting import paint_configuration
+from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
+from nucypher.config.characters import BobConfiguration
+from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.crypto.powers import DecryptingPower
+import os
+from base64 import b64encode
+
+import click
+from hendrix.deploy.base import HendrixDeploy
+from nacl.exceptions import CryptoError
+
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
@@ -15,7 +29,6 @@ from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.powers import DecryptingPower
-
 
 BOB_BANNER = r"""
 
@@ -84,27 +97,18 @@ def bob(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
-                                               config_root=config_root,
-                                               rest_host="localhost",
-                                               domains={network} if network else None,
-                                               federated_only=federated_only,
-                                               no_registry=True,  # Yes we have no registry,
-                                               registry_filepath=registry_filepath,
-                                               provider_uri=provider_uri,
-                                               )
+        new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
+                                                   config_root=config_root,
+                                                   rest_host="localhost",
+                                                   domains={network} if network else None,
+                                                   federated_only=federated_only,
+                                                   no_registry=True,  # Yes we have no registry,
+                                                   registry_filepath=registry_filepath,
+                                                   provider_uri=provider_uri,
+                                                   )
 
         if not quiet:
-            click.secho("Generated keyring {}".format(bob_config.keyring_dir), fg='green')
-            click.secho("Saved configuration file {}".format(bob_config.config_file_location), fg='green')
-
-            # Give the use a suggestion as to what to do next...
-            how_to_run_message = "\nTo run an Bob node from the default configuration filepath run: \n\n'{}'\n"
-            suggested_command = 'nucypher bob run'
-            if config_root is not None:
-                config_file_location = os.path.join(config_root, config_file or BobConfiguration.CONFIG_FILENAME)
-                suggested_command += ' --config-file {}'.format(config_file_location)
-            click.secho(how_to_run_message.format(suggested_command), fg='green')
+            painting.paint_new_installation_help(new_configuration=new_bob_config)
             return  # FIN
 
         else:
@@ -117,11 +121,11 @@ def bob(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        destroy_system_configuration(config_class=BobConfiguration,
-                                     config_file=config_file,
-                                     network=network,
-                                     config_root=config_root,
-                                     force=force)
+        actions.destroy_system_configuration(config_class=BobConfiguration,
+                                             config_file=config_file,
+                                             network=network,
+                                             config_root=config_root,
+                                             force=force)
         if not quiet:
             click.secho("Destroyed {}".format(config_root))
         return
@@ -143,13 +147,11 @@ def bob(click_config,
             rest_port=discovery_port,
             provider_uri=provider_uri)
 
-    # Teacher
-    teacher_nodes = list()
-    if teacher_uri:
-        teacher_node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                               min_stake=min_stake,
-                                               federated_only=bob_config.federated_only)
-        teacher_nodes.append(teacher_node)
+    # Teacher Ursula
+    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                           min_stake=min_stake,
+                                           federated_only=federated_only)
 
     # Produce
     BOB = bob_config(known_nodes=teacher_nodes)
@@ -157,33 +159,17 @@ def bob(click_config,
     if action == "run":
 
         if not dev:
-            # Keyring
-            try:
-                click.secho("Decrypting keyring...", fg='blue')
-                bob_config.keyring.unlock(password=click_config.get_password())
-            except CryptoError:
-                raise bob_config.keyring.AuthenticationFailed
-            finally:
-                click_config.bob_config = bob_config
-
-        # Bob Control
-        bob_control = BOB.make_wsgi_app()
-        click.secho("Starting Bob Character Control...")
+            actions.unlock_keyring(configuration=bob_config, password=click_config.get_password())
 
         click.secho(f"Bob Verifying Key {bytes(BOB.stamp).hex()}", fg="green", bold=True)
         click.secho(f"Bob Encrypting Key {bytes(BOB.public_keys(DecryptingPower)).hex()}", fg="blue", bold=True)
-
-        # Run
-        if dry_run:
-            return
-
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": bob_control, "http_port": http_port})
-        hx_deployer.run()  # <--- Blocking Call to Reactor
+        BOB.control.start_wsgi_control(dry_run=dry_run, http_port=http_port)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        paint_configuration(config_filepath=config_file or bob_config.config_file_location)
-        return
+        json_config = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
+        paint_configuration(json_config=json_config)
+        return json_config
 
     elif action == "retrieve":
         bob_request_data = {
@@ -193,9 +179,9 @@ def bob(click_config,
             # 'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),  # TODO
         }
 
-        response = requests.post('/retrieve', data=json.dumps(bob_request_data))
+        response = BOB.control.retrieve(request=bob_request_data)
         click.secho(response)
-        return
+        return response
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

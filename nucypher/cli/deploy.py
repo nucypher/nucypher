@@ -15,76 +15,17 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import collections
 import json
 import os
 
 import click
-from twisted.logger import Logger
-from twisted.logger import globalLogPublisher
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.cli.painting import BANNER
+from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.logging import getTextFileObserver
-
-
-#
-# Click Eager Functions
-#
-
-def echo_version(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    click.secho(BANNER, bold=True)
-    ctx.exit()
-
-
-class NucypherDeployerClickConfig:
-
-    # Environment Variables
-    log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
-    miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
-    policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
-    user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
-
-    Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
-
-    def __init__(self):
-        if self.log_to_file:
-            globalLogPublisher.addObserver(getTextFileObserver())
-        self.log = Logger(self.__class__.__name__)
-
-    def collect_deployment_secrets(self) -> Secrets:
-
-        miner_secret = self.miner_escrow_deployment_secret
-        if not miner_secret:
-            miner_secret = click.prompt('Enter MinerEscrow Deployment Secret', hide_input=True,
-                                        confirmation_prompt=True)
-
-        policy_secret = self.policy_manager_deployment_secret
-        if not policy_secret:
-            policy_secret = click.prompt('Enter PolicyManager Deployment Secret', hide_input=True,
-                                         confirmation_prompt=True)
-
-        escrow_proxy_secret = self.user_escrow_proxy_deployment_secret
-        if not escrow_proxy_secret:
-            escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
-                                               confirmation_prompt=True)
-
-        secrets = self.Secrets(miner_secret=miner_secret,                 # type: str
-                               policy_secret=policy_secret,               # type: str
-                               escrow_proxy_secret=escrow_proxy_secret    # type: str
-                               )
-        return secrets
-
-
-# Register the above class as a decorator
-nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
 
 
 @click.command()

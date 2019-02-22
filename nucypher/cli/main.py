@@ -20,8 +20,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 
 from nucypher.cli import moe, ursula, status, alice, bob, enrico
-from nucypher.cli.config import echo_version, nucypher_click_config
-from nucypher.cli.painting import BANNER
+from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.painting import BANNER, echo_version
 from nucypher.utilities.logging import GlobalConsoleLogger
 
 GlobalConsoleLogger.start_if_not_started()

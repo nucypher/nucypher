@@ -4,16 +4,14 @@ import os.path
 import click
 from constant_sorrow import constants
 from flask import Flask, render_template
-from twisted.logger import globalLogPublisher
-
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
+
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
-from nucypher.utilities.logging import SimpleObserver
 
 MOE_BANNER = r"""
  _______               
