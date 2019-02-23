@@ -35,8 +35,7 @@ contract MultiSig {
     * @param _owners List of initial owners.
     **/
     constructor (uint8 _required, address[] memory _owners) public {
-        require(_owners.length > 0 &&
-            _owners.length <= MAX_OWNER_COUNT &&
+        require(_owners.length <= MAX_OWNER_COUNT &&
             _required <= _owners.length &&
             _required > 0);
 
@@ -90,13 +89,13 @@ contract MultiSig {
     )
         external
     {
-        require(_sigR.length == required &&
+        require(_sigR.length >= required &&
             _sigR.length == _sigS.length &&
             _sigR.length == _sigV.length);
 
         bytes32 txHash = getUnsignedTransactionHash(msg.sender, _destination, _value, _data, nonce);
         address lastAdd = address(0);
-        for (uint256 i = 0; i < required; i++) {
+        for (uint256 i = 0; i < _sigR.length; i++) {
             address recovered = ecrecover(txHash, _sigV[i], _sigR[i], _sigS[i]);
             require(recovered > lastAdd && isOwner[recovered]);
             lastAdd = recovered;

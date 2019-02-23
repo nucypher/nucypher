@@ -76,28 +76,15 @@ def test_execute(testerchain):
     signed_tx_hash_0 = sign_hash(testerchain, owners[0], tx_hash)
     signed_tx_hash_1 = sign_hash(testerchain, owners[1], tx_hash)
     signed_tx_hash_2 = sign_hash(testerchain, owners[2], tx_hash)
-    signed_tx_hash_3 = sign_hash(testerchain, owners[3], tx_hash)
     signed_tx_hash_bad = sign_hash(testerchain, others[0], tx_hash)
     balance = w3.eth.getBalance(others[0])
 
-    # Must be exact 3 (threshold) signatures
+    # Must be 3 (threshold) or more signatures
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
             [signed_tx_hash_0.v, signed_tx_hash_1.v],
             [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r)],
             [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s)],
-            others[0],
-            100,
-            w3.toBytes(0)
-        ).transact({'from': owners[0]})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = multisig.functions.execute(
-            [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v, signed_tx_hash_3.v],
-            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-             to_32byte_hex(w3, signed_tx_hash_2.r), to_32byte_hex(w3, signed_tx_hash_3.r)],
-            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-             to_32byte_hex(w3, signed_tx_hash_2.s), to_32byte_hex(w3, signed_tx_hash_3.s)],
             others[0],
             100,
             w3.toBytes(0)
@@ -217,14 +204,15 @@ def test_execute(testerchain):
     tx = token.functions.transfer(owners[0], 100).buildTransaction()
     tx_hash = multisig.functions.getUnsignedTransactionHash(owners[0], token.address, 0, tx['data'], nonce).call()
     signed_tx_hash_0 = sign_hash(testerchain, owners[0], tx_hash)
-    signed_tx_hash_1 = sign_hash(testerchain, owners[3], tx_hash)
-    signed_tx_hash_2 = sign_hash(testerchain, owners[4], tx_hash)
+    signed_tx_hash_1 = sign_hash(testerchain, owners[1], tx_hash)
+    signed_tx_hash_2 = sign_hash(testerchain, owners[3], tx_hash)
+    signed_tx_hash_3 = sign_hash(testerchain, owners[4], tx_hash)
     tx = multisig.functions.execute(
-        [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
+        [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v, signed_tx_hash_3.v],
         [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
-         to_32byte_hex(w3, signed_tx_hash_2.r)],
+         to_32byte_hex(w3, signed_tx_hash_2.r), to_32byte_hex(w3, signed_tx_hash_3.r)],
         [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
-         to_32byte_hex(w3, signed_tx_hash_2.s)],
+         to_32byte_hex(w3, signed_tx_hash_2.s), to_32byte_hex(w3, signed_tx_hash_3.s)],
         token.address,
         0,
         tx['data']
