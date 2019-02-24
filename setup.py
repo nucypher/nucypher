@@ -134,8 +134,9 @@ setup(name=ABOUT['__title__'],
 
       # Entry Points
       entry_points={'console_scripts': [
-          '{0} = {0}.cli.main:nucypher_cli'.format(PACKAGE_NAME),
-          '{0}-deploy = {0}.cli.deploy:deploy'.format(PACKAGE_NAME),
+          f'{PACKAGE_NAME} = {PACKAGE_NAME}.cli.main:nucypher_cli',
+          f'{PACKAGE_NAME}-deploy = {PACKAGE_NAME}.cli.deploy:deploy',
+          f'{PACKAGE_NAME}-cone-of-silence = {PACKAGE_NAME}.cli.cone_of_silence:cone_of_silence'
       ]},
       cmdclass={'verify': VerifyVersionCommand},
 
