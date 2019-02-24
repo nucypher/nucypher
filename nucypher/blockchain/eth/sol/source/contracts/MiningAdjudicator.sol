@@ -24,9 +24,12 @@ contract MiningAdjudicator is Upgradeable {
         bool correctness
     );
 
+    // See parameter `u` of `UmbralParameters` class in pyUmbral
+    // https://github.com/nucypher/pyUmbral/blob/master/umbral/params.py
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
+
     // used only for upgrading
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
@@ -162,8 +165,9 @@ contract MiningAdjudicator is Upgradeable {
         }
     }
 
-
-
+    // This function was introduced just to facilitate debugging and testing
+    // of Alice's address extraction from her signature
+    // TODO: Consider moving this somewhere else, or even removing it
     function aliceAddress(
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
@@ -206,11 +210,11 @@ contract MiningAdjudicator is Upgradeable {
         );
         require(alicesAddress == _precomputed.alicesKeyAsAddress, "Bad KFrag signature");
 
-
+        // Compute proof's challenge scalar h, used in all ZKP verification equations
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
         //////
-        // Verifying equation: z*E == h*E_1 + E_2
+        // Verifying 1st equation: z*E == h*E_1 + E_2
         //////
 
         // Input validation: E
@@ -267,7 +271,7 @@ contract MiningAdjudicator is Upgradeable {
         }
 
         //////
-        // Verifying equation: z*V == h*V_1 + V_2
+        // Verifying 2nd equation: z*V == h*V_1 + V_2
         //////
 
         // Input validation: V
@@ -324,7 +328,7 @@ contract MiningAdjudicator is Upgradeable {
         }
 
         //////
-        // Verifying equation: z*U == h*U_1 + U_2
+        // Verifying 3rd equation: z*U == h*U_1 + U_2
         //////
 
         // We don't have to validate U since it's fixed and hard-coded
@@ -429,11 +433,6 @@ contract MiningAdjudicator is Upgradeable {
 
     }
 
-//    function extendedKeccak (bytes _data) internal pure returns (bytes32, bytes32) {
-//        return (keccak256(abi.encodePacked(uint8(0x00), _data)),
-//                keccak256(abi.encodePacked(uint8(0x01), _data)));
-//    }
-
     // TODO: Consider changing to internal
     function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
 
@@ -447,6 +446,9 @@ contract MiningAdjudicator is Upgradeable {
         (upper, lower) = (keccak256(abi.encodePacked(uint8(0x00), input)),
                           keccak256(abi.encodePacked(uint8(0x01), input)));
 
+        // Let n be the order of secp256k1's group (n = 2^256 - 0x1000003D1)
+        // n_minus_1 = n - 1
+        // delta = 2^256 mod n_minus_1
         uint256 delta = 0x14551231950b75fc4402da1732fc9bec0;
         uint256 n_minus_1 = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140;
 
