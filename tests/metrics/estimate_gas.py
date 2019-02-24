@@ -662,30 +662,30 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("First slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("First slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("Second slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("Second slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("Third slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("Third slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("Slashing two sub stakes and saving old one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -702,16 +702,16 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("Slashing two sub stakes, shortest and new one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
-    log.info("Slashing three sub stakes, two shortest and new one (" + sug_stakes_length + " sub stakes) = " +
+    log.info("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
