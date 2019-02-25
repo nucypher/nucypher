@@ -61,7 +61,9 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(address(_escrow) != address(0) &&
+        // Sanity checks.
+        require(address(_escrow) != address(0) &&  // This contract has an escrow, and it's not the null address.
+            // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
         escrow = _escrow;
@@ -98,12 +100,13 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
+        require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65,
+            "Either the requester or miner had an incorrect key length (ie, not 65)");
 
         // Check that CFrag is not evaluated yet
         bytes32 evaluationHash = SignatureVerifier.hash(
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
-        require(!evaluatedCFrags[evaluationHash]);
+        require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
         // Verify requester's signature of Capsule
         bytes memory preparedPublicKey = new bytes(64);

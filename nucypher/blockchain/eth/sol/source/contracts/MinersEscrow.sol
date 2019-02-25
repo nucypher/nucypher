@@ -162,9 +162,10 @@ contract MinersEscrow is Issuer {
     * @notice Set mining adjudicator address
     **/
     function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
-        require(address(miningAdjudicator) == address(0) &&
-            address(_miningAdjudicator) != address(0) &&
-            _miningAdjudicator.escrow() == address(this));
+        // Three-part require...
+        require(address(miningAdjudicator) == address(0) &&  // Can't adjudicator once it is set.
+            address(_miningAdjudicator) != address(0) &&  // Check to make sure that we're setting it somewhere.
+            _miningAdjudicator.escrow() == address(this));  // This is the escrow for the new adjudicator.
         miningAdjudicator = _miningAdjudicator;
     }
 
