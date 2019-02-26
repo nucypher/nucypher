@@ -43,7 +43,7 @@ class NoBlockchainPower(PowerUpError):
     pass
 
 
-class CryptoPower(object):
+class CryptoPowerSet(object):
     def __init__(self, power_ups: list = None) -> None:
         self._power_ups = {}   # type: dict
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
@@ -152,10 +152,16 @@ class KeyPairBasedPower(CryptoPowerUp):
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
                  keypair: keypairs.Keypair = None,
+                 wrapping_key: bytes = None,
+                 key_bytes: bytes = None
                  ) -> None:
         if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
+        elif wrapping_key and key_bytes:
+            umbral_key = UmbralPrivateKey.from_bytes(key_bytes,
+                                                     wrapping_key=wrapping_key)
+            self.keypair = self._keypair_class(private_key=umbral_key)
         elif keypair:
             self.keypair = keypair
         else:
