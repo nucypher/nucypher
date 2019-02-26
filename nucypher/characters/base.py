@@ -201,9 +201,7 @@ class Character(Learner):
         #
         # Character Control
         #
-        self._control_protocol = NO_CONTROL_PROTOCOL
-        self._wsgi_app = NO_WSGI_APP
-        self._captured_status_codes = NO_WSGI_APP
+        self.controller = NO_CONTROL_PROTOCOL
 
     def __eq__(self, other) -> bool:
         try:
@@ -226,10 +224,6 @@ class Character(Learner):
     @property
     def name(self):
         return self.__class__.__name__
-
-    @property
-    def control(self):
-        return self._control_protocol
 
     @property
     def rest_interface(self):

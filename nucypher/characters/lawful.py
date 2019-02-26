@@ -38,7 +38,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
-from flask import Flask, request, Response
+from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
@@ -50,8 +50,8 @@ from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import AliceJSONControl, BobJSONControl
-from nucypher.characters.control.wsgi import WSGIController
+from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
+    WebController
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
@@ -69,10 +69,10 @@ from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_
 from nucypher.utilities.decorators import validate_checksum_address
 
 
-class Alice(Character, PolicyAuthor, WSGIController):
+class Alice(Character, PolicyAuthor):
     
     banner = ALICE_BANNER
-    _default_controller_class = AliceJSONControl
+    _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
@@ -95,12 +95,12 @@ class Alice(Character, PolicyAuthor, WSGIController):
             PolicyAuthor.__init__(self, checksum_address=checksum_address)
 
         if is_me and controller:
-            WSGIController.__init__(self, app_name='alice-control')
+            self.controller = self._controller_class(alice=self)
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
-    def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:
+    def generate_kfrags(self, bob: 'Bob', label: bytes, m: int, n: int) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -226,20 +226,37 @@ class Alice(Character, PolicyAuthor, WSGIController):
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
 
-    def make_wsgi_app(drone_alice, *args, **kwargs):
+    def make_web_controller(drone_alice, crash_on_error: bool = False):
 
-        alice_control = super().make_wsgi_app()
+        app_name = bytes(drone_alice.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_alice.controller,
+                                   crash_on_error=crash_on_error)
+        drone_alice.controller = controller
+
+        # Register Flask Decorator
+        alice_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
+
+        @alice_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Alice's encrypting and signing public keys
+            """
+            return controller(interface=controller._internal_controller.public_keys,
+                              control_request=request)
 
         @alice_control.route("/create_policy", methods=['PUT'])
         def create_policy() -> Response:
             """
             Character control endpoint for creating a policy and making
             arrangements with Ursulas.
-
-            TODO: This is an unfinished API endpoint. You are probably looking for grant.
             """
-            response = drone_alice._handle_request(interface=drone_alice._control_protocol.create_policy,
-                                                   control_request=request)
+            response = controller(interface=controller._internal_controller.create_policy,
+                                  control_request=request)
             return response
 
         @alice_control.route('/derive_policy/<label>', methods=['POST'])
@@ -247,9 +264,9 @@ class Alice(Character, PolicyAuthor, WSGIController):
             """
             Character control endpoint for deriving a policy pubkey given a unicode label.
             """
-            response = drone_alice._handle_request(interface=drone_alice._control_protocol.derive_policy,
-                                                   control_request=request,
-                                                   label=label)
+            response = controller(interface=controller._internal_controller.derive_policy,
+                                  control_request=request,
+                                  label=label)
             return response
 
         @alice_control.route("/grant", methods=['PUT'])
@@ -257,16 +274,16 @@ class Alice(Character, PolicyAuthor, WSGIController):
             """
             Character control endpoint for policy granting.
             """
-            response = drone_alice._handle_request(interface=drone_alice._control_protocol.grant, control_request=request)
+            response = controller(interface=controller._internal_controller.grant, control_request=request)
             return response
 
-        return alice_control
+        return controller
 
 
-class Bob(Character, WSGIController):
+class Bob(Character):
     
     banner = BOB_BANNER
-    _default_controller_class = BobJSONControl
+    _controller_class = BobJSONController
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
@@ -281,7 +298,7 @@ class Bob(Character, WSGIController):
         Character.__init__(self, *args, **kwargs)
 
         if controller:
-            WSGIController.__init__(self, app_name='bob-control')
+            self.controller = self._controller_class(bob=self)
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
@@ -521,10 +538,29 @@ class Bob(Character, WSGIController):
         from nucypher.policy.models import IndisputableEvidence
         return IndisputableEvidence(capsule, cfrag, ursula)
 
-    def make_wsgi_app(drone_bob, start_learning=True):
+    def make_web_controller(drone_bob, crash_on_error: bool = False):
 
-        bob_control = super().make_wsgi_app()
+        app_name = bytes(drone_bob.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_bob.controller,
+                                   crash_on_error=crash_on_error)
+        drone_bob.controller = controller.make_web_controller()
 
+        # Register Flask Decorator
+        bob_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
+
+        @bob_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Alice's encrypting and signing public keys
+            """
+            return controller(interface=controller._internal_controller.public_keys,
+                              control_request=request)
+        
         @bob_control.route('/join_policy', methods=['POST'])
         def join_policy():
             """
@@ -532,8 +568,7 @@ class Bob(Character, WSGIController):
 
             This is an unfinished endpoint. You're probably looking for retrieve.
             """
-            return drone_bob._handle_request(interface=drone_bob._control_protocol.join_policy,
-                                             control_request=request)
+            return controller(interface=controller._internal_controller.join_policy, control_request=request)
 
         @bob_control.route('/retrieve', methods=['POST'])
         def retrieve():
@@ -541,18 +576,9 @@ class Bob(Character, WSGIController):
             Character control endpoint for re-encrypting and decrypting policy
             data.
             """
-            return drone_bob._handle_request(interface=drone_bob._control_protocol.retrieve,
-                                             control_request=request)
+            return controller(interface=controller._internal_controller.retrieve, control_request=request)
 
-        @bob_control.route('/public_keys', methods=['GET'])
-        def public_keys():
-            """
-            Character control endpoint for getting Bob's encrypting and signing public keys
-            """
-            return drone_bob._handle_request(interface=drone_bob._control_protocol.public_keys,
-                                             control_request=request)
-
-        return bob_control
+        return controller
 
 
 class Ursula(Teacher, Character, Miner):
@@ -810,6 +836,7 @@ class Ursula(Teacher, Character, Miner):
                          federated_only: bool,
                          teacher_uri: str,
                          min_stake: int,
+                         network_middleware: RestMiddleware = None,
                          ) -> 'Ursula':
 
         hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
@@ -822,7 +849,8 @@ class Ursula(Teacher, Character, Miner):
                 teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
                                                        federated_only=federated_only,
                                                        checksum_address=checksum_address,
-                                                       minimum_stake=min_stake)
+                                                       minimum_stake=min_stake,
+                                                       network_middleware=network_middleware)
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
@@ -1051,14 +1079,18 @@ class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
+    _controller_class = EnricoJSONController
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, *args, **kwargs):
+    def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
         self.policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
         super().__init__(*args, **kwargs)
+
+        if controller:
+            self.controller = self._controller_class(enrico=self)
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
@@ -1083,8 +1115,20 @@ class Enrico(Character):
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
 
-    def make_wsgi_app(drone_enrico):
-        enrico_control = Flask("enrico-control")
+    def make_web_controller(drone_enrico, crash_on_error: bool = False):
+
+        app_name = bytes(drone_enrico.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_enrico.controller,
+                                   crash_on_error=crash_on_error)
+        drone_enrico.controller = controller
+
+        # Register Flask Decorator
+        enrico_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
 
         @enrico_control.route('/encrypt_message', methods=['POST'])
         def encrypt_message():
@@ -1111,4 +1155,4 @@ class Enrico(Character):
 
             return Response(json.dumps(response_data), status=200)
 
-        return enrico_control
+        return controller
