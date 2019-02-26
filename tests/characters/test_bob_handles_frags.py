@@ -147,7 +147,11 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
-    work_orders = federated_bob.generate_work_orders(map_id, capsule_side_channel[0].capsule, num_ursulas=1)
+    capsule = capsule_side_channel[0].capsule
+    capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
+                                 receiving=federated_bob.public_keys(DecryptingPower),
+                                 verifying=federated_alice.stamp.as_umbral_pubkey())
+    work_orders = federated_bob.generate_work_orders(map_id, capsule, num_ursulas=1)
 
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
@@ -173,10 +177,6 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed
 
     # Attach the CFrag to the Capsule.
-    capsule = capsule_side_channel[0].capsule
-    capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                 receiving=federated_bob.public_keys(DecryptingPower),
-                                 verifying=federated_alice.stamp.as_umbral_pubkey())
     capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.

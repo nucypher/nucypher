@@ -41,6 +41,7 @@ from typing import Set
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 from typing import Tuple
+from umbral.pre import UmbralCorrectnessError
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -57,6 +58,7 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, UnexpectedResponse, NotFound
@@ -157,10 +159,10 @@ class Alice(Character, PolicyAuthor):
             good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True, timeout=timeout)
             if not good_to_go:
                 raise ValueError(
-                    "To make a Policy in federated mode, you need to know about\
-                     all the Ursulas you need (in this case, {}); there's no other way to\
-                      know which nodes to use.  Either pass them here or when you make\
-                       the Policy, or run the learning loop on a network with enough Ursulas.".format(self.n))
+                    "To make a Policy in federated mode, you need to know about "
+                    "all the Ursulas you need (in this case, {}); there's no other way to "
+                    "know which nodes to use.  Either pass them here or when you make the Policy, "
+                    "or run the learning loop on a network with enough Ursulas.".format(self.n))
 
             if len(handpicked_ursulas) < n:
                 number_of_ursulas_needed = n - len(handpicked_ursulas)
@@ -318,11 +320,28 @@ class Alice(Character, PolicyAuthor):
 class Bob(Character):
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
+    class IncorrectCFragReceived(Exception):
+        """
+        Raised when Bob detects an incorrect CFrag returned by some Ursula
+        """
+        def __init__(self, evidence):
+            self.evidence = evidence
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
+
+    def _pick_treasure_map(self, treasure_map=None, map_id=None):
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        elif map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        return treasure_map
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
@@ -334,14 +353,7 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        if not treasure_map:
-            if map_id:
-                treasure_map = self.treasure_maps[map_id]
-            else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
-        else:
-            if map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
         # The intersection of the map and our known nodes will be the known Ursulas...
         known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.addresses()
@@ -373,14 +385,7 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        if not treasure_map:
-            if map_id:
-                treasure_map = self.treasure_maps[map_id]
-            else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
-        else:
-            if map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
         unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
 
@@ -437,9 +442,8 @@ class Bob(Character):
 
     def get_treasure_map_from_known_ursulas(self, network_middleware, map_id):
         """
-        Iterate through swarm, asking for the TreasureMap.
+        Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
-        TODO: What if a node gives a bunk TreasureMap?
         """
         from nucypher.policy.models import TreasureMap
         for node in self.known_nodes.shuffled():
@@ -449,7 +453,11 @@ class Bob(Character):
                 continue
 
             if response.status_code == 200 and response.content:
-                treasure_map = TreasureMap.from_bytes(response.content)
+                try:
+                    treasure_map = TreasureMap.from_bytes(response.content)
+                except InvalidSignature:
+                    # TODO: What if a node gives a bunk TreasureMap?
+                    raise
                 break
             else:
                 continue  # TODO: Actually, handle error case here.
@@ -487,11 +495,11 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
+                # TODO: Fix this. It's always taking the last capsule
                 self._saved_work_orders[node_id][capsule] = work_order
 
-            if num_ursulas is not None:
-                if num_ursulas == len(generated_work_orders):
-                    break
+            if num_ursulas == len(generated_work_orders):
+                break
 
         return generated_work_orders
 
@@ -503,9 +511,6 @@ class Bob(Character):
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
-    def get_ursula(self, ursula_id):
-        return self._ursulas[ursula_id]
-
     def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
@@ -514,7 +519,8 @@ class Bob(Character):
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
 
-        message_kit.capsule.set_correctness_keys(
+        capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+        capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
@@ -524,18 +530,26 @@ class Bob(Character):
 
         # TODO: Consider blocking until map is done being followed.
 
-        work_orders = self.generate_work_orders(map_id, message_kit.capsule)
+        work_orders = self.generate_work_orders(map_id, capsule)
 
         cleartexts = []
-
         for work_order in work_orders.values():
             try:
                 cfrags = self.get_reencrypted_cfrags(work_order)
-                message_kit.capsule.attach_cfrag(cfrags[0])
-                if len(message_kit.capsule._attached_cfrags) >= m:
-                    break
             except requests.exceptions.ConnectTimeout:
                 continue
+
+            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
+            try:
+                message_kit.capsule.attach_cfrag(cfrag)
+                if len(message_kit.capsule._attached_cfrags) >= m:
+                    break
+            except UmbralCorrectnessError:
+                evidence = self.collect_evidence(capsule=capsule,
+                                                 cfrag=cfrag,
+                                                 ursula=work_order.ursula)
+                # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
+                raise self.IncorrectCFragReceived(evidence)
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
@@ -546,6 +560,10 @@ class Bob(Character):
 
         cleartexts.append(delivered_cleartext)
         return cleartexts
+
+    def collect_evidence(self, capsule, cfrag, ursula):
+        from nucypher.policy.models import IndisputableEvidence
+        return IndisputableEvidence(capsule, cfrag, ursula)
 
     def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')

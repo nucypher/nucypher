@@ -21,8 +21,9 @@ sqlalchemy = "*"
 maya = "*"
 flask = "*"
 # Third-Party Ethereum
-py-evm = "*"
+py-evm = "==0.2.0a39"
 eth-tester = "*"
+coincurve = "*"
 web3 = "*"
 # CLI / Configuration
 sentry-sdk = "==0.5.2"

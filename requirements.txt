@@ -4,21 +4,22 @@ argh==0.26.2
 asn1crypto==0.24.0
 attrdict==2.0.1
 attrs==18.2.0
-autobahn==19.1.1
+autobahn==19.2.1
 automat==0.7.0
-boto3==1.9.91
-botocore==1.12.91
+boto3==1.9.96
+botocore==1.12.96
 bytestring-splitter==1.0.0a4
 certifi==2018.11.29
-cffi==1.11.5
+cffi==1.12.0
 chardet==3.0.4
 click==7.0
+coincurve==11.0.0
 colorama==0.4.1
 constant-sorrow==0.1.0a8
 constantly==15.1.0
 cryptography==2.5
 cytoolz==0.9.0.1 ; implementation_name == 'cpython'
-dateparser==0.7.0
+dateparser==0.7.1
 docutils==0.14
 eth-abi==2.0.0b5
 eth-account==0.3.0
@@ -30,6 +31,7 @@ eth-rlp==0.1.2
 eth-tester==0.1.0b37
 eth-typing==2.0.0
 eth-utils==1.4.1
+ethpm==0.1.4a12
 flask==1.0.2
 hendrix==3.2.2
 hexbytes==0.1.0
