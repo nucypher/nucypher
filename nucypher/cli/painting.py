@@ -21,8 +21,10 @@ import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.cli import actions
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
+
+emitter = StdoutEmitter()
 
 
 def echo_version(ctx, param, value):
@@ -32,29 +34,23 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration, config_root=None, config_file=None, quiet: bool = False):
+def paint_new_installation_help(new_configuration, config_root=None, config_file=None):
     character_config_class = new_configuration.__class__
-    character_name = character_config_class._CHARACTER_CLASS.__name__.lower()
+    character_name = character_config_class._NAME.lower()
 
-    actions.handle_control_output(message="Generated keyring {}".format(new_configuration.keyring_dir),
-                                  color='green',
-                                  quiet=quiet)
+    emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
 
-    actions.handle_control_output(message="Saved configuration file {}".format(new_configuration.config_file_location),
-                                  color='green',
-                                  quiet=quiet)
+    emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
 
     # Give the use a suggestion as to what to do next...
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run an {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
+
     if config_root is not None:
         config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)
         suggested_command += ' --config-file {}'.format(config_file_location)
-    click.secho(how_to_run_message.format(suggested_command), fg='green')
 
-    return actions.handle_control_output(message=how_to_run_message.format(suggested_command),
-                                         color='green',
-                                         quiet=quiet)
+    return emitter(message=how_to_run_message.format(suggested_command), color='green')
 
 
 def build_fleet_state_status(ursula) -> str:

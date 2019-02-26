@@ -19,7 +19,7 @@ import collections
 import os
 
 import click
-from constant_sorrow.constants import NO_PASSWORD
+from constant_sorrow.constants import NO_PASSWORD, NO_EMITTER
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
@@ -33,6 +33,9 @@ from nucypher.utilities.logging import (
 
 class NucypherClickConfig:
 
+    # Output Sinks
+    emitters = list()
+    capture_stdout = False
     __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
     # Environment Variables
@@ -64,6 +67,11 @@ class NucypherClickConfig:
 
         self.__keyring_password = keyring_password
         return self.__keyring_password
+
+    @classmethod
+    def emit(cls, *args, **kwargs):
+        for emitter in cls.emitters:
+            emitter(*args, **kwargs)
 
 
 class NucypherDeployerClickConfig(NucypherClickConfig):

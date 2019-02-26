@@ -1,15 +1,16 @@
 import shutil
-import sys
 from typing import List
 
 import click
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
-import nucypher
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
+from nucypher.cli.config import NucypherClickConfig
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.network.middleware import RestMiddleware
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including
@@ -24,36 +25,15 @@ Delete {}?'''
 
 LOG = Logger('cli.actions')
 
-
-def handle_control_output(response: dict = None,
-                          message: str = None,
-                          json: bool = False,
-                          quiet: bool = False,
-                          color: str = 'white',
-                          bold: bool = False,
-                          ) -> None:
-
-    try:
-        if not quiet and not json:
-            if response:
-                for k, v in response.items():
-                    click.secho(message=f'{k} ...... {v}', fg=color, bold=bold)
-            elif message:
-                if json:
-                    sys.stdout({'result': message, 'version': nucypher.__version__})
-                    click.secho(message=message, fg=color, bold=bold)
-                else:
-                    click.secho(message=message, fg=color, bold=bold)
-            else:
-                raise ValueError('Either "response" or "message" is required, but got neither.')
-        elif json:
-            sys.stdout(response)
-    except Exception:
-        LOG.debug("Error while formatting nucypher console output")
-        raise
+console_emitter = NucypherClickConfig.emit
 
 
-def load_seednodes(min_stake: int, federated_only: bool, teacher_uris: list = None) -> List[Ursula]:
+def load_seednodes(min_stake: int,
+                   federated_only: bool,
+                   network_middleware: RestMiddleware = None,
+                   teacher_uris: list = None
+                   ) -> List[Ursula]:
+
     teacher_nodes = list()
     if teacher_uris is None:
         # Default teacher nodes can be placed here
@@ -61,7 +41,8 @@ def load_seednodes(min_stake: int, federated_only: bool, teacher_uris: list = No
     for uri in teacher_uris:
         teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                min_stake=min_stake,
-                                               federated_only=federated_only)
+                                               federated_only=federated_only,
+                                               network_middleware=network_middleware)
         teacher_nodes.append(teacher_node)
     return teacher_nodes
 
@@ -96,12 +77,12 @@ def destroy_system_configuration(config_class,
             character_config.destroy(force=force)
         except FileNotFoundError:
             message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
-            click.secho(message, fg='red')
+            console_emitter(message=message, color='red')
             log.debug(message)
             raise click.Abort()
         else:
             message = "Deleted configuration files at {}".format(character_config.config_root)
-            click.secho(message, fg='green')
+            console_emitter(message=message, color='green')
             log.debug(message)
 
     return config_root
@@ -109,7 +90,7 @@ def destroy_system_configuration(config_class,
 
 def unlock_keyring(configuration, password):
     try:
-        click.secho("Decrypting keyring...", fg='blue')
+        console_emitter(message="Decrypting keyring...", color='blue')
         configuration.keyring.unlock(password=password)
     except CryptoError:
         raise configuration.keyring.AuthenticationFailed
@@ -126,8 +107,9 @@ def connect_to_blockchain(configuration, recompile_contracts: bool = False):
 
 
 def forget(configuration):
-    """Forget all known nodes via storages"""
+    """Forget all known nodes via storage"""
     click.confirm("Permanently delete all known node data?", abort=True)
     configuration.forget_nodes()
     message = "Removed all stored node node metadata and certificates"
+    console_emitter(message=message, color='red')
     click.secho(message=message, fg='red')
