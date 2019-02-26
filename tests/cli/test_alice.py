@@ -45,7 +45,6 @@ def test_alice_control_starts_mocked(click_runner, mocker):
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
     assert MockKeyring.is_unlocked
-    assert 'Starting HTTP Character Control' in result.output
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner):
@@ -89,4 +88,3 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
-    assert 'Starting HTTP Character Control' in result.output

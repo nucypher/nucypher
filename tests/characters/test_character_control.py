@@ -67,7 +67,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
     response_data = json.loads(response.data)
     assert 'treasure_map' in response_data['result']
     assert 'policy_encrypting_key' in response_data['result']
-    assert 'alice_signing_key' in response_data['result']
+    assert 'alice_verifying_key' in response_data['result']
     assert 'label' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
@@ -87,7 +87,7 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
-        'alice_signing_key': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
     }
 
     # Simulate passing in a teacher-uri
@@ -102,7 +102,7 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     assert response.status_code == 400
 
     # Missing Key results in bad request
-    del(request_data['alice_signing_key'])
+    del(request_data['alice_verifying_key'])
     response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 
@@ -113,8 +113,8 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
     request_data = {
         'label': enacted_federated_policy.label.decode(),
         'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
-        'alice_signing_key': bytes(enacted_federated_policy.alice.stamp).hex(),
-        'message_kit': b64encode(message_kit.to_bytes()).decode(),
+        'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'message_kit': message_kit.to_bytes().hex(),
     }
 
     response = bob_control_test_client.post('/retrieve', data=json.dumps(request_data))
@@ -123,14 +123,14 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
     response_data = json.loads(response.data)
     assert 'plaintexts' in response_data['result']
 
-    for plaintext in response_data['result']['plaintexts']:
+    for plaintext in response_data['result']['cleartexts']:
         assert b64decode(plaintext) == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
     response = bob_control_test_client.post('/retrieve', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(request_data['alice_signing_key'])
+    del(request_data['alice_verifying_key'])
     response = bob_control_test_client.put('/retrieve', data=json.dumps(request_data))
 
 
@@ -197,7 +197,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     alice_response_data = json.loads(response.data)
     assert 'treasure_map' in alice_response_data['result']
     assert 'policy_encrypting_key' in alice_response_data['result']
-    assert 'alice_signing_key' in alice_response_data['result']
+    assert 'alice_verifying_key' in alice_response_data['result']
     assert 'label' in alice_response_data['result']
     assert 'version' in alice_response_data
     assert str(nucypher.__version__) == alice_response_data['version']
@@ -205,16 +205,16 @@ def test_character_control_lifecycle(alice_control_test_client,
     # This is sidechannel policy metadata. It should be given to Bob by the
     # application developer at some point.
     policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
-    alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_key']
+    alice_pubkey_sig_hex = alice_response_data['result']['alice_verifying_key']
     label = alice_response_data['result']['label']
 
     # Encrypt some data via Enrico control
     # Alice will also be Enrico via Enrico.from_alice
     # (see enrico_control_from_alice fixture)
 
-    enrico_encoded_message = "I'm bereaved, not a sap!"  # type: str
+    plaintext = "I'm bereaved, not a sap!"  # type: str
     enrico_request_data = {
-        'message': enrico_encoded_message,
+        'message': b64encode(bytes(plaintext, encoding='utf-8')).decode(),
     }
 
     response = enrico_control_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
@@ -233,7 +233,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     bob_request_data = {
         'label': label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
-        'alice_signing_key': alice_pubkey_sig_hex,
+        'alice_verifying_key': alice_pubkey_sig_hex,
         'message_kit': encoded_message_kit,
     }
 
@@ -245,8 +245,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     assert response.status_code == 200
 
     bob_response_data = json.loads(response.data)
-    assert 'plaintexts' in bob_response_data['result']
+    assert 'cleartexts' in bob_response_data['result']
 
-    for plaintext in bob_response_data['result']['plaintexts']:
-        plaintext_bytes = b64decode(plaintext)
-        assert plaintext_bytes == b"I'm bereaved, not a sap!"
+    for cleartext in bob_response_data['result']['cleartexts']:
+        assert b64decode(cleartext.encode()).decode() == plaintext

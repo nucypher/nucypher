@@ -28,12 +28,12 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('ursula', 'run',
+    args = ('--debug',                                  # Display log output; Do not attach console
+            'ursula', 'run',                            # Stat Ursula Command
             '--federated-only',                         # Operating Mode
             '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
             '--dev',                                    # Run in development mode (ephemeral node)
-            '--debug',                                  # Display log output; Do not attach console
-            '--dry-run'                                 # Disable twisted reactor
+            '--dry-run'                                 # Disable twisted reactor in subprocess
             )
 
     result = yield threads.deferToThread(click_runner.invoke,
@@ -43,7 +43,8 @@ def test_run_lone_federated_default_development_ursula(click_runner):
 
     time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert result.exit_code == 0
-    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
+    assert "Running Ursula" in result.output
+    assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT) in result.output
 
     reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert MOCK_URSULA_STARTING_PORT not in reserved_ports

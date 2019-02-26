@@ -237,7 +237,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
     assert custom_filepath in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
-    assert 'Deleted' in result.output, '"Deleted" not in output'
+    assert f'Destroyed' in result.output, '"Destroyed" not in output'
     assert result.exit_code == 0, 'Destruction did not succeed'
 
     # Ensure the files are deleted from the filesystem

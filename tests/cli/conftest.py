@@ -23,7 +23,7 @@ import pytest
 from click.testing import CliRunner
 
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
 @pytest.fixture(scope='module')
@@ -51,3 +51,16 @@ def custom_filepath():
     finally:
         with contextlib.suppress(FileNotFoundError):
             shutil.rmtree(_custom_filepath, ignore_errors=True)
+
+
+@pytest.fixture(scope='module')
+def custom_filepath_2():
+    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH_2
+    with contextlib.suppress(FileNotFoundError):
+        shutil.rmtree(_custom_filepath, ignore_errors=True)
+    try:
+        yield _custom_filepath
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            shutil.rmtree(_custom_filepath, ignore_errors=True)
+
