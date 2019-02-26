@@ -33,7 +33,40 @@ NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False
 
 # Crash on server error by default
-WSGIController._crash_on_error_default = False
+WebEmitter._crash_on_error_default = False
+
+
+##########################################
+
+@pytest.fixture(autouse=True, scope='session')
+def __very_pretty_and_insecure_scrypt_do_not_use():
+    """
+    # WARNING: DO NOT USE THIS CODE ANYWHERE #
+
+    Mocks Scrypt derivation function for the duration of
+    the test session in order to improve test performance.
+    """
+
+    # Capture Scrypt derivation method
+    from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+    original_derivation_function = Scrypt.derive
+
+    # One-Time Insecure Password
+    insecure_password = bytes(INSECURE_DEVELOPMENT_PASSWORD, encoding='utf8') + os.urandom(16)
+
+    # Patch Method
+    def __insecure_derive(*args, **kwargs):
+        """Temporarily replaces Scrypt.derive for mocking"""
+        return insecure_password
+
+    # Disable Scrypt KDF
+    Scrypt.derive = __insecure_derive
+    yield
+
+    # Re-Enable Scrypt KDF
+    Scrypt.derive = original_derivation_function
+
+############################################
 
 
 #
