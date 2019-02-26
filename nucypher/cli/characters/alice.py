@@ -4,6 +4,7 @@ from base64 import b64encode
 import click
 import maya
 
+from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
@@ -14,7 +15,6 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.command()
 @click.argument('action')
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=9151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=8151)  # TODO
@@ -36,7 +36,6 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @nucypher_click_config
 def alice(click_config,
           action,
-          quiet,
           teacher_uri,
           min_stake,
           http_port,
@@ -68,11 +67,7 @@ def alice(click_config,
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
         if dev:
-
-            actions.handle_control_output(message="WARNING: Using temporary storage area",
-                                          color='yellow',
-                                          json=click_config.json,
-                                          quiet=quiet)
+            click_config.emitter(message="WARNING: Using temporary storage area", color='yellow')
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -88,8 +83,7 @@ def alice(click_config,
 
         return painting.paint_new_installation_help(new_configuration=new_alice_config,
                                                     config_root=config_root,
-                                                    config_file=config_file,
-                                                    quiet=quiet)
+                                                    config_file=config_file)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
@@ -103,7 +97,7 @@ def alice(click_config,
                                                               config_root=config_root,
                                                               force=force)
 
-        return actions.handle_control_output(message=f"Destroyed {destroyed_path}", quiet=quiet, json=click_config.json)
+        return nucypher_click_config.emitter(message=f"Destroyed {destroyed_path}", color='red')
 
     #
     # Get Alice Configuration
@@ -111,6 +105,7 @@ def alice(click_config,
 
     if dev:
         alice_config = AliceConfiguration(dev_mode=True,
+                                          network_middleware=click_config.middleware,
                                           domains={network},
                                           provider_uri=provider_uri,
                                           federated_only=True)
@@ -119,6 +114,7 @@ def alice(click_config,
         alice_config = AliceConfiguration.from_configuration_file(
             filepath=config_file,
             domains={network or GLOBAL_DOMAIN},
+            network_middleware=click_config.middleware,
             rest_port=discovery_port,
             provider_uri=provider_uri)
 
@@ -129,23 +125,31 @@ def alice(click_config,
     teacher_uris = [teacher_uri] if teacher_uri else list()
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
-                                           federated_only=federated_only)
+                                           federated_only=federated_only,
+                                           network_middleware=click_config.middleware)
     # Produce
-    ALICE = alice_config(known_nodes=teacher_nodes)
+    ALICE = alice_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)
+
+    # Switch to character control emitter
+    if click_config.json_ipc:
+        ALICE.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
 
     if action == "run":
-
-        actions.handle_control_output(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}",
-                                      color="green",
-                                      bold=True,
-                                      quiet=quiet)
-
-        return ALICE.control.start_wsgi_controller(http_port=http_port, dry_run=dry_run)
+        """Start Alice Web Controller"""
+        ALICE.controller.emitter(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
+        controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
+        ALICE.log.info('Starting HTTP Character Web Controller')
+        return controller.start(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        response = AliceConfiguration._read_configuration_file(filepath=config_file or alice_config.config_file_location)
-        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
+        configuration_file_location = config_file or alice_config.config_file_location
+        response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
+        return ALICE.controller.emitter(response=response)         # TODO: Uses character control instead
+
+    elif action == "public-keys":
+        response = ALICE.controller.public_keys()
+        return response
 
     elif action == "create-policy":
         if not all((bob_verifying_key, bob_encrypting_key, label)):
@@ -160,28 +164,25 @@ def alice(click_config,
             'n': n,
         }
 
-        response = ALICE.control.create_policy(request=create_policy_request)
-        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
+        return ALICE.controller.create_policy(request=create_policy_request)
 
     elif action == "derive-policy":
-        response = ALICE.control.derive_policy(label=label)
-        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
+        return ALICE.controller.derive_policy(label=label)
 
     elif action == "grant":
         grant_request = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_verifying_key': bob_verifying_key,
-            'label': b64encode(bytes(label, encoding='utf-8')).decode(),
+            'label': label,
             'm': m,
             'n': n,
             'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
         }
 
-        response = ALICE.control.grant(request=grant_request)
-        return actions.handle_control_output(response=response, json=click_config.json, quiet=quiet)
+        return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":
-        raise NotImplementedError  # TODO
+        raise NotImplementedError  # TODO: Implement revoke entry point
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

@@ -43,12 +43,12 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
-    SimpleObserver, GlobalConsoleLogger)
+    GlobalConsoleLogger
+)
 
 
 @click.command()
 @click.argument('action')
-@click.option('--debug', '-D', help="Enable debugging mode", is_flag=True)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -73,7 +73,6 @@ from nucypher.utilities.logging import (
 @nucypher_click_config
 def ursula(click_config,
            action,
-           debug,
            dev,
            quiet,
            dry_run,
@@ -118,10 +117,10 @@ def ursula(click_config,
     if not quiet:
         log = Logger('ursula.cli')
 
-    if debug and quiet:
+    if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    if debug:
+    if click_config.debug:
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
@@ -175,47 +174,18 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        if not quiet:
+        click_config.emitter(message="Generated keyring {}".format(ursula_config.keyring_dir), color='green')
 
-            actions.handle_control_output(message="Generated keyring {}".format(ursula_config.keyring_dir),
-                                          color='green',
-                                          quiet=quiet,
-                                          json=click_config.json)
+        click_config.emitter(message="Saved configuration file {}".format(ursula_config.config_file_location), color='green')
 
-            actions.handle_control_output(message="Saved configuration file {}".format(ursula_config.config_file_location),
-                                          color='green',
-                                          quiet=quiet,
-                                          json=click_config.json)
+        # Give the use a suggestion as to what to do next...
+        how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
+        suggested_command = 'nucypher ursula run'
+        if config_root is not None:
+            config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
+            suggested_command += ' --config-file {}'.format(config_file_location)
 
-            # Give the use a suggestion as to what to do next...
-            how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
-            suggested_command = 'nucypher ursula run'
-            if config_root is not None:
-                config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
-                suggested_command += ' --config-file {}'.format(config_file_location)
-
-            return actions.handle_control_output(message=how_to_run_message.format(suggested_command),
-                                                 color='green',
-                                                 quiet=quiet,
-                                                 json=click_config.json)
-
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-
-        if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-
-        destroy_system_configuration(config_class=UrsulaConfiguration,
-                                     config_file=config_file,
-                                     network=network,
-                                     config_root=config_root,
-                                     force=force)
-
-        return actions.handle_control_output(message="Destroyed {}".format(config_root),
-                                             color='green',
-                                             quiet=quiet,
-                                             json=click_config.json)
+        return click_config.emitter(message=how_to_run_message.format(suggested_command), color='green')
 
     # Development Configuration
     if dev:
@@ -252,8 +222,7 @@ def ursula(click_config,
                                                                     # federated_only=federated_only,
                                                                     )
 
-        actions.unlock_keyring(configuration=ursula_config,
-                               password=click_config.get_password())
+        actions.unlock_keyring(configuration=ursula_config, password=click_config.get_password())
 
     if not ursula_config.federated_only:
         actions.connect_to_blockchain(configuration=ursula_config, recompile_contracts=recompile_solidity)
@@ -266,11 +235,8 @@ def ursula(click_config,
     #
 
     if ursula_config.federated_only:
-        actions.handle_control_output(
-            message="WARNING: Running in Federated mode",
-            color='yellow',
-            quiet=quiet,
-            json=click_config.json)
+        click_config.emitter(message="WARNING: Running in Federated mode", color='yellow'
+                             )
     #
     # Action Switch
     #
@@ -283,7 +249,8 @@ def ursula(click_config,
         teacher_uris = [teacher_uri] if teacher_uri else list()
         teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                                min_stake=min_stake,
-                                               federated_only=federated_only)
+                                               federated_only=federated_only,
+                                               network_middleware=click_config.middleware)
 
 
         #
@@ -297,52 +264,37 @@ def ursula(click_config,
             #
             # Run - Step 3
             #
-            actions.handle_control_output(
+            click_config.emitter(
                 message="Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)),
                 color='green',
-                quiet=quiet,
-                json=click_config.json,
                 bold=True)
 
-            actions.handle_control_output(
+            click_config.emitter(
                 message="Running Ursula {} on {}".format(URSULA, URSULA.rest_interface),
                 color='green',
-                bold=True,
-                quiet=quiet,
-                json=click_config.json)
+                bold=True)
             
-            if not debug:
+            if not click_config.debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
             if dry_run:
                 # That's all folks!
                 return
 
-            URSULA.get_deployer().run()  # <--- Blocking Call (Reactor)
+            URSULA.get_deployer().start()  # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))
-            actions.handle_control_output(
+            click_config.emitter(
                 message="{} {}".format(e.__class__.__name__, str(e)),
                 color='red',
-                quiet=quiet,
-                json=click_config.json,
                 bold=True)
             raise  # Crash :-(
 
         finally:
-            actions.handle_control_output(
-                message="Stopping Ursula",
-                color='green',
-                quiet=quiet,
-                json=click_config.json)
+            click_config.emitter(message="Stopping Ursula", color='green')
             ursula_config.cleanup()
-            if not quiet:
-                actions.handle_control_output(
-                    message="Ursula Stopped",
-                    color='red',
-                    quiet=quiet,
-                    json=click_config.json)
+            click_config.emitter(message="Ursula Stopped", color='red')
         return
 
     elif action == "save-metadata":
@@ -350,19 +302,32 @@ def ursula(click_config,
 
         URSULA = ursula_config.produce(ursula_config=ursula_config)
         metadata_path = ursula.write_node_metadata(node=URSULA)
-        return actions.handle_control_output(message="Successfully saved node metadata to {}.".format(metadata_path),
-                                             color='green',
-                                             quiet=quiet,
-                                             json=click_config.json)
+        return click_config.emitter(message="Successfully saved node metadata to {}.".format(metadata_path), color='green')
 
     elif action == "view":
         """Paint an existing configuration to the console"""
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
+        return click_config.emitter(response=response)
 
     elif action == "forget":
+        # TODO: Move to character control
         actions.forget(configuration=ursula_config)
         return
+
+    elif action == "destroy":
+        """Delete all configuration files from the disk"""
+
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+
+        destroyed_filepath = destroy_system_configuration(config_class=UrsulaConfiguration,
+                                                          config_file=config_file,
+                                                          network=network,
+                                                          config_root=ursula_config.config_file_location,
+                                                          force=force)
+
+        return click_config.emitter(message=f"Destroyed {destroyed_filepath}", color='green')
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))

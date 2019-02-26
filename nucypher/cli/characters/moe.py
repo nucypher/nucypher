@@ -3,6 +3,7 @@ from constant_sorrow import constants
 
 from nucypher.characters.chaotic import Moe
 from nucypher.cli import actions
+from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.network.middleware import RestMiddleware
 
@@ -15,7 +16,8 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
-def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
+@nucypher_click_config
+def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
 
     """
     "Moe" NuCypher node monitor CLI.
@@ -25,7 +27,8 @@ def moe(teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_l
     teacher_uris = [teacher_uri] if teacher_uri else list()
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
-                                           federated_only=True)  # TODO: hardcoded for now
+                                           federated_only=True,    # TODO: hardcoded for now
+                                           network_middleware=click_config.middleware)
 
     # Deserialize network domain name if override passed
     if network:

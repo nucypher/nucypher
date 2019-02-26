@@ -2,6 +2,7 @@ from base64 import b64encode
 
 import click
 
+from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
@@ -28,7 +29,8 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexidecimal string", type=click.STRING)
-@click.option('--alice-encrypting-key', help="Alice's encrypting key as a hexideicmal string", type=click.STRING)
+@click.option('--alice-verifying-key', help="Alice's verifying key as a hexideicmal string", type=click.STRING)
+@click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
 def bob(click_config,
         action,
@@ -48,7 +50,8 @@ def bob(click_config,
         dry_run,
         label,
         policy_encrypting_key,
-        alice_encrypting_key):
+        alice_verifying_key,
+        message_kit):
     """
     Start and manage a "Bob" character.
     """
@@ -66,19 +69,16 @@ def bob(click_config,
             config_root = click_config.config_file  # Envvar
 
         new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
-                                                   config_root=config_root,
+                                                   config_root=config_root or click_config,
                                                    rest_host="localhost",
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
-                                                   no_registry=True,  # Yes we have no registry,
+                                                   no_registry=click_config.no_registry,
                                                    registry_filepath=registry_filepath,
-                                                   provider_uri=provider_uri,
-                                                   )
+                                                   provider_uri=provider_uri)
 
-        if not quiet:
-            return painting.paint_new_installation_help(new_configuration=new_bob_config,
-                                                        config_file=config_file,
-                                                        quiet=quiet)
+        return painting.paint_new_installation_help(new_configuration=new_bob_config,
+                                                    config_file=config_file)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
@@ -93,7 +93,7 @@ def bob(click_config,
                                                               config_root=config_root,
                                                               force=force)
 
-        return actions.handle_control_output(message=f"Destroyed {destroyed_path}", quiet=quiet, json=click_config.json)
+        return click_config.emitter(message=f"Destroyed {destroyed_path}")
 
 
     #
@@ -105,56 +105,65 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
-                                      )
+                                      network_middleware=click_config.middleware)
     else:
         bob_config = BobConfiguration.from_configuration_file(
             filepath=config_file,
             domains={network or GLOBAL_DOMAIN},
             rest_port=discovery_port,
-            provider_uri=provider_uri)
+            provider_uri=provider_uri,
+            network_middleware=click_config.middleware)
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else list()
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
-                                           federated_only=federated_only)
+                                           federated_only=federated_only,
+                                           network_middleware=click_config.middleware)
+
+    if not dev:
+        actions.unlock_keyring(configuration=bob_config, password=click_config.get_password())
 
     # Produce
-    BOB = bob_config(known_nodes=teacher_nodes)
+    BOB = bob_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)
+
+    # Switch to character control emitter
+    if click_config.json_ipc:
+        BOB.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
 
     if action == "run":
-
-        if not dev:
-            actions.unlock_keyring(configuration=bob_config, password=click_config.get_password())
-
-        actions.handle_control_output(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}",
-                                      color='green',
-                                      bold=True,
-                                      quiet=quiet)
-
-        actions.handle_control_output(message=f"Bob Encrypting Key {bytes(BOB.public_keys(DecryptingPower)).hex()}",
-                                      color="blue",
-                                      bold=True,
-                                      quiet=quiet)
-
-        BOB.control.start_wsgi_control(dry_run=dry_run, http_port=http_port)
+        click_config.emitter(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
+        bob_encrypting_key = bytes(BOB.public_keys(DecryptingPower)).hex()
+        click_config.emitter(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
+        controller = BOB.make_web_controller()
+        BOB.log.info('Starting HTTP Character Web Controller')
+        return controller.start(http_port=http_port, dry_run=dry_run)
 
     elif action == "view":
         """Paint an existing configuration to the console"""
         response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
+        return BOB.controller.emitter(response=response)
+
+    elif action == "public-keys":
+        response = BOB.controller.public_keys()
+        return response
 
     elif action == "retrieve":
 
+        if not all((label, policy_encrypting_key, alice_verifying_key, message_kit)):
+            input_specification, output_specification = BOB.control.get_specifications(interface_name='retrieve')
+            required_fields = ', '.join(input_specification)
+            raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
+
         bob_request_data = {
-            'label': b64encode(label).decode(),
-            'policy_encrypting_pubkey': policy_encrypting_key,
-            'alice_signing_pubkey': alice_encrypting_key,
-            # 'message_kit': b64encode(bob_message_kit.to_bytes()).decode(),  # TODO
+            'label': label,
+            'policy_encrypting_key': policy_encrypting_key,
+            'alice_verifying_key': alice_verifying_key,
+            'message_kit': message_kit,
         }
 
-        response = BOB.control.retrieve(request=bob_request_data)
-        return actions.handle_control_output(response=response, quiet=quiet, json=click_config.json)
+        response = BOB.controller.retrieve(request=bob_request_data)
+        return response
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")
