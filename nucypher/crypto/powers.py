@@ -214,11 +214,13 @@ class DelegatingPower(DerivedKeyBasedPower):
 
     def __init__(self,
                  keying_material: Optional[bytes] = None,
+                 wrapping_key: Optional[bytes] = None,
                  password: Optional[bytes] = None) -> None:
         if keying_material is None:
             self.__umbral_keying_material = UmbralKeyingMaterial()
         else:
             self.__umbral_keying_material = UmbralKeyingMaterial.from_bytes(key_bytes=keying_material,
+                                                                            wrapping_key=wrapping_key,
                                                                             password=password)
 
     def _get_privkey_from_label(self, label):
