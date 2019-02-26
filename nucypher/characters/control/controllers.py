@@ -146,8 +146,7 @@ class WebController(CharacterController):
                  app_name: str,
                  character_contoller: CharacterController,
                  start_learning: bool = True,
-                 crash_on_error: bool = _crash_on_error_default
-                 ):
+                 crash_on_error: bool = _crash_on_error_default):
 
         self.app_name = app_name
 

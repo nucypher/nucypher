@@ -94,7 +94,7 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     enacted_federated_policy.bob.remember_node(enacted_federated_policy.ursulas[0])
 
     response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
-    assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data
+    assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO
     assert response.status_code == 200
 
     # Send bad data to assert error returns
@@ -114,17 +114,17 @@ def test_bob_character_control_retrieve(bob_control_test_client, enacted_federat
         'label': enacted_federated_policy.label.decode(),
         'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
         'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
-        'message_kit': message_kit.to_bytes().hex(),
+        'message_kit': b64encode(message_kit.to_bytes()).decode(),
     }
 
     response = bob_control_test_client.post('/retrieve', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    assert 'plaintexts' in response_data['result']
+    assert 'cleartexts' in response_data['result']
 
     for plaintext in response_data['result']['cleartexts']:
-        assert b64decode(plaintext) == b'Welcome to the flippering.'
+        assert bytes(plaintext, encoding='utf-8') == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
     response = bob_control_test_client.post('/retrieve', data=json.dumps({'bad': 'input'}))
