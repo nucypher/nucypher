@@ -199,8 +199,9 @@ class Policy:
         for node in self.alice.known_nodes:
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
             try:
+                treasure_map_id = self.treasure_map.public_id()
                 response = network_middleware.put_treasure_map_on_node(node,
-                                                                       self.treasure_map.public_id(),
+                                                                       treasure_map_id,
                                                                        bytes(self.treasure_map)
                                                                        )  # TODO: Certificate filepath needs to be looked up and passed here
             except NodeSeemsToBeDown:

@@ -30,7 +30,7 @@ class UrsulaConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Ursula
 
     _CHARACTER_CLASS = Ursula
-    _NAME = 'ursula'
+    _NAME = _CHARACTER_CLASS.__name__
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -98,7 +98,7 @@ class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
     _CHARACTER_CLASS = Alice
-    _NAME = 'alice'
+    _NAME = _CHARACTER_CLASS.__name__
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -116,8 +116,15 @@ class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
 
     _CHARACTER_CLASS = Bob
-    _NAME = 'bob'
+    _NAME = _CHARACTER_CLASS.__name__
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_REST_PORT = 7151
+
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        return super().write_keyring(password=password,
+                                     encrypting=True,
+                                     wallet=False,
+                                     rest=False)

@@ -90,8 +90,8 @@ class NucypherMiddlewareClient:
                 filepaths_are_different = node_certificate_filepath != certificate_filepath
                 node_has_a_cert = node_certificate_filepath is not CERTIFICATE_NOT_SAVED
                 if node_has_a_cert and filepaths_are_different:
-                    raise ValueError(
-                        "Don't try to pass a node with a certificate_filepath while also passing a different certificate_filepath.  What do you even expect?")
+                    raise ValueError("Don't try to pass a node with a certificate_filepath while also passing a"
+                                     " different certificate_filepath.  What do you even expect?")
             else:
                 certificate_filepath = node_certificate_filepath
 

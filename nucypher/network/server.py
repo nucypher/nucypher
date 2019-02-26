@@ -96,7 +96,8 @@ def make_rest_app(
         suspicious_activity_tracker: dict,
         serving_domains,
         log=Logger("http-application-layer")
-) -> Tuple:
+        ) -> Tuple:
+
     forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
     from nucypher.keystore import keystore
@@ -355,10 +356,14 @@ def make_rest_app(
     def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
+        treasure_map_bytes = keccak_digest(binascii.unhexlify(treasure_map_id))
+
         try:
-            treasure_map = treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
+
+            treasure_map = treasure_map_tracker[treasure_map_bytes]
             response = Response(bytes(treasure_map), headers=headers)
             log.info("{} providing TreasureMap {}".format(node_nickname, treasure_map_id))
+
         except KeyError:
             log.info("{} doesn't have requested TreasureMap {}".format(stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
