@@ -1,9 +1,9 @@
 from abc import ABC
 
 
-class CharacterControlSpecification(ABC):
+class CharacterSpecification(ABC):
 
-    specifications = NotImplemented
+    _specifications = NotImplemented
 
     class SpecificationError(ValueError):
         """The protocol request is completely unusable"""
@@ -19,45 +19,68 @@ class CharacterControlSpecification(ABC):
 
     @classmethod
     def get_specifications(cls, interface_name: str) -> tuple:
+        if cls._specifications is NotImplemented:
+            raise NotImplementedError("Missing specifications for character")
         try:
-            input_specification, output_specification = cls.specifications[interface_name]
+            input_specification, output_specification = cls.specifications()[interface_name]
         except KeyError:
             raise cls.SpecificationError(f"No Such Control Interface '{interface_name}'")
+
         return input_specification, output_specification
 
+    @classmethod
+    def specifications(cls):
+        if cls._specifications is NotImplemented:
+            raise NotImplementedError
+        else:
+            return cls._specifications
 
-class AliceSpecification(CharacterControlSpecification):
+
+class AliceSpecification(CharacterSpecification):
 
     __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
 
-    __derive_policy = (('label', ),                 # In
+    __derive_policy = (('label', ),                         # In
                        ('policy_encrypting_key', 'label'))  # Out
 
-    __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),   # In
-               ('treasure_map', 'policy_encrypting_key', 'alice_signing_key', 'label'))        # Out
+    __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),     # In
+               ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key', 'label'))        # Out
 
     # TODO: Implement Revoke Spec
     __revoke = ((),  # In
                 ())  # Out
 
-    specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
-                      'derive_policy': __derive_policy,
-                      'grant': __grant,
-                      'revoke': __revoke}
+    __public_keys = ((),
+                     ('alice_verifying_key',))
+
+    _specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
+                       'derive_policy': __derive_policy,
+                       'grant': __grant,
+                       'revoke': __revoke,
+                       'public_keys': __public_keys}
 
 
-class BobSpecification(CharacterControlSpecification):
+class BobSpecification(CharacterSpecification):
 
-    __join_policy = (('label', 'alice_signing_key'),
+    __join_policy = (('label', 'alice_verifying_key'),
                      ('policy_encrypting_key', ))
 
-    __retrieve = (('label', 'policy_encrypting_key', 'alice_signing_key', 'message_kit'),
-                  ('plaintexts', ))
+    __retrieve = (('label', 'policy_encrypting_key', 'alice_verifying_key', 'message_kit'),
+                  ('cleartexts', ))
 
     __public_keys = ((),
                      ('bob_encrypting_key', 'bob_verifying_key'))
 
-    specifications = {'join_policy': __join_policy,
-                      'retrieve': __retrieve,
-                      'public_keys': __public_keys}
+    _specifications = {'join_policy': __join_policy,
+                       'retrieve': __retrieve,
+                       'public_keys': __public_keys}
+
+
+class EnricoSpecification(CharacterSpecification):
+
+    __encrypt_message = (('message', ),
+                         ('message_kit', 'signature'))
+
+    _specifications = {'encrypt_message': __encrypt_message}
+
