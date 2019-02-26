@@ -12,7 +12,7 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH, TESTER_DOMAIN)
+    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN)
 
 STAKE_VALUE = MIN_ALLOWED_LOCKED * 2
 
@@ -28,7 +28,7 @@ def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_
 
         init_args = ('ursula', 'init',
                      '--poa',
-                     '--network', TESTER_DOMAIN,
+                     '--network', TEMPORARY_DOMAIN,
                      '--checksum-address', deployer_address,
                      '--config-root', custom_filepath,
                      '--provider-uri', TEST_PROVIDER_URI,
@@ -56,7 +56,7 @@ def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_
             config_data = json.loads(raw_config_data)
             assert config_data['provider_uri'] == TEST_PROVIDER_URI
             assert config_data['checksum_public_address'] == deployer_address
-            assert TESTER_DOMAIN in config_data['domains']
+            assert TEMPORARY_DOMAIN in config_data['domains']
 
         init_args = ('ursula', 'run',
                      '--poa',
