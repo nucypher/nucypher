@@ -1,39 +1,36 @@
+import json
 import os
+from base64 import b64decode
+from collections import namedtuple
 
 import pytest_twisted as pt
 from twisted.internet import threads
 
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import AliceConfiguration
-from nucypher.config.storages import NodeStorage
+from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.models import TreasureMap
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
 class MockSideChannel:
 
-    class NoMessageKits(Exception):
-        pass
+    PolicyAndLabel = namedtuple('PolicyAndLabel', ['encrypting_key', 'label'])
+    BobPublicKeys = namedtuple('BobPublicKeys', ['bob_encrypting_key', 'bob_verifying_key'])
 
-    class NoTreasureMaps(Exception):
+    class NoMessageKits(Exception):
         pass
 
     class NoPolicies(Exception):
         pass
 
-    class NoEnricos(Exception):
-        pass
-
     def __init__(self):
         self.__message_kits = []
-        self.__treasure_maps = []
         self.__policies = []
-        self.__enricos = []
+        self.__alice_public_keys = []
+        self.__bob_public_keys = []
 
-    def save_message_kit(self, message_kit: UmbralMessageKit) -> None:
+    def save_message_kit(self, message_kit: str) -> None:
         self.__message_kits.append(message_kit)
 
     def fetch_message_kit(self) -> UmbralMessageKit:
@@ -42,141 +39,227 @@ class MockSideChannel:
             return message_kit
         raise self.NoMessageKits
 
-    def save_treasure_map(self, treasure_map: TreasureMap) -> None:
-        self.__treasure_maps.append(treasure_map)
-
-    def fetch_treasure_map(self):
-        if self.__treasure_maps:
-            treasure_map = self.__treasure_maps.pop()
-            return treasure_map
-        raise self.NoTreasureMaps
-
-    def save_policy(self, policy):
+    def save_policy(self, policy: PolicyAndLabel):
         self.__policies.append(policy)
 
-    def fetch_policy(self):
+    def fetch_policy(self) -> PolicyAndLabel:
         if self.__policies:
-            policy = self.__policies.pop()
+            policy = self.__policies[0]
             return policy
         raise self.NoPolicies
 
-    def save_enrico(self, enrico):
-        self.__enricos.append(enrico)
+    def save_alice_pubkey(self, public_key):
+        self.__alice_public_keys.append(public_key)
 
-    def load_enrico(self):
-        if self.__enricos:
-            enrico = self.__enricos.pop()
-            return enrico
-        raise self.NoEnricos
+    def fetch_alice_pubkey(self):
+        policy = self.__alice_public_keys.pop()
+        return policy
+
+    def save_bob_public_keys(self, public_keys: BobPublicKeys):
+        self.__bob_public_keys.append(public_keys)
+
+    def fetch_bob_public_keys(self) -> BobPublicKeys:
+        policy = self.__bob_public_keys.pop()
+        return policy
 
 
+# @pytest.mark.slow
 @pt.inlineCallbacks
 def test_cli_lifecycle(click_runner,
                        random_policy_label,
-                       federated_bob,
-                       federated_alice,
                        federated_ursulas,
-                       custom_filepath):
+                       custom_filepath,
+                       custom_filepath_2):
+    """
+    This is an end to end integration test that runs each cli call
+    in it's own process using only CLI chatacter control entry points,
+    and a mock side channel that runs in the control process
+    """
 
+    # Boring Setup Stuff
+    alice_config_root = custom_filepath
+    bob_config_root = custom_filepath_2
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
 
-    #
-    # Scene 1: Alice installs nucypher, creates a policy, and saves the policy metadata to a sidechannel.
-    #
-    init_args = ('alice', 'init',
-                 '--federated-only',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--config-root', custom_filepath)
+    # A side channel exists - Perhaps a dApp
+    side_channel = MockSideChannel()
 
-    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
+    """
+    Scene 1: Alice Installs nucypher to a custom filepath and examines her configuration
+    """
 
-    # Alice Derives a Policy
-    custom_config_file = os.path.join(custom_filepath, AliceConfiguration.CONFIG_FILENAME)
+    # Alice performs an installation for the first time
+    alice_init_args = ('alice', 'init',
+                       '--federated-only',
+                       '--network', TEMPORARY_DOMAIN,
+                       '--config-root', alice_config_root)
+
+    alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
+    assert alice_init_response.exit_code == 0
+
+    # Alice uses her configuration file to run the character "view" command
+    alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.CONFIG_FILENAME)
+    alice_view_args = ('--json-ipc',
+                       'alice', 'public-keys',
+                       '--config-file', alice_configuration_file_location)
+
+    alice_view_result = click_runner.invoke(nucypher_cli, alice_view_args, catch_exceptions=False, env=envvars)
+    assert alice_view_result.exit_code == 0
+    alice_view_response = json.loads(alice_view_result.output)
+
+    # Alice expresses her desire to participate in data sharing with nucypher
+    # by saving her public key somewhere Bob and Enrico can find it.
+    side_channel.save_alice_pubkey(alice_view_response['result']['alice_verifying_key'])
+
+    """
+    Scene 2: Bob installs nucypher, examines his configuration and expresses his
+    interest to participate in data retrieval by posting his public keys somewhere public (side-channel).
+    """
+    bob_init_args = ('bob', 'init',
+                     '--federated-only',
+                     '--network', TEMPORARY_DOMAIN,
+                     '--config-root', bob_config_root)
+
+    bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
+    assert bob_init_response.exit_code == 0
+
+    # Alice uses her configuration file to run the character "view" command
+    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.CONFIG_FILENAME)
+    bob_view_args = ('--json-ipc',
+                     'bob', 'public-keys',
+                     '--config-file', bob_configuration_file_location)
+
+    bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
+    assert bob_view_result.exit_code == 0
+    bob_view_response = json.loads(bob_view_result.output)
+
+    # Bob interacts with the sidechannel
+    bob_public_keys = MockSideChannel.BobPublicKeys(bob_view_response['result']['bob_encrypting_key'],
+                                                    bob_view_response['result']['bob_verifying_key'])
+
+    side_channel.save_bob_public_keys(bob_public_keys)
+
+    """
+    Scene 3: Alice creates a policy, and saves the policy metadata to a sidechannel.
+    """
+
     random_label = random_policy_label.decode()  # Unicode string
-    derive_args = ('alice', 'derive-policy',
-                   '--config-file', custom_config_file,
+
+    derive_args = ('--mock-networking',
+                   '--json-ipc',
+                   'alice', 'derive-policy',
+                   '--config-file', alice_configuration_file_location,
                    '--label', random_label)
 
-    result = click_runner.invoke(nucypher_cli, derive_args, catch_exceptions=False, env=envvars)
+    derive_response = click_runner.invoke(nucypher_cli, derive_args, catch_exceptions=False, env=envvars)
+    assert derive_response.exit_code == 0
 
-    assert random_label in result.output
+    derive_response = json.loads(derive_response.output)
+    assert derive_response['result']['label'] == random_label
 
-    side_channel = MockSideChannel()
-    # side_channel.save_policy(policy=alice_response_data['result']['policy_encrypting_key'])
+    # Alice and the sidechannel: at Tinagre
+    policy = MockSideChannel.PolicyAndLabel(encrypting_key=derive_response['result']['policy_encrypting_key'],
+                                            label=derive_response['result']['label'])
+    side_channel.save_policy(policy=policy)
 
-    #
-    # Scene 2: We catch up with Alice later on, after she has learned about existing Ursulas
-    #
+    """
+    Scene 4: We catch up with Alice later on, after she has learned about existing Ursulas
+    """
+    teacher = list(federated_ursulas)[0]
+    teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
     # Some Ursula is running somewhere
-    teacher = list(federated_ursulas)[1]
-    start_pytest_ursula_services(ursula=teacher)
+    def _run_teacher():
+        start_pytest_ursula_services(ursula=teacher)
+        return teacher_uri
 
-    # Alice has pre-existing stored node metadata
-    alice_known_nodes_dir = os.path.join(custom_filepath, 'known_nodes', 'metadata')
-    filename = f'{teacher.checksum_public_address}.node'
-    with open(os.path.join(alice_known_nodes_dir, filename), 'wb') as f:
-        f.write(NodeStorage.NODE_SERIALIZER(bytes(teacher)))
+    def _grant(teacher_uri):
 
-    def _grant():
-        bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
-        bob_signing_key_hex = bytes(federated_bob.public_keys(SigningPower)).hex()
+        # Alice fetched Bob's public keys from the side channel
+        bob_keys = side_channel.fetch_bob_public_keys()
+        bob_encrypting_key = bob_keys.bob_encrypting_key
+        bob_verifying_key = bob_keys.bob_verifying_key
 
-        grant_args = ('alice', 'grant',
-                      # '--teacher-uri', teacher.rest_interface,
-                      '--config-file', custom_config_file,
-                      '--m', 1,
-                      '--n', 1,
+        grant_args = ('--mock-networking',
+                      '--json-ipc',
+                      'alice', 'grant',
+                      '--federated-only',
+                      '--teacher-uri', teacher_uri,
+                      '--config-file', alice_configuration_file_location,
+                      '--m', 2,
+                      '--n', 3,
                       '--label', random_label,
-                      '--bob-encrypting-key', bob_encrypting_key_hex,
-                      '--bob-verifying-key', bob_signing_key_hex)
+                      '--bob-encrypting-key', bob_encrypting_key,
+                      '--bob-verifying-key', bob_verifying_key)
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
+        assert grant_result.exit_code == 0
 
-        assert False
+        grant_result = json.loads(grant_result.output)
 
-    d = threads.deferToThread(_grant)
+        # # Alice puts the Treasure Map somewhere Bob can get it.
+        # side_channel.save_treasure_map(treasure_map=grant_result['result']['treasure_map'])
+
+        return grant_result
+
+    def enrico_encrypts(grant_result):
+        """
+        Scene 5: Enrico encrpyts some data for the policy and saves it to a side channel
+        """
+
+        policy = side_channel.fetch_policy()
+
+        plaintext = "I'm bereaved, not a sap!"  # type: str
+        enrico_args = ('--json-ipc',
+                       'enrico',
+                       'encrypt',
+                       '--policy-encrypting-key', policy.encrypting_key,
+                       '--message', plaintext)
+
+        encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
+        assert encrypt_result.exit_code == 0
+
+        encrypt_result = json.loads(encrypt_result.output)
+        encrypted_message = encrypt_result['result']['message_kit']    # type: str
+
+        side_channel.save_message_kit(message_kit=encrypted_message)
+        return plaintext
+
+    def _bob_retrieves(plaintext):
+        """
+        Scene 6: Bob retrieves encrypted data from the side channel and uses nucypher to re-encrypt it
+        """
+
+        # Bob interacts with a sidechannel
+        ciphertext_message_kit = side_channel.fetch_message_kit()
+
+        policy = side_channel.fetch_policy()
+        policy_encrypting_key, label = policy
+
+        alice_signing_key = side_channel.fetch_alice_pubkey()
+
+        retrieve_args = ('--mock-networking',
+                         '--json-ipc',
+                         'bob', 'retrieve',
+                         '--federated-only',
+                         '--teacher-uri', teacher_uri,
+                         '--config-file', bob_configuration_file_location,
+                         '--message-kit', ciphertext_message_kit,
+                         '--label', label,
+                         '--policy-encrypting-key', policy_encrypting_key,
+                         '--alice-verifying-key', alice_signing_key)
+
+        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        assert retrieve_response.exit_code == 0
+
+        retrieve_response = json.loads(retrieve_response.output)
+        for cleartext in retrieve_response['result']['cleartexts']:
+            assert b64decode(cleartext.encode()).decode() == plaintext
+
+    # Run the Callbacks
+    d = threads.deferToThread(_run_teacher)
+    d.addCallback(_grant)
+    d.addCallback(enrico_encrypts)
+    d.addCallback(_bob_retrieves)
+
     yield d
-
-
-    #
-    # Scene 3: Enrico encrpyts some data for the policy and saves it to a side channel
-    #
-
-    # policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
-    # alice_pubkey_sig_hex = alice_response_data['result']['alice_signing_key']
-    # label = alice_response_data['result']['label']
-    #
-    # enrico_encoded_message = "I'm bereaved, not a sap!"  # type: str
-    # enrico_request_data = {
-    #     'message': enrico_encoded_message,
-    # }
-    #
-    # response = enrico_control_from_alice.post('/encrypt_message', data=json.dumps(enrico_request_data))
-    #
-    # enrico_response_data = json.loads(response.data)
-
-
-    #
-    # Scene 4: Bob retrieves encrypted data from the side channel and uses nucypher to re-encrypt it
-    #
-
-    # kit_bytes = b64decode(enrico_response_data['result']['message_kit'].encode())
-    # bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
-    #
-    # # Retrieve data via Bob control
-    # encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()
-    #
-    # # Give bob a node to remember
-    # teacher = list(federated_ursulas)[1]
-    # federated_bob.remember_node(teacher)
-    #
-    # response = bob_control_test_client.post('/retrieve', data=json.dumps(bob_request_data))
-    #
-    # bob_response_data = json.loads(response.data)
-    #
-    # for plaintext in bob_response_data['result']['plaintext']:
-    #     plaintext_bytes = b64decode(plaintext)
-
-    assert False
