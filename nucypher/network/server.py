@@ -122,7 +122,7 @@ def make_rest_app(
     _alice_class = Alice
     _node_class = Ursula
 
-    rest_app = rest_app = Flask("ursula-service")
+    rest_app = Flask("ursula-service")
 
     @rest_app.route("/public_information")
     def public_information():

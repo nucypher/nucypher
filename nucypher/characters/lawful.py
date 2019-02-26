@@ -783,9 +783,10 @@ class Ursula(Teacher, Character, Miner):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
+        domains = {bytes(domain) for domain in self.serving_domains}
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
-                                 bytes(VariableLengthBytestring.bundle(self.serving_domains)),
+                                 bytes(VariableLengthBytestring.bundle(domains)),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),

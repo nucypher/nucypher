@@ -149,7 +149,7 @@ def ursula(click_config,
     #
     if not quiet:
         if dev:
-            click.secho("WARNING: Running in development mode", fg='yellow')
+            click.secho("WARNING: Running in Development mode", fg='yellow')
         if force:
             click.secho("WARNING: Force is enabled", fg='yellow')
 
@@ -220,7 +220,7 @@ def ursula(click_config,
     else:
 
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    domains=[str(network)] if network else None,
+                                                                    domains=[bytes(network, encoding='utf-8')] if network else None,
                                                                     registry_filepath=registry_filepath,
                                                                     provider_uri=provider_uri,
                                                                     rest_host=rest_host,
@@ -289,7 +289,10 @@ def ursula(click_config,
                 # That's all folks!
                 return
 
-            URSULA.get_deployer().run()  # <--- Blocking Call (Reactor)
+            node_deployer = URSULA.get_deployer()
+            node_deployer.addServices()
+            node_deployer.catalogServers(node_deployer.hendrix)
+            node_deployer.run()   # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))

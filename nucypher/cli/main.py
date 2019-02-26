@@ -34,9 +34,9 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
 @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
-@click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True, default=False)
-@click.option('-Q', '--quiet', help="Disable console printing", is_flag=True, default=False)
-@click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True, default=False)
+@click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True)
+@click.option('-Q', '--quiet', help="Disable console printing", is_flag=True)
+@click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
 @click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @nucypher_click_config
