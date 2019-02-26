@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
-from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
+from nucypher.crypto.powers import CryptoPowerUp, CryptoPowerSet
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 
@@ -109,7 +109,7 @@ class NodeConfiguration(ABC):
                  # Identity
                  is_me: bool = True,
                  checksum_public_address: str = None,
-                 crypto_power: CryptoPower = None,
+                 crypto_power: CryptoPowerSet = None,
 
                  # Keyring
                  keyring: NucypherKeyring = None,

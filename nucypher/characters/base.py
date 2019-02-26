@@ -42,7 +42,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
-    CryptoPower,
+    CryptoPowerSet,
     SigningPower,
     DecryptingPower,
     NoSigningPower,
@@ -75,7 +75,7 @@ class Character(Learner):
                  checksum_public_address: bytes = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
-                 crypto_power: CryptoPower = None,
+                 crypto_power: CryptoPowerSet = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  *args, **kwargs
                  ) -> None:
@@ -87,7 +87,7 @@ class Character(Learner):
 
         PowerUps
         ========
-        :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
+        :param crypto_power: A CryptoPowerSet object; if provided, this will be the character's CryptoPowerSet.
         :param crypto_power_ups: If crypto_power is not provided, a new one will be made to consume all CryptoPowerUps.
 
         If neither crypto_power nor crypto_power_ups are provided, we give this
@@ -114,11 +114,11 @@ class Character(Learner):
         crypto_power_ups = crypto_power_ups or list()  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power  # type: CryptoPower
+            self._crypto_power = crypto_power  # type: CryptoPowerSet
         elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
+            self._crypto_power = CryptoPowerSet(power_ups=crypto_power_ups)
         else:
-            self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
+            self._crypto_power = CryptoPowerSet(power_ups=self._default_crypto_powerups)
 
         self._checksum_address = checksum_public_address
         #
@@ -272,7 +272,7 @@ class Character(Learner):
 
         """
 
-        crypto_power = CryptoPower()
+        crypto_power = CryptoPowerSet()
 
         for power_up, public_key in powers_and_material.items():
             try:
