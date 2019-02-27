@@ -6,6 +6,7 @@
 * `NuCypherToken` ERC20 token contract
 * `MinersEscrow` Holds Ursula's stake, stores information about Ursula's activity, and assigns a reward for participating in the NuCypher network. (The `Issuer` contract is part of the `MinersEscrow`)
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
+* `MiningAdjudicator` Manages [the slashing protocol](slashing)
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
 * `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `MinersEscrow` contract
@@ -15,14 +16,15 @@
 1. Deploy `NuCypherToken` with all future supply tokens
 2. Deploy `MinersEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
-4. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial allocations
-5. Run the `initialize()` method to initialize the `MinersEscrow` contract
-6. Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
-7. Pre-deposit tokens to the `MinersEscrow` if necessary:
+4. Deploy `MiningAdjudicator` with a dispatcher
+5. Transfer reward tokens to the `MinersEscrow` contract. These tokens are future mining rewards, and initial allocations
+6. Run the `initialize()` method to initialize the `MinersEscrow` contract
+7. Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
+8. Pre-deposit tokens to the `MinersEscrow` if necessary:
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
 	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner and the periods during which tokens will be locked for each miner
-8. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
-9. Pre-deposit tokens to the `UserEscrow`, and if necessary:
+9. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
+10. Pre-deposit tokens to the `UserEscrow`, and if necessary:
 
 * Create new instance of the `UserEscrow` contract 
 * Transfer ownership of the instance of the `UserEscrow` contract to the user
