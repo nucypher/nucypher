@@ -21,7 +21,7 @@ from constant_sorrow import constants
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
-from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
+from nucypher.crypto.powers import CryptoPowerSet, SigningPower, NoSigningPower, \
     BlockchainPower, PowerUpError
 
 """
@@ -31,10 +31,10 @@ Chapter 1: SIGNING
 
 def test_actor_without_signing_power_cannot_sign():
     """
-    We can create a Character with no real CryptoPower to speak of.
+    We can create a Character with no real CryptoPowerSet to speak of.
     This Character can't even sign a message.
     """
-    cannot_sign = CryptoPower(power_ups=[])
+    cannot_sign = CryptoPowerSet(power_ups=[])
     non_signer = Character(crypto_power=cannot_sign,
                            start_learning_now=False,
                            federated_only=True)

@@ -20,7 +20,7 @@ from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
-from nucypher.crypto.powers import SigningPower, CryptoPower
+from nucypher.crypto.powers import SigningPower, CryptoPowerSet
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
@@ -112,7 +112,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     """
     his_target = list(blockchain_ursulas)[4]
 
-    fraudulent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
+    fraudulent_keys = CryptoPowerSet(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
 
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
