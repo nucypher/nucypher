@@ -1,18 +1,26 @@
+import datetime
 import json
 import os
+import random
 
+import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN)
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.policy import generate_random_label
+from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 STAKE_VALUE = MIN_ALLOWED_LOCKED * 2
 
@@ -28,7 +36,7 @@ def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_
 
         init_args = ('ursula', 'init',
                      '--poa',
-                     '--network', TEMPORARY_DOMAIN,
+                     '--network', str(TEMPORARY_DOMAIN, encoding='utf-8'),
                      '--checksum-address', deployer_address,
                      '--config-root', custom_filepath,
                      '--provider-uri', TEST_PROVIDER_URI,
@@ -56,7 +64,7 @@ def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_
             config_data = json.loads(raw_config_data)
             assert config_data['provider_uri'] == TEST_PROVIDER_URI
             assert config_data['checksum_public_address'] == deployer_address
-            assert TEMPORARY_DOMAIN in config_data['domains']
+            assert str(TEMPORARY_DOMAIN, encoding='utf-8') in config_data['domains']
 
         init_args = ('ursula', 'run',
                      '--poa',
@@ -75,12 +83,12 @@ def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_
             os.remove(MOCK_REGISTRY_FILEPATH)
 
 
-def test_run_geth_development_ursula(click_runner, deployed_blockchain):
+def test_run_blockchain_development_ursula(click_runner, deployed_blockchain):
     blockchain, deployer_address = deployed_blockchain
 
-    run_args = ('ursula', 'run',
+    run_args = ('--debug',
+                'ursula', 'run',
                 '--dev',
-                '--debug',
                 '--lonely',
                 '--poa',
                 '--dry-run',
@@ -167,20 +175,51 @@ def test_ursula_divide_stakes(click_runner, deployed_blockchain):
 
 @pytest.mark.slow
 @pytest.mark.skipif('pytest' in TEST_PROVIDER_URI, reason='Time travel is unavailable with non-pyevm providers')
-def test_ursula_collect_staking_rewards(click_runner, deployed_blockchain):
+def test_ursula_collect_staking_rewards(click_runner,
+                                        deployed_blockchain,
+                                        alice_blockchain_test_config,
+                                        bob_blockchain_test_config,
+                                        random_policy_label,
+                                        federated_ursulas):
+
     blockchain, _deployer_address = deployed_blockchain
     deployer_address, staking_participant, *everyone_else = blockchain.interface.w3.eth.accounts
 
-    # Mock the passage of time and staking confirmations
+    # Record the miner's initial balances
     miner = Miner(checksum_address=deployer_address, blockchain=blockchain, is_me=True)
     original_token_balance = miner.token_balance
     original_eth_balance = miner.eth_balance
 
+    # Start up the local fleet
+    for teacher in federated_ursulas:
+        start_pytest_ursula_services(ursula=teacher)
+
+    teachers = list(federated_ursulas)
+    random_teacher = random.choice(teachers)
+    teacher_uri = random_teacher.seed_node_metadata(as_teacher_uri=True)
+
+    # Alice creates a policy and grants Bob access
+    alice = alice_blockchain_test_config.produce(blockchain=deployed_blockchain,
+                                                 network_middleware=MockRestMiddleware(),
+                                                 known_nodes=teachers)
+
+    bob = bob_blockchain_test_config.produce(blockchain=blockchain,
+                                             network_middleware=MockRestMiddleware(),
+                                             known_nodes=teachers)
+
+    _blockchain_policy = alice.grant(bob=bob,
+                                     label=random_policy_label,
+                                     m=1, n=1,
+                                     expiration=maya.now() + datetime.timedelta(days=MIN_LOCKED_PERIODS))
+
+    # Mock the passage of time and staking confirmations
     for period in range(MIN_LOCKED_PERIODS):
         blockchain.time_travel(periods=1)
         miner.confirm_activity()
 
-    collection_args = ('ursula', 'collect-reward',
+    collection_args = ('--mock-networking',
+                       'ursula', 'collect-reward',
+                       '--teacher-uri', teacher_uri,
                        '--checksum-address', deployer_address,
                        '--dev',
                        '--poa',

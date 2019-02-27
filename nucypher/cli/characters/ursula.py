@@ -22,7 +22,6 @@ import click
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
-from twisted.logger import globalLogPublisher
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
@@ -38,10 +37,6 @@ from nucypher.cli.types import (
     EXISTING_WRITABLE_DIRECTORY
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.logging import (
-    logToSentry,
-    getJsonFileObserver,
-    SimpleObserver, GlobalConsoleLogger)
 
 
 @click.command()
@@ -130,24 +125,13 @@ def ursula(click_config,
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    if click_config.debug:
-        click_config.log_to_sentry = False
-        click_config.log_to_file = True
-        globalLogPublisher.removeObserver(logToSentry)  # Sentry
-        GlobalConsoleLogger.set_log_level(log_level_name='debug')
-
-    elif quiet:
-        globalLogPublisher.removeObserver(logToSentry)
-        globalLogPublisher.removeObserver(SimpleObserver)
-        globalLogPublisher.removeObserver(getJsonFileObserver())
-
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(URSULA_BANNER)
 
     #
     # Pre-Launch Warnings
     #
-    if not quiet:
+    if not click_config.quiet:
         if dev:
             click.secho("WARNING: Running in Development mode", fg='yellow')
         if force:
@@ -163,12 +147,9 @@ def ursula(click_config,
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
         if dev:
-            actions.handle_control_output(message="WARNING: Using temporary storage area",
-                                          color='yellow',
-                                          quiet=quiet,
-                                          json=click_config.json)
+            click_config.emitter(message="WARNING: Using temporary storage area", color='yellow')
 
-        if not config_root:  # Flag
+        if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
@@ -190,6 +171,7 @@ def ursula(click_config,
         click_config.emitter(message="Generated keyring {}".format(ursula_config.keyring_dir), color='green')
 
         click_config.emitter(message="Saved configuration file {}".format(ursula_config.config_file_location), color='green')
+        return
 
         # Give the use a suggestion as to what to do next...
         how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
@@ -404,7 +386,7 @@ def ursula(click_config,
 
         result = miner.initialize_stake(amount=value, lock_periods=duration)
         for tx_name, txhash in result.items():
-            click.secho(f'{tx_name} .......... {txhash}')
+            click.secho(f'{tx_name} .......... {txhash.hex()}')
         else:
             click.secho('Successfully transmitted stake initialization transactions', fg='green')
         return
@@ -474,6 +456,7 @@ def ursula(click_config,
             click.confirm(f"Send {miner.calculate_reward()} to {ursula_config.checksum_public_address}?")
 
         miner.collect_staking_reward()
+        miner.collect_policy_reward()
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))

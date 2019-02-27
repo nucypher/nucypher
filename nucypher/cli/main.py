@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
+from twisted.logger import globalLogPublisher
 
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
@@ -26,7 +27,7 @@ from nucypher.cli.characters import moe, ursula, alice, bob, enrico
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import GlobalConsoleLogger
+from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -58,9 +59,23 @@ def nucypher_cli(click_config,
     NucypherClickConfig.emitter = emitter
     click_config.emitter(message=NUCYPHER_BANNER)
 
+    if debug and quiet:
+        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
+
     # Logging
     if not no_logs:
         GlobalConsoleLogger.start_if_not_started()
+
+    if debug:
+        click_config.log_to_sentry = False
+        click_config.log_to_file = True
+        globalLogPublisher.removeObserver(logToSentry)  # Sentry
+        GlobalConsoleLogger.set_log_level(log_level_name='debug')
+
+    elif quiet:
+        globalLogPublisher.removeObserver(logToSentry)
+        globalLogPublisher.removeObserver(SimpleObserver)
+        globalLogPublisher.removeObserver(getJsonFileObserver())
 
     # CLI Session Configuration
     click_config.verbose = verbose

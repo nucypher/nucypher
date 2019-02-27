@@ -144,12 +144,15 @@ class Alice(Character, PolicyAuthor):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
+
         if not n:
             # TODO: get n from config  #176
             raise NotImplementedError
+
         if not expiration:
             # TODO: check default duration in config  #176
             raise NotImplementedError
+
         if not deposit:
             default_deposit = None  # TODO: Check default deposit in config.  #176
             if not default_deposit:
