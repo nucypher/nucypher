@@ -28,12 +28,36 @@ request a re-encrypted ciphertext for each measurement, which can be opened with
 This simple example showcases many interesting and distinctive aspects of NuCypher:
 
 - Alicia can create policy public keys **before knowing** the potential consumers.
-- Alicia, or anyone knowing the policy public key (e.g., the Heart Monitor), can produce encrypted data that belongs to the policy. Again, this can happen **before granting access** to any consumer.
-- As a consequence of the previous point, the Heart Monitor and any other data sources (which in the NuCypher narrative are portrayed by the :doc:`Enrico character </api/characters>`), are completely unaware of the recipients. In their mind, they are producing data **for Alicia**.
-- Alicia never interacts with the Doctor: she only needs the Doctor's public key.
-- Alicia only interacts with the NuCypher network for granting access to the Doctor. After this, she can even disappear from the face of the Earth.
-- The Doctor never interacts with Alicia or the Heart Monitor: he only needs the encrypted data and some policy metadata.
+- Alicia, or anyone knowing the policy public key (e.g., the Heart Monitor),
+  can produce encrypted data that belongs to the policy.
+  Again, this can happen **before granting access** to any consumer.
+- As a consequence of the previous point, the Heart Monitor is completely
+  unaware of the recipients. In its mind, it's producing data **for Alicia**.
+- Alicia never interacts with the Doctor: she only needs the Doctor's public keys.
+- Alicia only interacts with the NuCypher network for granting access to the Doctor.
+  After this, she can even disappear from the face of the Earth.
+- The Doctor never interacts with Alicia or the Heart Monitor:
+  he only needs the encrypted data and some policy metadata.
 
+
+The NuCypher Characters
+-----------------------
+
+The actors in this example can be mapped naturally to :doc:`Characters </api/characters>` in the NuCypher narrative:
+
+- Since Alicia is the only one capable of granting access,
+  she retains full control over the data encrypted for her.
+  As such, she can be considered as the **data owner** or the **policy authority**.
+  This corresponds to the :class:`~nucypher.characters.lawful.Alice` character.
+- The Heart Monitor, or any other data sources that **encrypt data** on Alicia's behalf,
+  is portrayed by the :class:`~nucypher.characters.lawful.Enrico` character.
+- Nodes in the NuCypher network are called :class:`~nucypher.characters.lawful.Ursula` in our terminology.
+  They receive the access policy from Alice and stand ready to
+  re-encrypt data in exchange for payment in fees and token rewards.
+  In a way, they **enforce the access policy** created by Alicia.
+- The Doctor acts as a **data recipient**, and only can decrypt Alicia's data
+  if she grants access to him. 
+  This is modelled by the :class:`~nucypher.characters.lawful.Bob` character.
 
 Install Nucypher
 -----------------
