@@ -180,7 +180,7 @@ def test_ursula_collect_staking_rewards(click_runner,
                                         alice_blockchain_test_config,
                                         bob_blockchain_test_config,
                                         random_policy_label,
-                                        federated_ursulas):
+                                        blockchain_ursulas):
 
     blockchain, _deployer_address = deployed_blockchain
     deployer_address, staking_participant, *everyone_else = blockchain.interface.w3.eth.accounts
@@ -191,10 +191,10 @@ def test_ursula_collect_staking_rewards(click_runner,
     original_eth_balance = miner.eth_balance
 
     # Start up the local fleet
-    for teacher in federated_ursulas:
+    for teacher in blockchain_ursulas:
         start_pytest_ursula_services(ursula=teacher)
 
-    teachers = list(federated_ursulas)
+    teachers = list(blockchain_ursulas)
     random_teacher = random.choice(teachers)
     teacher_uri = random_teacher.seed_node_metadata(as_teacher_uri=True)
 

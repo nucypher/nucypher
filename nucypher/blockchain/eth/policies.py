@@ -25,6 +25,7 @@ from typing import Set
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import HOURS_PER_PERIOD
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -38,23 +39,23 @@ class BlockchainArrangement(Arrangement):
     federated = False
 
     def __init__(self,
-                 author: PolicyAuthor,
-                 miner: Miner,
+                 alice: PolicyAuthor,
+                 ursula: Miner,
                  value: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
 
-        super().__init__(alice=author, ursula=miner, *args, **kwargs)
+        super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
 
         delta = expiration - maya.now()
         hours = (delta.total_seconds() / 60) / 60                               # type: int
-        lock_periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
+        lock_periods = int(math.ceil(hours / HOURS_PER_PERIOD))  # type: int
 
         # The relationship exists between two addresses
-        self.author = author                     # type: PolicyAuthor
-        self.policy_agent = author.policy_agent  # type: PolicyAgent
+        self.author = alice                     # type: PolicyAuthor
+        self.policy_agent = alice.policy_agent  # type: PolicyAgent
 
-        self.miner = miner                # type: Miner
+        self.miner = ursula                     # type: Miner
 
         # Arrangement value, rate, and duration
         rate = value // lock_periods      # type: int
@@ -74,19 +75,6 @@ class BlockchainArrangement(Arrangement):
         r = "{}(client={}, node={})"
         r = r.format(class_name, self.author, self.miner)
         return r
-
-    def publish(self) -> str:
-        payload = {'from': self.author.checksum_public_address,
-                   'value': self.value}
-
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id,
-                                                                   self.miner.checksum_public_address,
-                                                                   self.lock_periods).transact(payload)
-        self.policy_agent.blockchain.wait_for_receipt(txhash)
-
-        self.publish_transaction = txhash
-        self.is_published = True
-        return txhash
 
     def revoke(self) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
@@ -109,13 +97,10 @@ class BlockchainPolicy(Policy):
     class NotEnoughBlockchainUrsulas(Exception):
         pass
 
-    def __init__(self,
-                 author: PolicyAuthor,
-                 *args, **kwargs
-                 ) -> None:
+    def __init__(self, alice: PolicyAuthor, *args, **kwargs) -> None:
 
-        self.author = author
-        super().__init__(alice=author, *args, **kwargs)
+        self.author = alice
+        super().__init__(alice=alice, *args, **kwargs)
 
     def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
         """Fetch published arrangements from the blockchain"""
@@ -125,9 +110,9 @@ class BlockchainPolicy(Policy):
 
         duration = end_block - start_block
 
-        miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self.author,
-                                            miner=miner,
+        miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent, is_me=False)
+        arrangement = BlockchainArrangement(alice=self.author,
+                                            ursula=miner,
                                             value=rate*duration,   # TODO Check the math/types here
                                             lock_periods=duration,
                                             expiration=end_block)  # TODO: fix missing argument here
@@ -170,7 +155,7 @@ class BlockchainPolicy(Policy):
                 # Known Node
                 found_ursulas.add(selected_ursula)  # We already knew, or just learned about this ursula
 
-        #  TODO: Figure out how to handle spare addresses.
+        #  TODO: Figure out how to handle spare addresses (Buckets).
         # else:
         #     spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
         #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice._known_nodes))
@@ -224,6 +209,8 @@ class BlockchainPolicy(Policy):
             remaining_quantity = self.n - len(accepted)
 
             # TODO: Handle spare Ursulas and try to claw back up to n.
+
+            # FIXME: Spare addresses is unused here.
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                            candidate_ursulas=found_spare_ursulas,
@@ -235,14 +222,31 @@ class BlockchainPolicy(Policy):
             if len(accepted) < self.n:
                 raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
 
-    def publish(self, network_middleware) -> None:
-        """Publish enacted arrangements."""
+    def publish(self, **kwargs) -> str:
+        payload = {'from': self.author.checksum_public_address,
+                   'value': self.value}
 
-        if not self._enacted_arrangements:
-            raise RuntimeError("There are no enacted arrangements to publish to the network.")
+        # FIXME: Wrong Args being passed to smart contract: Add a way to formally validate contract I/O?
+        # bytes16 _policyId,
+        # uint16 _numberOfPeriods,
+        # uint256 _firstPartialReward,
+        # address[] memory _nodes
 
-        while len(self._enacted_arrangements) > 0:
-            kfrag, arrangement = self._enacted_arrangements.popitem()
-            arrangement.publish()
+        # FIXME: This is completely wrong and terrible.
+        # createPolicy now takes different args, and is no longer part of Policy
+        # in contracts, "policy" used to be called "arrangement"
+        ursulas = list()
 
-        super().publish(network_middleware)
+        txhash = self.author.policy_agent.contract.functions.createPolicy(self.id,    # On-chain Policy ID
+                                                                          ursulas,    # Ursulas with arrangements for policy
+                                                                          self.lock_periods
+                                                                          ).transact(payload)
+        self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
+
+        self.publish_transaction = txhash
+        self.is_published = True
+
+        # Call super publish (currently publishes TMap)
+        super().publish(network_middleware=self.alice.network_middleware)
+
+        return txhash

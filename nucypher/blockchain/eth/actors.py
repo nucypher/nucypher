@@ -582,5 +582,5 @@ class PolicyAuthor(NucypherTokenActor):
         """
 
         from nucypher.blockchain.eth.policies import BlockchainPolicy
-        blockchain_policy = BlockchainPolicy(author=self, *args, **kwargs)
+        blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
         return blockchain_policy

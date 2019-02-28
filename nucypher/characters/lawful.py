@@ -136,7 +136,7 @@ class Alice(Character, PolicyAuthor):
             policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
         else:
             from nucypher.blockchain.eth.policies import BlockchainPolicy
-            policy = BlockchainPolicy(author=self, **payload)
+            policy = BlockchainPolicy(alice=self, **payload)
 
         return policy
 
@@ -189,8 +189,7 @@ class Alice(Character, PolicyAuthor):
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  deposit=deposit,
                                  expiration=expiration,
-                                 handpicked_ursulas=handpicked_ursulas,
-                                 )
+                                 handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
