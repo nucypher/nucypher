@@ -35,7 +35,7 @@ or any other storage layer.
 
 03. A group of Ursulas, which are nodes of the NuCypher network,
 receive the access policy and stand ready to
-re-encrypt data in exchange for payment in fees and block rewards.
+re-encrypt data in exchange for payment in fees and token rewards.
 Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.
 
