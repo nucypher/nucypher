@@ -19,19 +19,56 @@ TBD (https://github.com/nucypher/nucypher/issues/803)
 How slashing affects stake
 --------------------------
 
-The punishment is to reduce the number of tokens that belongs to the offending staker.
+The goal of slashing is to reduce the number of tokens that belongs to a staking offender.
 In this case, the main task is not to violate the logic of locking tokens.
-The whole stake consists of several parts:
+The entire stake consists of:
 
-* tokens which the staker can withdraw at any moment
-* tokens locked for a specific period
+	* tokens which the staker can withdraw at any moment
+	* tokens locked for a specific period
 
-Since a staker can divide a stake (extend a part of a stake), as well as lock new tokens, then the total stake is represented as the sum of all the sub stakes active at a particular period. Each sub stake has a beginning and duration, which is reduced only upon confirmation of the activity. Staker slashed on the principle: first a sub stake, which will end earlier. Therefore, in the first place, the not-locked part of tokens belonging to the staker is slashed. After that, if necessary, sub stakes are adjusted: finds the shortest sub stake and decreases by the required amount. If this is not enough, then the next short sub stake is searched for, and so on. A sub stake that begins in the next period is checked separately.
+A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given cycle (new cycle every 24h), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn. Each sub-stake has a beginning and duration (lock time). When a staker confirms activity each day, the remaining lock time for relevant sub-stakes is reduced. 
 
-Example:
+Sub stakes get slashed in the order of their remaining lock time, beginning with the shortest – so the first portion of the stake to be slashed is the unlocked portion. After that, if necessary, locked sub-stakes are decreased – the shortest sub stake is decreased by the required amount; if the adjustment of that sub-stake is insufficient to fulfil the required punishment sum, then the next shortest sub-stake is decreased, and so on. Sub-stakes that begin in the next period are checked separately.
 
-1000 tokens belong to the staker, 1st sub stake - 500 tokens are locked for 10 periods, 2nd sub stake - 200 tokens for 2 periods and 3rd sub stake - 100 tokens that are locked starting from the next period.
+**Example:**
 
-* Penalty 100 tokens. The parameters of sub stakes will not change. Only the number of tokens belonging to the staker will decrease from 1000 to 900. 
-* Penalty 400 tokens. There will be 600 tokens belonging to the staker. At the same time, in the current period 700 tokens were locked, and in the next only 600. So to normalize stake distribution - the shortest sub stake (second) is reduced by 100 tokens, the remaining sub stakes remain unchanged
-* Penalty 600 tokens. 400 tokens are remain. Reducing the shortest sub stake (second) is not enough, so it's removed. After the first sub stake is reduced from 500 to 400, and the third sub stake which starting in the next period is also removed.
+A staker has 1000 tokens:
+	* 1st sub stake = 500 tokens locked for 10 periods
+	* 2nd sub stake = 200 tokens for 2 periods
+	* 3rd sub stake = 100 tokens locked starting from the next period
+	* 200 tokens in an unlocked state (still staked, but can be freely withdrawn).
+
+Penalty Scenarios:
+
+* *Scenario 1*: Staker incurs penalty calculated to be worth **100 tokens**:
+
+	Only the unlocked tokens will be reduced; from 200 to 100. The values of locked sub-stakes will therefore remain unchanged in this punishment scenario. 
+
+	Result:
+
+		* 1st sub stake = 500 tokens locked for 10 periods
+		* 2nd sub stake = 200 tokens for 2 periods
+		* 3rd sub stake = 100 tokens locked starting from the next period
+		* 100 tokens in an unlocked state
+   
+* *Scenario 2*: Staker incurs penalty calculated to be worth **400 tokens**:
+
+	The remaining tokens can only cover 200 tokens. In the current period, 700 tokens are locked and 800 tokens are locked for the next period. The 3rd sub stake is locked for the next period but has not yet been used as a deposit for "work" - not until the next period begins. Therefore, it will be the next sub stake to be slashed. However, it can only cover 100 tokens for the penalty which is still not enough. The next shortest locked sub stake (2nd) is then reduced by 100 tokens to cover the remainder of the penalty, and the other sub stakes remain unchanged.
+
+	Result:
+
+		* 1st sub stake = 500 tokens locked for 10 periods
+		* 2nd sub stake = 100 tokens for 2 periods
+		* 3rd sub stake = 0 tokens locked starting from the next period
+		* Remaining 0 tokens
+ 
+* *Scenario 3*: Staker incurs penalty calculated to be worth **600 tokens**:
+
+	Reducing the unlocked remaining tokens, 3rd sub stakes, and the shortest sub stake (2nd) is not enough, so they are all removed. The next shortest sub stake is the 1st which is reduced from 500 to 400.
+
+	Result:
+
+		* 1st sub stake = 400 tokens locked for 10 periods
+		* 2nd sub stake = 0 tokens for 2 periods
+		* 3rd sub stake = 0 tokens locked starting from the next period
+		* Remaining 0 tokens
