@@ -224,11 +224,14 @@ contract MiningAdjudicator is Upgradeable {
         require(Numerology.check_compressed_point(
             _capsule.pointE.sign,
             _capsule.pointE.xCoord,
-            _precomputed.pointEyCoord
-        ));
+            _precomputed.pointEyCoord),
+            "Precomputed Y coordinate of E doesn't correspond to compressed E point"
+        );
 
         // Input validation: z*E
-        require(Numerology.is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord));
+        require(Numerology.is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord),
+                "Point zE is not a valid EC point"
+        );
         bool left_hand_element_is_correct = Numerology.ecmulVerify(
             _capsule.pointE.xCoord,     // E_x
             _precomputed.pointEyCoord,  // E_y
@@ -239,13 +242,16 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: E1
         require(Numerology.check_compressed_point(
-            _cFrag.pointE1.sign,        // E1_sign
-            _cFrag.pointE1.xCoord,      // E1_x
-            _precomputed.pointE1yCoord  // E1_y
-        ));
+            _cFrag.pointE1.sign,          // E1_sign
+            _cFrag.pointE1.xCoord,        // E1_x
+            _precomputed.pointE1yCoord),  // E1_y
+            "Precomputed Y coordinate of E1 doesn't correspond to compressed E1 point"
+        );
 
-        // Input validation: h*E_1
-        require(Numerology.is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord));
+        // Input validation: h*E1
+        require(Numerology.is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord),
+                "Point h*E1 is not a valid EC point"
+        );
         bool rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.pointE1.xCoord,          // E1_x
             _precomputed.pointE1yCoord,     // E1_y
@@ -254,12 +260,13 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointE1HyCoord     // hE1_y
         );
 
-        // Input validation: E_2
+        // Input validation: E2
         require(Numerology.check_compressed_point(
             _cFrag.proof.pointE2.sign,        // E2_sign
             _cFrag.proof.pointE2.xCoord,      // E2_x
-            _precomputed.pointE2yCoord        // E2_y
-        ));
+            _precomputed.pointE2yCoord),      // E2_y
+            "Precomputed Y coordinate of E2 doesn't correspond to compressed E2 point"
+        );
 
         bool equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointEZxCoord,  _precomputed.pointEZyCoord],
@@ -281,11 +288,14 @@ contract MiningAdjudicator is Upgradeable {
         require(Numerology.check_compressed_point(
             _capsule.pointV.sign,
             _capsule.pointV.xCoord,
-            _precomputed.pointVyCoord
-        ));
+            _precomputed.pointVyCoord),
+            "Precomputed Y coordinate of V doesn't correspond to compressed V point"
+        );
 
         // Input validation: z*V
-        require(Numerology.is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord));
+        require(Numerology.is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord),
+                "Point zV is not a valid EC point"
+        );
         left_hand_element_is_correct = Numerology.ecmulVerify(
             _capsule.pointV.xCoord,     // V_x
             _precomputed.pointVyCoord,  // V_y
@@ -296,13 +306,16 @@ contract MiningAdjudicator is Upgradeable {
 
         // Input validation: V1
         require(Numerology.check_compressed_point(
-            _cFrag.pointV1.sign,        // V1_sign
-            _cFrag.pointV1.xCoord,      // V1_x
-            _precomputed.pointV1yCoord  // V1_y
-        ));
+            _cFrag.pointV1.sign,         // V1_sign
+            _cFrag.pointV1.xCoord,       // V1_x
+            _precomputed.pointV1yCoord), // V1_y
+            "Precomputed Y coordinate of V1 doesn't correspond to compressed V1 point"
+        );
 
-        // Input validation: h*V_1
-        require(Numerology.is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord));
+        // Input validation: h*V1
+        require(Numerology.is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord),
+            "Point h*V1 is not a valid EC point"
+        );
         rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.pointV1.xCoord,          // V1_x
             _precomputed.pointV1yCoord,     // V1_y
@@ -311,12 +324,13 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointV1HyCoord     // h*V1_y
         );
 
-        // Input validation: V_2
+        // Input validation: V2
         require(Numerology.check_compressed_point(
             _cFrag.proof.pointV2.sign,        // V2_sign
             _cFrag.proof.pointV2.xCoord,      // V2_x
-            _precomputed.pointV2yCoord        // V2_y
-        ));
+            _precomputed.pointV2yCoord),      // V2_y
+            "Precomputed Y coordinate of V2 doesn't correspond to compressed V2 point"
+        );
 
         equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointVZxCoord,  _precomputed.pointVZyCoord],
@@ -337,7 +351,9 @@ contract MiningAdjudicator is Upgradeable {
         // We don't have to validate U since it's fixed and hard-coded
 
         // Input validation: z*U
-        require(Numerology.is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord));
+        require(Numerology.is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord),
+                "Point z*U is not a valid EC point"
+        );
         left_hand_element_is_correct = Numerology.ecmulVerify(
             UMBRAL_PARAMETER_U_XCOORD,  // U_x
             UMBRAL_PARAMETER_U_YCOORD,  // U_y
@@ -346,15 +362,18 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointUZyCoord  // zU_y
         );
 
-        // Input validation: U_1  (a.k.a. KFragCommitment)
+        // Input validation: U1  (a.k.a. KFragCommitment)
         require(Numerology.check_compressed_point(
             _cFrag.proof.pointKFragCommitment.sign,     // U1_sign
             _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
-            _precomputed.pointU1yCoord                  // U1_y
-        ));
+            _precomputed.pointU1yCoord),                // U1_y
+            "Precomputed Y coordinate of U1 doesn't correspond to compressed U1 point"
+        );
 
-        // Input validation: h*U_1
-        require(Numerology.is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord));
+        // Input validation: h*U1
+        require(Numerology.is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord),
+                "Point h*U1 is not a valid EC point"
+        );
         rhs_element_is_correct = Numerology.ecmulVerify(
             _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
             _precomputed.pointU1yCoord,                 // U1_y
@@ -363,12 +382,13 @@ contract MiningAdjudicator is Upgradeable {
             _precomputed.pointU1HyCoord     // h*V1_y
         );
 
-        // Input validation: U_2  (a.k.a. KFragPok ("proof of knowledge"))
+        // Input validation: U2  (a.k.a. KFragPok ("proof of knowledge"))
         require(Numerology.check_compressed_point(
             _cFrag.proof.pointKFragPok.sign,    // U2_sign
             _cFrag.proof.pointKFragPok.xCoord,  // U2_x
-            _precomputed.pointU2yCoord          // U2_y
-        ));
+            _precomputed.pointU2yCoord),        // U2_y
+            "Precomputed Y coordinate of U2 doesn't correspond to compressed U2 point"
+        );
 
         equation_holds = Numerology.eqAffineJacobian(
             [_precomputed.pointUZxCoord,  _precomputed.pointUZyCoord],
