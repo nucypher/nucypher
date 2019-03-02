@@ -232,6 +232,7 @@ contract MiningAdjudicator is Upgradeable {
         require(Numerology.is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord),
                 "Point zE is not a valid EC point"
         );
+        // TODO: Change validation of EC multiplications to require()
         bool left_hand_element_is_correct = Numerology.ecmulVerify(
             _capsule.pointE.xCoord,     // E_x
             _precomputed.pointEyCoord,  // E_y
@@ -457,6 +458,7 @@ contract MiningAdjudicator is Upgradeable {
     }
 
     // TODO: Consider changing to internal
+    // TODO: Unit test wrt to Umbral implementation
     function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
 
         bytes32 upper;
