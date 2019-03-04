@@ -16,16 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
 from abc import ABC
-from twisted.logger import Logger
 
-from constant_sorrow.constants import NO_CONTRACT_AVAILABLE, NO_BENEFICIARY, CONTRACT_NOT_DEPLOYED
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from twisted.logger import Logger
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.registry import AllocationRegistry
-from nucypher.utilities.decorators import validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class EthereumContractAgent(ABC):
@@ -37,10 +37,16 @@ class EthereumContractAgent(ABC):
     _forward_address = True
     _proxy_name = None
 
+    DEFAULT_TRANSACTION_GAS = 500000  # TODO
+
     class ContractNotDeployed(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain = None, contract: Contract = None) -> None:
+    def __init__(self,
+                 blockchain: Blockchain = None,
+                 contract: Contract = None,
+                 transaction_gas: int = None
+                 ) -> None:
 
         self.log = Logger(self.__class__.__name__)
 
@@ -53,6 +59,11 @@ class EthereumContractAgent(ABC):
                                                                       proxy_name=self._proxy_name,
                                                                       use_proxy_address=self._forward_address)
         self.__contract = contract
+
+        if not transaction_gas:
+            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS
+        self.transaction_gas = transaction_gas
+
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract_address,
@@ -92,16 +103,11 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount)\
-            .transact({'from': sender_address})#, 'gas': 40000})  # TODO: needed for use with geth.
-
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})#, 'gas': 40000})  # TODO: needed for use with geth.
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
     def transfer(self, amount: int, target_address: str, sender_address: str):
-        """
-        function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-        """
         self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
         txhash = self.contract.functions.transfer(target_address, amount).transact({'from': sender_address})
         self.blockchain.wait_for_receipt(txhash)
@@ -150,14 +156,15 @@ class MinerAgent(EthereumContractAgent):
 
     def get_all_stakes(self, miner_address: str):
         stakes_length = self.contract.functions.getSubStakesLength(miner_address).call()
+        if stakes_length == 0:
+            return iter(())  # Empty iterable, There are no stakes
         for stake_index in range(stakes_length):
             yield self.get_stake_info(miner_address=miner_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods)\
-            .transact({'from': sender_address, 'gas': 2000000})  # TODO: Causes tx to fail without high amount of gas
-        self.blockchain.wait_for_receipt(deposit_txhash)
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})  # TODO: Causes tx to fail without high amount of gas
+        _receipt = self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
     def divide_stake(self, miner_address: str, stake_index: int, target_value: int, periods: int):

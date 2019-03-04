@@ -338,7 +338,7 @@ class Miner(NucypherTokenActor):
     def _confirm_period(self):
 
         period = self.miner_agent.get_current_period()
-        self.log.info("Checking for new period. Current period is {}".format(self.__current_period))  # TODO:  set to debug?
+        self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
 
         if self.__current_period != period:
 
