@@ -14,11 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from collections import deque
 
 import math
 import maya
-from constant_sorrow import constants
+from constant_sorrow.constants import UNKNOWN_ARRANGEMENTS, NON_PAYMENT
 from typing import List
 from typing import Set
 
@@ -91,20 +93,40 @@ class BlockchainPolicy(Policy):
     """
     _arrangement_class = BlockchainArrangement
 
-    class NoSuchPolicy(Exception):
+    class NoSuchPolicy(Policy):
         pass
 
-    class NotEnoughBlockchainUrsulas(Exception):
+    class NotEnoughBlockchainUrsulas(Policy.MoreKFragsThanArrangements):
         pass
 
-    def __init__(self, alice: PolicyAuthor, *args, **kwargs) -> None:
+    class Rejected(NotEnoughBlockchainUrsulas):
+        """Too many Ursulas rejected"""
 
+    def __init__(self,
+                 alice: PolicyAuthor,
+                 value: int,
+                 expiration: maya.MayaDT,
+                 handpicked_ursulas: set = None,
+                 initial_reward: int = 0,  # TODO: move somewhere else?
+                 *args, **kwargs):
+
+        self.initial_reward = initial_reward
+        self.lock_periods = int(calculate_period_duration(expiration))
+        self.handpicked_ursulas = handpicked_ursulas or UNKNOWN_ARRANGEMENTS
+        self.expiration = expiration
+        self.value = value
         self.author = alice
+
+        # Initial State
+        self.publish_transaction = None
+        self.is_published = False
+
         super().__init__(alice=alice, *args, **kwargs)
 
     def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
         """Fetch published arrangements from the blockchain"""
 
+        # Read from Blockchain
         blockchain_record = self.author.policy_agent.read().policies(arrangement_id)
         author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
 
@@ -162,36 +184,43 @@ class BlockchainPolicy(Policy):
 
         return found_ursulas
 
-    def make_arrangements(self,
-                          network_middleware: RestMiddleware,
-                          deposit: int,
-                          expiration: maya.MayaDT,
-                          handpicked_ursulas: Set[Ursula] = None
-                          ) -> None:
+    def make_arrangements(self, network_middleware: RestMiddleware, *args, **kwargs) -> None:
         """
         Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
         """
 
-        ADDITIONAL_URSULAS = 1.5        # TODO: Make constant
+        # Prepare for selection
+        if self.handpicked_ursulas is UNKNOWN_ARRANGEMENTS:
+            handpicked_ursulas = set()
+        else:
+            handpicked_ursulas = self.handpicked_ursulas
 
-        handpicked_ursulas = handpicked_ursulas or set()           # type: set
+        selected_addresses = set()
+
+        # Calculate the target sample quantity
+        ADDITIONAL_URSULAS = 1.5  # TODO: Make constant somewhere else
         target_sample_quantity = self.n - len(handpicked_ursulas)
-
-        selected_addresses = set()      # type: set
         actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
-        duration = int(calculate_period_duration(expiration))
-
-        try:  # Sample by reading from the Blockchain
-            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=duration)
-        except MinerAgent.NotEnoughMiners as e:
-            error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
-            raise self.NotEnoughBlockchainUrsulas(error)
-
-        selected_addresses.update(sampled_addresses)
-        found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
         candidates = handpicked_ursulas
-        candidates.update(found_ursulas)
+        if actual_sample_quantity > 0:
+            # Sample by reading from the Blockchain
+            try:
+                sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=self.lock_periods)
+
+            except MinerAgent.NotEnoughMiners as e:
+                error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
+                raise self.NotEnoughBlockchainUrsulas(error)
+
+            # Capture the selection and search the network for those Ursulas
+            selected_addresses.update(sampled_addresses)
+            found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
+
+            # Get the difference (spares)
+            spare_addresses = selected_addresses - set(u.checksum_public_address for u in found_ursulas)
+
+            # Assemble the final selection
+            candidates.update(found_ursulas)
 
         #
         # Consider Arrangements
@@ -200,49 +229,47 @@ class BlockchainPolicy(Policy):
         # Attempt 1
         accepted, rejected = self._consider_arrangements(network_middleware=network_middleware,
                                                          candidate_ursulas=candidates,
-                                                         deposit=deposit,
-                                                         expiration=expiration)
+                                                         value=self.value,
+                                                         expiration=self.expiration)
+
+        self._accepted_arrangements, self._rejected_arrangements = accepted, rejected
+
         # After all is said and done...
-        if len(accepted) < self.n:
+        if len(self._accepted_arrangements) < self.n:
 
             # Attempt 2:  Find more ursulas from the spare pile
-            remaining_quantity = self.n - len(accepted)
+            remaining_quantity = self.n - len(self._accepted_arrangements)
 
             # TODO: Handle spare Ursulas and try to claw back up to n.
+            found_spare_ursulas = self.__find_ursulas(ether_addresses=list(spare_addresses),
+                                                      target_quantity=remaining_quantity)
 
-            # FIXME: Spare addresses is unused here.
-            found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                            candidate_ursulas=found_spare_ursulas,
-                                                                           deposit=deposit,
-                                                                           expiration=expiration)
-            accepted.update(accepted_spares)
-            rejected.update(rejected_spares)
+                                                                           value=self.value,
+                                                                           expiration=self.expiration)
+            self._accepted_arrangements.update(accepted_spares)
+            self._rejected_arrangements.update(rejected_spares)
 
             if len(accepted) < self.n:
-                raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
+                raise self.Rejected("Selected Ursulas rejected too many arrangements")
 
     def publish(self, **kwargs) -> str:
-        payload = {'from': self.author.checksum_public_address,
-                   'value': self.value}
 
-        # FIXME: Wrong Args being passed to smart contract: Add a way to formally validate contract I/O?
-        # bytes16 _policyId,
-        # uint16 _numberOfPeriods,
-        # uint256 _firstPartialReward,
-        # address[] memory _nodes
+        if self.value is NON_PAYMENT:
+            self.value = 0
 
-        # FIXME: This is completely wrong and terrible.
-        # createPolicy now takes different args, and is no longer part of Policy
-        # in contracts, "policy" used to be called "arrangement"
-        ursulas = list()
+        payload = {'from': self.author.checksum_public_address, 'value': self.value}
+        prearranged_ursulas = list(a.ursula.checksum_public_address for a in self._accepted_arrangements)
 
-        txhash = self.author.policy_agent.contract.functions.createPolicy(self.id,    # On-chain Policy ID
-                                                                          ursulas,    # Ursulas with arrangements for policy
-                                                                          self.lock_periods
+        txhash = self.author.policy_agent.contract.functions.createPolicy(self.hrac()[:16],
+                                                                          self.lock_periods,
+                                                                          self.initial_reward,
+                                                                          prearranged_ursulas,
                                                                           ).transact(payload)
-        self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
 
+        # Capture Response
+        self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
         self.publish_transaction = txhash
         self.is_published = True
 
