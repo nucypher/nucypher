@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 import random
+import secrets
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
@@ -66,7 +67,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.utilities.decorators import validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
@@ -116,13 +117,28 @@ class Alice(Character, PolicyAuthor):
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
-    def create_policy(self, bob: "Bob", label: bytes, m: int, n: int, federated=False):
+    def create_policy(self,
+                      bob: "Bob",
+                      label: bytes,
+                      m: int,
+                      n: int,
+                      federated: bool = False,
+                      expiration: maya.MayaDT = None,
+                      value: int = None,
+                      handpicked_ursulas: set = None):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
         """
+
+        # Validate early
+        if federated and not (expiration and value):
+            raise ValueError("expiration and value are required arguments when creating a blockchain policy")
+
+        # Generate KFrags
         public_key, kfrags = self.generate_kfrags(bob, label, m, n)
 
+        # Federated Payload
         payload = dict(label=label,
                        bob=bob,
                        kfrags=kfrags,
@@ -130,17 +146,35 @@ class Alice(Character, PolicyAuthor):
                        m=m)
 
         if self.federated_only is True or federated is True:
+            # Use known nodes.
+
             from nucypher.policy.models import FederatedPolicy
-            # We can't sample; we can only use known nodes.
             known_nodes = self.known_nodes.shuffled()
             policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
+
         else:
+            # Sample from blockchain via PolicyManager
+
+            blockchain_payload = dict(expiration=expiration,
+                                      value=value,
+                                      handpicked_ursulas=handpicked_ursulas)
+
+            payload.update(blockchain_payload)
+
             from nucypher.blockchain.eth.policies import BlockchainPolicy
             policy = BlockchainPolicy(alice=self, **payload)
 
         return policy
 
-    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None, timeout=10):
+    def grant(self,
+              bob: "Bob",
+              label: bytes,
+              m=None, n=None,
+              expiration=None,
+              value=None,
+              handpicked_ursulas=None,
+              timeout=10):
+
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -153,20 +187,24 @@ class Alice(Character, PolicyAuthor):
             # TODO: check default duration in config  #176
             raise NotImplementedError
 
-        if not deposit:
-            default_deposit = None  # TODO: Check default deposit in config.  #176
+        if not value:
+            default_deposit = None  # TODO: Check default value in config.  #176
             if not default_deposit:
-                deposit = self.network_middleware.get_competitive_rate()
-                if deposit == NotImplemented:
-                    deposit = constants.NON_PAYMENT(b"0000000")
-        if handpicked_ursulas is None:
-            handpicked_ursulas = set()
+                value = self.network_middleware.get_competitive_rate()
+                if value == NotImplemented:
+                    value = constants.NON_PAYMENT(b"0000000")  # TODO: represent as signed int?
 
-        policy = self.create_policy(bob, label, m, n)
+        policy = self.create_policy(bob,
+                                    label,
+                                    m, n,
+                                    federated=self.federated_only,
+                                    expiration=expiration,
+                                    value=value,
+                                    handpicked_ursulas=handpicked_ursulas or set())  # TODO: cleanup default
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
-        # deposit and expiration combinations on a limited number of Ursulas;
+        # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
@@ -187,7 +225,7 @@ class Alice(Character, PolicyAuthor):
                 handpicked_ursulas.update(new_ursulas)
 
         policy.make_arrangements(network_middleware=self.network_middleware,
-                                 deposit=deposit,
+                                 value=value,
                                  expiration=expiration,
                                  handpicked_ursulas=handpicked_ursulas)
 
