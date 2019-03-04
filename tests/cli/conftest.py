@@ -134,4 +134,16 @@ def deployed_blockchain():
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
 
-    yield blockchain, deployer_address
+    yield blockchain, deployer_address, registry
+
+
+@pytest.fixture(scope='module')
+def custom_filepath_2():
+    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH_2
+    with contextlib.suppress(FileNotFoundError):
+        shutil.rmtree(_custom_filepath, ignore_errors=True)
+    try:
+        yield _custom_filepath
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            shutil.rmtree(_custom_filepath, ignore_errors=True)

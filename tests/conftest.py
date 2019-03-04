@@ -52,7 +52,7 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     original_derivation_function = Scrypt.derive
 
     # One-Time Insecure Password
-    insecure_password = bytes(INSECURE_DEVELOPMENT_PASSWORD, encoding='utf8') + os.urandom(16)
+    insecure_password = bytes(INSECURE_DEVELOPMENT_PASSWORD, encoding='utf8')
 
     # Patch Method
     def __insecure_derive(*args, **kwargs):

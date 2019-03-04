@@ -1,4 +1,5 @@
 import os
+import time
 
 import datetime
 import maya
@@ -100,15 +101,26 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     assert plaintext == delivered_cleartexts[0]
 
-    # Let's try retrieve again, but Alice revoked the policy.
-    failed_revocations = federated_alice.revoke(policy)
-    assert len(failed_revocations) == 0
+    # # Let's try retrieve again, but Alice revoked the policy.
+    # failed_revocations = federated_alice.revoke(policy)
+    # assert len(failed_revocations) == 0
 
-    with pytest.raises(Ursula.NotEnoughUrsulas):
-        _cleartexts = bob.retrieve(message_kit=message_kit,
-                                   data_source=enrico,
-                                   alice_verifying_key=alices_verifying_key,
-                                   label=policy.label)
+    # with pytest.raises(Ursula.NotEnoughUrsulas):
+    #     _cleartexts = bob.retrieve(message_kit=message_kit,
+    #                                data_source=enrico,
+    #                                alice_verifying_key=alices_verifying_key,
+    #                                label=policy.label)
+    #
+    #
+    # time.sleep(10)
+
+    # Bob tries to retrieve again
+    delivered_cleartexts = bob.retrieve(message_kit=message_kit,
+                                        data_source=enrico,
+                                        alice_verifying_key=alices_verifying_key,
+                                        label=policy.label)
+
+    assert plaintext == delivered_cleartexts[0]
 
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):

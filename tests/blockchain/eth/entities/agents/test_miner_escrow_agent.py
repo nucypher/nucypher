@@ -58,7 +58,7 @@ def test_deposit_tokens(testerchain, three_agents):
 def test_get_miner_population(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
-    assert agent.get_miner_population() == len(blockchain_ursulas) + 1
+    assert agent.get_miner_population() == len(blockchain_ursulas)
 
 
 @pytest.mark.slow()
@@ -67,7 +67,7 @@ def test_get_swarm(three_agents, blockchain_ursulas):
     agent = miner_agent
     swarm = agent.swarm()
     swarm_addresses = list(swarm)
-    assert len(swarm_addresses) == len(blockchain_ursulas) + 1
+    assert len(swarm_addresses) == len(blockchain_ursulas)
 
     # Grab a miner address from the swarm
     miner_addr = swarm_addresses[0]
@@ -83,16 +83,16 @@ def test_get_swarm(three_agents, blockchain_ursulas):
 def test_locked_tokens(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
-    ursula = blockchain_ursulas.pop()
+    ursula = blockchain_ursulas[2]
     locked_amount = agent.get_locked_tokens(miner_address=ursula.checksum_public_address)
-    assert MAX_ALLOWED_LOCKED > locked_amount > MIN_ALLOWED_LOCKED
+    assert MAX_ALLOWED_LOCKED >= locked_amount >= MIN_ALLOWED_LOCKED
 
 
 @pytest.mark.slow()
 def test_get_all_stakes(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
-    ursula = blockchain_ursulas.pop()
+    ursula = blockchain_ursulas[2]
     all_stakes = list(agent.get_all_stakes(miner_address=ursula.checksum_public_address))
     assert len(all_stakes) == 1
     stake_info = all_stakes[0]
