@@ -88,24 +88,6 @@ def destroy_system_configuration(config_class,
     return config_root
 
 
-def unlock_keyring(configuration, password):
-    try:
-        console_emitter(message="Decrypting keyring...", color='blue')
-        configuration.keyring.unlock(password=password)
-    except CryptoError:
-        raise configuration.keyring.AuthenticationFailed
-
-
-def connect_to_blockchain(configuration, recompile_contracts: bool = False):
-    try:
-        configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
-        configuration.connect_to_contracts()
-    except EthereumContractRegistry.NoRegistry:
-        message = "Cannot configure blockchain character: No contract registry found; " \
-                  "Did you mean to pass --federated-only?"
-        raise EthereumContractRegistry.NoRegistry(message)
-
-
 def forget(configuration):
     """Forget all known nodes via storage"""
     click.confirm("Permanently delete all known node data?", abort=True)

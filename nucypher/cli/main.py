@@ -86,7 +86,7 @@ def nucypher_cli(click_config,
     click_config.no_registry = no_registry
     click_config.debug = debug
 
-    # only used for testing outputs;
+    # Only used for testing outputs;
     # Redirects outputs to in-memory python containers.
     if mock_networking:
         click_config.emitter(message="WARNING: Mock networking is enabled")
