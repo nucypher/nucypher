@@ -499,17 +499,12 @@ class Bob(Character):
         for node_id, arrangement_id in treasure_map_to_use:
             ursula = self.known_nodes[node_id]
 
-            capsules_to_include = []
-            for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
-                    capsules_to_include.append(capsule)
+            work_order = WorkOrder.construct_by_bob(arrangement_id, capsules, ursula, self)
+            generated_work_orders[node_id] = work_order
 
-            if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(
-                    arrangement_id, capsules_to_include, ursula, self)
-                generated_work_orders[node_id] = work_order
-                # TODO: Fix this. It's always taking the last capsule
-                self._saved_work_orders[node_id][capsule] = work_order
+            # Choose a random capsule
+            chosen_capsule = secrets.choice(capsules)
+            self._saved_work_orders[ursula][chosen_capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
@@ -546,7 +541,8 @@ class Bob(Character):
         work_orders = self.generate_work_orders(map_id, capsule)
 
         cleartexts = []
-        for work_order in work_orders.values():
+        work_orders = work_orders.values()
+        for work_order in work_orders:
             try:
                 cfrags = self.get_reencrypted_cfrags(work_order)
             except requests.exceptions.ConnectTimeout:
