@@ -557,16 +557,14 @@ class Bob(Character):
                 evidence = self.collect_evidence(capsule=capsule,
                                                  cfrag=cfrag,
                                                  ursula=work_order.ursula)
+
                 # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
                 raise self.IncorrectCFragReceived(evidence)
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
-        delivered_cleartext = self.verify_from(data_source,
-                                               message_kit,
-                                               decrypt=True,
-                                               )
 
+        delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
         return cleartexts
 
@@ -788,7 +786,7 @@ class Ursula(Teacher, Character, Miner):
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
-            self.log.info(self.banner)
+            self.log.info(self.banner.format(self.nickname))
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
@@ -843,7 +841,7 @@ class Ursula(Teacher, Character, Miner):
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool = False,
+                      federated_only: bool,
                       *args, **kwargs
                       ):
         response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
@@ -932,7 +930,7 @@ class Ursula(Teacher, Character, Miner):
             port=port,
             network_middleware=network_middleware,
             certificate_filepath=certificate_filepath,
-            federated_only=True,
+            federated_only=federated_only,
             *args,
             **kwargs)  # TODO: 466
 

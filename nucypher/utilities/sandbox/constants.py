@@ -26,6 +26,7 @@ from string import digits, ascii_uppercase
 
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import BASE_DIR
 
 
 def select_test_port() -> int:
@@ -60,6 +61,8 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 #
 # Testerchain
 #
+
+TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(M)
 

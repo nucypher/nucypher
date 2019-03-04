@@ -24,7 +24,6 @@ from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
-from nucypher.utilities.decorators import validate_checksum_address
 
 
 class PowerUpError(TypeError):

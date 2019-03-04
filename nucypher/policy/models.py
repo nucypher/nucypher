@@ -304,13 +304,13 @@ class Policy:
     def _consider_arrangements(self,
                                network_middleware: RestMiddleware,
                                candidate_ursulas: Set[Ursula],
-                               deposit: int,
+                               value: int,
                                expiration: maya.MayaDT):
 
         for selected_ursula in candidate_ursulas:
             arrangement = self._arrangement_class(alice=self.alice,
                                                   ursula=selected_ursula,
-                                                  value=deposit,
+                                                  value=value,
                                                   expiration=expiration)
             try:
                 is_accepted = self.consider_arrangement(ursula=selected_ursula,
@@ -342,7 +342,7 @@ class FederatedPolicy(Policy):
 
     def make_arrangements(self,
                           network_middleware: RestMiddleware,
-                          deposit: int,
+                          value: int,
                           expiration: maya.MayaDT,
                           handpicked_ursulas: Set[Ursula] = None) -> None:
 
@@ -363,7 +363,7 @@ class FederatedPolicy(Policy):
 
         self._consider_arrangements(network_middleware,
                                     candidate_ursulas=ursulas,
-                                    deposit=deposit,
+                                    value=value,
                                     expiration=expiration)
 
         if len(self._accepted_arrangements) < self.n:
