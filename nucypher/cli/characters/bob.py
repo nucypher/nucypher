@@ -124,7 +124,7 @@ def bob(click_config,
                                            network_middleware=click_config.middleware)
 
     if not dev:
-        actions.unlock_keyring(configuration=bob_config, password=click_config._get_password())
+        click_config.unlock_keyring(character_configuration=bob_config)
 
     # Produce
     BOB = bob_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)

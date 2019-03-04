@@ -211,7 +211,11 @@ def idle_federated_policy(federated_alice, federated_bob):
     m = MOCK_POLICY_DEFAULT_M
     n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = generate_random_label()
-    policy = federated_alice.create_policy(federated_bob, label=random_label, m=m, n=n, federated=True)
+    policy = federated_alice.create_policy(federated_bob,
+                                           label=random_label,
+                                           m=m,
+                                           n=n,
+                                           federated=True)
     return policy
 
 

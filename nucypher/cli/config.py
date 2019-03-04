@@ -102,7 +102,7 @@ class NucypherClickConfig:
     def unlock_keyring(self, character_configuration: NodeConfiguration):
         try:  # Unlock Keyring
             if not self.quiet:
-                click.secho('Decrypting keyring...', fg='blue')
+                self.emit('Decrypting keyring...', fg='blue')
             character_configuration.keyring.unlock(password=self._get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed

@@ -132,7 +132,7 @@ class Alice(Character, PolicyAuthor):
         """
 
         # Validate early
-        if federated and not (expiration and value):
+        if not federated and not (expiration and value):
             raise ValueError("expiration and value are required arguments when creating a blockchain policy")
 
         # Generate KFrags
@@ -194,13 +194,16 @@ class Alice(Character, PolicyAuthor):
                 if value == NotImplemented:
                     value = constants.NON_PAYMENT(b"0000000")  # TODO: represent as signed int?
 
+        if handpicked_ursulas is None:
+            handpicked_ursulas = set()
+
         policy = self.create_policy(bob,
                                     label,
                                     m, n,
                                     federated=self.federated_only,
                                     expiration=expiration,
                                     value=value,
-                                    handpicked_ursulas=handpicked_ursulas or set())  # TODO: cleanup default
+                                    handpicked_ursulas=handpicked_ursulas)
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -499,12 +502,17 @@ class Bob(Character):
         for node_id, arrangement_id in treasure_map_to_use:
             ursula = self.known_nodes[node_id]
 
-            work_order = WorkOrder.construct_by_bob(arrangement_id, capsules, ursula, self)
-            generated_work_orders[node_id] = work_order
+            capsules_to_include = []
+            for capsule in capsules:
+                if not capsule in self._saved_work_orders[node_id]:
+                    capsules_to_include.append(capsule)
 
-            # Choose a random capsule
-            chosen_capsule = secrets.choice(capsules)
-            self._saved_work_orders[ursula][chosen_capsule] = work_order
+            if capsules_to_include:
+                work_order = WorkOrder.construct_by_bob(
+                    arrangement_id, capsules_to_include, ursula, self)
+                generated_work_orders[node_id] = work_order
+                # TODO: Fix this. It's always taking the last capsule
+                self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
@@ -562,7 +570,6 @@ class Bob(Character):
                 raise self.IncorrectCFragReceived(evidence)
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
-
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)

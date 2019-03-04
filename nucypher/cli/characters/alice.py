@@ -123,7 +123,7 @@ def alice(click_config,
             provider_uri=provider_uri)
 
     if not dev:
-        actions.unlock_keyring(password=click_config._get_password(), configuration=alice_config)
+        click_config.unlock_keyring(character_configuration=alice_config)
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else list()
