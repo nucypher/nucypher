@@ -24,7 +24,7 @@ import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, MIN_LOCKED_PERIODS
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
@@ -243,7 +243,12 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
+    expiration = maya.now().add(days=MIN_LOCKED_PERIODS//2)
+    policy = blockchain_alice.create_policy(blockchain_bob,
+                                            label=random_label,
+                                            m=2, n=3,
+                                            value=20*100,
+                                            expiration=expiration)
     return policy
 
 

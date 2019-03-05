@@ -107,6 +107,11 @@ class NucypherClickConfig:
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 
+    @classmethod
+    def emit(cls, *args, **kwargs):
+        for emitter in cls.emitters:
+            emitter(*args, **kwargs)
+
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 

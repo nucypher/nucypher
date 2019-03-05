@@ -402,7 +402,7 @@ class NodeConfiguration(ABC):
             filepath = os.path.join(self.config_root, filename)
 
         payload = self.static_payload
-        del payload['is_me']  # TODO
+        del payload['is_me']
 
         # Serialize domains
         domains = list(str(domain) for domain in self.domains)

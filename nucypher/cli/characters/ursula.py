@@ -16,8 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import os
-
 import click
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
@@ -25,7 +23,7 @@ from twisted.logger import Logger
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.characters.banners import URSULA_BANNER
-from nucypher.cli import actions
+from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
@@ -54,8 +52,8 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=False)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
+@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
@@ -168,18 +166,9 @@ def ursula(click_config,
                                                      poa=poa)
 
         click_config.emitter(message="Generated keyring {}".format(ursula_config.keyring_dir), color='green')
-
         click_config.emitter(message="Saved configuration file {}".format(ursula_config.config_file_location), color='green')
+        painting.paint_new_installation_help(new_configuration=ursula_config, config_root=config_root, config_file=config_file)
         return
-
-        # Give the use a suggestion as to what to do next...
-        how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
-        suggested_command = 'nucypher ursula run'
-        if config_root is not None:
-            config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
-            suggested_command += ' --config-file {}'.format(config_file_location)
-
-        return click_config.emitter(message=how_to_run_message.format(suggested_command), color='green')
 
     #
     # Configured Ursulas
@@ -213,7 +202,7 @@ def ursula(click_config,
                                                                     db_filepath=db_filepath,
                                                                     poa=poa)
 
-        click_config.unlock_keyring(node_configuration=ursula_config, quiet=quiet)
+        click_config.unlock_keyring(character_configuration=ursula_config)
 
     #
     # Connect to Blockchain (Non-Federated)
@@ -315,7 +304,7 @@ def ursula(click_config,
         destroyed_filepath = destroy_system_configuration(config_class=UrsulaConfiguration,
                                                           config_file=config_file,
                                                           network=network,
-                                                          config_root=URSULA.config_file_location,
+                                                          config_root=ursula_config.config_file_location,
                                                           force=force)
 
         return click_config.emitter(message=f"Destroyed {destroyed_filepath}", color='green')

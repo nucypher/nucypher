@@ -1,12 +1,8 @@
+import click
 import shutil
+from twisted.logger import Logger
 from typing import List
 
-import click
-from nacl.exceptions import CryptoError
-from twisted.logger import Logger
-
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
