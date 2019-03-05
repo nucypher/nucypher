@@ -8,6 +8,7 @@ from flask import Flask, render_template, Response
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
+from twisted.internet.task import LoopingCall
 
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
@@ -111,6 +112,7 @@ class Felix(Character):
     """
 
     _default_crypto_powerups = [SigningPower]
+    DISTRIBUTION_INTERVAL = 1.0  # Seconds
 
     def __init__(self,
                  db_filepath: str,
@@ -134,6 +136,9 @@ class Felix(Character):
         self.db_filepath = db_filepath
         self.db = None
         self.engine = create_engine(f'sqlite://{self.db_filepath}', convert_unicode=True)
+
+        # Distribution
+        self._distribution_task = LoopingCall(self.airdrop_tokens)
 
         # Banner
         self.log.info(FELIX_BANNER.format(bytes(self.stamp).hex()))
@@ -162,6 +167,7 @@ class Felix(Character):
             amount_received = self.db.Column(self.db.Integer, default=0)
             last_airdrop = self.db.Column(self.db.String, nullable=True)
 
+        self.Recipient = Recipient
         rest_app = self.rest_app
 
         @rest_app.route("/", methods=['GET'])
@@ -192,3 +198,10 @@ class Felix(Character):
 
         if not dry_run:
             deployer.run()
+
+    def start_distribution(self):
+        self._distribution_task.start(self.DISTRIBUTION_INTERVAL)
+
+    def airdrop_tokens(self):
+        everyone = self.Recipient.all()
+        assert False
