@@ -16,6 +16,7 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner, federated_ursulas):
 
+    # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
@@ -28,6 +29,16 @@ def test_run_felix(click_runner, federated_ursulas):
 
     configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, 'felix.config')
 
+    # Felix Creates a Database
+    db_args = ('felix', 'createdb',
+               '--config-file', configuration_file_location,
+               '--provider-uri', TEST_PROVIDER_URI)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli, db_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Felix Runs Web Services
     def run_felix():
         args = ('felix', 'run',
                 '--config-file', configuration_file_location,
@@ -40,6 +51,7 @@ def test_run_felix(click_runner, federated_ursulas):
         assert result.exit_code == 0
         return result
 
+    # A Client requests Felix Services
     def request_felix_landing_page(result):
 
         # Init an equal Felix to the already running one.
@@ -51,12 +63,15 @@ def test_run_felix(click_runner, federated_ursulas):
         web_app = felix.make_web_app()
         test_client = web_app.test_client()
 
+        # Load the landing page
         response = test_client.get('/')
         assert response.status_code == 200
 
+        # Register a new recipient
         response = test_client.post('/register', data={'address': '0xdeadbeef'})
         assert response.status_code == 200
 
+    # Run the callbacks
     d = threads.deferToThread(run_felix)
     d.addCallback(request_felix_landing_page)
     yield d
