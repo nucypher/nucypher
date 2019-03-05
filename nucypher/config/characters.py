@@ -21,6 +21,10 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, scoped_session
+
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
@@ -133,8 +137,12 @@ class FelixConfiguration(NodeConfiguration):
     from nucypher.characters.chaotic import Felix
 
     def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
-        self.db_filepath = db_filepath or self.DEFAULT_DB_FILEPATH
+
+        # Character
         super().__init__(*args, **kwargs)
+
+        # Felix
+        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
 
     # Character
     _CHARACTER_CLASS = Felix

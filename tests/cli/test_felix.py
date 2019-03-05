@@ -16,14 +16,14 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner, federated_ursulas):
 
-    args = ('felix', 'init',
-            '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
-            '--network', TEMPORARY_DOMAIN,
-            '--no-registry',
-            '--provider-uri', TEST_PROVIDER_URI)
+    init_args = ('felix', 'init',
+                 '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
+                 '--network', TEMPORARY_DOMAIN,
+                 '--no-registry',
+                 '--provider-uri', TEST_PROVIDER_URI)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
-    result = click_runner.invoke(nucypher_cli, args, input=user_input, catch_exceptions=False)
+    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
     configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, 'felix.config')
@@ -52,7 +52,10 @@ def test_run_felix(click_runner, federated_ursulas):
         test_client = web_app.test_client()
 
         response = test_client.get('/')
-        assert response == 200
+        assert response.status_code == 200
+
+        response = test_client.post('/register', data={'address': '0xdeadbeef'})
+        assert response.status_code == 200
 
     d = threads.deferToThread(run_felix)
     d.addCallback(request_felix_landing_page)

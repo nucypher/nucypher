@@ -3,6 +3,7 @@ import os
 from os.path import dirname, abspath
 
 import click
+import maya
 from flask import Flask, render_template, Response
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
@@ -111,35 +112,41 @@ class Felix(Character):
 
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, db_filepath, rest_host, rest_port, *args, **kwargs):
+    def __init__(self,
+                 db_filepath: str,
+                 rest_host: str,
+                 rest_port: int,
+                 *args, **kwargs):
+
+        # Character
         super().__init__(*args, **kwargs)
 
+        #
+        # Felix
+        #
+
+        # Network
         self.rest_port = rest_port
         self.rest_host = rest_host
-        self.db_filepath = db_filepath
         self.rest_app = None
+
+        # Database
+        self.db_filepath = db_filepath
         self.db = None
         self.engine = create_engine(f'sqlite://{self.db_filepath}', convert_unicode=True)
 
+        # Banner
         self.log.info(FELIX_BANNER.format(bytes(self.stamp).hex()))
 
-    def init_db(self):
-        db_session = scoped_session(sessionmaker(autocommit=False,
-                                                 autoflush=False,
-                                                 bind=self.engine))
-        Base = declarative_base()
-        Base.query = db_session.query_property()
-
-        Base.metadata.create_all(bind=self.engine)
-
     def make_web_app(self):
+        from flask import request
         from flask_sqlalchemy import SQLAlchemy
 
         # WSGI Service
         self.rest_app = Flask("faucet", template_folder=TEMPLATES_DIR)
 
         # Flask Settings
-        self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite://{self.db_filepath}'
+        self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
         self.rest_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         self.rest_app.secret_key = "flask rocks!"  # FIXME: NO!!!
 
@@ -152,18 +159,30 @@ class Felix(Character):
             id = self.db.Column(self.db.Integer, primary_key=True)
             address = self.db.Column(self.db.String)
             joined = self.db.Column(self.db.String)
+            amount_received = self.db.Column(self.db.Integer, default=0)
+            last_airdrop = self.db.Column(self.db.String, nullable=True)
 
         rest_app = self.rest_app
 
-        @rest_app.route("/")
+        @rest_app.route("/", methods=['GET'])
         def home():
             return render_template('felix.html')
 
-        @rest_app.route("/register")
+        @rest_app.route("/register", methods=['POST'])
         def register():
+            try:
+                recipient = Recipient(address=request.form['address'], joined=str(maya.now()))
+                self.db.session.add(recipient)
+                self.db.session.commit()
+            except Exception as e:
+                self.log.critical(str(e))
             return Response(status=200)
 
         return rest_app
+
+    def create_tables(self) -> None:
+        self.db.create_all()
+        return
 
     def start(self, host: str, port: int, dry_run: bool = False):
 
