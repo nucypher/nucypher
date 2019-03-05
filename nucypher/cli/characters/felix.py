@@ -43,64 +43,77 @@ def felix(click_config,
           registry_filepath):
 
     if action == "init":
-        """Create a brand-new persistent Ursula"""
+        """Create a brand-new Felix"""
 
+        # Validate "Init" Input
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
+        # Acquire Keyring Password
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
+        new_password = click_config._get_password(confirm=True)
 
-        ursula_config = FelixConfiguration.generate(password=click_config._get_password(confirm=True),
-                                                    config_root=config_root,
-                                                    rest_host=host,
-                                                    rest_port=discovery_port,
-                                                    db_filepath=db_filepath,
-                                                    domains={network} if network else None,
-                                                    checksum_public_address=checksum_address,
-                                                    no_registry=no_registry,
-                                                    registry_filepath=registry_filepath,
-                                                    provider_uri=provider_uri,
-                                                    poa=poa)
+        new_felix_config = FelixConfiguration.generate(password=new_password,
+                                                       config_root=config_root,
+                                                       rest_host=host,
+                                                       rest_port=discovery_port,
+                                                       db_filepath=db_filepath,
+                                                       domains={network} if network else None,
+                                                       checksum_public_address=checksum_address,
+                                                       no_registry=no_registry,
+                                                       registry_filepath=registry_filepath,
+                                                       provider_uri=provider_uri,
+                                                       poa=poa)
 
-        painting.paint_new_installation_help(new_configuration=ursula_config,
+        # Paint Help
+        painting.paint_new_installation_help(new_configuration=new_felix_config,
                                              config_root=config_root,
                                              config_file=config_file)
-        return
 
-    elif action == 'run':
+        return  # <-- do not remove (conditional flow control)
 
-        # Domains -> bytes | or default
-        domains = [bytes(network, encoding='utf-8')] if network else None
+    #
+    # Authentication Configurations
+    #
 
-        # Load Ursula from Configuration File
-        try:
-            felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
-                                                                      domains=domains,
-                                                                      registry_filepath=registry_filepath,
-                                                                      provider_uri=provider_uri,
-                                                                      rest_host=host,
-                                                                      rest_port=port,
-                                                                      db_filepath=db_filepath,
-                                                                      poa=poa)
-        except FileNotFoundError:
-            click.secho("No Felix Configuration File Found.")
-            raise click.Abort
+    # Domains -> bytes | or default
+    domains = [bytes(network, encoding='utf-8')] if network else None
 
-        # Teacher Ursula
+    # Load Ursula from Configuration File with overrides
+    try:
+        felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
+                                                                  domains=domains,
+                                                                  registry_filepath=registry_filepath,
+                                                                  provider_uri=provider_uri,
+                                                                  rest_host=host,
+                                                                  rest_port=port,
+                                                                  db_filepath=db_filepath,
+                                                                  poa=poa)
+    except FileNotFoundError:
+        click.secho(f"No Felix configuration file found at {config_file}. "
+                    f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
+        raise click.Abort
+
+    else:
+
+        # Produce Teacher Ursulas
         teacher_uris = [teacher_uri] if teacher_uri else list()
         teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                                min_stake=min_stake,
                                                federated_only=False,
                                                network_middleware=click_config.middleware)
 
-        # Felix
+        # Produce Felix
         click_config.unlock_keyring(character_configuration=felix_config)
         FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
+        FELIX.make_web_app()  # attach web application, but dont start service
 
-        # Start web services
-        FELIX.make_web_app()
+    if action == "createdb":  # Initialize Database
+        FELIX.create_tables()
+
+    elif action == 'run':     # Start web services
         FELIX.start(host=host, port=port, dry_run=dry_run)
 
-    else:
+    else:                     # Error
         raise click.BadArgumentUsage("No such argument {}".format(action))
