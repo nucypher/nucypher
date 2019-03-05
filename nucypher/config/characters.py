@@ -127,3 +127,45 @@ class BobConfiguration(NodeConfiguration):
                                      encrypting=True,
                                      rest=False,
                                      **generation_kwargs)
+
+
+class FelixConfiguration(NodeConfiguration):
+    from nucypher.characters.chaotic import Felix
+
+    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
+        self.db_filepath = db_filepath or self.DEFAULT_DB_FILEPATH
+        super().__init__(*args, **kwargs)
+
+    # Character
+    _CHARACTER_CLASS = Felix
+    _NAME = _CHARACTER_CLASS.__name__.lower()
+
+    # Configuration File
+    CONFIG_FILENAME = '{}.config'.format(_NAME)
+    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+
+    # Database
+    DEFAULT_DB_NAME = '{}.db'.format(_NAME)
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
+
+    # Network
+    DEFAULT_REST_PORT = 6151
+    DEFAULT_LEARNER_PORT = 9151
+
+    @property
+    def static_payload(self) -> dict:
+        payload = dict(
+         rest_host=self.rest_host,
+         rest_port=self.rest_port,
+         db_filepath=self.db_filepath,
+        )
+        return {**super().static_payload, **payload}
+
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        return super().write_keyring(password=password,
+                                     encrypting=True,
+                                     rest=True,
+                                     host=self.rest_host,
+                                     curve=self.tls_curve,
+                                     **generation_kwargs)

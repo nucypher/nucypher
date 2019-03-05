@@ -478,15 +478,15 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return cls(*args, **payload, **kwargs)
 
     def initialize(self) -> bool:
-        try:
-            os.mkdir(self.root_dir, mode=0o755)
-            os.mkdir(self.metadata_dir, mode=0o755)
-            os.mkdir(self.certificates_dir, mode=0o755)
-        except FileExistsError:
-            message = "There are pre-existing files at {}".format(self.root_dir)
-            raise self.NodeStorageError(message)
-        except FileNotFoundError:
-            raise self.NodeStorageError("There is no existing configuration at {}".format(self.root_dir))
+        storage_dirs = (self.root_dir, self.metadata_dir, self.certificates_dir)
+        for storage_dir in storage_dirs:
+            try:
+                os.mkdir(storage_dir, mode=0o755)
+            except FileExistsError:
+                message = "There are pre-existing files at {}".format(self.root_dir)
+                self.log.info(message)
+            except FileNotFoundError:
+                raise self.NodeStorageError("There is no existing configuration at {}".format(self.root_dir))
 
         return bool(all(map(os.path.isdir, (self.root_dir, self.metadata_dir, self.certificates_dir))))
 
