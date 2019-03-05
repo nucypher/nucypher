@@ -45,6 +45,8 @@ contract MinersEscrow is Issuer {
     event ActivityConfirmed(address indexed miner, uint16 indexed period, uint256 value);
     event Mined(address indexed miner, uint16 indexed period, uint256 value);
     event Slashed(address indexed miner, uint256 penalty, address indexed investigator, uint256 reward);
+    event ReStakeSet(address indexed miner, bool reStake);
+    event ReStakeLocked(address indexed miner, uint16 lockUntilPeriod);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -71,6 +73,8 @@ contract MinersEscrow is Issuer {
         */
         uint16 confirmedPeriod1;
         uint16 confirmedPeriod2;
+        bool reStake;
+        uint16 lockReStakeUntilPeriod;
         // downtime
         uint16 lastActivePeriod;
         Downtime[] pastDowntime;
@@ -305,7 +309,37 @@ contract MinersEscrow is Issuer {
         }
     }
 
+    /**
+    * @notice Checks is `reStake` parameter is available for changing
+    * @param _miner Miner
+    **/
+    function isReStakeLocked(address _miner) public view returns (bool) {
+        return getCurrentPeriod() <= minerInfo[_miner].lockReStakeUntilPeriod;
+    }
+
     //------------------------Main methods------------------------
+    /**
+    * @notice Set `reStake` parameter. If true than all mining reward will be added to locked stake
+    * Only if this parameter is not locked
+    * @param _reStake Value for parameter
+    **/
+    function setReStake(bool _reStake) public {
+        require(!isReStakeLocked(msg.sender));
+        minerInfo[msg.sender].reStake = _reStake;
+        emit ReStakeSet(msg.sender, _reStake);
+    }
+
+    /**
+    * @notice Lock `reStake` parameter. Only if this parameter is not locked
+    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
+    **/
+    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
+        require(!isReStakeLocked(msg.sender) &&
+            _lockReStakeUntilPeriod > getCurrentPeriod());
+        minerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
+        emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
+    }
+
     /**
     * @notice Pre-deposit tokens
     * @param _miners Miners
@@ -654,21 +688,17 @@ contract MinersEscrow is Issuer {
         uint256 reward = 0;
         if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
             info.confirmedPeriod1 < info.confirmedPeriod2) {
-            reward = reward.add(mint(_miner, info, info.confirmedPeriod1, currentPeriod, startPeriod));
-            info.confirmedPeriod1 = EMPTY_CONFIRMED_PERIOD;
+            reward = reward.add(mint(_miner, info, 1, currentPeriod, startPeriod));
         } else if (info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
             info.confirmedPeriod2 < info.confirmedPeriod1) {
-            reward = reward.add(mint(_miner, info, info.confirmedPeriod2, currentPeriod, startPeriod));
-            info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
+            reward = reward.add(mint(_miner, info, 2, currentPeriod, startPeriod));
         }
         if (info.confirmedPeriod2 <= previousPeriod &&
             info.confirmedPeriod2 > info.confirmedPeriod1) {
-            reward = reward.add(mint(_miner, info, info.confirmedPeriod2, currentPeriod, startPeriod));
-            info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
+            reward = reward.add(mint(_miner, info, 2, currentPeriod, startPeriod));
         } else if (info.confirmedPeriod1 <= previousPeriod &&
             info.confirmedPeriod1 > info.confirmedPeriod2) {
-            reward = reward.add(mint(_miner, info, info.confirmedPeriod1, currentPeriod, startPeriod));
-            info.confirmedPeriod1 = EMPTY_CONFIRMED_PERIOD;
+            reward = reward.add(mint(_miner, info, 1, currentPeriod, startPeriod));
         }
 
         info.value = info.value.add(reward);
@@ -679,31 +709,51 @@ contract MinersEscrow is Issuer {
     * @notice Calculate reward for one period
     * @param _miner Miner's address
     * @param _info Miner structure
-    * @param _mintingPeriod Period when minting occurs
+    * @param _confirmedPeriodNumber Number of confirmed period (1 or 2)
     * @param _currentPeriod Current period
     * @param _startPeriod Pre-calculated start period
     **/
     function mint(
         address _miner,
         MinerInfo storage _info,
-        uint16 _mintingPeriod,
+        uint8 _confirmedPeriodNumber,
         uint16 _currentPeriod,
         uint16 _startPeriod
     )
         internal returns (uint256 reward)
     {
+        uint16 mintingPeriod = _confirmedPeriodNumber == 1 ? _info.confirmedPeriod1 : _info.confirmedPeriod2;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake =  _info.subStakes[i];
             uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
-            if (subStake.firstPeriod <= _mintingPeriod && lastPeriod >= _mintingPeriod) {
-                reward = reward.add(mint(
+            if (subStake.firstPeriod <= mintingPeriod && lastPeriod >= mintingPeriod) {
+                uint256 subStakeReward = mint(
                     _currentPeriod,
                     subStake.lockedValue,
-                    lockedPerPeriod[_mintingPeriod],
-                    lastPeriod.sub16(_mintingPeriod)));
+                    lockedPerPeriod[mintingPeriod],
+                    lastPeriod.sub16(mintingPeriod));
+                reward = reward.add(subStakeReward);
+                if (_info.reStake) {
+                    subStake.lockedValue = subStake.lockedValue.add(subStakeReward);
+                }
             }
         }
-        policyManager.updateReward(_miner, _mintingPeriod);
+        policyManager.updateReward(_miner, mintingPeriod);
+        if (_confirmedPeriodNumber == 1) {
+            _info.confirmedPeriod1 = EMPTY_CONFIRMED_PERIOD;
+        } else {
+            _info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
+        }
+        if (!_info.reStake) {
+            return reward;
+        }
+        if (_confirmedPeriodNumber == 1 &&
+            _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
+            lockedPerPeriod[_info.confirmedPeriod2] = lockedPerPeriod[_info.confirmedPeriod2].add(reward);
+        } else if (_confirmedPeriodNumber == 2 &&
+            _info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD) {
+            lockedPerPeriod[_info.confirmedPeriod1] = lockedPerPeriod[_info.confirmedPeriod1].add(reward);
+        }
     }
 
     /**
