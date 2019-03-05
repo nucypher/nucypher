@@ -45,7 +45,6 @@ ENRICO_BANNER = r"""
 (__ ) ) )  ( (_ (_) 
 
 the Encryptor.
-
 {}
 """
 
@@ -78,3 +77,16 @@ Yb, `88        88                                   IP'`Yb
 the Untrusted Re-Encryption Proxy.
 {}
 '''
+
+FELIX_BANNER = r"""
+
+'||''''|        '||`            
+ ||  .           ||   ''        
+ ||''|   .|''|,  ||   ||  \\  //
+ ||      ||..||  ||   ||    ><  
+.||.     `|...  .||. .||. //  \\
+
+
+the Unlicensed Faucet Plumber
+{}
+"""

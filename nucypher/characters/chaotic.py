@@ -1,14 +1,21 @@
 import json
 import os
+from os.path import dirname, abspath
 
 import click
-from flask import Flask, render_template
+from flask import Flask, render_template, Response
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
+from nucypher import cli
 
-from nucypher.characters.banners import MOE_BANNER
+from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
+from nucypher.crypto.powers import SigningPower
 from nucypher.network.nodes import FleetStateTracker
 
 
@@ -92,6 +99,77 @@ class Moe(Character):
         deployer.add_non_tls_websocket_service(websocket_service)
 
         click.secho(f"Running Moe on 127.0.0.1:{http_port}")
+
+        if not dry_run:
+            deployer.run()
+
+
+class Felix(Character):
+    """
+    A Faucet.
+    """
+
+    _default_crypto_powerups = [SigningPower]
+
+    def __init__(self, db_filepath, rest_host, rest_port, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rest_port = rest_port
+        self.rest_host = rest_host
+        self.db_filepath = db_filepath
+        self.rest_app = None
+        self.db = None
+        self.engine = create_engine(f'sqlite://{self.db_filepath}', convert_unicode=True)
+
+        self.log.info(FELIX_BANNER.format(bytes(self.stamp).hex()))
+
+    def init_db(self):
+        db_session = scoped_session(sessionmaker(autocommit=False,
+                                                 autoflush=False,
+                                                 bind=self.engine))
+        Base = declarative_base()
+        Base.query = db_session.query_property()
+
+        Base.metadata.create_all(bind=self.engine)
+
+    def make_web_app(self):
+        from flask_sqlalchemy import SQLAlchemy
+
+        # WSGI Service
+        self.rest_app = Flask("faucet", template_folder=TEMPLATES_DIR)
+
+        # Flask Settings
+        self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite://{self.db_filepath}'
+        self.rest_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        self.rest_app.secret_key = "flask rocks!"  # FIXME: NO!!!
+
+        # Database
+        self.db = SQLAlchemy(self.rest_app)
+
+        class Recipient(self.db.Model):
+            __tablename__ = 'recipient'
+
+            id = self.db.Column(self.db.Integer, primary_key=True)
+            address = self.db.Column(self.db.String)
+            joined = self.db.Column(self.db.String)
+
+        rest_app = self.rest_app
+
+        @rest_app.route("/")
+        def home():
+            return render_template('felix.html')
+
+        @rest_app.route("/register")
+        def register():
+            return Response(status=200)
+
+        return rest_app
+
+    def start(self, host: str, port: int, dry_run: bool = False):
+
+        # Server
+        deployer = HendrixDeploy(action="start", options={"wsgi": self.rest_app, "http_port": port})
+        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
 
         if not dry_run:
             deployer.run()
