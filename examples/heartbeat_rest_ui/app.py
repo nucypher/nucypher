@@ -18,5 +18,8 @@ SHARED_FOLDER = './shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 
+# policy information
+POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
+
 DB_FILE = './data/heartbeats.db'
 DB_NAME = 'HeartBeat'

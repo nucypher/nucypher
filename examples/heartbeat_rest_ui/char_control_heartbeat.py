@@ -2,11 +2,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from app import app
+from .app import app
 
-import alicia
-import enrico
-import bob
+from . import alicia, enrico, bob
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -17,11 +15,11 @@ index_page = html.Div([
     html.Div([
         html.Img(src='./assets/nucypher_logo.png'),
     ], className='banner'),
-    html.A('ALICIA', href='/alicia', target='_blank'),
+    html.A('ALICIA', href='/alicia', target='_alicia'),
     html.Br(),
-    html.A('ENRICO (HEART_MONITOR)', href='/enrico', target='_blank'),
+    html.A('ENRICO (HEART_MONITOR)', href='/enrico', target='_enrico'),
     html.Br(),
-    html.A('BOB', href='/bob', target='_blank'),
+    html.A('BOB', href='/bob', target='_bob'),
     html.Br(),
     html.Hr(),
     html.H2('Overview'),

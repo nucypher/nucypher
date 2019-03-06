@@ -3,7 +3,7 @@ from dash.dependencies import Output, Input, State, Event
 import dash_html_components as html
 import os
 
-from app import app, SHARED_FOLDER
+from .app import app, POLICY_INFO_FILE
 
 import datetime
 import maya
@@ -12,7 +12,7 @@ import requests
 
 ALICE_URL = "http://localhost:8151"
 
-POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
+
 
 layout = html.Div([
     html.Div([

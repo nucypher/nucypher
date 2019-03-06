@@ -8,7 +8,7 @@ import dash_html_components as html
 import dash_table
 import pandas as pd
 import requests
-from app import app, DB_FILE, DB_NAME
+from .app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
 from base64 import b64encode, b64decode
 

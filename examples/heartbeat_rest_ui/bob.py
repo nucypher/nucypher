@@ -9,8 +9,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import requests
-from alicia import POLICY_INFO_FILE
-from app import app, DB_FILE, DB_NAME
+from .app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
 from dash.dependencies import Output, Input, State, Event
 from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
