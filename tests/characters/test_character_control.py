@@ -68,7 +68,6 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
     assert 'treasure_map' in response_data['result']
     assert 'policy_encrypting_key' in response_data['result']
     assert 'alice_verifying_key' in response_data['result']
-    assert 'label' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
     encrypted_map = TreasureMap.from_bytes(map_bytes)
@@ -198,7 +197,6 @@ def test_character_control_lifecycle(alice_control_test_client,
     assert 'treasure_map' in alice_response_data['result']
     assert 'policy_encrypting_key' in alice_response_data['result']
     assert 'alice_verifying_key' in alice_response_data['result']
-    assert 'label' in alice_response_data['result']
     assert 'version' in alice_response_data
     assert str(nucypher.__version__) == alice_response_data['version']
 
@@ -206,7 +204,6 @@ def test_character_control_lifecycle(alice_control_test_client,
     # application developer at some point.
     policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
     alice_pubkey_sig_hex = alice_response_data['result']['alice_verifying_key']
-    label = alice_response_data['result']['label']
 
     # Encrypt some data via Enrico control
     # Alice will also be Enrico via Enrico.from_alice
@@ -231,7 +228,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()
 
     bob_request_data = {
-        'label': label,
+        'label': random_label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_pubkey_sig_hex,
         'message_kit': encoded_message_kit,

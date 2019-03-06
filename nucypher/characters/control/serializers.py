@@ -43,17 +43,21 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
         extra_fields = input_fields - set(input_specification)
 
         if extra_fields:
-            raise CharacterSpecification.InvalidInputField(f"Invalid request fields '{', '.join(extra_fields)}'."
-                                                           f"Valid fields are: {', '.join(input_specification)}.")
+            extra_pretty_fields = ', '.join(extra_fields)
+            pretty_valid_fields = ', '.join(input_specification)
+            raise CharacterSpecification.InvalidInputField(f"Invalid request fields '{extra_pretty_fields}'."
+                                                           f"Valid fields are: {pretty_valid_fields}.")
 
-        # Missing Fields
+        # Missing Fields  TODO: Use sets instead
         missing_fields = list()
         for field in input_specification:
             if field not in request_data:
                 missing_fields.append(field)
+
         if missing_fields:
             missing = ', '.join(missing_fields)
             raise CharacterSpecification.MissingField(f"Request is missing fields: '{missing}'.")
+
         return True
 
     @staticmethod
@@ -89,7 +93,7 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
         try:
             response_data = json.dumps(response_data)
         except TypeError as e:
-            raise self.SerializerError(f"Invalid serializer output; {response_data} is not JSON serializable."
+            raise self.SerializerError(f"Invalid serializer output; {response_data} is not JSON serializable. "
                                        f"Original exception: {str(e)}")
 
         return response_data
@@ -134,16 +138,13 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
     def dump_grant_output(response: dict):
         treasure_map_base64 = b64encode(bytes(response['treasure_map'])).decode()
 
-        # FIXME: Differences in bytes casters by default
+        # FIXME: Differences in bytes casters by default :-(
         policy_encrypting_key_hex = bytes(response['policy_encrypting_key']).hex()
         alice_verifying_key_hex = bytes(response['alice_verifying_key']).hex()
 
-        unicode_label = response['label'].decode()
-
         response_data = {'treasure_map': treasure_map_base64,
                          'policy_encrypting_key': policy_encrypting_key_hex,
-                         'alice_verifying_key': alice_verifying_key_hex,
-                         'label': unicode_label}
+                         'alice_verifying_key': alice_verifying_key_hex}
 
         return response_data
 
@@ -160,7 +161,7 @@ class MessageHandlerMixin:
     __message_kit_transport_decoder = b64decode
 
     def set_message_encoder(self, encoder: Callable):
-        self.__message_kit_transport_decoder = encoder
+        self.__message_kit_transport_encoder = encoder
 
     def set_message_decoder(self, decoder: Callable):
         self.__message_kit_transport_decoder = decoder

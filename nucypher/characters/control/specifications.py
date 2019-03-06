@@ -44,8 +44,8 @@ class AliceSpecification(CharacterSpecification):
     __derive_policy = (('label', ),                         # In
                        ('policy_encrypting_key', 'label'))  # Out
 
-    __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),     # In
-               ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key', 'label'))        # Out
+    __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
+               ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
 
     # TODO: Implement Revoke Spec
     __revoke = ((),  # In
@@ -83,4 +83,3 @@ class EnricoSpecification(CharacterSpecification):
                          ('message_kit', 'signature'))
 
     _specifications = {'encrypt_message': __encrypt_message}
-

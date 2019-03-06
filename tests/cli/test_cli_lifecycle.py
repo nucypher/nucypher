@@ -12,6 +12,8 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
+PLAINTEXT = "I'm bereaved, not a sap!"
+
 
 class MockSideChannel:
 
@@ -140,7 +142,7 @@ def test_cli_lifecycle(click_runner,
     side_channel.save_bob_public_keys(bob_public_keys)
 
     """
-    Scene 3: Alice creates a policy, and saves the policy metadata to a sidechannel.
+    Scene 3: Alice derives a policy keypair, and saves it's public key to a sidechannel.
     """
 
     random_label = random_policy_label.decode()  # Unicode string
@@ -163,13 +165,37 @@ def test_cli_lifecycle(click_runner,
     side_channel.save_policy(policy=policy)
 
     """
-    Scene 4: We catch up with Alice later on, after she has learned about existing Ursulas
+    Scene 4: Enrico encrypts some data for some policy public key and saves it to a side channel.
+    """
+    def enrico_encrypts():
+
+        # Fetch!
+        policy = side_channel.fetch_policy()
+
+        enrico_args = ('--json-ipc',
+                       'enrico',
+                       'encrypt',
+                       '--policy-encrypting-key', policy.encrypting_key,
+                       '--message', PLAINTEXT)
+
+        encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
+        assert encrypt_result.exit_code == 0
+
+        encrypt_result = json.loads(encrypt_result.output)
+        encrypted_message = encrypt_result['result']['message_kit']    # type: str
+
+        side_channel.save_message_kit(message_kit=encrypted_message)
+        return encrypt_result
+
+    """
+    Scene 5: Alice grants access to Bob: 
+    We catch up with Alice later on, but before she has learned about existing Ursulas...
     """
     teacher = list(federated_ursulas)[0]
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
     # Some Ursula is running somewhere
-    def _run_teacher():
+    def _run_teacher(_encrypt_result):
         start_pytest_ursula_services(ursula=teacher)
         return teacher_uri
 
@@ -197,35 +223,13 @@ def test_cli_lifecycle(click_runner,
 
         grant_result = json.loads(grant_result.output)
 
+        # TODO: Expand test to consider manual treasure map handing
         # # Alice puts the Treasure Map somewhere Bob can get it.
         # side_channel.save_treasure_map(treasure_map=grant_result['result']['treasure_map'])
 
         return grant_result
 
-    def enrico_encrypts(grant_result):
-        """
-        Scene 5: Enrico encrpyts some data for the policy and saves it to a side channel
-        """
-
-        policy = side_channel.fetch_policy()
-
-        plaintext = "I'm bereaved, not a sap!"  # type: str
-        enrico_args = ('--json-ipc',
-                       'enrico',
-                       'encrypt',
-                       '--policy-encrypting-key', policy.encrypting_key,
-                       '--message', plaintext)
-
-        encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
-        assert encrypt_result.exit_code == 0
-
-        encrypt_result = json.loads(encrypt_result.output)
-        encrypted_message = encrypt_result['result']['message_kit']    # type: str
-
-        side_channel.save_message_kit(message_kit=encrypted_message)
-        return plaintext
-
-    def _bob_retrieves(plaintext):
+    def _bob_retrieves(_grant_result):
         """
         Scene 6: Bob retrieves encrypted data from the side channel and uses nucypher to re-encrypt it
         """
@@ -254,12 +258,12 @@ def test_cli_lifecycle(click_runner,
 
         retrieve_response = json.loads(retrieve_response.output)
         for cleartext in retrieve_response['result']['cleartexts']:
-            assert b64decode(cleartext.encode()).decode() == plaintext
+            assert b64decode(cleartext.encode()).decode() == PLAINTEXT
 
     # Run the Callbacks
-    d = threads.deferToThread(_run_teacher)
-    d.addCallback(_grant)
-    d.addCallback(enrico_encrypts)
-    d.addCallback(_bob_retrieves)
+    d = threads.deferToThread(enrico_encrypts)  # scene 4
+    d.addCallback(_run_teacher)                 # scene 5 (preamble)
+    d.addCallback(_grant)                       # scene 5
+    d.addCallback(_bob_retrieves)               # scene 6
 
     yield d

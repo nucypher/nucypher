@@ -158,7 +158,7 @@ def alice(click_config,
 
         create_policy_request = {
             'bob_encrypting_key': bob_encrypting_key,
-            'bob_signing_key': bob_verifying_key,
+            'bob_verifying_key': bob_verifying_key,
             'label': label,
             'm': m,
             'n': n,

@@ -16,7 +16,7 @@ def character_control_interface(func):
     def wrapped(instance, request=None, *args, **kwargs) -> bytes:
 
         # Record request time
-        recieved = maya.now()
+        received = maya.now()
 
         # Get specification
         input_specification, output_specification = instance.get_specifications(interface_name=func.__name__)
@@ -31,7 +31,7 @@ def character_control_interface(func):
         responding = maya.now()
 
         # Calculate control cycle duration
-        request_duration = responding - recieved
+        request_duration = responding - received
 
         # Assemble response with metadata
         response_with_metadata = instance.serializer.build_response_metadata(response=response,
@@ -98,14 +98,13 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
-                         'alice_verifying_key': new_policy.alice.stamp,
-                         'label': new_policy.label}
+                         'alice_verifying_key': new_policy.alice.stamp}
 
         return response_data
 
     def public_keys(self):
         """
-        Character control endpoint for getting Bob's encrypting and signing public keys
+        Character control endpoint for getting Alice's public keys.
         """
         verifying_key = self.alice.public_keys(SigningPower)
         response_data = {'alice_verifying_key': verifying_key}

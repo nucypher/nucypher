@@ -408,7 +408,7 @@ class Learner:
             stranger_certificate = node.certificate
         except AttributeError:
             # Whoops, we got an Alice, Bob, or someone...
-            raise self.NotATeacher(f"{node.__class__.__name__} cannot be remembered.")
+            raise self.NotATeacher(f"{node.__class__.__name__} does not have a certificate and cannot be remembered.")
 
         # Store node's certificate - It has been seen.
         certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)

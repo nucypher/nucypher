@@ -3,7 +3,6 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.characters.lawful import Enrico
-from nucypher.cli import actions
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT
 
@@ -29,7 +28,7 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
     if click_config.json_ipc:
         ENRICO.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
 
-    if action == 'run':  # Forest
+    if action == 'run':  # Forrest
         controller = ENRICO.make_web_controller()
         ENRICO.log.info('Starting HTTP Character Web Controller')
         return controller.start(http_port=http_port, dry_run=dry_run)
