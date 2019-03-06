@@ -449,6 +449,7 @@ class NodeConfiguration(ABC):
 
             # Behavior
             domains=self.domains,  # From Set
+            provider_uri=self.provider_uri,
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,

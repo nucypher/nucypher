@@ -21,9 +21,6 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring

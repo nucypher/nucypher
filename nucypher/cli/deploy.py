@@ -21,6 +21,7 @@ import os
 import click
 
 from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
@@ -37,7 +38,9 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
+@click.option('--amount', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -53,6 +56,8 @@ def deploy(click_config,
            registry_infile,
            registry_outfile,
            no_compile,
+           amount,
+           recipient_address,
            force):
     """Manage contract and registry deployment"""
 
@@ -148,6 +153,13 @@ def deploy(click_config,
         click.confirm("Continue deploying and allocating?", abort=True)
         deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                 allocation_outfile=allocation_outfile)
+
+    elif action == "transfer":
+        token_agent = NucypherTokenAgent(blockchain=blockchain)
+        click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
+        txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
+        click.secho(f"OK | {txhash}")
+        return
 
     elif action == "destroy-registry":
         registry_filepath = deployer.blockchain.interface.registry.filepath
