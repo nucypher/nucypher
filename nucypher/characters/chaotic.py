@@ -1,16 +1,13 @@
 import json
-import time
+import os
 from datetime import datetime, timedelta
 
-import math
-import os
-
 import click
+import math
 import maya
 from flask import Flask, render_template, Response
+from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
-from sqlalchemy.orm import sessionmaker, scoped_session
-from twisted.internet import threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
@@ -23,6 +20,7 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nodes import FleetStateTracker
+from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE, NEW_RECIPIENT
 
 
 class Moe(Character):
@@ -112,24 +110,27 @@ class Moe(Character):
 
 class Felix(Character):
     """
-    A NuCypher testnet ERC20 faucet.
+    A NuCypher ERC20 faucet / Airdrop scheduler.
 
     Felix is a web application that gives NuCypher *testnet* tokens to registered addresses
-    with a scheduled reduction of disbursement amounts, and a web-page for handling new registration.
+    with a scheduled reduction of disbursement amounts, and a RESTful interface
+    for handling new address registration.
 
     The main goal of Felix is to provide a source of testnet tokens for
-    the development of production-ready nucypher dApps.
+    research and the development of production-ready nucypher dApps.
     """
 
     _default_crypto_powerups = [SigningPower]  # identity only
 
-    DISTRIBUTION_INTERVAL = 60*60              # seconds
+    DISTRIBUTION_INTERVAL = 60*60              # seconds (60*60=1Hr)
     DISBURSEMENT_INTERVAL = HOURS_PER_PERIOD   # (24) hours
     BATCH_SIZE = 10                            # transactions
-    MULTIPLIER = 0.95                          # 5% reduction of each stake is 0.95, for example
+    MULTIPLIER = 0.95                          # 5% reduction of previous stake is 0.95, for example
     MAXIMUM_DISBURSEMENT = MAX_ALLOWED_LOCKED  # NU-wei
     INITIAL_DISBURSEMENT = MIN_ALLOWED_LOCKED  # NU-wei
     MINIMUM_DISBURSEMENT = 1e18                # NU-wei
+
+    TEMPLATE_NAME = 'felix.html'
 
     # Node Discovery
     LEARNING_TIMEOUT = 30                      # seconds
@@ -144,6 +145,7 @@ class Felix(Character):
                  db_filepath: str,
                  rest_host: str,
                  rest_port: int,
+                 crash_on_error: bool = False,
                  *args, **kwargs):
 
         # Character
@@ -153,11 +155,12 @@ class Felix(Character):
         # Network
         self.rest_port = rest_port
         self.rest_host = rest_host
-        self.rest_app = None
+        self.rest_app = NOT_RUNNING
+        self.crash_on_error = crash_on_error
 
         # Database
         self.db_filepath = db_filepath
-        self.db = None
+        self.db = NO_DATABASE_AVAILABLE
         self.engine = create_engine(f'sqlite://{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
@@ -168,7 +171,7 @@ class Felix(Character):
         self.__airdrop = 0        # Track Batch
         self.__disbursement = 0   # Track Quantity
         self._distribution_task = LoopingCall(self.airdrop_tokens)
-        self.start_time = None
+        self.start_time = NOT_RUNNING
 
         # Banner
         self.log.info(FELIX_BANNER.format(self.checksum_public_address))
@@ -190,38 +193,48 @@ class Felix(Character):
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
         self.rest_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-        self.rest_app.secret_key = "flask rocks!"  # FIXME: NO!!!
+        try:
+            self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
+        except KeyError:
+            raise OSError("The 'NUCYPHER_FELIX_DB_SECRET' is not set.  Export your application secret and try again.")
 
         # Database
         self.db = SQLAlchemy(self.rest_app)
 
+        # Database Tables
         class Recipient(self.db.Model):
+            """
+            The one and only table in Felix's database; Used to track recipients and airdrop metadata.
+            """
+
             __tablename__ = 'recipient'
 
             id = self.db.Column(self.db.Integer, primary_key=True)
             address = self.db.Column(self.db.String, unique=True, nullable=False)
             joined = self.db.Column(self.db.DateTime, nullable=False)
             total_received = self.db.Column(self.db.String, default='0', nullable=False)
-            last_disbursement_amount = self.db.Column(self.db.String, nullable=True)
-            last_disbursement_time = self.db.Column(self.db.DateTime, nullable=True)
-            is_staking = self.db.Column(self.db.Boolean, default=False)
+            last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=NEW_RECIPIENT)
+            last_disbursement_time = self.db.Column(self.db.DateTime, nullable=False, default=NEW_RECIPIENT)
+            is_staking = self.db.Column(self.db.Boolean, nullable=False, default=False)
 
             def __repr__(self):
                 class_name = self.__class__.__name__
                 return f"{class_name}(address={self.address}, amount_received={self.total_received})"
 
-        # Bind to outer class
-        self.Recipient = Recipient
+        self.Recipient = Recipient  # Bind to outer class
+        rest_app = self.rest_app    # Decorator
 
-        # Decorator
-        rest_app = self.rest_app
+        #
+        # REST Routes
+        #
 
         @rest_app.route("/", methods=['GET'])
         def home():
-            return render_template('felix.html')
+            return render_template(self.TEMPLATE_NAME)
 
         @rest_app.route("/register", methods=['POST'])
         def register():
+            """Handle new recipient registration via POST request."""
             try:
                 new_address = request.form['address']
 
@@ -236,7 +249,10 @@ class Felix(Character):
                 self.db.session.commit()
 
             except Exception as e:
+                # Pass along exceptions to the logger
                 self.log.critical(str(e))
+                if self.crash_on_error:
+                    raise
 
             return Response(status=200)
 
@@ -250,6 +266,9 @@ class Felix(Character):
               port: int,
               web_services: bool = True,
               distribution: bool = True):
+
+        if self.start_time is not NOT_RUNNING:
+            raise RuntimeError("Felix is already running.")
 
         self.start_time = maya.now()
         payload = {"wsgi": self.rest_app, "http_port": port}
@@ -265,12 +284,13 @@ class Felix(Character):
     def start_distribution(self, now: bool = True) -> bool:
         """Start token distribution"""
         self.log.info(NU_BANNER)
-        self.log.info("Starting NU Token Distribution NOW")
+        self.log.info("Starting NU Token Distribution | START")
         self._distribution_task.start(interval=self.DISTRIBUTION_INTERVAL, now=now)
         return True
 
     def stop_distribution(self) -> bool:
         """Start token distribution"""
+        self.log.info("Stopping NU Token Distribution | STOP")
         self._distribution_task.stop()
         return True
 
@@ -322,7 +342,7 @@ class Felix(Character):
         since = datetime.now() - timedelta(hours=self.DISBURSEMENT_INTERVAL)
 
         datetime_filter = or_(self.Recipient.last_disbursement_time <= since,
-                              self.Recipient.last_disbursement_time == None)
+                              self.Recipient.last_disbursement_time == NEW_RECIPIENT)
 
         candidates = self.Recipient.query.filter(datetime_filter).all()
         if not candidates:
