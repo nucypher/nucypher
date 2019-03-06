@@ -37,14 +37,14 @@ from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -307,24 +307,39 @@ def make_rest_app(
         with ThreadedSession(db_engine) as session:
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
-
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
 
-        # TODO: Push this to a lower level.
+        # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
+
+        alices_address = canonical_address_from_umbral_key(alices_verifying_key)
+        if not alices_address == work_order.alice_address:
+            message = f"This Bob ({work_order.bob}) sent an Alice's ETH address " \
+                      f"({work_order.alice_address}) that doesn't match " \
+                      f"the one I have ({alices_address})."
+            raise SuspiciousActivity(message)
+
+        bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
+        if not work_order.alice_address_signature.verify(message=alices_address,
+                                                         verifying_key=bob_pubkey):
+            message = f"This Bob ({work_order.bob}) sent an invalid signature of Alice's ETH address"
+            raise InvalidSignature(message)
+
+        # This is Bob's signature of Alice's verifying key as ETH address.
+        alice_address_signature = bytes(work_order.alice_address_signature)
 
         for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
             # This is the capsule signed by Bob
             capsule_signature = bytes(capsule_signature)
             # Ursula signs on top of it. Now both are committed to the same capsule.
-            capsule_signed_by_both = bytes(stamp(capsule_signature))
-
+            # She signs Alice's address too.
+            ursula_signature = stamp(capsule_signature + alice_address_signature)
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
-            log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=bytes(ursula_signature))
+            log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
             signature = stamp(bytes(cfrag) + bytes(capsule))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 

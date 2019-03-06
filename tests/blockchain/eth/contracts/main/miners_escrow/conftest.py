@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 from web3.contract import Contract
 
@@ -38,8 +40,9 @@ def token(testerchain):
 def escrow_contract(testerchain, token, request):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
+        _mining_coefficient = 2 * 10 ** 7
         contract, _ = testerchain.interface.deploy_contract(
-            'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
+            'MinersEscrow', token.address, 1, 4 * _mining_coefficient, 4, 4, 2, 100, max_allowed_locked_tokens)
 
         if request.param:
             secret_hash = testerchain.interface.w3.keccak(secret)

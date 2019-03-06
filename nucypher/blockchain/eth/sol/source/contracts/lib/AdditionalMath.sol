@@ -46,7 +46,7 @@ library AdditionalMath {
     /**
     * @dev Adds signed value to unsigned value, throws on overflow.
     */
-    function add(uint256 a, int256 b) internal pure returns (uint256) {
+    function addSigned(uint256 a, int256 b) internal pure returns (uint256) {
         if (b >= 0) {
             return a.add(uint256(b));
         } else {
@@ -57,7 +57,7 @@ library AdditionalMath {
     /**
     * @dev Subtracts signed value from unsigned value, throws on overflow.
     */
-    function sub(uint256 a, int256 b) internal pure returns (uint256) {
+    function subSigned(uint256 a, int256 b) internal pure returns (uint256) {
         if (b >= 0) {
             return a.sub(uint256(b));
         } else {
@@ -92,5 +92,27 @@ library AdditionalMath {
     function sub16(uint16 a, uint16 b) internal pure returns (uint16) {
         assert(b <= a);
         return a - b;
+    }
+
+    /**
+    * @dev Adds signed value to unsigned value, throws on overflow.
+    */
+    function addSigned16(uint16 a, int16 b) internal pure returns (uint16) {
+        if (b >= 0) {
+            return add16(a, uint16(b));
+        } else {
+            return sub16(a, uint16(-b));
+        }
+    }
+
+    /**
+    * @dev Subtracts signed value from unsigned value, throws on overflow.
+    */
+    function subSigned16(uint16 a, int16 b) internal pure returns (uint16) {
+        if (b >= 0) {
+            return sub16(a, uint16(b));
+        } else {
+            return add16(a, uint16(-b));
+        }
     }
 }

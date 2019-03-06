@@ -2,16 +2,46 @@
 
 *A proxy re-encryption network to empower privacy in decentralized systems*
 
-![](https://img.shields.io/pypi/pyversions/nucypher.svg)
-![](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)
-![](https://circleci.com/gh/nucypher/nucypher/tree/master.svg?style=svg)
-![](https://img.shields.io/discord/411401661714792449.svg)
-[![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/?badge=latest)
-![](https://img.shields.io/pypi/l/nucypher.svg)
+[![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
+[![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
+[![coveralls](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)](https://coveralls.io/github/nucypher/nucypher?branch=master)
+[![circleci](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
+[![discord](https://img.shields.io/discord/411401661714792449.svg)](https://discord.gg/7rmXa3S)
+[![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/)
+[![license](https://img.shields.io/pypi/l/nucypher.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ----
 
-![](https://img.shields.io/pypi/v/nucypher.svg?style=flat)
+The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral) 
+threshold proxy re-encryption scheme to provide cryptographic access control 
+for distributed apps and protocols. 
+Applications can use the NuCypher network to facilitate end-to-end encrypted 
+data sharing via sharing policies. Access permissions are baked into the 
+underlying encryption, and access can only be explicitly granted by the data owner. 
+Consequently, the data owner has ultimate control over access to their data. 
+At no point is the data decrypted nor can the underlying private keys be 
+determined by the NuCypher network.
+
+01. Alice, the data owner, grants access to her encrypted data to 
+anyone she wants by creating a policy and uploading it to 
+the NuCypher network.
+
+02. Anyone can encrypt data using Alice's policy public key. 
+The resulting encrypted data can be uploaded to IPFS, Swarm, S3, 
+or any other storage layer.
+
+03. Ursula, a miner, receives the access policy and stands ready to 
+re-encrypt data in exchange for payment in fees and block rewards. 
+Thanks to the use of proxy re-encryption, 
+Ursula and the storage layer never have access to Alice's 
+plaintext data nor her private key.
+
+04. Bob, a data recipient, sends an access request to the NuCypher network. 
+If Bob was granted an access policy by Alice, 
+the data is re-encrypted for his public key, 
+and he can subsequently decrypt it with his private key.
+
+More detailed information:
 
 - Documentation https://nucypher.readthedocs.io/en/latest/
 - Website https://www.nucypher.com/

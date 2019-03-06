@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
-import os
 from abc import abstractmethod
 from collections import OrderedDict
 
@@ -23,20 +22,28 @@ import maya
 import msgpack
 import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
+from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Generator, List, Set
+from typing import Generator, List, Set, Optional
+
+from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.point import Point
 from umbral.pre import Capsule
 
-from nucypher.characters.lawful import Alice
-from nucypher.characters.lawful import Bob, Ursula, Character
+from nucypher.characters.lawful import Alice, Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -51,8 +58,8 @@ class Arrangement:
     splitter = key_splitter + BytestringSplitter((bytes, ID_LENGTH),
                                                  (bytes, 27))
 
-    def __init__(self, alice, expiration, ursula=None, id=None,
-                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
+    def __init__(self, alice, expiration, ursula=None, arrangement_id=None,
+                 kfrag=UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -60,7 +67,7 @@ class Arrangement:
 
         Other params are hopefully self-evident.
         """
-        self.id = id or secure_random(self.ID_LENGTH)
+        self.id = arrangement_id or secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
         self.uuid = uuid.uuid4()
@@ -79,10 +86,10 @@ class Arrangement:
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, id, expiration_bytes = cls.splitter(arrangement_as_bytes)
+        alice_pubkey_sig, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, id=id, expiration=expiration)
+        return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
         """Craft an offer to send to Ursula."""
@@ -105,7 +112,7 @@ class Arrangement:
     @abstractmethod
     def revoke(self):
         """
-        Publish arrangement.
+        Revoke arrangement.
         """
         raise NotImplementedError
 
@@ -127,10 +134,10 @@ class Policy:
                  alice,
                  label,
                  bob=None,
-                 kfrags=(constants.UNKNOWN_KFRAG,),
+                 kfrags=(UNKNOWN_KFRAG,),
                  public_key=None,
                  m: int = None,
-                 alices_signature=constants.NOT_SIGNED) -> None:
+                 alices_signature=NOT_SIGNED) -> None:
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
@@ -260,7 +267,7 @@ class Policy:
             if publish is True:
                 return self.publish(network_middleware)
 
-    def consider_arrangement(self, network_middleware, ursula, arrangement):
+    def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         try:
             ursula.verify_node(network_middleware,
                                accept_federated_only=arrangement.federated)
@@ -275,12 +282,12 @@ class Policy:
         negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
-        negotiation_result = negotiation_response.status_code == 200
+        arrangement_is_accepted = negotiation_response.status_code == 200
 
-        bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
+        bucket = self._accepted_arrangements if arrangement_is_accepted else self._rejected_arrangements
         bucket.add(arrangement)
 
-        return negotiation_result
+        return arrangement_is_accepted
 
     @abstractmethod
     def make_arrangements(self,
@@ -289,7 +296,7 @@ class Policy:
                           expiration: maya.MayaDT,
                           ursulas: Set[Ursula] = None) -> None:
         """
-        Create and consider n Arangement objects.
+        Create and consider n Arrangement objects.
         """
         raise NotImplementedError
 
@@ -370,9 +377,9 @@ class TreasureMap:
     def __init__(self,
                  m: int = None,
                  destinations=None,
-                 message_kit: UmbralMessageKit= None,
+                 message_kit: UmbralMessageKit = None,
                  public_signature: Signature = None,
-                 hrac=None) -> None:
+                 hrac: Optional[bytes] = None) -> None:
 
         if m is not None:
             if m > 255:
@@ -381,11 +388,10 @@ class TreasureMap:
 
             self._destinations = destinations or {}
         else:
-            self._m = constants.NO_DECRYPTION_PERFORMED
-            self._destinations = constants.NO_DECRYPTION_PERFORMED
+            self._m = NO_DECRYPTION_PERFORMED
+            self._destinations = NO_DECRYPTION_PERFORMED
 
         self.message_kit = message_kit
-        self._signature_for_bob = None
         self._public_signature = public_signature
         self._hrac = hrac
         self._payload = None
@@ -435,24 +441,27 @@ class TreasureMap:
 
     @property
     def m(self):
-        if self._m == constants.NO_DECRYPTION_PERFORMED:
+        if self._m == NO_DECRYPTION_PERFORMED:
             raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
         return self._m
 
     @property
     def destinations(self):
-        if self._destinations == constants.NO_DECRYPTION_PERFORMED:
+        if self._destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
         return self._destinations
 
     def nodes_as_bytes(self):
-        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
-            return constants.NO_DECRYPTION_PERFORMED
+        if self.destinations == NO_DECRYPTION_PERFORMED:
+            return NO_DECRYPTION_PERFORMED
         else:
-            return bytes().join(to_canonical_address(ursula_id) + arrangement_id for ursula_id, arrangement_id in self.destinations.items())
+            nodes_as_bytes = b""
+            for ursula_id, arrangement_id in self.destinations.items():
+                nodes_as_bytes += to_canonical_address(ursula_id) + arrangement_id
+            return nodes_as_bytes
 
     def add_arrangement(self, arrangement):
-        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
+        if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[arrangement.ursula.checksum_public_address] = arrangement.id
 
@@ -466,8 +475,7 @@ class TreasureMap:
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
-        signature, hrac, tmap_message_kit = \
-            cls.splitter(bytes_representation)
+        signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
 
         treasure_map = cls(
             message_kit=tmap_message_kit,
@@ -514,12 +522,19 @@ class TreasureMap:
 
 
 class WorkOrder:
+
+    class NotFromBob(InvalidSignature):
+        def __init__(self):
+            super().__init__("This doesn't appear to be from Bob.")
+
     def __init__(self,
-                 bob,
+                 bob: Bob,
                  arrangement_id,
-                 capsules,
-                 capsule_signatures,
-                 receipt_bytes,
+                 capsules: List[Capsule],
+                 capsule_signatures: List[Signature],
+                 alice_address: bytes,
+                 alice_address_signature: bytes,
+                 receipt_bytes: bytes,
                  receipt_signature,
                  ursula=None,
                  ) -> None:
@@ -527,6 +542,8 @@ class WorkOrder:
         self.arrangement_id = arrangement_id
         self.capsules = capsules
         self.capsule_signatures = capsule_signatures
+        self.alice_address = alice_address
+        self.alice_address_signature = alice_address_signature
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
@@ -547,51 +564,96 @@ class WorkOrder:
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        capsules_bytes = [bytes(c) for c in capsules]
+        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
+
+        capsules_bytes = []
+        capsule_signatures = []
+        for capsule in capsules:
+            if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
+                raise ValueError("Capsules in this work order are inconsistent.")
+            capsule_bytes = bytes(capsule)
+            capsules_bytes.append(capsule_bytes)
+            capsule_signatures.append(bob.stamp(capsule_bytes))
+
+        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
+        alice_address_signature = bytes(bob.stamp(alice_address))
+
         receipt_bytes = b"wo:" + ursula.canonical_public_address
         receipt_bytes += msgpack.dumps(capsules_bytes)
         receipt_signature = bob.stamp(receipt_bytes)
-        capsule_signatures = [bob.stamp(c) for c in capsules_bytes]
-        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, receipt_signature,
-                   ursula)
+
+        return cls(bob, arrangement_id, capsules, capsule_signatures,
+                   alice_address, alice_address_signature,
+                   receipt_bytes, receipt_signature, ursula)
 
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload):
+
+        # TODO: Use JSON instead? This is a mess.
         payload_splitter = BytestringSplitter(Signature) + key_splitter
-        signature, bob_pubkey_sig, \
-            (receipt_bytes, packed_capsules, packed_signatures) = payload_splitter(rest_payload,
-                                                                                   msgpack_remainder=True)
+        signature, bob_pubkey_sig, remainder = payload_splitter(rest_payload,
+                                                                msgpack_remainder=True)
+
+        receipt_bytes, *remainder = remainder
+        packed_capsules, packed_signatures, *remainder = remainder
+        alice_address, alice_address_signature = remainder
+        alice_address_signature = Signature.from_bytes(alice_address_signature)
+        if not alice_address_signature.verify(alice_address, bob_pubkey_sig):
+            raise cls.NotFromBob()
+
         capsules, capsule_signatures = list(), list()
-        for capsule_bytes, signed_capsule in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
+        for capsule_bytes, capsule_signature in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
             capsules.append(Capsule.from_bytes(capsule_bytes, params=default_params()))
-            signed_capsule = Signature.from_bytes(signed_capsule)
-            capsule_signatures.append(signed_capsule)
-            if not signed_capsule.verify(capsule_bytes, bob_pubkey_sig):
-                raise ValueError("This doesn't appear to be from Bob.")
+            capsule_signature = Signature.from_bytes(capsule_signature)
+            capsule_signatures.append(capsule_signature)
+            if not capsule_signature.verify(capsule_bytes, bob_pubkey_sig):
+                raise cls.NotFromBob()
 
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
-            raise ValueError("This doesn't appear to be from Bob.")
+            raise cls.NotFromBob()
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, signature)
+        return cls(bob, arrangement_id, capsules, capsule_signatures,
+                   alice_address, alice_address_signature,
+                   receipt_bytes, signature)
 
     def payload(self):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
         capsule_signatures_as_bytes = [bytes(s) for s in self.capsule_signatures]
         packed_receipt_and_capsules = msgpack.dumps(
-            (self.receipt_bytes, msgpack.dumps(capsules_as_bytes), msgpack.dumps(capsule_signatures_as_bytes)))
+            (self.receipt_bytes,
+             msgpack.dumps(capsules_as_bytes),
+             msgpack.dumps(capsule_signatures_as_bytes),
+             self.alice_address,
+             self.alice_address_signature,
+             )
+        )
         return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
         if not len(self) == len(cfrags_and_signatures):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
+            raise ValueError("Ursula gave back the wrong number of cfrags.  "
+                             "She's up to something.")
+
+        alice_address_signature = bytes(self.alice_address_signature)
+        ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
+
         for counter, capsule in enumerate(self.capsules):
             cfrag, signature = cfrags_and_signatures[counter]
-            if signature.verify(bytes(cfrag) + bytes(capsule), self.ursula.stamp.as_umbral_pubkey()):
+
+            # Validate CFrag metadata
+            capsule_signature = bytes(self.capsule_signatures[counter])
+            metadata_input = capsule_signature + alice_address_signature
+            metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
+            if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
+                raise InvalidSignature("Invalid metadata for {}.".format(cfrag))
+
+            # Validate work order response signatures
+            if signature.verify(bytes(cfrag) + bytes(capsule), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
-                raise self.ursula.InvalidSignature("This CFrag is not properly signed by Ursula.")
+                raise InvalidSignature("{} is not properly signed by Ursula.".format(cfrag))
         else:
             self.completed = maya.now()
             return good_cfrags
@@ -618,7 +680,7 @@ class WorkOrderHistory:
     def ursulas(self):
         return self.by_ursula.keys()
 
-    def by_capsule(self, capsule):
+    def by_capsule(self, capsule: Capsule):
         ursulas_by_capsules = {}  # type: dict
         for ursula, capsules in self.by_ursula.items():
             for saved_capsule, work_order in capsules.items():
@@ -674,3 +736,145 @@ class Revocation:
             raise InvalidSignature(
                 "Revocation has an invalid signature: {}".format(self.signature))
         return True
+
+
+class IndisputableEvidence:
+
+    def __init__(self,
+                 capsule: Capsule,
+                 cfrag: CapsuleFrag,
+                 ursula,
+                 delegating_pubkey: UmbralPublicKey = None,
+                 receiving_pubkey: UmbralPublicKey = None,
+                 verifying_pubkey: UmbralPublicKey = None,
+                 ) -> None:
+        self.capsule = capsule
+        self.cfrag = cfrag
+        self.ursula = ursula
+
+        keys = capsule.get_correctness_keys()
+        key_types = ("delegating", "receiving", "verifying")
+        if all(keys[key_type] for key_type in key_types):
+            self.delegating_pubkey = keys["delegating"]
+            self.receiving_pubkey = keys["receiving"]
+            self.verifying_pubkey = keys["verifying"]
+        elif all((delegating_pubkey, receiving_pubkey, verifying_pubkey)):
+            self.delegating_pubkey = delegating_pubkey
+            self.receiving_pubkey = receiving_pubkey
+            self.verifying_pubkey = verifying_pubkey
+        else:
+            raise ValueError("All correctness keys are required to compute evidence.  "
+                             "Either pass them as arguments or in the capsule.")
+
+
+    def get_proof_challenge_scalar(self) -> CurveBN:
+        umbral_params = default_params()
+        e, v, _ = self.capsule.components()
+
+        e1 = self.cfrag.point_e1
+        v1 = self.cfrag.point_v1
+        e2 = self.cfrag.proof.point_e2
+        v2 = self.cfrag.proof.point_v2
+        u = umbral_params.u
+        u1 = self.cfrag.proof.point_kfrag_commitment
+        u2 = self.cfrag.proof.point_kfrag_pok
+        metadata = self.cfrag.proof.metadata
+
+        from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+
+        hash_input = (e, e1, e2, v, v1, v2, u, u1, u2, metadata)
+
+        h = hash_to_curvebn(*hash_input,
+                            params=umbral_params,
+                            hash_class=ExtendedKeccak)
+        return h
+
+    def precompute_values(self) -> bytes:
+
+        umbral_params = default_params()
+        e, v, _ = self.capsule.components()
+
+        e1 = self.cfrag.point_e1
+        v1 = self.cfrag.point_v1
+        e2 = self.cfrag.proof.point_e2
+        v2 = self.cfrag.proof.point_v2
+        u = umbral_params.u
+        u1 = self.cfrag.proof.point_kfrag_commitment
+        u2 = self.cfrag.proof.point_kfrag_pok
+
+        h = self.get_proof_challenge_scalar()
+
+        e1h = h * e1
+        v1h = h * v1
+        u1h = h * u1
+
+        z = self.cfrag.proof.bn_sig
+        ez = z * e
+        vz = z * v
+        uz = z * u
+
+        def raw_bytes_from_point(point: Point, only_y_coord=False) -> bytes:
+            uncompressed_point_bytes = point.to_bytes(is_compressed=False)
+            if only_y_coord:
+                y_coord_start = (1 + Point.expected_bytes_length(is_compressed=False)) // 2
+                return uncompressed_point_bytes[y_coord_start:]
+            else:
+                return uncompressed_point_bytes[1:]
+
+        # E points
+        e_y = raw_bytes_from_point(e, only_y_coord=True)
+        ez_xy = raw_bytes_from_point(ez)
+        e1_y = raw_bytes_from_point(e1, only_y_coord=True)
+        e1h_xy = raw_bytes_from_point(e1h)
+        e2_y = raw_bytes_from_point(e2, only_y_coord=True)
+        # V points
+        v_y = raw_bytes_from_point(v, only_y_coord=True)
+        vz_xy = raw_bytes_from_point(vz)
+        v1_y = raw_bytes_from_point(v1, only_y_coord=True)
+        v1h_xy = raw_bytes_from_point(v1h)
+        v2_y = raw_bytes_from_point(v2, only_y_coord=True)
+        # U points
+        uz_xy = raw_bytes_from_point(uz)
+        u1_y = raw_bytes_from_point(u1, only_y_coord=True)
+        u1h_xy = raw_bytes_from_point(u1h)
+        u2_y = raw_bytes_from_point(u2, only_y_coord=True)
+
+        # Get hashed KFrag validity message
+        hash_function = hashes.Hash(hashes.SHA256(), backend=backend)
+
+        kfrag_id = self.cfrag.kfrag_id
+        precursor = self.cfrag.point_precursor
+        delegating_pubkey = self.delegating_pubkey
+        receiving_pubkey = self.receiving_pubkey
+
+        validity_input = (kfrag_id, delegating_pubkey, receiving_pubkey, u1, precursor)
+        kfrag_validity_message = bytes().join(bytes(item) for item in validity_input)
+        hash_function.update(kfrag_validity_message)
+        hashed_kfrag_validity_message = hash_function.finalize()
+
+        # Get Alice's verifying pubkey as ETH address
+        alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
+
+        # Get KFrag signature's v value
+        v_value = 27
+        pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
+                                                     signature=self.cfrag.proof.kfrag_signature,
+                                                     v_value_to_try=v_value)
+        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
+            v_value = 28
+            pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
+                                                         signature=self.cfrag.proof.kfrag_signature,
+                                                         v_value_to_try=v_value)
+        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
+            raise InvalidSignature("Bad signature: Not possible to recover public key from it.")
+
+        # Bundle everything together
+        pieces = (
+            e_y, ez_xy, e1_y, e1h_xy, e2_y,
+            v_y, vz_xy, v1_y, v1h_xy, v2_y,
+            uz_xy, u1_y, u1h_xy, u2_y,
+            hashed_kfrag_validity_message,
+            alice_address,
+            v_value.to_bytes(1, 'big'),
+        )
+        return b''.join(pieces)

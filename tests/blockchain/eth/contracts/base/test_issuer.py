@@ -104,6 +104,7 @@ def test_inflation_rate(testerchain, token):
     testerchain.wait_for_receipt(tx)
     tx = issuer.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    reward = issuer.functions.getReservedReward().call()
 
     # Mint some tokens and save result of minting
     period = issuer.functions.getCurrentPeriod().call()
@@ -115,11 +116,13 @@ def test_inflation_rate(testerchain, token):
     tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period == token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
 
     # Mint tokens in the next period, inflation rate must be lower than in previous minting
     tx = issuer.functions.testMint(period + 2, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 3 * one_period > token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
     minted_amount = token.functions.balanceOf(ursula).call() - 2 * one_period
 
     # Mint tokens in the first period again, inflation rate must be the same as in previous minting
@@ -127,11 +130,26 @@ def test_inflation_rate(testerchain, token):
     tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period + 2 * minted_amount == token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
 
     # Mint tokens in the next period, inflation rate must be lower than in previous minting
     tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
+
+    # Return some tokens as a reward
+    balance = token.functions.balanceOf(ursula).call()
+    reward = issuer.functions.getReservedReward().call()
+    tx = issuer.functions.testUnMint(2 * one_period + 2 * minted_amount).transact()
+    testerchain.wait_for_receipt(tx)
+    assert reward + 2 * one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
+
+    # Rate will be increased because some tokens were returned
+    tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert balance + one_period == token.functions.balanceOf(ursula).call()
+    assert reward + one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
 
 
 @pytest.mark.slow
@@ -161,7 +179,7 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version, check new and old values of variables
-    period = contract.functions.lastMintedPeriod().call()
+    period = contract.functions.currentMintingPeriod().call()
     assert 1 == contract.functions.miningCoefficient().call()
     tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -170,7 +188,7 @@ def test_upgrading(testerchain, token):
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.rewardedPeriods().call()
-    assert period == contract.functions.lastMintedPeriod().call()
+    assert period == contract.functions.currentMintingPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     # Check method from new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
@@ -197,7 +215,7 @@ def test_upgrading(testerchain, token):
     assert 3600 == contract.functions.secondsPerPeriod().call()
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.rewardedPeriods().call()
-    assert period == contract.functions.lastMintedPeriod().call()
+    assert period == contract.functions.currentMintingPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     # After rollback can't use new ABI
     with pytest.raises((TransactionFailed, ValueError)):

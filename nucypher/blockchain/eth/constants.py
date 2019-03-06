@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """Nucypher Token and Miner constants."""
 
 ONE_YEAR_IN_SECONDS = 31540000
-NUCYPHER_GAS_LIMIT = 6000000  # TODO: move elsewhere?
+NUCYPHER_GAS_LIMIT = 6500000  # TODO: move elsewhere?
 
 #
 # Dispatcher
