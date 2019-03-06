@@ -114,10 +114,33 @@ def felix(click_config,
         FELIX.make_web_app()  # attach web application, but dont start service
 
     if action == "createdb":  # Initialize Database
+        if os.path.isfile(FELIX.db_filepath):
+            if not force:
+                click.confirm("Overwrite existing database?", abort=True)
+            os.remove(FELIX.db_filepath)
+            click.secho(f"Destroyed existing database {FELIX.db_filepath}")
+
         FELIX.create_tables()
+        click.secho(f"Created new database at {FELIX.db_filepath}")
+
+    elif action == 'view':
+        token_balance = FELIX.token_agent.get_balance(address=FELIX.checksum_public_address)
+        eth_balance = FELIX.token_agent.blockchain.interface.w3.eth.getBalance(FELIX.checksum_public_address)
+        click.secho(f"""
+    Address .... {FELIX.checksum_public_address}
+    NU ......... {str(token_balance)[:-18]}
+    ETH ........ {str(eth_balance)[:-18]}
+        """)
+        return
+
+    elif action == "accounts":
+        accounts = FELIX.blockchain.interface.w3.eth.accounts
+        for account in accounts:
+            click.secho(account)
+        return
 
     elif action == 'run':     # Start web services
-        FELIX.start(host=host, port=port, dry_run=dry_run)
+        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True)
 
     else:                     # Error
         raise click.BadArgumentUsage("No such argument {}".format(action))

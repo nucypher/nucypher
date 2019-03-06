@@ -51,7 +51,7 @@ def test_run_felix(click_runner, federated_ursulas):
         assert result.exit_code == 0
         return result
 
-    # A Client requests Felix Services
+    # A (mocked) client requests Felix's services
     def request_felix_landing_page(result):
 
         # Init an equal Felix to the already running one.
@@ -70,6 +70,8 @@ def test_run_felix(click_runner, federated_ursulas):
         # Register a new recipient
         response = test_client.post('/register', data={'address': '0xdeadbeef'})
         assert response.status_code == 200
+
+        return
 
     # Run the callbacks
     d = threads.deferToThread(run_felix)

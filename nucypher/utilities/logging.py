@@ -58,7 +58,7 @@ def getJsonFileObserver(name="ursula.log.json", path=USER_LOG_DIR):  # TODO: Mor
     return observer
 
 
-def getTextFileObserver(name="ursula.log", path=USER_LOG_DIR):
+def getTextFileObserver(name="nucypher.log", path=USER_LOG_DIR):
     _get_or_create_user_log_dir()
     logfile = DailyLogFile(name, path)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
