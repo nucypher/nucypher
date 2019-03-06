@@ -1,3 +1,5 @@
+import os
+
 import click
 
 from nucypher.cli import actions, painting
@@ -14,7 +16,7 @@ from nucypher.config.characters import FelixConfiguration
 @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
 @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
-@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
@@ -23,6 +25,7 @@ from nucypher.config.characters import FelixConfiguration
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
 def felix(click_config,
           action,
@@ -40,7 +43,8 @@ def felix(click_config,
           config_file,
           db_filepath,
           no_registry,
-          registry_filepath):
+          registry_filepath,
+          force):
 
     if action == "init":
         """Create a brand-new Felix"""
@@ -74,7 +78,7 @@ def felix(click_config,
         return  # <-- do not remove (conditional flow control)
 
     #
-    # Authentication Configurations
+    # Authenticated Configurations
     #
 
     # Domains -> bytes | or default
