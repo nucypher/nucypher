@@ -14,19 +14,21 @@ import sys
 from twisted.logger import globalLogPublisher
 
 
-POLICY_FILENAME = "policy-metadata.json"
 
 ######################
 # Boring setup stuff #
 ######################
-#
-# # Twisted Logger
+
+
+# Twisted Logger
 globalLogPublisher.addObserver(SimpleObserver())
-#
-TEMP_ALICE_DIR = "alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
+
+TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 
 # We expect the url of the seednode as the first argument.
 SEEDNODE_URL = 'localhost:11500'
+
+POLICY_FILENAME = "policy-metadata.json"
 
 
 #######################################
@@ -38,42 +40,31 @@ SEEDNODE_URL = 'localhost:11500'
 # If we had an existing Alicia in disk, let's get it from there
 
 passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
-try:
-    alice_config_file = os.path.join(TEMP_ALICE_DIR, "alice.config")
-    new_alice_config = AliceConfiguration.from_configuration_file(
-            filepath=alice_config_file,
-            network_middleware=RestMiddleware(),
-            start_learning_now=False,
-            save_metadata=False,
-        )
-    alicia = new_alice_config(passphrase=passphrase)
+# If anything fails, let's create Alicia from scratch
+# Remove previous demo files and create new ones
 
-except:
-    # If anything fails, let's create Alicia from scratch
-    # Remove previous demo files and create new ones
+shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
 
-    shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
+                                         federated_only=True,
+                                         minimum_stake=0)
 
-    ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
-                                             federated_only=True,
-                                             minimum_stake=0)
+alice_config = AliceConfiguration(
+    config_root=os.path.join(TEMP_ALICE_DIR),
+    is_me=True,
+    known_nodes={ursula},
+    start_learning_now=False,
+    federated_only=True,
+    learn_on_same_thread=True,
+)
 
-    alice_config = AliceConfiguration(
-        config_root=os.path.join(TEMP_ALICE_DIR),
-        is_me=True,
-        known_nodes={ursula},
-        start_learning_now=False,
-        federated_only=True,
-        learn_on_same_thread=True,
-    )
+alice_config.initialize(password=passphrase)
 
-    alice_config.initialize(password=passphrase)
+alice_config.keyring.unlock(password=passphrase)
+alicia = alice_config.produce()
 
-    alice_config.keyring.unlock(password=passphrase)
-    alicia = alice_config.produce()
-
-    # We will save Alicia's config to a file for later use
-    alice_config_file = alice_config.to_configuration_file()
+# We will save Alicia's config to a file for later use
+alice_config_file = alice_config.to_configuration_file()
 
 # Let's get to learn about the NuCypher network
 alicia.start_learning_loop(now=True)

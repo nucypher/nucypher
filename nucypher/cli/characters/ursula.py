@@ -281,7 +281,7 @@ def ursula(click_config,
                 # That's all folks!
                 return
 
-            URSULA.get_deployer().start()  # <--- Blocking Call (Reactor)
+            URSULA.get_deployer().run()  # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))

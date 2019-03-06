@@ -46,12 +46,12 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     for index, port in enumerate(ports):
 
         args = ['nucypher',
+                '--debug',
                 'ursula', 'run',
                 '--rest-port', port,
                 '--teacher-uri', TEACHER_URI,
                 '--federated-only',
                 '--dev',
-                '--debug',
                 '--config-root', 'demo-ursula-{}'.format(port)
                 ]
 
