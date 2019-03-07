@@ -8,7 +8,7 @@ import dash_html_components as html
 import dash_table
 import pandas as pd
 import requests
-from .app import app, DB_FILE, DB_NAME
+from examples.heartbeat_rest_ui.app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
 from base64 import b64encode, b64decode
 
@@ -78,7 +78,6 @@ def generate_heartbeat_data(gen_time, last_heart_rate):
                                 min(100, last_heart_rate + 5))
 
     heart_rate_bytes = bytes(str(heart_rate), encoding='utf-8')
-    #plaintext = msgpack.dumps(heart_rate, use_bin_type=True)
 
     # Use enrico character control to encrypt plaintext data using REST endpoint
     request_data = {

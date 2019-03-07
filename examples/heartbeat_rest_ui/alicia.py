@@ -3,7 +3,7 @@ from dash.dependencies import Output, Input, State, Event
 import dash_html_components as html
 import os
 
-from .app import app, POLICY_INFO_FILE
+from examples.heartbeat_rest_ui.app import app, POLICY_INFO_FILE
 
 import datetime
 import maya
@@ -11,7 +11,6 @@ import json
 import requests
 
 ALICE_URL = "http://localhost:8151"
-
 
 
 layout = html.Div([

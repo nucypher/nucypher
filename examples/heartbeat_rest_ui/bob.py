@@ -9,7 +9,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import requests
-from .app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
+from examples.heartbeat_rest_ui.app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
 from dash.dependencies import Output, Input, State, Event
 from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
@@ -182,9 +182,7 @@ def update_cached_decrypted_heartbeats_list(read_time,
 
             response_data = json.loads(response.content)
             plaintext = response_data['result']['plaintext'][0]
-            print(">>>>> Derek plaintext", plaintext)
             hb = int(b64decode(plaintext))
-            #hb = msgpack.loads(b64decode(plaintext), raw=False)
 
             # cache measurement
             timestamp = row['Timestamp']
