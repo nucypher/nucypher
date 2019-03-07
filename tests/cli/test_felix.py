@@ -3,6 +3,7 @@ import os
 import pytest_twisted
 from twisted.internet import threads
 
+from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
 from nucypher.utilities.sandbox.constants import (
@@ -14,7 +15,7 @@ from nucypher.utilities.sandbox.constants import (
 
 
 @pytest_twisted.inlineCallbacks
-def test_run_felix(click_runner, federated_ursulas):
+def test_run_felix(click_runner, federated_ursulas, mock_primary_registry_filepath):
 
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
@@ -22,6 +23,16 @@ def test_run_felix(click_runner, federated_ursulas):
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
+
+    # Deploy contracts
+    deploy_args = ('contracts',
+                   '--registry-outfile', mock_primary_registry_filepath,
+                   '--provider-uri', TEST_PROVIDER_URI,
+                   '--poa')
+
+    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*6  # TODO: Use Env Vars
+    result = click_runner.invoke(deploy.deploy, deploy_args, input=user_input, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
 
     # Felix creates a system configuration
     init_args = ('felix', 'init',
