@@ -118,7 +118,7 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
         return response_data
 
     @staticmethod
-    def dump_derive_policy_output(response: dict):
+    def dump_derive_policy_encrypting_key_output(response: dict):
         policy_encrypting_key_hex = bytes(response['policy_encrypting_key']).hex()
         unicode_label = response['label'].decode()
         response_data = {'policy_encrypting_key': policy_encrypting_key_hex, 'label': unicode_label}

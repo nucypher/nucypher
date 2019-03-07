@@ -166,8 +166,8 @@ def alice(click_config,
 
         return ALICE.controller.create_policy(request=create_policy_request)
 
-    elif action == "derive-policy":
-        return ALICE.controller.derive_policy(label=label)
+    elif action == "derive-policy-pubkey":
+        return ALICE.controller.derive_policy_encrypting_key(label=label)
 
     elif action == "grant":
         grant_request = {

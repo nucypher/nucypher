@@ -149,7 +149,7 @@ def test_cli_lifecycle(click_runner,
 
     derive_args = ('--mock-networking',
                    '--json-ipc',
-                   'alice', 'derive-policy',
+                   'alice', 'derive-policy-pubkey',
                    '--config-file', alice_configuration_file_location,
                    '--label', random_label)
 

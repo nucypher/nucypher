@@ -59,10 +59,10 @@ class AliceJSONController(AliceInterface, CharacterController):
         return response_data
 
     @character_control_interface
-    def derive_policy(self, label: str, request=None):
+    def derive_policy_encrypting_key(self, label: str, request=None):
         label_bytes = label.encode()
-        result = super().derive_policy(label=label_bytes)
-        response_data = self.serializer.dump_derive_policy_output(response=result)
+        result = super().derive_policy_encrypting_key(label=label_bytes)
+        response_data = self.serializer.dump_derive_policy_encrypting_key_output(response=result)
         return response_data
 
     @character_control_interface

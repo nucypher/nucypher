@@ -73,7 +73,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
-    def derive_policy(self, label: bytes) -> dict:
+    def derive_policy_encrypting_key(self, label: bytes) -> dict:
         policy_encrypting_key = self.character.get_policy_pubkey_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data

@@ -41,8 +41,8 @@ class AliceSpecification(CharacterSpecification):
     __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
 
-    __derive_policy = (('label', ),                         # In
-                       ('policy_encrypting_key', 'label'))  # Out
+    __derive_policy_encrypting_key = (('label', ),                         # In
+                                     ('policy_encrypting_key', 'label'))   # Out
 
     __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
@@ -55,7 +55,7 @@ class AliceSpecification(CharacterSpecification):
                      ('alice_verifying_key',))
 
     _specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
-                       'derive_policy': __derive_policy,
+                       'derive_policy_encrypting_key': __derive_policy_encrypting_key,
                        'grant': __grant,
                        'revoke': __revoke,
                        'public_keys': __public_keys}

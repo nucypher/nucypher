@@ -41,9 +41,9 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
     assert response.status_code == 400
 
 
-def test_alice_character_control_derive_policy_pubkey(alice_control_test_client):
+def test_alice_character_control_derive_policy_encrypting_key(alice_control_test_client):
     label = 'test'
-    response = alice_control_test_client.post(f'/derive_policy/{label}')
+    response = alice_control_test_client.post(f'/derive_policy_encrypting_key/{label}')
     assert response.status_code == 200
 
     response_data = json.loads(response.data)

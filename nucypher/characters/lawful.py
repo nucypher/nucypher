@@ -259,12 +259,12 @@ class Alice(Character, PolicyAuthor):
                                   control_request=request)
             return response
 
-        @alice_control.route('/derive_policy/<label>', methods=['POST'])
-        def derive_policy(label) -> Response:
+        @alice_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
+        def derive_policy_encrypting_key(label) -> Response:
             """
-            Character control endpoint for deriving a policy pubkey given a unicode label.
+            Character control endpoint for deriving a policy encrypting given a unicode label.
             """
-            response = controller(interface=controller._internal_controller.derive_policy,
+            response = controller(interface=controller._internal_controller.derive_policy_encrypting_key,
                                   control_request=request,
                                   label=label)
             return response
