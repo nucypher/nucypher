@@ -556,7 +556,7 @@ class Bob(Character):
         @bob_control.route('/public_keys', methods=['GET'])
         def public_keys():
             """
-            Character control endpoint for getting Alice's encrypting and signing public keys
+            Character control endpoint for getting Bob's encrypting and signing public keys
             """
             return controller(interface=controller._internal_controller.public_keys,
                               control_request=request)
