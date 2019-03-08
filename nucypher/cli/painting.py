@@ -14,38 +14,44 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
 
 import click
 import maya
-
-import nucypher
 from constant_sorrow.constants import NO_KNOWN_NODES
-from nucypher.config.characters import UrsulaConfiguration
+
+from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
 
-#
-# Art
-#
-
-BANNER = """
-                                  _               
-                                 | |              
-     _ __  _   _  ___ _   _ _ __ | |__   ___ _ __ 
-    | '_ \| | | |/ __| | | | '_ \| '_ \ / _ \ '__|
-    | | | | |_| | (__| |_| | |_) | | | |  __/ |   
-    |_| |_|\__,_|\___|\__, | .__/|_| |_|\___|_|   
-                       __/ | |                    
-                      |___/|_|  
-
-    version {}
-
-""".format(nucypher.__version__)
+emitter = StdoutEmitter()
 
 
-#
-# Paint
-#
+def echo_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(NUCYPHER_BANNER, bold=True)
+    ctx.exit()
+
+
+def paint_new_installation_help(new_configuration, config_root=None, config_file=None):
+    character_config_class = new_configuration.__class__
+    character_name = character_config_class._NAME.lower()
+
+    emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
+
+    emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
+
+    # Give the use a suggestion as to what to do next...
+    suggested_command = f'nucypher {character_name} run'
+    how_to_run_message = f"\nTo run an {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
+
+    if config_root is not None:
+        config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)
+        suggested_command += ' --config-file {}'.format(config_file_location)
+
+    return emitter(message=how_to_run_message.format(suggested_command), color='green')
+
 
 def build_fleet_state_status(ursula) -> str:
     # Build FleetState status line
@@ -62,13 +68,6 @@ def build_fleet_state_status(ursula) -> str:
         fleet_state = 'Unknown'
 
     return fleet_state
-
-
-def paint_configuration(config_filepath: str) -> None:
-    json_config = UrsulaConfiguration._read_configuration_file(filepath=config_filepath)
-    click.secho("\n======== Ursula Configuration ======== \n", bold=True)
-    for key, value in json_config.items():
-        click.secho("{} = {}".format(key, value))
 
 
 def paint_node_status(ursula, start_time):

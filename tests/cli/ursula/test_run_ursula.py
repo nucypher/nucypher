@@ -28,12 +28,12 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('ursula', 'run',
+    args = ('--debug',                                  # Display log output; Do not attach console
+            'ursula', 'run',                            # Stat Ursula Command
             '--federated-only',                         # Operating Mode
             '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
             '--dev',                                    # Run in development mode (ephemeral node)
-            '--debug',                                  # Display log output; Do not attach console
-            '--dry-run'                                 # Disable twisted reactor
+            '--dry-run'                                 # Disable twisted reactor in subprocess
             )
 
     result = yield threads.deferToThread(click_runner.invoke,
@@ -43,7 +43,8 @@ def test_run_lone_federated_default_development_ursula(click_runner):
 
     time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert result.exit_code == 0
-    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
+    assert "Running Ursula" in result.output
+    assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT) in result.output
 
     reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert MOCK_URSULA_STARTING_PORT not in reserved_ports
@@ -57,29 +58,41 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     teacher = list(federated_ursulas)[0]
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
-    _ursula_output = yield threads.deferToThread(start_pytest_ursula_services, ursula=teacher)
+    # Some Ursula is running somewhere
+    def run_teacher():
+        start_pytest_ursula_services(ursula=teacher)
+        return teacher_uri
 
-    args = ('ursula', 'run',
-            '--federated-only',                         # Operating Mode
-            '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
-            '--teacher-uri', teacher_uri,
-            '--dev',                                    # Run in development mode (ephemeral node)
-            '--debug',                                  # Display log output; Do not attach console
-            '--dry-run'                                 # Disable twisted reactor
-            )
+    def run_ursula(teacher_uri):
 
-    result = yield threads.deferToThread(click_runner.invoke,
-                                         nucypher_cli, args,
-                                         catch_exceptions=False,
-                                         input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
+        args = ('--debug',                                  # Display log output; Do not attach console
+                'ursula', 'run',
+                '--federated-only',                         # Operating Mode
+                '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
+                '--teacher-uri', teacher_uri,
+                '--dev',                                    # Run in development mode (ephemeral node)
+                '--dry-run'                                 # Disable twisted reactor
+                )
 
-    assert result.exit_code == 0
-    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT+101)
+        result = yield threads.deferToThread(click_runner.invoke,
+                                             nucypher_cli, args,
+                                             catch_exceptions=False,
+                                             input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
-    reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
-    assert MOCK_URSULA_STARTING_PORT not in reserved_ports
+        assert result.exit_code == 0
+        assert "Running Ursula" in result.output
+        assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT+101) in result.output
 
-    # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
-    assert teacher.checksum_public_address in result.output
-    assert f"Saved TLS certificate for {teacher.nickname}" in result.output
-    assert f"Remembering {teacher.nickname}" in result.output
+        reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+        assert MOCK_URSULA_STARTING_PORT not in reserved_ports
+
+        # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
+        assert teacher.checksum_public_address in result.output
+        assert f"Saved TLS certificate for {teacher.nickname}" in result.output
+        assert f"Remembering {teacher.nickname}" in result.output
+
+    # Run the Callbacks
+    d = threads.deferToThread(run_teacher)
+    d.addCallback(run_ursula)
+
+    yield d

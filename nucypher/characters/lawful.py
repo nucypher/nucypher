@@ -14,44 +14,44 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
 import json
 import random
-from base64 import b64encode, b64decode
+from base64 import b64encode
 from collections import OrderedDict
+from functools import partial
 from json.decoder import JSONDecodeError
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
+from typing import Tuple
 
 import maya
 import requests
-import socket
 import time
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
-from flask import Flask, request, Response
-from functools import partial
+from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
 from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-from typing import Tuple
 from umbral.pre import UmbralCorrectnessError
-
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
+from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
+    WebController
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
@@ -70,11 +70,19 @@ from nucypher.utilities.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
+    
+    banner = ALICE_BANNER
+    _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
-    def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs) -> None:
+    def __init__(self,
+                 is_me=True,
+                 federated_only=False,
+                 network_middleware=None,
+                 controller=True,
+                 *args, **kwargs) -> None:
 
-        policy_agent = kwargs.pop("policy_agent", None)
+        _policy_agent = kwargs.pop("policy_agent", None)
         checksum_address = kwargs.pop("checksum_public_address", None)
         Character.__init__(self,
                            is_me=is_me,
@@ -86,7 +94,13 @@ class Alice(Character, PolicyAuthor):
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, checksum_address=checksum_address)
 
-    def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:
+        if is_me and controller:
+            self.controller = self._controller_class(alice=self)
+
+        self.log = Logger(self.__class__.__name__)
+        self.log.info(self.banner)
+
+    def generate_kfrags(self, bob: 'Bob', label: bytes, m: int, n: int) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -212,112 +226,65 @@ class Alice(Character, PolicyAuthor):
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
 
-    def make_wsgi_app(drone_alice, start_learning=True):
-        alice_control = Flask("alice-control")
-        drone_alice.start_learning_loop(now=start_learning)
+    def make_web_controller(drone_alice, crash_on_error: bool = False):
+
+        app_name = bytes(drone_alice.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_alice.controller,
+                                   crash_on_error=crash_on_error)
+        drone_alice.controller = controller
+
+        # Register Flask Decorator
+        alice_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
+
+        @alice_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Alice's encrypting and signing public keys
+            """
+            return controller(interface=controller._internal_controller.public_keys,
+                              control_request=request)
 
         @alice_control.route("/create_policy", methods=['PUT'])
-        def create_policy():
+        def create_policy() -> Response:
             """
             Character control endpoint for creating a policy and making
             arrangements with Ursulas.
-
-            TODO: This is an unfinished API endpoint. You are probably looking for grant.
-            TODO: Needs input cleansing and validation
-            TODO: Provide more informative errors
             """
+            response = controller(interface=controller._internal_controller.create_policy,
+                                  control_request=request)
+            return response
 
-            try:
-                request_data = json.loads(request.data)
-
-                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
-                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
-                label = b64decode(request_data['label'])
-                # TODO: Do we change this to something like "threshold"
-                m, n = request_data['m'], request_data['n']
-                federated_only = True  # const for now
-
-                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
-                                            SigningPower: bob_pubkey_sig},
-                                           federated_only=federated_only)
-            except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=400)
-
-            new_policy = drone_alice.create_policy(bob, label, m, n,
-                                                   federated=federated_only)
-
-            response_data = {'result': {'label': new_policy.label.decode(),
-                                         'policy_encrypting_key': new_policy.public_key.to_bytes().hex()},
-                             'version': str(nucypher.__version__)}
-
-            return Response(json.dumps(response_data), status=200)
-
-        @alice_control.route('/derive_policy_pubkey/<label>', methods=['POST'])
-        def derive_policy_pubkey(label):
+        @alice_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
+        def derive_policy_encrypting_key(label) -> Response:
             """
-            Character control endpoint for deriving a policy pubkey given
-            a label.
+            Character control endpoint for deriving a policy encrypting given a unicode label.
             """
-            label_bytes = label.encode()
-            policy_pubkey = drone_alice.get_policy_pubkey_from_label(label_bytes)
-
-            response_data = {
-                'result': {
-                    'policy_encrypting_key': bytes(policy_pubkey).hex(),
-                },
-                'version': str(nucypher.__version__)
-            }
-
-            return Response(json.dumps(response_data), status=200)
+            response = controller(interface=controller._internal_controller.derive_policy_encrypting_key,
+                                  control_request=request,
+                                  label=label)
+            return response
 
         @alice_control.route("/grant", methods=['PUT'])
-        def grant():
+        def grant() -> Response:
             """
             Character control endpoint for policy granting.
             """
-            # TODO: Needs input cleansing and validation
-            # TODO: Provide more informative errors
-            try:
-                request_data = json.loads(request.data)
+            response = controller(interface=controller._internal_controller.grant, control_request=request)
+            return response
 
-                bob_pubkey_enc = bytes.fromhex(request_data['bob_encrypting_key'])
-                bob_pubkey_sig = bytes.fromhex(request_data['bob_signing_key'])
-                label = request_data['label'].encode()
-                # TODO: Do we change this to something like "threshold"
-                m, n = request_data['m'], request_data['n']
-                expiration = request_data.get("expiration_time")
-                if expiration:
-                    expiration_time = maya.MayaDT.from_iso8601(
-                        request_data['expiration_time'])
-                else:
-                    expiration_time = (maya.now() + datetime.timedelta(days=3))
-
-                bob = Bob.from_public_keys({DecryptingPower: bob_pubkey_enc,
-                                            SigningPower: bob_pubkey_sig},
-                                           federated_only=True)  # TODO: Const for now
-            except (KeyError, JSONDecodeError) as e:
-                print(e)  # TODO: Make this a genuine log.  Just for demos for now.
-                return Response(str(e), status=400)
-
-            new_policy = drone_alice.grant(bob, label, m=m, n=n,
-                                           expiration=expiration_time)
-            # TODO: Serialize the policy
-            response_data = {
-                'result': {
-                    'treasure_map': b64encode(bytes(new_policy.treasure_map)).decode(),
-                    'policy_encrypting_key': bytes(new_policy.public_key).hex(),
-                    'alice_signing_key': bytes(new_policy.alice.stamp).hex(),
-                    'label': new_policy.label.decode(),
-                },
-                'version': str(nucypher.__version__)
-            }
-
-            return Response(json.dumps(response_data), status=200)
-
-        return alice_control
+        return controller
 
 
 class Bob(Character):
+    
+    banner = BOB_BANNER
+    _controller_class = BobJSONController
+
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     class IncorrectCFragReceived(Exception):
@@ -327,11 +294,17 @@ class Bob(Character):
         def __init__(self, evidence):
             self.evidence = evidence
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, controller=True, *args, **kwargs) -> None:
+        Character.__init__(self, *args, **kwargs)
+
+        if controller:
+            self.controller = self._controller_class(bob=self)
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
+
+        self.log = Logger(self.__class__.__name__)
+        self.log.info(self.banner)
 
     def _pick_treasure_map(self, treasure_map=None, map_id=None):
         if not treasure_map:
@@ -346,7 +319,7 @@ class Bob(Character):
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
-        nodes are already kwown to us.
+        nodes are already known to us.
 
         Don't do any learning, pinging, or anything other than just seeing
         whether we know or don't know the nodes.
@@ -565,10 +538,29 @@ class Bob(Character):
         from nucypher.policy.models import IndisputableEvidence
         return IndisputableEvidence(capsule, cfrag, ursula)
 
-    def make_wsgi_app(drone_bob, start_learning=True):
-        bob_control = Flask('bob-control')
-        drone_bob.start_learning_loop(now=start_learning)
+    def make_web_controller(drone_bob, crash_on_error: bool = False):
 
+        app_name = bytes(drone_bob.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_bob.controller,
+                                   crash_on_error=crash_on_error)
+        drone_bob.controller = controller.make_web_controller()
+
+        # Register Flask Decorator
+        bob_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
+
+        @bob_control.route('/public_keys', methods=['GET'])
+        def public_keys():
+            """
+            Character control endpoint for getting Bob's encrypting and signing public keys
+            """
+            return controller(interface=controller._internal_controller.public_keys,
+                              control_request=request)
+        
         @bob_control.route('/join_policy', methods=['POST'])
         def join_policy():
             """
@@ -576,17 +568,7 @@ class Bob(Character):
 
             This is an unfinished endpoint. You're probably looking for retrieve.
             """
-            try:
-                request_data = json.loads(request.data)
-
-                label = request_data['label'].encode()
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
-            except (KeyError, JSONDecodeError) as e:
-                return Response(e, status=400)
-
-            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
-
-            return Response('Policy joined!', status=200)
+            return controller(interface=controller._internal_controller.join_policy, control_request=request)
 
         @bob_control.route('/retrieve', methods=['POST'])
         def retrieve():
@@ -594,62 +576,14 @@ class Bob(Character):
             Character control endpoint for re-encrypting and decrypting policy
             data.
             """
-            try:
-                request_data = json.loads(request.data)
-                label = request_data['label'].encode()
-                policy_pubkey_enc = bytes.fromhex(request_data['policy_encrypting_key'])
-                alice_pubkey_sig = bytes.fromhex(request_data['alice_signing_key'])
-                message_kit = b64decode(request_data['message_kit'].encode())
-            except (KeyError, JSONDecodeError) as e:
-                return Response(e, status=400)
+            return controller(interface=controller._internal_controller.retrieve, control_request=request)
 
-            policy_encrypting_key = UmbralPublicKey.from_bytes(policy_pubkey_enc)
-            alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_pubkey_sig)
-            message_kit = UmbralMessageKit.from_bytes(message_kit)   # TODO: May raise UnknownOpenSSLError and InvalidTag.
-
-            data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
-                                                  policy_encrypting_key=policy_encrypting_key,
-                                                  label=label)
-
-            drone_bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
-            plaintexts = drone_bob.retrieve(message_kit=message_kit,
-                                            data_source=data_source,
-                                            alice_verifying_key=alice_pubkey_sig,
-                                            label=label)
-
-            plaintexts = [b64encode(plaintext).decode() for plaintext in plaintexts]
-            response_data = {
-                'result': {
-                    'plaintext': plaintexts,
-                },
-                'version': str(nucypher.__version__)
-            }
-
-            return Response(json.dumps(response_data), status=200)
-
-        @bob_control.route('/public_keys', methods=['GET'])
-        def public_keys():
-            """
-            Character control endpoint for getting Bob's encrypting and signing public keys
-            """
-
-            signing_public_key = drone_bob.public_keys(SigningPower)
-            encrypting_public_key = drone_bob.public_keys(DecryptingPower)
-
-            response_data = {
-                'result': {
-                    'bob_encrypting_key': encrypting_public_key.to_bytes().hex(),
-                    'bob_signing_key': signing_public_key.to_bytes().hex(),
-                },
-                'version': str(nucypher.__version__)
-            }
-
-            return Response(json.dumps(response_data), status=200)
-
-        return bob_control
+        return controller
 
 
 class Ursula(Teacher, Character, Miner):
+
+    banner = URSULA_BANNER
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,
@@ -750,6 +684,7 @@ class Ursula(Teacher, Character, Miner):
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
+                    node_nickname=self.nickname,
                     work_order_tracker=self._work_orders,
                     node_recorder=self.remember_node,
                     stamp=self.stamp,
@@ -817,6 +752,7 @@ class Ursula(Teacher, Character, Miner):
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
+            self.log.info(self.banner)
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
@@ -900,6 +836,7 @@ class Ursula(Teacher, Character, Miner):
                          federated_only: bool,
                          teacher_uri: str,
                          min_stake: int,
+                         network_middleware: RestMiddleware = None,
                          ) -> 'Ursula':
 
         hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
@@ -912,7 +849,8 @@ class Ursula(Teacher, Character, Miner):
                 teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
                                                        federated_only=federated_only,
                                                        checksum_address=checksum_address,
-                                                       minimum_stake=min_stake)
+                                                       minimum_stake=min_stake,
+                                                       network_middleware=network_middleware)
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
@@ -1087,6 +1025,7 @@ class Ursula(Teacher, Character, Miner):
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
 
+
     #
     # Properties
     #
@@ -1139,14 +1078,22 @@ class Ursula(Teacher, Character, Miner):
 class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
+    banner = ENRICO_BANNER
+    _controller_class = EnricoJSONController
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key, *args, **kwargs):
+    def __init__(self, policy_encrypting_key, controller: bool = True, *args, **kwargs):
         self.policy_pubkey = policy_encrypting_key
 
         # Encrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
         super().__init__(*args, **kwargs)
+
+        if controller:
+            self.controller = self._controller_class(enrico=self)
+
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(policy_encrypting_key).hex()[:6]}')
+        self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self,
                         message: bytes
@@ -1168,8 +1115,20 @@ class Enrico(Character):
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
 
-    def make_wsgi_app(drone_enrico):
-        enrico_control = Flask("enrico-control")
+    def make_web_controller(drone_enrico, crash_on_error: bool = False):
+
+        app_name = bytes(drone_enrico.stamp).hex()[:6]
+        controller = WebController(app_name=app_name,
+                                   character_contoller=drone_enrico.controller,
+                                   crash_on_error=crash_on_error)
+        drone_enrico.controller = controller
+
+        # Register Flask Decorator
+        enrico_control = controller.make_web_controller()
+
+        #
+        # Character Control HTTP Endpoints
+        #
 
         @enrico_control.route('/encrypt_message', methods=['POST'])
         def encrypt_message():
@@ -1196,4 +1155,4 @@ class Enrico(Character):
 
             return Response(json.dumps(response_data), status=200)
 
-        return enrico_control
+        return controller

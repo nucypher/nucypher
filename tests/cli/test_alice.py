@@ -3,7 +3,7 @@ import os
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
-    MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH
+    MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH, TEMPORARY_DOMAIN
 
 
 def test_initialize_alice_defaults(click_runner, mocker):
@@ -12,7 +12,9 @@ def test_initialize_alice_defaults(click_runner, mocker):
     mocker.patch.object(AliceConfiguration, 'to_configuration_file', autospec=True)
 
     # Use default alice init args
-    init_args = ('alice', 'init', '--federated-only')
+    init_args = ('alice', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--federated-only')
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -43,13 +45,13 @@ def test_alice_control_starts_mocked(click_runner, mocker):
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
     assert MockKeyring.is_unlocked
-    assert 'Starting Alice Character Control' in result.output
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner):
 
     # Use a custom local filepath for configuration
     init_args = ('alice', 'init',
+                 '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
                  '--config-root', custom_filepath)
 
@@ -86,4 +88,3 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
-    assert 'Starting Alice Character Control' in result.output

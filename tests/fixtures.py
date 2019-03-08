@@ -326,41 +326,30 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
 
 @pytest.fixture(scope='module')
-def alice_control_test_client(federated_alice, federated_ursulas):
-    teacher_node = list(federated_ursulas)[0]
-    alice_control = federated_alice.make_wsgi_app(teacher_node)
-    alice_control.config['DEBUG'] = True
-    alice_control.config['TESTING'] = True
-    yield alice_control.test_client()
+def alice_control_test_client(federated_alice):
+    web_controller = federated_alice.make_web_controller(crash_on_error=True)
+    yield web_controller._web_app.test_client()
 
 
 @pytest.fixture(scope='module')
-def bob_control_test_client(federated_bob, federated_ursulas):
-    teacher_node = list(federated_ursulas)[0]
-    bob_control = federated_bob.make_wsgi_app(teacher_node)
-    bob_control.config['DEBUG'] = True
-    bob_control.config['TESTING'] = True
-    yield bob_control.test_client()
+def bob_control_test_client(federated_bob):
+    web_controller = federated_bob.make_web_controller(crash_on_error=True)
+    yield web_controller._web_app.test_client()
 
 
 @pytest.fixture(scope='module')
 def enrico_control_test_client(capsule_side_channel):
     _, data_source = capsule_side_channel
     message_kit, enrico = capsule_side_channel
-    enrico_control = enrico.make_wsgi_app()
-    enrico_control.config['DEBUG'] = True
-    enrico_control.config['TESTING'] = True
-    yield enrico_control.test_client()
+    web_controller = enrico.make_web_controller(crash_on_error=True)
+    yield web_controller._web_app.test_client()
 
 
 @pytest.fixture(scope='module')
 def enrico_control_from_alice(federated_alice, random_policy_label):
     enrico = Enrico.from_alice(federated_alice, random_policy_label)
-
-    enrico_control = enrico.make_wsgi_app()
-    enrico_control.config['DEBUG'] = True
-    enrico_control.config['TESTING'] = True
-    yield enrico_control.test_client()
+    web_controller = enrico.make_web_controller(crash_on_error=True)
+    yield web_controller._web_app.test_client()
 
 
 #

@@ -90,7 +90,7 @@ class GlobalConsoleLogger:
 
     @classmethod
     def start(cls):
-        globalLogPublisher.addObserver(SimpleObserver())
+        globalLogPublisher.addObserver(getTextFileObserver())
         cls.started = True
 
     @classmethod

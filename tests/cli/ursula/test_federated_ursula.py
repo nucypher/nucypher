@@ -28,8 +28,8 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
-    MOCK_URSULA_STARTING_PORT
-)
+    MOCK_URSULA_STARTING_PORT,
+    TEMPORARY_DOMAIN)
 
 
 def test_initialize_ursula_defaults(click_runner, mocker):
@@ -39,7 +39,10 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init', '--federated-only')
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--federated-only')
+
     user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -56,6 +59,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
     # Use a custom local filepath for configuration
     init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
                  '--config-root', custom_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
@@ -159,6 +163,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--config-file', custom_config_filepath)
+
     result = click_runner.invoke(nucypher_cli, run_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
@@ -194,7 +199,10 @@ def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_ru
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    init_args = ('ursula', 'init', '--config-root', custom_filepath, '--rest-host', MOCK_IP_ADDRESS)
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--config-root', custom_filepath,
+                 '--rest-host', MOCK_IP_ADDRESS)
 
     # Ensure that an existing configuration directory cannot be overridden
     with pytest.raises(UrsulaConfiguration.ConfigurationError):
@@ -229,7 +237,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
     assert custom_filepath in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
-    assert 'Deleted' in result.output, '"Deleted" not in output'
+    assert f'Destroyed' in result.output, '"Destroyed" not in output'
     assert result.exit_code == 0, 'Destruction did not succeed'
 
     # Ensure the files are deleted from the filesystem

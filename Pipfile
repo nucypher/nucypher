@@ -58,7 +58,7 @@ sphinx_rtd_theme = "*"
 nucypher = {editable = true,path = "."}
 
 [scripts]
-install-solc = "scripts/install_solc.sh"
+install-solc = "scripts/installation/install_solc.sh"
 estimate-gas = "python3 tests/metrics/estimate_gas.py"
 nucypher-deploy = "python3 nucypher/cli/deploy.py"
 nucypher = "python3 nucypher/cli/main.py"

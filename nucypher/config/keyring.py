@@ -502,8 +502,7 @@ class NucypherKeyring:
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
             key_data = _read_keyfile(self.__delegating_keypath, deserializer=self._private_key_serializer)
-            wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
-                                                              key_material=self.__derived_key_material)
+            wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 

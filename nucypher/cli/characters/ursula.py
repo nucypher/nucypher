@@ -22,17 +22,14 @@ import click
 from constant_sorrow import constants
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from constant_sorrow.constants import TEMPORARY_DOMAIN
-from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.characters.lawful import Ursula
+from nucypher.cli import actions
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_configuration
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -46,30 +43,12 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
-    SimpleObserver, GlobalConsoleLogger)
+    GlobalConsoleLogger
+)
 
-
-URSULA_BANNER = r'''
-
-
- ,ggg,         gg                                                     
-dP""Y8a        88                                   ,dPYb,            
-Yb, `88        88                                   IP'`Yb            
- `"  88        88                                   I8  8I            
-     88        88                                   I8  8'            
-     88        88   ,gggggg,    ,g,     gg      gg  I8 dP    ,gggg,gg 
-     88        88   dP""""8I   ,8'8,    I8      8I  I8dP    dP"  "Y8I 
-     88        88  ,8'    8I  ,8'  Yb   I8,    ,8I  I8P    i8'    ,8I 
-     Y8b,____,d88,,dP     Y8,,8'_   8) ,d8b,  ,d8b,,d8b,_ ,d8,   ,d8b,
-      "Y888888P"Y88P      `Y8P' "YY8P8P8P'"Y88P"`Y88P'"Y88P"Y8888P"`Y8
-
-
-the Untrusted Re-Encryption Proxy.
-'''
 
 @click.command()
 @click.argument('action')
-@click.option('--debug', '-D', help="Enable debugging mode", is_flag=True)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -88,12 +67,12 @@ the Untrusted Re-Encryption Proxy.
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--metadata-dir', help="Custom known metadata directory", type=EXISTING_WRITABLE_DIRECTORY)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
 def ursula(click_config,
            action,
-           debug,
            dev,
            quiet,
            dry_run,
@@ -112,6 +91,7 @@ def ursula(click_config,
            config_file,
            metadata_dir,  # TODO: Start nodes from an additional existing metadata dir
            provider_uri,
+           recompile_solidity,
            no_registry,
            registry_filepath
            ) -> None:
@@ -135,13 +115,12 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
     if not quiet:
-        click.secho(URSULA_BANNER)
         log = Logger('ursula.cli')
 
-    if debug and quiet:
+    if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    if debug:
+    if click_config.debug:
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
@@ -167,14 +146,20 @@ def ursula(click_config,
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
-        if dev and not quiet:
-            click.secho("WARNING: Using temporary storage area", fg='yellow')
+        if not network:
+            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
+
+        if dev:
+            actions.handle_control_output(message="WARNING: Using temporary storage area",
+                                          color='yellow',
+                                          quiet=quiet,
+                                          json=click_config.json)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step
 
         ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      config_root=config_root,
@@ -189,38 +174,18 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        if not quiet:
-            click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
-            click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
+        click_config.emitter(message="Generated keyring {}".format(ursula_config.keyring_dir), color='green')
 
-            # Give the use a suggestion as to what to do next...
-            how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
-            suggested_command = 'nucypher ursula run'
-            if config_root is not None:
-                config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
-                suggested_command += ' --config-file {}'.format(config_file_location)
-            click.secho(how_to_run_message.format(suggested_command), fg='green')
-            return  # FIN
+        click_config.emitter(message="Saved configuration file {}".format(ursula_config.config_file_location), color='green')
 
-        else:
-            click.secho("OK")
+        # Give the use a suggestion as to what to do next...
+        how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
+        suggested_command = 'nucypher ursula run'
+        if config_root is not None:
+            config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
+            suggested_command += ' --config-file {}'.format(config_file_location)
 
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-
-        if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-
-        destroy_system_configuration(config_class=UrsulaConfiguration,
-                                     config_file=config_file,
-                                     network=network,
-                                     config_root=config_root,
-                                     force=force,
-                                     log=log)
-        if not quiet:
-            click.secho("Destroyed {}".format(config_root))
-        return
+        return click_config.emitter(message=how_to_run_message.format(suggested_command), color='green')
 
     # Development Configuration
     if dev:
@@ -257,21 +222,10 @@ def ursula(click_config,
                                                                     # federated_only=federated_only,
                                                                     )
 
-        try:  # Unlock Keyring
-            if not quiet:
-                click.secho('Decrypting keyring...', fg='blue')
-            ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
-        except CryptoError:
-            raise ursula_config.keyring.AuthenticationFailed
+        actions.unlock_keyring(configuration=ursula_config, password=click_config.get_password())
 
     if not ursula_config.federated_only:
-        try:
-            ursula_config.connect_to_blockchain(recompile_contracts=False)
-            ursula_config.connect_to_contracts()
-        except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found; " \
-                      "Did you mean to pass --federated-only?"
-            raise EthereumContractRegistry.NoRegistry(message)
+        actions.connect_to_blockchain(configuration=ursula_config, recompile_contracts=recompile_solidity)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
@@ -279,10 +233,10 @@ def ursula(click_config,
     #
     # Launch Warnings
     #
-    if not quiet:
-        if ursula_config.federated_only:
-            click.secho("WARNING: Running in Federated mode", fg='yellow')
 
+    if ursula_config.federated_only:
+        click_config.emitter(message="WARNING: Running in Federated mode", color='yellow'
+                             )
     #
     # Action Switch
     #
@@ -292,17 +246,17 @@ def ursula(click_config,
         #
         # Seed - Step 1
         #
-        teacher_nodes = list()
-        if teacher_uri:
-            node = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                           min_stake=min_stake,
-                                           federated_only=ursula_config.federated_only)
-            teacher_nodes.append(node)
+        teacher_uris = [teacher_uri] if teacher_uri else list()
+        teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                               min_stake=min_stake,
+                                               federated_only=federated_only,
+                                               network_middleware=click_config.middleware)
+
 
         #
         # Produce - Step 2
         #
-        ursula = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
+        URSULA = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
 
         # GO!
         try:
@@ -310,52 +264,70 @@ def ursula(click_config,
             #
             # Run - Step 3
             #
-            click.secho("Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)), fg='blue', bold=True)
-            click.secho("Running Ursula {} on {}".format(ursula, ursula.rest_interface), fg='green', bold=True)
-            if not debug:
-                stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))
+            click_config.emitter(
+                message="Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)),
+                color='green',
+                bold=True)
+
+            click_config.emitter(
+                message="Running Ursula {} on {}".format(URSULA, URSULA.rest_interface),
+                color='green',
+                bold=True)
+            
+            if not click_config.debug:
+                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
             if dry_run:
                 # That's all folks!
                 return
 
-            ursula.get_deployer().run()  # <--- Blocking Call (Reactor)
+            URSULA.get_deployer().run()  # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))
-            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
+            click_config.emitter(
+                message="{} {}".format(e.__class__.__name__, str(e)),
+                color='red',
+                bold=True)
             raise  # Crash :-(
 
         finally:
-            if not quiet:
-                click.secho("Stopping Ursula")
+            click_config.emitter(message="Stopping Ursula", color='green')
             ursula_config.cleanup()
-            if not quiet:
-                click.secho("Ursula Stopped", fg='red')
-
+            click_config.emitter(message="Ursula Stopped", color='red')
         return
 
     elif action == "save-metadata":
         """Manually save a node self-metadata file"""
 
-        ursula = ursula_config.produce(ursula_config=ursula_config)
-        metadata_path = ursula.write_node_metadata(node=ursula)
-        if not quiet:
-            click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
-        return
+        URSULA = ursula_config.produce(ursula_config=ursula_config)
+        metadata_path = ursula.write_node_metadata(node=URSULA)
+        return click_config.emitter(message="Successfully saved node metadata to {}.".format(metadata_path), color='green')
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        paint_configuration(config_filepath=config_file or ursula_config.config_file_location)
-        return
+        response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
+        return click_config.emitter(response=response)
 
     elif action == "forget":
-        """Forget all known nodes via storages"""
-        click.confirm("Permanently delete all known node data?", abort=True)
-        ursula_config.forget_nodes()
-        message = "Removed all stored node node metadata and certificates"
-        click.secho(message=message, fg='red')
+        # TODO: Move to character control
+        actions.forget(configuration=ursula_config)
         return
+
+    elif action == "destroy":
+        """Delete all configuration files from the disk"""
+
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+
+        destroyed_filepath = destroy_system_configuration(config_class=UrsulaConfiguration,
+                                                          config_file=config_file,
+                                                          network=network,
+                                                          config_root=ursula_config.config_file_location,
+                                                          force=force)
+
+        return click_config.emitter(message=f"Destroyed {destroyed_filepath}", color='green')
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
@@ -410,7 +382,7 @@ def stake(click_config,
             click.echo(row)
 
         click.echo("Select ethereum address")
-        account_selection = click.prompt("Enter 0-{}".format(len(ur.accounts)), type=click.INT)
+        account_selection = click.prompt("Enter 0-{}".format(len(ursula_config.accounts)), type=click.INT)
         address = click_config.accounts[account_selection]
 
     if action == 'list':

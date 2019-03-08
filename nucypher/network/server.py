@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
+import json
 import os
 from typing import Callable, Tuple
 
@@ -88,13 +89,15 @@ def make_rest_app(
         node_tracker: 'FleetStateTracker',
         node_bytes_caster: Callable,
         work_order_tracker: list,
+        node_nickname: str,
         node_recorder: Callable,
         stamp: SignatureStamp,
         verifier: Callable,
         suspicious_activity_tracker: dict,
         serving_domains,
         log=Logger("http-application-layer")
-) -> Tuple:
+        ) -> Tuple:
+
     forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
     from nucypher.keystore import keystore
@@ -274,8 +277,7 @@ def make_rest_app(
         from nucypher.policy.models import Revocation
 
         revocation = Revocation.from_bytes(request.data)
-        # TODO: This line sometimes raises an error because it tries to log the bytes of the revocation, which can have a "{"  # 724
-        log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
+        log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation).hex(), id_as_hex))
         try:
             with ThreadedSession(db_engine) as session:
                 # Verify the Notice was signed by Alice
@@ -354,11 +356,14 @@ def make_rest_app(
     def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
+        treasure_map_bytes = keccak_digest(binascii.unhexlify(treasure_map_id))
+
         try:
-            treasure_map = treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
+
+            treasure_map = treasure_map_tracker[treasure_map_bytes]
             response = Response(bytes(treasure_map), headers=headers)
-            log.info("{} providing TreasureMap {}".format(node_bytes_caster(),
-                                                          treasure_map_id))
+            log.info("{} providing TreasureMap {}".format(node_nickname, treasure_map_id))
+
         except KeyError:
             log.info("{} doesn't have requested TreasureMap {}".format(stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),

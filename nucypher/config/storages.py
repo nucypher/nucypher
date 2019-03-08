@@ -130,7 +130,7 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def store_node_metadata(self, node):
+    def store_node_metadata(self, node, filepath: str = None) -> str:
         """Save a single node's metadata and tls certificate"""
         raise NotImplementedError
 
@@ -230,7 +230,7 @@ class ForgetfulNodeStorage(NodeStorage):
         filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
         return filepath
 
-    def store_node_metadata(self, node):
+    def store_node_metadata(self, node, filepath: str = None):
         self.__metadata[node.checksum_public_address] = node
         return self.__metadata[node.checksum_public_address]
 
@@ -364,8 +364,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
     #
 
     @validate_checksum_address
-    def __generate_metadata_filepath(self, checksum_address: str) -> str:
-        metadata_path = os.path.join(self.metadata_dir, self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
+    def __generate_metadata_filepath(self, checksum_address: str, metadata_dir: str = None) -> str:
+        metadata_path = os.path.join(metadata_dir or self.metadata_dir,
+                                     self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
         return metadata_path
 
     def __read_metadata(self, filepath: str, federated_only: bool):
@@ -420,8 +421,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self._write_tls_certificate(certificate=certificate)
         return certificate_filepath
 
-    def store_node_metadata(self, node) -> str:
-        filepath = self.__generate_metadata_filepath(checksum_address=node.checksum_public_address)
+    def store_node_metadata(self, node, filepath: str = None) -> str:
+        address = node.checksum_public_address
+        filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
 
@@ -520,86 +522,8 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
         return bool(os.path.isdir(self.metadata_dir) and os.path.isdir(self.certificates_dir))
 
 
-class S3NodeStorage(NodeStorage):
-    _name = 's3'
-    S3_ACL = 'private'  # Canned S3 Permissions
-
-    def __init__(self,
-                 bucket_name: str,
-                 s3_resource=None,
-                 *args, **kwargs) -> None:
-
-        super().__init__(*args, **kwargs)
-        self.__bucket_name = bucket_name
-        self.__s3client = boto3.client('s3')
-        self.__s3resource = s3_resource or boto3.resource('s3')
-        self.__bucket = NO_STORAGE_AVAILIBLE
-
-    @property
-    def bucket(self):
-        return self.__bucket
-
-    @property
-    def bucket_name(self):
-        return self.__bucket_name
-
-    def __read(self, node_obj: str):
-        try:
-            node_object_metadata = node_obj.get()
-        except ClientError:
-            raise self.UnknownNode
-        node_bytes = self.deserializer(node_object_metadata['Body'].read())
-        node = self.character_class.from_bytes(node_bytes)
-        return node
-
-    @validate_checksum_address
-    def generate_presigned_url(self, checksum_address: str) -> str:
-        payload = {'Bucket': self.__bucket_name, 'Key': checksum_address}
-        url = self.__s3client.generate_presigned_url('get_object', payload, ExpiresIn=900)
-        return url
-
-    def all(self, federated_only: bool, certificates_only: bool = False) -> set:
-        node_objs = self.__bucket.objects.all()
-        nodes = set()
-        for node_obj in node_objs:
-            node = self.__read(node_obj=node_obj)
-            nodes.add(node)
-        return nodes
-
-    @validate_checksum_address
-    def get(self, checksum_address: str, federated_only: bool):
-        node_obj = self.__bucket.Object(checksum_address)
-        node = self.__read(node_obj=node_obj)
-        return node
-
-    def store_node_metadata(self, node):
-        self.__s3client.put_object(Bucket=self.__bucket_name,
-                                   ACL=self.S3_ACL,
-                                   Key=node.checksum_public_address,
-                                   Body=self.serializer(bytes(node)))
-
-    @validate_checksum_address
-    def remove(self, checksum_address: str) -> bool:
-        node_obj = self.__bucket.Object(checksum_address)
-        response = node_obj.delete()
-        if response['ResponseMetadata']['HTTPStatusCode'] != 204:
-            raise self.NodeStorageError("S3 Storage failed to delete node {}".format(checksum_address))
-        return True
-
-    def payload(self) -> dict:
-        payload = {
-            self._TYPE_LABEL: self._name,
-            'bucket_name': self.__bucket_name
-        }
-        return payload
-
-    @classmethod
-    def from_payload(cls, payload: dict, *args, **kwargs):
-        return cls(bucket_name=payload['bucket_name'], *args, **kwargs)
-
-    def initialize(self):
-        self.__bucket = self.__s3resource.Bucket(self.__bucket_name)
-
-
-### Node Storage Registry ###
-NODE_STORAGES = {storage_class._name: storage_class for storage_class in NodeStorage.__subclasses__()}
+#
+# Node Storage Registry
+#
+NODE_STORAGES = {storage_class._name: storage_class
+                 for storage_class in NodeStorage.__subclasses__()}
