@@ -4,6 +4,7 @@ from base64 import b64encode
 import click
 import maya
 
+from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
@@ -59,6 +60,9 @@ def alice(click_config,
     """
     Start and manage an "Alice" character.
     """
+
+    if not click_config.json_ipc and not click_config.quiet:
+        click.secho(ALICE_BANNER)
 
     if action == 'init':
         """Create a brand-new persistent Alice"""

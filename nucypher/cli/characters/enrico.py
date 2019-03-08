@@ -1,6 +1,7 @@
 import click
 from umbral.keys import UmbralPublicKey
 
+from nucypher.characters.banners import ENRICO_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import nucypher_click_config
@@ -21,6 +22,9 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
 
     if not policy_encrypting_key:
         raise click.BadArgumentUsage('--policy-encrypting-key is required to start Enrico.')
+
+    if not click_config.json_ipc and not click_config.quiet:
+        click.secho(ENRICO_BANNER)
 
     policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)

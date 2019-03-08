@@ -1,7 +1,6 @@
-from base64 import b64encode
-
 import click
 
+from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
@@ -55,6 +54,9 @@ def bob(click_config,
     """
     Start and manage a "Bob" character.
     """
+
+    if not click_config.json_ipc and not click_config.quiet:
+        click.secho(BOB_BANNER)
 
     if action == 'init':
         """Create a brand-new persistent Bob"""
