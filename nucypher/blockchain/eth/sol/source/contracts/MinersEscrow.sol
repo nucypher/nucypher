@@ -325,7 +325,11 @@ contract MinersEscrow is Issuer {
     **/
     function setReStake(bool _reStake) public {
         require(!isReStakeLocked(msg.sender));
-        minerInfo[msg.sender].reStake = _reStake;
+        MinerInfo storage info = minerInfo[msg.sender];
+        if (info.reStake == _reStake) {
+            return;
+        }
+        info.reStake = _reStake;
         emit ReStakeSet(msg.sender, _reStake);
     }
 

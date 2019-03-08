@@ -21,10 +21,6 @@ from web3.contract import Contract
 
 
 VALUE_FIELD = 0
-DECIMALS_FIELD = 1
-CONFIRMED_PERIOD_1_FIELD = 2
-CONFIRMED_PERIOD_2_FIELD = 3
-LAST_ACTIVE_PERIOD_FIELD = 4
 
 secret = (123456).to_bytes(32, byteorder='big')
 
