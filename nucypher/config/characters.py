@@ -30,7 +30,7 @@ class UrsulaConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Ursula
 
     _CHARACTER_CLASS = Ursula
-    _NAME = _CHARACTER_CLASS.__name__
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -98,7 +98,7 @@ class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
     _CHARACTER_CLASS = Alice
-    _NAME = _CHARACTER_CLASS.__name__
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -116,7 +116,7 @@ class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
 
     _CHARACTER_CLASS = Bob
-    _NAME = _CHARACTER_CLASS.__name__
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
