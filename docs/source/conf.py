@@ -30,7 +30,7 @@ author = 'NuCypher'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.1.0-alpha.15'
+release = '0.1.0-alpha.16'
 
 
 # -- General configuration ---------------------------------------------------
