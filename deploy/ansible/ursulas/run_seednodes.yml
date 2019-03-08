@@ -53,7 +53,7 @@
       when: stat_result.stat.exists == False
 
     - name: "Configure Ursula"
-      shell: "/home/ubuntu/venv/bin/nucypher ursula init --federated-only --rest-host {{ inventory_hostname }}"
+      shell: "/home/ubuntu/venv/bin/nucypher ursula init --federated-only --rest-host {{ inventory_hostname }} --network {{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
       args:
         chdir: ./code
       environment:
@@ -66,7 +66,7 @@
 
     - name: "Get Ursula Seed Node Config (and more)"
       slurp:
-        src: "~/.local/share/nucypher/ursula.config"
+        src: "~/.local/share/nucypher/Ursula.config"
       register: ursula_seed_node_config
       run_once: true
 

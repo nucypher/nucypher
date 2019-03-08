@@ -12,6 +12,6 @@ COPY . /code
 
 # Run pipenv
 RUN pip3 install .
-RUN ./scripts/install_solc.sh
+RUN ./scripts/installation/install_solc.sh
 
 CMD ["/bin/bash"]
