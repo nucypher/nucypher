@@ -2,7 +2,6 @@ pragma solidity ^0.5.3;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/lib/Numerology.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/SafeMath.sol";
