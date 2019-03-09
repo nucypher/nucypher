@@ -14,17 +14,21 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from twisted.protocols.basic import LineReceiver
 from typing import List
+
+from twisted.internet import endpoints, reactor
+from twisted.internet.defer import succeed
+from twisted.protocols.basic import LineReceiver
 from umbral.keys import derive_key_from_password
 
 from nucypher.config.keyring import (
-        _read_keyfile, _PrivateKeySerializer,
-        _derive_wrapping_key_from_key_material
+    _read_keyfile, _PrivateKeySerializer,
+    _derive_wrapping_key_from_key_material
 )
 from nucypher.crypto import powers
+from tubes.listening import Listener
+from tubes.protocol import flowFromEndpoint, flowFountFromEndpoint
+from tubes.tube import series, tube
 
 
 class ConeOfSilence(LineReceiver):
@@ -55,7 +59,7 @@ class ConeOfSilence(LineReceiver):
             key_data = _read_keyfile(key_file, _PrivateKeySerializer())
             if master_salt is not None and master_salt != key_data['master_salt']:
                 raise ConeOfSilence.IncompatibleKeyFile(
-                        "The master salt in {key_file} doesn't match the other keyfiles provided.")
+                    "The master salt in {key_file} doesn't match the other keyfiles provided.")
 
             if 'root' in key_file:
                 key_files['DecryptingPower'] = key_data
@@ -70,12 +74,68 @@ class ConeOfSilence(LineReceiver):
 
         for power_up_class, key_data in key_files.items():
             wrapping_key = _derive_wrapping_key_from_key_material(
-                                            key_data['wrap_salt'],
-                                            self.__derived_key)
+                key_data['wrap_salt'],
+                self.__derived_key)
             power_up = getattr(powers, power_up_class)(
-                                            key_bytes=key_data['key'],
-                                            wrapping_key=wrapping_key)
+                key_bytes=key_data['key'],
+                wrapping_key=wrapping_key)
             self.__crypto_power_set.consume_power_up(power_up)
 
     def lineReceived(self, line):
         pass
+
+
+@tube
+class InsideTheCone:
+
+    def __init__(self, socket_path):
+        # self.endpoint = endpoints.UNIXServerEndpoint(reactor, socket_path, mode=0o600)
+        # d = flowFountFromEndpoint(self.endpoint)
+        # d.addCallback(self.llamas)
+        return
+
+    def __call__(self, f):
+        self.func = f
+        self.endpoint = endpoints.UNIXServerEndpoint(reactor, f.__qualname__, mode=0o600)
+        d = flowFountFromEndpoint(self.endpoint)
+        d.addCallback(self.llamas)
+        return f
+
+    def listener(self, flow):
+        flow.fount.flowTo(series(self)).flowTo(flow.drain)
+
+    def llamas(self, caller_fount):
+        caller_fount.flowTo(Listener(self.listener))
+
+    def received(self, line):
+        yield self.func(line)
+
+
+@tube
+class OutsideTheCone:
+    def __init__(self, socket_path):
+        # self.endpoint = endpoints.UNIXClientEndpoint(reactor, socket_path, timeout=2)
+        return
+
+    def __call__(self, f):
+        # Send call across the wire.
+        self.endpoint = endpoints.UNIXClientEndpoint(reactor, f.__qualname__, timeout=2)
+        self.func = f
+        return self._call_across_wire
+
+    def _call_across_wire(self, *args, **kwargs):
+        d = flowFromEndpoint(self.endpoint).addCallback(self._handle_flow, *args, **kwargs).addErrback(
+            self._handle_errors)
+        result = succeed(d)
+        return d
+
+    def _handle_flow(self, flow, line, *args, **kwargs):
+        flow.fount.flowTo(series(self))
+        a = flow.drain.receive(line)
+        return
+
+    def _handle_errors(self, failure):
+        assert False
+
+    def received(self, line):
+        return line
