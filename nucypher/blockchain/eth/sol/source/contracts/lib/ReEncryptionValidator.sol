@@ -25,7 +25,7 @@ library ReEncryptionValidator {
     * @param _cFragBytes Capsule frag
     * @param _precomputedBytes Additional precomputed data
     **/
-    function isCapsuleFragCorrect(
+    function validateCFrag(
         bytes memory _capsuleBytes,
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
@@ -237,6 +237,7 @@ library ReEncryptionValidator {
         bytes memory _cFragBytes
     ) public pure returns (uint256) {
 
+        // TODO: Optimize this since they have already been parsed by the caller
         UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
 

@@ -122,12 +122,12 @@ contract MiningAdjudicator is Upgradeable {
 
         // Verify correctness of re-encryption
         evaluatedCFrags[evaluationHash] = true;
-        if (!isCapsuleFragCorrect(_capsuleBytes, _cFragBytes, _preComputedData)) {
+
+        bool cfragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
+        emit CFragEvaluated(evaluationHash, miner, msg.sender, cfragIsCorrect);
+        if (!cfragIsCorrect) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
             escrow.slashMiner(miner, penalty, msg.sender, reward);
-            emit CFragEvaluated(evaluationHash, miner, msg.sender, false);
-        } else {
-            emit CFragEvaluated(evaluationHash, miner, msg.sender, true);
         }
     }
 
