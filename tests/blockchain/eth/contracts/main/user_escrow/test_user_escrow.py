@@ -109,7 +109,7 @@ def test_escrow(testerchain, token, user_escrow):
 
 # TODO test state of the proxy contract
 @pytest.mark.slow
-def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy):
+def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy):
     """
     Test miner functions in the user escrow
     """
@@ -163,24 +163,27 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy):
         tx = user_escrow.functions.withdrawTokens(100).transact({'from': user})
         testerchain.wait_for_receipt(tx)
 
-    # User can't use the miners escrow directly because only the user escrow owns tokens in the miners escrow
+    # User can't use the proxy contract directly
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.lock(100, 1).transact({'from': user})
+        tx = proxy.functions.lock(100, 1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.divideStake(1, 100, 1).transact({'from': user})
+        tx = proxy.functions.divideStake(1, 100, 1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmActivity().transact({'from': user})
+        tx = proxy.functions.confirmActivity().transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.mint().transact({'from': user})
+        tx = proxy.functions.mint().transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdraw(100).transact({'from': user})
+        tx = proxy.functions.withdrawAsMiner(100).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdrawAll().transact({'from': user})
+        tx = proxy.functions.setReStake(True).transact({'from': user})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = proxy.functions.lockReStake(0).transact({'from': user})
         testerchain.wait_for_receipt(tx)
 
     locks = user_escrow_proxy.events.Locked.createFilter(fromBlock='latest')
@@ -189,6 +192,8 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy):
     mints = user_escrow_proxy.events.Mined.createFilter(fromBlock='latest')
     miner_withdraws = user_escrow_proxy.events.WithdrawnAsMiner.createFilter(fromBlock='latest')
     withdraws = user_escrow.events.TokensWithdrawn.createFilter(fromBlock='latest')
+    re_stakes = user_escrow_proxy.events.ReStakeSet.createFilter(fromBlock='latest')
+    re_stake_locks = user_escrow_proxy.events.ReStakeLocked.createFilter(fromBlock='latest')
 
     # Use miners methods through the user escrow
     tx = user_escrow_proxy.functions.lock(100, 1).transact({'from': user})
@@ -217,6 +222,14 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy):
     assert 0 == escrow.functions.value().call()
     assert 9000 == token.functions.balanceOf(escrow.address).call()
     assert 3000 == token.functions.balanceOf(user_escrow.address).call()
+
+    # Test re-stake methods
+    tx = user_escrow_proxy.functions.setReStake(True).transact({'from': user})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.reStake().call()
+    tx = user_escrow_proxy.functions.lockReStake(123).transact({'from': user})
+    testerchain.wait_for_receipt(tx)
+    assert 123 == escrow.functions.lockReStakeUntilPeriod().call()
 
     events = locks.get_all_entries()
     assert 1 == len(events)
@@ -251,6 +264,18 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy):
     event_args = events[1]['args']
     assert user == event_args['owner']
     assert 1000 == event_args['value']
+
+    events = re_stakes.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user == event_args['owner']
+    assert event_args['reStake']
+
+    events = re_stake_locks.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user == event_args['owner']
+    assert 123 == event_args['lockUntilPeriod']
 
     # User can withdraw reward for mining but no more than locked
     with pytest.raises((TransactionFailed, ValueError)):

@@ -314,7 +314,7 @@ contract MinersEscrow is Issuer {
     * @param _miner Miner
     **/
     function isReStakeLocked(address _miner) public view returns (bool) {
-        return getCurrentPeriod() <= minerInfo[_miner].lockReStakeUntilPeriod;
+        return getCurrentPeriod() < minerInfo[_miner].lockReStakeUntilPeriod;
     }
 
     //------------------------Main methods------------------------

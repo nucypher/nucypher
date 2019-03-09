@@ -16,6 +16,8 @@ contract MinersEscrowForUserEscrowMock {
     uint16 public periods;
     uint16 public confirmedPeriod;
     uint256 public index;
+    bool public reStake;
+    uint16 public lockReStakeUntilPeriod;
 
     constructor(NuCypherToken _token) public {
         token = _token;
@@ -30,20 +32,17 @@ contract MinersEscrowForUserEscrowMock {
     }
 
     function lock(uint256 _value, uint16 _periods) public {
-        require(node == msg.sender);
         lockedValue += _value;
         periods += _periods;
     }
 
     function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public {
-        require(node == msg.sender);
         index = _index;
         lockedValue += _newValue;
         periods += _periods;
     }
 
     function withdraw(uint256 _value) public {
-        require(node == msg.sender);
         value -= _value;
         token.transfer(msg.sender, _value);
     }
@@ -53,13 +52,19 @@ contract MinersEscrowForUserEscrowMock {
     }
 
     function confirmActivity() external {
-        require(node == msg.sender);
         confirmedPeriod += 1;
     }
 
     function mint() external {
-        require(node == msg.sender);
         value += 1000;
+    }
+
+    function setReStake(bool _reStake) public {
+        reStake = _reStake;
+    }
+
+    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
+        lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
     }
 }
 

@@ -211,9 +211,9 @@ def test_re_stake(testerchain, token, escrow_contract):
     tx = escrow.functions.setReStake(True).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.minerInfo(ursula).call()[RE_STAKE_FIELD]
-    tx = escrow.functions.lockReStake(period + 5).transact({'from': ursula})
+    tx = escrow.functions.lockReStake(period + 6).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    # Can't set re-stake parameter during 5 periods
+    # Can't set re-stake parameter during 6 periods
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.setReStake(False).transact({'from': ursula})
         testerchain.wait_for_receipt(tx)
