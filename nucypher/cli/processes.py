@@ -186,3 +186,56 @@ class UrsulaCommandProtocol(LineReceiver):
         Shutdown the attached running Ursula node.
         """
         return reactor.stop()
+
+
+class JSONRPCLineReceiver(LineReceiver):
+
+    encoding = 'utf-8'
+    delimiter = os.linesep.encode(encoding=encoding)
+    __ipc_endpoint = "/tmp/nucypher.ipc"
+
+    class IPCWriter(StandardIO):
+        pass
+
+    def __init__(self, rpc_controller, capture_output: bool = False):
+        super().__init__()
+
+        self.rpc_controller = rpc_controller
+        self.start_time = maya.now()
+
+        self.__captured_output = list()
+        self.capture_output = capture_output
+
+        self.__ipc_fd = None
+        self.__ipc_writer = None
+
+        self.log = Logger(f"JSON-RPC-{rpc_controller.app_name}")  # TODO needs ID
+
+    @property
+    def captured_output(self):
+        return self.__captured_output
+
+    def connectionMade(self):
+
+        self.__ipc_fd = open(self.__ipc_endpoint, 'ab+')
+        self.__ipc_writer = self.__ipc_fd.write
+
+        # Hookup the IPC endpoint file
+        self.transport.write = self.__ipc_writer
+
+        self.log.info(f"JSON RPC-IPC endpoint opened at {self.__ipc_endpoint}."
+                      f" Listening for messages.")  # TODO
+
+    def connectionLost(self, reason=connectionDone) -> None:
+        self.__ipc_fd.close()
+        os.remove(self.__ipc_endpoint)
+
+        self.log.info("JSON RPC-IPC Endpoint Closed.")  # TODO
+
+    def rawDataReceived(self, data):
+        pass
+
+    def lineReceived(self, line):
+        line = line.strip(self.delimiter)
+        if line:
+            self.rpc_controller.handle_request(control_request=line)
