@@ -8,6 +8,7 @@ from hendrix.experience import hey_joe
 
 from nucypher.characters.banners import MOE_BANNER
 from nucypher.characters.base import Character
+from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.network.nodes import FleetStateTracker
 
 
@@ -73,13 +74,15 @@ class Moe(Character):
         # WSGI Service
         #
 
-        self.rest_app = Flask("fleet-monitor", root_path=os.path.dirname(__file__))
+        self.rest_app = Flask("fleet-monitor", template_folder=TEMPLATES_DIR)
         rest_app = self.rest_app
 
         @rest_app.route("/")
         def status():
-            template_path = os.path.join('monitor.html')
-            return render_template(template_path)
+            try:
+                return render_template('monitor.html')
+            except Exception as e:
+                self.log.debug(str(e))
 
         #
         # Server
