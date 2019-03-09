@@ -8,13 +8,13 @@ from nucypher.characters.lawful import Enrico
 
 @pytest.fixture(scope='module')
 def alice_control_test_client(federated_alice):
-    web_controller = federated_alice.make_web_controller(crash_on_error=True)
+    web_controller = federated_alice.make_control_transport(crash_on_error=True)
     yield web_controller._web_app.test_client()
 
 
 @pytest.fixture(scope='module')
 def bob_control_test_client(federated_bob):
-    web_controller = federated_bob.make_web_controller(crash_on_error=True)
+    web_controller = federated_bob.make_control_transport(crash_on_error=True)
     yield web_controller._web_app.test_client()
 
 
@@ -22,12 +22,12 @@ def bob_control_test_client(federated_bob):
 def enrico_control_test_client(capsule_side_channel):
     _, data_source = capsule_side_channel
     message_kit, enrico = capsule_side_channel
-    web_controller = enrico.make_web_controller(crash_on_error=True)
+    web_controller = enrico.make_control_transport(crash_on_error=True)
     yield web_controller._web_app.test_client()
 
 
 @pytest.fixture(scope='module')
 def enrico_control_from_alice(federated_alice, random_policy_label):
     enrico = Enrico.from_alice(federated_alice, random_policy_label)
-    web_controller = enrico.make_web_controller(crash_on_error=True)
+    web_controller = enrico.make_control_transport(crash_on_error=True)
     yield web_controller._web_app.test_client()
