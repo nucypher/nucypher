@@ -1,5 +1,6 @@
 import click
 from constant_sorrow import constants
+from nucypher.characters.banners import MOE_BANNER
 
 from nucypher.characters.chaotic import Moe
 from nucypher.cli import actions
@@ -22,6 +23,9 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
     """
     "Moe" NuCypher node monitor CLI.
     """
+
+    if not click_config.json_ipc and not click_config.quiet:
+        click.secho(MOE_BANNER)
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else list()

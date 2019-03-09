@@ -19,14 +19,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import click
-from constant_sorrow import constants
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
+from constant_sorrow import constants
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions
 from nucypher.cli.actions import destroy_system_configuration
 from nucypher.cli.config import nucypher_click_config
@@ -43,8 +44,8 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getJsonFileObserver,
-    GlobalConsoleLogger
-)
+    GlobalConsoleLogger,
+    SimpleObserver)
 
 
 @click.command()
@@ -130,6 +131,9 @@ def ursula(click_config,
         globalLogPublisher.removeObserver(logToSentry)
         globalLogPublisher.removeObserver(SimpleObserver)
         globalLogPublisher.removeObserver(getJsonFileObserver())
+
+    if not click_config.json_ipc and not click_config.quiet:
+        click.secho(URSULA_BANNER)
 
     #
     # Pre-Launch Warnings
