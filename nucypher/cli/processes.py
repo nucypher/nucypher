@@ -14,15 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import json
 import os
 from collections import deque
+from json import JSONDecodeError
 
 import click
 import maya
 from twisted.internet import reactor
 from twisted.internet.protocol import connectionDone
+from twisted.internet.stdio import StandardIO
+from twisted.logger import Logger
 from twisted.protocols.basic import LineReceiver
 
 from nucypher.cli.painting import build_fleet_state_status

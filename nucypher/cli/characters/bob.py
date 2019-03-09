@@ -140,7 +140,7 @@ def bob(click_config,
         click_config.emit(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
 
         # Start Controller
-        controller = BOB.make_web_controller()
+        controller = BOB.make_control_transport()
         BOB.log.info('Starting HTTP Character Web Controller')
         return controller.start(http_port=http_port, dry_run=dry_run)
 

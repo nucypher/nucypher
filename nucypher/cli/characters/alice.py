@@ -2,7 +2,8 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.banners import ALICE_BANNER
-from nucypher.cli import actions, painting, types
+from nucypher.cli import actions, painting
+from nucypher.cli import types
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
@@ -182,11 +183,20 @@ def alice(click_config,
     #
 
     if action == "run":
-        """Start Alice Web Controller"""
-        ALICE.controller.emitter(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
-        controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
-        ALICE.log.info('Starting Alice Web Controller')
-        return controller.start(http_port=controller_port or alice_config.controller_port, dry_run=dry_run)
+        """Start Alice Controller"""
+
+        # RPC
+        if click_config.json_ipc:
+            rpc_controller = ALICE.make_rpc_controller()
+            rpc_controller.start()
+            return
+
+        # HTTP
+        else:
+            ALICE.controller.emitter(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
+            controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
+            ALICE.log.info('Starting HTTP Character Web Controller')
+            return controller.start(http_port=controller_port, dry_run=dry_run)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
