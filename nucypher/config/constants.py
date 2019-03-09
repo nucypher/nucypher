@@ -23,6 +23,7 @@ from os.path import abspath, dirname
 from appdirs import AppDirs
 
 import nucypher
+from nucypher import cli
 from nucypher.blockchain.eth import sol
 
 
@@ -53,3 +54,5 @@ GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'
 
 # Sentry
 NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher DNS domain
+
+TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
