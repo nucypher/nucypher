@@ -38,14 +38,18 @@ to provide cryptographic access controls for distributed apps and protocols.
 anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
-2. Anyone can encrypt data using Alice's policy public key.
+2. Using her policy's public key, any entity can encrypt data on Alice's behalf.
+This entity could be an IoT device in her car, a collaborator assigned
+the task of writing data to her policy, or even a third-party creating
+data that belongs to her – for example, a lab analyzing medical tests.
 The resulting encrypted data can be uploaded to IPFS, Swarm, S3,
 or any other storage layer.
 
-3. Ursula, a miner, receives the access policy and stands ready to
-re-encrypt data in exchange for payment in fees and block rewards.
+3. A group of Ursulas, which are nodes of the NuCypher network,
+receive the access policy and stand ready to
+re-encrypt data in exchange for payment in fees and token rewards.
 Thanks to the use of proxy re-encryption,
-Ursula and the storage layer never have access to Alice's plaintext data.
+Ursulas and the storage layer never have access to Alice's plaintext data.
 
 4. Bob, a data recipient, sends an access request to the NuCypher network.
 If the policy is satisfied, the data is re-encrypted to his public key
