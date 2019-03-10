@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
 
 from nucypher.characters.lawful import Ursula
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.ursula import make_federated_ursulas
 
 
 def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):

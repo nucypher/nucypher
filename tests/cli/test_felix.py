@@ -6,7 +6,7 @@ from twisted.internet import threads
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,

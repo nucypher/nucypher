@@ -26,7 +26,6 @@ import nucypher
 from nucypher import cli
 from nucypher.blockchain.eth import sol
 
-
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))

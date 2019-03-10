@@ -14,11 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
 from ipaddress import IPv4Address
 from random import SystemRandom
-from typing import Tuple
 
+import datetime
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
@@ -30,6 +29,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from typing import Tuple
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature

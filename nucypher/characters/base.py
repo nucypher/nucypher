@@ -16,12 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
-from typing import Dict, ClassVar, Set
-from typing import Optional
-from typing import Union, List
 
 from constant_sorrow import default_constant_splitter
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_WSGI_APP
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from constant_sorrow.constants import (
     NO_NICKNAME,
     NO_BLOCKCHAIN_CONNECTION,
@@ -34,6 +31,9 @@ from constant_sorrow.constants import (
 )
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
+from typing import Dict, ClassVar, Set
+from typing import Optional
+from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 

@@ -26,8 +26,8 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.middleware import MockRestMiddleware
 
 
 @pytest.mark.slow()

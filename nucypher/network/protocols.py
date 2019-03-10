@@ -18,9 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from urllib.parse import urlparse
 
-from eth_utils import is_checksum_address
-
 from bytestring_splitter import VariableLengthBytestring
+from eth_utils import is_checksum_address
 
 
 class SuspiciousActivity(RuntimeError):

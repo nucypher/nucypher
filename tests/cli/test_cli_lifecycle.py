@@ -9,8 +9,8 @@ from twisted.internet import threads
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.utilities.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
 

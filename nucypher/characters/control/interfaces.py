@@ -1,5 +1,4 @@
 import functools
-
 import maya
 from umbral.keys import UmbralPublicKey
 

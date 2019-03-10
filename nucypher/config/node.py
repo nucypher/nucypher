@@ -20,13 +20,12 @@ import binascii
 import json
 import os
 import secrets
-import shutil
 import string
 from abc import ABC
 from json import JSONDecodeError
 from tempfile import TemporaryDirectory
-from typing import List, Set
 
+import shutil
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -38,6 +37,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from twisted.logger import Logger
+from typing import List, Set
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent

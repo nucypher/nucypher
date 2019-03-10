@@ -6,11 +6,9 @@ import maya
 import pytest
 
 import nucypher
-from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
-from nucypher.utilities.sandbox.policy import generate_random_label
 
 
 def test_alice_character_control_create_policy(alice_control_test_client, federated_bob):

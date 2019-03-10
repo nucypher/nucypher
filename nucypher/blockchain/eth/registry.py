@@ -20,10 +20,10 @@ import json
 import os
 import tempfile
 from json import JSONDecodeError
-from twisted.logger import Logger
 
 import shutil
 from constant_sorrow import constants
+from twisted.logger import Logger
 from typing import Union
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT

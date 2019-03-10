@@ -18,8 +18,8 @@ from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
-from nucypher.utilities.sandbox.middleware import EvilMiddleWare
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
+from nucypher.utilities.middleware import EvilMiddleWare
 
 
 class Vladimir(Ursula):

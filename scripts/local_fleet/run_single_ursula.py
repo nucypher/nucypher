@@ -25,7 +25,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from click.testing import CliRunner
 
 from nucypher.cli.main import nucypher_cli
-from nucypher.utilities.sandbox.constants import select_test_port
+from nucypher.utilities.constants import select_test_port
 
 click_runner = CliRunner()
 

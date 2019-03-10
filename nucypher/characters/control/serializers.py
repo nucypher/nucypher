@@ -2,9 +2,9 @@ import json
 from abc import ABC
 from base64 import b64decode, b64encode
 from json import JSONDecodeError
-from typing import Callable
 
 import maya
+from typing import Callable
 
 import nucypher
 from nucypher.characters.control.specifications import CharacterSpecification

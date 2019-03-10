@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from twisted.logger import Logger
-from web3.middleware import geth_poa_middleware
-
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+from twisted.logger import Logger
 from typing import Union
 from web3.contract import Contract
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry

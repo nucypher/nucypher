@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import requests
 import socket
-
 from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
+
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
-from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
+from nucypher.utilities.constants import MOCK_KNOWN_URSULAS_CACHE
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):

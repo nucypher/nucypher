@@ -4,8 +4,8 @@ from twisted.internet import threads
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, select_test_port
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from nucypher.utilities.constants import MOCK_URSULA_STARTING_PORT, select_test_port
+from nucypher.utilities.ursula import start_pytest_ursula_services
 
 
 @pytest.mark.skip("Moe shows up when you least expect him.  Like in other people's tests on a different thread.")

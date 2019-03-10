@@ -14,19 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import requests
 import socket
 import ssl
-
-import requests
 import time
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
 from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
-
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 
 class UnexpectedResponse(Exception):

@@ -1,5 +1,4 @@
 import os
-import time
 
 import datetime
 import maya
@@ -9,8 +8,8 @@ from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.models import TreasureMap
-from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, MOCK_POLICY_DEFAULT_M
+from nucypher.utilities.middleware import MockRestMiddleware
 
 
 def test_federated_bob_full_retrieve_flow(federated_ursulas,

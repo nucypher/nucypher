@@ -22,8 +22,8 @@ from twisted.internet import threads
 from nucypher.characters.base import Learner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
+from nucypher.utilities.ursula import start_pytest_ursula_services
 
 
 @pt.inlineCallbacks

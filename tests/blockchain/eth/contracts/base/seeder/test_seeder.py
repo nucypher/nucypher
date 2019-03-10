@@ -20,7 +20,7 @@ import pytest
 
 from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2, MAX_TEST_SEEDER_ENTRIES, \
+from nucypher.utilities.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2, MAX_TEST_SEEDER_ENTRIES, \
     MOCK_URSULA_STARTING_PORT
 
 

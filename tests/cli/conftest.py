@@ -19,10 +19,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import os
-import shutil
 
 import pytest
+import shutil
 from click.testing import CliRunner
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
+    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH, TESTING_ETH_AIRDROP_AMOUNT
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED, ONE_YEAR_IN_SECONDS
@@ -31,10 +35,10 @@ from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, I
     AllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
-    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH, TESTING_ETH_AIRDROP_AMOUNT
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
+from nucypher.utilities.blockchain import TesterBlockchain
+from nucypher.utilities.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
+    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH
+from nucypher.utilities.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
 @pytest.fixture(scope='module')

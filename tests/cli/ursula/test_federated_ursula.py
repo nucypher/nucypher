@@ -24,7 +24,7 @@ import pytest
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,

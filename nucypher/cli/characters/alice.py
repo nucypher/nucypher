@@ -1,7 +1,5 @@
-import datetime
-from base64 import b64encode
-
 import click
+import datetime
 import maya
 
 from nucypher.characters.banners import ALICE_BANNER

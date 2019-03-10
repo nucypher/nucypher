@@ -37,7 +37,7 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities.constants import (
     TEMPORARY_DOMAIN,
 )
 

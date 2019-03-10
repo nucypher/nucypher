@@ -1,10 +1,11 @@
 import json
 import os
-from datetime import datetime, timedelta
 
 import click
 import math
 import maya
+from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE, NEW_RECIPIENT
+from datetime import datetime, timedelta
 from flask import Flask, render_template, Response
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
@@ -20,7 +21,6 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nodes import FleetStateTracker
-from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE, NEW_RECIPIENT
 
 
 class Moe(Character):

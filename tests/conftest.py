@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
 from twisted.logger import globalLogPublisher
@@ -24,7 +23,7 @@ from nucypher.cli.config import NucypherClickConfig
 from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
 # Logger Configuration
 #
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 globalLogPublisher.removeObserver(logToSentry)
 

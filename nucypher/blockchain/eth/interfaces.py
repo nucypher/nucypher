@@ -18,7 +18,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from urllib.parse import urlparse
 
+from constant_sorrow.constants import (
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    MANUAL_PROVIDERS_SET,
+    NO_DEPLOYER_CONFIGURED
+)
 from eth_keys.datatypes import PublicKey, Signature
+from eth_tester import EthereumTester
+from eth_tester import PyEVMBackend
 from eth_utils import to_canonical_address
 from twisted.logger import Logger
 from typing import Tuple, Union
@@ -26,14 +34,6 @@ from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
-from constant_sorrow.constants import (
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
-    MANUAL_PROVIDERS_SET,
-    NO_DEPLOYER_CONFIGURED
-)
-from eth_tester import EthereumTester
-from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler

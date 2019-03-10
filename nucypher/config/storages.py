@@ -30,8 +30,8 @@ from eth_utils import is_checksum_address
 from twisted.logger import Logger
 from typing import Callable, Tuple, Union, Set, Any
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 class NodeStorage(ABC):

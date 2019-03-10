@@ -18,11 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import os
+from random import SystemRandom
+from string import digits, ascii_uppercase
+
 import socket
 import time
 from datetime import datetime
-from random import SystemRandom
-from string import digits, ascii_uppercase
 
 from web3 import Web3
 

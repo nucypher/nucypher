@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.constants import (
     MIN_LOCKED_PERIODS,
     POLICY_ID_LENGTH
 )
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.blockchain import TesterBlockchain
 
 
 ALGORITHM_SHA256 = 1

@@ -17,13 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-
 import sys
-from twisted.logger import Logger
 from os.path import abspath, dirname
 
 import itertools
 import shutil
+from twisted.logger import Logger
 
 try:
     from solc import install_solc, compile_files

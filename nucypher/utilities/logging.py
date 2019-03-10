@@ -15,21 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import datetime
 import pathlib
-
 from sentry_sdk import capture_exception, add_breadcrumb
 from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
 from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
+from twisted.logger import globalLogPublisher
 from twisted.python.logfile import DailyLogFile
 from zope.interface import provider
 
 import nucypher
 from nucypher.config.constants import USER_LOG_DIR
-from twisted.logger import globalLogPublisher
 
 
 def initialize_sentry(dsn: str):

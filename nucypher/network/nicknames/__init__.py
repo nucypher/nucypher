@@ -16,9 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 import random
-from os.path import abspath, dirname, join
-
 import unicodedata
+from os.path import abspath, dirname, join
 
 HERE = BASE_DIR = abspath(dirname(__file__))
 with open(join(HERE, 'web_colors.json')) as f:

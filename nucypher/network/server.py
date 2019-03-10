@@ -16,29 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
 import os
-from typing import Callable, Tuple
-
-from flask import Flask, Response
-from flask import request
-from jinja2 import Template, TemplateError
-from twisted.logger import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH
 from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
+from flask import Flask, Response
+from flask import request
+from jinja2 import Template, TemplateError
+from twisted.logger import Logger
+from typing import Callable, Tuple
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+
 from hendrix.experience import crosstown_traffic
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound

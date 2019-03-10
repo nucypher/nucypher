@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PER
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities.constants import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,

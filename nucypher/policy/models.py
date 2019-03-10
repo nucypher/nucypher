@@ -27,7 +27,6 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set, Optional
-
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN

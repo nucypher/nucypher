@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
 from eth_utils import is_checksum_address
 from typing import Tuple, Dict
 from web3.contract import Contract
 
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,

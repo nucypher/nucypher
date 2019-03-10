@@ -16,16 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 import random
-import secrets
 from base64 import b64encode
 from collections import OrderedDict
-from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
 
 import maya
 import requests
@@ -40,8 +33,14 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
+from functools import partial
 from twisted.internet import threads
 from twisted.logger import Logger
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
+from typing import Tuple
 from umbral.keys import UmbralPublicKey
 from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
@@ -49,6 +48,7 @@ from umbral.signing import Signature
 import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
@@ -67,7 +67,6 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):

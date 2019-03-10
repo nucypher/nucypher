@@ -21,9 +21,9 @@ from eth_keys.datatypes import Signature as EthSignature
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower, CryptoPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.middleware import MockRestMiddleware
+from nucypher.utilities.ursula import make_federated_ursulas
 
 
 @pytest.mark.skip("To be implemented.")

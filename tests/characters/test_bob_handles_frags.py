@@ -25,7 +25,7 @@ from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
 
 from nucypher.crypto.powers import DecryptingPower 
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.middleware import MockRestMiddleware
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):

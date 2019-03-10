@@ -17,28 +17,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from functools import partial
-
-from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+from functools import partial
+from twisted.logger import Logger
 from typing import List, Tuple, Dict
+from umbral.keys import UmbralPrivateKey
+from web3.middleware import geth_poa_middleware
 
+from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.constants import CONTRACT_ROOT
-from umbral.keys import UmbralPrivateKey
-from web3.middleware import geth_poa_middleware
-
-from nucypher.blockchain.eth import constants
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  INSECURE_DEVELOPMENT_PASSWORD)
+from nucypher.utilities.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                          NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                          INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):

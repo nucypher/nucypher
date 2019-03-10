@@ -5,7 +5,7 @@ from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     TEST_PROVIDER_URI,
     MOCK_ALLOCATION_INFILE,

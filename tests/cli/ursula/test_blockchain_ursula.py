@@ -8,6 +8,7 @@ import datetime
 import maya
 import pytest
 from umbral.keys import UmbralPublicKey
+from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
@@ -16,20 +17,16 @@ from nucypher.blockchain.eth.utils import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
-from nucypher.utilities.sandbox import constants
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import (
+from nucypher.utilities import constants
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, TESTING_ETH_AIRDROP_AMOUNT)
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
-from web3 import Web3
-
-from web3 import Web3
-
+from nucypher.utilities.middleware import MockRestMiddleware
+from nucypher.utilities.ursula import start_pytest_ursula_services
 
 STAKE_VALUE = NU(MIN_ALLOWED_LOCKED * 2, 'NUWei')
 POLICY_RATE = Web3.toWei(21, 'gwei')

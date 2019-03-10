@@ -28,7 +28,7 @@ from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.middleware import MockRestMiddleware
 
 
 @click.group()

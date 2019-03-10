@@ -20,6 +20,7 @@ import os
 import stat
 from json import JSONDecodeError
 
+from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -38,7 +39,6 @@ from twisted.logger import Logger
 from typing import ClassVar, Tuple, Callable, Union, Dict, List
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from constant_sorrow.constants import KEYRING_LOCKED
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B

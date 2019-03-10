@@ -14,20 +14,20 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import base64
+
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
-from hendrix.deploy.tls import HendrixDeployTLS
-from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from typing import Union
-import base64
-
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
+from hendrix.deploy.tls import HendrixDeployTLS
+from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.kits import MessageKit

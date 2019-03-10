@@ -21,8 +21,8 @@ import pytest
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.utilities.sandbox.blockchain import token_airdrop
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
 
 @pytest.fixture(scope='module')

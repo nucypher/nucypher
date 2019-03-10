@@ -1,9 +1,9 @@
-import functools
+import inspect
 
+import eth_utils
+import functools
 from twisted.logger import Logger
 from typing import Callable
-import inspect
-import eth_utils
 
 
 def validate_checksum_address(func: Callable) -> Callable:

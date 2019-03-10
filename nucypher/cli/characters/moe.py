@@ -1,7 +1,7 @@
 import click
 from constant_sorrow import constants
-from nucypher.characters.banners import MOE_BANNER
 
+from nucypher.characters.banners import MOE_BANNER
 from nucypher.characters.chaotic import Moe
 from nucypher.cli import actions
 from nucypher.cli.config import nucypher_click_config

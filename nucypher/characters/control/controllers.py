@@ -1,11 +1,10 @@
 from abc import ABC
-from base64 import b64encode, b64decode
 
 from constant_sorrow.constants import NO_WEB_APP_ATTACHED
 from flask import Response, Flask
-from hendrix.deploy.base import HendrixDeploy
 from twisted.logger import Logger
 
+from hendrix.deploy.base import HendrixDeploy
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter
 from nucypher.characters.control.interfaces import AliceInterface, character_control_interface, EnricoInterface, \
     BobInterface

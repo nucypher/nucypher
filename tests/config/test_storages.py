@@ -23,7 +23,7 @@ from nucypher.config.storages import (
     TemporaryFileBasedNodeStorage,
     NodeStorage
 )
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_DB_FILEPATH, MOCK_URSULA_STARTING_PORT
+from nucypher.utilities.constants import MOCK_URSULA_DB_FILEPATH, MOCK_URSULA_STARTING_PORT
 
 MOCK_S3_BUCKET_NAME = 'mock-seednodes'
 S3_DOMAIN_NAME = 's3.amazonaws.com'
