@@ -323,7 +323,7 @@ contract MinersEscrow is Issuer {
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     **/
-    function setReStake(bool _reStake) public {
+    function setReStake(bool _reStake) public isInitialized {
         require(!isReStakeLocked(msg.sender));
         MinerInfo storage info = minerInfo[msg.sender];
         if (info.reStake == _reStake) {
@@ -337,7 +337,7 @@ contract MinersEscrow is Issuer {
     * @notice Lock `reStake` parameter. Only if this parameter is not locked
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     **/
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
+    function lockReStake(uint16 _lockReStakeUntilPeriod) public isInitialized {
         require(!isReStakeLocked(msg.sender) &&
             _lockReStakeUntilPeriod > getCurrentPeriod());
         minerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;

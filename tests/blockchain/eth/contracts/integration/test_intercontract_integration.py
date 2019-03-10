@@ -315,6 +315,13 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
         tx = escrow.functions.deposit(1, 1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
+    # Initialize escrow
+    reward = 10 ** 9
+    tx = token.functions.transfer(escrow.address, reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+
     # Create the first user escrow, set and lock re-stake parameter
     user_escrow_1, _ = testerchain.interface.deploy_contract(
         'UserEscrow', user_escrow_linker.address, token.address)
@@ -335,13 +342,6 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow_proxy_1.functions.setReStake(False).transact({'from': ursula3})
         testerchain.wait_for_receipt(tx)
-
-    # Initialize escrow
-    reward = 10 ** 9
-    tx = token.functions.transfer(escrow.address, reward).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Deposit some tokens to the user escrow and lock them
     tx = token.functions.approve(user_escrow_1.address, 10000).transact({'from': creator})

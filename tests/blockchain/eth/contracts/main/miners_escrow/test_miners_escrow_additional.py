@@ -124,6 +124,12 @@ def test_re_stake(testerchain, token, escrow_contract):
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
 
+    # Give Escrow tokens for reward and initialize contract
+    tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
     # Set re-stake parameter even before initialization
     assert not escrow.functions.minerInfo(ursula).call()[RE_STAKE_FIELD]
     tx = escrow.functions.setReStake(False).transact({'from': ursula})
@@ -162,12 +168,6 @@ def test_re_stake(testerchain, token, escrow_contract):
     event_args = events[0]['args']
     assert ursula == event_args['miner']
     assert period + 1 == event_args['lockUntilPeriod']
-
-    # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
 
     # Ursula deposits some tokens
     tx = token.functions.transfer(ursula, 10000).transact({'from': creator})
@@ -227,7 +227,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 2 == len(events)
     event_args = events[1]['args']
     assert ursula == event_args['miner']
-    assert period + 5 == event_args['lockUntilPeriod']
+    assert period + 6 == event_args['lockUntilPeriod']
 
     # Confirm activity and try to mine with re-stake
     tx = escrow.functions.confirmActivity().transact({'from': ursula})

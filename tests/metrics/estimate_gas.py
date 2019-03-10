@@ -359,9 +359,39 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     #
-    # Wait 1 period and confirm activity
+    # Confirm activity with re-stake
     #
-    testerchain.time_travel(periods=1)
+    tx = miner_functions.setReStake(True).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.setReStake(True).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.setReStake(True).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    log.info("First confirm activity + mint with re-stake = " +
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    log.info("Second confirm activity + mint with re-stake  = " +
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    log.info("Third confirm activity + mint with re-stake  = " +
+             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    tx = miner_functions.setReStake(False).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.setReStake(False).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.setReStake(False).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    #
+    # Wait 2 periods and confirm activity after downtime
+    #
+    testerchain.time_travel(periods=2)
     log.info("First confirm activity after downtime = " +
              str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
@@ -638,11 +668,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log.info("Divide stake (next period is confirmed) = " + str(
         miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
 
+    #
     # Slashing tests
+    #
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
-    # Deploy adjudicator mock to estimate slashing method in MinersEscrow contract
+    # Deploy adjudicator to estimate slashing method in MinersEscrow contract
     adjudicator, _ = testerchain.interface.deploy_contract(
         'MiningAdjudicator', miner_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
     )
@@ -650,7 +682,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
     adjudicator_functions = adjudicator.functions
 
+    #
     # Slashing
+    #
     slashing_args = generate_args_for_slashing(testerchain, ursula1)
     log.info("Slash just value = " + str(
         adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
