@@ -269,10 +269,11 @@ def test_collect_rewards_integration(click_runner,
         blockchain.time_travel(periods=1)
         miner.confirm_activity()
 
+    M, N = 1, 1
     expiration = maya.now() + datetime.timedelta(days=3)
     blockchain_policy = alice.grant(bob=bob,
                                     label=random_policy_label,
-                                    m=1, n=1,
+                                    m=M, n=1,
                                     value=POLICY_VALUE,
                                     expiration=expiration,
                                     handpicked_ursulas={staking_participant})
@@ -329,6 +330,10 @@ def test_collect_rewards_integration(click_runner,
     # WHERES THE MONEY URSULA?? - Collecting Rewards
     #
 
+    # The address the client wants Ursula to send rewards to
+    burner_wallet = blockchain.interface.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
+    assert blockchain.interface.w3.eth.getBalance(burner_wallet.address) == 0
+
     # Snag a random teacher from the fleet
     random_teacher = list(blockchain_ursulas).pop()
 
@@ -336,6 +341,7 @@ def test_collect_rewards_integration(click_runner,
                        'ursula', 'collect-reward',
                        '--teacher-uri', random_teacher.rest_interface,
                        '--config-file', configuration_file_location,
+                       '--withdraw-address', burner_wallet.address,
                        '--poa',
                        '--force')
 
@@ -344,4 +350,10 @@ def test_collect_rewards_integration(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert miner.eth_balance > pre_stake_eth_balance, 'Post-stake ETH balance is less than pre-staking ETH balance.'
+
+    collected_reward = blockchain.interface.w3.eth.getBalance(burner_wallet.address)
+    assert collected_reward != 0
+
+    expected_reward = Web3.toWei(21, 'gwei') * 30 * M
+    assert collected_reward == expected_reward
+    assert miner.eth_balance == pre_stake_eth_balance

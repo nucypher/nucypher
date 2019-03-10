@@ -52,6 +52,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -60,7 +61,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--checksum-address', type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--duration', help="Period duration of stake", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
@@ -80,6 +80,7 @@ def ursula(click_config,
            rest_port,
            db_filepath,
            checksum_address,
+           withdraw_address,
            federated_only,
            poa,
            config_root,
@@ -438,7 +439,7 @@ def ursula(click_config,
         if not force:
             click.confirm(f"Send {URSULA.calculate_reward()} to {URSULA.checksum_public_address}?")
 
-        URSULA.collect_policy_reward()
+        URSULA.collect_policy_reward(collector_address=withdraw_address or checksum_address)
         URSULA.collect_staking_reward()
 
     else:

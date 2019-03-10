@@ -291,9 +291,9 @@ class PolicyAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def collect_policy_reward(self, collector_address: str):
+    def collect_policy_reward(self, collector_address: str, miner_address: str):
         """Collect rewarded ETH"""
-        policy_reward_txhash = self.contract.functions.withdraw().transact({'from': collector_address})
+        policy_reward_txhash = self.contract.functions.withdraw(collector_address).transact({'from': miner_address})
         self.blockchain.wait_for_receipt(policy_reward_txhash)
         return policy_reward_txhash
 

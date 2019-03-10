@@ -529,10 +529,12 @@ class Miner(NucypherTokenActor):
         return staking_reward
 
     @only_me
-    def collect_policy_reward(self, policy_agent: PolicyAgent = None):
+    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyAgent = None):
         """Collect rewarded ETH"""
         policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
-        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=self.checksum_public_address)
+
+        withdraw_address = collector_address or self.checksum_public_address
+        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address, miner_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
         return policy_reward_txhash
 
