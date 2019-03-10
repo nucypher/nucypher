@@ -71,13 +71,8 @@ class TesterBlockchain(Blockchain):
             test_accounts = self._default_test_accounts
 
         super().__init__(*args, **kwargs)
-
         self.log = Logger("test-blockchain")  # type: Logger
-
-        # For use with Proof-Of-Authority test-blockchains
-        if poa is True:
-            w3 = self.interface.w3
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        self.attach_middleware(w3=self.interface.w3, poa=poa)
 
         # Generate additional ethereum accounts for testing
         population = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
@@ -94,6 +89,21 @@ class TesterBlockchain(Blockchain):
 
         if airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    @staticmethod
+    def free_gas_price_strategy(w3, transaction_params=None):
+        return 0
+
+    def attach_middleware(self, w3, poa: bool = True, free_transactions: bool = True):
+
+        # For use with Proof-Of-Authority test-blockchains
+        if poa:
+            w3 = self.interface.w3
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+        # Free transaction gas!!
+        if free_transactions:
+            w3.eth.setGasPriceStrategy(self.free_gas_price_strategy)
 
     @classmethod
     def sever_connection(cls) -> None:

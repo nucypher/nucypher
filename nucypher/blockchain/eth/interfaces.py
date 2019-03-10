@@ -61,11 +61,11 @@ class BlockchainInterface:
 
     def __init__(self,
                  provider_uri: str = None,
-                 provider = None,
+                 provider=None,
                  auto_connect: bool = True,
                  timeout: int = None,
                  registry: EthereumContractRegistry = None,
-                 compiler: SolidityCompiler=None) -> None:
+                 compiler: SolidityCompiler = None) -> None:
 
         """
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of

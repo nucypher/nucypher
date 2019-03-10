@@ -10,7 +10,7 @@ import pytest
 from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -25,9 +25,10 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
+from web3 import Web3
 
 STAKE_VALUE = MIN_ALLOWED_LOCKED * 2
-POLICY_RATE = 20
+POLICY_RATE = Web3.toWei(21, 'gwei')
 POLICY_VALUE = POLICY_RATE * MIN_LOCKED_PERIODS   # * len(ursula)
 
 
@@ -141,7 +142,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
         assert str(TEMPORARY_DOMAIN, encoding='utf-8') in config_data['domains']
 
 
-def test_init_ursula_stake(click_runner, configuration_file_location):
+def test_init_ursula_stake(click_runner, configuration_file_location, funded_blockchain):
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
                   '--value', STAKE_VALUE,
@@ -150,7 +151,17 @@ def test_init_ursula_stake(click_runner, configuration_file_location):
                   '--force')
 
     result = click_runner.invoke(nucypher_cli, stake_args, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
-    assert result.exit_code == 0  # TODO: Assertions
+    assert result.exit_code == 0
+
+    with open(configuration_file_location, 'r') as config_file:
+        config_data = json.loads(config_file.read())
+
+    # Verify the stake is on-chain
+    miner_agent = MinerAgent()
+    stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
+    assert len(stakes) == 1
+    start_period, end_period, value = stakes[0]
+    assert value == STAKE_VALUE
 
 
 def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_location):
@@ -218,15 +229,15 @@ def test_run_blockchain_ursula(click_runner,
     assert result.exit_code == 0
 
 
-def test_collect_rewards(click_runner,
-                         funded_blockchain,
-                         configuration_file_location,
-                         alice_blockchain_test_config,
-                         bob_blockchain_test_config,
-                         charlie_blockchain_test_config,
-                         random_policy_label,
-                         blockchain_ursulas,
-                         staking_participant):
+def test_collect_rewards_integration(click_runner,
+                                     funded_blockchain,
+                                     configuration_file_location,
+                                     alice_blockchain_test_config,
+                                     bob_blockchain_test_config,
+                                     charlie_blockchain_test_config,
+                                     random_policy_label,
+                                     blockchain_ursulas,
+                                     staking_participant):
 
     blockchain = staking_participant.blockchain
 
@@ -248,6 +259,8 @@ def test_collect_rewards(click_runner,
 
     miner = Miner(checksum_address=staking_participant.checksum_public_address,
                   blockchain=blockchain, is_me=True)
+
+    pre_stake_eth_balance = miner.eth_balance
 
     # Finish the passage of time... once and for all
     for _ in range(half_stake_time):
@@ -331,3 +344,4 @@ def test_collect_rewards(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+    assert miner.eth_balance > pre_stake_eth_balance, 'Post-stake ETH balance is less than pre-staking ETH balance.'
