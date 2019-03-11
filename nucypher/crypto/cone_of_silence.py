@@ -14,13 +14,15 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
+import pathlib
 from typing import List
 
 from twisted.internet import endpoints, reactor
-from twisted.internet.defer import succeed
 from twisted.protocols.basic import LineReceiver
 from umbral.keys import derive_key_from_password
 
+from nucypher.config.constants import IPC_SOCKETS_DIR
 from nucypher.config.keyring import (
     _read_keyfile, _PrivateKeySerializer,
     _derive_wrapping_key_from_key_material
@@ -29,6 +31,14 @@ from nucypher.crypto import powers
 from tubes.listening import Listener
 from tubes.protocol import flowFromEndpoint, flowFountFromEndpoint
 from tubes.tube import series, tube
+
+
+def socket_dir_for_this_process():
+    return os.path.join(IPC_SOCKETS_DIR, str(os.getpid()))
+
+
+def socket_for_function(f):
+    return os.path.join(socket_dir_for_this_process(), f.__qualname__)
 
 
 class ConeOfSilence(LineReceiver):
