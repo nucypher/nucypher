@@ -109,6 +109,8 @@ class InsideTheCone:
                                                      socket_for_function(f),
                                                      mode=0o600)
         d = flowFountFromEndpoint(self.endpoint)
+        if not d.result._portObject.connected:
+            raise RuntimeError("This is a race condition, but not clear that it's possible to thit it.  If we do hit this line, we need to do something about it.")
         d.addCallback(self.llamas)
         return f
 
