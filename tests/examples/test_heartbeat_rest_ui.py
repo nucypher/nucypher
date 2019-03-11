@@ -42,16 +42,16 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_threaded,
     ##########################
     # setup endpoint responses
     ##########################
-    ## '/derive_policy_pubkey'
+    ## '/derive_policy_encrypting_key'
     def derive_key_callback(request):
         label = request.url[request.url.rfind('/')+1:]
-        derive_response = alice_control_test_client.post(f'/derive_policy_pubkey/{label}')
+        derive_response = alice_control_test_client.post(f'/derive_policy_encrypting_key/{label}')
         return (derive_response.status_code,
                 derive_response.headers,
                 derive_response.data)
 
     responses.add_callback(responses.POST,
-                           url=re.compile(f'{ALICE_URL}/derive_policy_pubkey/.*', re.IGNORECASE),
+                           url=re.compile(f'{ALICE_URL}/derive_policy_encrypting_key/.*', re.IGNORECASE),
                            callback=derive_key_callback,
                            content_type='application/json')
 
@@ -69,24 +69,10 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_threaded,
 
     ## '/grant'
     def grant_callback(request):
-        # TODO Call to control client fails with some SQL issue: `no such table: keys`
-        # TODO fake for now
-        #grant_response = alice_control_test_client.put('/grant', data=request.body)
-
-        response_data = {
-            'result': {
-                'treasure_map': b64encode(b'test').decode(),
-                'policy_encrypting_key': '020e242ccc1516c693997cd27320ae5a53e7f9da9721c9df164fb942b53cc517ab',
-                'alice_signing_key': bytes(federated_alice.stamp).hex(),
-                'label': 'heart-data',
-            },
-            'version': 'v0.1.0.alpha.14'
-        }
-
-        # fake return
-        return (200,
-                request.headers,
-                json.dumps(response_data))
+        grant_response = alice_control_test_client.put('/grant', data=request.body)
+        return (grant_response.status_code,
+                grant_response.headers,
+                grant_response.data)
 
     responses.add_callback(responses.PUT,
                            url=re.compile(f'{ALICE_URL}/grant', re.IGNORECASE),
@@ -126,7 +112,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_threaded,
     assert 1 == len(responses.calls)
 
     request_url = responses.calls[0].request.url
-    assert 'derive_policy_pubkey' in request_url
+    assert 'derive_policy_encrypting_key' in request_url
 
     policy_label = request_url[request_url.rfind('/')+1:]
     assert policy_label == policy_label_element.text
@@ -165,15 +151,15 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_threaded,
     ######################
     # switch to alicia tab
     ######################
-    driver.switch_to_window('_alicia')
+    driver.switch_to.window('_alicia')
 
     # grant access to bob
-    m_threshold_element = driver.find_element_by_id('m-value')
-    m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+    #m_threshold_element = driver.find_element_by_id('m-value')
+    #m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
 
-    n_shares_element = driver.find_element_by_id('n-value')
-    n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
-    n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
+    #n_shares_element = driver.find_element_by_id('n-value')
+    #n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+    #n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
     bob_signing_key_hex = bytes(federated_bob.stamp).hex()
@@ -191,6 +177,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_threaded,
     grant_response_element = WebDriverWait(driver, 10).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
+
     assert "granted to recipient" in grant_response_element.text
     assert policy_label in grant_response_element.text
     assert bob_encrypting_key_hex in grant_response_element.text

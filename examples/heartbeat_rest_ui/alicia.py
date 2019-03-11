@@ -110,7 +110,7 @@ def create_policy_key(policy_label):
     if policy_label is not None:
 
         # Obtain policy public key based on label from alicia character control REST endpoint
-        response = requests.post(f'{ALICE_URL}/derive_policy_pubkey/{policy_label}')
+        response = requests.post(f'{ALICE_URL}/derive_policy_encrypting_key/{policy_label}')
 
         if response.status_code != 200:
             print(f'> ERROR: Problem obtaining policy public key; status code = {response.status_code}; '
@@ -151,12 +151,12 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_si
     # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
     #               she requires Bob to seek collaboration of at least 3 Ursulas
     request_data = {
-        'bob_signing_key': recipient_sig_key_hex,
+        'bob_verifying_key': recipient_sig_key_hex,
         'bob_encrypting_key': recipient_enc_key_hex,
         'label': policy_label,
         'm': int(m),
         'n': int(n),
-        'expiration_time': policy_end_datetime.iso8601(),
+        'expiration': policy_end_datetime.iso8601(),
     }
 
     # With this information, Alicia creates a policy granting access to Bob.
@@ -174,14 +174,14 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_si
     print("Done!")
 
     response_data = json.loads(response.content)
-    alice_signing_key = response_data['result']['alice_signing_key']
+    alice_signing_key = response_data['result']['alice_verifying_key']
     policy_enc_key = response_data['result']['policy_encrypting_key']
 
     # For the demo, we need a way to share with Bob some additional info
     # about the policy, so we store it in a JSON file
     policy_info = {
-        "policy_pubkey": policy_enc_key,
-        "alice_sig_pubkey": alice_signing_key,
+        "policy_encrypting_key": policy_enc_key,
+        "alice_verifying_key": alice_signing_key,
         "label": policy_label,
     }
 
