@@ -2,16 +2,16 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
@@ -30,7 +30,7 @@ class UrsulaConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Ursula
 
     _CHARACTER_CLASS = Ursula
-    _NAME = 'ursula'
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -98,7 +98,7 @@ class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
     _CHARACTER_CLASS = Alice
-    _NAME = 'alice'
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
@@ -116,8 +116,15 @@ class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
 
     _CHARACTER_CLASS = Bob
-    _NAME = 'bob'
+    _NAME = _CHARACTER_CLASS.__name__.lower()
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_REST_PORT = 7151
+
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        return super().write_keyring(password=password,
+                                     encrypting=True,
+                                     wallet=False,
+                                     rest=False)

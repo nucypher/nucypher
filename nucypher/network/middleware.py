@@ -2,16 +2,16 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import socket
@@ -90,8 +90,8 @@ class NucypherMiddlewareClient:
                 filepaths_are_different = node_certificate_filepath != certificate_filepath
                 node_has_a_cert = node_certificate_filepath is not CERTIFICATE_NOT_SAVED
                 if node_has_a_cert and filepaths_are_different:
-                    raise ValueError(
-                        "Don't try to pass a node with a certificate_filepath while also passing a different certificate_filepath.  What do you even expect?")
+                    raise ValueError("Don't try to pass a node with a certificate_filepath while also passing a"
+                                     " different certificate_filepath.  What do you even expect?")
             else:
                 certificate_filepath = node_certificate_filepath
 

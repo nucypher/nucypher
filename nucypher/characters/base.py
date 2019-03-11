@@ -2,32 +2,26 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
-from typing import Tuple
 from typing import Union, List
 
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
-from constant_sorrow import constants
 from constant_sorrow import default_constant_splitter
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_WSGI_APP
 from constant_sorrow.constants import (
     NO_NICKNAME,
     NO_BLOCKCHAIN_CONNECTION,
@@ -38,6 +32,11 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT
 )
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
@@ -199,6 +198,11 @@ class Character(Learner):
         if is_me is True:
             self.known_nodes.record_fleet_state()
 
+        #
+        # Character Control
+        #
+        self.controller = NO_CONTROL_PROTOCOL
+
     def __eq__(self, other) -> bool:
         try:
             other_stamp = other.stamp
@@ -279,6 +283,15 @@ class Character(Learner):
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
         return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
+
+    def store_metadata(self, filepath: str) -> str:
+        """
+        Save this node to the disk.
+        :param filepath: Output filepath to save node metadata.
+        :return: Output filepath
+        """
+
+        return self.node_storage.store_node_metadata(node=self, filepath=filepath)
 
     def encrypt_for(self,
                     recipient: 'Character',

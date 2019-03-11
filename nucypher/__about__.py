@@ -2,16 +2,16 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
@@ -28,12 +28,12 @@ __url__ = "https://github.com/nucypher/nucypher"
 
 __summary__ = 'A proxy re-encryption network to empower privacy in decentralized systems.'
 
-__version__ = "0.1.0-alpha.14"
+__version__ = "0.1.0-alpha.18"
 
 __author__ = "NuCypher"
 
 __email__ = "dev@nucypher.com"
 
-__license__ = "GNU General Public License, Version 3"
+__license__ = "GNU Affero General Public License, Version 3"
 
-__copyright__ = 'Copyright (C) 2018 NuCypher'
+__copyright__ = 'Copyright (C) 2019 NuCypher'

@@ -2,5 +2,5 @@
   "Oumuamua": ["oregon-seednodes-414af81f89776e09.elb.us-west-2.amazonaws.com",
                "eu-federated-balancer-40be4480ec380cd7.elb.eu-central-1.amazonaws.com"],
 
-  "eth_denver": ["https://3.17.80.38:9151"]
+  "devnet": ["https://18.222.119.242:9151"]
 }

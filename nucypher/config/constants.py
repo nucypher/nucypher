@@ -2,16 +2,16 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
@@ -23,6 +23,7 @@ from os.path import abspath, dirname
 from appdirs import AppDirs
 
 import nucypher
+from nucypher import cli
 from nucypher.blockchain.eth import sol
 
 
@@ -44,7 +45,14 @@ SEEDNODES = tuple()
 
 
 # Domains
-#If this domain is among those being learned or served, then domain checking is skipped.
-#A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
-#A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+"""
+If this domain is among those being learned or served, then domain checking is skipped.
+A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
+A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+"""
 GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'
+
+# Sentry
+NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher DNS domain
+
+TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')

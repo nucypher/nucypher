@@ -128,6 +128,13 @@ workflows:
             - deployers
             - config
             - character
+      - finnegans_wake_demo:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - cli
       - heartbeat_demo:
           context: "NuCypher Tests"
           filters:
@@ -162,6 +169,8 @@ workflows:
           requires:
             - cli
             - build_docs
+            - heartbeat_demo
+            - finnegans_wake_demo
       - build_docker:
           filters:
             tags:
@@ -169,7 +178,7 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - cli
+            - test_build
       - test_deploy:
           context: "NuCypher PyPI"
           requires:
@@ -269,7 +278,7 @@ commands:
           command: pip3 install -r dev-requirements.txt --user .
       - run:
           name: Install Solidity Compiler
-          command: ./scripts/install_solc.sh
+          command: ./scripts/installation/install_solc.sh
       - check_nucypher_entrypoints
 
   prepare_environment:
@@ -448,21 +457,19 @@ jobs:
     - pip_install
     - run:
         name: Run demo Ursula fleet, Alicia and the Doctor
-        command: |
-          mkdir /tmp/ursulas-logs
-          export PATH=~/.local/bin:$PATH
-          source ~/.bashrc
-          export NUCYPHER_SENTRY_LOGS=0
-          export NUCYPHER_FILE_LOGS=0
-          python3 examples/run_lonely_demo_ursula.py > /tmp/ursulas-logs/ursula-11500.txt 2>&1 &
-          sleep 15
-          nucypher ursula run --dev --debug --federated-only --teacher-uri localhost:11500 --rest-port 11501 > /tmp/ursulas-logs/ursula-11501.txt 2>&1 &
-          sleep 15
-          nucypher ursula run --dev --debug --federated-only --teacher-uri localhost:11500 --rest-port 11502 > /tmp/ursulas-logs/ursula-11502.txt 2>&1 &
-          sleep 15
-          python3 examples/heartbeat_demo/alicia.py
-          python3 examples/heartbeat_demo/doctor.py
+        command: ./scripts/demos/run_heartbeat_demo.sh
     - store_artifacts:
+          path: /tmp/ursulas-logs
+
+  finnegans_wake_demo:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - pip_install
+      - run:
+          name: Run demo Ursula fleet, Finnegans wake Demo code
+          command: ./scripts/demos/run_finnegans_wake_demo.sh
+      - store_artifacts:
           path: /tmp/ursulas-logs
 
   cli:

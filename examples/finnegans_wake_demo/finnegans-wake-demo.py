@@ -8,8 +8,10 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
+from nucypher.crypto.powers import SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
+
 
 ######################
 # Boring setup stuff #
@@ -17,6 +19,10 @@ from nucypher.utilities.logging import SimpleObserver
 
 # Execute the download script (download_finnegans_wake.sh) to retrieve the book
 BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
+
+# Change this value to to perform more or less total re-encryptions
+# in order to avoid processing the entire book's text. (it's long)
+NUMBER_OF_LINES_TO_REENCRYPT = 25
 
 # Twisted Logger
 globalLogPublisher.addObserver(SimpleObserver())
@@ -93,8 +99,9 @@ BOB.join_policy(label, alices_pubkey_bytes_saved_for_posterity)
 
 # Now that Bob has joined the Policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
+# In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:
-    finnegans_wake = file.readlines()
+    finnegans_wake = file.readlines()[:NUMBER_OF_LINES_TO_REENCRYPT]
 
 print()
 print("**************James Joyce's Finnegan's Wake**************")
@@ -125,13 +132,12 @@ for counter, plaintext in enumerate(finnegans_wake):
         policy_encrypting_key=policy_pubkey
     )
 
-
-
     # Now Bob can retrieve the original message.
     alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
     delivered_cleartexts = BOB.retrieve(message_kit=single_passage_ciphertext,
                                         data_source=enrico_as_understood_by_bob,
-                                        alice_verifying_key=alice_pubkey_restored_from_ancient_scroll)
+                                        alice_verifying_key=alice_pubkey_restored_from_ancient_scroll,
+                                        label=label)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]

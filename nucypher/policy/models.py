@@ -2,16 +2,16 @@
 This file is part of nucypher.
 
 nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 nucypher is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
@@ -199,8 +199,9 @@ class Policy:
         for node in self.alice.known_nodes:
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
             try:
+                treasure_map_id = self.treasure_map.public_id()
                 response = network_middleware.put_treasure_map_on_node(node,
-                                                                       self.treasure_map.public_id(),
+                                                                       treasure_map_id,
                                                                        bytes(self.treasure_map)
                                                                        )  # TODO: Certificate filepath needs to be looked up and passed here
             except NodeSeemsToBeDown:

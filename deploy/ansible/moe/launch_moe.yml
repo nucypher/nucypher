@@ -8,8 +8,9 @@
       raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
     - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
 
-  vars:
-    networks_file: "{{ lookup('file', '../../networks.json') | from_json }}"
+    - include_vars:
+        file: "{{ networks_filepath }}"
+        name: networks
 
   tasks:
     - name: "Install System Dependencies"
@@ -62,7 +63,7 @@
       vars:
         virtualenv_path: '/home/ubuntu/venv'
         nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
-        teacher_uri: "{{ networks_file[lookup('env', 'NUCYPHER_NETWORK_NAME')][0] }}"
+        teacher_uri: "{{ networks[lookup('env', 'NUCYPHER_NETWORK_NAME')][0] }}"
 
     - name: "Enable and Start Moes's Monitoring"
       become: yes
