@@ -37,6 +37,7 @@ CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contract
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
 DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 USER_LOG_DIR = APP_DIR.user_log_dir
+IPC_SOCKETS_DIR = APP_DIR.user_state_dir
 
 
 # Static Seednodes
