@@ -105,7 +105,9 @@ class InsideTheCone:
 
     def __call__(self, f):
         self.func = f
-        self.endpoint = endpoints.UNIXServerEndpoint(reactor, f.__qualname__, mode=0o600)
+        self.endpoint = endpoints.UNIXServerEndpoint(reactor,
+                                                     socket_for_function(f),
+                                                     mode=0o600)
         d = flowFountFromEndpoint(self.endpoint)
         d.addCallback(self.llamas)
         return f
@@ -128,7 +130,7 @@ class OutsideTheCone:
 
     def __call__(self, f):
         # Send call across the wire.
-        self.endpoint = endpoints.UNIXClientEndpoint(reactor, f.__qualname__, timeout=2)
+        self.endpoint = endpoints.UNIXClientEndpoint(reactor, socket_for_function(f), timeout=2)
         self.func = f
         return self._call_across_wire
 
