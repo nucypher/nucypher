@@ -37,5 +37,7 @@ variables*.yml
 *ansible/inventory/*
 .env
 /tests/metrics/results/
+/tests/examples/data
+/tests/examples/shared
 /docs/build
 .python-version

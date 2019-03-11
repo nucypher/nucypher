@@ -1,19 +1,21 @@
 if __name__ == "__main__":
-    import sys, os
+    from sys import path
+    from os.path import dirname, abspath
     # We use dirname() to help get the parent directory to add to
     # sys.path, so that we can import the current package.  This is necessary
     # since when invoked directly, the 'current' package is not automatically
     # imported.
-    parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    sys.path.insert(1, parent_dir)
+    parent_dir = dirname(dirname(dirname(abspath(__file__))))
+    path.insert(1, parent_dir)
 
 
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from examples.heartbeat_rest_ui.app import app
 from examples.heartbeat_rest_ui import alicia, enrico, bob
+from examples.heartbeat_rest_ui.app import app
+
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
