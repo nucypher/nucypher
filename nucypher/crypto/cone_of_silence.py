@@ -126,7 +126,7 @@ class InsideTheCone:
 
 @tube
 class OutsideTheCone:
-    def __init__(self, socket_path):
+    def __init__(self, outside_tubes=None):
         # self.endpoint = endpoints.UNIXClientEndpoint(reactor, socket_path, timeout=2)
         return
 
