@@ -1,39 +1,24 @@
+import pytest_twisted
+from twisted.internet import reactor
+
 from nucypher.crypto.cone_of_silence import InsideTheCone, OutsideTheCone
-from tubes.listening import Listener
 
-from tubes.tube import series, tube
-from twisted.internet import endpoints, reactor
-from twisted.internet.defer import succeed
-from tubes.protocol import flowFromEndpoint, flowFountFromEndpoint
-import sys
+@pytest_twisted.inlineCallbacks
+def test_speaking_across_the_cone():
 
-try:
-    INSIDE = bool(sys.argv[1])
-except IndexError:
-    INSIDE = False
+    called_inside = []
 
+    @InsideTheCone('./the-wire')
+    def foo(message):
+        return f"we foo'd this: {message}".encode()
 
+    # @OutsideTheCone('./the-wire')
+    # def foo(message):
+    #     return f"we foo'd this: {message}".encode()
 
-run_in_the_cone_of_silence = InsideTheCone if INSIDE else OutsideTheCone
+    d = foo(b'llamas')
 
-
-
-@run_in_the_cone_of_silence('./the-wire')
-def foo(message):
-    return f"we foo'd this: {message}".encode()
-
-
-@run_in_the_cone_of_silence("./bar")
-def bar():
+    yield d
     assert False
 
 
-def make_assertion(result):
-    assert False
-
-
-if not INSIDE:
-    b = foo(b"this goes over the wire")
-    b.addCallback(make_assertion)
-
-reactor.run()

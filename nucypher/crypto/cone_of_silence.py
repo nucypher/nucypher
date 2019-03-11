@@ -137,9 +137,8 @@ class OutsideTheCone:
         return self._call_across_wire
 
     def _call_across_wire(self, *args, **kwargs):
-        d = flowFromEndpoint(self.endpoint).addCallback(self._handle_flow, *args, **kwargs).addErrback(
-            self._handle_errors)
-        result = succeed(d)
+        d = flowFromEndpoint(self.endpoint).addCallback(self._handle_flow, *args, **kwargs) \
+            # d.addErrback(self._handle_errors)
         return d
 
     def _handle_flow(self, flow, line, *args, **kwargs):

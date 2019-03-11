@@ -34,6 +34,7 @@ from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
+from nucypher.crypto.cone_of_silence import InsideTheCone, OutsideTheCone, socket_for_function
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
