@@ -142,11 +142,6 @@ def deploy(click_config,
 
         click.secho("Cumulative Gas Consumption: {} gas\n".format(total_gas_used), bold=True, fg='blue')
 
-        if not force and click.confirm("Save transaction hashes to JSON file?"):
-            file = click.prompt("Enter output filepath", type=click.File(mode='w'))  # TODO: Save Txhashes
-            file.write(json.dumps(__deployment_transactions))
-            click.secho("Wrote transaction hashes file to {}".format(file.path), fg='green')
-
     elif action == "allocations":
         if not allocation_infile:
             allocation_infile = click.prompt("Enter allocation data filepath")
