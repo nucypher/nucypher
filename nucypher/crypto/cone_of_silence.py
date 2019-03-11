@@ -97,11 +97,10 @@ class ConeOfSilence(LineReceiver):
 
 @tube
 class InsideTheCone:
+    socket_path = socket_dir_for_this_process()
 
-    def __init__(self, socket_path):
-        # self.endpoint = endpoints.UNIXServerEndpoint(reactor, socket_path, mode=0o600)
-        # d = flowFountFromEndpoint(self.endpoint)
-        # d.addCallback(self.llamas)
+    def __init__(self, socket_path="what are we doing here"):
+        pathlib.Path(self.socket_path).mkdir(parents=True, exist_ok=True)
         return
 
     def __call__(self, f):
