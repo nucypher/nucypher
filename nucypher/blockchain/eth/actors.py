@@ -391,6 +391,12 @@ class Miner(NucypherTokenActor):
         return self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
 
     @property
+    def total_staked(self) -> int:
+        if self.stakes:
+            return sum(stake[-1] for stake in self.stakes)
+        return 0
+
+    @property
     def stakes(self) -> Tuple[list]:
         """Read all live stake data from the blockchain and return it as a tuple"""
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)

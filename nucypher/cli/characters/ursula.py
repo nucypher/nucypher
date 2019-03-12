@@ -20,8 +20,9 @@ import click
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
+from web3 import Web3
 
-from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
@@ -124,7 +125,7 @@ def ursula(click_config,
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
     if not click_config.json_ipc and not click_config.quiet:
-        click.secho(URSULA_BANNER)
+        click.secho(URSULA_BANNER.format(checksum_address or ''))
 
     #
     # Pre-Launch Warnings
@@ -242,16 +243,23 @@ def ursula(click_config,
         # GO!
         try:
 
-            # Ursula Deploy Warnings
             click_config.emitter(
-                message="Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)),
+                message="Starting Ursula on {}".format(URSULA.rest_interface),
                 color='green',
                 bold=True)
 
+            # Ursula Deploy Warnings
             click_config.emitter(
-                message="Running Ursula {} on {}".format(URSULA, URSULA.rest_interface),
+                message="Connecting to {}".format(','.join(str(d, encoding='utf-8') for d in ursula_config.domains)),
                 color='green',
                 bold=True)
+
+            if URSULA.stakes:
+                total = URSULA.blockchain.interface.w3.fromWei(URSULA.total_staked, 'ether')
+                click_config.emitter(
+                    message=f"Staking {total} NU ~ Keep Ursula Online!",
+                    color='blue',
+                    bold=True)
 
             if not click_config.debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
@@ -327,11 +335,6 @@ def ursula(click_config,
             if not quiet:
                 click.secho("Staging new stake")
 
-        live_stakes = list(URSULA.miner_agent.get_all_stakes(miner_address=URSULA.checksum_public_address))
-
-        if len(live_stakes) > 0:
-            raise RuntimeError("There is an existing stake for {}".format(URSULA.checksum_public_address))
-
         # Value
         balance = URSULA.token_agent.get_balance(address=URSULA.checksum_public_address)
 
@@ -343,7 +346,12 @@ def ursula(click_config,
             click.echo("Current balance: {}".format(balance))
 
         if not value:
-            value = click.prompt("Enter stake value", type=click.INT)
+            min_stake = URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether')
+            nu_value = click.prompt(f"Enter stake value in NU",
+                                    type=click.INT,
+                                    default=min_stake)
+
+            stake_wei = URSULA.blockchain.interface.w3.toWei(nu_value, 'ether')
 
         # Duration
         if not quiet:
@@ -358,28 +366,43 @@ def ursula(click_config,
 
         if not force:  # Review
             click.echo("""
+| Staged Stake |
+|{address}|
 
-            | Staged Stake |
+{nu_value} NU | ({wei_value} NU-wei)
+{duration} Periods
 
-            Node: {address}
-            Value: {value}
-            Duration: {duration}
-            Start Period: {start_period}
-            End Period: {end_period}
-
+Start Period: {start_period}
+Expiration: {end_period}
             """.format(address=URSULA.checksum_public_address,
-                       value=value,
+                       wei_value=stake_wei,
+                       nu_value=nu_value,
                        duration=duration,
                        start_period=start_period,
                        end_period=end_period))
 
-            click.confirm("Publish Stake?", abort=True)
+            click.confirm(f"""
+By agreeing to lock {nu_value} NU, you are also obligated to 
+maintain a networked and available Ursula with the ETH address {URSULA.checksum_public_address} 
+for the duration of the stake(s) ({duration} periods), and allow the
+NuCypher network users to carry-out uninterrupted re-encryption 
+work orders without interference. 
+ 
+Failure to keep your node online or violation or re-encryption work orders
+will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
-        result = URSULA.initialize_stake(amount=value, lock_periods=duration)
+Agree, and publish staged stake to the blockchain?""", abort=True)
+
+        result = URSULA.initialize_stake(amount=stake_wei, lock_periods=duration)
         for tx_name, txhash in result.items():
             click.secho(f'{tx_name} .......... {txhash.hex()}')
         else:
-            click.secho('Successfully transmitted stake initialization transactions', fg='green')
+            click.secho(f'''
+Successfully transmitted stake initialization transactions.
+
+Start your node by running 'nucypher ursula run'
+
+''', fg='green')
         return
 
     elif action == 'confirm-activity':

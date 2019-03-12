@@ -100,6 +100,10 @@ def paint_node_status(ursula, start_time):
              'Work Orders ......... {}'.format(len(ursula._work_orders)),
              teacher]
 
+    if not ursula.federated_only and ursula.stakes:
+        line = f'Total Staked ........ {ursula.total_staked} NU-wei'
+        stats.append(line)
+
     click.echo('\n' + '\n'.join(stats) + '\n')
 
 
