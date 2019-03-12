@@ -43,8 +43,8 @@ class TestRPCResponse:
             return self.data['error']
 
     @classmethod
-    def from_bytes(cls, response_bytes: bytes):
-        outgoing_responses = response_bytes.strip(cls.delimiter).split(cls.delimiter)
+    def from_string(cls, response_line: str):
+        outgoing_responses = response_line.strip(cls.delimiter).split(cls.delimiter)
 
         responses = list()
         for response in outgoing_responses:
@@ -108,7 +108,7 @@ class JSONRPCTestClient:
         cursor_position = current_cursor_position - size
         self.__io.seek(cursor_position)
         stdout = self.__io.read(size)
-        response = TestRPCResponse.from_bytes(response_bytes=stdout)
+        response = TestRPCResponse.from_string(response_line=stdout)
         return response
 
     def send(self, request: Union[dict, list], malformed: bool = False) -> TestRPCResponse:
@@ -117,7 +117,7 @@ class JSONRPCTestClient:
         if malformed:
             # Allow a malformed request for testing and
             # bypass all this business below
-            payload = bytes(request, encoding='utf-8')
+            payload = json.dumps(request)
 
         else:
             # Handle single or bulk requests

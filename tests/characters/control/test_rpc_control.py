@@ -5,7 +5,7 @@ import pytest
 
 from nucypher.characters.control.specifications import AliceSpecification
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.utilities.sandbox.policy import generate_random_label
+from nucypher.utilities.policy import generate_random_label
 
 
 def test_alice_character_control_create_policy(alice_rpc_test_client, federated_bob):

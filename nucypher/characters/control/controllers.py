@@ -64,8 +64,13 @@ class AliceJSONController(AliceInterface, CharacterControllerBase):
         return response_data
 
     @character_control_interface
-    def derive_policy_encrypting_key(self, label: str, request=None):
-        label_bytes = label.encode()
+    def derive_policy_encrypting_key(self, label: str = None, request=None):
+        if label:
+            label_bytes = label.encode()
+
+        else:
+            label_bytes = request['label'].encode()
+
         result = super().derive_policy_encrypting_key(label=label_bytes)
         response_data = self.serializer.dump_derive_policy_encrypting_key_output(response=result)
         return response_data
@@ -277,8 +282,10 @@ class JSONRPCController(CharacterControlServer):
         method_name = request['method']
 
         try:
-            valid_method_name = method_name.isalnum()
-        except AttributeError:
+            int(method_name)  # must not be a number
+        except ValueError:
+            valid_method_name = True
+        else:
             valid_method_name = False
 
         is_valid = all((valid_method_name, ))
