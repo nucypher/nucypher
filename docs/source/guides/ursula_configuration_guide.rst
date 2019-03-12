@@ -1,10 +1,7 @@
 Ursula Configuration Guide
 ==========================
 
-Interactive Federated Ursula Configuration
-------------------------------------------
-
-1. Verify your ``nucypher`` installation and entry points are functional
+Before continuing, Verify your ``nucypher`` installation and entry points are functional:
 
 Activate your virtual environment and run the ``nucypher --help`` command
 
@@ -23,11 +20,26 @@ If your installation in non-functional, be sure you have the latest version inst
 .. _Installation Guide: installation_guide.html
 
 
-2. Configure a new Ursula node
 
+2(a). Configure a new Ursula node
+
+*Decentralized Ursula Configuration*
 .. code:: bash
 
-    (nucypher)$ nucypher ursula init --federated-only
+    (nucypher)$ nucypher ursula init --provider-uri <YOUR PROVIDER URI> --network <NETWORK NAME>
+
+Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
+
+    - *ipc:///tmp/geth.ipc*   - Geth Development Node (IPC)
+    - *http://localhost:7545* - Ganache TestRPC (HTTP-JSON-RPC)
+    - *ws://0.0.0.0:8080*     - Websocket Provider
+
+2(b). Configure a new Ursula node
+
+*Federated Ursula Initialization*
+.. code:: bash
+
+    (nucypher)$ nucypher ursula init --federated-only --network <NETWORK NAME>
 
 
 3. Enter your public-facing IPv4 address when prompted
@@ -41,7 +53,7 @@ If your installation in non-functional, be sure you have the latest version inst
 
 .. code:: bash
 
-    Enter a PASSWORD to encrypt your keyring: <YOUR PASSWORD HERE>
+    Enter a password to encrypt your keyring: <YOUR PASSWORD HERE>
 
 
 .. important::::
@@ -49,10 +61,9 @@ If your installation in non-functional, be sure you have the latest version inst
 
     - Minimum password length is 16 characters
     - Do not use a password that you use anywhere else
-    - Your password may be displayed in logs or other recorded output.
     - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
-5. Connect to a Federation
+5. Connect to a fleet
 
 .. code:: bash
 
