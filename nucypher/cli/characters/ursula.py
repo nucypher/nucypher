@@ -167,8 +167,6 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        click_config.emitter(message="Generated keyring {}".format(ursula_config.keyring_dir), color='green')
-        click_config.emitter(message="Saved configuration file {}".format(ursula_config.config_file_location), color='green')
         painting.paint_new_installation_help(new_configuration=ursula_config, config_root=config_root, config_file=config_file)
         return
 

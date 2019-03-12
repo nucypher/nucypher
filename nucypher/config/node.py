@@ -282,6 +282,10 @@ class NodeConfiguration(ABC):
         return ursula_config
 
     def __write(self, password: str, no_registry: bool):
+
+        if not self.federated_only:
+            self.connect_to_blockchain()
+
         _new_installation_path = self.initialize(password=password, import_registry=no_registry)
         _configuration_filepath = self.to_configuration_file(filepath=self.config_file_location)
 
@@ -532,7 +536,7 @@ class NodeConfiguration(ABC):
             except FileExistsError:
                 if os.listdir(self.config_root):
                     message = "There are existing files located at {}".format(self.config_root)
-                    raise self.ConfigurationError(message)
+                    self.log.debug(message)
 
             except FileNotFoundError:
                 os.makedirs(self.config_root, mode=0o755)
@@ -586,9 +590,14 @@ class NodeConfiguration(ABC):
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
+        if not self.federated_only and not self.checksum_public_address:
+            checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
+        else:
+            checksum_address = self.checksum_public_address
+
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
-                                                checksum_address=self.checksum_public_address,
+                                                checksum_address=checksum_address,
                                                 **generation_kwargs)
         # Operating mode switch TODO: #466
         if self.federated_only:

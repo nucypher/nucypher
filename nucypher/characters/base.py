@@ -72,7 +72,7 @@ class Character(Learner):
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
-                 checksum_public_address: bytes = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
+                 checksum_public_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
                  crypto_power: CryptoPower = None,
