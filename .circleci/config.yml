@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  codecov: codecov/codecov@1.0.1
+
 workflows:
   version: 2
   test_build_deploy:
@@ -291,19 +294,16 @@ commands:
           name: "Create directory for test reports"
           command: mkdir reports
 
-  coveralls:
-    description: "Upload Coverage Report To Coveralls.io"
+  codecov:
+    description: "Upload Coverage Report To codecov.io"
     steps:
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - codecov/upload:
+          file: reports
 
   capture_test_results:
     description: "Store and Upload test results; Follow-up step for tests"
     steps:
-      - coveralls
+      - codecov
       - store_test_results:
           path: reports
 
