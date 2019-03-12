@@ -20,6 +20,7 @@ import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
+from nucypher.blockchain.eth.utils import period_to_datetime
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
@@ -185,3 +186,33 @@ def paint_contract_status(ursula_config, click_config):
                gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
                ursulas=click_config.miner_agent.get_miner_population())
     click.secho(network_payload)
+
+
+def paint_staged_stake(ursula, stake_nu, stake_wei, duration, start_period, end_period):
+
+    click.secho(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
+
+    click.echo(f"""
+{ursula}
+
+~ Value      -> {stake_nu} NU ({stake_wei} NU-wei) 
+~ Duration   -> {duration} Days ({duration} Periods)
+~ Enactment  -> {period_to_datetime(period=start_period)} ({start_period})
+~ Expiration -> {period_to_datetime(period=end_period)} ({end_period})
+    """)
+
+    click.secho('=========================================================================', bold=True)
+
+
+def paint_staking_confirmation(ursula, transactions):
+    click.secho(f'\nEscrow Address ... {ursula.miner_agent.contract_address}', fg='blue')
+    for tx_name, txhash in transactions.items():
+        click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
+    else:
+        click.secho(f'''
+
+Successfully transmitted stake initialization transactions.
+
+View your active stakes by running 'nucypher ursula stake --list'
+or start your Ursula node by running 'nucypher ursula run'.
+    ''', fg='green')

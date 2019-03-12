@@ -20,9 +20,9 @@ import click
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
-from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
+from nucypher.blockchain.eth.utils import period_to_datetime
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
@@ -252,7 +252,7 @@ def ursula(click_config,
                 color='green',
                 bold=True)
 
-            if URSULA.stakes:
+            if not URSULA.federated_only and URSULA.stakes:
                 total = URSULA.blockchain.interface.w3.fromWei(URSULA.total_staked, 'ether')
                 click_config.emitter(
                     message=f"Staking {total} NU ~ Keep Ursula Online!",
@@ -323,8 +323,19 @@ def ursula(click_config,
             if not live_stakes:
                 click.echo(f"There are no existing stakes for {URSULA.checksum_public_address}")
 
+            header = f'| # | Duration     | Enact     | Expiration | Value '
+            breaky = f'| - | ------------ | --------- | -----------| ----- '
+            click.secho(header, bold=True)
+            click.secho(breaky, bold=True)
             for index, stake_info in enumerate(live_stakes):
-                row = '{} | {}'.format(index, stake_info)
+                start, expiration, stake_wei = stake_info
+                stake_nu = URSULA.blockchain.interface.w3.fromWei(stake_wei, 'ether')
+
+                start_datetime = str(period_to_datetime(period=start).slang_date())
+                expiration_datetime = str(period_to_datetime(period=expiration).slang_date())
+                duration = expiration - start
+                pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
+                row = f'| {index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {stake_nu} NU '
                 click.echo(row)
             return
 
@@ -344,12 +355,11 @@ def ursula(click_config,
             click.echo("Current balance: {}".format(balance))
 
         if not value:
-            min_stake = URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether')
-            nu_value = click.prompt(f"Enter stake value in NU",
-                                    type=click.INT,
-                                    default=min_stake)
+            min_stake_nu = int(URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether'))
+            value = click.prompt(f"Enter stake value in NU", type=click.INT, default=min_stake_nu)
 
-            stake_wei = URSULA.blockchain.interface.w3.toWei(nu_value, 'ether')
+        stake_wei = URSULA.blockchain.interface.w3.toWei(value, 'ether')
+        stake_nu = value
 
         # Duration
         if not quiet:
@@ -363,44 +373,22 @@ def ursula(click_config,
         end_period = start_period + duration
 
         if not force:  # Review
-            click.echo("""
-| Staged Stake |
-|{address}|
+            painting.paint_staged_stake(ursula=URSULA,
+                                        stake_nu=stake_nu,
+                                        stake_wei=stake_wei,
+                                        duration=duration,
+                                        start_period=start_period,
+                                        end_period=end_period)
 
-{nu_value} NU | ({wei_value} NU-wei)
-{duration} Periods
+            if not dev:
+                actions.confirm_staged_stake(ursula=URSULA, value=value, duration=duration)
 
-Start Period: {start_period}
-Expiration: {end_period}
-            """.format(address=URSULA.checksum_public_address,
-                       wei_value=stake_wei,
-                       nu_value=nu_value,
-                       duration=duration,
-                       start_period=start_period,
-                       end_period=end_period))
+        # Last chance to bail
+        if not force:
+            click.confirm("Publish staged stake to the blockchain?", abort=True)
 
-            click.confirm(f"""
-By agreeing to lock {nu_value} NU, you are also obligated to 
-maintain a networked and available Ursula with the ETH address {URSULA.checksum_public_address} 
-for the duration of the stake(s) ({duration} periods), and allow the
-NuCypher network users to carry-out uninterrupted re-encryption 
-work orders without interference. 
- 
-Failure to keep your node online or violation or re-encryption work orders
-will result in the loss of staked tokens as described in the NuCypher slashing protocol.
-
-Agree, and publish staged stake to the blockchain?""", abort=True)
-
-        result = URSULA.initialize_stake(amount=stake_wei, lock_periods=duration)
-        for tx_name, txhash in result.items():
-            click.secho(f'{tx_name} .......... {txhash.hex()}')
-        else:
-            click.secho(f'''
-Successfully transmitted stake initialization transactions.
-
-Start your node by running 'nucypher ursula run'
-
-''', fg='green')
+        staking_transactions = URSULA.initialize_stake(amount=stake_wei, lock_periods=duration)
+        painting.paint_staking_confirmation(ursula=URSULA, transactions=staking_transactions)
         return
 
     elif action == 'confirm-activity':

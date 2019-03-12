@@ -73,6 +73,23 @@ def datetime_to_period(datetime: maya.MayaDT) -> int:
     return int(future_period)
 
 
+def period_to_datetime(period: int) -> maya.MayaDT:
+    now = maya.now()
+    current_period = datetime_to_period(datetime=now)
+
+    delta_periods = period - current_period
+
+    # +
+    if delta_periods:
+        duration = now + maya.timedelta(days=delta_periods)
+
+    # -
+    else:
+        duration = now - maya.timedelta(days=delta_periods)
+
+    return duration
+
+
 def calculate_period_duration(future_time: maya.MayaDT) -> int:
     """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
 

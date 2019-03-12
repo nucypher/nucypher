@@ -91,3 +91,29 @@ def forget(configuration):
     message = "Removed all stored node node metadata and certificates"
     console_emitter(message=message, color='red')
     click.secho(message=message, fg='red')
+
+
+def confirm_staged_stake(ursula, value, duration):
+    click.confirm(f"""
+* Ursula Node Operator Notice *
+-------------------------------
+
+By agreeing to stake {value} NU: 
+
+- Staked tokens will be locked, and unavailable for transactions for the stake duration.
+
+- You are obligated to maintain a networked and available Ursula node with the 
+  ETH address {ursula.checksum_public_address} for the duration 
+  of the stake(s) ({duration} periods)
+
+- Agree to allow NuCypher network users to carry out uninterrupted re-encryption
+  work orders at-will without interference. 
+
+Failure to keep your node online, or violation of re-encryption work orders
+will result in the loss of staked tokens as described in the NuCypher slashing protocol.
+
+Keeping your Ursula node online during the staking period and successfully
+performing accurate re-encryption work orders will result in rewards 
+paid out in ETH retro-actively, on-demand.
+
+Accept node operator obligation?""", abort=True)

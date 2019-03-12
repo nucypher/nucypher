@@ -193,29 +193,6 @@ def test_empty_federated_status(click_runner, custom_filepath):
     assert 'password' not in result.output
 
 
-def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_runner):
-
-    # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
-
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--config-root', custom_filepath,
-                 '--rest-host', MOCK_IP_ADDRESS)
-
-    # Ensure that an existing configuration directory cannot be overridden
-    with pytest.raises(UrsulaConfiguration.ConfigurationError):
-        _bad_result = click_runner.invoke(nucypher_cli, init_args,
-                                          input='{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD)*2,
-                                          catch_exceptions=False)
-
-        assert 'password' in _bad_result.output, 'WARNING: User was not prompted for password'
-
-    # Really we want to keep this file until its destroyed
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
-
-
 def test_ursula_destroy_configuration(custom_filepath, click_runner):
 
     preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)
