@@ -269,12 +269,12 @@ class Miner(NucypherTokenActor):
     Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
-    __current_period_sample_rate = 10
+    __current_period_sample_rate = 60*60  # seconds
 
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me: bool, *args, **kwargs) -> None:
+    def __init__(self, is_me: bool, start_staking_loop: bool = True, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.log = Logger("miner")
         self.is_me = is_me
@@ -290,35 +290,25 @@ class Miner(NucypherTokenActor):
         else:
             self.token_agent = constants.STRANGER_MINER
 
-        # Everyone!
         self.miner_agent = MinerAgent(blockchain=self.blockchain)
+
+        if self.stakes and start_staking_loop:
+            self.stake()
+
 
     #
     # Staking
     #
     @only_me
-    def stake(self,
-              confirm_now=False,
-              resume: bool = False,
-              expiration: maya.MayaDT = None,
-              lock_periods: int = None,
-              *args, **kwargs) -> None:
+    def stake(self, confirm_now=False) -> None:
 
         """High-level staking daemon loop"""
-
-        if lock_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-        if expiration:
-            lock_periods = datetime_to_period(expiration)
-
-        if resume is False:
-            _staking_receipts = self.initialize_stake(expiration=expiration,
-                                                      lock_periods=lock_periods,
-                                                      *args, **kwargs)
 
         # TODO: Check if this period has already been confirmed
         # TODO: Check if there is an active stake in the current period: Resume staking daemon
         # TODO: Validation and Sanity checks
+
+        terminal_period = max(stake[1] for stake in self.stakes)
 
         if confirm_now:
             self.confirm_activity()
@@ -326,7 +316,7 @@ class Miner(NucypherTokenActor):
         # record start time and periods
         self.__start_time = maya.now()
         self.__uptime_period = self.miner_agent.get_current_period()
-        self.__terminal_period = self.__uptime_period + lock_periods
+        self.__terminal_period = self.__uptime_period + terminal_period
         self.__current_period = self.__uptime_period
         self.start_staking_loop()
 
@@ -377,7 +367,7 @@ class Miner(NucypherTokenActor):
         else:
             d = self._staking_task.start(interval=self.__current_period_sample_rate, now=now)
             d.addErrback(self.handle_staking_errors)
-            self.log.info("Started staking loop")
+            self.log.info(f"Starting Staking Loop NOW - running until period {self.__terminal_period}")
             return d
 
     @property
