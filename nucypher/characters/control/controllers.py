@@ -6,13 +6,16 @@ from typing import Callable
 
 from flask import Response, Flask
 from hendrix.deploy.base import HendrixDeploy
-from twisted.internet import reactor
+from twisted.internet import reactor, stdio
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter, JSONRPCStdoutEmitter
-from nucypher.characters.control.interfaces import (AliceInterface, character_control_interface, EnricoInterface, \
-                                                    BobInterface
-                                                    )
+from nucypher.characters.control.interfaces import (
+    AliceInterface,
+    character_control_interface,
+    EnricoInterface,
+    BobInterface
+)
 from nucypher.characters.control.serializers import (
     AliceControlJSONSerializer,
     BobControlJSONSerializer,
@@ -201,7 +204,7 @@ class JSONRPCController(CharacterControlServer):
     _emitter_class = JSONRPCStdoutEmitter
 
     def start(self):
-        self.make_control_transport()
+        _transport = self.make_control_transport()
         reactor.run()  # < ------ Blocking Call (Reactor)
 
     def test_client(self) -> JSONRPCTestClient:
@@ -209,7 +212,7 @@ class JSONRPCController(CharacterControlServer):
         return test_client
 
     def make_control_transport(self):
-        transport = JSONRPCLineReceiver(rpc_controller=self)
+        transport = stdio.StandardIO(JSONRPCLineReceiver(rpc_controller=self))
         return transport
 
     def get_interface(self, name: str) -> Callable:

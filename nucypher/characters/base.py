@@ -480,5 +480,4 @@ class Character(Learner):
                                        crash_on_error=crash_on_error)
 
         drone.controller = controller
-        rpc_control = controller.make_control_transport()  # TODO
         return controller

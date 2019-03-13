@@ -136,6 +136,15 @@ def bob(click_config,
 
         # Echo Public Keys
         click_config.emit(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
+
+        # RPC
+        if click_config.json_ipc:
+            rpc_controller = BOB.make_rpc_controller()
+            _transport = rpc_controller.make_control_transport()
+            rpc_controller.start()
+            return
+
+        click_config.emitter(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
         bob_encrypting_key = bytes(BOB.public_keys(DecryptingPower)).hex()
         click_config.emit(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
 

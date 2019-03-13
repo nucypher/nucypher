@@ -188,6 +188,7 @@ def alice(click_config,
         # RPC
         if click_config.json_ipc:
             rpc_controller = ALICE.make_rpc_controller()
+            _transport = rpc_controller.make_control_transport()
             rpc_controller.start()
             return
 
