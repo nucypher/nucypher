@@ -30,7 +30,7 @@ If your installation in non-functional, be sure you have the latest version inst
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - *ipc:///tmp/geth.ipc*   - Geth Development Node (IPC)
+    - *ipc:///tmp/geth.ipc*   - Geth Development Node (IPC; Also use --poa flag)
     - *http://localhost:7545* - Ganache TestRPC (HTTP-JSON-RPC)
     - *ws://0.0.0.0:8080*     - Websocket Provider
 

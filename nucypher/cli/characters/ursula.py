@@ -24,7 +24,7 @@ from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
-from nucypher.blockchain.eth.utils import period_to_datetime, calculate_period_duration
+from nucypher.blockchain.eth.utils import datetime_at_period, calculate_period_duration
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
@@ -33,8 +33,8 @@ from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,
-    EXISTING_READABLE_FILE
-)
+    EXISTING_READABLE_FILE,
+    STAKE_DURATION)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -352,7 +352,7 @@ def ursula(click_config,
             message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS)
             click.echo(message)
         if not duration:
-            duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=click.INT)
+            duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=STAKE_DURATION)
         start_period = URSULA.miner_agent.get_current_period()
         end_period = start_period + duration
 
@@ -415,7 +415,7 @@ def ursula(click_config,
             duration = new_end_period - start_period
 
             division_message = f"""
-{ursula}
+{URSULA}
 ~ Original Stake: {painting.prettify_stake(stake_index=index, stake_info=stake_info)}
             """
 
@@ -436,6 +436,9 @@ def ursula(click_config,
         if not quiet:
             click.secho('Successfully divided stake', fg='green')
             click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}')
+
+        # Show the resulting stake list
+        painting.paint_stakes(stakes=URSULA.stakes)
 
         return
 

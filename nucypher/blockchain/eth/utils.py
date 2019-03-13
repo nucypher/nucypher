@@ -68,12 +68,11 @@ def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
 
 def datetime_to_period(datetime: maya.MayaDT) -> int:
     """Converts a MayaDT instance to a period number."""
-
     future_period = datetime._epoch // int(SECONDS_PER_PERIOD)
     return int(future_period)
 
 
-def period_to_datetime(period: int) -> maya.MayaDT:
+def datetime_at_period(period: int) -> maya.MayaDT:
     now = maya.now()
     current_period = datetime_to_period(datetime=now)
 
@@ -81,18 +80,17 @@ def period_to_datetime(period: int) -> maya.MayaDT:
 
     # +
     if delta_periods:
-        duration = now + maya.timedelta(days=delta_periods)
+        target_period = now + maya.timedelta(days=delta_periods)
 
     # -
     else:
-        duration = now - maya.timedelta(days=delta_periods)
+        target_period = now - maya.timedelta(days=delta_periods)
 
-    return duration
+    return target_period
 
 
 def calculate_period_duration(future_time: maya.MayaDT) -> int:
     """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
-
     future_period = datetime_to_period(datetime=future_time)
     current_period = datetime_to_period(datetime=maya.now())
     periods = future_period - current_period

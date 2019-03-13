@@ -427,13 +427,13 @@ class Miner(NucypherTokenActor):
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        _first_period, last_period, locked_value = self.miner_agent.get_stake_info(
-            miner_address=self.checksum_public_address, stake_index=stake_index)
+        _first_period, last_period, locked_value = self.miner_agent.get_stake_info(miner_address=self.checksum_public_address, stake_index=stake_index)
+
         if expiration:
             additional_periods = datetime_to_period(datetime=expiration) - last_period
 
-            if additional_periods <= 0:
-                raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
+        if additional_periods <= 0:
+            raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
         if target_value >= locked_value:
             raise self.MinerError("Cannot divide stake; Value must be less than the specified stake value.")

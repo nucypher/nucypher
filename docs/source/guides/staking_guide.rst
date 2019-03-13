@@ -45,8 +45,8 @@ Interactive Method
 
     Stage a new stake? [y/N]: y
 
-    Current balance: 10000
-    Enter stake value in NU [1500]: 3000
+    Current balance: 100000
+    Enter stake value in NU [15000]: 30000
 
     Minimum duration: 30 | Maximum Duration: 365
     Enter stake duration in periods (1 Period = 24 Hours): 90
@@ -54,7 +54,7 @@ Interactive Method
     ============================== STAGED STAKE ==============================
 
     (Ursula)⇀Sienna Scales GreenYellow Ferry↽ (0x058D5F4cC9d52403c2F6944eC1c821a0e6E78657)
-    ~ Value      -> 3000 NU (30000000000000000000000 NU-wei)
+    ~ Value      -> 30000 NU (300000000000000000000000 NU-wei)
     ~ Duration   -> 90 Days (90 Periods)
     ~ Enactment  -> 2019-03-12 02:08:41.425755+00:00 (17967)
     ~ Expiration -> 2020-02-08 02:08:41.425912+00:00 (18300)
@@ -85,7 +85,7 @@ Interactive Method
 
     | # | Duration     | Enact     | Expiration   | Value
     | - | ------------ | --------- | -------------| -----
-    | 0 | 32 periods . | yesterday | 14 Apr ..... | 3000 NU
+    | 0 | 32 periods . | yesterday | 14 Apr ..... | 30000 NU
 
 
 *Divide an existing stake*
@@ -97,7 +97,7 @@ Interactive Method
 
     | # | Duration     | Enact     | Expiration | Value
     | - | ------------ | --------- | -----------| -----
-    | 0 | 32 periods . | yesterday | 14 Apr ... | 3000 NU
+    | 0 | 32 periods . | yesterday | 14 Apr ... | 30000 NU
 
     Select a stake to divide: 0
     Enter target value (must be less than 3000 NU): 1500
@@ -105,12 +105,12 @@ Interactive Method
 
     ============================== ORIGINAL STAKE ============================
 
-    ~ Original Stake: | 0 | 90 periods . | yesterday .. | 14 Apr ... | 3000 NU
+    ~ Original Stake: | 0 | 90 periods . | yesterday .. | 14 Apr ... | 30000 NU
 
     ============================== STAGED STAKE ==============================
 
     (Ursula)⇀Sienna Scales GreenYellow Ferry↽ (0x058D5F4cC9d52403c2F6944eC1c821a0e6E78657)
-    ~ Value      -> 1500 NU (1500000000000000000000 NU-wei)
+    ~ Value      -> 15000 NU (15000000000000000000000 NU-wei)
     ~ Duration   -> 120 Days (120 Periods)
     ~ Enactment  -> 2019-03-13 20:18:17.306398+00:00 (period #17968)
     ~ Expiration -> 2019-04-24 20:18:17.306801+00:00 (period #18010)

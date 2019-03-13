@@ -22,7 +22,7 @@ import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 from web3 import Web3
 
-from nucypher.blockchain.eth.utils import period_to_datetime
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
@@ -211,8 +211,8 @@ def paint_staged_stake(ursula,
 {ursula}
 ~ Value      -> {stake_nu} NU ({stake_wei} NU-wei) 
 ~ Duration   -> {duration} Days ({duration} Periods)
-~ Enactment  -> {period_to_datetime(period=start_period)} (period #{start_period})
-~ Expiration -> {period_to_datetime(period=end_period)} (period #{end_period})
+~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
+~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
     """)
 
     click.secho('=========================================================================', bold=True)
@@ -222,14 +222,13 @@ def paint_staking_confirmation(ursula, transactions):
     click.secho(f'\nEscrow Address ... {ursula.miner_agent.contract_address}', fg='blue')
     for tx_name, txhash in transactions.items():
         click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
-    else:
-        click.secho(f'''
+    click.secho(f'''
 
 Successfully transmitted stake initialization transactions.
 
 View your active stakes by running 'nucypher ursula stake --list'
 or start your Ursula node by running 'nucypher ursula run'.
-    ''', fg='green')
+''', fg='green')
 
 
 def prettify_stake(stake_index: int, stake_info: Tuple[int, int, str]) -> str:
@@ -237,8 +236,8 @@ def prettify_stake(stake_index: int, stake_info: Tuple[int, int, str]) -> str:
 
     stake_nu = int(Web3.fromWei(stake_wei, 'ether'))
 
-    start_datetime = str(period_to_datetime(period=start).slang_date())
-    expiration_datetime = str(period_to_datetime(period=expiration).slang_date())
+    start_datetime = str(datetime_at_period(period=start).slang_date())
+    expiration_datetime = str(datetime_at_period(period=expiration).slang_date())
     duration = expiration - start
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
