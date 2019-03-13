@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  nucypher-dev:
+    volumes:
+      - ../..:/code
+    ports:
+      - 11500
+    build:
+      context: ../..
+      dockerfile: dev/docker/Dockerfile
+    image: dev:nucypher
+    container_name: nucypher-dev

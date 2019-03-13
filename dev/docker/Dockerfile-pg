@@ -1,0 +1,34 @@
+FROM postgres:latest
+ENV PYTHONUNBUFFERED 1
+
+# Update
+RUN apt update -y && apt upgrade -y
+RUN apt install gcc libffi-dev wget git -y
+
+USER postgres
+RUN /etc/init.d/postgresql start &&\
+    psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'nucypher';" &&\
+    createdb -O nucypher nucypher
+
+
+USER root
+# Expose port range
+EXPOSE 11500
+
+RUN mkdir /code
+WORKDIR /code
+ADD . /code/
+
+
+# pip stuff
+RUN pip install --upgrade pip
+RUN pip install pipenv
+
+# pip install
+RUN pipenv install --dev --system
+RUN pip3 install -e .
+
+RUN ./scripts/install_solc.sh
+
+# will rarely get run.
+CMD ["echo", "Ursula up"]

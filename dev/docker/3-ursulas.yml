@@ -1,0 +1,61 @@
+version: '3'
+
+# runs 3 ursulas, each on a different "host", similar to real world
+# similar to real world conditions
+
+# ex. docker-compose -f 3-ursulas.yml up
+
+services:
+  nucypher-dev:
+    volumes:
+      - ../..:/code
+    ports:
+      - 11500
+    build:
+      context: ../..
+      dockerfile: dev/docker/Dockerfile
+    image: dev:nucypher
+    container_name: nucypher-dev
+  ursula1:
+    volumes:
+      - ../..:/code
+    ports:
+      - 11500
+    image: dev:nucypher
+    command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.1 --rest-port 11500
+    networks:
+      nucypher_net:
+        ipv4_address: 172.28.1.1
+    container_name: ursula1
+  ursula2:
+    volumes:
+      - ../..:/code
+    ports:
+      - 11500
+    image: dev:nucypher
+    depends_on:
+      - ursula1
+    command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.2 --rest-port 11500 --teacher-uri 172.28.1.1:11500
+    networks:
+      nucypher_net:
+        ipv4_address: 172.28.1.2
+    container_name: ursula2
+  ursula3:
+    volumes:
+      - ../..:/code
+    ports:
+      - 11500
+    image: dev:nucypher
+    depends_on:
+      - ursula1
+    command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.3 --rest-port 11500 --teacher-uri 172.28.1.1:11500
+    networks:
+      nucypher_net:
+        ipv4_address: 172.28.1.3
+    container_name: ursula3
+networks:
+  nucypher_net:
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.28.0.0/16
