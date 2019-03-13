@@ -1,3 +1,3 @@
 #!/bin/bash
 args="$@"
-docker run -it dev:nucpyher pytest $args
+docker run -it dev:nucypher pytest $args
