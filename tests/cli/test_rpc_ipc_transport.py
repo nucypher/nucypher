@@ -50,7 +50,7 @@ class TransportTrap:
 
 
 @pytest.fixture(scope='module')
-def protocol(federated_alice):
+def rpc_protocol(federated_alice):
     rpc_controller = federated_alice.make_rpc_controller()
     protocol = JSONRPCLineReceiver(rpc_controller=rpc_controller, capture_output=True)
     yield protocol
@@ -62,7 +62,7 @@ def test_alice_rpc_controller_creation(federated_alice):
     assert protocol.rpc_controller == federated_alice.controller
 
 
-def test_rpc_invalid_input(protocol, federated_alice):
+def test_rpc_invalid_input(rpc_protocol, federated_alice):
     """
     Example test data fround here: https://www.jsonrpc.org/specification
     """
@@ -95,7 +95,7 @@ def test_rpc_invalid_input(protocol, federated_alice):
             if not isinstance(request, bytes):
                 request = bytes(json.dumps(request), encoding='utf-8')
 
-            protocol.lineReceived(line=request)
+            rpc_protocol.lineReceived(line=request)
 
             stdout = sys.stdout.read(lines=1)
             deserialized_response = json.loads(stdout)
@@ -103,11 +103,3 @@ def test_rpc_invalid_input(protocol, federated_alice):
 
             actual_error_code = int(deserialized_response['error']['code'])
             assert (actual_error_code == expected_error_code), str(request)
-
-
-def test_valid_rpc_inputs(protocol, federated_alice):
-    pass
-
-
-def test_rpc_protocol_integration():
-    pass
