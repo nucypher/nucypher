@@ -71,3 +71,17 @@ def test_alice_character_control_create_policy(alice_rpc_test_client, federated_
         assert rpc_response.success is True
         assert rpc_response.id == response_id
 
+
+def test_alice_character_control_derive_policy_encrypting_key(alice_rpc_test_client):
+    method_name = 'derive_policy_encrypting_key'
+    label = 'test'
+    request_data = {'method': method_name, 'params': {'label': label}}
+    response = alice_rpc_test_client.send(request_data)
+    assert response.success is True
+
+    alice_specification = AliceSpecification()
+    _input_fields, required_output_fileds = alice_specification.get_specifications(interface_name=method_name)
+
+    assert 'jsonrpc' in response.data
+    for output_field in required_output_fileds:
+        assert output_field in response.content
