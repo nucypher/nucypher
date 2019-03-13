@@ -53,6 +53,10 @@ class UrsulaCommandProtocol(LineReceiver):
             'status': self.paintStatus,
             'known_nodes': self.paintKnownNodes,
             'fleet_state': self.paintFleetState,
+            'stakes': self.paintStakes,
+
+            # Blockchain Control
+            'confirm_activity': self.confirm_activity,
 
             # Learning Control
             'cycle_teacher': self.cycle_teacher,
@@ -88,6 +92,16 @@ class UrsulaCommandProtocol(LineReceiver):
         from nucypher.cli.painting import paint_known_nodes
         paint_known_nodes(ursula=self.ursula)
 
+    def paintStakes(self):
+        """
+        Display a list of all active stakes.
+        """
+        from nucypher.cli.painting import paint_stakes
+        if self.ursula.stakes:
+            paint_stakes(stakes=self.ursula.stakes)
+        else:
+            click.secho("No active stakes.")
+
     def paintStatus(self):
         """
         Display the current status of the attached Ursula node.
@@ -118,7 +132,9 @@ class UrsulaCommandProtocol(LineReceiver):
         self.ursula.stop_learning_loop(reason=reason)
 
     def lineReceived(self, line):
-        """Ursula Console REPL"""
+        """
+        Ursula Console REPL
+        """
 
         # Read
         raw_line = line.decode(encoding=self.encoding)
@@ -156,6 +172,12 @@ class UrsulaCommandProtocol(LineReceiver):
         Manually stop the attached Ursula's node learning protocol.
         """
         return self.ursula.stop_learning_loop()
+
+    def confirm_activity(self):
+        """
+        manually confirm activity for this period
+        """
+        return self.ursula.confirm_activity()
 
     def stop(self):
         """

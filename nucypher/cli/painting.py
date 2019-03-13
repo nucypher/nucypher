@@ -104,8 +104,11 @@ def paint_node_status(ursula, start_time):
              teacher]
 
     if not ursula.federated_only and ursula.stakes:
-        line = f'Total Staked ........ {ursula.total_staked} NU-wei'
-        stats.append(line)
+        total_staked = f'Total Staked ........ {ursula.total_staked} NU-wei'
+        stats.append(total_staked)
+
+        current_period = f'Current Period ...... {ursula.miner_agent.get_current_period()}'
+        stats.append(current_period)
 
     click.echo('\n' + '\n'.join(stats) + '\n')
 
