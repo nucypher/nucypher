@@ -21,6 +21,7 @@ from nucypher.characters.control.serializers import (
 )
 from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.cli.processes import JSONRPCLineReceiver
+from nucypher.utilities.controllers import JSONRPCTestClient
 
 
 class CharacterControllerBase(ABC):
