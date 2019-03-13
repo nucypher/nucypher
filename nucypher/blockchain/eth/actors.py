@@ -37,7 +37,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
                                            validate_locktime,
-                                           calculate_period_duration)
+                                           calculate_period_duration, Stake)
 
 
 def only_me(func):
@@ -383,14 +383,15 @@ class Miner(NucypherTokenActor):
     @property
     def total_staked(self) -> int:
         if self.stakes:
-            return sum(stake[-1] for stake in self.stakes)
+            return sum(stake.value for stake in self.stakes)
         return 0
 
     @property
-    def stakes(self) -> Tuple[list]:
+    def stakes(self) -> Tuple[Stake]:
         """Read all live stake data from the blockchain and return it as a tuple"""
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
-        return tuple(stakes_reader)
+        stakes = (Stake.from_stake_info(owner=self, stake_info=info) for info in stakes_reader)
+        return tuple(stakes)
 
     @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:

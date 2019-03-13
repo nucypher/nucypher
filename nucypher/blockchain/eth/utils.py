@@ -14,8 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import maya
+from decimal import Decimal
 
+import eth_utils
+import maya
+from nacl.hash import sha256
+from typing import Union, Tuple
+
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                MAX_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
@@ -95,3 +101,114 @@ def calculate_period_duration(future_time: maya.MayaDT) -> int:
     current_period = datetime_to_period(datetime=maya.now())
     periods = future_period - current_period
     return periods
+
+
+class NU:
+    """An amount of NuCypher tokens"""
+
+    __symbol = 'NU'
+    __decimals = 18
+    __agent_class = NucypherTokenAgent
+
+    # conversions to smallest denomination
+    __denominations = {'NUWei': 10 ** __decimals,
+                       'NU': 1}
+
+    def __init__(self, value: int, denomination: str):
+
+        # Calculate smallest denomination and store it
+        divisor = self.__denominations[denomination]
+        self.__value = Decimal(value) / divisor
+
+    @classmethod
+    def from_nu_wei(cls, value):
+        return cls(value, denomination='NUWei')
+
+    @classmethod
+    def from_tokens(cls, value):
+        return cls(value, denomination='NU')
+
+    def to_nu_wei(self) -> int:
+        token_value = self.__value * self.__denominations['NUWei']
+        return int(token_value)
+
+    def __eq__(self, other):
+        """Compare by smallest denomination"""
+        return self.to_nu_wei() == other.to_nu_wei()
+
+    def __add__(self, other):
+        return NU(self.to_nu_wei() + other.to_nu_wei(), 'NUWei')
+
+    def __sub__(self, other):
+        return NU(self.to_nu_wei() - other.to_nu_wei(), 'NUWei')
+
+    def __int__(self):
+        """Cast to smallest denomination"""
+        return int(self.to_nu_wei())
+
+    def __repr__(self):
+        r = f'{self.__symbol}(value={self.__value})'
+        return r
+
+    def __str__(self):
+        return f'{str(self.__value)} {self.__symbol}'
+
+
+class Stake:
+
+    def __init__(self,
+                 owner,
+                 value: NU,
+                 start_period: int,
+                 end_period: int):
+
+        # Stake Info
+        self.owner = owner
+        self.value = value
+        self.start_period = start_period
+        self.end_period = end_period
+
+        # Internals
+        self.start_datetime = period_to_datetime(period=start_period)
+        self.end_datetime = period_to_datetime(period=end_period)
+        self.miner_agent = owner.miner_agent
+
+    def __repr__(self):
+        r = f'Stake({self.id}, value={self.value}, end_period={self.end_period})'
+        return r
+
+    @classmethod
+    def from_stake_info(cls, owner, stake_info: Tuple[int, int, int]):
+        start_period, end_period, value = stake_info
+        instance = cls(owner=owner,
+                       start_period=start_period,
+                       end_period=end_period,
+                       value=NU(value, 'NUWei'))
+        return instance
+
+    def to_stake_info(self) -> Tuple[int, int, int]:
+        return self.start_period, self.end_period, int(self.value)
+
+    @property
+    def id(self) -> str:
+        digest = b''
+        digest += eth_utils.to_canonical_address(address=self.owner.checksum_public_address)
+        digest += str(self.start_period).encode()
+        digest += str(self.end_period).encode()
+        digest += str(self.value).encode()
+        stake_id = sha256(digest).hex()[:16]
+        return stake_id[:16]
+
+    @property
+    def periods_remaining(self):
+        current_period = self.miner_agent.get_current_period()
+        return self.end_period - current_period
+
+    def time_remaining(self, slang: bool = False) -> Union[int, str]:
+        now = maya.now()
+        delta = self.end_datetime - now
+        if slang:
+            result = self.end_datetime.slang_date()
+        else:
+            result = delta.seconds
+        return result
