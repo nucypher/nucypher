@@ -18,26 +18,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 from collections import OrderedDict
 from json import JSONDecodeError
-from twisted.logger import Logger
 
 import maya
 from constant_sorrow import constants
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_CONTRACT_AVAILABLE, NO_DEPLOYER_ADDRESS
+from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_ADDRESS
 from datetime import datetime
 from twisted.internet import task, reactor
+from twisted.logger import Logger
 from typing import Tuple, List, Dict, Union
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
-    UserEscrowProxyDeployer, UserEscrowDeployer, DispatcherDeployer
+    UserEscrowProxyDeployer, UserEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry, AllocationRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
                                            validate_locktime,
-                                           calculate_period_duration, Stake)
+                                           calculate_period_duration, Stake, NU)
 
 
 def only_me(func):
@@ -97,8 +96,9 @@ class NucypherTokenActor:
     @property
     def token_balance(self):
         """Return this actors's current token balance"""
-        balance = self.token_agent.get_balance(address=self.checksum_public_address)
-        return balance
+        balance = int(self.token_agent.get_balance(address=self.checksum_public_address))
+        nu_balance = NU(balance, 'NUWei')
+        return nu_balance
 
 
 class Deployer(NucypherTokenActor):
@@ -292,9 +292,12 @@ class Miner(NucypherTokenActor):
 
         self.miner_agent = MinerAgent(blockchain=self.blockchain)
 
+        self.__stakes = constants.NO_STAKES
+        self.__start_time = constants.NO_STAKES
+        self.__uptime_period = constants.NO_STAKES
+        self.__terminal_period = constants.NO_STAKES
         if self.stakes and start_staking_loop:
             self.stake()
-
 
     #
     # Staking
@@ -308,7 +311,7 @@ class Miner(NucypherTokenActor):
         # TODO: Check if there is an active stake in the current period: Resume staking daemon
         # TODO: Validation and Sanity checks
 
-        terminal_period = max(stake[1] for stake in self.stakes)
+        terminal_period = max(stake.end_period for stake in self.stakes)
 
         if confirm_now:
             self.confirm_activity()
@@ -381,16 +384,18 @@ class Miner(NucypherTokenActor):
         return self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
 
     @property
-    def total_staked(self) -> int:
+    def total_staked(self) -> NU:
         if self.stakes:
-            return sum(stake.value for stake in self.stakes)
-        return 0
+            return NU(sum(stake.value for stake in self.stakes), 'NUWei')
+        return NU(0, 'NUWei')
 
     @property
-    def stakes(self) -> Tuple[Stake]:
+    def stakes(self) -> Tuple[Stake, ...]:
         """Read all live stake data from the blockchain and return it as a tuple"""
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
-        stakes = (Stake.from_stake_info(owner=self, stake_info=info) for info in stakes_reader)
+        stakes = tuple(Stake.from_stake_info(owner=self, stake_info=info) for info in stakes_reader)
+        stake_mapping = {index: stake for index, stake in enumerate(stakes)}
+        self.__stakes = stake_mapping
         return tuple(stakes)
 
     @only_me
@@ -410,7 +415,7 @@ class Miner(NucypherTokenActor):
     @only_me
     def divide_stake(self,
                      stake_index: int,
-                     target_value: int,
+                     target_value: NU,
                      additional_periods: int = None,
                      expiration: maya.MayaDT = None) -> dict:
         """
@@ -428,24 +433,23 @@ class Miner(NucypherTokenActor):
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        _first_period, last_period, locked_value = self.miner_agent.get_stake_info(miner_address=self.checksum_public_address, stake_index=stake_index)
+        stake = self.__stakes[stake_index]
 
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - last_period
+            additional_periods = datetime_to_period(datetime=expiration) - stake.end_period
+            if additional_periods <= 0:
+                raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
-        if additional_periods <= 0:
-            raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
-
-        if target_value >= locked_value:
+        if target_value >= stake.value:
             raise self.MinerError("Cannot divide stake; Value must be less than the specified stake value.")
 
         # Ensure both halves are for valid amounts
         validate_stake_amount(amount=target_value)
-        validate_stake_amount(amount=locked_value - target_value)
+        validate_stake_amount(amount=stake.value - target_value)
 
         tx = self.miner_agent.divide_stake(miner_address=self.checksum_public_address,
                                            stake_index=stake_index,
-                                           target_value=target_value,
+                                           target_value=int(target_value),
                                            periods=additional_periods)
 
         self.blockchain.wait_for_receipt(tx)

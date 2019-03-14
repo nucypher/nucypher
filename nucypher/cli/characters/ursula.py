@@ -17,14 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
-import maya
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
-from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
-from nucypher.blockchain.eth.utils import datetime_at_period, calculate_period_duration
+from nucypher.blockchain.eth.utils import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
@@ -34,7 +32,10 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,
     EXISTING_READABLE_FILE,
-    STAKE_DURATION, STAKE_EXTENSION)
+    STAKE_DURATION,
+    STAKE_EXTENSION,
+    STAKE_VALUE
+)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -68,6 +69,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--duration', help="Period duration of stake", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @click.option('--list', '-l', 'list_', help="List all blockchain stakes", is_flag=True)
+@click.option('--divide', '-d', help="Divide an existing stake into sub-stakes.", is_flag=True)
 @nucypher_click_config
 def ursula(click_config,
            action,
@@ -95,7 +97,8 @@ def ursula(click_config,
            value,
            duration,
            index,
-           list_
+           list_,
+           divide
            ) -> None:
     """
     Manage and run an "Ursula" PRE node.
@@ -139,7 +142,7 @@ def ursula(click_config,
             click.secho("WARNING: Force is enabled", fg='yellow')
 
     #
-    # Unauthenticated Configurations & Unconfigured Ursula Control
+    # Unauthenticated Configurations & Un-configured Ursula Control
     #
     if action == "init":
         """Create a brand-new persistent Ursula"""
@@ -169,7 +172,10 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        painting.paint_new_installation_help(new_configuration=ursula_config, config_root=config_root, config_file=config_file)
+        painting.paint_new_installation_help(new_configuration=ursula_config,
+                                             config_root=config_root,
+                                             config_file=config_file,
+                                             federated_only=federated_only)
         return
 
     #
@@ -255,9 +261,8 @@ def ursula(click_config,
                 bold=True)
 
             if not URSULA.federated_only and URSULA.stakes:
-                total = URSULA.blockchain.interface.w3.fromWei(URSULA.total_staked, 'ether')
                 click_config.emitter(
-                    message=f"Staking {total} NU ~ Keep Ursula Online!",
+                    message=f"Staking {str(URSULA.total_staked)} ~ Keep Ursula Online!",
                     color='blue',
                     bold=True)
 
@@ -320,7 +325,7 @@ def ursula(click_config,
 
     elif action == 'stake':
 
-        # List only
+        # List Only
         if list_:
             live_stakes = list(URSULA.miner_agent.get_all_stakes(miner_address=URSULA.checksum_public_address))
             if not live_stakes:
@@ -328,12 +333,62 @@ def ursula(click_config,
             painting.paint_stakes(stakes=live_stakes)
             return
 
+        # Divide Only
+        if divide:
+            """Divide an existing stake by specifying the new target value and end period"""
+
+            # Validate
+            if len(URSULA.stakes) == 0:
+                click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
+                return
+
+            # Selection
+            if index is None:
+                painting.paint_stakes(stakes=URSULA.stakes)
+                index = click.prompt("Select a stake to divide", type=click.INT)
+
+            # Lookup the stake
+            current_stake = URSULA.stakes[index]
+
+            # Value
+            if not value:
+                value = click.prompt(f"Enter target value (must be less than {str(current_stake.value)})", type=STAKE_VALUE)
+            value = NU(value, 'NU')
+
+            # Duration
+            if not duration:
+                extension = click.prompt("Enter number of periods to extend", type=STAKE_EXTENSION)
+            else:
+                extension = duration
+
+            if not force:
+                painting.paint_staged_stake_division(ursula=URSULA,
+                                                     original_index=index,
+                                                     original_stake_info=current_stake,
+                                                     target_value=value,
+                                                     extension=extension)
+
+                click.confirm("Is this correct?", abort=True)
+
+            txhash_bytes = URSULA.divide_stake(stake_index=index,
+                                               target_value=value,
+                                               additional_periods=extension)
+
+            if not quiet:
+                click.secho('Successfully divided stake', fg='green')
+                click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}')
+
+            # Show the resulting stake list
+            painting.paint_stakes(stakes=URSULA.stakes)
+
+            return
+
         # Confirm new stake init
         if not force:
             click.confirm("Stage a new stake?", abort=True)
 
         # Validate balance
-        balance = URSULA.token_agent.get_balance(address=URSULA.checksum_public_address)
+        balance = URSULA.token_balance
         if balance == 0:
             click.secho(f"{ursula.checksum_public_address} has 0 NU.")
             raise click.Abort
@@ -342,10 +397,9 @@ def ursula(click_config,
 
         # Gather stake value
         if not value:
-            min_stake_nu = int(URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether'))
-            value = click.prompt(f"Enter stake value in NU", type=click.INT, default=min_stake_nu)
-        stake_wei = URSULA.blockchain.interface.w3.toWei(value, 'ether')
-        stake_nu = value
+            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=NU(MIN_ALLOWED_LOCKED, 'NUWei'))
+        else:
+            value = NU(int(value), 'NU')
 
         # Duration
         if not quiet:
@@ -359,8 +413,7 @@ def ursula(click_config,
         # Review
         if not force:
             painting.paint_staged_stake(ursula=URSULA,
-                                        stake_nu=stake_nu,
-                                        stake_wei=stake_wei,
+                                        stake_value=value,
                                         duration=duration,
                                         start_period=start_period,
                                         end_period=end_period)
@@ -372,7 +425,7 @@ def ursula(click_config,
         if not force:
             click.confirm("Publish staged stake to the blockchain?", abort=True)
 
-        staking_transactions = URSULA.initialize_stake(amount=stake_wei, lock_periods=duration)
+        staking_transactions = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
         painting.paint_staking_confirmation(ursula=URSULA, transactions=staking_transactions)
         return
 
@@ -382,68 +435,6 @@ def ursula(click_config,
             click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
             return
         URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_public_address)
-        return
-
-    elif action == 'divide-stake':
-        """Divide an existing stake by specifying the new target value and end period"""
-
-        stakes = list(URSULA.stakes)
-        if len(stakes) == 0:
-            click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
-            return
-
-        if index is None:
-            painting.paint_stakes(stakes=stakes)
-            index = click.prompt("Select a stake to divide", type=click.IntRange(min=0, max=len(stakes)-1, clamp=False))
-        stake_info = stakes[index]
-        start_period, end_period, current_stake_wei = stake_info
-        current_stake_nu = int(Web3.fromWei(current_stake_wei, 'ether'))
-
-        # Value
-        if not value:
-            min_value = URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether')
-            target_value = click.prompt(f"Enter target value (must be less than {current_stake_nu} NU)",
-                                        type=click.IntRange(min=min_value, max=current_stake_nu, clamp=False))
-            target_value = Web3.toWei(target_value, 'ether')
-        else:
-            target_value = value
-
-        # Duration
-        if not duration:
-            extension = click.prompt("Enter number of periods to extend", type=STAKE_EXTENSION)
-        else:
-            extension = duration
-
-        if not force:
-            new_end_period = end_period + extension
-            duration = new_end_period - start_period
-
-            division_message = f"""
-{URSULA}
-~ Original Stake: {painting.prettify_stake(stake_index=index, stake_info=stake_info)}
-            """
-
-            painting.paint_staged_stake(ursula=URSULA,
-                                        stake_nu=int(Web3.fromWei(target_value, 'ether')),
-                                        stake_wei=target_value,
-                                        duration=duration,
-                                        start_period=stakes[index][0],
-                                        end_period=new_end_period,
-                                        division_message=division_message)
-
-            click.confirm("Is this correct?", abort=True)
-
-        txhash_bytes = URSULA.divide_stake(stake_index=index,
-                                           target_value=target_value,
-                                           additional_periods=extension)
-
-        if not quiet:
-            click.secho('\nSuccessfully divided stake', fg='green')
-            click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}\n', fg='green')
-
-        # Show the resulting stake list
-        painting.paint_stakes(stakes=URSULA.stakes)
-
         return
 
     elif action == 'collect-reward':

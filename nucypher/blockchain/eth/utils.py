@@ -128,26 +128,49 @@ class NU:
     def from_tokens(cls, value):
         return cls(value, denomination='NU')
 
+    def to_tokens(self) -> int:
+        return int(self.__value)
+
     def to_nu_wei(self) -> int:
         token_value = self.__value * self.__denominations['NUWei']
         return int(token_value)
 
     def __eq__(self, other):
-        """Compare by smallest denomination"""
-        return self.to_nu_wei() == other.to_nu_wei()
+        return int(self) == int(other)
+
+    def __radd__(self, other):
+        return int(self) + other
 
     def __add__(self, other):
-        return NU(self.to_nu_wei() + other.to_nu_wei(), 'NUWei')
+        return NU(int(self) + int(other), 'NUWei')
 
     def __sub__(self, other):
-        return NU(self.to_nu_wei() - other.to_nu_wei(), 'NUWei')
+        return NU(int(self) - int(other), 'NUWei')
+
+    def __mul__(self, other):
+        return NU(int(self) * int(other), 'NUWei')
+
+    def __floordiv__(self, other):
+        return NU(int(self) // int(other), 'NUWei')
+
+    def __gt__(self, other):
+        return int(self) > int(other)
+
+    def __ge__(self, other):
+        return int(self) >= int(other)
+
+    def __lt__(self, other):
+        return int(self) < int(other)
+
+    def __le__(self, other):
+        return int(self) <= int(other)
 
     def __int__(self):
         """Cast to smallest denomination"""
         return int(self.to_nu_wei())
 
     def __repr__(self):
-        r = f'{self.__symbol}(value={self.__value})'
+        r = f'{self.__symbol}(value={int(self.__value)})'
         return r
 
     def __str__(self):

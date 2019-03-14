@@ -37,7 +37,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M)
+                                                  MOCK_POLICY_DEFAULT_M, TESTING_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -347,7 +347,7 @@ def testerchain(solidity_compiler):
 
     origin, *everyone = testerchain.interface.w3.eth.accounts
     deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
-    testerchain.ether_airdrop(amount=1000000000)  # TODO: Use test constant
+    testerchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
 
     yield testerchain
     testerchain.sever_connection()

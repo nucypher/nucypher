@@ -12,6 +12,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
+from nucypher.blockchain.eth.utils import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
@@ -22,7 +23,7 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN)
+    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, TESTING_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 from web3 import Web3
@@ -30,7 +31,7 @@ from web3 import Web3
 from web3 import Web3
 
 
-STAKE_VALUE = Web3.fromWei(MIN_ALLOWED_LOCKED * 2, 'ether')
+STAKE_VALUE = NU(MIN_ALLOWED_LOCKED * 2, 'NUWei')
 POLICY_RATE = Web3.toWei(21, 'gwei')
 POLICY_VALUE = POLICY_RATE * MIN_LOCKED_PERIODS   # * len(ursula)
 
@@ -43,7 +44,7 @@ def funded_blockchain(deployed_blockchain):
     deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
 
     # Free ETH!!!
-    blockchain.ether_airdrop(amount=1000000)
+    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
 
     # Free Tokens!!!
     token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
@@ -148,7 +149,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
 def test_init_ursula_stake(click_runner, configuration_file_location, funded_blockchain):
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
-                  '--value', STAKE_VALUE,
+                  '--value', STAKE_VALUE.to_tokens(),
                   '--duration', MIN_LOCKED_PERIODS,
                   '--poa',
                   '--force')
@@ -164,7 +165,7 @@ def test_init_ursula_stake(click_runner, configuration_file_location, funded_blo
     stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
-    assert Web3.fromWei(value, 'ether') == int(STAKE_VALUE)
+    assert NU(int(value), 'NUWei') == STAKE_VALUE
 
 
 def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_location):
@@ -183,12 +184,13 @@ def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_
 
 def test_ursula_divide_stakes(click_runner, configuration_file_location):
 
-    divide_args = ('ursula', 'divide-stake',
+    divide_args = ('ursula', 'stake',
+                   '--divide',
                    '--config-file', configuration_file_location,
                    '--poa',
                    '--force',
                    '--index', 0,
-                   '--value', MIN_ALLOWED_LOCKED,
+                   '--value', NU(MIN_ALLOWED_LOCKED, 'NUWei').to_tokens(),
                    '--duration', 10)
 
     result = click_runner.invoke(nucypher_cli,
@@ -205,7 +207,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location):
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(Web3.fromWei(MIN_ALLOWED_LOCKED, 'ether')) in result.output
+    assert str(NU(MIN_ALLOWED_LOCKED, 'NUWei').to_tokens()) in result.output
 
 
 def test_run_blockchain_ursula(click_runner,

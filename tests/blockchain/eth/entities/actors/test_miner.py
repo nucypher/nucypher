@@ -68,7 +68,7 @@ def test_miner_divides_stake(miner):
     stake_value = int(constants.MIN_ALLOWED_LOCKED) * 5
     new_stake_value = int(constants.MIN_ALLOWED_LOCKED) * 2
 
-    stake_index = len(list(miner.stakes))
+    stake_index = len(list(miner.stakes)) - 1
     miner.initialize_stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
     miner.divide_stake(target_value=new_stake_value, stake_index=stake_index, additional_periods=2)
 
@@ -77,8 +77,8 @@ def test_miner_divides_stake(miner):
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
 
     assert stake_index + 2 == len(stakes), 'A new stake was not added to this miners stakes'
-    assert expected_old_stake == stakes[stake_index], 'Old stake values are invalid'
-    assert expected_new_stake == stakes[stake_index + 1], 'New stake values are invalid'
+    assert expected_old_stake == stakes[stake_index].to_stake_info(), 'Old stake values are invalid'
+    assert expected_new_stake == stakes[stake_index + 1].to_stake_info(), 'New stake values are invalid'
 
     yet_another_stake_value = int(constants.MIN_ALLOWED_LOCKED)
     miner.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 1, additional_periods=2)
@@ -88,9 +88,9 @@ def test_miner_divides_stake(miner):
     expected_yet_another_stake = (current_period + 1, current_period + 34, yet_another_stake_value)
 
     assert stake_index + 3 == len(stakes), 'A new stake was not added after two stake divisions'
-    assert expected_old_stake == stakes[stake_index], 'Old stake values are invalid after two stake divisions'
-    assert expected_new_stake == stakes[stake_index + 1], 'New stake values are invalid after two stake divisions'
-    assert expected_yet_another_stake == stakes[stake_index + 2], 'Third stake values are invalid'
+    assert expected_old_stake == stakes[stake_index].to_stake_info(), 'Old stake values are invalid after two stake divisions'
+    assert expected_new_stake == stakes[stake_index + 1].to_stake_info(), 'New stake values are invalid after two stake divisions'
+    assert expected_yet_another_stake == stakes[stake_index + 2].to_stake_info(), 'Third stake values are invalid'
 
 
 @pytest.mark.slow()

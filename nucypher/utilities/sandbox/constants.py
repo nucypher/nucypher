@@ -24,6 +24,8 @@ from datetime import datetime
 from random import SystemRandom
 from string import digits, ascii_uppercase
 
+from web3 import Web3
+
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -76,6 +78,8 @@ INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + 
 
 MAX_TEST_SEEDER_ENTRIES = 20
 
+TESTING_ETH_AIRDROP_AMOUNT = int(Web3().fromWei(100, 'ether'))
+
 
 #
 # Temporary Directories and Files
@@ -92,8 +96,6 @@ MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-al
 MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now())}.json')
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
-
-TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'
 
 MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
 
