@@ -55,42 +55,41 @@ def test_miner_locking_tokens(testerchain, three_agents, miner):
     locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address).call()
     assert 0 == locked_tokens
 
-    # testerchain.time_travel(periods=1)
-
     locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address, 1).call()
-    assert constants.MIN_ALLOWED_LOCKED == locked_tokens
+    assert MIN_ALLOWED_LOCKED == locked_tokens
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures("three_agents")
 def test_miner_divides_stake(miner):
+    stake_value = NU(MIN_ALLOWED_LOCKED*5, 'NUWei')
+    new_stake_value = NU(MIN_ALLOWED_LOCKED*2, 'NUWei')
+
+    stake_index = 0
+    miner.initialize_stake(amount=stake_value, lock_periods=int(MIN_LOCKED_PERIODS))
+    miner.divide_stake(target_value=new_stake_value, stake_index=stake_index+1, additional_periods=2)
+
     current_period = miner.miner_agent.get_current_period()
-    stake_value = int(constants.MIN_ALLOWED_LOCKED) * 5
-    new_stake_value = int(constants.MIN_ALLOWED_LOCKED) * 2
-
-    stake_index = len(list(miner.stakes)) - 1
-    miner.initialize_stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
-    miner.divide_stake(target_value=new_stake_value, stake_index=stake_index, additional_periods=2)
-
-    stakes = list(miner.stakes)
     expected_old_stake = (current_period + 1, current_period + 30, stake_value - new_stake_value)
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
 
-    assert stake_index + 2 == len(stakes), 'A new stake was not added to this miners stakes'
-    assert expected_old_stake == stakes[stake_index].to_stake_info(), 'Old stake values are invalid'
-    assert expected_new_stake == stakes[stake_index + 1].to_stake_info(), 'New stake values are invalid'
+    assert 3 == len(miner.stakes), 'A new stake was not added to this miners stakes'
+    assert expected_old_stake == miner.stakes[stake_index+1].to_stake_info(), 'Old stake values are invalid'
+    assert expected_new_stake == miner.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
-    yet_another_stake_value = int(constants.MIN_ALLOWED_LOCKED)
-    miner.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 1, additional_periods=2)
+    yet_another_stake_value = NU(MIN_ALLOWED_LOCKED, 'NUWei')
+    miner.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 2, additional_periods=2)
 
-    stakes = list(miner.stakes)
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
-    expected_yet_another_stake = (current_period + 1, current_period + 34, yet_another_stake_value)
+    expected_yet_another_stake = Stake(start_period=current_period + 1,
+                                       end_period=current_period + 34,
+                                       value=yet_another_stake_value,
+                                       owner=miner)
 
-    assert stake_index + 3 == len(stakes), 'A new stake was not added after two stake divisions'
-    assert expected_old_stake == stakes[stake_index].to_stake_info(), 'Old stake values are invalid after two stake divisions'
-    assert expected_new_stake == stakes[stake_index + 1].to_stake_info(), 'New stake values are invalid after two stake divisions'
-    assert expected_yet_another_stake == stakes[stake_index + 2].to_stake_info(), 'Third stake values are invalid'
+    assert 4 == len(miner.stakes), 'A new stake was not added after two stake divisions'
+    assert expected_old_stake == miner.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
+    assert expected_new_stake == miner.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
+    assert expected_yet_another_stake == miner.stakes[stake_index + 3], 'Third stake values are invalid'
 
 
 @pytest.mark.slow()
@@ -102,8 +101,8 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents):
     initial_balance = miner.token_balance
     assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-    miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
-                           lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
+    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),         # Lock the minimum amount of tokens
+                           lock_periods=int(MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
     # ...wait out the lock period...
     for _ in range(28):
