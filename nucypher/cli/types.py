@@ -46,6 +46,7 @@ class IPv4Address(click.ParamType):
 
 
 STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False)
+STAKE_EXTENSION = click.IntRange(min=1, max=MAX_MINTING_PERIODS, clamp=False)
 STAKE_VALUE = click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False)
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
 EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True)

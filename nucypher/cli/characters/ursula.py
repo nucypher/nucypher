@@ -34,7 +34,7 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,
     EXISTING_READABLE_FILE,
-    STAKE_DURATION)
+    STAKE_DURATION, STAKE_EXTENSION)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -387,26 +387,30 @@ def ursula(click_config,
     elif action == 'divide-stake':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        stakes = list(URSULA.miner_agent.get_all_stakes(miner_address=URSULA.checksum_public_address))
+        stakes = list(URSULA.stakes)
         if len(stakes) == 0:
             click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
             return
 
         if index is None:
             painting.paint_stakes(stakes=stakes)
-            index = click.prompt("Select a stake to divide", type=click.INT)
+            index = click.prompt("Select a stake to divide", type=click.IntRange(min=0, max=len(stakes)-1, clamp=False))
         stake_info = stakes[index]
         start_period, end_period, current_stake_wei = stake_info
         current_stake_nu = int(Web3.fromWei(current_stake_wei, 'ether'))
 
+        # Value
         if not value:
-            target_value = click.prompt(f"Enter target value (must be less than {current_stake_nu} NU)", type=click.INT)
+            min_value = URSULA.blockchain.interface.w3.fromWei(MIN_ALLOWED_LOCKED, 'ether')
+            target_value = click.prompt(f"Enter target value (must be less than {current_stake_nu} NU)",
+                                        type=click.IntRange(min=min_value, max=current_stake_nu, clamp=False))
             target_value = Web3.toWei(target_value, 'ether')
         else:
             target_value = value
 
+        # Duration
         if not duration:
-            extension = click.prompt("Enter number of periods to extend", type=click.INT)
+            extension = click.prompt("Enter number of periods to extend", type=STAKE_EXTENSION)
         else:
             extension = duration
 
@@ -424,18 +428,18 @@ def ursula(click_config,
                                         stake_wei=target_value,
                                         duration=duration,
                                         start_period=stakes[index][0],
-                                        end_period=end_period+extension,
+                                        end_period=new_end_period,
                                         division_message=division_message)
 
             click.confirm("Is this correct?", abort=True)
 
         txhash_bytes = URSULA.divide_stake(stake_index=index,
                                            target_value=target_value,
-                                           additional_periods=duration)
+                                           additional_periods=extension)
 
         if not quiet:
-            click.secho('Successfully divided stake', fg='green')
-            click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}')
+            click.secho('\nSuccessfully divided stake', fg='green')
+            click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}\n', fg='green')
 
         # Show the resulting stake list
         painting.paint_stakes(stakes=URSULA.stakes)
