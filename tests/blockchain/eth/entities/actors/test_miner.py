@@ -19,8 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import maya
 import pytest
 
-from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS
+from nucypher.blockchain.eth.utils import NU, Stake
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
@@ -37,12 +38,11 @@ def miner(testerchain, three_agents):
 @pytest.mark.slow()
 def test_miner_locking_tokens(testerchain, three_agents, miner):
     token_agent, miner_agent, policy_agent = three_agents
-    # testerchain.ether_airdrop(amount=10000)
 
-    assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
+    assert NU(MIN_ALLOWED_LOCKED, 'NUWei') < miner.token_balance, "Insufficient miner balance"
 
-    expiration = maya.now().add(days=constants.MIN_LOCKED_PERIODS)
-    miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+    expiration = maya.now().add(days=MIN_LOCKED_PERIODS)
+    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),  # Lock the minimum amount of tokens
                            expiration=expiration)
 
     # Verify that the escrow is "approved" to receive tokens

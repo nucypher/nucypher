@@ -29,49 +29,6 @@ from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                SECONDS_PER_PERIOD)
 
 
-def __validate(rulebook) -> bool:
-    for rule, failure_message in rulebook:
-        if not rule:
-            raise ValueError(failure_message)
-    return True
-
-
-def validate_stake_amount(amount: int, raise_on_fail=True) -> bool:
-
-    rulebook = (
-
-        (MIN_ALLOWED_LOCKED <= amount,
-         'Stake amount too low; ({amount}) must be at least {minimum}'
-         .format(minimum=MIN_ALLOWED_LOCKED, amount=amount)),
-
-        (MAX_ALLOWED_LOCKED >= amount,
-         'Stake amount too high; ({amount}) must be no more than {maximum}.'
-         .format(maximum=MAX_ALLOWED_LOCKED, amount=amount)),
-    )
-
-    if raise_on_fail is True:
-        __validate(rulebook=rulebook)
-    return all(rulebook)
-
-
-def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
-
-    rulebook = (
-
-        (MIN_LOCKED_PERIODS <= lock_periods,
-         'Locktime ({locktime}) too short; must be at least {minimum}'
-         .format(minimum=MIN_LOCKED_PERIODS, locktime=lock_periods)),
-
-        (MAX_MINTING_PERIODS >= lock_periods,
-         'Locktime ({locktime}) too long; must be no more than {maximum}'
-         .format(maximum=MAX_MINTING_PERIODS, locktime=lock_periods)),
-    )
-
-    if raise_on_fail is True:
-        __validate(rulebook=rulebook)
-    return all(rulebook)
-
-
 def datetime_to_period(datetime: maya.MayaDT) -> int:
     """Converts a MayaDT instance to a period number."""
     future_period = datetime._epoch // int(SECONDS_PER_PERIOD)
@@ -203,6 +160,9 @@ class Stake:
         r = f'Stake({self.id}, value={self.value}, end_period={self.end_period})'
         return r
 
+    def __eq__(self, other):
+        return bool(self.value == other.value)
+
     @classmethod
     def from_stake_info(cls, owner, stake_info: Tuple[int, int, int]):
         start_period, end_period, value = stake_info
@@ -238,3 +198,49 @@ class Stake:
         else:
             result = delta.seconds
         return result
+
+
+def __validate(rulebook) -> bool:
+    for rule, failure_message in rulebook:
+        if not rule:
+            raise ValueError(failure_message)
+    return True
+
+
+def validate_stake_amount(amount: NU, raise_on_fail=True) -> bool:
+
+    min_locked = NU(MIN_ALLOWED_LOCKED, 'NUWei')
+    max_locked = NU(MAX_ALLOWED_LOCKED, 'NUWei')
+
+    rulebook = (
+
+        (min_locked <= amount,
+         'Stake amount too low; ({amount}) must be at least {minimum}'
+         .format(minimum=min_locked, amount=amount)),
+
+        (max_locked >= amount,
+         'Stake amount too high; ({amount}) must be no more than {maximum}.'
+         .format(maximum=max_locked, amount=amount)),
+    )
+
+    if raise_on_fail is True:
+        __validate(rulebook=rulebook)
+    return all(rulebook)
+
+
+def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
+
+    rulebook = (
+
+        (MIN_LOCKED_PERIODS <= lock_periods,
+         'Locktime ({locktime}) too short; must be at least {minimum}'
+         .format(minimum=MIN_LOCKED_PERIODS, locktime=lock_periods)),
+
+        (MAX_MINTING_PERIODS >= lock_periods,
+         'Locktime ({locktime}) too long; must be no more than {maximum}'
+         .format(maximum=MAX_MINTING_PERIODS, locktime=lock_periods)),
+    )
+
+    if raise_on_fail is True:
+        __validate(rulebook=rulebook)
+    return all(rulebook)
