@@ -389,14 +389,17 @@ class Miner(NucypherTokenActor):
             return NU(sum(stake.value for stake in self.stakes), 'NUWei')
         return NU(0, 'NUWei')
 
-    @property
-    def stakes(self) -> Tuple[Stake, ...]:
-        """Read all live stake data from the blockchain and return it as a tuple"""
+    def __read_stakes(self):
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
         stakes = tuple(Stake.from_stake_info(owner=self, stake_info=info) for info in stakes_reader)
         stake_mapping = {index: stake for index, stake in enumerate(stakes)}
         self.__stakes = stake_mapping
-        return tuple(stakes)
+
+    @property
+    def stakes(self) -> Tuple[Stake, ...]:
+        """Read all live stake data from the blockchain and return it as a tuple"""
+        self.__read_stakes()
+        return self.__stakes
 
     @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
@@ -441,7 +444,8 @@ class Miner(NucypherTokenActor):
                 raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
         if target_value >= stake.value:
-            raise self.MinerError("Cannot divide stake; Value must be less than the specified stake value.")
+            raise self.MinerError(f"Cannot divide stake; Value ({target_value}) must be less "
+                                  f"than the existing stake value {stake.value}.")
 
         # Ensure both halves are for valid amounts
         validate_stake_amount(amount=target_value)
@@ -453,10 +457,11 @@ class Miner(NucypherTokenActor):
                                            periods=additional_periods)
 
         self.blockchain.wait_for_receipt(tx)
+        self.__read_stakes()  # update local on-chain stake cache
         return tx
 
     @only_me
-    def __validate_stake(self, amount: int, lock_periods: int) -> bool:
+    def __validate_stake(self, amount: NU, lock_periods: int) -> bool:
 
         assert validate_stake_amount(amount=amount)  # TODO: remove assertions..?
         assert validate_locktime(lock_periods=lock_periods)
@@ -468,7 +473,7 @@ class Miner(NucypherTokenActor):
 
     @only_me
     def initialize_stake(self,
-                         amount: int,
+                         amount: NU,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
                          entire_balance: bool = False) -> dict:
@@ -489,8 +494,11 @@ class Miner(NucypherTokenActor):
 
         if expiration:
             lock_periods = calculate_period_duration(future_time=expiration)
+
         if entire_balance is True:
             amount = self.token_balance
+
+        amount = NU(int(amount), 'NUWei')
 
         staking_transactions = OrderedDict()  # type: OrderedDict # Time series of txhases
 
@@ -498,11 +506,12 @@ class Miner(NucypherTokenActor):
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
         # Transact
-        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
+        approve_txhash, initial_deposit_txhash = self.deposit(amount=int(amount), lock_periods=lock_periods)
         self._transaction_cache.append((datetime.utcnow(), initial_deposit_txhash))
 
         staking_transactions['approve'] = approve_txhash
         staking_transactions['deposit'] = initial_deposit_txhash
+        self.__read_stakes()  # update local on-chain stake cache
 
         self.log.info("{} Initialized new stake: {} tokens for {} periods".format(self.checksum_public_address, amount, lock_periods))
         return staking_transactions
