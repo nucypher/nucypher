@@ -19,7 +19,7 @@ import random
 
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
-from typing import Union, Set
+from typing import Union, Set, List
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.characters.lawful import Ursula
@@ -70,7 +70,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                ether_addresses: Union[list, int],
                                stake: bool = False,
                                know_each_other: bool = True,
-                               **ursula_overrides) -> Set[Ursula]:
+                               **ursula_overrides) -> List[Ursula]:
 
     # Alternately accepts an int of the quantity of ursulas to make
     if isinstance(ether_addresses, int):
@@ -81,7 +81,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     else:
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
-    ursulas = set()
+    ursulas = list()
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
 
         ursula = ursula_config.produce(checksum_public_address=checksum_address,
@@ -99,7 +99,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)
 
-        ursulas.add(ursula)
+        ursulas.append(ursula)
         # Store this Ursula in our global cache.
         port = ursula.rest_information()[0].port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
@@ -126,6 +126,5 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
     node_deployer.catalogServers(node_deployer.hendrix)
     node_deployer.start()
 
-    _certificate_as_deployed = node_deployer.cert.to_cryptography()
-
-    return _certificate_as_deployed
+    certificate_as_deployed = node_deployer.cert.to_cryptography()
+    return certificate_as_deployed

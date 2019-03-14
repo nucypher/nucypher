@@ -1,12 +1,8 @@
+import click
 import shutil
+from twisted.logger import Logger
 from typing import List
 
-import click
-from nacl.exceptions import CryptoError
-from twisted.logger import Logger
-
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -88,24 +84,6 @@ def destroy_system_configuration(config_class,
     return config_root
 
 
-def unlock_keyring(configuration, password):
-    try:
-        console_emitter(message="Decrypting keyring...", color='blue')
-        configuration.keyring.unlock(password=password)
-    except CryptoError:
-        raise configuration.keyring.AuthenticationFailed
-
-
-def connect_to_blockchain(configuration, recompile_contracts: bool = False):
-    try:
-        configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
-        configuration.connect_to_contracts()
-    except EthereumContractRegistry.NoRegistry:
-        message = "Cannot configure blockchain character: No contract registry found; " \
-                  "Did you mean to pass --federated-only?"
-        raise EthereumContractRegistry.NoRegistry(message)
-
-
 def forget(configuration):
     """Forget all known nodes via storage"""
     click.confirm("Permanently delete all known node data?", abort=True)
@@ -113,3 +91,29 @@ def forget(configuration):
     message = "Removed all stored node node metadata and certificates"
     console_emitter(message=message, color='red')
     click.secho(message=message, fg='red')
+
+
+def confirm_staged_stake(ursula, value, duration):
+    click.confirm(f"""
+* Ursula Node Operator Notice *
+-------------------------------
+
+By agreeing to stake {value} NU: 
+
+- Staked tokens will be locked, and unavailable for transactions for the stake duration.
+
+- You are obligated to maintain a networked and available Ursula node with the 
+  ETH address {ursula.checksum_public_address} for the duration 
+  of the stake(s) ({duration} periods)
+
+- Agree to allow NuCypher network users to carry out uninterrupted re-encryption
+  work orders at-will without interference. 
+
+Failure to keep your node online, or violation of re-encryption work orders
+will result in the loss of staked tokens as described in the NuCypher slashing protocol.
+
+Keeping your Ursula node online during the staking period and successfully
+performing accurate re-encryption work orders will result in rewards 
+paid out in ETH retro-actively, on-demand.
+
+Accept node operator obligation?""", abort=True)

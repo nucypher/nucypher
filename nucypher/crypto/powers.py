@@ -24,7 +24,6 @@ from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
-from nucypher.utilities.decorators import validate_checksum_address
 
 
 class PowerUpError(TypeError):
@@ -104,6 +103,7 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
+
         self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password, duration=duration)
 
         if not self.is_unlocked:

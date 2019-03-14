@@ -86,6 +86,12 @@ class Blockchain:
                 if existing_uri != provider_uri:
                     raise ValueError("There is an existing blockchain connection to {}. "
                                      "Use Interface.add_provider to connect additional providers".format(existing_uri))
+
+            if registry is not None:
+                # This can happen when there is a cached singleton instance
+                # but we want to connect using a different registry.
+                cls._instance.interface.registry = registry
+
         return cls._instance
 
     def get_contract(self, name: str) -> Contract:

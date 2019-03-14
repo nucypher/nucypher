@@ -15,21 +15,30 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import collections
 import os
 
 import click
-from constant_sorrow.constants import NO_PASSWORD, NO_EMITTER
+from constant_sorrow.constants import NO_PASSWORD, NO_BLOCKCHAIN_CONNECTION
+from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
+from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
     initialize_sentry,
     getJsonFileObserver)
 
+
+#
+# Click CLI Config
+#
 
 class NucypherClickConfig:
 
@@ -55,10 +64,32 @@ class NucypherClickConfig:
         globalLogPublisher.addObserver(getJsonFileObserver())
 
     def __init__(self):
+
+        # Logging
+        self.quiet = False
         self.log = Logger(self.__class__.__name__)
+
+        # Auth
         self.__keyring_password = NO_PASSWORD
 
-    def get_password(self, confirm: bool =False) -> str:
+        # Blockchain
+        self.accounts = NO_BLOCKCHAIN_CONNECTION
+        self.blockchain = NO_BLOCKCHAIN_CONNECTION
+
+    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False):
+        try:
+            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
+            character_configuration.connect_to_contracts()
+        except EthereumContractRegistry.NoRegistry:
+            message = "Cannot configure blockchain character: No contract registry found; " \
+                      "Did you mean to pass --federated-only?"
+            raise EthereumContractRegistry.NoRegistry(message)
+
+        else:
+            self.blockchain = character_configuration.blockchain
+            self.accounts = self.blockchain.interface.w3.eth.accounts
+
+    def _get_password(self, confirm: bool =False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
 
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
@@ -67,6 +98,14 @@ class NucypherClickConfig:
 
         self.__keyring_password = keyring_password
         return self.__keyring_password
+
+    def unlock_keyring(self, character_configuration: NodeConfiguration):
+        try:  # Unlock Keyring
+            if not self.quiet:
+                self.emit('Decrypting keyring...', fg='blue')
+            character_configuration.keyring.unlock(password=self._get_password())  # Takes ~3 seconds, ~1GB Ram
+        except CryptoError:
+            raise character_configuration.keyring.AuthenticationFailed
 
     @classmethod
     def emit(cls, *args, **kwargs):

@@ -31,7 +31,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address
+from eth_utils import to_checksum_address, is_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
@@ -325,7 +325,6 @@ class NucypherKeyring:
                  signing_key_path: str = None,
                  pub_signing_key_path: str = None,
                  delegating_key_path: str = None,
-                 wallet_path: str = None,
                  tls_key_path: str = None,
                  tls_certificate_path: str = None,
                  ) -> None:
@@ -351,7 +350,6 @@ class NucypherKeyring:
         self.__root_keypath = root_key_path or __default_key_filepaths['root']
         self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
         self.__delegating_keypath = delegating_key_path or __default_key_filepaths['delegating']
-        self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
         self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
 
         # Public
@@ -370,10 +368,7 @@ class NucypherKeyring:
     #
     @property
     def checksum_address(self) -> str:
-        key_data = _read_keyfile(keypath=self.__wallet_path, deserializer=None)
-        # TODO Json joads # TODO: what is this TODO?
-        address = key_data['address']
-        return to_checksum_address(address)
+        return to_checksum_address(self.__account)
 
     @property
     def federated_address(self) -> str:
@@ -419,7 +414,6 @@ class NucypherKeyring:
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(account)),
             'delegating': os.path.join(private_key_dir, 'delegating-{}.priv'.format(account)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(account)),
-            'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(account)),
             'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(account)),
             'tls_certificate': os.path.join(public_key_dir, '{}.pem'.format(account))
         }
@@ -486,9 +480,7 @@ class NucypherKeyring:
 
             codex = {SigningPower: self.__signing_keypath,
                      DecryptingPower: self.__root_keypath,
-                     TLSHostingPower: self.__tls_keypath,    # TODO
-                     # BlockchainPower: self.__wallet_path,    # TODO
-                    }
+                     TLSHostingPower: self.__tls_keypath}
 
             # Create Power
             try:
@@ -519,11 +511,11 @@ class NucypherKeyring:
     def generate(cls,
                  password: str,
                  encrypting: bool,
-                 wallet: bool,
                  rest: bool,
                  host: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
+                 checksum_address: str = None
                  ) -> 'NucypherKeyring':
         """
         Generates new encrypting, signing, and wallet keys encrypted with the password,
@@ -535,12 +527,15 @@ class NucypherKeyring:
         if failures:
             raise cls.AuthenticationFailed(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
 
-        if not any((wallet, encrypting, rest)):
+        if not any((encrypting, rest)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
 
         if curve is None:
             curve = cls.__DEFAULT_TLS_CURVE
+
+        if checksum_address is not None and not is_checksum_address(checksum_address):
+            raise ValueError(f"{checksum_address} is not a valid ethereum checksum address")
 
         _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
         _public_key_dir = _base_filepaths['public_key_dir']
@@ -556,22 +551,16 @@ class NucypherKeyring:
 
         keyring_args = dict()
 
-        if wallet is True:
-            new_address, new_wallet = _generate_wallet(password)
-            new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
-            with open(new_wallet_path, 'w') as wallet:  # TODO: is this pub or private?
-                wallet.write(json.dumps(new_wallet))
-            keyring_args.update(wallet_path=new_wallet_path)
-
         if encrypting is True:
             signing_private_key, signing_public_key = _generate_signing_keys()
-            if not wallet:
+
+            if checksum_address is None:
                 uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
                 without_prefix = uncompressed_bytes[1:]
                 verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-                new_address = verifying_key_as_eth_key.to_checksum_address()
+                checksum_address = verifying_key_as_eth_key.to_checksum_address()
 
-        __key_filepaths = cls._generate_key_filepaths(account=new_address,
+        __key_filepaths = cls._generate_key_filepaths(account=checksum_address,
                                                       private_key_dir=_private_key_dir,
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
@@ -629,9 +618,9 @@ class NucypherKeyring:
             )
 
         if rest is True:
-            if not all((host, curve, new_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
+            if not all((host, curve, checksum_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
                 raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
-            private_key, cert = _generate_tls_keys(host=host, checksum_address=new_address, curve=curve)
+            private_key, cert = _generate_tls_keys(host=host, checksum_address=checksum_address, curve=curve)
 
             def __serialize_pem(pk):
                 return pk.private_bytes(
@@ -644,7 +633,7 @@ class NucypherKeyring:
             certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'], certificate=cert)
             keyring_args.update(tls_certificate_path=certificate_filepath, tls_key_path=tls_key_path)
 
-        keyring_instance = cls(account=new_address, **keyring_args)
+        keyring_instance = cls(account=checksum_address, **keyring_args)
         return keyring_instance
 
     @staticmethod

@@ -1,18 +1,16 @@
+import datetime
+import json
+import os
+import shutil
+
+import maya
+from twisted.logger import globalLogPublisher
+
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
-
-import datetime
-import os
-import shutil
-import maya
-import json
-import sys
-from twisted.logger import globalLogPublisher
-
 
 
 ######################

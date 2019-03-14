@@ -15,11 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+from typing import Tuple
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
+from web3 import Web3
 
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
@@ -99,6 +102,13 @@ def paint_node_status(ursula, start_time):
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
              'Work Orders ......... {}'.format(len(ursula._work_orders)),
              teacher]
+
+    if not ursula.federated_only and ursula.stakes:
+        total_staked = f'Total Staked ........ {ursula.total_staked} NU-wei'
+        stats.append(total_staked)
+
+        current_period = f'Current Period ...... {ursula.miner_agent.get_current_period()}'
+        stats.append(current_period)
 
     click.echo('\n' + '\n'.join(stats) + '\n')
 
@@ -181,3 +191,66 @@ def paint_contract_status(ursula_config, click_config):
                gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
                ursulas=click_config.miner_agent.get_miner_population())
     click.secho(network_payload)
+
+
+def paint_staged_stake(ursula,
+                       stake_nu,
+                       stake_wei,
+                       duration,
+                       start_period,
+                       end_period,
+                       division_message: str = None):
+
+    if division_message:
+        click.secho(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
+        click.secho(division_message)
+
+    click.secho(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
+
+    click.echo(f"""
+{ursula}
+~ Value      -> {stake_nu} NU ({stake_wei} NU-wei) 
+~ Duration   -> {duration} Days ({duration} Periods)
+~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
+~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
+    """)
+
+    click.secho('=========================================================================', bold=True)
+
+
+def paint_staking_confirmation(ursula, transactions):
+    click.secho(f'\nEscrow Address ... {ursula.miner_agent.contract_address}', fg='blue')
+    for tx_name, txhash in transactions.items():
+        click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
+    click.secho(f'''
+
+Successfully transmitted stake initialization transactions.
+
+View your active stakes by running 'nucypher ursula stake --list'
+or start your Ursula node by running 'nucypher ursula run'.
+''', fg='green')
+
+
+def prettify_stake(stake_index: int, stake_info: Tuple[int, int, str]) -> str:
+    start, expiration, stake_wei = stake_info
+
+    stake_nu = int(Web3.fromWei(stake_wei, 'ether'))
+
+    start_datetime = str(datetime_at_period(period=start).slang_date())
+    expiration_datetime = str(datetime_at_period(period=expiration).slang_date())
+    duration = expiration - start
+
+    pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
+    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {stake_nu} NU '
+    return pretty
+
+
+def paint_stakes(stakes):
+    header = f'| # | Duration     | Enact     | Expiration | Value '
+    breaky = f'| - | ------------ | --------- | -----------| ----- '
+    click.secho(header, bold=True)
+    click.secho(breaky, bold=True)
+    for index, stake_info in enumerate(stakes):
+        row = prettify_stake(stake_index=index, stake_info=stake_info)
+        click.echo(row)
+    return

@@ -146,7 +146,7 @@ def test_collect_policy_reward(testerchain, three_agents, policy_meta):
         _txhash = miner_agent.confirm_activity(node_address=ursula)
         testerchain.time_travel(periods=1)
 
-    txhash = agent.collect_policy_reward(collector_address=ursula)
+    txhash = agent.collect_policy_reward(collector_address=ursula, miner_address=ursula)
     receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
