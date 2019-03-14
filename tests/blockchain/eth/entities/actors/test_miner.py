@@ -101,17 +101,16 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents):
     initial_balance = miner.token_balance
     assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),         # Lock the minimum amount of tokens
-                           lock_periods=int(MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
+    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),  # Lock the minimum amount of tokens
+                           lock_periods=int(MIN_LOCKED_PERIODS))    # ... for the fewest number of periods
 
     # ...wait out the lock period...
-    for _ in range(28):
+    for _ in range(MIN_LOCKED_PERIODS):
         testerchain.time_travel(periods=1)
         miner.confirm_activity()
 
     # ...wait more...
     testerchain.time_travel(periods=2)
-    miner.mint()
     miner.collect_staking_reward()
 
     final_balance = token_agent.get_balance(miner.checksum_public_address)

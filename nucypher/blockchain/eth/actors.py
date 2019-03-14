@@ -296,6 +296,8 @@ class Miner(NucypherTokenActor):
         self.__start_time = constants.NO_STAKES
         self.__uptime_period = constants.NO_STAKES
         self.__terminal_period = constants.NO_STAKES
+
+        self.__read_stakes()
         if self.stakes and start_staking_loop:
             self.stake()
 
@@ -396,9 +398,8 @@ class Miner(NucypherTokenActor):
         self.__stakes = stake_mapping
 
     @property
-    def stakes(self) -> Tuple[Stake, ...]:
+    def stakes(self) -> dict:
         """Read all live stake data from the blockchain and return it as a tuple"""
-        self.__read_stakes()
         return self.__stakes
 
     @only_me
