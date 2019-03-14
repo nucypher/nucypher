@@ -15,14 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-from typing import Tuple
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
-from web3 import Web3
+from typing import Tuple
 
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, NU
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
@@ -234,50 +233,45 @@ or start your Ursula node by running 'nucypher ursula run'.
 ''', fg='green')
 
 
-def prettify_stake(stake_index: int, stake_info: Tuple[int, int, str]) -> str:
-    start, expiration, stake_wei = stake_info
+def prettify_stake(stake_index: int, stake) -> str:
 
-    stake_nu = NU(int(stake_wei), 'NUWei')
-
-    start_datetime = str(datetime_at_period(period=start).slang_date())
-    expiration_datetime = str(datetime_at_period(period=expiration).slang_date())
-    duration = expiration - start
+    start_datetime = str(stake.start_datetime.slang_date())
+    expiration_datetime = str(stake.end_datetime.slang_date())
+    duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
-    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {stake_nu}'
+    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {str(stake.value)}'
     return pretty
 
 
 def paint_stakes(stakes):
-    header = f'| # | Duration     | Enact     | Expiration | Value '
-    breaky = f'| - | ------------ | --------- | -----------| ----- '
+    header = f'| # | Duration     | Enact       | Expiration | Value '
+    breaky = f'| - | ------------ | ----------- | -----------| ----- '
     click.secho(header, bold=True)
     click.secho(breaky, bold=True)
-    for index, stake_info in enumerate(stakes):
-        row = prettify_stake(stake_index=index, stake_info=stake_info)
+    for index, stake in enumerate(stakes):
+        row = prettify_stake(stake_index=index, stake=stake)
         click.echo(row)
     return
 
 
 def paint_staged_stake_division(ursula,
                                 original_index,
-                                original_stake_info,
+                                original_stake,
                                 target_value,
                                 extension):
 
-    original_start, original_expiration, original_stake_wei = original_stake_info
-
-    new_end_period = original_expiration + extension
-    new_duration = new_end_period - original_start
+    new_end_period = original_stake.end_period + extension
+    new_duration = new_end_period - original_stake.start_period
 
     division_message = f"""
 {ursula}
-~ Original Stake: {prettify_stake(stake_index=original_index, stake_info=original_stake_info)}
+~ Original Stake: {prettify_stake(stake_index=original_index, stake=original_stake)}
 """
 
     paint_staged_stake(ursula=ursula,
                        stake_value=target_value,
                        duration=new_duration,
-                       start_period=original_start,
+                       start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)

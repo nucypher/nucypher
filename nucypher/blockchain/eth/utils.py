@@ -190,10 +190,13 @@ class Stake:
         self.value = value
         self.start_period = start_period
         self.end_period = end_period
+        self.duration = self.end_period - self.start_period
 
         # Internals
-        self.start_datetime = period_to_datetime(period=start_period)
-        self.end_datetime = period_to_datetime(period=end_period)
+        self.start_datetime = datetime_at_period(period=start_period)
+        self.end_datetime = datetime_at_period(period=end_period)
+        self.duration_delta = self.end_datetime - self.start_datetime
+
         self.miner_agent = owner.miner_agent
 
     def __repr__(self):

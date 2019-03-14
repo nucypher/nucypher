@@ -345,7 +345,7 @@ def ursula(click_config,
             # Selection
             if index is None:
                 painting.paint_stakes(stakes=URSULA.stakes)
-                index = click.prompt("Select a stake to divide", type=click.INT)
+                index = click.prompt("Select a stake to divide", type=click.IntRange(min=0, max=len(URSULA.stakes)-1))
 
             # Lookup the stake
             current_stake = URSULA.stakes[index]
@@ -364,7 +364,7 @@ def ursula(click_config,
             if not force:
                 painting.paint_staged_stake_division(ursula=URSULA,
                                                      original_index=index,
-                                                     original_stake_info=current_stake,
+                                                     original_stake=current_stake,
                                                      target_value=value,
                                                      extension=extension)
 
