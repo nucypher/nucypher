@@ -10,4 +10,4 @@ The order to call the collection is as follows
 - Alice/grant (Grant bob permission to see the policy's data)
 - Bob/retrieve (Get alice's data)
 
-If you try to recieve the data before you are granted access you will be returned a 500 in the current version 0.0.14-alpha
+If you try to receive the data before you are granted access you will be returned a 500.
