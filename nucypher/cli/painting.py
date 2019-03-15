@@ -249,7 +249,7 @@ def paint_stakes(stakes):
     breaky = f'| - | ------------ | ----------- | -----------| ----- '
     click.secho(header, bold=True)
     click.secho(breaky, bold=True)
-    for index, stake in enumerate(stakes):
+    for index, stake in stakes.items():
         row = prettify_stake(stake_index=index, stake=stake)
         click.echo(row)
     return

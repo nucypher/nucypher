@@ -327,10 +327,9 @@ def ursula(click_config,
 
         # List Only
         if list_:
-            live_stakes = list(URSULA.miner_agent.get_all_stakes(miner_address=URSULA.checksum_public_address))
-            if not live_stakes:
+            if not URSULA.stakes:
                 click.echo(f"There are no existing stakes for {URSULA.checksum_public_address}")
-            painting.paint_stakes(stakes=live_stakes)
+            painting.paint_stakes(stakes=URSULA.stakes)
             return
 
         # Divide Only
@@ -430,8 +429,7 @@ def ursula(click_config,
         return
 
     elif action == 'confirm-activity':
-        stakes = URSULA.miner_agent.get_all_stakes(miner_address=URSULA.checksum_public_address)
-        if len(stakes) == 0:
+        if not URSULA.stakes:
             click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
             return
         URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_public_address)

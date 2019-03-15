@@ -26,7 +26,6 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, TESTING_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
-from web3 import Web3
 
 from web3 import Web3
 

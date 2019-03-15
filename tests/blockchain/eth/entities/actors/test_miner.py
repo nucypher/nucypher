@@ -84,7 +84,8 @@ def test_miner_divides_stake(miner):
     expected_yet_another_stake = Stake(start_period=current_period + 1,
                                        end_period=current_period + 34,
                                        value=yet_another_stake_value,
-                                       owner=miner)
+                                       owner_address=miner.checksum_public_address,
+                                       index=3)
 
     assert 4 == len(miner.stakes), 'A new stake was not added after two stake divisions'
     assert expected_old_stake == miner.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'

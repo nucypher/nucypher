@@ -55,7 +55,7 @@ def test_stake():
 
 def test_stake_integration(blockchain_ursulas):
     staking_ursula = list(blockchain_ursulas)[1]
-    stakes = list(staking_ursula.stakes)
+    stakes = staking_ursula.stakes
     assert stakes
 
     stake = stakes[0]

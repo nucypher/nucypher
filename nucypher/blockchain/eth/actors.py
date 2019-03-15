@@ -305,15 +305,12 @@ class Miner(NucypherTokenActor):
     # Staking
     #
     @only_me
-    def stake(self, confirm_now=False) -> None:
+    def stake(self, confirm_now: bool = True) -> None:
+        """High-level staking looping call initialization"""
+        # TODO #841: Check if there is an active stake in the current period: Resume staking daemon
 
-        """High-level staking daemon loop"""
-
-        # TODO: Check if this period has already been confirmed
-        # TODO: Check if there is an active stake in the current period: Resume staking daemon
-        # TODO: Validation and Sanity checks
-
-        terminal_period = max(stake.end_period for stake in self.stakes)
+        # Get the last stake end period of all stakes
+        terminal_period = max(stake.end_period for stake in self.stakes.values())
 
         if confirm_now:
             self.confirm_activity()
@@ -324,10 +321,6 @@ class Miner(NucypherTokenActor):
         self.__terminal_period = self.__uptime_period + terminal_period
         self.__current_period = self.__uptime_period
         self.start_staking_loop()
-
-        #
-        # Daemon
-        #
 
     @only_me
     def _confirm_period(self):
@@ -388,14 +381,18 @@ class Miner(NucypherTokenActor):
     @property
     def total_staked(self) -> NU:
         if self.stakes:
-            return NU(sum(stake.value for stake in self.stakes), 'NUWei')
+            return NU(sum(stake.value for stake in self.stakes.values()), 'NUWei')
         return NU(0, 'NUWei')
 
-    def __read_stakes(self):
+    def __read_stakes(self) -> None:
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
-        stakes = tuple(Stake.from_stake_info(owner=self, stake_info=info) for info in stakes_reader)
-        stake_mapping = {index: stake for index, stake in enumerate(stakes)}
-        self.__stakes = stake_mapping
+        stakes = dict()
+        for index, stake_info in enumerate(stakes_reader):
+            stake = Stake.from_stake_info(owner_address=self.checksum_public_address,
+                                          stake_info=stake_info,
+                                          index=index)
+            stakes[index] = stake
+        self.__stakes = stakes
 
     @property
     def stakes(self) -> dict:
@@ -428,8 +425,10 @@ class Miner(NucypherTokenActor):
         This actor requires that is_me is True, and that the expiration datetime is after the existing
         locking schedule of this miner, or an exception will be raised.
 
-        :param target_value:  The quantity of tokens in the smallest denomination.
-        :param expiration: The new expiration date to set.
+        :param stake_index: The miner's stake index of the stake to divide
+        :param additional_periods: The number of periods to extend the stake by
+        :param target_value:  The quantity of tokens in the smallest denomination to divide.
+        :param expiration: The new expiration date to set as an end period for stake division.
         :return: Returns the blockchain transaction hash
 
         """
@@ -464,8 +463,8 @@ class Miner(NucypherTokenActor):
     @only_me
     def __validate_stake(self, amount: NU, lock_periods: int) -> bool:
 
-        assert validate_stake_amount(amount=amount)  # TODO: remove assertions..?
-        assert validate_locktime(lock_periods=lock_periods)
+        validate_stake_amount(amount=amount)
+        validate_locktime(lock_periods=lock_periods)
 
         if not self.token_balance >= amount:
             raise self.MinerError("Insufficient miner token balance ({balance})".format(balance=self.token_balance))

@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from decimal import Decimal
 
 import eth_utils
@@ -136,14 +138,18 @@ class NU:
 
 class Stake:
 
+    __ID_LENGTH = 16
+
     def __init__(self,
-                 owner,
+                 owner_address: str,
+                 index: int,
                  value: NU,
                  start_period: int,
                  end_period: int):
 
         # Stake Info
-        self.owner = owner
+        self.owner_address = owner_address
+        self.index = index
         self.value = value
         self.start_period = start_period
         self.end_period = end_period
@@ -154,19 +160,18 @@ class Stake:
         self.end_datetime = datetime_at_period(period=end_period)
         self.duration_delta = self.end_datetime - self.start_datetime
 
-        self.miner_agent = owner.miner_agent
-
     def __repr__(self):
-        r = f'Stake({self.id}, value={self.value}, end_period={self.end_period})'
+        r = f'Stake(index={self.index}, value={self.value}, end_period={self.end_period})'
         return r
 
     def __eq__(self, other):
         return bool(self.value == other.value)
 
     @classmethod
-    def from_stake_info(cls, owner, stake_info: Tuple[int, int, int]):
+    def from_stake_info(cls, owner_address, index: int, stake_info: Tuple[int, int, int]):
         start_period, end_period, value = stake_info
-        instance = cls(owner=owner,
+        instance = cls(owner_address=owner_address,
+                       index=index,
                        start_period=start_period,
                        end_period=end_period,
                        value=NU(value, 'NUWei'))
@@ -178,16 +183,17 @@ class Stake:
     @property
     def id(self) -> str:
         digest = b''
-        digest += eth_utils.to_canonical_address(address=self.owner.checksum_public_address)
+        digest += eth_utils.to_canonical_address(address=self.owner_address)
+        digest += str(self.index)
         digest += str(self.start_period).encode()
         digest += str(self.end_period).encode()
         digest += str(self.value).encode()
         stake_id = sha256(digest).hex()[:16]
-        return stake_id[:16]
+        return stake_id[:self.__ID_LENGTH]
 
     @property
     def periods_remaining(self):
-        current_period = self.miner_agent.get_current_period()
+        current_period = datetime_to_period(datetime=maya.now())
         return self.end_period - current_period
 
     def time_remaining(self, slang: bool = False) -> Union[int, str]:
