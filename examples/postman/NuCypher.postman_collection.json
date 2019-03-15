@@ -1,0 +1,199 @@
+{
+	"info": {
+		"_postman_id": "10f6b241-d6e8-4151-9a26-aa466ab76951",
+		"name": "NuCypher",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [{
+			"name": "Alice/derive_policy_pubkey",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"id": "04cdbe20-68cd-479b-81a2-b146d614d426",
+					"exec": [
+						"var jsonData = JSON.parse(responseBody);",
+						"console.log(jsonData.result);",
+						"postman.setEnvironmentVariable(\"policy_encrypting_key\", jsonData.result.policy_encrypting_key);"
+					],
+					"type": "text/javascript"
+				}
+			}],
+			"request": {
+				"method": "POST",
+				"header": [{
+					"key": "Content-Type",
+					"name": "Content-Type",
+					"value": "application/json",
+					"type": "text"
+				}],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{base_uri}}:{{alice_port}}/derive_policy_pubkey/{{label}}",
+					"host": [
+						"{{base_uri}}"
+					],
+					"port": "{{alice_port}}",
+					"path": [
+						"derive_policy_pubkey",
+						"{{label}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Enrico/encrypt_message",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"id": "2771b0c4-3755-47cc-ac35-58105453bf46",
+					"exec": [
+						"var jsonData = JSON.parse(responseBody);",
+						"console.log(jsonData.result);",
+						"postman.setEnvironmentVariable(\"enrico_message_kit\", jsonData.result.message_kit);",
+						"postman.setEnvironmentVariable(\"enrico_signature\", jsonData.result.signature)"
+					],
+					"type": "text/javascript"
+				}
+			}],
+			"request": {
+				"method": "POST",
+				"header": [{
+					"key": "Content-Type",
+					"name": "Content-Type",
+					"value": "application/json",
+					"type": "text"
+				}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"message\":\"NuVault Rocks\"\n}"
+				},
+				"url": {
+					"raw": "{{base_uri}}:{{enrico_port}}/encrypt_message",
+					"host": [
+						"{{base_uri}}"
+					],
+					"port": "{{enrico_port}}",
+					"path": [
+						"encrypt_message"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Bob/public_keys",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"id": "435cfc59-27a4-4391-8f1b-ae0ba63c36bc",
+					"exec": [
+						"var jsonData = JSON.parse(responseBody);",
+						"console.log(jsonData.result);",
+						"postman.setEnvironmentVariable(\"bob_encrypting_key\", jsonData.result.bob_encrypting_key);",
+						"postman.setEnvironmentVariable(\"bob_verifying_key\", jsonData.result.bob_verifying_key);"
+					],
+					"type": "text/javascript"
+				}
+			}],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [{
+					"key": "Content-Type",
+					"name": "Content-Type",
+					"value": "application/json",
+					"type": "text"
+				}],
+				"body": {
+					"mode": "raw",
+					"raw": "\n"
+				},
+				"url": {
+					"raw": "{{base_uri}}:{{bob_port}}/public_keys",
+					"host": [
+						"{{base_uri}}"
+					],
+					"port": "{{bob_port}}",
+					"path": [
+						"public_keys"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Alice/grant",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"id": "d5a7dcd3-7eba-4b50-acba-fb106af01426",
+					"exec": [
+						"var jsonData = JSON.parse(responseBody);",
+						"console.log(jsonData.result);",
+						"postman.setEnvironmentVariable(\"alice_treasure_map\", jsonData.result.treasure_map);",
+						"postman.setEnvironmentVariable(\"alice_policy_encrypting_key\", jsonData.result.policy_encrypting_key)",
+						"postman.setEnvironmentVariable(\"alice_verifying_key\", jsonData.result.alice_verifying_key)"
+					],
+					"type": "text/javascript"
+				}
+			}],
+			"request": {
+				"method": "PUT",
+				"header": [{
+					"key": "Content-Type",
+					"name": "Content-Type",
+					"value": "application/json",
+					"type": "text"
+				}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"bob_verifying_key\": \"{{bob_verifying_key}}\",\n    \"bob_encrypting_key\": \"{{bob_encrypting_key}}\",\n    \"m\": 1,\n    \"n\": 1,\n    \"label\": \"{{label}}\",\n    \"expiration_time\": \"2019-02-19T12:56:26.976816\"\n}"
+				},
+				"url": {
+					"raw": "{{base_uri}}:{{alice_port}}/grant",
+					"host": [
+						"{{base_uri}}"
+					],
+					"port": "{{alice_port}}",
+					"path": [
+						"grant"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Bob/retrieve",
+			"request": {
+				"method": "POST",
+				"header": [{
+					"key": "Content-Type",
+					"name": "Content-Type",
+					"value": "application/json",
+					"type": "text"
+				}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"label\": \"{{label}}\",\n\t\"policy_encrypting_key\": \"{{alice_policy_encrypting_key}}\",\n\t\"alice_verifying_key\": \"{{alice_verifying_key}}\",\n\t\"datasource_signing_pubkey\": \"{{enrico_signature}}\",\n\t\"message_kit\": \"{{enrico_message_kit}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_uri}}:{{bob_port}}/retrieve",
+					"host": [
+						"{{base_uri}}"
+					],
+					"port": "{{bob_port}}",
+					"path": [
+						"retrieve"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
