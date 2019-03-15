@@ -1,3 +1,5 @@
+import pytest
+
 from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED
@@ -21,6 +23,46 @@ def test_NU():
     assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nu_wei())
 
     assert str(min_allowed_locked) == '15000 NU'
+
+    # Some __repr__ edge cases
+    one_nu = NU(1, 'NU')
+    peanuts = NU(1, 'NUWei')
+    zero_nu = NU(0, 'NU')
+    assert not repr(one_nu - peanuts) == repr(zero_nu)
+
+    # Problems with floats:
+
+    # 3.14 NU should be 314000000000000000 NUWei, right?
+    pi_nuweis = NU(3.14, 'NU')
+    assert pi_nuweis.to_nu_wei() == NU(314000000000000000, 'NUWei')
+
+    # Invalid inputs that cause unexpected behaviour:
+
+    # - A decimal amount of NUWei (i.e., a fraction of a NUWei)
+    # (This should throw TypeError or something)
+    pi_nuweis = NU('3.14', 'NUWei')
+    assert pi_nuweis * 100 == NU('314', 'NUWei')
+
+    # - A decimal amount of NU, which amounts to NUWei with decimals
+    # (This should throw TypeError or something)
+    pi_nus = NU('3.14159265358979323846', 'NU')
+    assert pi_nus * (10**20) == NU('314159265358979323846', 'NUWei')
+
+    # Invalid inputs which should not be allowed
+    # (This should throw TypeError or something)
+    
+    # - The positive Infinity
+    with pytest.raises(TypeError):
+        inf = NU('Infinity', 'NU')
+
+    # - The negative Infinity
+    with pytest.raises(TypeError):
+        neg_inf = NU('-Infinity', 'NU')
+
+    # - Not a Number
+    with pytest.raises(TypeError):
+        nan = NU('NaN', 'NU')
+
 
 
 def test_stake():
