@@ -20,6 +20,7 @@ from decimal import Decimal
 
 import eth_utils
 import maya
+from eth_utils import currency
 from nacl.hash import sha256
 from typing import Union, Tuple
 
@@ -66,18 +67,22 @@ def calculate_period_duration(future_time: maya.MayaDT) -> int:
 class NU:
     """
     An amount of NuCypher tokens that doesn't hurt your eyes.
+    Wraps the eth_utils currency conversion methods.
 
-    The easiest way to use NU, is to pass an int, and denomination string:
+    The easiest way to use NU, is to pass an int, float, or str, and denomination string:
 
-    nu = NU(100, 'NU')
-    nu_wei = NU(15000000000000000000000, 'NUWei')
+    Int:    nu = NU(100, 'NU')
+    Int:    nu_wei = NU(15000000000000000000000, 'NUWei')
 
-    alternately
+    Float:  nu = NU(15042.445, 'NU')
+    String: nu = NU('10002.302', 'NU')
 
-    nu = NU.from_tokens(100)
-    nu_wei = NU.from_nu_wei(15000000000000000000000)
+    ...or alternately...
 
-    Token quantity is stored internally as a Decimal in the smallest denomination,
+    Float: nu = NU.from_tokens(100.50)
+    Int: nu_wei = NU.from_nu_wei(15000000000000000000000)
+
+    Token quantity is stored internally as an int in the smallest denomination,
     and all arithmetic operations use this value.
     """
 
@@ -86,31 +91,41 @@ class NU:
     __agent_class = NucypherTokenAgent
 
     # conversions to smallest denomination
-    __denominations = {'NUWei': 10 ** __decimals,
-                       'NU': 1}
+    __denominations = {'NUWei': 'wei',
+                       'NU': 'ether'}
 
-    def __init__(self, value: int, denomination: str):
+    def __init__(self, value: Union[int, float, str], denomination: str):
 
         # Calculate smallest denomination and store it
-        divisor = self.__denominations[denomination]
-        self.__value = Decimal(value) / divisor
+        wrapped_denom = self.__denominations[denomination]
+
+        # Validate Early
+        if '.' in str(value):
+
+            _, fraction = str(value).split('.')
+            if len(fraction) > self.__decimals:
+                raise ValueError("Cannot initialize with fractional wei value")
+
+            if wrapped_denom == 'wei':
+                raise ValueError("Cannot initialize with fractional wei value")
+
+        self.__value = currency.to_wei(number=value, unit=wrapped_denom)
 
     @classmethod
     def from_nu_wei(cls, value: int):
         return cls(value, denomination='NUWei')
 
     @classmethod
-    def from_tokens(cls, value: int):
+    def from_tokens(cls, value: Union[int, float, str]):
         return cls(value, denomination='NU')
 
-    def to_tokens(self) -> int:
-        """Returns an int value in NU"""
-        return int(self.__value)
+    def to_tokens(self) -> Decimal:
+        """Returns an decimal value of NU"""
+        return currency.from_wei(self.__value, unit='ether')
 
     def to_nu_wei(self) -> int:
         """Returns an int value in NU-Wei"""
-        token_value = self.__value * self.__denominations['NUWei']
-        return int(token_value)
+        return int(self.__value)
 
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
@@ -147,11 +162,11 @@ class NU:
         return int(self.to_nu_wei())
 
     def __repr__(self) -> str:
-        r = f'{self.__symbol}(value={int(self.__value)})'
+        r = f'{self.__symbol}(value={str(self.__value)})'
         return r
 
     def __str__(self) -> str:
-        return f'{str(self.__value)} {self.__symbol}'
+        return f'{str(self.to_tokens())} {self.__symbol}'
 
 
 class Stake:
