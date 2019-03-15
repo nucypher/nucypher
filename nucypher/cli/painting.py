@@ -15,13 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+from decimal import Decimal
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
-from typing import Tuple
 
-from nucypher.blockchain.eth.utils import datetime_at_period, NU
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
@@ -211,7 +211,7 @@ def paint_staged_stake(ursula,
 
     click.echo(f"""
 {ursula}
-~ Value      -> {stake_value} ({int(stake_value)} NU-Wei) 
+~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NU-Wei)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
