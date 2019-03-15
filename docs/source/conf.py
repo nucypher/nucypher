@@ -51,7 +51,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-	'aafigure.sphinxext',
+    'aafigure.sphinxext',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

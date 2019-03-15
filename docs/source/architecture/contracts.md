@@ -8,7 +8,7 @@
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
 * `MiningAdjudicator` Manages [the slashing protocol](slashing)
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
-* `Dispatcher` Proxy to other contracts and provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
+* `Dispatcher` Proxy to other contracts and provides upgrading of the `MinersEscrow`, `PolicyManager` and `MiningAdjudicator` contracts
 * `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `MinersEscrow` contract
 
 ## Deployment Procedure
@@ -22,7 +22,7 @@
 7. Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
 8. Pre-deposit tokens to the `MinersEscrow` if necessary:
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miners;
-	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner, and the periods during which tokens will be locked for each miner
+	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the miners, the amount of tokens for each miner, and the number of periods during which tokens will be locked for each miner
 9. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
 10. Pre-deposit tokens to the `UserEscrow` and, if necessary:
 	* Create new instance of the `UserEscrow` contract 
