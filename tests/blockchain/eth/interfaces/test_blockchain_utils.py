@@ -31,7 +31,12 @@ def test_stake():
         miner_agent = None
 
     ursula = FakeUrsula()
-    stake = Stake(owner=ursula, start_period=1, end_period=100, value=NU(100, 'NU'))
+    stake = Stake(owner_address=ursula.checksum_public_address,
+                  start_period=1,
+                  end_period=100,
+                  value=NU(100, 'NU'),
+                  index=0)
+
     assert len(stake.id) == 16
     assert stake.value, 'NU' == NU(100, 'NU')
 

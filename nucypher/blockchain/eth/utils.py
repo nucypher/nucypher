@@ -38,9 +38,10 @@ def datetime_to_period(datetime: maya.MayaDT) -> int:
 
 
 def datetime_at_period(period: int) -> maya.MayaDT:
+    """Returns the datetime object at a given period, future, or past."""
+
     now = maya.now()
     current_period = datetime_to_period(datetime=now)
-
     delta_periods = period - current_period
 
     # +
@@ -63,7 +64,22 @@ def calculate_period_duration(future_time: maya.MayaDT) -> int:
 
 
 class NU:
-    """An amount of NuCypher tokens"""
+    """
+    An amount of NuCypher tokens that doesn't hurt your eyes.
+
+    The easiest way to use NU, is to pass an int, and denomination string:
+
+    nu = NU(100, 'NU')
+    nu_wei = NU(15000000000000000000000, 'NUWei')
+
+    alternately
+
+    nu = NU.from_tokens(100)
+    nu_wei = NU.from_nu_wei(15000000000000000000000)
+
+    Token quantity is stored internally as a Decimal in the smallest denomination,
+    and all arithmetic operations use this value.
+    """
 
     __symbol = 'NU'
     __decimals = 18
@@ -80,63 +96,68 @@ class NU:
         self.__value = Decimal(value) / divisor
 
     @classmethod
-    def from_nu_wei(cls, value):
+    def from_nu_wei(cls, value: int):
         return cls(value, denomination='NUWei')
 
     @classmethod
-    def from_tokens(cls, value):
+    def from_tokens(cls, value: int):
         return cls(value, denomination='NU')
 
     def to_tokens(self) -> int:
+        """Returns an int value in NU"""
         return int(self.__value)
 
     def to_nu_wei(self) -> int:
+        """Returns an int value in NU-Wei"""
         token_value = self.__value * self.__denominations['NUWei']
         return int(token_value)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return int(self) == int(other)
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> int:
         return int(self) + other
 
-    def __add__(self, other):
+    def __add__(self, other) -> 'NU':
         return NU(int(self) + int(other), 'NUWei')
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> 'NU':
         return NU(int(self) - int(other), 'NUWei')
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> 'NU':
         return NU(int(self) * int(other), 'NUWei')
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other) -> 'NU':
         return NU(int(self) // int(other), 'NUWei')
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
         return int(self) > int(other)
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> bool:
         return int(self) >= int(other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         return int(self) < int(other)
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         return int(self) <= int(other)
 
-    def __int__(self):
+    def __int__(self) -> int:
         """Cast to smallest denomination"""
         return int(self.to_nu_wei())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         r = f'{self.__symbol}(value={int(self.__value)})'
         return r
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{str(self.__value)} {self.__symbol}'
 
 
 class Stake:
+    """
+    A quantity of tokens, and staking time-frame for one stake for one miner.
+    """
 
     __ID_LENGTH = 16
 
@@ -169,6 +190,7 @@ class Stake:
 
     @classmethod
     def from_stake_info(cls, owner_address, index: int, stake_info: Tuple[int, int, int]):
+        """Reads staking values as they exist on the blockchain"""
         start_period, end_period, value = stake_info
         instance = cls(owner_address=owner_address,
                        index=index,
@@ -178,13 +200,15 @@ class Stake:
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:
+        """Returns a tuple representing the blockchain record of a stake"""
         return self.start_period, self.end_period, int(self.value)
 
     @property
     def id(self) -> str:
+        """TODO: Unique staking ID, currently unused"""
         digest = b''
         digest += eth_utils.to_canonical_address(address=self.owner_address)
-        digest += str(self.index)
+        digest += str(self.index).encode()
         digest += str(self.start_period).encode()
         digest += str(self.end_period).encode()
         digest += str(self.value).encode()
@@ -192,11 +216,13 @@ class Stake:
         return stake_id[:self.__ID_LENGTH]
 
     @property
-    def periods_remaining(self):
+    def periods_remaining(self) -> int:
+        """Returns the number of periods remaining in the stake from now."""
         current_period = datetime_to_period(datetime=maya.now())
         return self.end_period - current_period
 
     def time_remaining(self, slang: bool = False) -> Union[int, str]:
+        """Returns the time delta remaining in the stake from now."""
         now = maya.now()
         delta = self.end_datetime - now
         if slang:
@@ -207,6 +233,7 @@ class Stake:
 
 
 def __validate(rulebook) -> bool:
+    """Validate a rulebook"""
     for rule, failure_message in rulebook:
         if not rule:
             raise ValueError(failure_message)
@@ -214,6 +241,7 @@ def __validate(rulebook) -> bool:
 
 
 def validate_stake_amount(amount: NU, raise_on_fail=True) -> bool:
+    """Validate a single staking value against pre-defined requirements"""
 
     min_locked = NU(MIN_ALLOWED_LOCKED, 'NUWei')
     max_locked = NU(MAX_ALLOWED_LOCKED, 'NUWei')
@@ -235,6 +263,7 @@ def validate_stake_amount(amount: NU, raise_on_fail=True) -> bool:
 
 
 def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
+    """Validate a single staking lock-time against pre-defined requirements"""
 
     rulebook = (
 
