@@ -44,7 +44,7 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
     __default_timeout = 10  # seconds
-    # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
+    # __default_transaction_gas_limit = 500000  # TODO #842: determine sensible limit and validate transactions
 
     class InterfaceError(Exception):
         pass
@@ -296,7 +296,7 @@ class BlockchainInterface:
         try:
             contract_records = self.registry.search(contract_address=address)
         except RuntimeError:
-            raise self.InterfaceError('Corrupted Registrar')  # TODO: Integrate with Registry
+            raise self.InterfaceError('Corrupted Registrar')  # TODO #461: Integrate with Registry
         else:
             if not contract_records:
                 raise self.UnknownContract("No such contract with address {}".format(address))

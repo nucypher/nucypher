@@ -52,7 +52,7 @@ class AliceJSONController(AliceInterface, CharacterController):
 
     @character_control_interface
     def create_policy(self, request):
-        federated_only = True  # TODO: const for now
+        federated_only = True  # TODO #844: const for now
         serialized_output = self.serializer.load_create_policy_input(request=request)
         result = super().create_policy(**serialized_output, federated_only=federated_only)
         response_data = self.serializer.dump_create_policy_output(response=result)
@@ -191,7 +191,7 @@ class WebController(CharacterController):
         if dry_run:
             return
 
-        # TODO: Make non-blocking web control startup
+        # TODO #845: Make non-blocking web control startup
         hx_deployer = HendrixDeploy(action="start", options={"wsgi": self._web_app,
                                                              "http_port": http_port})
         hx_deployer.run()  # <--- Blocking Call to Reactor

@@ -41,7 +41,6 @@ class EthereumContractRegistry:
     _multi_contract = True
     _contract_name = NotImplemented
 
-    # TODO: Integrate with config classes
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
     class RegistryError(Exception):

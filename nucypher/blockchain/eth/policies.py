@@ -137,7 +137,7 @@ class BlockchainPolicy(Policy):
                                             ursula=miner,
                                             value=rate*duration,   # TODO Check the math/types here
                                             lock_periods=duration,
-                                            expiration=end_block)  # TODO: fix missing argument here
+                                            expiration=end_block)
 
         arrangement.is_published = True
         return arrangement
@@ -145,7 +145,7 @@ class BlockchainPolicy(Policy):
     def __find_ursulas(self,
                        ether_addresses: List[str],
                        target_quantity: int,
-                       timeout: int = 10) -> Set[Ursula]:  # TODO: Make timeout configurable
+                       timeout: int = 10) -> Set[Ursula]:  # TODO #843: Make timeout configurable
 
         start_time = maya.now()                            # marker for timeout calculation
 
@@ -177,7 +177,7 @@ class BlockchainPolicy(Policy):
                 # Known Node
                 found_ursulas.add(selected_ursula)  # We already knew, or just learned about this ursula
 
-        #  TODO: Figure out how to handle spare addresses (Buckets).
+        #  TODO #567: Figure out how to handle spare addresses (Buckets).
         # else:
         #     spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
         #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice._known_nodes))
