@@ -70,6 +70,10 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.deposit(balance, 1000).transact({'from': miner})
     testerchain.wait_for_receipt(tx)
+    tx = contract.functions.setReStake(True).transact({'from': miner})
+    testerchain.wait_for_receipt(tx)
+    tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': miner})
+    testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
     tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})

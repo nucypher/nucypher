@@ -1190,6 +1190,8 @@ contract MinersEscrow is Issuer {
         require(infoToCheck.value == info.value &&
             infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
+            infoToCheck.reStake == info.reStake &&
+            infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod);
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner) ==
