@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
 
 def datetime_to_period(datetime: maya.MayaDT) -> int:
     """Converts a MayaDT instance to a period number."""
-    future_period = datetime._epoch // int(SECONDS_PER_PERIOD)
+    future_period = datetime.epoch // int(SECONDS_PER_PERIOD)
     return int(future_period)
 
 

@@ -7,7 +7,7 @@ from nacl.hash import sha256
 from typing import Union, Tuple
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import SUBDIGITS
+from nucypher.blockchain.eth.constants import TOKEN_DECIMALS
 from nucypher.blockchain.eth.utils import datetime_at_period, datetime_to_period
 
 
@@ -34,7 +34,7 @@ class NU:
     """
 
     __symbol = 'NU'
-    __decimals = SUBDIGITS
+    __decimals = TOKEN_DECIMALS
     __agent_class = NucypherTokenAgent
 
     # conversions
@@ -77,8 +77,8 @@ class NU:
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
 
-    def __radd__(self, other) -> int:
-        return int(self) + other
+    def __radd__(self, other) -> 'NU':
+        return NU(int(self) + int(other), 'NUWei')
 
     def __add__(self, other) -> 'NU':
         return NU(int(self) + int(other), 'NUWei')
@@ -86,8 +86,8 @@ class NU:
     def __sub__(self, other) -> 'NU':
         return NU(int(self) - int(other), 'NUWei')
 
-    def __rmul__(self, other) -> int:
-        return int(self) * int(other)
+    def __rmul__(self, other) -> 'NU':
+        return NU(int(self) * int(other), 'NUWei')
 
     def __mul__(self, other) -> 'NU':
         return NU(int(self) * int(other), 'NUWei')
@@ -139,7 +139,7 @@ class Stake:
         self.value = value
         self.start_period = start_period
         self.end_period = end_period
-        self.duration = self.end_period - self.start_period
+        self.duration = (self.end_period-self.start_period) + 1
 
         # Internals
         self.start_datetime = datetime_at_period(period=start_period)
@@ -171,12 +171,13 @@ class Stake:
     @property
     def id(self) -> str:
         """TODO: Unique staking ID, currently unused"""
-        digest = b''
-        digest += eth_utils.to_canonical_address(address=self.owner_address)
-        digest += str(self.index).encode()
-        digest += str(self.start_period).encode()
-        digest += str(self.end_period).encode()
-        digest += str(self.value).encode()
+        digest_elements = list()
+        digest_elements.append(eth_utils.to_canonical_address(address=self.owner_address))
+        digest_elements.append(str(self.index).encode())
+        digest_elements.append(str(self.start_period).encode())
+        digest_elements.append(str(self.end_period).encode())
+        digest_elements.append(str(self.value).encode())
+        digest = b'|'.join(digest_elements)
         stake_id = sha256(digest).hex()[:16]
         return stake_id[:self.__ID_LENGTH]
 
@@ -190,6 +191,7 @@ class Stake:
         """Returns the time delta remaining in the stake from now."""
         now = maya.now()
         delta = self.end_datetime - now
+
         if slang:
             result = self.end_datetime.slang_date()
         else:

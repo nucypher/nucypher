@@ -38,8 +38,8 @@ POLICY_ID_LENGTH = 16
 
 NULL_ADDRESS = '0x' + '0' * 40
 
-SUBDIGITS = 18
-M = 10 ** SUBDIGITS                                    # Unit designation
+TOKEN_DECIMALS = 18
+M = 10 ** TOKEN_DECIMALS                               # Unit designation
 
 __initial_supply = int(1e9) * M                        # Initial token supply
 __saturation = int(3.89e9) * M                         # Token supply cap

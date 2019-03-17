@@ -382,7 +382,7 @@ class Miner(NucypherTokenActor):
     @property
     def total_staked(self) -> NU:
         if self.stakes:
-            return NU(sum(stake.value for stake in self.stakes.values()), 'NUWei')
+            return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NUWei')
         return NU(0, 'NUWei')
 
     def __read_stakes(self) -> None:
