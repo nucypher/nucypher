@@ -1,4 +1,4 @@
-from decimal import InvalidOperation
+from decimal import InvalidOperation, Decimal
 
 import pytest
 from web3 import Web3
@@ -24,16 +24,21 @@ def test_NU():
     assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nu_wei())
     assert str(min_allowed_locked) == '15000 NU'
 
+    # Alternate construction
+    assert NU(1, 'NU') == NU('1.0', 'NU') == NU(1.0, 'NU')
+
     # Arithmetic
 
-    # whole numbers
+    # NUs
     one_nu = NU(1, 'NU')
     zero_nu = NU(0, 'NU')
     one_hundred_nu = NU(100, 'NU')
     two_hundred_nu = NU(200, 'NU')
     three_hundred_nu = NU(300, 'NU')
 
+    # Nits
     one_nu_wei = NU(1, 'NUWei')
+    assert one_nu_wei.to_tokens() == Decimal('1E-18')
 
     # Base Operations
     assert one_hundred_nu < two_hundred_nu < three_hundred_nu
@@ -52,11 +57,20 @@ def test_NU():
     expected = 0.999999999999999999
     assert actual == expected
 
-    # Problems with floats:
-
-    # 3.14 NU should be 3_140_000_000_000_000_000 NUWei
+    # 3.14 NU is 3_140_000_000_000_000_000 NUWei
     pi_nuweis = NU(3.14, 'NU')
-    assert pi_nuweis.to_nu_wei() == NU(3_140_000_000_000_000_000, 'NUWei')
+    assert NU('3.14', 'NU') == pi_nuweis.to_nu_wei() == NU(3_140_000_000_000_000_000, 'NUWei')
+
+    # Mixed type operations
+    difference = NU('3.14159265', 'NU') - NU(1.1, 'NU')
+    assert difference == NU('2.04159265', 'NU')
+
+    result = difference + one_nu_wei
+    assert result == NU(2041592650000000001, 'NUWei')
+
+    # Similar to stake read + metadata operations in Miner
+    collection = [one_hundred_nu, two_hundred_nu, three_hundred_nu]
+    assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NUWei')
 
     #
     # Invalid Inputs
