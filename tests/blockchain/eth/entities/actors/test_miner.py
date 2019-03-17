@@ -21,7 +21,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS
-from nucypher.blockchain.eth.utils import NU, Stake
+from nucypher.blockchain.eth.currency import NU, Stake
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 

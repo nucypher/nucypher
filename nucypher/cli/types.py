@@ -22,7 +22,7 @@ from eth_utils import is_checksum_address
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_MINTING_PERIODS, MIN_LOCKED_PERIODS, \
     MAX_ALLOWED_LOCKED
-from nucypher.blockchain.eth.utils import NU
+from nucypher.blockchain.eth.currency import NU
 
 
 class ChecksumAddress(click.ParamType):

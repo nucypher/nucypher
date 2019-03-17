@@ -22,7 +22,7 @@ from twisted.internet import stdio
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
-from nucypher.blockchain.eth.utils import NU
+from nucypher.blockchain.eth.currency import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import destroy_system_configuration
