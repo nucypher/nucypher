@@ -10,7 +10,6 @@ from nucypher.network.middleware import NotFound
 
 
 def character_control_interface(func):
-    """Validate I/O specification for dictionary character control interfaces"""
 
     # noinspection PyPackageRequirements
     @functools.wraps(func)
@@ -20,23 +19,30 @@ def character_control_interface(func):
         received = maya.now()
 
         # Get specification
-        input_specification, output_specification = instance.get_specifications(interface_name=func.__name__)
+        interface_name = func.__name__
+        input_specification, output_specification = instance.get_specifications(interface_name=interface_name)
 
         if request and instance.serialize:
-            request = instance.serializer(data=request, specification=input_specification)
+
+            # Serialize request
+            if instance.serialize:
+                request = instance.serializer(data=request, specification=input_specification)
+
+            # Validate request
+            instance.validate_request(request=request, interface_name=interface_name)
 
         # Call the interface
         response = func(self=instance, request=request, *args, **kwargs)
 
-        # Record responding time
-        responding = maya.now()
+        # Validate response
+        instance.validate_response(response=response, interface_name=interface_name)
 
-        # Calculate control cycle duration
-        request_duration = responding - received
+        # Record duration
+        responding = maya.now()
+        duration = responding - received
 
         # Assemble response with metadata
-        response_with_metadata = instance.serializer.build_response_metadata(response=response,
-                                                                             duration=request_duration)
+        response_with_metadata = instance.serializer.build_response_metadata(response=response, duration=duration)
 
         # Emit
         return instance.emitter(response=response_with_metadata)

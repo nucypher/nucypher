@@ -257,8 +257,10 @@ class Alice(Character, PolicyAuthor):
             self.block_until_specific_nodes_are_known(
                 policy.revocation_kit.revokable_addresses,
                 allow_missing=(policy.n - revocation_threshold))
+
         except self.NotEnoughTeachers as e:
             raise e
+
         else:
             failed_revocations = dict()
             for node_id in policy.revocation_kit.revokable_addresses:
