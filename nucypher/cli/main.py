@@ -100,6 +100,14 @@ def nucypher_cli(click_config,
         click_config.emitter("Verbose mode is enabled", color='blue')
 
 
+@click.command()
+@click.option('--logs', help="Also destroy logs", is_flag=True)
+@click.option('--force', help="Don't ask for confirmation and Ignore Errors", is_flag=True)
+@click.option('--config-root', help="Custom configuration directory", type=click.Path())
+def remove(logs, force, config_root):
+    destroy_configuration_root(config_root=config_root, force=force, logs=logs)
+
+
 #
 # Character CLI Entry Points (Fan Out Input)
 #
@@ -126,13 +134,18 @@ Inversely, commenting out an entry point here will disable it.
 """
 
 ENTRY_POINTS = (
+
+    # Utility Sub-Commands
+    remove,         # Remove NuCypher Files
     status.status,  # Network Status
-    alice.alice,  # Author of Policies
-    bob.bob,  # Builder of Capsules
+
+    # Characters
+    alice.alice,    # Author of Policies
+    bob.bob,        # Builder of Capsules
     enrico.enrico,  # Encryptor of Data
-    moe.moe,  # Monitor
+    moe.moe,        # Monitor
     ursula.ursula,  # Untrusted Re-Encryption Proxy
-    felix.felix         # Faucet
+    felix.felix     # Faucet
 )
 
 for entry_point in ENTRY_POINTS:
