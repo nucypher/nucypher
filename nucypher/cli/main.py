@@ -90,14 +90,14 @@ def nucypher_cli(click_config,
     # Only used for testing outputs;
     # Redirects outputs to in-memory python containers.
     if mock_networking:
-        click_config.emitter(message="WARNING: Mock networking is enabled")
+        click_config.emit(message="WARNING: Mock networking is enabled")
         click_config.middleware = MockRestMiddleware()
     else:
         click_config.middleware = RestMiddleware()
 
     # Global Warnings
     if click_config.verbose:
-        click_config.emitter("Verbose mode is enabled", color='blue')
+        click_config.emit("Verbose mode is enabled", color='blue')
 
 
 @click.command()

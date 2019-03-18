@@ -184,7 +184,7 @@ def alice(click_config,
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(character_config=alice_config)
+        return actions.destroy_configuration(character_config=alice_config, force=force)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

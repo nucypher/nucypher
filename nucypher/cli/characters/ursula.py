@@ -312,7 +312,7 @@ def ursula(click_config,
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(character_config=ursula_config)
+        return actions.destroy_configuration(character_config=ursula_config, force=force)
 
     elif action == 'stake':
 

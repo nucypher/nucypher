@@ -93,9 +93,9 @@ class UrsulaConfiguration(NodeConfiguration):
                                      curve=self.tls_curve,
                                      **generation_kwargs)
 
-    def destroy(self):
-        super().destroy()
+    def destroy(self) -> None:
         os.remove(self.db_filepath)
+        super().destroy()
 
 
 class AliceConfiguration(NodeConfiguration):

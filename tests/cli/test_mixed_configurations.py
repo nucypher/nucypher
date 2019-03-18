@@ -76,6 +76,7 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+    assert os.path.isfile(felix_file_location)
     assert len(os.listdir(public_keys_dir)) == 3
 
     # Use a custom local filepath to init an persistent Alice
@@ -88,6 +89,7 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+    assert os.path.isfile(alice_file_location)
     assert len(os.listdir(public_keys_dir)) == 5
 
     # Use the same local filepath to init an persistent Ursula
@@ -124,33 +126,38 @@ def test_coexisting_configurations(click_runner,
     # Destroy
     #
 
-    another_ursula_destruction_args = ('ursula',
-                                       'destroy',
-                                       '--force',
+    another_ursula_destruction_args = ('ursula', 'destroy', '--force',
                                        '--config-file', another_ursula_configuration_file_location)
     result = click_runner.invoke(nucypher_cli, another_ursula_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 8
+    assert not os.path.isfile(another_ursula_configuration_file_location)
 
     ursula_destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
-    result = click_runner.invoke(nucypher_cli, ursula_destruction_args, catch_exceptions=False, env=envvars)
+    result = click_runner.invoke(nucypher_cli, ursula_destruction_args, input='Y', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+    assert 'y/N' in result.output
     assert len(os.listdir(public_keys_dir)) == 5
+    assert not os.path.isfile(ursula_file_location)
 
     felix_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
     result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 3
+    assert not os.path.isfile(alice_file_location)
 
     felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', felix_file_location)
     result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 0
+    assert not os.path.isfile(felix_file_location)
+
+
+def test_nucypher_removal(click_runner, custom_filepath):
 
     # Remove nucypher completely
     destruction_args = ('remove', '--force', '--config-root', custom_filepath)
-    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False, env=envvars)
+    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert not os.path.isdir(custom_filepath)
-
     # Everything is gone

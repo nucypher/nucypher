@@ -399,7 +399,7 @@ class NodeConfiguration(ABC):
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
         # Instantiate from merged params
-        node_configuration = cls(**{**payload, **overrides})
+        node_configuration = cls(config_file_location=filepath, **{**payload, **overrides})
 
         return node_configuration
 

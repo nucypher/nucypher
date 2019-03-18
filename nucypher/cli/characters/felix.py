@@ -149,7 +149,7 @@ ETH ........ {str(eth_balance)}
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
-        return actions.destroy_configuration(character_config=felix_config)
+        return actions.destroy_configuration(character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
         FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True, crash_on_error=click_config.debug)

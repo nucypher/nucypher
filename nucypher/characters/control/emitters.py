@@ -77,7 +77,7 @@ class IPCStdoutEmitter(StdoutEmitter):
 
     transport_serializer = json.dumps
 
-    def _emit(self, response: dict = None, message: str = None) -> None:
+    def _emit(self, response: dict = None, message: str = None, *args, **kwargs) -> None:
         """
         Write data to stdout.  For machine consumption only.
         """
