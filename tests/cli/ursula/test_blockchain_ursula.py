@@ -30,7 +30,7 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 from web3 import Web3
 
 
-STAKE_VALUE = NU(MIN_ALLOWED_LOCKED * 2, 'NUWei')
+STAKE_VALUE = NU(MIN_ALLOWED_LOCKED * 2, 'NuNit')
 POLICY_RATE = Web3.toWei(21, 'gwei')
 POLICY_VALUE = POLICY_RATE * MIN_LOCKED_PERIODS   # * len(ursula)
 
@@ -164,7 +164,7 @@ def test_init_ursula_stake(click_runner, configuration_file_location, funded_blo
     stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
-    assert NU(int(value), 'NUWei') == STAKE_VALUE
+    assert NU(int(value), 'NuNit') == STAKE_VALUE
 
 
 def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_location):
@@ -189,7 +189,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location):
                    '--poa',
                    '--force',
                    '--index', 0,
-                   '--value', NU(MIN_ALLOWED_LOCKED, 'NUWei').to_tokens(),
+                   '--value', NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens(),
                    '--duration', 10)
 
     result = click_runner.invoke(nucypher_cli,
@@ -206,7 +206,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location):
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(NU(MIN_ALLOWED_LOCKED, 'NUWei').to_tokens()) in result.output
+    assert str(NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens()) in result.output
 
 
 def test_run_blockchain_ursula(click_runner,

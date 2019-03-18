@@ -98,7 +98,7 @@ class NucypherTokenActor:
     def token_balance(self):
         """Return this actors's current token balance"""
         balance = int(self.token_agent.get_balance(address=self.checksum_public_address))
-        nu_balance = NU(balance, 'NUWei')
+        nu_balance = NU(balance, 'NuNit')
         return nu_balance
 
 
@@ -382,8 +382,8 @@ class Miner(NucypherTokenActor):
     @property
     def total_staked(self) -> NU:
         if self.stakes:
-            return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NUWei')
-        return NU(0, 'NUWei')
+            return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NuNit')
+        return NU(0, 'NuNit')
 
     def __read_stakes(self) -> None:
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
@@ -499,7 +499,7 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.token_balance
 
-        amount = NU(int(amount), 'NUWei')
+        amount = NU(int(amount), 'NuNit')
 
         staking_transactions = OrderedDict()  # type: OrderedDict # Time series of txhases
 

@@ -395,7 +395,7 @@ def ursula(click_config,
 
         # Gather stake value
         if not value:
-            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=NU(MIN_ALLOWED_LOCKED, 'NUWei'))
+            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=NU(MIN_ALLOWED_LOCKED, 'NuNit'))
         else:
             value = NU(int(value), 'NU')
 

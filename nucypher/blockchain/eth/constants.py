@@ -38,11 +38,11 @@ NULL_ADDRESS = '0x' + '0' * 40
 
 # Denomination
 TOKEN_DECIMALS = 18
-DENOMINATION_FACTOR = 10 ** TOKEN_DECIMALS         # Smallest unit designation
+NUNITS_PER_TOKEN = 10 ** TOKEN_DECIMALS         # Smallest unit designation
 
 # Supply
-__initial_supply = int(1e9) * DENOMINATION_FACTOR  # Initial token supply
-__saturation = int(3.89e9) * DENOMINATION_FACTOR   # Token supply cap
+__initial_supply = int(1e9) * NUNITS_PER_TOKEN  # Initial token supply
+__saturation = int(3.89e9) * NUNITS_PER_TOKEN   # Token supply cap
 TOKEN_SUPPLY = __saturation - __initial_supply     # Remaining supply
 TOKEN_SATURATION = __saturation
 
@@ -72,8 +72,8 @@ MIN_LOCKED_PERIODS = 30                          # 720 Hours minimum
 MAX_MINTING_PERIODS = 365                        # Maximum number of periods
 
 # Lock Value
-MIN_ALLOWED_LOCKED = 15000 * DENOMINATION_FACTOR
-MAX_ALLOWED_LOCKED = int(4e6) * DENOMINATION_FACTOR
+MIN_ALLOWED_LOCKED = 15000 * NUNITS_PER_TOKEN
+MAX_ALLOWED_LOCKED = int(4e6) * NUNITS_PER_TOKEN
 
 # Rewards
 K2 = 2 * 10 ** 7   # Mining Coefficient

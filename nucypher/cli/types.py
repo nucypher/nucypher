@@ -53,8 +53,8 @@ class IPv4Address(click.ParamType):
 # Staking
 STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False)
 STAKE_EXTENSION = click.IntRange(min=1, max=MAX_MINTING_PERIODS, clamp=False)
-STAKE_VALUE = click.IntRange(min=NU(MIN_ALLOWED_LOCKED, 'NUWei').to_tokens(),
-                             max=NU(MAX_ALLOWED_LOCKED, 'NUWei').to_tokens(), clamp=False)
+STAKE_VALUE = click.IntRange(min=NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens(),
+                             max=NU(MAX_ALLOWED_LOCKED, 'NuNit').to_tokens(), clamp=False)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)

@@ -19,7 +19,7 @@ class NU:
     The easiest way to use NU, is to pass an int, float, or str, and denomination string:
 
     Int:    nu = NU(100, 'NU')
-    Int:    nu_wei = NU(15000000000000000000000, 'NUWei')
+    Int:    nu_wei = NU(15000000000000000000000, 'NuNit')
 
     Float:  nu = NU(15042.445, 'NU')
     String: nu = NU('10002.302', 'NU')
@@ -38,7 +38,7 @@ class NU:
     __agent_class = NucypherTokenAgent
 
     # conversions
-    __denominations = {'NUWei': 'wei',
+    __denominations = {'NuNit': 'wei',
                        'NU': 'ether'}
 
     class InvalidAmount(ValueError):
@@ -56,8 +56,8 @@ class NU:
             raise NU.InvalidAmount(f"{value} is an invalid amount of tokens: {str(e)}")
 
     @classmethod
-    def from_nu_wei(cls, value: int):
-        return cls(value, denomination='NUWei')
+    def from_nunits(cls, value: int):
+        return cls(value, denomination='NuNit')
 
     @classmethod
     def from_tokens(cls, value: Union[int, float, str]):
@@ -67,30 +67,30 @@ class NU:
         """Returns an decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
-    def to_nu_wei(self) -> int:
-        """Returns an int value in NU-Wei"""
+    def to_nunits(self) -> int:
+        """Returns an int value in NuNit"""
         return int(self.__value)
 
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
 
     def __radd__(self, other) -> 'NU':
-        return NU(int(self) + int(other), 'NUWei')
+        return NU(int(self) + int(other), 'NuNit')
 
     def __add__(self, other) -> 'NU':
-        return NU(int(self) + int(other), 'NUWei')
+        return NU(int(self) + int(other), 'NuNit')
 
     def __sub__(self, other) -> 'NU':
-        return NU(int(self) - int(other), 'NUWei')
+        return NU(int(self) - int(other), 'NuNit')
 
     def __rmul__(self, other) -> 'NU':
-        return NU(int(self) * int(other), 'NUWei')
+        return NU(int(self) * int(other), 'NuNit')
 
     def __mul__(self, other) -> 'NU':
-        return NU(int(self) * int(other), 'NUWei')
+        return NU(int(self) * int(other), 'NuNit')
 
     def __floordiv__(self, other) -> 'NU':
-        return NU(int(self) // int(other), 'NUWei')
+        return NU(int(self) // int(other), 'NuNit')
 
     def __gt__(self, other) -> bool:
         return int(self) > int(other)
@@ -106,7 +106,7 @@ class NU:
 
     def __int__(self) -> int:
         """Cast to smallest denomination"""
-        return int(self.to_nu_wei())
+        return int(self.to_nunits())
 
     def __repr__(self) -> str:
         r = f'{self.__symbol}(value={str(self.__value)})'
@@ -158,7 +158,7 @@ class Stake:
                        index=index,
                        start_period=start_period,
                        end_period=end_period,
-                       value=NU(value, 'NUWei'))
+                       value=NU(value, 'NuNit'))
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:

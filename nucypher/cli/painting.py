@@ -211,7 +211,7 @@ def paint_staged_stake(ursula,
 
     click.echo(f"""
 {ursula}
-~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NU-Wei)
+~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNit)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})

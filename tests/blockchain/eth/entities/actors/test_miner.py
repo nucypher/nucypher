@@ -39,10 +39,10 @@ def miner(testerchain, three_agents):
 def test_miner_locking_tokens(testerchain, three_agents, miner):
     token_agent, miner_agent, policy_agent = three_agents
 
-    assert NU(MIN_ALLOWED_LOCKED, 'NUWei') < miner.token_balance, "Insufficient miner balance"
+    assert NU(MIN_ALLOWED_LOCKED, 'NuNit') < miner.token_balance, "Insufficient miner balance"
 
     expiration = maya.now().add(days=MIN_LOCKED_PERIODS)
-    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),  # Lock the minimum amount of tokens
+    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NuNit'),  # Lock the minimum amount of tokens
                            expiration=expiration)
 
     # Verify that the escrow is "approved" to receive tokens
@@ -62,8 +62,8 @@ def test_miner_locking_tokens(testerchain, three_agents, miner):
 @pytest.mark.slow()
 @pytest.mark.usefixtures("three_agents")
 def test_miner_divides_stake(miner):
-    stake_value = NU(MIN_ALLOWED_LOCKED*5, 'NUWei')
-    new_stake_value = NU(MIN_ALLOWED_LOCKED*2, 'NUWei')
+    stake_value = NU(MIN_ALLOWED_LOCKED*5, 'NuNit')
+    new_stake_value = NU(MIN_ALLOWED_LOCKED*2, 'NuNit')
 
     stake_index = 0
     miner.initialize_stake(amount=stake_value, lock_periods=int(MIN_LOCKED_PERIODS))
@@ -77,7 +77,7 @@ def test_miner_divides_stake(miner):
     assert expected_old_stake == miner.stakes[stake_index+1].to_stake_info(), 'Old stake values are invalid'
     assert expected_new_stake == miner.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
-    yet_another_stake_value = NU(MIN_ALLOWED_LOCKED, 'NUWei')
+    yet_another_stake_value = NU(MIN_ALLOWED_LOCKED, 'NuNit')
     miner.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 2, additional_periods=2)
 
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
@@ -102,7 +102,7 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents):
     initial_balance = miner.token_balance
     assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NUWei'),  # Lock the minimum amount of tokens
+    miner.initialize_stake(amount=NU(MIN_ALLOWED_LOCKED, 'NuNit'),  # Lock the minimum amount of tokens
                            lock_periods=int(MIN_LOCKED_PERIODS))    # ... for the fewest number of periods
 
     # ...wait out the lock period...

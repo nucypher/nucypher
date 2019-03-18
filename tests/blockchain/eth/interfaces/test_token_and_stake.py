@@ -11,8 +11,8 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 def test_NU():
 
     # Starting Small
-    min_allowed_locked = NU(MIN_ALLOWED_LOCKED, 'NUWei')
-    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nu_wei())
+    min_allowed_locked = NU(MIN_ALLOWED_LOCKED, 'NuNit')
+    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nunits())
 
     min_NU_locked = int(str(MIN_ALLOWED_LOCKED)[0:-18])
     expected = NU(min_NU_locked, 'NU')
@@ -21,7 +21,7 @@ def test_NU():
     # Starting Big
     min_allowed_locked = NU(min_NU_locked, 'NU')
     assert MIN_ALLOWED_LOCKED == int(min_allowed_locked)
-    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nu_wei())
+    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nunits())
     assert str(min_allowed_locked) == '15000 NU'
 
     # Alternate construction
@@ -37,8 +37,8 @@ def test_NU():
     three_hundred_nu = NU(300, 'NU')
 
     # Nits
-    one_nu_wei = NU(1, 'NUWei')
-    three_nu_wei = NU(3, 'NUWei')
+    one_nu_wei = NU(1, 'NuNit')
+    three_nu_wei = NU(3, 'NuNit')
     assert three_nu_wei.to_tokens() == Decimal('3E-18')
     assert one_nu_wei.to_tokens() == Decimal('1E-18')
 
@@ -59,32 +59,32 @@ def test_NU():
     expected = 0.999999999999999999
     assert actual == expected
 
-    # 3.14 NU is 3_140_000_000_000_000_000 NUWei
+    # 3.14 NU is 3_140_000_000_000_000_000 NuNit
     pi_nuweis = NU(3.14, 'NU')
-    assert NU('3.14', 'NU') == pi_nuweis.to_nu_wei() == NU(3_140_000_000_000_000_000, 'NUWei')
+    assert NU('3.14', 'NU') == pi_nuweis.to_nunits() == NU(3_140_000_000_000_000_000, 'NuNit')
 
     # Mixed type operations
     difference = NU('3.14159265', 'NU') - NU(1.1, 'NU')
     assert difference == NU('2.04159265', 'NU')
 
     result = difference + one_nu_wei
-    assert result == NU(2041592650000000001, 'NUWei')
+    assert result == NU(2041592650000000001, 'NuNit')
 
     # Similar to stake read + metadata operations in Miner
     collection = [one_hundred_nu, two_hundred_nu, three_hundred_nu]
-    assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NUWei')
+    assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NuNit')
 
     #
     # Fractional Inputs
     #
 
-    # A decimal amount of NUWei (i.e., a fraction of a NUWei)
-    pi_nuweis = NU('3.14', 'NUWei')
+    # A decimal amount of NuNit (i.e., a fraction of a NuNit)
+    pi_nuweis = NU('3.14', 'NuNit')
     assert pi_nuweis == three_nu_wei  # Floor
 
-    # A decimal amount of NU, which amounts to NUWei with decimals
+    # A decimal amount of NU, which amounts to NuNit with decimals
     pi_nus = NU('3.14159265358979323846', 'NU')
-    assert pi_nus == NU(3141592653589793238, 'NUWei')  # Floor
+    assert pi_nus == NU(3141592653589793238, 'NuNit')  # Floor
 
     # Positive Infinity
     with pytest.raises(NU.InvalidAmount):
