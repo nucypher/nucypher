@@ -154,6 +154,7 @@ def test_coexisting_configurations(click_runner,
 
 
 def test_nucypher_removal(click_runner, custom_filepath):
+    """Remove all nucypher configuration files, keys, node metadata, and logs from the local filesystem"""
 
     # Remove nucypher completely
     destruction_args = ('remove', '--force', '--config-root', custom_filepath)
