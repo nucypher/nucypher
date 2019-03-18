@@ -93,6 +93,10 @@ class UrsulaConfiguration(NodeConfiguration):
                                      curve=self.tls_curve,
                                      **generation_kwargs)
 
+    def destroy(self):
+        super().destroy()
+        os.remove(self.db_filepath)
+
 
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice

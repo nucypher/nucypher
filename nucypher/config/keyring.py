@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import base64
 import json
 import os
+import shutil
 import stat
 from json import JSONDecodeError
 
@@ -656,3 +657,16 @@ class NucypherKeyring:
             if not rule:
                 failures.append(failure_message)
         return failures
+
+    def destroy(self):
+        base_filepaths = self._generate_base_filepaths(keyring_root=self.__keyring_root)
+        public_key_dir = base_filepaths['public_key_dir']
+        private_key_dir = base_filepaths['private_key_dir']
+        keypaths = self._generate_key_filepaths(account=self.checksum_address,
+                                                public_key_dir=public_key_dir,
+                                                private_key_dir=private_key_dir)
+        for filepath in keypaths.values():
+            try:
+                os.remove(filepath)
+            except FileNotFoundError:
+                pass
