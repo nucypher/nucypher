@@ -20,9 +20,13 @@ from ipaddress import ip_address
 import click
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_MINTING_PERIODS, MIN_LOCKED_PERIODS, \
+from nucypher.blockchain.eth.constants import (
+    MIN_ALLOWED_LOCKED,
+    MAX_MINTING_PERIODS,
+    MIN_LOCKED_PERIODS,
     MAX_ALLOWED_LOCKED
-from nucypher.blockchain.eth.currency import NU
+)
+from nucypher.blockchain.eth.token import NU
 
 
 class ChecksumAddress(click.ParamType):
@@ -44,6 +48,7 @@ class IPv4Address(click.ParamType):
             self.fail(str(e))
         else:
             return value
+
 
 # Staking
 STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False)

@@ -12,7 +12,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
-from nucypher.blockchain.eth.currency import NU
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration, BobConfiguration

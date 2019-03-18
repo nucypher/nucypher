@@ -26,7 +26,7 @@ from string import digits, ascii_uppercase
 
 from web3 import Web3
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, DENOMINATION_FACTOR
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
 
@@ -66,7 +66,7 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
-DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(M)
+DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(DENOMINATION_FACTOR)
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = 10 ** 6 * 10 ** 18  # wei -> ether
 
@@ -118,3 +118,4 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
+PYEVM_GAS_LIMIT = 6500000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?

@@ -66,7 +66,7 @@ def __validate(rulebook) -> bool:
 
 def validate_stake_amount(amount, raise_on_fail=True) -> bool:
     """Validate a single staking value against pre-defined requirements"""
-    from nucypher.blockchain.eth.currency import NU
+    from nucypher.blockchain.eth.token import NU
 
     min_locked = NU(MIN_ALLOWED_LOCKED, 'NUWei')
     max_locked = NU(MAX_ALLOWED_LOCKED, 'NUWei')

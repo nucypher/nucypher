@@ -4,7 +4,7 @@ import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED
-from nucypher.blockchain.eth.currency import NU, Stake
+from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 

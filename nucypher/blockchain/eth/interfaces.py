@@ -34,7 +34,6 @@ from constant_sorrow.constants import (
 )
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
-from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 
@@ -232,7 +231,8 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'tester':
 
                 if uri_breakdown.netloc == 'pyevm':
-                    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': NUCYPHER_GAS_LIMIT})
+                    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT
+                    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
                     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)

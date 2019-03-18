@@ -37,7 +37,7 @@ from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
                                            validate_locktime,
                                            calculate_period_duration)
-from nucypher.blockchain.eth.currency import NU, Stake
+from nucypher.blockchain.eth.token import NU, Stake
 
 
 def only_me(func):
