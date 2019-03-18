@@ -43,48 +43,40 @@ def load_seednodes(min_stake: int,
     return teacher_nodes
 
 
-def destroy_configuration_root(config_class,
-                               config_file=None,
-                               network=None,
-                               config_root=None,
-                               force=False,
-                               log=LOG):
+def destroy_configuration_root(config_root=None, force=False, logs: bool = False) -> str:
     """CAUTION: This will destroy *all* nucypher configuration files from the filesystem"""
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
 
-    try:
-        character_config = config_class.from_configuration_file(filepath=config_file, domains={network})
+    if not force:
+        message = f"Destroy top-level configuration directory: {config_root}?"
+        click.confirm(message, abort=True)  # ABORT
 
-    except FileNotFoundError:
-        config_file_location = config_file or config_class.DEFAULT_CONFIG_FILE_LOCATION
+    shutil.rmtree(config_root, ignore_errors=force)       # config
 
-        if not force:
-            message = "No configuration file found at {}; \n" \
-                      "Destroy top-level configuration directory: {}?".format(config_file_location, config_root)
-            click.confirm(message, abort=True)  # ABORT
+    if logs:
+        shutil.rmtree(USER_LOG_DIR, ignore_errors=force)  # logs
 
-        shutil.rmtree(config_root, ignore_errors=False)
+    return config_root
 
-    else:
-        if not force:
+
+def destroy_configuration(character_config, force: bool = False) -> None:
+
+        if force:
             click.confirm(DESTRUCTION.format(character_config.config_root), abort=True)
 
         try:
-            character_config.destroy(force=force)
+            character_config.destroy()
+
         except FileNotFoundError:
             message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
             console_emitter(message=message, color='red')
-            log.debug(message)
+            character_config.log.debug(message)
             raise click.Abort()
         else:
             message = "Deleted configuration files at {}".format(character_config.config_root)
             console_emitter(message=message, color='green')
-            log.debug(message)
-
-    # Destroy logs
-    shutil.rmtree(USER_LOG_DIR, ignore_errors=True)
-    return config_root
+            character_config.log.debug(message)
 
 
 def forget(configuration):

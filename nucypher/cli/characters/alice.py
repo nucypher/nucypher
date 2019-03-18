@@ -93,21 +93,6 @@ def alice(click_config,
         return painting.paint_new_installation_help(new_configuration=new_alice_config,
                                                     config_root=config_root,
                                                     config_file=config_file)
-
-    elif action == "destroy" and force:
-        """Delete all configuration files from the disk"""
-        if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-
-        destroyed_path = actions.destroy_configuration_root(config_class=AliceConfiguration,
-                                                            config_file=config_file,
-                                                            network=network,
-                                                            config_root=config_root,
-                                                            force=force)
-
-        return nucypher_click_config.emitter(message=f"Destroyed {destroyed_path}", color='red')
-
     #
     # Get Alice Configuration
     #
@@ -193,6 +178,13 @@ def alice(click_config,
 
     elif action == "revoke":
         return ALICE.controller.revoke(policy_encrypting_key=policy_encrypting_key)
+
+    elif action == "destroy":
+        """Delete all configuration files from the disk"""
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+        return actions.destroy_configuration(character_config=alice_config)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")
