@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PE
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import destroy_system_configuration
+from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -177,6 +177,20 @@ def ursula(click_config,
                                              federated_only=federated_only)
         return
 
+    elif action == 'destroy' and force:
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+
+        config_root = config_root or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+        destroyed_filepath = destroy_configuration_root(config_class=UrsulaConfiguration,
+                                                        config_file=config_file,
+                                                        network=network,
+                                                        config_root=config_root,
+                                                        force=True)
+
+        return click_config.emitter(message=f"Destroyed {destroyed_filepath}", color='green')
+
     #
     # Configured Ursulas
     #
@@ -315,12 +329,7 @@ def ursula(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        destroyed_filepath = destroy_system_configuration(config_class=UrsulaConfiguration,
-                                                          config_file=config_file,
-                                                          network=network,
-                                                          config_root=ursula_config.config_file_location,
-                                                          force=force)
-
+        destroyed_filepath = ursula_config.destroy()
         return click_config.emitter(message=f"Destroyed {destroyed_filepath}", color='green')
 
     elif action == 'stake':

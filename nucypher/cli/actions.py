@@ -5,7 +5,7 @@ from typing import List
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 
 DESTRUCTION = '''
@@ -43,12 +43,13 @@ def load_seednodes(min_stake: int,
     return teacher_nodes
 
 
-def destroy_system_configuration(config_class,
-                                 config_file=None,
-                                 network=None,
-                                 config_root=None,
-                                 force=False,
-                                 log=LOG):
+def destroy_configuration_root(config_class,
+                               config_file=None,
+                               network=None,
+                               config_root=None,
+                               force=False,
+                               log=LOG):
+    """CAUTION: This will destroy *all* nucypher configuration files from the filesystem"""
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
 
@@ -81,6 +82,8 @@ def destroy_system_configuration(config_class,
             console_emitter(message=message, color='green')
             log.debug(message)
 
+    # Destroy logs
+    shutil.rmtree(USER_LOG_DIR, ignore_errors=True)
     return config_root
 
 

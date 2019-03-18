@@ -89,11 +89,11 @@ def bob(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
-        destroyed_path = actions.destroy_system_configuration(config_class=BobConfiguration,
-                                                              config_file=config_file,
-                                                              network=network,
-                                                              config_root=config_root,
-                                                              force=force)
+        destroyed_path = actions.destroy_configuration_root(config_class=BobConfiguration,
+                                                            config_file=config_file,
+                                                            network=network,
+                                                            config_root=config_root,
+                                                            force=force)
 
         return click_config.emitter(message=f"Destroyed {destroyed_path}")
 

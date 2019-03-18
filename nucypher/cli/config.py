@@ -115,26 +115,21 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    # Deploy Environment Variables
-    miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
-    policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
-    user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
-
     Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
 
     def collect_deployment_secrets(self) -> Secrets:
 
-        miner_secret = self.miner_escrow_deployment_secret
+        miner_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
         if not miner_secret:
             miner_secret = click.prompt('Enter MinerEscrow Deployment Secret', hide_input=True,
                                         confirmation_prompt=True)
 
-        policy_secret = self.policy_manager_deployment_secret
+        policy_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
         if not policy_secret:
             policy_secret = click.prompt('Enter PolicyManager Deployment Secret', hide_input=True,
                                          confirmation_prompt=True)
 
-        escrow_proxy_secret = self.user_escrow_proxy_deployment_secret
+        escrow_proxy_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
         if not escrow_proxy_secret:
             escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
                                                confirmation_prompt=True)

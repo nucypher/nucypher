@@ -36,6 +36,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
@@ -58,12 +59,14 @@ def deploy(click_config,
            no_compile,
            amount,
            recipient_address,
+           config_root,
            force):
     """Manage contract and registry deployment"""
 
     # Ensure config root exists, because we need a default place to put outfiles.
-    if not os.path.exists(DEFAULT_CONFIG_ROOT):
-        os.makedirs(DEFAULT_CONFIG_ROOT)
+    config_root = config_root or DEFAULT_CONFIG_ROOT
+    if not os.path.exists(config_root):
+        os.makedirs(config_root)
 
     # Establish a contract Registry
     registry, registry_filepath = None, (registry_outfile or registry_infile)
