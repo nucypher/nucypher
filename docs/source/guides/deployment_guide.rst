@@ -20,12 +20,12 @@ to deploy a single-host network with the geth CLI.
     (nucypher)$ nucypher-deploy contracts --provider-uri ipc:///tmp/geth.ipc --poa
     ...
 
-This will deploy the main NuCypher contracts: NuCypherToken, MinerEscrow, PolicyManager,
+This will deploy the main NuCypher contracts, namely ``NuCypherToken``, ``MinerEscrow``, and ``PolicyManager``,
 along with their proxies, as well as executing initialization transactions. You will need to enter
 the contract's upgrade secrets, which can be any alphanumeric string.
 
 A summary of deployed contract addresses, transactions, and gas usage will be displayed on success, and a
-`contract_registry.json` file will be generated in your nucypher application directory.
+``contract_registry.json`` file will be generated in your nucypher application directory.
 
 .. code:: bash
 

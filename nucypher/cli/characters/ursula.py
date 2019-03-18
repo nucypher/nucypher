@@ -115,7 +115,6 @@ def ursula(click_config,
     destroy           Delete Ursula node configuration.
     stake             Manage stakes for this node.
     confirm-activity  Manually confirm-activity for the current period.
-    divide-stake      Divide an existing stake.
     collect-reward    Withdraw staking reward.
 
     """
