@@ -38,6 +38,8 @@ def test_NU():
 
     # Nits
     one_nu_wei = NU(1, 'NUWei')
+    three_nu_wei = NU(3, 'NUWei')
+    assert three_nu_wei.to_tokens() == Decimal('3E-18')
     assert one_nu_wei.to_tokens() == Decimal('1E-18')
 
     # Base Operations
@@ -73,23 +75,23 @@ def test_NU():
     assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NUWei')
 
     #
-    # Invalid Inputs
+    # Fractional Inputs
     #
 
     # A decimal amount of NUWei (i.e., a fraction of a NUWei)
-    with pytest.raises(ValueError):
-        _pi_nuweis = NU('3.14', 'NUWei')
+    pi_nuweis = NU('3.14', 'NUWei')
+    assert pi_nuweis == three_nu_wei  # Floor
 
     # A decimal amount of NU, which amounts to NUWei with decimals
-    with pytest.raises(ValueError):
-        _pi_nus = NU('3.14159265358979323846', 'NU')
+    pi_nus = NU('3.14159265358979323846', 'NU')
+    assert pi_nus == NU(3141592653589793238, 'NUWei')  # Floor
 
     # Positive Infinity
-    with pytest.raises(ValueError):
+    with pytest.raises(NU.InvalidAmount):
         _inf = NU(float('infinity'), 'NU')
 
     # Negative Infinity
-    with pytest.raises(ValueError):
+    with pytest.raises(NU.InvalidAmount):
         _neg_inf = NU(float('-infinity'), 'NU')
 
     # Not a Number

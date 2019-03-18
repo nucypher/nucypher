@@ -41,22 +41,19 @@ class NU:
     __denominations = {'NUWei': 'wei',
                        'NU': 'ether'}
 
+    class InvalidAmount(ValueError):
+        """Raised when an invalid input amount is provided"""
+
     def __init__(self, value: Union[int, float, str], denomination: str):
 
         # Calculate smallest denomination and store it
         wrapped_denom = self.__denominations[denomination]
 
-        # Validate Early
-        if '.' in str(value):
-
-            _, fraction = str(value).split('.')
-            if len(fraction) > self.__decimals:
-                raise ValueError("Cannot initialize with fractional wei value")
-
-            if wrapped_denom == 'wei':
-                raise ValueError("Cannot initialize with fractional wei value")
-
-        self.__value = currency.to_wei(number=value, unit=wrapped_denom)
+        # Convert or Raise
+        try:
+            self.__value = currency.to_wei(number=value, unit=wrapped_denom)
+        except ValueError as e:
+            raise NU.InvalidAmount(f"{value} is an invalid amount of tokens: {str(e)}")
 
     @classmethod
     def from_nu_wei(cls, value: int):
