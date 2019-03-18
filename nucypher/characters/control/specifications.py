@@ -49,6 +49,8 @@ class AliceSpecification(CharacterSpecification):
 
     # A revoke specificatio isn't required because we don't use a serializer
     # with it anyway.
+    __revoke = (('policy_encrypting_key'),  # In
+                ('failed_revocations'))     # Out
 
     __public_keys = ((),
                      ('alice_verifying_key',))
@@ -56,6 +58,7 @@ class AliceSpecification(CharacterSpecification):
     _specifications = {'create_policy': __create_policy,  # type: Tuple[Tuple[str]]
                        'derive_policy_encrypting_key': __derive_policy_encrypting_key,
                        'grant': __grant,
+                       'revoke': __revoke,
                        'public_keys': __public_keys}
 
 
