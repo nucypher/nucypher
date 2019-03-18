@@ -49,8 +49,8 @@ class AliceSpecification(CharacterSpecification):
 
     # A revoke specificatio isn't required because we don't use a serializer
     # with it anyway.
-    __revoke = (('policy_encrypting_key'),  # In
-                ('failed_revocations'))     # Out
+    __revoke = (('policy_encrypting_key', ),  # In
+                ('failed_revocations',))     # Out
 
     __public_keys = ((),
                      ('alice_verifying_key',))
