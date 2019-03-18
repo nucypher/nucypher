@@ -57,8 +57,8 @@ def nucypher_cli(click_config,
     else:
         emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
 
-    NucypherClickConfig.emitter = emitter
-    click_config.emitter(message=NUCYPHER_BANNER)
+    click_config.attach_emitter(emitter)
+    click_config.emit(message=NUCYPHER_BANNER)
 
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")

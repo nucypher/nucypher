@@ -62,7 +62,7 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
 
 def destroy_configuration(character_config, force: bool = False) -> None:
 
-        if force:
+        if not force:
             click.confirm(DESTRUCTION.format(character_config.config_root), abort=True)
 
         try:

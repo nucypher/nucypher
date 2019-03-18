@@ -149,7 +149,7 @@ def ursula(click_config,
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
         if dev:
-            click_config.emitter(message="WARNING: Using temporary storage area", color='yellow')
+            click_config.emit(message="WARNING: Using temporary storage area", color='yellow')
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -226,7 +226,7 @@ def ursula(click_config,
     #
 
     if ursula_config.federated_only:
-        click_config.emitter(message="WARNING: Running in Federated mode", color='yellow')
+        click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
 
     # Seed - Step 1
     teacher_uris = [teacher_uri] if teacher_uri else list()
@@ -248,19 +248,19 @@ def ursula(click_config,
         # GO!
         try:
 
-            click_config.emitter(
+            click_config.emit(
                 message="Starting Ursula on {}".format(URSULA.rest_interface),
                 color='green',
                 bold=True)
 
             # Ursula Deploy Warnings
-            click_config.emitter(
+            click_config.emit(
                 message="Connecting to {}".format(','.join(str(d, encoding='utf-8') for d in ursula_config.domains)),
                 color='green',
                 bold=True)
 
             if not URSULA.federated_only and URSULA.stakes:
-                click_config.emitter(
+                click_config.emit(
                     message=f"Staking {str(URSULA.total_staked)} ~ Keep Ursula Online!",
                     color='blue',
                     bold=True)
@@ -280,7 +280,7 @@ def ursula(click_config,
         # Handle Crash
         except Exception as e:
             ursula_config.log.critical(str(e))
-            click_config.emitter(
+            click_config.emit(
                 message="{} {}".format(e.__class__.__name__, str(e)),
                 color='red',
                 bold=True)
@@ -288,20 +288,20 @@ def ursula(click_config,
 
         # Graceful Exit / Crash
         finally:
-            click_config.emitter(message="Stopping Ursula", color='green')
+            click_config.emit(message="Stopping Ursula", color='green')
             ursula_config.cleanup()
-            click_config.emitter(message="Ursula Stopped", color='red')
+            click_config.emit(message="Ursula Stopped", color='red')
         return
 
     elif action == "save-metadata":
         """Manually save a node self-metadata file"""
         metadata_path = ursula.write_node_metadata(node=URSULA)
-        return click_config.emitter(message="Successfully saved node metadata to {}.".format(metadata_path), color='green')
+        return click_config.emit(message="Successfully saved node metadata to {}.".format(metadata_path), color='green')
 
     elif action == "view":
         """Paint an existing configuration to the console"""
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return click_config.emitter(response=response)
+        return click_config.emit(response=response)
 
     elif action == "forget":
         actions.forget(configuration=ursula_config)

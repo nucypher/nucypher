@@ -43,7 +43,7 @@ from nucypher.utilities.logging import (
 class NucypherClickConfig:
 
     # Output Sinks
-    emitters = list()
+    __emitter = None
     capture_stdout = False
     __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
@@ -89,7 +89,7 @@ class NucypherClickConfig:
             self.blockchain = character_configuration.blockchain
             self.accounts = self.blockchain.interface.w3.eth.accounts
 
-    def get_password(self, confirm: bool =False) -> str:
+    def get_password(self, confirm: bool = False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
 
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
@@ -102,15 +102,18 @@ class NucypherClickConfig:
     def unlock_keyring(self, character_configuration: NodeConfiguration):
         try:  # Unlock Keyring
             if not self.quiet:
-                self.emit('Decrypting keyring...', fg='blue')
+                self.emit(message='Decrypting keyring...', color='blue')
             character_configuration.keyring.unlock(password=self.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 
     @classmethod
+    def attach_emitter(cls, emitter) -> None:
+        cls.__emitter = emitter
+
+    @classmethod
     def emit(cls, *args, **kwargs):
-        for emitter in cls.emitters:
-            emitter(*args, **kwargs)
+        cls.__emitter(*args, **kwargs)
 
 
 class NucypherDeployerClickConfig(NucypherClickConfig):

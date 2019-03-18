@@ -336,6 +336,7 @@ class NodeConfiguration(ABC):
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
         self.keyring.destroy()
+        os.remove(self.config_file_location)
 
     def generate_parameters(self, **overrides) -> dict:
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
