@@ -151,11 +151,11 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_si
     # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
     #               she requires Bob to seek collaboration of at least 3 Ursulas
     request_data = {
-        'bob_verifying_key': recipient_sig_key_hex,
         'bob_encrypting_key': recipient_enc_key_hex,
-        'label': policy_label,
+        'bob_verifying_key': recipient_sig_key_hex,
         'm': int(m),
         'n': int(n),
+        'label': policy_label,
         'expiration': policy_end_datetime.iso8601(),
     }
 

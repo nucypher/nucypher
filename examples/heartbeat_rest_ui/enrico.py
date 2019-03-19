@@ -70,7 +70,10 @@ def generate_heartbeat_data(gen_time, last_heart_rate):
         return None
 
     if last_heart_rate is not None:
-        last_heart_rate = int(last_heart_rate)
+        try:
+            last_heart_rate = int(last_heart_rate)
+        except ValueError:
+            last_heart_rate = 80
     else:
         last_heart_rate = 80
 
@@ -89,7 +92,8 @@ def generate_heartbeat_data(gen_time, last_heart_rate):
         print(f'> WARNING: Problem encrypting plaintext message for heart rate {heart_rate} using enrico character '
               f'control - it will be ignored; status code = {response.status_code}; response = {response.content}')
         # just return previous successful added heart rate - ignore failed recent measurement
-        return last_heart_rate
+        return f'> WARNING: Problem encrypting plaintext message for heart rate {heart_rate} using enrico character ' \
+               f'control - it will be ignored; status code = {response.status_code}'
 
     response_data = json.loads(response.content)
     message_kit = response_data['result']['message_kit']  # b64 str
