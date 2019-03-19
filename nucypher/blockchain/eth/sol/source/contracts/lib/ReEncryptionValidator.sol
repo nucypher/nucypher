@@ -30,7 +30,7 @@ library ReEncryptionValidator {
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
     )
-        public pure returns (bool)
+        internal pure returns (bool)
     {
         UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
@@ -235,7 +235,7 @@ library ReEncryptionValidator {
     function computeProofChallengeScalar(
         bytes memory _capsuleBytes,
         bytes memory _cFragBytes
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
 
         // TODO: Optimize this since they have already been parsed by the caller
         UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
@@ -294,7 +294,7 @@ library ReEncryptionValidator {
         bytes memory _cFragBytes,
         bytes memory _precomputedBytes
     )
-        public pure
+        internal pure
         returns (address)
     {
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
@@ -310,7 +310,7 @@ library ReEncryptionValidator {
 
     // TODO: Consider changing to internal
     // TODO: Unit test wrt to Umbral implementation
-    function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
+    function extendedKeccakToBN (bytes memory _data) internal pure returns (uint256) {
 
         bytes32 upper;
         bytes32 lower;
