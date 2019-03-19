@@ -24,7 +24,9 @@ from datetime import datetime
 from random import SystemRandom
 from string import digits, ascii_uppercase
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
+from web3 import Web3
+
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, NUNITS_PER_TOKEN
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
 
@@ -64,7 +66,7 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
-DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(M)
+DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(NUNITS_PER_TOKEN)
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = 10 ** 6 * 10 ** 18  # wei -> ether
 
@@ -75,6 +77,8 @@ POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
 
 MAX_TEST_SEEDER_ENTRIES = 20
+
+TESTING_ETH_AIRDROP_AMOUNT = int(Web3().fromWei(100, 'ether'))
 
 
 #
@@ -92,8 +96,6 @@ MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-al
 MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now())}.json')
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
-
-TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'
 
 MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
 
@@ -116,3 +118,4 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
+PYEVM_GAS_LIMIT = 6500000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?

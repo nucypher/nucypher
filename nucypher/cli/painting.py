@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
-from typing import Tuple
+from decimal import Decimal
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
-from web3 import Web3
 
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
@@ -37,13 +36,17 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration, config_root=None, config_file=None):
+def paint_new_installation_help(new_configuration, federated_only: bool = False, config_root=None, config_file=None):
     character_config_class = new_configuration.__class__
     character_name = character_config_class._NAME.lower()
 
     emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
-
     emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
+
+    if character_name == 'ursula' and not federated_only:
+        suggested_staking_command = f'nucypher ursula stake'
+        how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
+        emitter(message=how_to_stake_message, color='green')
 
     # Give the use a suggestion as to what to do next...
     suggested_command = f'nucypher {character_name} run'
@@ -194,8 +197,7 @@ def paint_contract_status(ursula_config, click_config):
 
 
 def paint_staged_stake(ursula,
-                       stake_nu,
-                       stake_wei,
+                       stake_value,
                        duration,
                        start_period,
                        end_period,
@@ -209,7 +211,7 @@ def paint_staged_stake(ursula,
 
     click.echo(f"""
 {ursula}
-~ Value      -> {stake_nu} NU ({stake_wei} NU-wei) 
+~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNit)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
@@ -231,26 +233,45 @@ or start your Ursula node by running 'nucypher ursula run'.
 ''', fg='green')
 
 
-def prettify_stake(stake_index: int, stake_info: Tuple[int, int, str]) -> str:
-    start, expiration, stake_wei = stake_info
+def prettify_stake(stake_index: int, stake) -> str:
 
-    stake_nu = int(Web3.fromWei(stake_wei, 'ether'))
-
-    start_datetime = str(datetime_at_period(period=start).slang_date())
-    expiration_datetime = str(datetime_at_period(period=expiration).slang_date())
-    duration = expiration - start
+    start_datetime = str(stake.start_datetime.slang_date())
+    expiration_datetime = str(stake.end_datetime.slang_date())
+    duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
-    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {stake_nu} NU '
+    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {str(stake.value)}'
     return pretty
 
 
 def paint_stakes(stakes):
-    header = f'| # | Duration     | Enact     | Expiration | Value '
-    breaky = f'| - | ------------ | --------- | -----------| ----- '
+    header = f'| # | Duration     | Enact       | Expiration | Value '
+    breaky = f'| - | ------------ | ----------- | -----------| ----- '
     click.secho(header, bold=True)
     click.secho(breaky, bold=True)
-    for index, stake_info in enumerate(stakes):
-        row = prettify_stake(stake_index=index, stake_info=stake_info)
+    for index, stake in stakes.items():
+        row = prettify_stake(stake_index=index, stake=stake)
         click.echo(row)
     return
+
+
+def paint_staged_stake_division(ursula,
+                                original_index,
+                                original_stake,
+                                target_value,
+                                extension):
+
+    new_end_period = original_stake.end_period + extension
+    new_duration = new_end_period - original_stake.start_period
+
+    division_message = f"""
+{ursula}
+~ Original Stake: {prettify_stake(stake_index=original_index, stake=original_stake)}
+"""
+
+    paint_staged_stake(ursula=ursula,
+                       stake_value=target_value,
+                       duration=new_duration,
+                       start_period=original_stake.start_period,
+                       end_period=new_end_period,
+                       division_message=division_message)

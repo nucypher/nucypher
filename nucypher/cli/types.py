@@ -20,8 +20,13 @@ from ipaddress import ip_address
 import click
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_MINTING_PERIODS, MIN_LOCKED_PERIODS, \
+from nucypher.blockchain.eth.constants import (
+    MIN_ALLOWED_LOCKED,
+    MAX_MINTING_PERIODS,
+    MIN_LOCKED_PERIODS,
     MAX_ALLOWED_LOCKED
+)
+from nucypher.blockchain.eth.token import NU
 
 
 class ChecksumAddress(click.ParamType):
@@ -45,11 +50,17 @@ class IPv4Address(click.ParamType):
             return value
 
 
+# Staking
 STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False)
 STAKE_EXTENSION = click.IntRange(min=1, max=MAX_MINTING_PERIODS, clamp=False)
-STAKE_VALUE = click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False)
+STAKE_VALUE = click.IntRange(min=NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens(),
+                             max=NU(MAX_ALLOWED_LOCKED, 'NuNit').to_tokens(), clamp=False)
+
+# Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
 EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True)
+
+# Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()

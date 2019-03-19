@@ -98,7 +98,7 @@ def confirm_staged_stake(ursula, value, duration):
 * Ursula Node Operator Notice *
 -------------------------------
 
-By agreeing to stake {value} NU: 
+By agreeing to stake {str(value)}: 
 
 - Staked tokens will be locked, and unavailable for transactions for the stake duration.
 
