@@ -10,14 +10,33 @@ library ReEncryptionValidator {
 
     using UmbralDeserializer for bytes;
 
+
+    //////////////////////////////////
+    //   Umbral-specific constants  //
+    //////////////////////////////////
+
     // See parameter `u` of `UmbralParameters` class in pyUmbral
     // https://github.com/nucypher/pyUmbral/blob/master/umbral/params.py
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
+    
 
-    // SECP256K1's base field order
-    uint256 constant fieldOrder = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+    //////////////////////////////////
+    // SECP256K1-specific constants //
+    //////////////////////////////////
+
+    // Base field order
+    uint256 constant FIELD_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+
+    // -2 mod FIELD_ORDER
+    uint256 constant MINUS_2 = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2d;
+
+    // (-1/2) mod FIELD_ORDER
+    uint256 constant MINUS_ONE_HALF = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffff7ffffe17;
+
+
+    //
 
     /**
     * @notice Check correctness of re-encryption
@@ -352,7 +371,7 @@ library ReEncryptionValidator {
     /// @param Py The Y coordinate of an EC point in affine representation
     /// @return true if (Px, Py) is a valid secp256k1 point; false otherwise
     function is_on_curve(uint256 Px, uint256 Py) internal pure returns (bool) {
-        uint256 p = fieldOrder;
+        uint256 p = FIELD_ORDER;
 
         if (Px >= p || Py >= p){
             return false;
@@ -390,7 +409,7 @@ library ReEncryptionValidator {
             return false;       // Q is zero but P isn't.
         }
 
-        uint256 p = fieldOrder;
+        uint256 p = FIELD_ORDER;
         uint256 Q_z_squared = mulmod(Qz, Qz, p);
         return mulmod(P[0], Q_z_squared, p) == Q[0] && mulmod(P[1], mulmod(Q_z_squared, Qz, p), p) == Q[1];
 
@@ -406,7 +425,7 @@ library ReEncryptionValidator {
     	uint[2] memory Q
     ) internal pure returns (uint[3] memory R) {
 
-        uint256 p = fieldOrder;
+        uint256 p = FIELD_ORDER;
         uint256 a   = P[0];
         uint256 c   = P[1];
         uint256 t0  = Q[0];
@@ -432,15 +451,15 @@ library ReEncryptionValidator {
         uint256 z = P[2];
         if (z == 0)
             return Q;
-        uint256 p = fieldOrder;
+        uint256 p = FIELD_ORDER;
         uint256 x = P[0];
         uint256 _2y = mulmod(2, P[1], p);
         uint256 _4yy = mulmod(_2y, _2y, p);
         uint256 s = mulmod(_4yy, x, p);
         uint256 m = mulmod(3, mulmod(x, x, p), p);
-        uint256 t = addmod(mulmod(m, m, p), mulmod(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2d, s, p),p);
+        uint256 t = addmod(mulmod(m, m, p), mulmod(MINUS_2, s, p),p);
         Q[0] = t;
-        Q[1] = addmod(mulmod(m, addmod(s, p - t, p), p), mulmod(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffff7ffffe17, mulmod(_4yy, _4yy, p), p), p);
+        Q[1] = addmod(mulmod(m, addmod(s, p - t, p), p), mulmod(MINUS_ONE_HALF, mulmod(_4yy, _4yy, p), p), p);
         Q[2] = mulmod(_2y, z, p);
     }
 }
