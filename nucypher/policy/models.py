@@ -103,12 +103,6 @@ class Arrangement:
         # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
-    def publish(self):
-        """
-        Publish arrangement.
-        """
-        raise NotImplementedError
-
     @abstractmethod
     def revoke(self):
         """
@@ -218,7 +212,13 @@ class Policy:
         return responses
 
     def publish(self, network_middleware: RestMiddleware) -> dict:
-        """Spread word of this Policy far and wide."""
+        """
+        Spread word of this Policy far and wide.
+
+        Base publication method for spreading news of the policy.
+        If this is a blockchain policy, this includes writing to
+        PolicyManager contract storage.
+        """
         return self.publish_treasure_map(network_middleware=network_middleware)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
@@ -266,7 +266,7 @@ class Policy:
                                                 self.alice.stamp)
 
             if publish is True:
-                return self.publish(network_middleware)
+                return self.publish(network_middleware=network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         try:
@@ -304,23 +304,33 @@ class Policy:
     def _consider_arrangements(self,
                                network_middleware: RestMiddleware,
                                candidate_ursulas: Set[Ursula],
-                               deposit: int,
+                               value: int,
                                expiration: maya.MayaDT):
 
         for selected_ursula in candidate_ursulas:
             arrangement = self._arrangement_class(alice=self.alice,
                                                   ursula=selected_ursula,
-                                                  value=deposit,
-                                                  expiration=expiration,
-                                                  )
+                                                  value=value,
+                                                  expiration=expiration)
             try:
-                self.consider_arrangement(ursula=selected_ursula,
-                                          arrangement=arrangement,
-                                          network_middleware=network_middleware)
+                is_accepted = self.consider_arrangement(ursula=selected_ursula,
+                                                        arrangement=arrangement,
+                                                        network_middleware=network_middleware)
+
             except NodeSeemsToBeDown:  # TODO: Also catch InvalidNode here?  355
-                # This arrangment won't be added to the accepted bucket.
+                # This arrangement won't be added to the accepted bucket.
                 # If too many nodes are down, it will fail in make_arrangements.
                 continue
+
+            else:
+
+                # Bucket the arrangements
+                if is_accepted:
+                    self._accepted_arrangements.add(arrangement)
+                else:
+                    self._rejected_arrangements.add(arrangement)
+
+        return self._accepted_arrangements, self._rejected_arrangements
 
 
 class FederatedPolicy(Policy):
@@ -332,7 +342,7 @@ class FederatedPolicy(Policy):
 
     def make_arrangements(self,
                           network_middleware: RestMiddleware,
-                          deposit: int,
+                          value: int,
                           expiration: maya.MayaDT,
                           handpicked_ursulas: Set[Ursula] = None) -> None:
 
@@ -353,7 +363,7 @@ class FederatedPolicy(Policy):
 
         self._consider_arrangements(network_middleware,
                                     candidate_ursulas=ursulas,
-                                    deposit=deposit,
+                                    value=value,
                                     expiration=expiration)
 
         if len(self._accepted_arrangements) < self.n:
@@ -702,6 +712,7 @@ class Revocation:
     def __init__(self, arrangement_id: bytes,
                        signer: 'SignatureStamp' = None,
                        signature: Signature = None):
+
         self.prefix = b'REVOKE-'
         self.arrangement_id = arrangement_id
 
@@ -766,7 +777,6 @@ class IndisputableEvidence:
         else:
             raise ValueError("All correctness keys are required to compute evidence.  "
                              "Either pass them as arguments or in the capsule.")
-
 
     def get_proof_challenge_scalar(self) -> CurveBN:
         umbral_params = default_params()

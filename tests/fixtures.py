@@ -15,18 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
 import os
-import random
 import tempfile
 
+import datetime
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
-from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, MIN_LOCKED_PERIODS
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -36,13 +35,15 @@ from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
-from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT,
+from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
+from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
                                                   MOCK_POLICY_DEFAULT_M)
+from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
@@ -210,7 +211,11 @@ def idle_federated_policy(federated_alice, federated_bob):
     m = MOCK_POLICY_DEFAULT_M
     n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = generate_random_label()
-    policy = federated_alice.create_policy(federated_bob, label=random_label, m=m, n=n, federated=True)
+    policy = federated_alice.create_policy(federated_bob,
+                                           label=random_label,
+                                           m=m,
+                                           n=n,
+                                           federated=True)
     return policy
 
 
@@ -222,7 +227,7 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     network_middleware = MockRestMiddleware()
 
     idle_federated_policy.make_arrangements(network_middleware,
-                                            deposit=deposit,
+                                            value=deposit,
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
 
@@ -238,7 +243,12 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
+    expiration = maya.now().add(days=MIN_LOCKED_PERIODS//2)
+    policy = blockchain_alice.create_policy(blockchain_bob,
+                                            label=random_label,
+                                            m=2, n=3,
+                                            value=20*100,
+                                            expiration=expiration)
     return policy
 
 
@@ -250,7 +260,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     network_middleware = MockRestMiddleware()
 
     idle_blockchain_policy.make_arrangements(network_middleware,
-                                             deposit=deposit,
+                                             value=deposit,
                                              expiration=contract_end_datetime,
                                              ursulas=list(blockchain_ursulas))
 
@@ -304,57 +314,10 @@ def federated_ursulas(ursula_federated_test_config):
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas
 
-
-@pytest.fixture(scope="module")
-def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
-
-    ursula_addresses = all_yall[:NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
-
-    token_airdrop(origin=etherbase,
-                  addresses=ursula_addresses,
-                  token_agent=token_agent,
-                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-
-    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          ether_addresses=ursula_addresses,
-                                          stake=True)
-
-    token_agent.blockchain.time_travel(periods=1)
-    yield _ursulas
-
-
-@pytest.fixture(scope='module')
-def alice_control_test_client(federated_alice):
-    web_controller = federated_alice.make_web_controller(crash_on_error=True)
-    yield web_controller._web_app.test_client()
-
-
-@pytest.fixture(scope='module')
-def bob_control_test_client(federated_bob):
-    web_controller = federated_bob.make_web_controller(crash_on_error=True)
-    yield web_controller._web_app.test_client()
-
-
-@pytest.fixture(scope='module')
-def enrico_control_test_client(capsule_side_channel):
-    _, data_source = capsule_side_channel
-    message_kit, enrico = capsule_side_channel
-    web_controller = enrico.make_web_controller(crash_on_error=True)
-    yield web_controller._web_app.test_client()
-
-
-@pytest.fixture(scope='module')
-def enrico_control_from_alice(federated_alice, random_policy_label):
-    enrico = Enrico.from_alice(federated_alice, random_policy_label)
-    web_controller = enrico.make_web_controller(crash_on_error=True)
-    yield web_controller._web_app.test_client()
-
-
 #
-# Blockchain
+# Blokchain
 #
+
 
 
 @pytest.fixture(scope='session')
@@ -426,3 +389,33 @@ def three_agents(testerchain):
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     return token_agent, miner_agent, policy_agent
+
+
+@pytest.fixture(scope="module")
+def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
+
+    ursula_addresses = all_yall[:NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
+
+    token_airdrop(origin=etherbase,
+                  addresses=ursula_addresses,
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+
+    # Leave out the last Ursula for manual stake testing
+    *all_but_the_last_ursula, the_last_ursula = ursula_addresses
+
+    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                          ether_addresses=all_but_the_last_ursula,
+                                          stake=True)
+
+    # This one is not going to stake
+    _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                                     ether_addresses=[the_last_ursula],
+                                                     stake=False)
+
+    _ursulas.extend(_non_staking_ursula)
+    token_agent.blockchain.time_travel(periods=1)
+    yield _ursulas
+

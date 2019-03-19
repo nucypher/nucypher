@@ -63,3 +63,21 @@ def validate_checksum_address(func: Callable) -> Callable:
         raise InvalidChecksumAddress(message)
 
     return wrapped
+
+
+def nucypher_transaction(func: Callable) -> Callable:
+
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+
+        transaction_components = func(*args, **kwargs)
+
+        assembled_transaction = {
+            'gas': 0,
+            'gasPrice': 0,
+        }
+
+        transaction_components.update(assembled_transaction)
+        return transaction_components
+
+    return wrapped

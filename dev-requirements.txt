@@ -1,5 +1,4 @@
 -i https://pypi.python.org/simple
--e .
 -e git+https://github.com/nucypher/py-solc.git@391b8da1a6bac5816877197bda25527c6b0b8c15#egg=py-solc
 alabaster==0.7.12
 ansible==2.7.7

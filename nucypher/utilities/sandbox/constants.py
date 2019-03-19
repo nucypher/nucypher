@@ -18,12 +18,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import os
-import time
-
 import socket
+import time
+from datetime import datetime
+from random import SystemRandom
+from string import digits, ascii_uppercase
 
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import BASE_DIR
 
 
 def select_test_port() -> int:
@@ -54,6 +57,13 @@ MOCK_KNOWN_URSULAS_CACHE = {}
 
 NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 
+
+#
+# Testerchain
+#
+
+TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(M)
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = 10 ** 6 * 10 ** 18  # wei -> ether
@@ -62,9 +72,43 @@ MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 
 POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 
-INSECURE_DEVELOPMENT_PASSWORD = 'this-is-not-a-secure-password'
+INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
 
 MAX_TEST_SEEDER_ENTRIES = 20
+
+
+#
+# Temporary Directories and Files
+#
+
+BASE_TEMP_DIR = os.path.join('/', 'tmp')
+
+BASE_TEMP_PREFIX = 'nucypher-tmp-'
+
+MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{str(datetime.now())}')
+
+MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{str(datetime.now())}.json')
+
+MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now())}.json')
+
+MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
+
+TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'
+
+MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
+
+TEMPORARY_DOMAIN = b':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
+
+GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
+
+PYEVM_DEV_URI = "tester://pyevm"
+
+TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
+
+
+#
+# Node Configuration
+#
 
 MOCK_IP_ADDRESS = '0.0.0.0'
 
@@ -72,8 +116,3 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
-MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom-{}'.format(time.time())
-
-MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
-
-TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'

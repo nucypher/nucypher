@@ -37,7 +37,7 @@ args = ['--debug',
         '--federated-only',
         '--teacher-uri', f'https://127.0.0.1:{DEMO_FLEET_STARTING_PORT}',
         '--rest-port', DEMO_NODE_PORT,
-        '--dev',
+        '--dev'
         ]
 
 nucypher_cli.main(args=args, prog_name="nucypher-cli")

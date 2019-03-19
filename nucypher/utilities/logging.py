@@ -67,9 +67,6 @@ def getTextFileObserver(name="ursula.log", path=USER_LOG_DIR):
 
 class SimpleObserver:
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     @provider(ILogObserver)
     def __call__(self, event):
         if event['log_level'] >= GlobalConsoleLogger.log_level:
