@@ -95,7 +95,7 @@ class NucypherTokenActor:
         return balance
 
     @property
-    def token_balance(self):
+    def token_balance(self) -> NU:
         """Return this actors's current token balance"""
         balance = int(self.token_agent.get_balance(address=self.checksum_public_address))
         nu_balance = NU(balance, 'NuNit')
@@ -383,7 +383,8 @@ class Miner(NucypherTokenActor):
     def total_staked(self) -> NU:
         if self.stakes:
             return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NuNit')
-        return NU(0, 'NuNit')
+        else:
+            return NU(0, 'NuNit')
 
     def __read_stakes(self) -> None:
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
@@ -396,8 +397,8 @@ class Miner(NucypherTokenActor):
         self.__stakes = stakes
 
     @property
-    def stakes(self) -> dict:
-        """Read all live stake data from the blockchain and return it as a tuple"""
+    def stakes(self) -> Dict[str, Stake]:
+        """Return all cached stakes from the blockchain."""
         return self.__stakes
 
     @only_me
