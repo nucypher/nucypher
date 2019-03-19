@@ -200,7 +200,7 @@ def update_graph(json_cached_readings):
         return ''
 
     if json_cached_readings == ACCESS_DISALLOWED:
-        return html.Div('Your access has either not been granted or has been revoked!', style={'color': 'red'})
+        return html.Div('WARNING: Your access has either not been granted or has been revoked!', style={'color': 'red'})
 
     cached_hb_values = json.loads(json_cached_readings, object_pairs_hook=collections.OrderedDict)
     if len(cached_hb_values) == 0:

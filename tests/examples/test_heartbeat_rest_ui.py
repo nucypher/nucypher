@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from base64 import b64decode
 
@@ -9,12 +10,17 @@ from pytest_dash.application_runners import import_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
+from umbral.keys import UmbralPrivateKey
 
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.utilities.sandbox.policy import generate_random_label
+
+from examples.heartbeat_rest_ui.app import POLICY_INFO_FILE
 
 ALICE_URL = "http://localhost:8151"
 ENRICO_URL = "http://localhost:5151"
+BOB_URL = "http://localhost:11151"
 
 
 @pytest.fixture(scope='module')
@@ -27,17 +33,18 @@ def dash_app():
 def dash_driver(dash_threaded, dash_app):
     dash_threaded(dash_app)
     dash_driver = dash_threaded.driver
-    base_handle = dash_driver.current_window_handle
+    home_page = dash_driver.current_window_handle
 
     yield dash_driver  # provide the fixture value
 
+    # close all windows except for home page
     open_handles = dash_driver.window_handles
     for handle in open_handles:
-        if handle != base_handle:
+        if handle != home_page:
             dash_driver.switch_to.window(handle)
             dash_driver.close()
 
-    dash_driver.switch_to.window(base_handle)
+    dash_driver.switch_to.window(home_page)
 
 
 class wait_for_non_empty_text(object):
@@ -240,6 +247,112 @@ def test_enrico_encrypt_data_failed(dash_driver):
     assert bad_status_code == responses.calls[0].response.status_code
     assert 'WARNING' in last_heartbeat_element.text
     assert str(bad_status_code) in last_heartbeat_element.text
+
+
+def test_bob_no_policy_file_failed(dash_driver,
+                                   federated_bob):
+    ######################
+    # switch to bob tab
+    ######################
+    # open bob tab
+    bob_link = dash_driver.find_element_by_link_text('BOB')
+    bob_link.click()
+
+    dash_driver.switch_to.window('_bob')
+
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+
+    bob_port = 11151
+    bob_port_element = dash_driver.find_element_by_id('bob-port')
+    bob_port_element.clear()
+    bob_port_element.send_keys(bob_port)
+
+    bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
+    bob_enc_key_element = dash_driver.find_element_by_id('bob-enc-key')
+    bob_enc_key_element.clear()
+    bob_enc_key_element.send_keys(bob_encrypting_key_hex)
+
+    read_heartbeats_button.click()
+
+    # wait for response
+    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+        wait_for_non_empty_text((By.ID, 'heartbeats'))
+    )
+
+    assert "WARNING" in heartbeats_element.text
+    assert "not been granted" in heartbeats_element.text
+
+
+@responses.activate
+def test_bob_join_policy_failed(dash_driver,
+                                federated_alice,
+                                federated_bob):
+    ##########################
+    # setup endpoint responses
+    ##########################
+    bad_status_code = 500
+
+    # '/join_policy'
+    def join_policy_callback(request):
+        return (bad_status_code,
+                request.headers,
+                json.dumps({'message': 'execution failed'}))
+
+    responses.add_callback(responses.POST,
+                           url=re.compile(f'{BOB_URL}/join_policy', re.IGNORECASE),
+                           callback=join_policy_callback,
+                           content_type='application/json')
+    ##########################
+
+    # write fake policy file
+    policy_label = f'heart-data-{os.urandom(4).hex()}'
+    policy_info = {
+        "policy_encrypting_key": UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex(),
+        "alice_verifying_key": bytes(federated_alice.stamp).hex(),
+        "label": policy_label,
+    }
+
+    bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
+    with open(POLICY_INFO_FILE.format(bob_encrypting_key_hex), 'w') as f:
+        json.dump(policy_info, f)
+
+    ######################
+    # switch to bob tab
+    ######################
+    # open bob tab
+    bob_link = dash_driver.find_element_by_link_text('BOB')
+    bob_link.click()
+
+    dash_driver.switch_to.window('_bob')
+
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+
+    bob_port = 11151
+    bob_port_element = dash_driver.find_element_by_id('bob-port')
+    bob_port_element.clear()
+    bob_port_element.send_keys(bob_port)
+
+    bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
+    bob_enc_key_element = dash_driver.find_element_by_id('bob-enc-key')
+    bob_enc_key_element.clear()
+    bob_enc_key_element.send_keys(bob_encrypting_key_hex)
+
+    read_heartbeats_button.click()
+
+    # wait for response
+    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+        wait_for_non_empty_text((By.ID, 'heartbeats'))
+    )
+
+    assert 1 <= len(responses.calls)
+
+    request_url = responses.calls[0].request.url
+    assert 'join_policy' in request_url
+    assert str(bob_port) in request_url
+
+    assert bad_status_code == responses.calls[0].response.status_code
+    assert 'WARNING' in heartbeats_element.text
+    assert 'not been granted' in heartbeats_element.text
 
 
 @responses.activate

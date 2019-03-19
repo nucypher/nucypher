@@ -98,7 +98,7 @@ granted_policies = dict()
     events=[Event('create-policy-button', 'click')]
 )
 def create_policy_label():
-    label = 'heart-data-' + os.urandom(4).hex()
+    label = f'heart-data-{os.urandom(4).hex()}'
     return label
 
 
