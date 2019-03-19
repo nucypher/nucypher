@@ -63,20 +63,21 @@ def nucypher_cli(click_config,
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    # Logging
-    if not no_logs:
-        GlobalConsoleLogger.start_if_not_started()
-
     if debug:
         click_config.log_to_sentry = False
-        click_config.log_to_file = True
-        globalLogPublisher.removeObserver(logToSentry)  # Sentry
+        click_config.log_to_file = True                 # File Logging
+        globalLogPublisher.addObserver(SimpleObserver())  # Console Logging
+        globalLogPublisher.removeObserver(logToSentry)  # No Sentry
         GlobalConsoleLogger.set_log_level(log_level_name='debug')
 
-    elif quiet:
+    elif quiet:  # Disable Logging
         globalLogPublisher.removeObserver(logToSentry)
         globalLogPublisher.removeObserver(SimpleObserver)
         globalLogPublisher.removeObserver(getJsonFileObserver())
+
+    # Logging
+    if not no_logs:
+        GlobalConsoleLogger.start_if_not_started()
 
     # CLI Session Configuration
     click_config.verbose = verbose
