@@ -457,14 +457,15 @@ class NucypherKeyring:
         if self.is_unlocked:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
+        self.log.info("Unlocking keyring.")
         try:
-            self.log.info("Unlocking keyring.")
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
-            self.log.info("Finished unlocking.")
         except CryptoError:
-            raise
+            self.log.info("Keyring unlock failed.")
+            raise self.AuthenticationFailed
         else:
             self.__derived_key_material = derived_key
+            self.log.info("Finished unlocking.")
         return self.is_unlocked
 
     @unlock_required
