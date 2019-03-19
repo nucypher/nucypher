@@ -81,13 +81,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord),
                 "Point zE is not a valid EC point"
         );
-        // TODO: Change validation of EC multiplications to require()
-        bool left_hand_element_is_correct = ecmulVerify(
-            _capsule.pointE.xCoord,     // E_x
-            _precomputed.pointEyCoord,  // E_y
-            _cFrag.proof.bnSig,         // z
-            _precomputed.pointEZxCoord, // zE_x
-            _precomputed.pointEZyCoord  // zE_y
+        require(ecmulVerify(
+            _capsule.pointE.xCoord,         // E_x
+            _precomputed.pointEyCoord,      // E_y
+            _cFrag.proof.bnSig,             // z
+            _precomputed.pointEZxCoord,     // zE_x
+            _precomputed.pointEZyCoord),    // zE_y
+            "Precomputed z*E value is incorrect"
         );
 
         // Input validation: E1
@@ -102,12 +102,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord),
                 "Point h*E1 is not a valid EC point"
         );
-        bool rhs_element_is_correct = ecmulVerify(
+        require(ecmulVerify(
             _cFrag.pointE1.xCoord,          // E1_x
             _precomputed.pointE1yCoord,     // E1_y
             h,
             _precomputed.pointE1HxCoord,    // hE1_x
-            _precomputed.pointE1HyCoord     // hE1_y
+            _precomputed.pointE1HyCoord),   // hE1_y
+            "Precomputed h*E1 value is incorrect"
         );
 
         // Input validation: E2
@@ -126,7 +127,7 @@ library ReEncryptionValidator {
             )
         );
 
-        if (!(left_hand_element_is_correct && rhs_element_is_correct && equation_holds)){
+        if (!equation_holds){
             return false;
         }
 
@@ -146,12 +147,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord),
                 "Point zV is not a valid EC point"
         );
-        left_hand_element_is_correct = ecmulVerify(
-            _capsule.pointV.xCoord,     // V_x
-            _precomputed.pointVyCoord,  // V_y
-            _cFrag.proof.bnSig,         // z
-            _precomputed.pointVZxCoord, // zV_x
-            _precomputed.pointVZyCoord  // zV_y
+        require(ecmulVerify(
+            _capsule.pointV.xCoord,         // V_x
+            _precomputed.pointVyCoord,      // V_y
+            _cFrag.proof.bnSig,             // z
+            _precomputed.pointVZxCoord,     // zV_x
+            _precomputed.pointVZyCoord),    // zV_y
+            "Precomputed z*V value is incorrect"
         );
 
         // Input validation: V1
@@ -166,12 +168,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord),
             "Point h*V1 is not a valid EC point"
         );
-        rhs_element_is_correct = ecmulVerify(
+        require(ecmulVerify(
             _cFrag.pointV1.xCoord,          // V1_x
             _precomputed.pointV1yCoord,     // V1_y
             h,
             _precomputed.pointV1HxCoord,    // h*V1_x
-            _precomputed.pointV1HyCoord     // h*V1_y
+            _precomputed.pointV1HyCoord),   // h*V1_y
+            "Precomputed h*V1 value is incorrect"
         );
 
         // Input validation: V2
@@ -190,7 +193,7 @@ library ReEncryptionValidator {
             )
         );
 
-        if (!(left_hand_element_is_correct && rhs_element_is_correct && equation_holds)){
+        if (!equation_holds){
             return false;
         }
 
@@ -204,12 +207,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord),
                 "Point z*U is not a valid EC point"
         );
-        left_hand_element_is_correct = ecmulVerify(
-            UMBRAL_PARAMETER_U_XCOORD,  // U_x
-            UMBRAL_PARAMETER_U_YCOORD,  // U_y
-            _cFrag.proof.bnSig,         // z
-            _precomputed.pointUZxCoord, // zU_x
-            _precomputed.pointUZyCoord  // zU_y
+        require(ecmulVerify(
+            UMBRAL_PARAMETER_U_XCOORD,      // U_x
+            UMBRAL_PARAMETER_U_YCOORD,      // U_y
+            _cFrag.proof.bnSig,             // z
+            _precomputed.pointUZxCoord,     // zU_x
+            _precomputed.pointUZyCoord),    // zU_y
+            "Precomputed z*U value is incorrect"
         );
 
         // Input validation: U1  (a.k.a. KFragCommitment)
@@ -224,12 +228,13 @@ library ReEncryptionValidator {
         require(is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord),
                 "Point h*U1 is not a valid EC point"
         );
-        rhs_element_is_correct = ecmulVerify(
+        require(ecmulVerify(
             _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
             _precomputed.pointU1yCoord,                 // U1_y
             h,
             _precomputed.pointU1HxCoord,    // h*V1_x
-            _precomputed.pointU1HyCoord     // h*V1_y
+            _precomputed.pointU1HyCoord),   // h*V1_y
+            "Precomputed h*V1 value is incorrect"
         );
 
         // Input validation: U2  (a.k.a. KFragPok ("proof of knowledge"))
@@ -248,7 +253,7 @@ library ReEncryptionValidator {
             )
         );
 
-        return left_hand_element_is_correct && rhs_element_is_correct && equation_holds;
+        return equation_holds;
     }
 
     function computeProofChallengeScalar(
