@@ -325,16 +325,16 @@ def make_rest_app(
 
         cfrag_byte_stream = b""
 
-        for item in work_order.items:
-            # Ursula signs on top of Bob's signature of the work item.
-            # Now both are committed to the same work item.  See #259.
-            reencryption_metadata = bytes(stamp(bytes(item.signature)))
+        for task in work_order.tasks:
+            # Ursula signs on top of Bob's signature of each task.
+            # Now both are committed to the same task.  See #259.
+            reencryption_metadata = bytes(stamp(bytes(task.signature)))
 
-            capsule = item.capsule
+            capsule = task.capsule
             capsule.set_correctness_keys(verifying=alices_verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
             log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-            reencryption_signature = stamp(bytes(item.signature) + bytes(cfrag))
+            reencryption_signature = stamp(bytes(task.signature) + bytes(cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
 
         # TODO: Put this in Ursula's datastore

@@ -536,10 +536,10 @@ class Bob(Character):
 
     def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
-        for item in work_order.items:
+        for task in work_order.tasks:
             # TODO: Maybe just update the work order here instead of setting it anew.
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
-            work_orders_by_ursula[item.capsule] = work_order
+            work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
     def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
