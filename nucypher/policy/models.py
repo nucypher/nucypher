@@ -556,61 +556,66 @@ class WorkOrder:
     def __init__(self,
                  bob: Bob,
                  arrangement_id,
-                 capsules: List[Capsule],
-                 capsule_signatures: List[Signature],
                  alice_address: bytes,
-                 alice_address_signature: bytes,
-                 receipt_bytes: bytes,
+                 items: List,
                  receipt_signature,
                  ursula=None,
+                 blockhash=None
                  ) -> None:
         self.bob = bob
         self.arrangement_id = arrangement_id
-        self.capsules = capsules
-        self.capsule_signatures = capsule_signatures
         self.alice_address = alice_address
-        self.alice_address_signature = alice_address_signature
-        self.receipt_bytes = receipt_bytes
+        self.items = items
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+        self.blockhash = blockhash or b'\x00' * 32  # TODO
         self.completed = False
+
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
+            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.items],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
-        return (self.receipt_bytes, self.receipt_signature) == (
-            other.receipt_bytes, other.receipt_signature)
+        return self.receipt_signature == other.receipt_signature
 
     def __len__(self):
-        return len(self.capsules)
+        return len(self.items)
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
         alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
+        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
 
-        capsules_bytes = []
-        capsule_signatures = []
+        # TODO: Bob's input to prove freshness for this work order
+        blockhash = b'\x00' * 32
+
+        items = []
         for capsule in capsules:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
-            capsule_bytes = bytes(capsule)
-            capsules_bytes.append(capsule_bytes)
-            capsule_signatures.append(bob.stamp(capsule_bytes))
 
-        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
-        alice_address_signature = bytes(bob.stamp(alice_address))
+            item_specification = (bytes(capsule),
+                                  bytes(ursula.stamp),
+                                  alice_address,
+                                  blockhash)
 
-        receipt_bytes = b"wo:" + ursula.canonical_public_address
-        receipt_bytes += msgpack.dumps(capsules_bytes)
+            signature = bob.stamp(b''.join(item_specification))
+
+            item = cls.WorkItem(capsule, signature)
+            items.append(item)
+
+        # TODO: What's the goal of the receipt? Should it include only the capsules?
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + \
+                        msgpack.dumps([bytes(item) for item in items])
         receipt_signature = bob.stamp(receipt_bytes)
 
-        return cls(bob, arrangement_id, capsules, capsule_signatures,
-                   alice_address, alice_address_signature,
-                   receipt_bytes, receipt_signature, ursula)
+        return cls(bob=bob, arrangement_id=arrangement_id, items=items,
+                   receipt_signature=receipt_signature,
+                   alice_address=alice_address,
+                   ursula=ursula, blockhash=blockhash)
 
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload):
@@ -644,17 +649,9 @@ class WorkOrder:
                    receipt_bytes, signature)
 
     def payload(self):
-        capsules_as_bytes = [bytes(p) for p in self.capsules]
-        capsule_signatures_as_bytes = [bytes(s) for s in self.capsule_signatures]
-        packed_receipt_and_capsules = msgpack.dumps(
-            (self.receipt_bytes,
-             msgpack.dumps(capsules_as_bytes),
-             msgpack.dumps(capsule_signatures_as_bytes),
-             self.alice_address,
-             self.alice_address_signature,
-             )
-        )
-        return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
+        items_bytes = [bytes(item) for item in self.items]
+        payload_elements = msgpack.dumps((items_bytes, self.blockhash))
+        return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
