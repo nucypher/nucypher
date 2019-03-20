@@ -1167,12 +1167,9 @@ contract MinersEscrow is Issuer {
 
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
-        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) ==
-            minLockedPeriods);
-        require(delegateGet(_testTarget, "minAllowableLockedTokens()") ==
-            minAllowableLockedTokens);
-        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") ==
-            maxAllowableLockedTokens);
+        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
+        require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
+        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
         require(address(uint160(delegateGet(_testTarget, "policyManager()"))) == address(policyManager));
         require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",

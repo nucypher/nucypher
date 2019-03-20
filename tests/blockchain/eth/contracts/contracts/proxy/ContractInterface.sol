@@ -8,32 +8,32 @@ pragma solidity ^0.5.3;
 **/
 contract ContractInterface {
 
-    function returnValue() public pure returns (uint);
+    function returnValue() public pure returns (uint256);
 
-    function setStorageValue(uint _value) public;
-    function getStorageValue() public view returns (uint);
+    function setStorageValue(uint256 _value) public;
+    function getStorageValue() public view returns (uint256);
 
     function setDynamicallySizedValue(string memory _dynamicValue) public;
     function getDynamicallySizedValue() public view returns (string memory);
 
-    function pushArrayValue(uint _value) public;
-    function getArrayValue(uint _index) public view returns (uint);
-    function getArrayValueLength() public view returns (uint);
+    function pushArrayValue(uint256 _value) public;
+    function getArrayValue(uint256 _index) public view returns (uint256);
+    function getArrayValueLength() public view returns (uint256);
 
-    function setMappingValue(uint _index, uint _value) public;
-    function getMappingValue(uint _index) public view returns (uint);
+    function setMappingValue(uint256 _index, uint256 _value) public;
+    function getMappingValue(uint256 _index) public view returns (uint256);
 
-    function getStructureLength1() public view returns (uint);
-    function pushStructureValue1(uint _value) public;
-    function getStructureValue1(uint _index) public view returns (uint);
-    function getStructureArrayLength1(uint _index) public view returns (uint);
-    function pushStructureArrayValue1(uint _index, uint _value) public;
-    function getStructureArrayValue1(uint _index, uint _arrayIndex) public view returns (uint);
+    function getStructureLength1() public view returns (uint256);
+    function pushStructureValue1(uint256 _value) public;
+    function getStructureValue1(uint256 _index) public view returns (uint256);
+    function getStructureArrayLength1(uint256 _index) public view returns (uint256);
+    function pushStructureArrayValue1(uint256 _index, uint256 _value) public;
+    function getStructureArrayValue1(uint256 _index, uint256 _arrayIndex) public view returns (uint256);
 
-    function getStructureLength2() public view returns (uint);
-    function pushStructureValue2(uint _value) public;
-    function getStructureValue2(uint _index) public view returns (uint);
-    function getStructureArrayLength2(uint _index) public view returns (uint);
-    function pushStructureArrayValue2(uint _index, uint _value) public;
-    function getStructureArrayValue2(uint _index, uint _arrayIndex) public view returns (uint);
+    function getStructureLength2() public view returns (uint256);
+    function pushStructureValue2(uint256 _value) public;
+    function getStructureValue2(uint256 _index) public view returns (uint256);
+    function getStructureArrayLength2(uint256 _index) public view returns (uint256);
+    function pushStructureArrayValue2(uint256 _index, uint256 _value) public;
+    function getStructureArrayValue2(uint256 _index, uint256 _arrayIndex) public view returns (uint256);
 }

@@ -8,79 +8,80 @@ import "contracts/proxy/Upgradeable.sol";
 contract ContractV2Bad is ContractInterface, Upgradeable {
 
     event EventV1(uint256 value);
-
-    uint public storageValue;
+    // TODO can't catch such a violation
+//    uint128 public storageValue;
+    uint256 public storageValue;
+    uint128 public fakeValue;
     string public dynamicallySizedValue;
-    uint public fakeValue;
-    uint[] arrayValues;
-    mapping (uint => uint) mappingValues;
-    uint[] public mappingIndices;
+    uint256[] arrayValues;
+    mapping (uint256 => uint256) mappingValues;
+    uint256[] public mappingIndices;
 
     // Test struct which used in arrays
     struct Structure1 {
-        uint value;
-        uint[] arrayValues;
+        uint256 value;
+        uint256[] arrayValues;
     }
     Structure1[] public arrayStructures;
 
     // Test struct which used in mappings
     struct Structure2 {
-        uint value;
-        uint[] arrayValues;
+        uint256 value;
+        uint256[] arrayValues;
     }
-    mapping (uint => Structure2) public mappingStructures;
-    uint public mappingStructuresLength;
+    mapping (uint256 => Structure2) public mappingStructures;
+    uint256 public mappingStructuresLength;
 
-    function returnValue() public pure returns (uint) {}
+    function returnValue() public pure returns (uint256) {}
 
-    function setStorageValue(uint) public {}
-    function getStorageValue() public view returns (uint) {
+    function setStorageValue(uint256) public {}
+    function getStorageValue() public view returns (uint256) {
         return storageValue;
     }
 
     function setDynamicallySizedValue(string memory) public {}
     function getDynamicallySizedValue() public view returns (string memory) {}
 
-    function pushArrayValue(uint) public {}
-    function getArrayValue(uint _index) public view returns (uint) {
+    function pushArrayValue(uint256) public {}
+    function getArrayValue(uint256 _index) public view returns (uint256) {
         return arrayValues[_index];
     }
-    function getArrayValueLength() public view returns (uint) {
+    function getArrayValueLength() public view returns (uint256) {
         return arrayValues.length;
     }
 
-    function setMappingValue(uint, uint) public {}
-    function getMappingValue(uint _index) public view returns (uint) {
+    function setMappingValue(uint256, uint256) public {}
+    function getMappingValue(uint256 _index) public view returns (uint256) {
         return mappingValues[_index];
     }
 
-    function getStructureLength1() public view returns (uint) {
+    function getStructureLength1() public view returns (uint256) {
         return arrayStructures.length;
     }
-    function pushStructureValue1(uint) public {}
-    function getStructureValue1(uint _index) public view returns (uint) {
+    function pushStructureValue1(uint256) public {}
+    function getStructureValue1(uint256 _index) public view returns (uint256) {
         return arrayStructures[_index].value;
     }
-    function getStructureArrayLength1(uint _index) public view returns (uint) {
+    function getStructureArrayLength1(uint256 _index) public view returns (uint256) {
         return arrayStructures[_index].arrayValues.length;
     }
-    function pushStructureArrayValue1(uint, uint) public {}
-    function getStructureArrayValue1(uint _index, uint _arrayIndex) public view returns (uint) {
+    function pushStructureArrayValue1(uint256, uint256) public {}
+    function getStructureArrayValue1(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
         return arrayStructures[_index].arrayValues[_arrayIndex];
     }
 
-    function getStructureLength2() public view returns (uint) {
+    function getStructureLength2() public view returns (uint256) {
         return mappingStructuresLength;
     }
-    function pushStructureValue2(uint) public {}
-    function getStructureValue2(uint _index) public view returns (uint) {
+    function pushStructureValue2(uint256) public {}
+    function getStructureValue2(uint256 _index) public view returns (uint256) {
         return mappingStructures[_index].value;
     }
-    function getStructureArrayLength2(uint _index) public view returns (uint) {
+    function getStructureArrayLength2(uint256 _index) public view returns (uint256) {
         return mappingStructures[_index].arrayValues.length;
     }
-    function pushStructureArrayValue2(uint, uint) public {}
-    function getStructureArrayValue2(uint _index, uint _arrayIndex) public view returns (uint) {
+    function pushStructureArrayValue2(uint256, uint256) public {}
+    function getStructureArrayValue2(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
         return mappingStructures[_index].arrayValues[_arrayIndex];
     }
 
