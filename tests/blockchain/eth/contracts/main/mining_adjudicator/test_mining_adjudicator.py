@@ -358,8 +358,10 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
 
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
 
-    # Penalty was increased because it's the second violation
+    previous_penalty = penalty
     penalty, reward = compute_penalty_and_reward(worker_stake, worker_penalty_history)
+    # Penalty was increased because it's the second violation
+    assert penalty == previous_penalty + PENALTY_HISTORY_COEFFICIENT
     worker_stake -= penalty
     investigator_balance += reward
     worker_penalty_history += 1
@@ -411,8 +413,10 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     number_of_evaluations += 1
 
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
-    # Penalty was decreased because it's more than maximum available percentage of value
+
     penalty, reward = compute_penalty_and_reward(worker_stake, worker_penalty_history)
+    # Penalty has reached maximum available percentage of value
+    assert penalty == worker_stake // PERCENTAGE_PENALTY_COEFFICIENT
     worker_stake -= penalty
     investigator_balance += reward
     worker_penalty_history += 1
