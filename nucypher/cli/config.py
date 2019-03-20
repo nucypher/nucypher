@@ -33,12 +33,9 @@ from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
     initialize_sentry,
-    getJsonFileObserver)
+    getJsonFileObserver
+)
 
-
-#
-# Click CLI Config
-#
 
 class NucypherClickConfig:
 
@@ -118,7 +115,14 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
+    # Deploy Environment Variables
+    miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
+    policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
+    user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
+    mining_adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET", None)
+
+    __secrets = ('miner_secret', 'policy_secret', 'escrow_proxy_secret', 'mining_adjudicator_secret')
+    Secrets = collections.namedtuple('Secrets', __secrets)
 
     def collect_deployment_secrets(self) -> Secrets:
 
@@ -137,9 +141,15 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
             escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
                                                confirmation_prompt=True)
 
+        mining_adjudicator_secret = self.user_escrow_proxy_deployment_secret
+        if not mining_adjudicator_secret:
+            mining_adjudicator_secret = click.prompt('Enter MiningAdjudicator Deployment Secret', hide_input=True,
+                                                     confirmation_prompt=True)
+
         secrets = self.Secrets(miner_secret=miner_secret,                 # type: str
                                policy_secret=policy_secret,               # type: str
-                               escrow_proxy_secret=escrow_proxy_secret    # type: str
+                               escrow_proxy_secret=escrow_proxy_secret,   # type: str
+                               mining_adjudicator_secret=mining_adjudicator_secret
                                )
         return secrets
 

@@ -53,6 +53,7 @@ class ContractDeployer:
 
         self.blockchain = blockchain or Blockchain.connect()
 
+        self.deployment_transactions = CONTRACT_NOT_DEPLOYED
         self.deployment_receipt = CONTRACT_NOT_DEPLOYED
         self._contract = CONTRACT_NOT_DEPLOYED
         self.__proxy_contract = NotImplemented
@@ -509,3 +510,60 @@ class UserEscrowDeployer(ContractDeployer):
 
         self._contract = user_escrow_contract
         return deployment_transactions
+
+
+class MiningAdjudicatorDeployer(ContractDeployer):
+
+    agency = MiningAdjudicatorAgent
+    contract_name = agency.registry_contract_name
+    __upgradeable = True
+    __proxy_deployer = DispatcherDeployer
+
+    def __init__(self,
+                 secret_hash,
+                 economics: SlashingEconomics = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.secret_hash = secret_hash
+        if not economics:
+            economics = SlashingEconomics()
+        self.__economics = economics
+
+    def deploy(self) -> Dict[str, str]:
+        self.check_deployment_readiness()
+
+        mining_adjudicator_contract, deploy_txhash = self.blockchain.interface \
+                                                         .deploy_contract(self.contract_name,
+                                                                          self.miner_agent.contract_address,
+                                                                          *self.__economics.deployment_parameters)
+
+        proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
+                                               target_contract=mining_adjudicator_contract,
+                                               deployer_address=self.deployer_address,
+                                               secret_hash=self.secret_hash)
+
+        proxy_deploy_txhashes = proxy_deployer.deploy()
+
+        # Cache the dispatcher contract
+        proxy_contract = proxy_deployer.contract
+        self.__proxy_contract = proxy_contract
+
+        # Wrap the escrow contract
+        wrapped_mining_adjudicator_contract = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=mining_adjudicator_contract)
+
+        # Switch the contract for the wrapped one
+        mining_adjudicator_contract = wrapped_mining_adjudicator_contract
+
+        # Gather the transaction hashes
+        deployment_transactions = {'deployment': deploy_txhash,
+                                   'dispatcher_deployment': proxy_deploy_txhashes['txhash']}
+
+        self.deployment_transactions = deployment_transactions
+        self._contract = mining_adjudicator_contract
+
+        return deployment_transactions
+
+

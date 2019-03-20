@@ -451,3 +451,22 @@ class UserEscrowAgent(EthereumContractAgent):
         txhash = self.__proxy_contract.functions.setMinRewardRate(rate).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
+
+
+class MiningAdjudicatorAgent(EthereumContractAgent):
+    """TODO"""
+
+    registry_contract_name = "MiningAdjudicator"
+    _proxy_name = "Dispatcher"
+
+    def evaluate_cfrag(self,
+                       capsule: bytes,
+                       capsule_signature_by_requester: bytes,
+                       capsule_signature_by_requester_and_miner: bytes,
+                       cfrag: bytes,
+                       cfrag_signature_by_miner: bytes,
+                       requester_public_key: bytes,
+                       miner_public_key: bytes,
+                       miner_piblc_key_signature: bytes,
+                       precomputed_data: bytes):
+        pass

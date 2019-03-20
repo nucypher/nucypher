@@ -1,7 +1,14 @@
+import json
 import os
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, UserEscrowAgent
-from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.agents import (
+    NucypherTokenAgent,
+    MinerAgent,
+    UserEscrowAgent,
+    PolicyAgent,
+    MiningAdjudicatorAgent
+)
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -31,22 +38,50 @@ def test_nucypher_deploy_contracts(testerchain, click_runner, mock_primary_regis
                '--provider-uri', TEST_PROVIDER_URI,
                '--poa')
 
-    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*6
+    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
+    # Ensure there is a report on each contract
+    for registry_name in Deployer.contract_names:
+        assert registry_name in result.output
+
     # Check that the primary contract registry was written
+    # and peek at some of the registered entries
     assert os.path.isfile(mock_primary_registry_filepath)
+    with open(mock_primary_registry_filepath, 'r') as file:
+
+        # Ensure every contract's name was written to the file, somehow
+        raw_registry_data = file.read()
+        for registry_name in Deployer.contract_names:
+            assert registry_name in raw_registry_data
+
+        # Ensure the Registry is JSON deserializable
+        registry_data = json.loads(raw_registry_data)
+
+        # and that is has the correct number of entries
+        assert len(registry_data) == 9
+
+        # Read several records
+        token_record, escrow_record, dispatcher_record, *other_records = registry_data
+        registered_name, registered_address, registered_abi = token_record
+        token_agent = NucypherTokenAgent()
+        assert token_agent.contract_name == registered_name
+        assert token_agent.registry_contract_name == registered_name
+        assert token_agent.contract_address == registered_address
 
     # Now show that we can use contract Agency and read from the blockchain
-    token_agent = NucypherTokenAgent()
     assert token_agent.get_balance() == 0
     miner_agent = MinerAgent()
     assert miner_agent.get_current_period()
+
+    # and at least the others can be instantiated
+    assert PolicyAgent()
+    assert MiningAdjudicatorAgent()
     testerchain.sever_connection()
 
 
-def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile):
+def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
 
     deploy_command = ('allocations',
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,

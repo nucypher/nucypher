@@ -100,6 +100,8 @@ class NucypherTokenActor:
 
 class Deployer(NucypherTokenActor):
 
+    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+
     __interface_class = BlockchainDeployerInterface
 
     def __init__(self,
@@ -117,6 +119,7 @@ class Deployer(NucypherTokenActor):
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
             self.miner_agent = MinerAgent(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
+            self.adjudicator_agent = MiningAdjudicatorAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
 
@@ -125,6 +128,7 @@ class Deployer(NucypherTokenActor):
             MinerEscrowDeployer.contract_name: self.deploy_miner_contract,
             PolicyManagerDeployer.contract_name: self.deploy_policy_contract,
             UserEscrowProxyDeployer.contract_name: self.deploy_escrow_proxy,
+            MiningAdjudicatorDeployer.contract_name: self.deploy_mining_adjudicator_contract,
         }
 
     def __repr__(self):
@@ -182,6 +186,16 @@ class Deployer(NucypherTokenActor):
         self.policy_agent = policy_manager_deployer.make_agent()
         return txhashes
 
+    def deploy_mining_adjudicator_contract(self, secret: bytes):
+        secret = self.blockchain.interface.w3.keccak(secret)
+        mining_adjudicator_deployer = MiningAdjudicatorDeployer(blockchain=self.blockchain,
+                                                                deployer_address=self.deployer_address,
+                                                                secret_hash=secret)
+
+        txhashes = mining_adjudicator_deployer.deploy()
+        self.adjudicator_agent = mining_adjudicator_deployer.make_agent()
+        return txhashes
+
     def deploy_escrow_proxy(self, secret: bytes):
         secret = self.blockchain.interface.w3.keccak(secret)
         escrow_proxy_deployer = UserEscrowProxyDeployer(blockchain=self.blockchain,
@@ -201,24 +215,31 @@ class Deployer(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self, miner_secret: bytes, policy_secret: bytes) -> Tuple[dict, dict]:
+    def deploy_network_contracts(self,
+                                 miner_secret: bytes,
+                                 policy_secret: bytes,
+                                 adjudicator_secret: bytes
+                                 ) -> Tuple[dict, dict]:
         """
         Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
         """
         token_txhashes = self.deploy_token_contract()
         miner_txhashes = self.deploy_miner_contract(secret=miner_secret)
         policy_txhashes = self.deploy_policy_contract(secret=policy_secret)
+        adjudicator_txhashes = self.deploy_mining_adjudicator_contract(secret=adjudicator_secret)
 
         txhashes = {
             NucypherTokenDeployer.contract_name: token_txhashes,
             MinerEscrowDeployer.contract_name: miner_txhashes,
-            PolicyManagerDeployer.contract_name: policy_txhashes
+            PolicyManagerDeployer.contract_name: policy_txhashes,
+            MiningAdjudicatorDeployer.contract_name: adjudicator_txhashes
         }
 
         agents = {
             NucypherTokenDeployer.contract_name: self.token_agent,
             MinerEscrowDeployer.contract_name: self.miner_agent,
-            PolicyManagerDeployer.contract_name: self.policy_agent
+            PolicyManagerDeployer.contract_name: self.policy_agent,
+            MiningAdjudicatorDeployer.contract_name: self.adjudicator_agent
         }
 
         return txhashes, agents

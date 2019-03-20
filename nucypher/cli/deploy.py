@@ -101,7 +101,8 @@ def deploy(click_config,
 
         try:
             txhashes, agents = deployer.deploy_network_contracts(miner_secret=bytes(secrets.miner_secret, encoding='utf-8'),
-                                                                 policy_secret=bytes(secrets.policy_secret, encoding='utf-8'))
+                                                                 policy_secret=bytes(secrets.policy_secret, encoding='utf-8'),
+                                                                 adjudicator_secret=bytes(secrets.mining_adjudicator_secret, encoding='utf-8'))
         except BlockchainInterface.InterfaceError:
             raise  # TODO: Handle registry management here (contract may already exist)
         else:
