@@ -665,21 +665,18 @@ class WorkOrder:
             raise ValueError("Ursula gave back the wrong number of cfrags.  "
                              "She's up to something.")
 
-        alice_address_signature = bytes(self.alice_address_signature)
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for counter, capsule in enumerate(self.capsules):
-            cfrag, signature = cfrags_and_signatures[counter]
-
-            # Validate CFrag metadata
-            capsule_signature = bytes(self.capsule_signatures[counter])
-            metadata_input = capsule_signature + alice_address_signature
+        for item, (cfrag, reencryption_signature) in zip(self.items, cfrags_and_signatures):
+            # Validate re-encryption metadata
+            metadata_input = bytes(item.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
             if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
                 raise InvalidSignature("Invalid metadata for {}.".format(cfrag))
 
-            # Validate work order response signatures
-            if signature.verify(bytes(cfrag) + bytes(capsule), ursula_verifying_key):
+            # Validate re-encryption signatures
+            if reencryption_signature.verify(bytes(item.signature) + bytes(cfrag),
+                                             ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature("{} is not properly signed by Ursula.".format(cfrag))

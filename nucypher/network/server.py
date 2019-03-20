@@ -325,20 +325,17 @@ def make_rest_app(
 
         cfrag_byte_stream = b""
 
-        # This is Bob's signature of Alice's verifying key as ETH address.
-        alice_address_signature = bytes(work_order.alice_address_signature)
+        for item in work_order.items:
+            # Ursula signs on top of Bob's signature of the work item.
+            # Now both are committed to the same work item.  See #259.
+            reencryption_metadata = bytes(stamp(bytes(item.signature)))
 
-        for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
-            # This is the capsule signed by Bob
-            capsule_signature = bytes(capsule_signature)
-            # Ursula signs on top of it. Now both are committed to the same capsule.
-            # She signs Alice's address too.
-            ursula_signature = stamp(capsule_signature + alice_address_signature)
+            capsule = item.capsule
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=bytes(ursula_signature))
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
             log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-            signature = stamp(bytes(cfrag) + bytes(capsule))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
+            reencryption_signature = stamp(bytes(item.signature) + bytes(cfrag))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
 
         # TODO: Put this in Ursula's datastore
         work_order_tracker.append(work_order)
