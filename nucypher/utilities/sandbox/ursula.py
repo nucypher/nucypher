@@ -21,7 +21,7 @@ from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from typing import Union, Set, List
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
@@ -70,7 +70,11 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                ether_addresses: Union[list, int],
                                stake: bool = False,
                                know_each_other: bool = True,
+                               economics: TokenEconomics = None,
                                **ursula_overrides) -> List[Ursula]:
+
+    if not economics:
+        economics = TokenEconomics()
 
     # Alternately accepts an int of the quantity of ursulas to make
     if isinstance(ether_addresses, int):
@@ -90,11 +94,11 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        **ursula_overrides)
         if stake is True:
 
-            min_stake, balance = MIN_ALLOWED_LOCKED, ursula.token_balance
+            min_stake, balance = economics.minimum_allowed_locked, ursula.token_balance
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
-            min_locktime, max_locktime = MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+            min_locktime, max_locktime = economics.minimum_locked_periods, economics.awarded_periods
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)

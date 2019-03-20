@@ -21,7 +21,6 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD, NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -128,7 +127,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower]  # identity only
+    _default_crypto_powerups = [SigningPower]                # identity only
 
     DISTRIBUTION_INTERVAL = 60*60              # seconds (60*60=1Hr)
     DISBURSEMENT_INTERVAL = HOURS_PER_PERIOD   # (24) hours
@@ -144,9 +143,9 @@ class Felix(Character, NucypherTokenActor):
     TEMPLATE_NAME = 'felix.html'
 
     # Node Discovery
-    LEARNING_TIMEOUT = 30                      # seconds
-    _SHORT_LEARNING_DELAY = 60                 # seconds
-    _LONG_LEARNING_DELAY = 120                 # seconds
+    LEARNING_TIMEOUT = 30       # seconds
+    _SHORT_LEARNING_DELAY = 60  # seconds
+    _LONG_LEARNING_DELAY = 120  # seconds
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 1
 
     # Twisted

@@ -151,8 +151,8 @@ class TesterBlockchain(Blockchain):
             raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
 
         if periods:
-            duration = (constants.HOURS_PER_PERIOD * periods) * (60*60)
-            base = constants.HOURS_PER_PERIOD * 60 * 60
+            duration = (TokenEconomics.hours_per_period * periods) * (60 * 60)
+            base = TokenEconomics.hours_per_period * 60 * 60
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
@@ -185,7 +185,7 @@ class TesterBlockchain(Blockchain):
         origin = testerchain.interface.w3.eth.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
-        random_deployment_secret = partial(os.urandom, DISPATCHER_SECRET_LENGTH)
+        random_deployment_secret = partial(os.urandom, DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
                                                               policy_secret=random_deployment_secret())
         return testerchain, agents

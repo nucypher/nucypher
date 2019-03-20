@@ -21,7 +21,6 @@ from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -392,13 +391,15 @@ def ursula(click_config,
 
         # Gather stake value
         if not value:
-            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=NU(MIN_ALLOWED_LOCKED, 'NuNit'))
+            min_locked = NU(URSULA.miner_agent.economics.minimum_allowed_locked, 'NuNit')
+            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=min_locked)
         else:
             value = NU(int(value), 'NU')
 
         # Duration
         if not quiet:
-            message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS)
+            message = f"Minimum duration: {URSULA.economics.minimum_allowed_locked} | " \
+                      f"Maximum Duration: {URSULA.economics.maximum_allowed_locked}"
             click.echo(message)
         if not duration:
             duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=STAKE_DURATION)

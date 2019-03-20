@@ -27,7 +27,6 @@ from typing import Set
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import HOURS_PER_PERIOD
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -50,8 +49,8 @@ class BlockchainArrangement(Arrangement):
         super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
 
         delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60                               # type: int
-        lock_periods = int(math.ceil(hours / HOURS_PER_PERIOD))  # type: int
+        hours = (delta.total_seconds() / 60) / 60  # type: int
+        lock_periods = int(math.ceil(hours / self.ursula.economics.hours_per_period))  # type: int
 
         # The relationship exists between two addresses
         self.author = alice                     # type: PolicyAuthor
@@ -93,7 +92,7 @@ class BlockchainPolicy(Policy):
     """
     _arrangement_class = BlockchainArrangement
 
-    class NoSuchPolicy(Policy):
+    class NoSuchPolicy(Exception):
         pass
 
     class NotEnoughBlockchainUrsulas(Policy.MoreKFragsThanArrangements):

@@ -20,12 +20,7 @@ from ipaddress import ip_address
 import click
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.constants import (
-    MIN_ALLOWED_LOCKED,
-    MAX_MINTING_PERIODS,
-    MIN_LOCKED_PERIODS,
-    MAX_ALLOWED_LOCKED
-)
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
 
 
@@ -50,11 +45,13 @@ class IPv4Address(click.ParamType):
             return value
 
 
+token_economics = TokenEconomics()
+
 # Staking
-STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False)
-STAKE_EXTENSION = click.IntRange(min=1, max=MAX_MINTING_PERIODS, clamp=False)
-STAKE_VALUE = click.IntRange(min=NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens(),
-                             max=NU(MAX_ALLOWED_LOCKED, 'NuNit').to_tokens(), clamp=False)
+STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, max=token_economics.awarded_periods, clamp=False)
+STAKE_EXTENSION = click.IntRange(min=1, max=token_economics.awarded_periods, clamp=False)
+STAKE_VALUE = click.IntRange(min=NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
+                             max=NU(token_economics.maximum_allowed_locked, 'NuNit').to_tokens(), clamp=False)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)

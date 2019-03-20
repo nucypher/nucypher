@@ -145,9 +145,17 @@ class NucypherTokenDeployer(ContractDeployer):
     contract_name = agency.registry_contract_name
     __upgradeable = False
 
-    def __init__(self, deployer_address: str, *args, **kwargs) -> None:
+    def __init__(self,
+                 deployer_address: str,
+                 economics: TokenEconomics = None,
+                 *args, **kwargs
+                 ) -> None:
+
         super().__init__(deployer_address=deployer_address, *args, **kwargs)
         self._creator = deployer_address
+        if not economics:
+            economics = TokenEconomics()
+        self.__economics = economics
 
     def deploy(self) -> dict:
         """
@@ -160,7 +168,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self.contract_name,
-                                       constants.TOKEN_SATURATION)
+                                       self.__economics.total_supply)
 
         self._contract = _contract
         return {'txhash': deployment_txhash}
@@ -174,6 +182,8 @@ class DispatcherDeployer(ContractDeployer):
 
     contract_name = 'Dispatcher'
     __upgradeable = False
+
+    DISPATCHER_SECRET_LENGTH = 32
 
     def __init__(self, target_contract: Contract, secret_hash: bytes, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -197,14 +207,21 @@ class MinerEscrowDeployer(ContractDeployer):
     __upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
-    def __init__(self, secret_hash, *args, **kwargs):
+    def __init__(self,
+                 secret_hash,
+                 economics: TokenEconomics = None,
+                 *args, **kwargs):
+
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
+        if not economics:
+            economics = TokenEconomics()
+        self.__economics = economics
 
     def __check_policy_manager(self):
         result = self.contract.functions.policyManager().call()
-        if result is constants.NULL_ADDRESS:
+        if result is self.blockchain.NULL_ADDRESS:
             raise RuntimeError("PolicyManager contract is not initialized.")
 
     def deploy(self) -> dict:
@@ -233,7 +250,7 @@ class MinerEscrowDeployer(ContractDeployer):
         the_escrow_contract, deploy_txhash, = \
             self.blockchain.interface.deploy_contract(self.contract_name,
                                                       self.token_agent.contract_address,
-                                                      *map(int, constants.MINING_COEFFICIENT))
+                                                      *self.__economics.deployment_parameters)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
@@ -255,8 +272,7 @@ class MinerEscrowDeployer(ContractDeployer):
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer tokens to the miner escrow #
-        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address,
-                                                                     constants.TOKEN_SUPPLY).transact(origin_args)
+        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, self.__economics.reward_supply).transact(origin_args)
 
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 

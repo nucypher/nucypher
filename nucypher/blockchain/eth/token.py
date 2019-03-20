@@ -6,8 +6,8 @@ from eth_utils import currency
 from nacl.hash import sha256
 from typing import Union, Tuple
 
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import TOKEN_DECIMALS
 from nucypher.blockchain.eth.utils import datetime_at_period, datetime_to_period
 
 
@@ -34,33 +34,38 @@ class NU:
     """
 
     __symbol = 'NU'
-    __decimals = TOKEN_DECIMALS
-    __agent_class = NucypherTokenAgent
-
-    # conversions
-    __denominations = {'NuNit': 'wei',
-                       'NU': 'ether'}
+    __denominations = {'NuNit': 'wei', 'NU': 'ether'}
 
     class InvalidAmount(ValueError):
         """Raised when an invalid input amount is provided"""
 
+    class InvalidDenomination(ValueError):
+        """Raised when an unknown denomination string is passed into __init__"""
+
     def __init__(self, value: Union[int, float, str], denomination: str):
 
-        # Calculate smallest denomination and store it
-        wrapped_denom = self.__denominations[denomination]
+        # Lookup Conversion
+        try:
+            wrapped_denomination = self.__denominations[denomination]
+        except KeyError:
+            raise self.InvalidDenomination(f'"{denomination}"')
 
         # Convert or Raise
         try:
-            self.__value = currency.to_wei(number=value, unit=wrapped_denom)
+            self.__value = currency.to_wei(number=value, unit=wrapped_denomination)
         except ValueError as e:
             raise NU.InvalidAmount(f"{value} is an invalid amount of tokens: {str(e)}")
 
     @classmethod
-    def from_nunits(cls, value: int):
+    def ZERO(cls) -> 'NU':
+        return cls(0, 'NuNit')
+
+    @classmethod
+    def from_nunits(cls, value: int) -> 'NU':
         return cls(value, denomination='NuNit')
 
     @classmethod
-    def from_tokens(cls, value: Union[int, float, str]):
+    def from_tokens(cls, value: Union[int, float, str]) -> 'NU':
         return cls(value, denomination='NU')
 
     def to_tokens(self) -> Decimal:

@@ -31,6 +31,8 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 class Blockchain:
     """A view of a blockchain through a provided interface"""
 
+    NULL_ADDRESS = '0x' + '0' * 40
+
     _instance = NO_BLOCKCHAIN_AVAILABLE
     __default_interface_class = BlockchainInterface
 

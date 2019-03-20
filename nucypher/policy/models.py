@@ -124,6 +124,8 @@ class Policy:
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
 
+    POLICY_ID_LENGTH = 16
+
     def __init__(self,
                  alice,
                  label,
