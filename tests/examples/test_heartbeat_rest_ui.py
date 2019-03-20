@@ -10,13 +10,10 @@ from pytest_dash.application_runners import import_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from umbral.keys import UmbralPrivateKey
-
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower
-from nucypher.utilities.sandbox.policy import generate_random_label
 
 from examples.heartbeat_rest_ui.app import POLICY_INFO_FILE
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import DecryptingPower
 
 ALICE_URL = "http://localhost:8151"
 ENRICO_URL = "http://localhost:5151"
@@ -103,7 +100,7 @@ def test_alicia_derive_policy_key_failed(dash_driver):
     assert 1 == len(responses.calls)
 
     request_url = responses.calls[0].request.url
-    assert 'derive_policy_encrypting_key' in request_url
+    assert f'{ALICE_URL}/derive_policy_encrypting_key' in request_url
 
     policy_label = request_url[request_url.rfind('/')+1:]
     assert policy_label == policy_label_element.text
@@ -174,14 +171,14 @@ def test_alicia_grant_failed(dash_driver,
     n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
-    bob_signing_key_hex = bytes(federated_bob.stamp).hex()
+    bob_verifying_key_hex = bytes(federated_bob.stamp).hex()
 
-    bob_signing_key_element = dash_driver.find_element_by_id('recipient-sig-key-grant')
-    bob_signing_key_element.clear()
-    bob_signing_key_element.send_keys(bob_signing_key_hex)
+    bob_verifying_key_element = dash_driver.find_element_by_id('recipient-sig-key-grant')
+    bob_verifying_key_element.clear()
+    bob_verifying_key_element.send_keys(bob_verifying_key_hex)
 
     bob_encrypting_key_element = dash_driver.find_element_by_id('recipient-enc-key-grant')
-    bob_signing_key_element.clear()
+    bob_encrypting_key_element.clear()
     bob_encrypting_key_element.send_keys(bob_encrypting_key_hex)
 
     grant_button = dash_driver.find_element_by_id('grant-button')
@@ -196,7 +193,7 @@ def test_alicia_grant_failed(dash_driver,
     assert 2 == len(responses.calls)
 
     request_url = responses.calls[1].request.url
-    assert 'grant' in request_url
+    assert f'{ALICE_URL}/grant' == request_url
 
     assert bad_status_code == responses.calls[1].response.status_code
     assert str(bad_status_code) in grant_response_element.text
@@ -242,7 +239,7 @@ def test_enrico_encrypt_data_failed(dash_driver):
     # test results
     assert 1 <= len(responses.calls)  # derive then at least one encrypt message
     request_url = responses.calls[0].request.url
-    assert 'encrypt_message' in request_url
+    assert f'{ENRICO_URL}/encrypt_message' == request_url
 
     assert bad_status_code == responses.calls[0].response.status_code
     assert 'WARNING' in last_heartbeat_element.text
@@ -307,7 +304,8 @@ def test_bob_join_policy_failed(dash_driver,
     # write fake policy file
     policy_label = f'heart-data-{os.urandom(4).hex()}'
     policy_info = {
-        "policy_encrypting_key": UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex(),
+        "policy_encrypting_key": federated_alice.get_policy_pubkey_from_label(bytes(policy_label, encoding='utf-8')
+                                                                              ).to_bytes().hex(),
         "alice_verifying_key": bytes(federated_alice.stamp).hex(),
         "label": policy_label,
     }
@@ -347,8 +345,7 @@ def test_bob_join_policy_failed(dash_driver,
     assert 1 <= len(responses.calls)
 
     request_url = responses.calls[0].request.url
-    assert 'join_policy' in request_url
-    assert str(bob_port) in request_url
+    assert f'{BOB_URL}/join_policy' == request_url
 
     assert bad_status_code == responses.calls[0].response.status_code
     assert 'WARNING' in heartbeats_element.text
@@ -439,7 +436,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     assert 1 == len(responses.calls)
 
     request_url = responses.calls[0].request.url
-    assert 'derive_policy_encrypting_key' in request_url
+    assert f'{ALICE_URL}/derive_policy_encrypting_key' in request_url
 
     policy_label = request_url[request_url.rfind('/')+1:]
     assert policy_label == policy_label_element.text
@@ -468,7 +465,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     # test results
     assert 2 <= len(responses.calls)  # derive then at least one encrypt message
     request_url = responses.calls[1].request.url
-    assert 'encrypt_message' in request_url
+    assert f'{ENRICO_URL}/encrypt_message' == request_url
 
     assert 200 == responses.calls[1].response.status_code
     response_json = responses.calls[1].response.text
@@ -491,14 +488,14 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
-    bob_signing_key_hex = bytes(federated_bob.stamp).hex()
+    bob_verifying_key_hex = bytes(federated_bob.stamp).hex()
 
-    bob_signing_key_element = dash_driver.find_element_by_id('recipient-sig-key-grant')
-    bob_signing_key_element.clear()
-    bob_signing_key_element.send_keys(bob_signing_key_hex)
+    bob_verifying_key_element = dash_driver.find_element_by_id('recipient-sig-key-grant')
+    bob_verifying_key_element.clear()
+    bob_verifying_key_element.send_keys(bob_verifying_key_hex)
 
     bob_encrypting_key_element = dash_driver.find_element_by_id('recipient-enc-key-grant')
-    bob_signing_key_element.clear()
+    bob_encrypting_key_element.clear()
     bob_encrypting_key_element.send_keys(bob_encrypting_key_hex)
 
     grant_button_element = dash_driver.find_element_by_id('grant-button')
@@ -509,8 +506,8 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
+    assert "> ERROR" not in grant_response_element.text
     assert "granted to recipient" in grant_response_element.text
     assert policy_label in grant_response_element.text
     assert bob_encrypting_key_hex in grant_response_element.text
-    assert "> ERROR" not in grant_response_element.text
     assert "status code" not in grant_response_element.text

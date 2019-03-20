@@ -174,14 +174,14 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_si
     print("Done!")
 
     response_data = json.loads(response.content)
-    alice_signing_key = response_data['result']['alice_verifying_key']
+    alice_verifying_key = response_data['result']['alice_verifying_key']
     policy_enc_key = response_data['result']['policy_encrypting_key']
 
     # For the demo, we need a way to share with Bob some additional info
     # about the policy, so we store it in a JSON file
     policy_info = {
         "policy_encrypting_key": policy_enc_key,
-        "alice_verifying_key": alice_signing_key,
+        "alice_verifying_key": alice_verifying_key,
         "label": policy_label,
     }
 
