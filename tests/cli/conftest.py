@@ -123,7 +123,8 @@ def deployed_blockchain(token_economics):
 
     # The Big Three (+ Dispatchers)
     deployer.deploy_network_contracts(miner_secret=os.urandom(32),
-                                      policy_secret=os.urandom(32))
+                                      policy_secret=os.urandom(32),
+                                      adjudicator_secret=os.urandom(32))
 
     # User Escrow Proxy
     deployer.deploy_escrow_proxy(secret=os.urandom(32))

@@ -18,7 +18,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, DispatcherDeployer
 
 
 @pytest.fixture(scope='module')
@@ -58,7 +58,7 @@ def test_get_balance(agent, token_economics):
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == token_economics.TOKEN_SATURATION
+    assert balance == token_economics.total_supply
 
 
 def test_approve_transfer(agent, token_economics):
@@ -91,4 +91,4 @@ def test_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
-    assert new_balance == old_balance + DispatcherDeployer.MIN_ALLOWED_LOCKED
+    assert new_balance == old_balance + token_economics.minimum_allowed_locked
