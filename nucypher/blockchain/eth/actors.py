@@ -27,15 +27,15 @@ from twisted.internet import task, reactor
 from twisted.logger import Logger
 from typing import Tuple, List, Dict, Union
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent, \
+    EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
-    UserEscrowProxyDeployer, UserEscrowDeployer
+    UserEscrowProxyDeployer, UserEscrowDeployer, MiningAdjudicatorDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.utils import (datetime_to_period,
-                                           validate_stake_amount,
-                                           validate_locktime,
                                            calculate_period_duration)
 from nucypher.blockchain.eth.token import NU, Stake
 
@@ -62,10 +62,6 @@ class NucypherTokenActor:
                  ) -> None:
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
-
-        :param token_agent:  The token agent with the blockchain attached; If not passed, A default
-        token agent and blockchain connection will be created from default values.
-
         """
         try:
             parent_address = self.checksum_public_address  # type: str
@@ -275,10 +271,17 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me: bool, start_staking_loop: bool = True, *args, **kwargs) -> None:
+    def __init__(self,
+                 is_me: bool,
+                 start_staking_loop: bool = True,
+                 economics: TokenEconomics = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.log = Logger("miner")
         self.is_me = is_me
+        if not economics:
+            economics = TokenEconomics()
+        self.economics = economics
 
         if is_me:
             self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
@@ -384,7 +387,7 @@ class Miner(NucypherTokenActor):
         if self.stakes:
             return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NuNit')
         else:
-            return NU(0, 'NuNit')
+            return NU.ZERO()
 
     def __read_stakes(self) -> None:
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
@@ -392,7 +395,8 @@ class Miner(NucypherTokenActor):
         for index, stake_info in enumerate(stakes_reader):
             stake = Stake.from_stake_info(owner_address=self.checksum_public_address,
                                           stake_info=stake_info,
-                                          index=index)
+                                          index=index,
+                                          economics=self.economics)
             stakes[index] = stake
         self.__stakes = stakes
 
@@ -449,9 +453,25 @@ class Miner(NucypherTokenActor):
             raise self.MinerError(f"Cannot divide stake; Value ({target_value}) must be less "
                                   f"than the existing stake value {stake.value}.")
 
+        current_stake = self.stakes[stake_index]
+
+        new_stake_1 = Stake(owner_address=self.checksum_public_address,
+                            index=len(self.stakes)+1,
+                            start_period=current_stake.start_period,
+                            end_period=current_stake.end_period + additional_periods,
+                            value=target_value,
+                            economics=self.economics)
+
+        new_stake_2 = Stake(owner_address=self.checksum_public_address,
+                            index=len(self.stakes)+1,
+                            start_period=current_stake.start_period,
+                            end_period=current_stake.end_period + additional_periods,
+                            value=stake.value - target_value,
+                            economics=self.economics)
+
         # Ensure both halves are for valid amounts
-        validate_stake_amount(amount=target_value)
-        validate_stake_amount(amount=stake.value - target_value)
+        new_stake_1.validate_value()
+        new_stake_2.validate_value()
 
         tx = self.miner_agent.divide_stake(miner_address=self.checksum_public_address,
                                            stake_index=stake_index,
@@ -463,13 +483,13 @@ class Miner(NucypherTokenActor):
         return tx
 
     @only_me
-    def __validate_stake(self, amount: NU, lock_periods: int) -> bool:
+    def __validate_stake(self, stake: Stake) -> bool:
 
-        validate_stake_amount(amount=amount)
-        validate_locktime(lock_periods=lock_periods)
+        stake.validate_value()
+        stake.validate_duration()
 
-        if not self.token_balance >= amount:
-            raise self.MinerError("Insufficient miner token balance ({balance})".format(balance=self.token_balance))
+        if not self.token_balance >= stake.value:
+            raise self.MinerError(f"Insufficient token balance ({self.token_agent}) for new stake of {stake.value}")
         else:
             return True
 
@@ -502,10 +522,18 @@ class Miner(NucypherTokenActor):
 
         amount = NU(int(amount), 'NuNit')
 
+        current_period = self.miner_agent.get_current_period()
+        stake = Stake(owner_address=self.checksum_public_address,
+                      index=len(self.stakes)+1,
+                      start_period=current_period,
+                      end_period=current_period + lock_periods,
+                      value=amount,
+                      economics=self.economics)
+
         staking_transactions = OrderedDict()  # type: OrderedDict # Time series of txhases
 
         # Validate
-        assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
+        assert self.__validate_stake(stake=stake)
 
         # Transact
         approve_txhash, initial_deposit_txhash = self.deposit(amount=int(amount), lock_periods=lock_periods)

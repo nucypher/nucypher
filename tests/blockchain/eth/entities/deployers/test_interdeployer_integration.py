@@ -84,7 +84,7 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     # Policy Manager
     #
-    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         blockchain=testerchain,
         deployer_address=origin,

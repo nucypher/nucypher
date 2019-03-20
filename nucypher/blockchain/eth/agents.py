@@ -22,10 +22,9 @@ from twisted.logger import Logger
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
-from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -251,7 +250,7 @@ class MinerAgent(EthereumContractAgent):
                 deltas.append(next_point - previous_point)
 
             addresses = set(self.contract.functions.sample(deltas, duration).call())
-            addresses.discard(str(constants.NULL_ADDRESS))
+            addresses.discard(str(Blockchain.NULL_ADDRESS))
 
             if len(addresses) >= quantity:
                 return system_random.sample(addresses, quantity)

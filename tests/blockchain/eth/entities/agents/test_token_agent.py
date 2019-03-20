@@ -18,7 +18,6 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import TOKEN_SATURATION, MIN_ALLOWED_LOCKED
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 
 
@@ -53,21 +52,21 @@ def test_token_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_get_balance(agent):
+def test_get_balance(agent, token_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == TOKEN_SATURATION
+    assert balance == token_economics.TOKEN_SATURATION
 
 
-def test_approve_transfer(agent):
+def test_approve_transfer(agent, token_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
     # Approve
-    txhash = agent.approve_transfer(amount=MIN_ALLOWED_LOCKED,
+    txhash = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                     target_address=agent.contract_address,
                                     sender_address=someone)
 
@@ -77,12 +76,12 @@ def test_approve_transfer(agent):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_transfer(agent):
+def test_transfer(agent, token_economics):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
     old_balance = agent.get_balance(someone)
-    txhash = agent.transfer(amount=MIN_ALLOWED_LOCKED,
+    txhash = agent.transfer(amount=token_economics.minimum_allowed_locked,
                             target_address=someone,
                             sender_address=origin)
 
@@ -92,4 +91,4 @@ def test_transfer(agent):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
-    assert new_balance == old_balance + MIN_ALLOWED_LOCKED
+    assert new_balance == old_balance + DispatcherDeployer.MIN_ALLOWED_LOCKED

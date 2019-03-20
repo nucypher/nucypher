@@ -66,7 +66,7 @@ def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_
     beneficiary = testerchain.interface.w3.eth.accounts[-1]
     allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
-    assert user_escrow_agent.unvested_tokens == MAX_ALLOWED_LOCKED
+    assert user_escrow_agent.unvested_tokens == token_economics.maximum_allowed_locked
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):
@@ -82,6 +82,6 @@ def test_destroy_registry(click_runner, mock_primary_registry_filepath):
     result = click_runner.invoke(deploy, destroy_command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert mock_primary_registry_filepath in result.output
-    assert DEFAULT_CONFIG_ROOT not in result.output, 'WARNING: Deploy CLI tests are using default confg root dir!'
+    assert DEFAULT_CONFIG_ROOT not in result.output, 'WARNING: Deploy CLI tests are using default config root dir!'
     assert f'Successfully destroyed {mock_primary_registry_filepath}' in result.output
     assert not os.path.isfile(mock_primary_registry_filepath)

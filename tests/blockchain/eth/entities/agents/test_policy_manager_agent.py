@@ -20,14 +20,13 @@ import collections
 import pytest
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
 
 @pytest.fixture(scope='function')
 @pytest.mark.usefixtures('blockchain_ursulas')
-def policy_meta(testerchain, three_agents):
+def policy_meta(testerchain, three_agents, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = policy_agent
 
@@ -35,7 +34,7 @@ def policy_meta(testerchain, three_agents):
     node_addresses = list(miner_agent.sample(quantity=3, duration=1))
     _txhash = agent.create_policy(policy_id=_policy_id,
                                   author_address=testerchain.alice_account,
-                                  value=MIN_ALLOWED_LOCKED,
+                                  value=token_economics.minimum_allowed_locked,
                                   periods=10,
                                   initial_reward=20,
                                   node_addresses=node_addresses)
@@ -45,7 +44,7 @@ def policy_meta(testerchain, three_agents):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, three_agents):
+def test_create_policy(testerchain, three_agents, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = policy_agent
 
@@ -53,7 +52,7 @@ def test_create_policy(testerchain, three_agents):
     node_addresses = list(miner_agent.sample(quantity=3, duration=1))
     txhash = agent.create_policy(policy_id=policy_id,
                                  author_address=testerchain.alice_account,
-                                 value=MIN_ALLOWED_LOCKED,
+                                 value=token_economics.minimum_allowed_locked,
                                  periods=10,
                                  initial_reward=20,
                                  node_addresses=node_addresses)

@@ -24,8 +24,9 @@ import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, MIN_LOCKED_PERIODS
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
+    DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -37,7 +38,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M, TESTING_ETH_AIRDROP_AMOUNT)
+                                                  MOCK_POLICY_DEFAULT_M, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -315,6 +316,10 @@ def federated_ursulas(ursula_federated_test_config):
 # Blockchain
 #
 
+@pytest.fixture(scope='session')
+def token_economics():
+    economics = TokenEconomics()
+    return economics
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
@@ -339,7 +344,8 @@ def testerchain(solidity_compiler):
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
 
-    deployer_interface.deployer_address = testerchain.etherbase_account  # Set the deployer address from a freshly created test account
+    # Set the deployer address from a freshly created test account
+    deployer_interface.deployer_address = testerchain.etherbase_account
 
     yield testerchain
     testerchain.sever_connection()
@@ -362,7 +368,7 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
@@ -371,7 +377,7 @@ def three_agents(testerchain):
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
-    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))

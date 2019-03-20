@@ -129,7 +129,7 @@ class NU:
 
 class Stake:
     """
-    A quantity of tokens, and staking time-frame for one stake for one miner.
+    A quantity of tokens and staking duration for one stake for one miner.
     """
 
     __ID_LENGTH = 16
@@ -139,9 +139,11 @@ class Stake:
                  index: int,
                  value: NU,
                  start_period: int,
-                 end_period: int):
+                 end_period: int,
+                 economics: TokenEconomics = None,
+                 validate_now: bool = True):
 
-        # Stake Info
+        # Stake Metadata
         self.owner_address = owner_address
         self.index = index
         self.value = value
@@ -149,27 +151,43 @@ class Stake:
         self.end_period = end_period
         self.duration = (self.end_period-self.start_period) + 1
 
-        # Internals
+        # Time
         self.start_datetime = datetime_at_period(period=start_period)
         self.end_datetime = datetime_at_period(period=end_period)
         self.duration_delta = self.end_datetime - self.start_datetime
 
-    def __repr__(self):
+        # Economics
+        if not economics:
+            economics = TokenEconomics()
+        self.economics = economics
+        self.minimum_nu = NU(int(economics.minimum_allowed_locked), 'NuNit')
+        self.maximum_nu = NU(int(economics.maximum_allowed_locked), 'NuNit')
+
+        if validate_now:
+            self.validate_duration()
+
+    def __repr__(self) -> str:
         r = f'Stake(index={self.index}, value={self.value}, end_period={self.end_period})'
         return r
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return bool(self.value == other.value)
 
     @classmethod
-    def from_stake_info(cls, owner_address, index: int, stake_info: Tuple[int, int, int]):
+    def from_stake_info(cls,
+                        owner_address: str,
+                        index: int,
+                        stake_info: Tuple[int, int, int],
+                        economics: TokenEconomics) -> 'Stake':
+
         """Reads staking values as they exist on the blockchain"""
         start_period, end_period, value = stake_info
         instance = cls(owner_address=owner_address,
                        index=index,
                        start_period=start_period,
                        end_period=end_period,
-                       value=NU(value, 'NuNit'))
+                       value=NU(value, 'NuNit'),
+                       economics=economics)
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:
@@ -186,7 +204,7 @@ class Stake:
         digest_elements.append(str(self.end_period).encode())
         digest_elements.append(str(self.value).encode())
         digest = b'|'.join(digest_elements)
-        stake_id = sha256(digest).hex()[:16]
+        stake_id = sha256(digest).hex()[:16]  # type: str
         return stake_id[:self.__ID_LENGTH]
 
     @property
@@ -205,3 +223,50 @@ class Stake:
         else:
             result = delta.seconds
         return result
+
+    @staticmethod
+    def __handle_validation_failure(rulebook: Tuple[Tuple[bool, str], ...]) -> bool:
+        """Validate a staking rulebook"""
+        for rule, failure_message in rulebook:
+            if not rule:
+                raise ValueError(failure_message)
+        return True
+
+    def validate(self) -> bool:
+        return all((self.validate_value(), self.validate_duration()))
+
+    def validate_value(self, raise_on_fail: bool = True) -> Union[bool, Tuple[Tuple[bool, str]]]:
+        """Validate a single staking value against pre-defined requirements"""
+
+        rulebook = (
+
+            (self.minimum_nu <= self.value,
+             'Stake amount too low; ({amount}) must be at least {minimum}'
+             .format(minimum=self.minimum_nu, amount=self.value)),
+
+            (self.maximum_nu >= self.value,
+             'Stake amount too high; ({amount}) must be no more than {maximum}.'
+             .format(maximum=self.maximum_nu, amount=self.value)),
+        )
+
+        if raise_on_fail is True:
+            self.__handle_validation_failure(rulebook=rulebook)
+        return all(rulebook)
+
+    def validate_duration(self, raise_on_fail=True) -> Union[bool, Tuple[Tuple[bool, str]]]:
+        """Validate a single staking lock-time against pre-defined requirements"""
+
+        rulebook = (
+
+            (self.economics.minimum_locked_periods <= self.duration,
+             'Locktime ({duration}) too short; must be at least {minimum}'
+             .format(minimum=self.economics.minimum_locked_periods, duration=self.duration)),
+
+            (self.economics.maximum_locked_periods >= self.duration,
+             'Locktime ({duration}) too long; must be no more than {maximum}'
+             .format(maximum=self.economics.maximum_locked_periods, duration=self.duration)),
+        )
+
+        if raise_on_fail is True:
+            self.__handle_validation_failure(rulebook=rulebook)
+        return all(rulebook)

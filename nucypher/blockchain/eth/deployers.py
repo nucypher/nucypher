@@ -21,14 +21,15 @@ from typing import Tuple, Dict
 from web3.contract import Contract
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
-from nucypher.blockchain.eth import constants
+
+from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     MinerAgent,
     NucypherTokenAgent,
     PolicyAgent,
-    UserEscrowAgent
-)
+    UserEscrowAgent,
+    MiningAdjudicatorAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from .chains import Blockchain

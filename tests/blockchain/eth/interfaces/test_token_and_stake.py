@@ -3,25 +3,24 @@ from decimal import InvalidOperation, Decimal
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_NU():
+def test_NU(token_economics):
 
     # Starting Small
-    min_allowed_locked = NU(MIN_ALLOWED_LOCKED, 'NuNit')
-    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nunits())
+    min_allowed_locked = NU(token_economics.minimum_allowed_locked, 'NuNit')
+    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
 
-    min_NU_locked = int(str(MIN_ALLOWED_LOCKED)[0:-18])
+    min_NU_locked = int(str(token_economics.minimum_allowed_locked)[0:-18])
     expected = NU(min_NU_locked, 'NU')
     assert min_allowed_locked == expected
 
     # Starting Big
     min_allowed_locked = NU(min_NU_locked, 'NU')
-    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked)
-    assert MIN_ALLOWED_LOCKED == int(min_allowed_locked.to_nunits())
+    assert token_economics.minimum_allowed_locked == int(min_allowed_locked)
+    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
     assert str(min_allowed_locked) == '15000 NU'
 
     # Alternate construction

@@ -20,30 +20,31 @@ import os
 from functools import partial
 from typing import List, Tuple, Dict
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from twisted.logger import Logger
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
+from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 
 
-def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
+def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
         for address in addresses:
-            txhash = token_agent.contract.functions.transfer(address, amount).transact({'from': origin})
+            txhash = token_agent.contract.functions.transfer(address, int(amount)).transact({'from': origin})
             yield txhash
 
     receipts = list()
