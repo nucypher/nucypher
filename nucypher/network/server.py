@@ -304,8 +304,7 @@ def make_rest_app(
     def reencrypt_via_rest(id_as_hex):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
-        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
+
         with ThreadedSession(db_engine) as session:
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
@@ -315,20 +314,16 @@ def make_rest_app(
         # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
-        cfrag_byte_stream = b""
-
         alices_address = canonical_address_from_umbral_key(alices_verifying_key)
-        if not alices_address == work_order.alice_address:
-            message = f"This Bob ({work_order.bob}) sent an Alice's ETH address " \
-                      f"({work_order.alice_address}) that doesn't match " \
-                      f"the one I have ({alices_address})."
-            raise SuspiciousActivity(message)
 
-        bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
-        if not work_order.alice_address_signature.verify(message=alices_address,
-                                                         verifying_key=bob_pubkey):
-            message = f"This Bob ({work_order.bob}) sent an invalid signature of Alice's ETH address"
-            raise InvalidSignature(message)
+        work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
+                                                 rest_payload=request.data,
+                                                 ursula_pubkey_bytes=bytes(stamp),
+                                                 alice_address=alices_address)
+
+        log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
+
+        cfrag_byte_stream = b""
 
         # This is Bob's signature of Alice's verifying key as ETH address.
         alice_address_signature = bytes(work_order.alice_address_signature)
