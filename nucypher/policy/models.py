@@ -618,35 +618,41 @@ class WorkOrder:
                    ursula=ursula, blockhash=blockhash)
 
     @classmethod
-    def from_rest_payload(cls, arrangement_id, rest_payload):
+    def from_rest_payload(cls, arrangement_id, rest_payload, ursula_pubkey_bytes, alice_address):
 
-        # TODO: Use JSON instead? This is a mess.
         payload_splitter = BytestringSplitter(Signature) + key_splitter
-        signature, bob_pubkey_sig, remainder = payload_splitter(rest_payload,
-                                                                msgpack_remainder=True)
+        payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
 
-        receipt_bytes, *remainder = remainder
-        packed_capsules, packed_signatures, *remainder = remainder
-        alice_address, alice_address_signature = remainder
-        alice_address_signature = Signature.from_bytes(alice_address_signature)
-        if not alice_address_signature.verify(alice_address, bob_pubkey_sig):
-            raise cls.NotFromBob()
+        signature, bob_pubkey_sig, (items_bytes, blockhash) = payload_elements
 
-        capsules, capsule_signatures = list(), list()
-        for capsule_bytes, capsule_signature in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
-            capsules.append(Capsule.from_bytes(capsule_bytes, params=default_params()))
-            capsule_signature = Signature.from_bytes(capsule_signature)
-            capsule_signatures.append(capsule_signature)
-            if not capsule_signature.verify(capsule_bytes, bob_pubkey_sig):
-                raise cls.NotFromBob()
+        # TODO: check freshness of blockhash?
 
-        verified = signature.verify(receipt_bytes, bob_pubkey_sig)
-        if not verified:
-            raise cls.NotFromBob()
+        # Check receipt
+        receipt_bytes = b"wo:" + ursula_pubkey_bytes + msgpack.dumps(items_bytes)
+        if not signature.verify(receipt_bytes, bob_pubkey_sig):
+            raise InvalidSignature()
+
+        items = []
+        for item_bytes in items_bytes:
+            item = cls.WorkItem.from_bytes(item_bytes)
+            items.append(item)
+
+            # Each item signature has to match the specification
+            item_specification = (bytes(item.capsule),
+                                  ursula_pubkey_bytes,
+                                  alice_address,
+                                  blockhash)
+            item_specification = b''.join(item_specification)
+            if not item.signature.verify(item_specification, bob_pubkey_sig):
+                raise InvalidSignature()
+
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, arrangement_id, capsules, capsule_signatures,
-                   alice_address, alice_address_signature,
-                   receipt_bytes, signature)
+        return cls(bob=bob,
+                   arrangement_id=arrangement_id,
+                   items=items,
+                   alice_address=alice_address,
+                   blockhash=blockhash,
+                   receipt_signature=signature)
 
     def payload(self):
         items_bytes = [bytes(item) for item in self.items]
