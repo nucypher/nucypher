@@ -94,7 +94,7 @@ class TokenEconomics:
         self.__total_supply = int(initial_supply * (1 + initial_inflation * halving_delay / self.log_scale))
 
         # Remaining / Reward Supply - Escrow Parameter
-        self.__reward_supply = int(self.total_supply - self.initial_supply)
+        self.__reward_supply = int(self.__total_supply - self.initial_supply)
 
         # k2 - Escrow parameter
         self.__staking_coefficient = 365 ** 2 * reward_saturation * halving_delay / self.log_scale / (1 - small_stake_multiplier)
@@ -115,11 +115,11 @@ class TokenEconomics:
 
     @property
     def locked_periods_coefficient(self) -> int:
-        return int(self.__locked_periods_coefficient)
+        return self.__locked_periods_coefficient
 
     @property
     def staking_coefficient(self) -> int:
-        return int(self.__staking_coefficient)
+        return self.__staking_coefficient
 
     @property
     def awarded_periods(self) -> int:
@@ -154,7 +154,7 @@ class TokenEconomics:
             self.minimum_allowed_locked,      # Min amount of tokens that can be locked
             self.maximum_allowed_locked       # Max amount of tokens that can be locked
         )
-        return deploy_parameters
+        return tuple(map(int, deploy_parameters))
 
 
 class SlashingEconomics:

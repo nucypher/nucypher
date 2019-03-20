@@ -47,13 +47,13 @@ def test_rough_economics():
 
     # Check that we have correct numbers in day 1
     initial_rate = (e.total_supply - e.initial_supply) * (e.locked_periods_coefficient + 365) / e.staking_coefficient
-    assert round(initial_rate) == round(e.initial_inflation * e.initial_supply / 365)
+    assert int(initial_rate) == int(e.initial_inflation * e.initial_supply / 365)
 
     initial_rate_small = (e.total_supply - e.initial_supply) * e.locked_periods_coefficient / e.staking_coefficient
-    assert round(initial_rate_small) == round(initial_rate / 2)
+    assert int(initial_rate_small) == int(initial_rate / 2)
 
     # Sanity check that total and reward supply calculated correctly
-    assert round(e.log_scale / (e.token_halving * 365) * (e.total_supply - e.initial_supply)) == round(initial_rate)
+    assert int(e.log_scale / (e.token_halving * 365) * (e.total_supply - e.initial_supply)) == int(initial_rate)
     assert e.reward_supply == e.total_supply - Decimal(int(1e9))
 
 
@@ -126,8 +126,8 @@ def test_economic_parameter_aliases():
     e = TokenEconomics()
 
     assert e.k1 == e.locked_periods_coefficient == 365
-    assert e.k2 == e.staking_coefficient == 768812
-    assert e.maximum_locked_periods == int(e.awarded_periods) == 365
+    assert e.k2 == int(e.staking_coefficient) == 768812
+    assert e.maximum_locked_periods == e.awarded_periods == 365
 
     deployment_params = e.deployment_parameters
     assert isinstance(deployment_params, tuple)

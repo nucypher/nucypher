@@ -148,7 +148,7 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents, allocat
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
     testerchain.time_travel(periods=1)
-    for _ in range(token_economics.MIN_LOCKED_PERIODS-1):
+    for _ in range(token_economics.minimum_locked_periods-1):
         agent.confirm_activity()
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)

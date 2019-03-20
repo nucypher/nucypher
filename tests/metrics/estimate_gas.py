@@ -43,11 +43,6 @@ from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILog
 from zope.interface import provider
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import (
-    MIN_ALLOWED_LOCKED,
-    MIN_LOCKED_PERIODS,
-    POLICY_ID_LENGTH
-)
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 

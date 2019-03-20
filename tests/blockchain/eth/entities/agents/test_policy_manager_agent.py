@@ -132,14 +132,14 @@ def test_collect_refund(testerchain, three_agents, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, three_agents, policy_meta):
+def test_collect_policy_reward(testerchain, three_agents, policy_meta, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = policy_agent
 
     ursula = policy_meta.addresses[-1]
     old_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(ursula)
 
-    for _ in range(MIN_LOCKED_PERIODS):
+    for _ in range(token_economics.minimum_locked_periods):
         _txhash = miner_agent.confirm_activity(node_address=ursula)
         testerchain.time_travel(periods=1)
 
