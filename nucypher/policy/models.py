@@ -41,8 +41,8 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.crypto.signing import Signature, InvalidSignature
-from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
 from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
@@ -537,6 +537,21 @@ class WorkOrder:
     class NotFromBob(InvalidSignature):
         def __init__(self):
             super().__init__("This doesn't appear to be from Bob.")
+
+    class WorkItem:
+
+        def __init__(self, capsule, signature):
+            self.capsule = capsule
+            self.signature = signature
+
+        def __bytes__(self):
+            return bytes(self.capsule) + bytes(self.signature)
+
+        @classmethod
+        def from_bytes(cls, data: bytes):
+            item_splitter = capsule_splitter + signature_splitter
+            capsule, signature = item_splitter(data)
+            return cls(capsule=capsule, signature=signature)
 
     def __init__(self,
                  bob: Bob,
