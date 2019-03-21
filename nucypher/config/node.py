@@ -379,6 +379,15 @@ class NodeConfiguration(ABC):
         # Read from disk
         payload = cls._read_configuration_file(filepath=filepath)
 
+        # Sanity check
+        try:
+            checksum_address = payload['checksum_public_address']
+        except KeyError:
+            raise cls.ConfigurationError(f"No checksum address specified in configuration file {filepath}")
+        else:
+            if not eth_utils.is_checksum_address(checksum_address):
+                raise cls.ConfigurationError(f"Address: '{checksum_address}', specified in {filepath} is not a valid checksum address.")
+
         # Initialize NodeStorage subclass from file (sub-configuration)
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
@@ -554,7 +563,6 @@ class NodeConfiguration(ABC):
 
             # Keyring
             if not self.dev_mode:
-                os.mkdir(self.keyring_dir, mode=0o700)
                 if not os.path.isdir(self.keyring_dir):
                     os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point: COS
                 self.write_keyring(password=password)

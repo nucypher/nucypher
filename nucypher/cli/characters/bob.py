@@ -70,7 +70,7 @@ def bob(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_bob_config = BobConfiguration.generate(password=click_config._get_password(confirm=True),
+        new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
                                                    config_root=config_root or click_config,
                                                    rest_host="localhost",
                                                    domains={network} if network else None,

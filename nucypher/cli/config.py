@@ -89,7 +89,7 @@ class NucypherClickConfig:
             self.blockchain = character_configuration.blockchain
             self.accounts = self.blockchain.interface.w3.eth.accounts
 
-    def _get_password(self, confirm: bool =False) -> str:
+    def get_password(self, confirm: bool =False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
 
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
@@ -103,7 +103,7 @@ class NucypherClickConfig:
         try:  # Unlock Keyring
             if not self.quiet:
                 self.emit('Decrypting keyring...', fg='blue')
-            character_configuration.keyring.unlock(password=self._get_password())  # Takes ~3 seconds, ~1GB Ram
+            character_configuration.keyring.unlock(password=self.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 

@@ -2,6 +2,7 @@ import os
 
 import click
 
+from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
@@ -20,7 +21,7 @@ from nucypher.config.characters import FelixConfiguration
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
@@ -46,6 +47,9 @@ def felix(click_config,
           registry_filepath,
           force):
 
+    if not click_config.quiet:
+        click.secho(FELIX_BANNER.format(checksum_address or ''))
+
     if action == "init":
         """Create a brand-new Felix"""
 
@@ -53,10 +57,14 @@ def felix(click_config,
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
+        # Validate "Init" Input
+        if not checksum_address:
+            raise click.BadArgumentUsage('--checksum-address is required to initialize a new Felix configuration.')
+
         # Acquire Keyring Password
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
-        new_password = click_config._get_password(confirm=True)
+        new_password = click_config.get_password(confirm=True)
 
         new_felix_config = FelixConfiguration.generate(password=new_password,
                                                        config_root=config_root,
@@ -140,7 +148,7 @@ ETH ........ {str(eth_balance)}
         return
 
     elif action == 'run':     # Start web services
-        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True)
+        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True, crash_on_error=click_config.debug)
 
     else:                     # Error
         raise click.BadArgumentUsage("No such argument {}".format(action))

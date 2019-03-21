@@ -1,11 +1,14 @@
 import os
 
 import pytest_twisted
+from sqlalchemy import create_engine
 from twisted.internet import threads
 
+from nucypher.characters.chaotic import Felix
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
+from nucypher.keystore.threading import ThreadedSession
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
@@ -36,6 +39,7 @@ def test_run_felix(click_runner, federated_ursulas, mock_primary_registry_filepa
 
     # Felix creates a system configuration
     init_args = ('felix', 'init',
+                 '--checksum-address', testerchain.interface.w3.eth.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
                  '--no-registry',
@@ -56,7 +60,8 @@ def test_run_felix(click_runner, federated_ursulas, mock_primary_registry_filepa
 
     # Felix Runs Web Services
     def run_felix():
-        args = ('felix', 'run',
+        args = ('--debug',
+                'felix', 'run',
                 '--config-file', configuration_file_location,
                 '--provider-uri', TEST_PROVIDER_URI,
                 '--dry-run',

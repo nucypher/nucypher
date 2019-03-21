@@ -78,7 +78,7 @@ def alice(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_alice_config = AliceConfiguration.generate(password=click_config._get_password(confirm=True),
+        new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
                                                        config_root=config_root,
                                                        rest_host="localhost",
                                                        domains={network} if network else None,
