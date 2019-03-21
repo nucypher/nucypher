@@ -133,7 +133,7 @@ contract ContractV2 is ContractInterface, Upgradeable {
         return mappingStructures[_index].arrayValues;
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         require(delegateGet(_testTarget, "storageValue()") == storageValue);
         bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
         require(value.length == bytes(dynamicallySizedValue).length &&
@@ -222,7 +222,7 @@ contract ContractV2 is ContractInterface, Upgradeable {
         }
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
         storageValueToCheck = ContractV2(_target).storageValueToCheck();
     }
 

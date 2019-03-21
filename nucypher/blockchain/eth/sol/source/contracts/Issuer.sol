@@ -173,7 +173,7 @@ contract Issuer is Upgradeable {
         return totalSupply - Math.max(currentSupply1, currentSupply2);
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
         require(delegateGet(_testTarget, "miningCoefficient()") == miningCoefficient);
         require(delegateGet(_testTarget, "lockedPeriodsCoefficient()") == lockedPeriodsCoefficient);
@@ -185,7 +185,7 @@ contract Issuer is Upgradeable {
         require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
         Issuer issuer = Issuer(_target);
         token = issuer.token();
         miningCoefficient = issuer.miningCoefficient();

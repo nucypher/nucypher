@@ -78,12 +78,12 @@ contract MinersEscrowV2Mock is MinersEscrow {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
         MinersEscrowV2Mock escrow = MinersEscrowV2Mock(_target);
         valueToCheck = escrow.valueToCheck();
     }

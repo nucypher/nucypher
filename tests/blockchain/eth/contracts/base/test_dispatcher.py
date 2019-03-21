@@ -62,6 +62,17 @@ def test_dispatcher(testerchain):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
 
+    # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.verifyState(contract1_lib.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract1_lib.functions.finishUpgrade(contract1_lib.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract1_lib.functions.verifyState(contract1_lib.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     # Check values and methods before upgrade
     assert 1 == contract_instance.functions.getStorageValue().call()
     assert 10 == contract_instance.functions.returnValue().call()

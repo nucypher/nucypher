@@ -13,10 +13,9 @@ import "zeppelin/ownership/Ownable.sol";
 contract Upgradeable is Ownable {
 
     /**
-    * @dev Contracts at the target must reserve the first location in storage for this address as
-    * they will be called through this contract.
-    * Stored data actually lives in the Dispatcher.
-    * However the storage layout is specified here in the implementing contracts.
+    * @dev Contracts at the target must reserve the same location in storage for this address as in Dispatcher
+    * Stored data actually lives in the Dispatcher
+    * However the storage layout is specified here in the implementing contracts
     **/
     address public target;
 
@@ -31,16 +30,35 @@ contract Upgradeable is Ownable {
     bytes32 public secretHash;
 
     /**
+    * @dev Upgrade status. Explicit `uint8` type is used instead of `bool` to save gas by excluding 0 value
+    **/
+    uint8 isUpgrade;
+
+    /** Constants for `isUpgrade` field **/
+    uint8 constant UPGRADE_FALSE = 1;
+    uint8 constant UPGRADE_TRUE = 2;
+
+    /**
+    * @dev Checks that function executed while upgrading
+    * Recommended to add to `verifyState` and `finishUpgrade` methods
+    **/
+    modifier onlyWhileUpgrading()
+    {
+        require(isUpgrade == UPGRADE_TRUE);
+        _;
+    }
+
+    /**
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     **/
-    function verifyState(address _testTarget) public /*onlyOwner*/;
+    function verifyState(address _testTarget) public /*onlyWhileUpgrading*/;
 
     /**
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     **/
-    function finishUpgrade(address _target) public /*onlyOwner*/;
+    function finishUpgrade(address _target) public /*onlyWhileUpgrading*/;
 
     /**
     * @dev Base method to get data

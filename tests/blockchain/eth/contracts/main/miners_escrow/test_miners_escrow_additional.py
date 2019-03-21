@@ -71,6 +71,14 @@ def test_upgrading(testerchain, token):
         ContractFactoryClass=Contract)
     assert 1500 == contract.functions.maxAllowableLockedTokens().call()
 
+    # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.finishUpgrade(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     # Initialize contract and miner
     policy_manager, _ = testerchain.interface.deploy_contract(
         'PolicyManagerForMinersEscrowMock', token.address, contract.address

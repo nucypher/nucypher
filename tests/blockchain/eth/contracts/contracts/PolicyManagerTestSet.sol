@@ -34,7 +34,7 @@ contract PolicyManagerV2Mock is PolicyManager {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
     }

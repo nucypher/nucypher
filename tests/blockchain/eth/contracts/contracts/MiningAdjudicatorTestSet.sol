@@ -57,8 +57,8 @@ contract MiningAdjudicatorBad is Upgradeable {
     mapping (bytes32 => bool) public evaluatedCFrags;
     mapping (address => uint256) public penaltyHistory;
 
-    function verifyState(address) public onlyOwner {}
-    function finishUpgrade(address) public onlyOwner {}
+    function verifyState(address) public {}
+    function finishUpgrade(address) public {}
 
 }
 
@@ -94,7 +94,7 @@ contract MiningAdjudicatorV2Mock is MiningAdjudicator {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         super.verifyState(_testTarget);
         require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
     }

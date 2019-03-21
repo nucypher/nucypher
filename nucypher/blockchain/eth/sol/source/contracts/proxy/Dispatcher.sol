@@ -15,10 +15,20 @@ contract Dispatcher is Upgradeable {
     event RolledBack(address indexed from, address indexed to, address owner);
 
     /**
+    * @dev Set upgrading status before and after operations
+    **/
+    modifier upgrading()
+    {
+        isUpgrade = UPGRADE_TRUE;
+        _;
+        isUpgrade = UPGRADE_FALSE;
+    }
+
+    /**
     * @param _target Target contract address
     * @param _newSecretHash Secret hash (keccak256)
     **/
-    constructor(address _target, bytes32 _newSecretHash) public {
+    constructor(address _target, bytes32 _newSecretHash) public upgrading {
         require(_target != address(0));
         target = _target;
         secretHash = _newSecretHash;
@@ -33,7 +43,7 @@ contract Dispatcher is Upgradeable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
-    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
+    function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         verifyState(_target);
         verifyUpgradeableState(target, _target);
@@ -45,7 +55,7 @@ contract Dispatcher is Upgradeable {
         emit Upgraded(previousTarget, _target, msg.sender);
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         //checks equivalence accessing target through new contract and current storage
         require(address(uint160(delegateGet(_testTarget, "owner()"))) == owner());
         require(address(uint160(delegateGet(_testTarget, "target()"))) == target);
@@ -59,7 +69,7 @@ contract Dispatcher is Upgradeable {
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
-    function rollback(bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
+    function rollback(bytes memory _secret, bytes32 _newSecretHash) public onlyOwner upgrading {
         require(previousTarget != address(0));
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         emit RolledBack(target, previousTarget, msg.sender);
@@ -74,7 +84,7 @@ contract Dispatcher is Upgradeable {
     /**
     * @dev Call verifyState method for Upgradeable contract
     **/
-    function verifyUpgradeableState(address _from, address _to) internal {
+    function verifyUpgradeableState(address _from, address _to) private {
         (bool callSuccess,) = _from.delegatecall(abi.encodeWithSignature("verifyState(address)", _to));
         require(callSuccess);
     }

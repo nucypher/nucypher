@@ -160,7 +160,7 @@ contract MiningAdjudicator is Upgradeable {
         }
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
         require(delegateGet(_testTarget, "basePenalty()") == basePenalty);
@@ -174,7 +174,7 @@ contract MiningAdjudicator is Upgradeable {
         require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != 0);
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
         MiningAdjudicator targetContract = MiningAdjudicator(_target);
         escrow = targetContract.escrow();
         hashAlgorithm = targetContract.hashAlgorithm();
