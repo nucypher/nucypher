@@ -1,13 +1,13 @@
 import json
 import os
-import time
-
-import eth_utils
-from datetime import datetime, timedelta
 
 import click
+import eth_utils
 import math
 import maya
+import time
+from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
+from datetime import datetime, timedelta
 from flask import Flask, render_template, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -21,16 +21,14 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD, NULL_ADDRESS
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
-from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE, NEW_RECIPIENT
-from nucypher.blockchain.eth.token import NU
 
 
 class Moe(Character):
@@ -174,7 +172,7 @@ class Felix(Character, NucypherTokenActor):
         # Database
         self.db_filepath = db_filepath
         self.db = NO_DATABASE_AVAILABLE
-        self.engine = create_engine(f'sqlite://{self.db_filepath}', convert_unicode=True)
+        self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
@@ -229,50 +227,67 @@ class Felix(Character, NucypherTokenActor):
 
             id = self.db.Column(self.db.Integer, primary_key=True)
             address = self.db.Column(self.db.String, unique=True, nullable=False)
-            joined = self.db.Column(self.db.DateTime, nullable=False)
+            joined = self.db.Column(self.db.DateTime, nullable=False, default=datetime.utcnow)
             total_received = self.db.Column(self.db.String, default='0', nullable=False)
-            last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=NEW_RECIPIENT)
-            last_disbursement_time = self.db.Column(self.db.DateTime, nullable=False, default=NEW_RECIPIENT)
+            last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=0)
+            last_disbursement_time = self.db.Column(self.db.DateTime, nullable=True, default=None)
             is_staking = self.db.Column(self.db.Boolean, nullable=False, default=False)
 
             def __repr__(self):
-                class_name = self.__class__.__name__
-                return f"{class_name}(address={self.address}, amount_received={self.total_received})"
+                return f'{self.__class__.__name__}(id={self.id})'
 
         self.Recipient = Recipient  # Bind to outer class
-        rest_app = self.rest_app    # Decorator
+
+        # Flask decorators
+        rest_app = self.rest_app
+        limiter = Limiter(self.rest_app, key_func=get_remote_address, headers_enabled=True)
 
         #
         # REST Routes
         #
 
         @rest_app.route("/", methods=['GET'])
+        @limiter.limit("100/day;20/hour;1/minute")
         def home():
-            return render_template(self.TEMPLATE_NAME)
+            rendering = render_template(self.TEMPLATE_NAME)
+            return rendering
 
         @rest_app.route("/register", methods=['POST'])
+        @limiter.limit("5 per day")
         def register():
             """Handle new recipient registration via POST request."""
             try:
                 new_address = request.form['address']
+            except KeyError:
+                return Response(status=400)  # TODO
 
-                existing = Recipient.query.filter_by(address=new_address).all()
-                if existing:
-                    # Address already exists; Abort
-                    return Response(status=400)
+            if not eth_utils.is_checksum_address(new_address):
+                return Response(status=400)  # TODO
 
-                # Create the record
-                recipient = Recipient(address=new_address, joined=datetime.now())
-                self.db.session.add(recipient)
-                self.db.session.commit()
+            if new_address in self.reserved_addresses:
+                return Response(status=400)  # TODO
+
+            try:
+                with ThreadedSession(self.db_engine) as session:
+
+                    existing = Recipient.query.filter_by(address=new_address).all()
+                    if existing:
+                        # Address already exists; Abort
+                        self.log.debug(f"{new_address} is already enrolled.")
+                        return Response(status=400)
+
+                    # Create the record
+                    recipient = Recipient(address=new_address, joined=datetime.now())
+                    session.add(recipient)
+                    session.commit()
 
             except Exception as e:
                 # Pass along exceptions to the logger
                 self.log.critical(str(e))
-                if self.crash_on_error:
-                    raise
+                raise
 
-            return Response(status=200)
+            else:
+                return Response(status=200)  # TODO
 
         return rest_app
 
@@ -283,7 +298,10 @@ class Felix(Character, NucypherTokenActor):
               host: str,
               port: int,
               web_services: bool = True,
-              distribution: bool = True):
+              distribution: bool = True,
+              crash_on_error: bool = False):
+
+        self.crash_on_error = crash_on_error
 
         if self.start_time is not NOT_RUNNING:
             raise RuntimeError("Felix is already running.")
@@ -362,12 +380,36 @@ class Felix(Character, NucypherTokenActor):
         since = datetime.now() - timedelta(hours=self.DISBURSEMENT_INTERVAL)
 
         datetime_filter = or_(self.Recipient.last_disbursement_time <= since,
-                              self.Recipient.last_disbursement_time == NEW_RECIPIENT)
+                              self.Recipient.last_disbursement_time == None)
 
-        candidates = self.Recipient.query.filter(datetime_filter).all()
+        with ThreadedSession(self.db_engine) as session:
+            candidates = session.query(self.Recipient).filter(datetime_filter).all()
+            if not candidates:
+                self.log.info("No eligible recipients this round.")
+                return
+
+        # Discard invalid addresses, in-depth
+        invalid_addresses = list()
+
+        def siphon_invalid_entries(candidate):
+            address_is_valid = eth_utils.is_checksum_address(candidate.address)
+            if address_is_valid:
+                invalid_addresses.append(candidate.address)
+
+            return address_is_valid
+        candidates = list(filter(siphon_invalid_entries, candidates))
+
+        if invalid_addresses:
+            self.log.info(f"{len(invalid_addresses)} invalid entries detected.")
+
         if not candidates:
             self.log.info("No eligible recipients this round.")
             return
+
+        d = threads.deferToThread(self.__do_airdrop, candidates=candidates)
+        return d
+
+    def __do_airdrop(self, candidates: list):
 
         self.log.info(f"Staging Airdrop #{self.__airdrop}.")
 
@@ -376,10 +418,16 @@ class Felix(Character, NucypherTokenActor):
         batches = list(staged_disbursements[index:index+self.BATCH_SIZE] for index in range(0, len(staged_disbursements), self.BATCH_SIZE))
         total_batches = len(batches)
 
-        self.log.info("====== Staged Stage ======")
+        self.log.info("====== Staged Airdrop ======")
         for recipient, disbursement in staged_disbursements:
             self.log.info(f"{recipient.address} ... {str(disbursement)[:-18]}")
         self.log.info("==========================")
+
+        self.log.info(f"Airdrop will commence in {self.STAGING_DELAY} seconds...")
+        time.sleep(self.STAGING_DELAY - 3)
+        for i in range(3):
+           time.sleep(1)
+           self.log.info(f"NU Token airdrop starting in {3 - i} seconds...")
 
         # Slowly, in series...
         for batch, staged_disbursement in enumerate(batches, start=1):
