@@ -541,6 +541,13 @@ class WorkOrder:
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
             self.reencryption_signature = reencryption_signature
 
+        def get_specification(self, ursula_pubkey, alice_address, blockhash):
+            task_specification = (bytes(self.capsule),
+                                  bytes(ursula_pubkey),
+                                  alice_address,
+                                  blockhash)
+            return b''.join(task_specification)
+
         def __bytes__(self):
             data = bytes(self.capsule) + bytes(self.signature)
             if self.cfrag and self.reencryption_signature:
@@ -601,24 +608,19 @@ class WorkOrder:
         # TODO: Bob's input to prove freshness for this work order
         blockhash = b'\x00' * 32
 
-        tasks = []
+        tasks, tasks_bytes = [], []
         for capsule in capsules:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
 
-            task_specification = (bytes(capsule),
-                                  bytes(ursula.stamp),
-                                  alice_address,
-                                  blockhash)
-
-            signature = bob.stamp(b''.join(task_specification))
-
-            task = cls.Task(capsule, signature)
+            task = cls.Task(capsule, signature=None)
+            specification = task.get_specification(ursula.stamp, alice_address, blockhash)
+            task.signature = bob.stamp(specification)
             tasks.append(task)
+            tasks_bytes.append(bytes(task))
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + \
-                        msgpack.dumps([bytes(task) for task in tasks])
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -647,12 +649,8 @@ class WorkOrder:
             tasks.append(task)
 
             # Each task signature has to match the original specification
-            task_specification = (bytes(task.capsule),
-                                  ursula_pubkey_bytes,
-                                  alice_address,
-                                  blockhash)
-            task_specification = b''.join(task_specification)
-            if not task.signature.verify(task_specification, bob_pubkey_sig):
+            specification = task.get_specification(ursula_pubkey_bytes, alice_address, blockhash)
+            if not task.signature.verify(specification, bob_pubkey_sig):
                 raise InvalidSignature()
 
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
