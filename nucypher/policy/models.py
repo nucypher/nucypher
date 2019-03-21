@@ -679,14 +679,15 @@ class WorkOrder:
             metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
             if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
-                raise InvalidSignature("Invalid metadata for {}.".format(cfrag))
+                raise InvalidSignature(f"Invalid metadata for {cfrag}.")
+                # TODO: Instead of raising, we should do something
 
             # Validate re-encryption signatures
-            if reencryption_signature.verify(bytes(task.signature) + bytes(cfrag),
-                                             ursula_verifying_key):
+            if reencryption_signature.verify(bytes(cfrag), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
-                raise InvalidSignature("{} is not properly signed by Ursula.".format(cfrag))
+                raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
+                # TODO: Instead of raising, we should do something
 
         for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
             task.attach_work_result(cfrag, reencryption_signature)

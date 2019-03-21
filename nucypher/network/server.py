@@ -334,7 +334,9 @@ def make_rest_app(
             capsule.set_correctness_keys(verifying=alices_verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
             log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-            reencryption_signature = stamp(bytes(task.signature) + bytes(cfrag))
+
+            # Finally, Ursula commits to her result
+            reencryption_signature = stamp(bytes(cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
 
         # TODO: Put this in Ursula's datastore
