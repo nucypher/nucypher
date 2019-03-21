@@ -61,6 +61,7 @@ contract Dispatcher is Upgradeable {
         require(address(uint160(delegateGet(_testTarget, "target()"))) == target);
         require(address(uint160(delegateGet(_testTarget, "previousTarget()"))) == previousTarget);
         require(bytes32(delegateGet(_testTarget, "secretHash()")) == secretHash);
+        require(uint8(delegateGet(_testTarget, "isUpgrade()")) == isUpgrade);
     }
 
     /**

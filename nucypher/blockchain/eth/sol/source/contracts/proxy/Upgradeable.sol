@@ -12,6 +12,9 @@ import "zeppelin/ownership/Ownable.sol";
 **/
 contract Upgradeable is Ownable {
 
+    event StateVerified(address indexed testTarget, address sender);
+    event UpgradeFinished(address indexed target, address sender);
+
     /**
     * @dev Contracts at the target must reserve the same location in storage for this address as in Dispatcher
     * Stored data actually lives in the Dispatcher
@@ -32,7 +35,7 @@ contract Upgradeable is Ownable {
     /**
     * @dev Upgrade status. Explicit `uint8` type is used instead of `bool` to save gas by excluding 0 value
     **/
-    uint8 isUpgrade;
+    uint8 public isUpgrade;
 
     /** Constants for `isUpgrade` field **/
     uint8 constant UPGRADE_FALSE = 1;
@@ -52,13 +55,17 @@ contract Upgradeable is Ownable {
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     **/
-    function verifyState(address _testTarget) public /*onlyWhileUpgrading*/;
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
+        emit StateVerified(_testTarget, msg.sender);
+    }
 
     /**
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     **/
-    function finishUpgrade(address _target) public /*onlyWhileUpgrading*/;
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
+        emit UpgradeFinished(_target, msg.sender);
+    }
 
     /**
     * @dev Base method to get data

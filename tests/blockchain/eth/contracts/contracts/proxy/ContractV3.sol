@@ -18,7 +18,7 @@ contract ContractV3 is ContractV2 {
         anotherStorageValue = _value * 2;
     }
 
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "anotherStorageValue()") == anotherStorageValue);
     }

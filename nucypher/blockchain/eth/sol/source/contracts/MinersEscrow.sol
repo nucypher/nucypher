@@ -1165,7 +1165,7 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
@@ -1211,7 +1211,7 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    function finishUpgrade(address _target) public onlyWhileUpgrading {
+    function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         MinersEscrow escrow = MinersEscrow(_target);
         minLockedPeriods = escrow.minLockedPeriods();

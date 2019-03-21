@@ -44,9 +44,11 @@ def test_dispatcher(testerchain):
     contract3_lib, _ = testerchain.interface.deploy_contract('ContractV3', 2)
     contract2_bad_lib, _ = testerchain.interface.deploy_contract('ContractV2Bad')
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+    assert contract1_lib.address == dispatcher.functions.target().call()
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
-    assert contract1_lib.address == dispatcher.functions.target().call()
+    state_verifications = dispatcher.events.StateVerified.createFilter(fromBlock=0)
+    upgrade_finishings = dispatcher.events.UpgradeFinished.createFilter(fromBlock=0)
 
     events = upgrades.get_all_entries()
     assert 1 == len(events)
@@ -54,6 +56,12 @@ def test_dispatcher(testerchain):
     assert '0x' + '0' * 40 == event_args['from']
     assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
+
+    events = upgrade_finishings.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert contract1_lib.address == event_args['target']
+    assert creator == event_args['sender']
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
@@ -137,11 +145,22 @@ def test_dispatcher(testerchain):
 
     events = upgrades.get_all_entries()
     assert 2 == len(events)
-
     event_args = events[1]['args']
     assert contract1_lib.address == event_args['from']
     assert contract2_lib.address == event_args['to']
     assert creator == event_args['owner']
+
+    events = state_verifications.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert contract2_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = upgrade_finishings.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert contract2_lib.address == event_args['target']
+    assert creator == event_args['sender']
 
     # Check values and methods after upgrade
     assert 20 == contract_instance.functions.returnValue().call()
@@ -237,6 +256,18 @@ def test_dispatcher(testerchain):
     assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
 
+    events = state_verifications.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert contract2_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = upgrade_finishings.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert contract1_lib.address == event_args['target']
+    assert creator == event_args['sender']
+
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address, secret3, secret_hash).transact({'from': creator})
@@ -286,8 +317,6 @@ def test_dispatcher(testerchain):
     assert 2 == contract_instance.functions.storageValueToCheck().call()
     assert 'Hello' == contract_instance.functions.getDynamicallySizedValue().call()
 
-    # bug? with duplicate entries
-    upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     events = upgrades.get_all_entries()
     assert 4 == len(events)
     event_args = events[2]['args']
@@ -298,6 +327,24 @@ def test_dispatcher(testerchain):
     assert contract2_lib.address == event_args['from']
     assert contract3_lib.address == event_args['to']
     assert creator == event_args['owner']
+
+    events = state_verifications.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[2]['args']
+    assert contract2_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    event_args = events[3]['args']
+    assert contract3_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = upgrade_finishings.get_all_entries()
+    assert 5 == len(events)
+    event_args = events[3]['args']
+    assert contract2_lib.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[4]['args']
+    assert contract3_lib.address == event_args['target']
+    assert creator == event_args['sender']
 
     # Create and check events
     tx = contract_instance.functions.createEvent(22).transact({'from': creator})

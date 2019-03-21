@@ -499,7 +499,8 @@ contract PolicyManager is Upgradeable {
         }
     }
 
-    function verifyState(address _testTarget) public onlyWhileUpgrading {
+    function verifyState(address _testTarget) public {
+        super.verifyState(_testTarget);
         require(address(uint160(delegateGet(_testTarget, "escrow()"))) == address(escrow));
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         Policy storage policy = policies[RESERVED_POLICY_ID];
@@ -531,7 +532,8 @@ contract PolicyManager is Upgradeable {
             bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.rewardDelta[11]);
     }
 
-    function finishUpgrade(address _target) public onlyWhileUpgrading {
+    function finishUpgrade(address _target) public {
+        super.finishUpgrade(_target);
         PolicyManager policyManager = PolicyManager(_target);
         escrow = policyManager.escrow();
         secondsPerPeriod = policyManager.secondsPerPeriod();
