@@ -18,14 +18,18 @@ from nucypher.utilities.sandbox.constants import (
 
 
 @pytest_twisted.inlineCallbacks
-def test_run_felix(click_runner, federated_ursulas, mock_primary_registry_filepath):
+def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_registry_filepath):
+
+    Felix.DISTRIBUTION_INTERVAL = 5     # seconds
+    Felix.DISBURSEMENT_INTERVAL = 0.01  # hours
 
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
+               'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
+               'FLASK_DEBUG': '1'}
 
     # Deploy contracts
     deploy_args = ('contracts',
