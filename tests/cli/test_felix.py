@@ -1,14 +1,15 @@
 import os
 
 import pytest_twisted
-from sqlalchemy import create_engine
 from twisted.internet import threads
+from twisted.internet.task import Clock
 
+from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.keystore.threading import ThreadedSession
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
@@ -20,8 +21,11 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_registry_filepath):
 
+    clock = Clock()
+    Felix._CLOCK = clock
     Felix.DISTRIBUTION_INTERVAL = 5     # seconds
     Felix.DISBURSEMENT_INTERVAL = 0.01  # hours
+    Felix.STAGING_DELAY = 2  # seconds
 
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
@@ -92,12 +96,30 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
         assert response.status_code == 200
 
         # Register a new recipient
-        response = test_client.post('/register', data={'address': felix.blockchain.interface.w3.eth.accounts[0]})
+        response = test_client.post('/register', data={'address': felix.blockchain.interface.w3.eth.accounts[-1]})
         assert response.status_code == 200
 
         return
 
+    def time_travel(_result):
+        clock.advance(amount=60)
+
     # Run the callbacks
     d = threads.deferToThread(run_felix)
     d.addCallback(request_felix_landing_page)
+    d.addCallback(time_travel)
+
     yield d
+
+    def confirm_airdrop(_results):
+        recipient = testerchain.interface.w3.eth.accounts[-1]
+        miner = Miner(checksum_address=recipient,
+                      blockchain=testerchain,
+                      is_me=True)
+
+        assert miner.token_balance == NU(15000, 'NU')
+
+    staged_airdrops = Felix._AIRDROP_QUEUE
+    next_airdrop = staged_airdrops[0]
+    next_airdrop.addCallback(confirm_airdrop)
+    yield next_airdrop

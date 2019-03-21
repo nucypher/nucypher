@@ -103,7 +103,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address, 'gas': 40000})  # TODO #413: needed for use with geth.
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})  # TODO #413: gas needed for use with geth.
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 

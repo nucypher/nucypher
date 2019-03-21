@@ -13,7 +13,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
-from twisted.internet import threads
+from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
@@ -149,6 +149,10 @@ class Felix(Character, NucypherTokenActor):
     _LONG_LEARNING_DELAY = 120                 # seconds
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 1
 
+    # Twisted
+    _CLOCK = reactor
+    _AIRDROP_QUEUE = dict()
+
     class NoDatabase(RuntimeError):
         pass
 
@@ -186,7 +190,8 @@ class Felix(Character, NucypherTokenActor):
         self.__distributed = 0    # Track NU Output
         self.__airdrop = 0        # Track Batch
         self.__disbursement = 0   # Track Quantity
-        self._distribution_task = LoopingCall(self.airdrop_tokens)
+        self._distribution_task = LoopingCall(f=self.airdrop_tokens)
+        self._distribution_task.clock = self._CLOCK
         self.start_time = NOT_RUNNING
 
         # Banner
@@ -407,6 +412,7 @@ class Felix(Character, NucypherTokenActor):
             return
 
         d = threads.deferToThread(self.__do_airdrop, candidates=candidates)
+        self._AIRDROP_QUEUE[self.__airdrop] = d
         return d
 
     def __do_airdrop(self, candidates: list):
@@ -423,11 +429,13 @@ class Felix(Character, NucypherTokenActor):
             self.log.info(f"{recipient.address} ... {str(disbursement)[:-18]}")
         self.log.info("==========================")
 
+        # Staging Delay
         self.log.info(f"Airdrop will commence in {self.STAGING_DELAY} seconds...")
-        time.sleep(self.STAGING_DELAY - 3)
+        if self.STAGING_DELAY > 3:
+            time.sleep(self.STAGING_DELAY - 3)
         for i in range(3):
-           time.sleep(1)
-           self.log.info(f"NU Token airdrop starting in {3 - i} seconds...")
+            time.sleep(1)
+            self.log.info(f"NU Token airdrop starting in {3 - i} seconds...")
 
         # Slowly, in series...
         for batch, staged_disbursement in enumerate(batches, start=1):
@@ -454,5 +462,7 @@ class Felix(Character, NucypherTokenActor):
         now = maya.now()
         next_interval_slang = now.add(seconds=self.DISTRIBUTION_INTERVAL).slang_time()
         self.log.info(f"Completed Airdrop #{self.__airdrop}; Next airdrop is {next_interval_slang}.")
+
+        del self._AIRDROP_QUEUE[self.__airdrop]
         self.__airdrop += 1
 
