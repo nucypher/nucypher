@@ -66,6 +66,16 @@ class EthereumContractRegistry:
     def filepath(self):
         return self.__filepath
 
+    @property
+    def enrolled_names(self):
+        entries = iter(record[0] for record in self.read())
+        return entries
+
+    @property
+    def enrolled_addresses(self):
+        entries = iter(record[1] for record in self.read())
+        return entries
+
     def _swap_registry(self, filepath: str) -> bool:
         self.__filepath = filepath
         return True

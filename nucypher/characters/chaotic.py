@@ -1,26 +1,36 @@
 import json
 import os
+import time
+
+import eth_utils
 from datetime import datetime, timedelta
 
 import click
 import math
 import maya
 from flask import Flask, render_template, Response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
+from twisted.internet import threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
+from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD, NULL_ADDRESS
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
+from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE, NEW_RECIPIENT
+from nucypher.blockchain.eth.token import NU
 
 
 class Moe(Character):
@@ -168,6 +178,11 @@ class Felix(Character, NucypherTokenActor):
 
         # Blockchain
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.reserved_addresses = [self.checksum_public_address, NULL_ADDRESS]
+
+        # Update reserved addresses with deployed contracts
+        existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
+        self.reserved_addresses.extend(existing_entries)
 
         # Distribution
         self.__distributed = 0    # Track NU Output
