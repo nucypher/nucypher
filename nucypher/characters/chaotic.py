@@ -108,7 +108,7 @@ class Moe(Character):
             deployer.run()
 
 
-class Felix(Character):
+class Felix(Character, NucypherTokenActor):
     """
     A NuCypher ERC20 faucet / Airdrop scheduler.
 
@@ -124,11 +124,14 @@ class Felix(Character):
 
     DISTRIBUTION_INTERVAL = 60*60              # seconds (60*60=1Hr)
     DISBURSEMENT_INTERVAL = HOURS_PER_PERIOD   # (24) hours
+    STAGING_DELAY = 10  # seconds
+
     BATCH_SIZE = 10                            # transactions
     MULTIPLIER = 0.95                          # 5% reduction of previous stake is 0.95, for example
-    MAXIMUM_DISBURSEMENT = MAX_ALLOWED_LOCKED  # NU-wei
-    INITIAL_DISBURSEMENT = MIN_ALLOWED_LOCKED  # NU-wei
-    MINIMUM_DISBURSEMENT = 1e18                # NU-wei
+    MAXIMUM_DISBURSEMENT = MAX_ALLOWED_LOCKED  # NuNits
+    INITIAL_DISBURSEMENT = MIN_ALLOWED_LOCKED  # NuNits
+    MINIMUM_DISBURSEMENT = 1e18                # NuNits
+    # TRANSACTION_GAS = 40000                    # gas  TODO
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -322,7 +325,7 @@ class Felix(Character):
                                            sender_address=self.checksum_public_address)
 
         self.log.info(f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} | "
-                      f"({str(disbursement)[:-18]} NU) -> {recipient_address}")
+                      f"({str(NU(disbursement, 'NuNit'))}) -> {recipient_address}")
         return txhash
 
     def airdrop_tokens(self):
@@ -331,9 +334,11 @@ class Felix(Character):
         and transfer tokens to selected recipients.
         """
 
-        population = self.Recipient.query.count()
+        with ThreadedSession(self.db_engine) as session:
+            population = session.query(self.Recipient).count()
+
         message = f"{population} registered faucet recipients; " \
-                  f"Distributed {str(self.__distributed)[:-18] or 0} NU since {self.start_time.slang_time()}."
+                  f"Distributed {str(NU(self.__distributed, 'NuNit'))} since {self.start_time.slang_time()}."
         self.log.debug(message)
         if population is 0:
             return  # Abort - no recipients are registered.

@@ -124,12 +124,12 @@ def felix(click_config,
         click.secho(f"Created new database at {FELIX.db_filepath}")
 
     elif action == 'view':
-        token_balance = FELIX.token_agent.get_balance(address=FELIX.checksum_public_address)
-        eth_balance = FELIX.token_agent.blockchain.interface.w3.eth.getBalance(FELIX.checksum_public_address)
+        token_balance = FELIX.token_balance
+        eth_balance = FELIX.eth_balance
         click.secho(f"""
-    Address .... {FELIX.checksum_public_address}
-    NU ......... {str(token_balance)[:-18]}
-    ETH ........ {str(eth_balance)[:-18]}
+Address .... {FELIX.checksum_public_address}
+NU ......... {str(token_balance)}
+ETH ........ {str(eth_balance)}
         """)
         return
 

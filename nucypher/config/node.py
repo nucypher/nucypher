@@ -20,6 +20,8 @@ import binascii
 import json
 import os
 import secrets
+
+import eth_utils
 import shutil
 import string
 from abc import ABC
