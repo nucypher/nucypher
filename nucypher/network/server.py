@@ -193,7 +193,7 @@ def make_rest_app(
                     # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     # TODO: Maybe also record the bytes representation separately to disk?
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Announced via REST."
+                    message = f"Suspicious Activity: Discovered node with bad signature: {node}.  Announced via REST."
                     log.warn(message)
                     suspicious_activity_tracker['vladimirs'].append(node)
 
