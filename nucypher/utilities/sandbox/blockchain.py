@@ -64,7 +64,9 @@ class TesterBlockchain(Blockchain):
     _PROVIDER_URI = 'tester://pyevm'
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
-    _default_test_accounts = 10
+
+    # An account for each Ursula and a few extra for other actors
+    _default_test_accounts = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK + 5
 
     def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
         if test_accounts is None:
@@ -75,16 +77,11 @@ class TesterBlockchain(Blockchain):
         self.attach_middleware(w3=self.interface.w3, poa=poa)
 
         # Generate additional ethereum accounts for testing
-        population = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
-
+        population = test_accounts
         enough_accounts = len(self.interface.w3.eth.accounts) >= population
-        if test_accounts is not None and not enough_accounts:
-
+        if not enough_accounts:
             accounts_to_make = population - len(self.interface.w3.eth.accounts)
-            test_accounts = test_accounts if test_accounts is not None else population
-
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
-
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
         if airdrop is True:  # ETH for everyone!
