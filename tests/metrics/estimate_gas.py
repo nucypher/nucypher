@@ -43,13 +43,13 @@ from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = TokenEconomics()
-MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
+MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
 MIN_LOCKED_PERIODS = TOKEN_ECONOMICS.minimum_locked_periods
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
 MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_locked_periods
@@ -219,11 +219,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     token_agent = NucypherTokenAgent(blockchain=testerchain)
     miner_agent = MinerAgent(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
+    adjudicator_agent = MiningAdjudicatorAgent()
 
     # Contract Callers
     token_functions = token_agent.contract.functions
     miner_functions = miner_agent.contract.functions
     policy_functions = policy_agent.contract.functions
+    adjudicator_functions = adjudicator_agent.contract.functions
 
     analyzer.start_collection()
     print("********* Estimating Gas *********")
@@ -266,8 +268,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
-    log.info("First initial deposit tokens = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    log.info("First initial deposit tokens = " + str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second initial deposit tokens = " +
