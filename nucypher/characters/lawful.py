@@ -296,7 +296,7 @@ class Alice(Character, PolicyAuthor):
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        # TODO: #289
+        # TODO: 289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < params['n']:
@@ -685,17 +685,32 @@ class Bob(Character):
     def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
-        capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(DecryptingPower),
-            verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        # TODO: Consider blocking until map is done being followed.
+        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
 
-        work_orders = self.generate_work_orders(map_id, capsule)
+        if already_retrieved:
+            if cache:
+                must_do_new_retrieval = False
+            else:
+                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+        else:
+            must_do_new_retrieval = True
+
+        cleartexts = []
+
+        if must_do_new_retrieval:
+            capsule.set_correctness_keys(
+                delegating=data_source.policy_pubkey,
+                receiving=self.public_keys(DecryptingPower),
+                verifying=alice_verifying_key)
+
+            # TODO: Consider blocking until map is done being followed.
+
+            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+            work_orders = work_orders.values()  # TODO: A little pedantic, isn't it?
 
         cleartexts = []
         the_airing_of_grievances = []
