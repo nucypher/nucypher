@@ -561,40 +561,53 @@ class Bob(Character):
     def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
-        capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(DecryptingPower),
-            verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        # TODO: Consider blocking until map is done being followed.
+        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
 
-        work_orders = self.generate_work_orders(map_id, capsule)
+        if already_retrieved:
+            if cache:
+                must_do_new_retrieval = False
+            else:
+                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+        else:
+            must_do_new_retrieval = True
 
         cleartexts = []
-        work_orders = work_orders.values()
-        for work_order in work_orders:
-            try:
-                cfrags = self.get_reencrypted_cfrags(work_order)
-            except requests.exceptions.ConnectTimeout:
-                continue
 
-            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
-            try:
-                message_kit.capsule.attach_cfrag(cfrag)
-                if len(message_kit.capsule._attached_cfrags) >= m:
-                    break
-            except UmbralCorrectnessError:
-                evidence = self.collect_evidence(capsule=capsule,
-                                                 cfrag=cfrag,
-                                                 ursula=work_order.ursula)
+        if must_do_new_retrieval:
+            capsule.set_correctness_keys(
+                delegating=data_source.policy_pubkey,
+                receiving=self.public_keys(DecryptingPower),
+                verifying=alice_verifying_key)
 
-                # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
-                raise self.IncorrectCFragReceived(evidence)
-        else:
-            raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+            # TODO: Consider blocking until map is done being followed.
+
+            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+            work_orders = work_orders.values()  # TODO: A little pedantic, isn't it?
+
+            for work_order in work_orders:
+                try:
+                    cfrags = self.get_reencrypted_cfrags(work_order)
+                except (requests.exceptions.ConnectTimeout, NotFound):
+                    continue
+
+                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
+                try:
+                    message_kit.capsule.attach_cfrag(cfrag)
+                    if len(message_kit.capsule._attached_cfrags) >= m:
+                        break
+                except UmbralCorrectnessError:
+                    evidence = self.collect_evidence(capsule=capsule,
+                                                     cfrag=cfrag,
+                                                     ursula=work_order.ursula)
+
+                    # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
+                    raise self.IncorrectCFragReceived(evidence)
+            else:
+                raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
