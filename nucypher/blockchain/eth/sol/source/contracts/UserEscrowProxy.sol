@@ -42,9 +42,9 @@ contract UserEscrowProxy {
     )
         public
     {
-        require(address(_token) != address(0) &&
-            address(_escrow) != address(0) &&
-            address(_policyManager) != address(0));
+        require(_token.totalSupply() > 0 &&
+            _escrow.secondsPerPeriod() > 0 &&
+            _policyManager.secondsPerPeriod() > 0);
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;

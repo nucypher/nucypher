@@ -157,7 +157,6 @@ contract MinersEscrow is Issuer {
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
         require(address(policyManager) == address(0) &&
-            address(_policyManager) != address(0) &&
             _policyManager.escrow() == address(this));
         policyManager = _policyManager;
     }
@@ -166,9 +165,8 @@ contract MinersEscrow is Issuer {
     * @notice Set mining adjudicator address
     **/
     function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
-        // Three-part require...
+        // Two-part require...
         require(address(miningAdjudicator) == address(0) &&  // Can't adjudicator once it is set.
-            address(_miningAdjudicator) != address(0) &&  // Check to make sure that we're setting it somewhere.
             _miningAdjudicator.escrow() == address(this));  // This is the escrow for the new adjudicator.
         miningAdjudicator = _miningAdjudicator;
     }
@@ -1170,7 +1168,7 @@ contract MinersEscrow is Issuer {
         require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
-        require(address(uint160(delegateGet(_testTarget, "policyManager()"))) == address(policyManager));
+        require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);

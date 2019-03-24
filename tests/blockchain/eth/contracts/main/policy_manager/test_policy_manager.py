@@ -343,6 +343,10 @@ def test_upgrading(testerchain):
     secret_hash = testerchain.interface.w3.keccak(secret)
     secret2_hash = testerchain.interface.w3.keccak(secret2)
 
+    # Only escrow contract is allowed in PolicyManager constructor
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('PolicyManager', creator)
+
     # Deploy contracts
     escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
     escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)

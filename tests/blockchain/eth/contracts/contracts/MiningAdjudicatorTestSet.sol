@@ -21,6 +21,7 @@ contract MinersEscrowForMiningAdjudicatorMock {
         uint16 stubValue5;
     }
 
+    uint32 public secondsPerPeriod = 1;
     mapping (address => MinerInfo) public minerInfo;
     mapping (address => uint256) public rewardInfo;
 

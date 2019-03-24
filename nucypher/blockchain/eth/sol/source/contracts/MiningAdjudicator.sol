@@ -54,7 +54,7 @@ contract MiningAdjudicator is Upgradeable {
         public
     {
         // Sanity checks.
-        require(address(_escrow) != address(0) &&  // This contract has an escrow, and it's not the null address.
+        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
@@ -163,7 +163,7 @@ contract MiningAdjudicator is Upgradeable {
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
-        require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
+        require(SignatureVerifier.HashAlgorithm(delegateGet(_testTarget, "hashAlgorithm()")) == hashAlgorithm);
         require(delegateGet(_testTarget, "basePenalty()") == basePenalty);
         require(delegateGet(_testTarget, "penaltyHistoryCoefficient()") == penaltyHistoryCoefficient);
         require(delegateGet(_testTarget, "percentagePenaltyCoefficient()") == percentagePenaltyCoefficient);

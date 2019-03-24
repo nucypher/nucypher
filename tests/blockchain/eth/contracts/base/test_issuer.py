@@ -35,6 +35,10 @@ def test_issuer(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     ursula = testerchain.interface.w3.eth.accounts[1]
 
+    # Only token contract is allowed in Issuer constructor
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('IssuerMock', ursula, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+
     # Creator deploys the issuer
     issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
     events = issuer.events.Initialized.createFilter(fromBlock='latest')

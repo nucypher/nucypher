@@ -10,6 +10,7 @@ import "contracts/NuCypherToken.sol";
 contract MinersEscrowForUserEscrowMock {
 
     NuCypherToken token;
+    uint32 public secondsPerPeriod = 1;
     address public node;
     uint256 public value;
     uint256 public lockedValue;
@@ -74,6 +75,7 @@ contract MinersEscrowForUserEscrowMock {
 **/
 contract PolicyManagerForUserEscrowMock {
 
+    uint32 public secondsPerPeriod = 1;
     uint256 public minRewardRate;
 
     function withdraw(address payable _recipient) public returns (uint256) {
@@ -126,5 +128,21 @@ contract UserEscrowLibraryMockV2 {
     }
 
     function thirdMethod() public pure {}
+
+}
+
+
+/**
+* @dev Library that could be destroyed by selfdestruct
+**/
+contract DestroyableUserEscrowLibrary {
+
+    function method() public pure returns (uint256) {
+        return 15;
+    }
+
+    function destroy() public {
+        selfdestruct(msg.sender);
+    }
 
 }

@@ -56,7 +56,7 @@ contract Issuer is Upgradeable {
     )
         public
     {
-        require(address(_token) != address(0) &&
+        require(_token.totalSupply() > 0 &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&

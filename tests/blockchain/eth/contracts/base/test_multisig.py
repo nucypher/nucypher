@@ -333,7 +333,7 @@ def test_owners_management(testerchain):
         multisig.functions.addOwner(owners[0]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
     # Can't add the address 0x0 as an owner
     with pytest.raises((TransactionFailed, ValueError)):
-        multisig.functions.addOwner(NULL_ADDR).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+        multisig.functions.addOwner(NULL_ADDRESS).buildTransaction({'from': multisig.address, 'gasPrice': 0})
 
     # Can't remove nonexistent owner
     with pytest.raises((TransactionFailed, ValueError)):
