@@ -506,7 +506,7 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None):
+    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
@@ -536,7 +536,8 @@ class Bob(Character):
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
                 # TODO: Fix this. It's always taking the last capsule
-                self._saved_work_orders[node_id][capsule] = work_order
+                if cache:
+                    self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
