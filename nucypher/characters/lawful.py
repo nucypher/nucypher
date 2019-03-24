@@ -616,7 +616,7 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None):
+    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
@@ -645,9 +645,9 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
-
-                # TODO: Fix this. It's always using the last capsule, via leaky-loop
-                self._saved_work_orders[node_id][capsule] = work_order
+                # TODO: Fix this. It's always taking the last capsule
+                if cache:
+                    self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
