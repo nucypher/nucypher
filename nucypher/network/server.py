@@ -293,10 +293,14 @@ def make_rest_app(
 
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-
-        with ThreadedSession(db_engine) as session:
-            policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                  session=session)
+        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
+        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
+        try:
+            with ThreadedSession(db_engine) as session:
+                policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                      session=session)
+        except NotFound:
+            return Response(response=arrangement_id, status=404)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_verifying_key.key_data
 
