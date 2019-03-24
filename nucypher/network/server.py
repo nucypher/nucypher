@@ -170,7 +170,7 @@ def make_rest_app(
         # Let's find a better way.  #555
         for node in nodes:
             if GLOBAL_DOMAIN not in serving_domains:
-                if not set(serving_domains).intersection(set(node.serving_domains)):
+                if not serving_domains.intersection(node.serving_domains):
                     continue  # This node is not serving any of our domains.
 
             if node in node_tracker:
@@ -304,10 +304,14 @@ def make_rest_app(
     def reencrypt_via_rest(id_as_hex):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-
-        with ThreadedSession(db_engine) as session:
-            policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                  session=session)
+        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
+        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
+        try:
+            with ThreadedSession(db_engine) as session:
+                policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                      session=session)
+        except NotFound:
+            return Response(response=arrangement_id, status=404)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
 
