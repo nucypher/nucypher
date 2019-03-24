@@ -19,6 +19,9 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
+from web3.exceptions import BadFunctionCallOutput
+
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 SECRET_LENGTH = 32
 
@@ -38,6 +41,11 @@ def test_dispatcher(testerchain):
     # Load contract interface
     contract_interface = testerchain.interface.get_contract_factory('ContractInterface')
 
+    # Try to deploy broken library and dispatcher for it
+    contract0_bad_lib, _ = testerchain.interface.deploy_contract('ContractV0Bad')
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('Dispatcher', contract0_bad_lib.address, secret_hash)
+
     # Deploy contracts and dispatcher for them
     contract1_lib, _ = testerchain.interface.deploy_contract('ContractV1', 1)
     contract2_lib, _ = testerchain.interface.deploy_contract('ContractV2', 1)
@@ -53,7 +61,7 @@ def test_dispatcher(testerchain):
     events = upgrades.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert '0x' + '0' * 40 == event_args['from']
+    assert NULL_ADDRESS == event_args['from']
     assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
 
@@ -362,3 +370,131 @@ def test_dispatcher(testerchain):
     events = test_event_v1_log.get_all_entries()
     assert 1 == len(events)
     assert 33 == events[0]['args']['value']
+
+
+@pytest.mark.slow
+def test_selfdestruct(testerchain):
+    creator = testerchain.interface.w3.eth.accounts[0]
+    account = testerchain.interface.w3.eth.accounts[1]
+
+    secret = os.urandom(SECRET_LENGTH)
+    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret2 = os.urandom(SECRET_LENGTH)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret3 = os.urandom(SECRET_LENGTH)
+    secret3_hash = testerchain.interface.w3.keccak(secret3)
+
+    # Deploy contract and destroy it
+    contract1_lib, _ = testerchain.interface.deploy_contract('Destroyable', 22)
+    assert 22 == contract1_lib.functions.constructorValue().call()
+    tx = contract1_lib.functions.destroy().transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((BadFunctionCallOutput, ValueError)):
+        contract1_lib.functions.constructorValue().call()
+
+    # Can't create dispatcher using address without contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('Dispatcher', NULL_ADDRESS, secret_hash)
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('Dispatcher', account, secret_hash)
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+
+    # Deploy contract again with a dispatcher targeting it
+    contract2_lib, _ = testerchain.interface.deploy_contract('Destroyable', 23)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract2_lib.address, secret_hash)
+    assert contract2_lib.address == dispatcher.functions.target().call()
+
+    contract_instance = testerchain.interface.w3.eth.contract(
+        abi=contract1_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+    tx = contract_instance.functions.setFunctionValue(34).transact()
+    testerchain.wait_for_receipt(tx)
+    assert 23 == contract_instance.functions.constructorValue().call()
+    assert 34 == contract_instance.functions.functionValue().call()
+
+    # Can't upgrade to an address without contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract1_lib.address, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Destroy library
+    tx = contract2_lib.functions.destroy().transact()
+    testerchain.wait_for_receipt(tx)
+    # Dispatcher must determine that there is no contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        contract_instance.functions.constructorValue().call()
+
+    # Can't upgrade to an address without contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract1_lib.address, secret, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Deploy the same contract again and upgrade to this contract
+    contract3_lib, _ = testerchain.interface.deploy_contract('Destroyable', 24)
+    tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 24 == contract_instance.functions.constructorValue().call()
+    assert 34 == contract_instance.functions.functionValue().call()
+
+    # Can't rollback because the previous version is destroyed
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Destroy again
+    tx = contract3_lib.functions.destroy().transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        contract_instance.functions.constructorValue().call()
+
+    # Still can't rollback because the previous version is destroyed
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Deploy the same contract twice and upgrade to the latest contract
+    contract4_lib, _ = testerchain.interface.deploy_contract('Destroyable', 25)
+    contract5_lib, _ = testerchain.interface.deploy_contract('Destroyable', 26)
+    tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = dispatcher.functions.upgrade(contract5_lib.address, secret3, secret_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 26 == contract_instance.functions.constructorValue().call()
+    assert 34 == contract_instance.functions.functionValue().call()
+
+    # Destroy the previous version of the contract and try to rollback again
+    tx = contract4_lib.functions.destroy().transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret, secret2_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Deploy the same contract again and upgrade
+    contract6_lib, _ = testerchain.interface.deploy_contract('Destroyable', 27)
+    tx = dispatcher.functions.upgrade(contract6_lib.address, secret, secret2_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 27 == contract_instance.functions.constructorValue().call()
+    assert 34 == contract_instance.functions.functionValue().call()
+
+    # Destroy the current version of the contract
+    tx = contract6_lib.functions.destroy().transact()
+    testerchain.wait_for_receipt(tx)
+    # Now rollback must work, the previous version is fine
+    tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 26 == contract_instance.functions.constructorValue().call()
+    assert 34 == contract_instance.functions.functionValue().call()

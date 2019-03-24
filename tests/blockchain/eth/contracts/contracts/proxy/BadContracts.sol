@@ -5,6 +5,20 @@ import "./ContractInterface.sol";
 import "contracts/proxy/Upgradeable.sol";
 
 
+contract ContractV0Bad {
+
+    address public owner;
+    address public target;
+//    address public previousTarget;
+    bytes32 public secretHash;
+    uint8 public isUpgrade;
+
+    function verifyState(address _testTarget) public {}
+    function finishUpgrade(address _target) public {}
+
+}
+
+
 contract ContractV2Bad is ContractInterface, Upgradeable {
 
     event EventV1(uint256 value);

@@ -21,7 +21,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
     struct Structure1 {
         uint256 value;
         uint256[] arrayValues;
-//        uint256 valueToCheck; // rollback does not work
     }
     Structure1[] public arrayStructures;
 

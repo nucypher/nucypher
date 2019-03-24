@@ -20,6 +20,8 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+
 
 def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
     provider = testerchain.interface.provider
@@ -33,9 +35,6 @@ def to_32byte_hex(w3, value):
     return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
 
 
-NULL_ADDR = '0x' + '0' * 40
-
-
 @pytest.mark.slow
 def test_execute(testerchain):
     w3 = testerchain.interface.w3
@@ -46,7 +45,7 @@ def test_execute(testerchain):
 
     # Can't create the contract with the address 0x0 (address 0x0 is restricted for use)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('MultiSig', 3, owners + [NULL_ADDR])
+        testerchain.interface.deploy_contract('MultiSig', 3, owners + [NULL_ADDRESS])
     # Owners must be no less than the threshold value
     with pytest.raises((TransactionFailed, ValueError)):
         testerchain.interface.deploy_contract('MultiSig', 6, owners)

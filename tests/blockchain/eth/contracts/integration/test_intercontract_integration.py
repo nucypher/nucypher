@@ -35,8 +35,6 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 
 
-NULL_ADDR = '0x' + '0' * 40
-
 VALUE_FIELD = 0
 RE_STAKE_FIELD = 3
 
