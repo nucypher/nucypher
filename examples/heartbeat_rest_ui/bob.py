@@ -37,7 +37,7 @@ def get_layout(first_bob: bool):
         index = random.randint(0, (len(ID_PREFIXES) - 1))
         prefix = ID_PREFIXES[index]
 
-    print('Initializing UI for Bob ({})'.format(prefix))
+    print(f'Initializing UI for Bob ({prefix})')
 
     # generate ui layout
     layout = html.Div([
@@ -51,12 +51,12 @@ def get_layout(first_bob: bool):
                 ], className='two columns'),
                 html.Div([
                     html.Div([
-                        html.H2('{} BOB'.format(prefix.upper())),
+                        html.H2(f'{prefix.upper()} BOB'),
                         html.P(
-                            "{} Bob is the {} who Alicia will grant access to her encrypted heart rate measurements "
-                            "(which was populated by the Heart Monitor) and requests "
-                            "a re-encrypted ciphertext for each measurement, which can then be decrypted "
-                            "using their private key.".format(prefix, prefix)),
+                            f'{prefix} Bob is the {prefix} who Alicia will grant access to her encrypted heart rate '
+                            f'measurements (which was populated by the Heart Monitor) and requests '
+                            f'a re-encrypted ciphertext for each measurement, which can then be decrypted '
+                            f'using their private key.'),
                     ], className="row")
                 ], className='five columns'),
             ], className='row'),
@@ -166,7 +166,7 @@ def update_cached_decrypted_heartbeats_list(read_time,
                 'message_kit': message_kit_b64,
             }
 
-            response = requests.post('{}/retrieve'.format(BOB_URL.format(bob_port)), data=json.dumps(request_data))
+            response = requests.post(f'{BOB_URL.format(bob_port)}/retrieve', data=json.dumps(request_data))
             if response.status_code != 200:
                 # TODO do something - is access disallowed the only case here? NotEnoughUrsulas?
                 print(f'> WARNING: Unable to retrieve re-encryption plaintext for Bob (port: {bob_port}); '

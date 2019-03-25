@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from base64 import b64decode
 
 import pytest
@@ -18,6 +19,8 @@ from nucypher.crypto.powers import DecryptingPower
 ALICE_URL = "http://localhost:8151"
 ENRICO_URL = "http://localhost:5151"
 BOB_URL = "http://localhost:11151"
+
+BOB_PORT = 11151
 
 
 @pytest.fixture(scope='module')
@@ -138,7 +141,7 @@ def test_alicia_grant_failed(dash_driver,
                 json.dumps({'message': 'execution failed'}))
 
     responses.add_callback(responses.PUT,
-                           url=re.compile(f'{ALICE_URL}/grant', re.IGNORECASE),
+                           url=f'{ALICE_URL}/grant',
                            callback=grant_callback,
                            content_type='application/json')
     ##########################
@@ -214,7 +217,7 @@ def test_enrico_encrypt_data_failed(dash_driver):
                 json.dumps({'message': 'execution failed'}))
 
     responses.add_callback(responses.POST,
-                           url=re.compile(f'{ENRICO_URL}/encrypt_message', re.IGNORECASE),
+                           url=f'{ENRICO_URL}/encrypt_message',
                            callback=encrypt_message_callback,
                            content_type='application/json')
     ##########################
@@ -259,10 +262,9 @@ def test_bob_no_policy_file_failed(dash_driver,
 
     read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
 
-    bob_port = 11151
     bob_port_element = dash_driver.find_element_by_id('bob-port')
     bob_port_element.clear()
-    bob_port_element.send_keys(bob_port)
+    bob_port_element.send_keys(BOB_PORT)
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
     bob_enc_key_element = dash_driver.find_element_by_id('bob-enc-key')
@@ -296,7 +298,7 @@ def test_bob_join_policy_failed(dash_driver,
                 json.dumps({'message': 'execution failed'}))
 
     responses.add_callback(responses.POST,
-                           url=re.compile(f'{BOB_URL}/join_policy', re.IGNORECASE),
+                           url=f'{BOB_URL}/join_policy',
                            callback=join_policy_callback,
                            content_type='application/json')
     ##########################
@@ -325,10 +327,9 @@ def test_bob_join_policy_failed(dash_driver,
 
     read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
 
-    bob_port = 11151
     bob_port_element = dash_driver.find_element_by_id('bob-port')
     bob_port_element.clear()
-    bob_port_element.send_keys(bob_port)
+    bob_port_element.send_keys(BOB_PORT)
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
     bob_enc_key_element = dash_driver.find_element_by_id('bob-enc-key')
@@ -356,7 +357,9 @@ def test_bob_join_policy_failed(dash_driver,
 def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
                                           alice_control_test_client,
                                           enrico_control_test_client,
-                                          federated_bob):
+                                          bob_control_test_client,
+                                          federated_bob,
+                                          federated_ursulas):
     ##########################
     # setup endpoint responses
     ##########################
@@ -381,7 +384,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
                 encrypt_response.data)
 
     responses.add_callback(responses.POST,
-                           url=re.compile(f'{ENRICO_URL}/encrypt_message', re.IGNORECASE),
+                           url=f'{ENRICO_URL}/encrypt_message',
                            callback=encrypt_message_callback,
                            content_type='application/json')
 
@@ -393,8 +396,32 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
                 grant_response.data)
 
     responses.add_callback(responses.PUT,
-                           url=re.compile(f'{ALICE_URL}/grant', re.IGNORECASE),
+                           url=f'{ALICE_URL}/grant',
                            callback=grant_callback,
+                           content_type='application/json')
+
+    # '/join_policy'
+    def join_policy_callback(request):
+        join_policy_response = bob_control_test_client.post('/join_policy', data=request.body)
+        return (join_policy_response.status_code,
+                join_policy_response.headers,
+                join_policy_response.data)
+
+    responses.add_callback(responses.POST,
+                           url=f'{BOB_URL}/join_policy',
+                           callback=join_policy_callback,
+                           content_type='application/json')
+
+    # '/retrieve'
+    def retrieve_callback(request):
+        retrieve_response = bob_control_test_client.post('/retrieve', data=request.body)
+        return (retrieve_response.status_code,
+                retrieve_response.headers,
+                retrieve_response.data)
+
+    responses.add_callback(responses.POST,
+                           url=f'{BOB_URL}/retrieve',
+                           callback=retrieve_callback,
                            content_type='application/json')
 
     ##########################
@@ -480,12 +507,12 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     dash_driver.switch_to.window('_alicia')
 
     # grant access to bob
-    m_threshold_element = dash_driver.find_element_by_id('m-value')
-    m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
-
-    n_shares_element = dash_driver.find_element_by_id('n-value')
-    n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
-    n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
+    # m_threshold_element = dash_driver.find_element_by_id('m-value')
+    # m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+    #
+    # n_shares_element = dash_driver.find_element_by_id('n-value')
+    # n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+    # n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
     bob_verifying_key_hex = bytes(federated_bob.stamp).hex()
@@ -511,3 +538,33 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     assert policy_label in grant_response_element.text
     assert bob_encrypting_key_hex in grant_response_element.text
     assert "status code" not in grant_response_element.text
+
+    ###################
+    # switch to bob tab
+    ###################
+    dash_driver.switch_to.window('_bob')
+
+    # Give bob a node to remember
+    teacher = list(federated_ursulas)[1]
+    federated_bob.remember_node(teacher)
+
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+
+    bob_port_element = dash_driver.find_element_by_id('bob-port')
+    bob_port_element.clear()
+    bob_port_element.send_keys(BOB_PORT)
+
+    bob_enc_key_element = dash_driver.find_element_by_id('bob-enc-key')
+    bob_enc_key_element.clear()
+    bob_enc_key_element.send_keys(bob_encrypting_key_hex)
+
+    read_heartbeats_button.click()
+
+    # wait for response
+    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+        wait_for_non_empty_text((By.ID, 'heartbeats'))
+    )
+
+    assert 4 <= len(responses.calls)  # at least an extra call to /join_policy and another to /retrieve
+    assert 'WARNING' not in heartbeats_element.text
+    assert 'not been granted' not in heartbeats_element.text
