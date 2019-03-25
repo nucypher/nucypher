@@ -121,7 +121,7 @@ class Felix(Character, NucypherTokenActor):
     A NuCypher ERC20 faucet / Airdrop scheduler.
 
     Felix is a web application that gives NuCypher *testnet* tokens to registered addresses
-    with a scheduled reduction of disbursement amounts, and a RESTful interface
+    with a scheduled reduction of disbursement amounts, and an HTTP endpoint
     for handling new address registration.
 
     The main goal of Felix is to provide a source of testnet tokens for

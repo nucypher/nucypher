@@ -169,7 +169,7 @@ class FelixConfiguration(NodeConfiguration):
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         return super().write_keyring(password=password,
-                                     encrypting=True,
+                                     encrypting=True,  # TODO: #668
                                      rest=True,
                                      host=self.rest_host,
                                      curve=self.tls_curve,
