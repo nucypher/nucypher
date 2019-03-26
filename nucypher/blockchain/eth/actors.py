@@ -49,8 +49,8 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
-    MiningAdjudicatorDeployer
-)
+    MiningAdjudicatorDeployer,
+    ContractDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
