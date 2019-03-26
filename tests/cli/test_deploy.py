@@ -9,7 +9,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     MiningAdjudicatorAgent
 )
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
@@ -70,6 +71,52 @@ def test_nucypher_deploy_contracts(testerchain, click_runner, mock_primary_regis
     assert PolicyAgent()
     assert MiningAdjudicatorAgent()
     testerchain.sever_connection()
+
+
+def test_upgrade_contracts(click_runner):
+
+    miner_agent = MinerAgent()
+    contract_name = miner_agent.contract_name
+    bound_miner_escrow_address = miner_agent.contract_address
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', contract_name,
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    user_input = 'Y\n' \
+                 + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2 \
+                 + f'{INSECURE_DEVELOPMENT_PASSWORD[::-1]}\n' * 2
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # original bound address is the same
+    assert bound_miner_escrow_address == miner_agent.contract_address
+
+    with open(MOCK_REGISTRY_FILEPATH, 'r') as file:
+
+        # Ensure every contract's name was written to the file, somehow
+        raw_registry_data = file.read()
+        for registry_name in Deployer.contract_names:
+            assert registry_name in raw_registry_data
+        assert raw_registry_data.count(contract_name) == 2
+
+        registry_data = json.loads(raw_registry_data)
+        assert len(registry_data) == 10
+
+    blockchain = Blockchain.connect(registry=EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH))
+    records = blockchain.interface.registry.search(contract_name=contract_name)
+    assert len(records) == 2
+    old, new = records
+    assert old[1] != new[1]  # deployments are different addresses
+
+    dispatcher = blockchain.interface.get_dispatcher(target_address=new[1])
+    targeted_address = dispatcher.functions.target().call()
+    assert targeted_address != old[1]
+    assert targeted_address == new[1]
 
 
 def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
