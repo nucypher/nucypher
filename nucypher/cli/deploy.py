@@ -34,7 +34,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--upgrade', help="Upgrade an already deployed contract", is_flag=True)
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -50,7 +49,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 def deploy(click_config,
            action,
            poa,
-           upgrade,
            provider_uri,
            deployer_address,
            contract_name,
@@ -95,7 +93,7 @@ def deploy(click_config,
     # Upgrade
     #
 
-    if upgrade:
+    if action == 'upgrade':
         if not contract_name:
             raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True, confirmation_prompt=True)
@@ -103,26 +101,31 @@ def deploy(click_config,
         deployer.upgrade_contract(contract_name=contract_name, existing_secret=existing_secret, new_plaintext_secret=new_secret)
         return
 
-
-    #
-    # Deploy Single Contract
-    #
-
-    if contract_name:
-
-        try:
-            deployer_func = deployer.deployers[contract_name]
-        except KeyError:
-            message = "No such contract {}. Available contracts are {}".format(contract_name, deployer.deployers.keys())
-            click.secho(message, fg='red', bold=True)
-            raise click.Abort()
-        else:
-            _txs, _agent = deployer_func()
-
+    elif action == 'rollback':
+        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        deployer.rollback_contract(contract_name=contract_name, existing_plaintext_secret=existing_secret, new_plaintext_secret=new_secret)
         return
 
-    # The Big Three
-    if action == "contracts":
+    elif action == "deploy":
+
+        #
+        # Deploy Single Contract
+        #
+
+        if contract_name:
+
+            try:
+                deployer_func = deployer.deployers[contract_name]
+            except KeyError:
+                message = "No such contract {}. Available contracts are {}".format(contract_name,
+                                                                                   deployer.deployers.keys())
+                click.secho(message, fg='red', bold=True)
+                raise click.Abort()
+            else:
+                _txs, _agent = deployer_func()
+
+            return
 
         secrets = click_config.collect_deployment_secrets()
 
@@ -169,6 +172,7 @@ def deploy(click_config,
                 click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
 
         click.secho("Cumulative Gas Consumption: {} gas\n".format(total_gas_used), bold=True, fg='blue')
+        return
 
     elif action == "allocations":
         if not allocation_infile:
@@ -176,6 +180,7 @@ def deploy(click_config,
         click.confirm("Continue deploying and allocating?", abort=True)
         deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                 allocation_outfile=allocation_outfile)
+        return
 
     elif action == "transfer":
         token_agent = NucypherTokenAgent(blockchain=blockchain)
@@ -189,6 +194,7 @@ def deploy(click_config,
         click.confirm(f"Are you absolutely sure you want to destroy the contract registry at {registry_filepath}?", abort=True)
         os.remove(registry_filepath)
         click.secho(f"Successfully destroyed {registry_filepath}", fg='red')
+        return
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")
