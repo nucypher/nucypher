@@ -43,14 +43,25 @@ def paint_new_installation_help(new_configuration, federated_only: bool = False,
     emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
     emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
 
-    if character_name == 'ursula' and not federated_only:
+    # Felix
+    if character_name == 'felix':
+        suggested_db_command = 'nucypher felix createdb'
+        how_to_proceed_message = f'\nTo initialize a new faucet database run:'
+        emitter(message=how_to_proceed_message, color='green')
+        emitter(message=f'\n\'{suggested_db_command}\'', color='green')
+
+    # Ursula
+    elif character_name == 'ursula' and not federated_only:
         suggested_staking_command = f'nucypher ursula stake'
         how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
         emitter(message=how_to_stake_message, color='green')
 
-    # Give the use a suggestion as to what to do next...
+    # Everyone: Give the use a suggestion as to what to do next
+    vowles = ('a', 'e', 'i', 'o', 'u')
+    character_name_starts_with_vowel = character_name[0].lower() in vowles
+    adjective = 'an' if character_name_starts_with_vowel else 'a'
     suggested_command = f'nucypher {character_name} run'
-    how_to_run_message = f"\nTo run an {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
+    how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
     if config_root is not None:
         config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)

@@ -398,14 +398,22 @@ class Felix(Character, NucypherTokenActor):
 
         def siphon_invalid_entries(candidate):
             address_is_valid = eth_utils.is_checksum_address(candidate.address)
-            if address_is_valid:
+            if not address_is_valid:
                 invalid_addresses.append(candidate.address)
-
             return address_is_valid
+
         candidates = list(filter(siphon_invalid_entries, candidates))
 
         if invalid_addresses:
-            self.log.info(f"{len(invalid_addresses)} invalid entries detected.")
+            self.log.info(f"{len(invalid_addresses)} invalid entries detected. Pruning database.")
+
+            # TODO: Is this needed? - Invalid entries are rejected at the endpoint view.
+            # Prune database of invalid records
+            # with ThreadedSession(self.db_engine) as session:
+            #     bad_eggs = session.query(self.Recipient).filter(self.Recipient.address in invalid_addresses).all()
+            #     for egg in bad_eggs:
+            #         session.delete(egg.id)
+            #     session.commit()
 
         if not candidates:
             self.log.info("No eligible recipients this round.")

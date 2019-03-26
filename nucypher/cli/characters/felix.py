@@ -92,7 +92,7 @@ def felix(click_config,
     # Domains -> bytes | or default
     domains = [bytes(network, encoding='utf-8')] if network else None
 
-    # Load Ursula from Configuration File with overrides
+    # Load Felix from Configuration File with overrides
     try:
         felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
                                                                   domains=domains,
