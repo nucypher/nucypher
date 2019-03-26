@@ -113,10 +113,47 @@ def test_upgrade_contracts(click_runner):
     old, new = records
     assert old[1] != new[1]  # deployments are different addresses
 
-    dispatcher = blockchain.interface.get_dispatcher(target_address=new[1])
+    # Ensure the dispatcher targets the new deployment
+    dispatcher = blockchain.interface.get_proxy(target_address=new[1], proxy_name='Dispatcher')
     targeted_address = dispatcher.functions.target().call()
     assert targeted_address != old[1]
     assert targeted_address == new[1]
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'PolicyManager',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='PolicyManager')
+    assert len(records) == 2
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'MiningAdjudicator',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='MiningAdjudicator')
+    assert len(records) == 2
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'UserEscrowProxy',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='UserEscrowProxy')
+    assert len(records) == 2
 
 
 def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
