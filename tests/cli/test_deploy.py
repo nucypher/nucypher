@@ -273,6 +273,42 @@ def test_rollback(click_runner):
         assert targeted_address != current_target
         assert targeted_address == rollback_target_address
 
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'PolicyManager',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='PolicyManager')
+    assert len(records) == 2
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'MiningAdjudicator',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='MiningAdjudicator')
+    assert len(records) == 2
+
+    command = ('contracts',
+               '--upgrade',
+               '--contract-name', 'UserEscrowProxy',
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider-uri', TEST_PROVIDER_URI,
+               '--poa')
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    records = blockchain.interface.registry.search(contract_name='UserEscrowProxy')
+    assert len(records) == 2
+
 
 def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
 
