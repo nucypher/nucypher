@@ -20,9 +20,9 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
 
     def __call__(self, data, specification: tuple, *args, **kwargs):
         if isinstance(data, dict):
-            return self.__serialize(response_data=data, output_specification=specification)
+            return self.__serialize(response_data=data)
         elif isinstance(data, bytes):
-            return self.__deserialize(request_payload=data, input_specification=specification)
+            return self.__deserialize(request_payload=data)
         else:
             error_message = f"{self.__class__.__name__} only accepts dict or bytes as input. Got {data.__class__.__name__} "
             raise ValueError(error_message)
@@ -34,42 +34,7 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
                          'duration': str(duration)}
         return response_data
 
-    @staticmethod
-    def validate_input(request_data: dict, input_specification: tuple) -> bool:
-        # Handle client input
-
-        # Invalid Fields
-        input_fields = set(request_data.keys())
-        extra_fields = input_fields - set(input_specification)
-
-        if extra_fields:
-            extra_pretty_fields = ', '.join(extra_fields)
-            pretty_valid_fields = ', '.join(input_specification)
-            raise CharacterSpecification.InvalidInputField(f"Invalid request fields '{extra_pretty_fields}'."
-                                                           f"Valid fields are: {pretty_valid_fields}.")
-
-        # Missing Fields  TODO: Use sets instead
-        missing_fields = list()
-        for field in input_specification:
-            if field not in request_data:
-                missing_fields.append(field)
-
-        if missing_fields:
-            missing = ', '.join(missing_fields)
-            raise CharacterSpecification.MissingField(f"Request is missing fields: '{missing}'.")
-
-        return True
-
-    @staticmethod
-    def validate_output(response_data: dict, output_specification: tuple) -> bool:
-        # Handle process output
-
-        for field in output_specification:
-            if field not in response_data:
-                raise CharacterSpecification.InvalidOutputField(f"Response is missing the '{field}' field")
-        return True
-
-    def __deserialize(self, request_payload: bytes, input_specification: tuple) -> dict:
+    def __deserialize(self, request_payload: bytes) -> dict:
 
         # Deserialize
         if not request_payload:
@@ -81,13 +46,9 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
                 raise self.SerializerError(f"Invalid {self.__class__.__name__} input: got {request_payload}")
 
         # Validate
-        self.validate_input(request_data=request_data, input_specification=input_specification)
         return request_data
 
-    def __serialize(self, response_data: dict, output_specification: tuple) -> bytes:
-
-        # Validate
-        self.validate_output(response_data=response_data, output_specification=output_specification)
+    def __serialize(self, response_data: dict) -> bytes:
 
         # Serialize
         try:
@@ -147,6 +108,9 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
                          'alice_verifying_key': alice_verifying_key_hex}
 
         return response_data
+
+    # The revoke endpoint only uses a URL-param; ergo, we have no need for
+    # a de/serialization method.
 
     @staticmethod
     def dump_public_keys_output(response: dict):

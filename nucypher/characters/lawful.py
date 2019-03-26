@@ -101,6 +101,8 @@ class Alice(Character, PolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
+        self.active_policies = dict()
+
     def generate_kfrags(self, bob: 'Bob', label: bytes, m: int, n: int) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -113,6 +115,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
+        self.revocation_kits = dict()
         bob_pubkey_enc = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
@@ -254,8 +257,10 @@ class Alice(Character, PolicyAuthor):
             self.block_until_specific_nodes_are_known(
                 policy.revocation_kit.revokable_addresses,
                 allow_missing=(policy.n - revocation_threshold))
+
         except self.NotEnoughTeachers as e:
             raise e
+
         else:
             failed_revocations = dict()
             for node_id in policy.revocation_kit.revokable_addresses:
@@ -320,11 +325,21 @@ class Alice(Character, PolicyAuthor):
             response = controller(interface=controller._internal_controller.grant, control_request=request)
             return response
 
+        @alice_control.route("/revoke/<policy_encrypting_key>", methods=['DELETE'])
+        def revoke(policy_encrypting_key):
+            """
+            Character control endpoint for policy revocation.
+            """
+            response = controller(interface=controller._internal_controller.revoke,
+                                  control_request=request,
+                                  policy_encrypting_key=policy_encrypting_key)
+            return response
+
         return controller
 
 
 class Bob(Character):
-    
+
     banner = BOB_BANNER
     _controller_class = BobJSONController
 

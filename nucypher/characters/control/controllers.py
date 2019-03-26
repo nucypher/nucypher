@@ -72,6 +72,12 @@ class AliceJSONController(AliceInterface, CharacterController):
         return response_data
 
     @character_control_interface
+    def revoke(self, policy_encrypting_key, request):
+        result = super().revoke(policy_encrypting_key)
+        response_data = result
+        return response_data
+
+    @character_control_interface
     def public_keys(self, request):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys

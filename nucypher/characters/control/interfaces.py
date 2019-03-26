@@ -6,10 +6,10 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.network.middleware import NotFound
 
 
 def character_control_interface(func):
-    """Validate I/O specification for dictionary character control interfaces"""
 
     # noinspection PyPackageRequirements
     @functools.wraps(func)
@@ -19,23 +19,30 @@ def character_control_interface(func):
         received = maya.now()
 
         # Get specification
-        input_specification, output_specification = instance.get_specifications(interface_name=func.__name__)
+        interface_name = func.__name__
+        input_specification, output_specification = instance.get_specifications(interface_name=interface_name)
 
         if request and instance.serialize:
-            request = instance.serializer(data=request, specification=input_specification)
+
+            # Serialize request
+            if instance.serialize:
+                request = instance.serializer(data=request, specification=input_specification)
+
+            # Validate request
+            instance.validate_request(request=request, interface_name=interface_name)
 
         # Call the interface
         response = func(self=instance, request=request, *args, **kwargs)
 
-        # Record responding time
-        responding = maya.now()
+        # Validate response
+        instance.validate_response(response=response, interface_name=interface_name)
 
-        # Calculate control cycle duration
-        request_duration = responding - received
+        # Record duration
+        responding = maya.now()
+        duration = responding - received
 
         # Assemble response with metadata
-        response_with_metadata = instance.serializer.build_response_metadata(response=response,
-                                                                             duration=request_duration)
+        response_with_metadata = instance.serializer.build_response_metadata(response=response, duration=duration)
 
         # Emit
         return instance.emitter(response=response_with_metadata)
@@ -99,7 +106,21 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          'alice_verifying_key': new_policy.alice.stamp}
+        return response_data
 
+    def revoke(self, policy_encrypting_key):
+        policy = self.character.active_policies[policy_encrypting_key]
+
+        failed_revocations = self.character.revoke(policy)
+        if len(failed_revocations) > 0:
+            for node_id, attempt in failed_revocations.items():
+                revocation, fail_reason = attempt
+                if fail_reason == NotFound:
+                    del(failed_revocations[node_id])
+        if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
+            del(self.character.active_policies[policy_encrypting_key])
+
+        response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
 
     def public_keys(self):

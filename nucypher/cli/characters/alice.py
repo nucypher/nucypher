@@ -28,6 +28,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
 @click.option('--bob-verifying-key', help="Bob's verifying key as a hexideicmal string", type=click.STRING)
+@click.option('--policy-encrypting-key', help="The Policy encrypting key derived from a label", type=click.STRING)
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
@@ -53,6 +54,7 @@ def alice(click_config,
           dry_run,
           bob_encrypting_key,
           bob_verifying_key,
+          policy_encrypting_key,
           label,
           m,
           n):
@@ -186,7 +188,7 @@ def alice(click_config,
         return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":
-        raise NotImplementedError  # TODO: Implement revoke entry point
+        return ALICE.controller.revoke(policy_encrypting_key=policy_encrypting_key)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")
