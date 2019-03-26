@@ -188,11 +188,7 @@ def alice(click_config,
         return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":
-        revoke_request = {
-            'policy_encrypting_key': policy_encrypting_key
-        }
-
-        return ALICE.controller.revoke(request=revoke_request)
+        return ALICE.controller.revoke(policy_encrypting_key=policy_encrypting_key)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")
