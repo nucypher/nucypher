@@ -34,7 +34,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--upgrade', help="Upgrade an already deployed contract", is_flag=True)
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -50,7 +49,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 def deploy(click_config,
            action,
            poa,
-           upgrade,
            provider_uri,
            deployer_address,
            contract_name,

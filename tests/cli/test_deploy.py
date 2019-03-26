@@ -89,6 +89,10 @@ def test_nucypher_deploy_all_contracts(testerchain, click_runner, mock_primary_r
 
 
 def test_upgrade_contracts(click_runner):
+    contracts_to_upgrade = ('MinersEscrow',  # Initial upgrades (version 2)
+                            'PolicyManager',
+                            'MiningAdjudicator',
+                            'UserEscrowProxy',
 
     #
     # Setup
@@ -280,34 +284,31 @@ def test_rollback(click_runner):
                '--provider-uri', TEST_PROVIDER_URI,
                '--poa')
 
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    records = blockchain.interface.registry.search(contract_name='PolicyManager')
-    assert len(records) == 2
+    for contract_name in contracts_to_rollback:
 
-    command = ('contracts',
-               '--upgrade',
-               '--contract-name', 'MiningAdjudicator',
-               '--registry-infile', MOCK_REGISTRY_FILEPATH,
-               '--provider-uri', TEST_PROVIDER_URI,
-               '--poa')
+        command = ('rollback',
+                   '--contract-name', contract_name,
+                   '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                   '--provider-uri', TEST_PROVIDER_URI,
+                   '--poa')
 
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    records = blockchain.interface.registry.search(contract_name='MiningAdjudicator')
-    assert len(records) == 2
+        result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+        assert result.exit_code == 0
 
-    command = ('contracts',
-               '--upgrade',
-               '--contract-name', 'UserEscrowProxy',
-               '--registry-infile', MOCK_REGISTRY_FILEPATH,
-               '--provider-uri', TEST_PROVIDER_URI,
-               '--poa')
+        records = blockchain.interface.registry.search(contract_name='UserEscrowProxy')
+        assert len(records) == 2
 
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    records = blockchain.interface.registry.search(contract_name='UserEscrowProxy')
-    assert len(records) == 2
+        old, new = records
+        _name, old_address, *abi = old
+        _name, new_address, *abi = new
+        assert old_address != new_address
+
+        # Ensure the proxy targets the old deployment
+        proxy_name = 'Dispatcher'
+        proxy = blockchain.interface.get_proxy(target_address=new_address, proxy_name=proxy_name)
+        targeted_address = proxy.functions.target().call()
+        assert targeted_address != new_address
+        assert targeted_address == old_address
 
 
 def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
