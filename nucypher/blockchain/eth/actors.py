@@ -202,15 +202,21 @@ class Deployer(NucypherTokenActor):
 
     def upgrade_contract(self, contract_name: str, existing_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(blockchain=self.blockchain,
-                            deployer_address=self.deployer_address)
-
+        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
         new_secret_hash = self.blockchain.interface.w3.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
         return deployer
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry) -> UserEscrowDeployer:
+    def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
+        Deployer = self.__get_deployer(contract_name=contract_name)
+        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        new_secret_hash = self.blockchain.interface.w3.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                   new_secret_hash=new_secret_hash)
+        return deployer
+
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
         user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)
