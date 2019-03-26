@@ -117,7 +117,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                 revocation, fail_reason = attempt
                 if fail_reason == NotFound:
                     del(failed_revocations[node_id])
-        elif len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
+        if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
             del(self.character.active_policies[policy_encrypting_key])
 
         response_data = {'failed_revocations': len(failed_revocations)}
