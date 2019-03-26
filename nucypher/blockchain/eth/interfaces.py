@@ -309,10 +309,10 @@ class BlockchainInterface:
                 raise self.UnknownContract("No such contract with address {}".format(address))
             return contract_records[0]
 
-    def get_dispatcher(self, target_address: str, factory: Contract = Contract):
+    def get_proxy(self, target_address: str, proxy_name: str, factory: Contract = Contract):
 
         # Lookup proxies; Search for a registered proxy that targets this contract record
-        records = self.registry.search(contract_name='Dispatcher')
+        records = self.registry.search(contract_name=proxy_name)
 
         dispatchers = list()
         for name, addr, abi in records:
@@ -375,7 +375,6 @@ class BlockchainInterface:
                         continue
 
                     results.append(pair)
-
 
             if len(results) > 1:
                 address, abi = results[0]
