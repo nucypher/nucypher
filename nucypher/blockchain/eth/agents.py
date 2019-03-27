@@ -37,7 +37,7 @@ class EthereumContractAgent(ABC):
     _forward_address = True
     _proxy_name = None
 
-    DEFAULT_TRANSACTION_GAS = 500000  # TODO
+    DEFAULT_TRANSACTION_GAS = 500000  # TODO: #842
 
     class ContractNotDeployed(Exception):
         pass
@@ -103,7 +103,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})#, 'gas': 40000})  # TODO: needed for use with geth.
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})  # TODO #413: gas needed for use with geth.
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -163,7 +163,7 @@ class MinerAgent(EthereumContractAgent):
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})  # TODO: Causes tx to fail without high amount of gas
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})  # TODO #413: Causes tx to fail without high amount of gas
         _receipt = self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 

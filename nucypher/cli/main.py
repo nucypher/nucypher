@@ -23,7 +23,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
 from nucypher.cli import status
-from nucypher.cli.characters import moe, ursula, alice, bob, enrico
+from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
@@ -116,20 +116,23 @@ stdin --> cli.main --- alice
               |
             enrico 
             
+
+
+New character CLI modules must be added here
+for the entry point to be attached to the nucypher base command.
+
+Inversely, commenting out an entry point here will disable it.
 """
 
-# New character CLI modules must be added here
-# for the entry point to be attached to the nucypher base command.
-# Inversely, commenting out an entry point will disable it.
-
-ENTRTY_POINTS = (
-    status.status,
-    alice.alice,
-    bob.bob,
-    enrico.enrico,
-    moe.moe,
-    ursula.ursula
+ENTRY_POINTS = (
+    status.status,  # Network Status
+    alice.alice,  # Author of Policies
+    bob.bob,  # Builder of Capsules
+    enrico.enrico,  # Encryptor of Data
+    moe.moe,  # Monitor
+    ursula.ursula,  # Untrusted Re-Encryption Proxy
+    felix.felix         # Faucet
 )
 
-for entry_point in ENTRTY_POINTS:
+for entry_point in ENTRY_POINTS:
     nucypher_cli.add_command(entry_point)

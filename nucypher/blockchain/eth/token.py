@@ -74,6 +74,12 @@ class NU:
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
 
+    def __bool__(self) -> bool:
+        if self.__value == 0:
+            return False
+        else:
+            return True
+
     def __radd__(self, other) -> 'NU':
         return NU(int(self) + int(other), 'NuNit')
 

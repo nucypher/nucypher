@@ -20,6 +20,8 @@ import binascii
 import json
 import os
 import secrets
+
+import eth_utils
 import shutil
 import string
 from abc import ABC
@@ -275,11 +277,11 @@ class NodeConfiguration(ABC):
         return self.produce(*args, **kwargs)
 
     @classmethod
-    def generate(cls, password: str, no_registry: bool, *args, **kwargs) -> 'UrsulaConfiguration':
+    def generate(cls, password: str, no_registry: bool, *args, **kwargs):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
-        ursula_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
-        ursula_config.__write(password=password, no_registry=no_registry)
-        return ursula_config
+        node_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
+        node_config.__write(password=password, no_registry=no_registry)
+        return node_config
 
     def __write(self, password: str, no_registry: bool):
 
@@ -377,6 +379,15 @@ class NodeConfiguration(ABC):
         # Read from disk
         payload = cls._read_configuration_file(filepath=filepath)
 
+        # Sanity check
+        try:
+            checksum_address = payload['checksum_public_address']
+        except KeyError:
+            raise cls.ConfigurationError(f"No checksum address specified in configuration file {filepath}")
+        else:
+            if not eth_utils.is_checksum_address(checksum_address):
+                raise cls.ConfigurationError(f"Address: '{checksum_address}', specified in {filepath} is not a valid checksum address.")
+
         # Initialize NodeStorage subclass from file (sub-configuration)
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
@@ -449,6 +460,7 @@ class NodeConfiguration(ABC):
 
             # Behavior
             domains=self.domains,  # From Set
+            provider_uri=self.provider_uri,
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
@@ -551,7 +563,8 @@ class NodeConfiguration(ABC):
 
             # Keyring
             if not self.dev_mode:
-                os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point: COS
+                if not os.path.isdir(self.keyring_dir):
+                    os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point: COS
                 self.write_keyring(password=password)
 
             # Registry
@@ -563,8 +576,7 @@ class NodeConfiguration(ABC):
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
             message = "There are pre-existing files at {}: {}".format(self.config_root, existing_paths)
-            self.log.critical(message)
-            raise NodeConfiguration.ConfigurationError(message)
+            self.log.info(message)
 
         if not self.__dev_mode:
             self.validate(config_root=self.config_root, no_registry=import_registry or self.federated_only)

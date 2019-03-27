@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-ONE_YEAR_IN_SECONDS = 31540000
+ONE_YEAR_IN_SECONDS = 31540000  # TODO #831: This value is incorrect
 
 #
 # Dispatcher

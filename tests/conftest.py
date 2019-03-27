@@ -30,7 +30,7 @@ globalLogPublisher.removeObserver(logToSentry)
 
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
-NucypherClickConfig.log_to_file = False
+NucypherClickConfig.log_to_file = True
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = False

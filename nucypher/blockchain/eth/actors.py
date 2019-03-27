@@ -92,7 +92,7 @@ class NucypherTokenActor:
     def eth_balance(self):
         """Return this actors's current ETH balance"""
         balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
-        return balance
+        return self.blockchain.interface.w3.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:

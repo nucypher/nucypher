@@ -158,7 +158,7 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
 
         policy_encrypting_key = UmbralPublicKey.from_bytes(policy_encrypting_key)
         alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_verifying_key)
-        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
                                               policy_encrypting_key=policy_encrypting_key,

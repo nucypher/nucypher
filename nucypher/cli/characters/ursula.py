@@ -158,7 +158,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step
 
-        ursula_config = UrsulaConfiguration.generate(password=click_config._get_password(confirm=True),
+        ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
