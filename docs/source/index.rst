@@ -120,6 +120,7 @@ Whitepapers
 
    architecture/contracts
    architecture/upgradeable_proxy_contracts
+   architecture/slashing
 
 .. toctree::
    :maxdepth: 1
