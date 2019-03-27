@@ -54,6 +54,7 @@ bumpversion = "*"
 sphinx = "*"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
+aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
 
