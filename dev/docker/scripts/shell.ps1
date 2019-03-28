@@ -1,1 +1,1 @@
-docker-compose run --entrypoint "bash" nucypher-dev
+docker-compose run nucypher-dev bash

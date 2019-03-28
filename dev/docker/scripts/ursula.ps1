@@ -1,1 +1,1 @@
-docker run -it dev:nucypher nucypher ursula run --dev --federated-only
+docker-compose run nucypher-dev nucypher ursula run --dev --federated-only

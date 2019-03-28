@@ -1,2 +1,2 @@
 #!/bin/bash
-docker run -it dev:nucypher bash
+docker-compose run nucypher-dev bash
