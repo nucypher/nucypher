@@ -5,9 +5,10 @@ services:
     volumes:
       - ../..:/code
     ports:
-      - 11500
+      - 10151:10151
     build:
       context: ../..
       dockerfile: dev/docker/Dockerfile
     image: dev:nucypher
     container_name: nucypher-dev
+    working_dir: /code

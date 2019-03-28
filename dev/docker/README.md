@@ -12,11 +12,11 @@ The intention of the Docker configurations in this directory is to enable anyone
 
 Then you can do things like:
 * run the tests:
-`docker run -it dev:nucypher pytest`
+`docker-compose run nucypher-dev pytest`
 * start up an ursula:
-`docker run -it -p 10151:10151 dev:nucypher nucypher ursula run --dev --federated-only`
+`docker-compose run nucypher-dev nucypher ursula run --dev --federated-only`
 * open a shell:
-`docker run -it dev:nucypher bash`
+`docker-compose run nucypher-dev bash`
 
 * try some of the scripts in `dev/docker/scripts/`
 

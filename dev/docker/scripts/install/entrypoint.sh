@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # runs inside docker container with access to local volume.
-# this is needed for local development
-# so that the local repository is accessed
-# by shared volume and is executable by 'nucypher' cli
+# needed for local development, creates nucypher.egg-info on local disk
+# if it doesn't exist.
 
 if [ ! -e /code/nucypher.egg-info ]; then
     echo "First time install..."
-    pip3 install -e .
+    python setup.py develop
 fi
