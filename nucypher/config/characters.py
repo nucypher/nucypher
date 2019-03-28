@@ -94,7 +94,8 @@ class UrsulaConfiguration(NodeConfiguration):
                                      **generation_kwargs)
 
     def destroy(self) -> None:
-        os.remove(self.db_filepath)
+        if os.path.isfile(self.db_filepath):
+            os.remove(self.db_filepath)
         super().destroy()
 
 

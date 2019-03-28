@@ -2,8 +2,10 @@ import os
 
 import pytest
 
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN, INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI, \
     MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2
 
@@ -151,6 +153,75 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 0
     assert not os.path.isfile(felix_file_location)
+
+
+def test_destroy_with_no_configurations(click_runner, custom_filepath):
+    """Provide useful error messages when attempting to destroy when there is nothing to destroy"""
+    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
+    destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
+    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
+    assert result.exit_code == 2
+    assert 'Error: Invalid value for "--config-file":'
+    assert f'"{ursula_file_location}" does not exist.' in result.output
+
+
+def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
+    deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
+
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--rest-host', MOCK_IP_ADDRESS,
+                 '--config-root', custom_filepath)
+
+    # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
+    envvars = {'NUCYPHER_KEYRING_PASSWORD': ''}
+    with pytest.raises(NucypherKeyring.AuthenticationFailed):
+        result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+        assert result.exit_code != 0
+
+    # Ensure there is no unintentional file creation (keys, config, etc.)
+    top_level_config_root = os.listdir(custom_filepath)
+    assert 'ursula.config' not in top_level_config_root                         # no config file was created
+    assert not os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))  # no keys were created
+    for field in ['known_nodes', 'keyring']:
+        assert field in top_level_config_root                                   # only the empty default directories
+        path = os.path.join(custom_filepath, field)
+        assert os.path.isdir(path)
+        assert len(os.listdir(path)) == 2   # public and private directories
+
+    # Attempt installation again, with full args
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--checksum-address', ursula,
+                 '--rest-host', MOCK_IP_ADDRESS,
+                 '--registry-filepath', mock_primary_registry_filepath,
+                 '--config-root', custom_filepath)
+
+    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+
+    # Ensure configuration creation
+    top_level_config_root = os.listdir(custom_filepath)
+    assert 'ursula.config' in top_level_config_root                                    # config file was created
+    assert len(os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))) == 4   # keys were created
+    for field in ['known_nodes', 'keyring', 'ursula.config']:
+        assert field in top_level_config_root
+
+    # "Corrupt" the configuration by removing the contract registry
+    os.remove(mock_primary_registry_filepath)
+
+    # Attempt destruction with invalid configuration (missing registry)
+    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
+    destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
+    result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+
+    # Ensure character destruction
+    top_level_config_root = os.listdir(custom_filepath)
+    assert 'ursula.config' not in top_level_config_root                                # config file was destroyed
+    assert len(os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))) == 0   # keys were destroyed
 
 
 def test_nucypher_removal(click_runner, custom_filepath):

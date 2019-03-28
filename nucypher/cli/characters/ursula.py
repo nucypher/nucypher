@@ -36,6 +36,7 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -211,6 +212,14 @@ def ursula(click_config,
 
         click_config.unlock_keyring(character_configuration=ursula_config)
 
+    # Handle destruction *before* network bootstrap and character initialization below
+    if action == "destroy":
+        """Delete all configuration files from the disk"""
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+        return actions.destroy_configuration(character_config=ursula_config, force=force)
+
     #
     # Connect to Blockchain (Non-Federated)
     #
@@ -306,13 +315,6 @@ def ursula(click_config,
     elif action == "forget":
         actions.forget(configuration=ursula_config)
         return
-
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-        if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(character_config=ursula_config, force=force)
 
     elif action == 'stake':
 
