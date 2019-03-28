@@ -3,7 +3,7 @@ pragma solidity ^0.5.3;
 
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/lib/UmbralDeserializer.sol";
-
+import "contracts/lib/ReEncryptionValidator.sol";
 
 /**
 * @notice Contract for using SignatureVerifier library
@@ -98,7 +98,7 @@ contract UmbralDeserializerMock {
         metadata = proof.metadata;
     }
 
-    // `toCapsuleFrag` is splitted into two methods because of EVM stack problems with many variables
+    // `toCapsuleFrag` is split into two methods because of EVM stack problems with many variables
     function toCorrectnessProofFromCapsuleFrag(bytes memory _cFragBytes)
         public pure returns (
             byte pointE2Sign,
@@ -148,5 +148,94 @@ contract UmbralDeserializerMock {
         kFragId = cFrag.kFragId;
         pointPrecursorSign = byte(cFrag.pointPrecursor.sign);
         pointPrecursorXCoord = bytes32(cFrag.pointPrecursor.xCoord);
+    }
+}
+
+
+/**
+* @notice Contract for using ReEncryptionValidator library
+**/
+contract ReEncryptionValidatorMock {
+
+    using UmbralDeserializer for bytes;
+
+//    uint8 public constant UMBRAL_PARAMETER_U_SIGN = ReEncryptionValidator.UMBRAL_PARAMETER_U_SIGN();
+//    uint256 public constant UMBRAL_PARAMETER_U_XCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_XCOORD();
+//    uint256 public constant UMBRAL_PARAMETER_U_YCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_YCOORD();
+
+//    uint256 constant FIELD_ORDER = ReEncryptionValidator.FIELD_ORDER;
+//    uint256 constant MINUS_2 = ReEncryptionValidator.MINUS_2;
+//    uint256 constant MINUS_ONE_HALF = ReEncryptionValidator.MINUS_ONE_HALF
+
+    function validateCFrag(
+        bytes memory _capsuleBytes,
+        bytes memory _cFragBytes,
+        bytes memory _precomputedBytes
+    )
+        public pure returns (bool)
+    {
+        return ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _precomputedBytes);
+    }
+
+    function computeProofChallengeScalar(
+        bytes memory _capsuleBytes,
+        bytes memory _cFragBytes
+    )
+        public pure returns (uint256)
+    {
+        return ReEncryptionValidator.computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
+    }
+
+    function aliceAddress(
+        bytes memory _cFragBytes,
+        bytes memory _precomputedBytes
+    )
+        public pure returns (address)
+    {
+        return ReEncryptionValidator.aliceAddress(_cFragBytes, _precomputedBytes);
+    }
+
+    function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
+        return ReEncryptionValidator.extendedKeccakToBN(_data);
+    }
+
+	function check_compressed_point(
+		uint8 _pointSign,
+		uint256 _pointX,
+		uint256 _pointY
+	) public pure returns(bool) {
+        return ReEncryptionValidator.check_compressed_point(_pointSign, _pointX, _pointY);
+	}
+
+    function is_on_curve(uint256 Px, uint256 Py) public pure returns (bool) {
+        return ReEncryptionValidator.is_on_curve(Px, Py);
+    }
+
+    function ecmulVerify(
+    	uint256 x1,
+    	uint256 y1,
+    	uint256 scalar,
+    	uint256 qx,
+    	uint256 qy
+    ) public pure returns(bool) {
+        return ReEncryptionValidator.ecmulVerify(x1, y1, scalar, qx, qy);
+	}
+
+    function eqAffineJacobian(
+    	uint256[2] memory P,
+    	uint256[3] memory Q
+    ) public pure returns(bool){
+        return ReEncryptionValidator.eqAffineJacobian(P, Q);
+    }
+
+    function addAffineJacobian(
+    	uint[2] memory P,
+    	uint[2] memory Q
+    ) public pure returns (uint[3] memory) {
+        return ReEncryptionValidator.addAffineJacobian(P, Q);
+    }
+
+    function doubleJacobian(uint[3] memory P) internal pure returns (uint[3] memory) {
+        return ReEncryptionValidator.doubleJacobian(P);
     }
 }

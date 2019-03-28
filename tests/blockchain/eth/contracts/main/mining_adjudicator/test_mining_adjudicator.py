@@ -106,23 +106,6 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     creator, miner, wrong_miner, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
 
-    # TODO: Uncomment assertions related to old public methods, now internal
-
-    # TODO: Move this to an integration test?
-    umbral_params = default_params()
-    u_xcoord, u_ycoord = umbral_params.u.to_affine()
-    u_sign = 2 + (u_ycoord % 2)
-    # assert u_sign == adjudicator_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
-    # assert u_xcoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
-    # assert u_ycoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_YCOORD().call()
-
-    # TODO: Move this to an integration test?
-    test_data = os.urandom(40)
-    h = hash_to_curvebn(test_data,
-                        params=umbral_params,
-                        hash_class=ExtendedKeccak)
-    # assert int(h) == adjudicator_contract.functions.extendedKeccakToBN(test_data).call()
-
     worker_stake = 1000
     worker_penalty_history = 0
     investigator_balance = 0
