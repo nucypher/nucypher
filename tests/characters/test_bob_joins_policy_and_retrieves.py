@@ -1,7 +1,6 @@
-import os
-import time
-
 import datetime
+import os
+
 import maya
 import pytest
 
@@ -14,11 +13,11 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def test_federated_bob_full_retrieve_flow(federated_ursulas,
-                                 federated_bob,
-                                 federated_alice,
-                                 capsule_side_channel,
-                                 enacted_federated_policy
-                                 ):
+                                          federated_bob,
+                                          federated_alice,
+                                          capsule_side_channel,
+                                          enacted_federated_policy
+                                          ):
     # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
@@ -101,15 +100,24 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     assert plaintext == delivered_cleartexts[0]
 
-    # FIXME: Bob tries to retrieve again
-    # delivered_cleartexts = bob.retrieve(message_kit=message_kit,
-    #                                     data_source=enrico,
-    #                                     alice_verifying_key=alices_verifying_key,
-    #                                     label=policy.label)
-    #
-    # assert plaintext == delivered_cleartexts[0]
+    # Bob tries to retrieve again, but without using the cached CFrags, it fails.
+    with pytest.raises(TypeError):
+        delivered_cleartexts = bob.retrieve(message_kit=message_kit,
+                                            data_source=enrico,
+                                            alice_verifying_key=alices_verifying_key,
+                                            label=policy.label)
 
-    # # Let's try retrieve again, but Alice revoked the policy.
+    # Bob can retrieve again if he sets cache=True.
+    cleartexts_delivered_a_second_time = bob.retrieve(message_kit=message_kit,
+                                                      data_source=enrico,
+                                                      alice_verifying_key=alices_verifying_key,
+                                                      label=policy.label,
+                                                      cache=True)
+
+    # Indeed, they're the same cleartexts.
+    assert delivered_cleartexts == cleartexts_delivered_a_second_time
+
+    # Let's try retrieve again, but Alice revoked the policy.
     failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
