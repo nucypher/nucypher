@@ -20,6 +20,7 @@ requests = "*"
 sqlalchemy = "*"
 maya = "*"
 flask = "*"
+flask-cors = "*"
 flask_sqlalchemy = "*"
 # Third-Party Ethereum
 py-evm = "==0.2.0a39"
