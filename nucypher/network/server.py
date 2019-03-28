@@ -20,8 +20,8 @@ import json
 import os
 from typing import Callable, Tuple
 
-from flask import Flask, Response
-from flask import request
+from flask import Flask, Response, request
+from flask_cors import CORS
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
 from umbral import pre
@@ -123,6 +123,7 @@ def make_rest_app(
     _node_class = Ursula
 
     rest_app = Flask("ursula-service")
+    CORS(rest_app)
 
     @rest_app.route("/public_information")
     def public_information():
