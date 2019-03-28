@@ -3,6 +3,7 @@ from base64 import b64encode, b64decode
 
 from constant_sorrow.constants import NO_WEB_APP_ATTACHED
 from flask import Response, Flask
+from flask_cors import CORS
 from hendrix.deploy.base import HendrixDeploy
 from twisted.logger import Logger
 
@@ -53,16 +54,19 @@ class AliceJSONController(AliceInterface, CharacterController):
     @character_control_interface
     def create_policy(self, request):
         federated_only = True  # TODO #844: const for now
-        serialized_output = self.serializer.load_create_policy_input(request=request)
+        serialized_output = self.serializer.load_create_policy_input(
+            request=request)
         result = super().create_policy(**serialized_output, federated_only=federated_only)
-        response_data = self.serializer.dump_create_policy_output(response=result)
+        response_data = self.serializer.dump_create_policy_output(
+            response=result)
         return response_data
 
     @character_control_interface
     def derive_policy_encrypting_key(self, label: str, request=None):
         label_bytes = label.encode()
         result = super().derive_policy_encrypting_key(label=label_bytes)
-        response_data = self.serializer.dump_derive_policy_encrypting_key_output(response=result)
+        response_data = self.serializer.dump_derive_policy_encrypting_key_output(
+            response=result)
         return response_data
 
     @character_control_interface
@@ -83,7 +87,8 @@ class AliceJSONController(AliceInterface, CharacterController):
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
         result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
+        response_data = self.serializer.dump_public_keys_output(
+            response=result)
         return response_data
 
 
@@ -98,7 +103,8 @@ class BobJSONController(BobInterface, CharacterController):
         """
         Character control endpoint for joining a policy on the network.
         """
-        serialized_output = self.serializer.load_join_policy_input(request=request)
+        serialized_output = self.serializer.load_join_policy_input(
+            request=request)
         _result = super().join_policy(**serialized_output)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
@@ -118,7 +124,8 @@ class BobJSONController(BobInterface, CharacterController):
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
         result = super().public_keys()
-        response_data = self.serializer.dump_public_keys_output(response=result)
+        response_data = self.serializer.dump_public_keys_output(
+            response=result)
         return response_data
 
 
@@ -130,8 +137,10 @@ class EnricoJSONController(EnricoInterface, CharacterController):
 
     @character_control_interface
     def encrypt_message(self, request: str):
-        result = super().encrypt_message(**self.serializer.load_encrypt_message_input(request=request))
-        response_data = self.serializer.dump_encrypt_message_output(response=result)
+        result = super().encrypt_message(
+            **self.serializer.load_encrypt_message_input(request=request))
+        response_data = self.serializer.dump_encrypt_message_output(
+            response=result)
         return response_data
 
 
@@ -180,6 +189,7 @@ class WebController(CharacterController):
         # Serialize For WSGI <-> Bytes <-> Unicode <-> JSON <-> Hex/B64 <-> Native Requests
         self._internal_controller.serialize = True
         self._web_app = Flask(self.app_name)
+        CORS(self._web_app)
 
         # Return FlaskApp decorator
         return self._web_app
@@ -207,7 +217,8 @@ class WebController(CharacterController):
                            CharacterSpecification.InvalidInputField,
                            CharacterControlSerializer.SerializerError)
         try:
-            response = interface(request=control_request.data, *args, **kwargs)  # < ------- INLET
+            response = interface(request=control_request.data,
+                                 *args, **kwargs)  # < ------- INLET
 
         #
         # Client Errors
@@ -245,5 +256,6 @@ class WebController(CharacterController):
         # Send to Emitter
         #
         else:
-            self.log.debug(f"{interface_name} [200 - OK]")  # TODO - include interface name in metadata
+            # TODO - include interface name in metadata
+            self.log.debug(f"{interface_name} [200 - OK]")
             return response
