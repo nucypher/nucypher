@@ -9,6 +9,8 @@ services:
   nucypher-dev:
     volumes:
       - ../..:/code
+    ports:
+      - 11500
     build:
       context: ../..
       dockerfile: dev/docker/Dockerfile
@@ -18,7 +20,7 @@ services:
     volumes:
       - ../..:/code
     ports:
-      - 11501:11500
+      - 11500
     image: dev:nucypher
     command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.1 --rest-port 11500
     networks:
@@ -29,7 +31,7 @@ services:
     volumes:
       - ../..:/code
     ports:
-      - 11502:11500
+      - 11500
     image: dev:nucypher
     depends_on:
       - ursula1
@@ -42,7 +44,7 @@ services:
     volumes:
       - ../..:/code
     ports:
-      - 11503:11500
+      - 11500
     image: dev:nucypher
     depends_on:
       - ursula1
