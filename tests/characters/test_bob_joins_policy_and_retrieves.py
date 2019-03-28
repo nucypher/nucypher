@@ -121,11 +121,24 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
+    # One thing to note here is that Bob *can* still retrieve with the cached CFrags, even though this Policy has been revoked.  #892
+    _cleartexts = bob.retrieve(message_kit=message_kit,
+                               data_source=enrico,
+                               alice_verifying_key=alices_verifying_key,
+                               label=policy.label,
+                               cache=True,
+                               )
+    assert _cleartexts == delivered_cleartexts  # TODO: 892
+
+    # OK, but we imagine that the message_kit is fresh here.
+    message_kit.capsule._attached_cfrags = []
+
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit=message_kit,
                                    data_source=enrico,
                                    alice_verifying_key=alices_verifying_key,
-                                   label=policy.label)
+                                   label=policy.label,
+                                   )
 
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
