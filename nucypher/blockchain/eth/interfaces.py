@@ -36,6 +36,7 @@ from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.constants import NUMBER_OF_ETH_TEST_ACCOUNTS
 
 
 class BlockchainInterface:
@@ -234,6 +235,8 @@ class BlockchainInterface:
                     from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT
                     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
                     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
+                    pyevm_backend.reset_to_genesis(genesis_params=genesis_params,
+                                                   num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
