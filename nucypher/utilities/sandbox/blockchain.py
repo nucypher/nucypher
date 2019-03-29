@@ -36,7 +36,7 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+from nucypher.utilities.sandbox.constants import (TESTING_ETH_AIRDROP_AMOUNT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -85,7 +85,7 @@ class TesterBlockchain(Blockchain):
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
         if airdrop is True:  # ETH for everyone!
-            self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+            self.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
 
     @staticmethod
     def free_gas_price_strategy(w3, transaction_params=None):
