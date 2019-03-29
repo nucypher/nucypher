@@ -151,11 +151,15 @@ def test_upgrading(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()
-    assert 2 == len(events)
+    assert 4 == len(events)
     event_args = events[0]['args']
-    assert contract_library_v2.address == event_args['testTarget']
+    assert contract_library_v1.address == event_args['testTarget']
     assert creator == event_args['sender']
     event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[2]['args']
+    event_args = events[3]['args']
     assert contract_library_v2.address == event_args['testTarget']
     assert creator == event_args['sender']
 

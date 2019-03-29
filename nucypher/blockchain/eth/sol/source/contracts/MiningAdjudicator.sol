@@ -172,7 +172,8 @@ contract MiningAdjudicator is Upgradeable {
             penaltyHistory[RESERVED_ADDRESS]);
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
-        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != 0);
+        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) ==
+            (evaluatedCFrags[evaluationCFragHash] ? 1 : 0));
     }
 
     function finishUpgrade(address _target) public {

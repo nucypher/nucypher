@@ -1,11 +1,14 @@
 pragma solidity ^0.5.3;
 
 
-import "./ContractInterface.sol";
+import "./ContractV1.sol";
 import "contracts/proxy/Upgradeable.sol";
 
 
-contract ContractV0Bad {
+/**
+* @dev This contract can't be target for dispatcher because missed `previousTarget`
+**/
+contract BadDispatcherStorage {
 
     address public owner;
     address public target;
@@ -19,9 +22,11 @@ contract ContractV0Bad {
 }
 
 
-contract ContractV2Bad is ContractInterface, Upgradeable {
+/**
+* @dev Upgrade to this contract will fail because added `fakeValue`
+**/
+contract ContractV2BadStorage is Upgradeable {
 
-    event EventV1(uint256 value);
     // TODO can't catch such a violation
 //    uint128 public storageValue;
     uint256 public storageValue;
@@ -46,60 +51,19 @@ contract ContractV2Bad is ContractInterface, Upgradeable {
     mapping (uint256 => Structure2) public mappingStructures;
     uint256 public mappingStructuresLength;
 
-    function returnValue() public pure returns (uint256) {}
-
-    function setStorageValue(uint256) public {}
-    function getStorageValue() public view returns (uint256) {
-        return storageValue;
-    }
-
-    function setDynamicallySizedValue(string memory) public {}
-    function getDynamicallySizedValue() public view returns (string memory) {}
-
-    function pushArrayValue(uint256) public {}
-    function getArrayValue(uint256 _index) public view returns (uint256) {
-        return arrayValues[_index];
-    }
-    function getArrayValueLength() public view returns (uint256) {
-        return arrayValues.length;
-    }
-
-    function setMappingValue(uint256, uint256) public {}
-    function getMappingValue(uint256 _index) public view returns (uint256) {
-        return mappingValues[_index];
-    }
-
-    function getStructureLength1() public view returns (uint256) {
-        return arrayStructures.length;
-    }
-    function pushStructureValue1(uint256) public {}
-    function getStructureValue1(uint256 _index) public view returns (uint256) {
-        return arrayStructures[_index].value;
-    }
-    function getStructureArrayLength1(uint256 _index) public view returns (uint256) {
-        return arrayStructures[_index].arrayValues.length;
-    }
-    function pushStructureArrayValue1(uint256, uint256) public {}
-    function getStructureArrayValue1(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
-        return arrayStructures[_index].arrayValues[_arrayIndex];
-    }
-
-    function getStructureLength2() public view returns (uint256) {
-        return mappingStructuresLength;
-    }
-    function pushStructureValue2(uint256) public {}
-    function getStructureValue2(uint256 _index) public view returns (uint256) {
-        return mappingStructures[_index].value;
-    }
-    function getStructureArrayLength2(uint256 _index) public view returns (uint256) {
-        return mappingStructures[_index].arrayValues.length;
-    }
-    function pushStructureArrayValue2(uint256, uint256) public {}
-    function getStructureArrayValue2(uint256 _index, uint256 _arrayIndex) public view returns (uint256) {
-        return mappingStructures[_index].arrayValues[_arrayIndex];
-    }
-
     function verifyState(address) public {}
     function finishUpgrade(address) public {}
+
+}
+
+
+/**
+* @dev Upgrade to this contract will fail because `verifyState` is broken
+**/
+contract ContractV2BadVerifyState is ContractV1(1) {
+
+    function verifyState(address) public {
+        revert();
+    }
 
 }

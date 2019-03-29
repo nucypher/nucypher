@@ -513,14 +513,16 @@ contract PolicyManager is Upgradeable {
             policyToCheck.lastPeriod == policy.lastPeriod &&
             policyToCheck.disabled == policy.disabled);
 
-        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)",
-            RESERVED_POLICY_ID) == policy.arrangements.length);
-        ArrangementInfo storage arrangement = policy.arrangements[0];
-        ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
-            _testTarget, RESERVED_POLICY_ID, 0);
-        require(arrangementToCheck.node == arrangement.node &&
-            arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
-            arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)", RESERVED_POLICY_ID) ==
+            policy.arrangements.length);
+        if (policy.arrangements.length > 0) {
+            ArrangementInfo storage arrangement = policy.arrangements[0];
+            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
+                _testTarget, RESERVED_POLICY_ID, 0);
+            require(arrangementToCheck.node == arrangement.node &&
+                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
+                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+        }
 
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
         NodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);

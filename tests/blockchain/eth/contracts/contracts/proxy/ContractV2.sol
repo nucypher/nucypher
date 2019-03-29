@@ -1,21 +1,20 @@
 pragma solidity ^0.5.3;
 
 
-import "./ContractInterface.sol";
 import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/upgradableImplementations/ContractV2.sol
+* @dev Extension of the contract using valid storage variables
 **/
-contract ContractV2 is ContractInterface, Upgradeable {
+contract ContractV2 is Upgradeable {
 
     event EventV2(uint8 value);
 
     uint256 public storageValue;
     string public dynamicallySizedValue;
     uint256[] public arrayValues;
-    mapping (uint256 => uint256) mappingValues;
+    mapping (uint256 => uint256) public mappingValues;
     uint256[] public mappingIndices;
 
     struct Structure1 {
@@ -45,22 +44,13 @@ contract ContractV2 is ContractInterface, Upgradeable {
     function setStorageValue(uint256 _value) public {
         storageValue = _value * 2;
     }
-    function getStorageValue() public view returns (uint256) {
-        return storageValue;
-    }
 
     function setDynamicallySizedValue(string memory _dynamicValue) public {
         dynamicallySizedValue = _dynamicValue;
     }
-    function getDynamicallySizedValue() public view returns (string memory) {
-        return dynamicallySizedValue;
-    }
 
     function pushArrayValue(uint256 _value) public {
         arrayValues.push(2 * _value);
-    }
-    function getArrayValue(uint256 _index) public view returns (uint256) {
-        return arrayValues[_index];
     }
     function getArrayValueLength() public view returns (uint256) {
         return arrayValues.length;
@@ -70,9 +60,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
         mappingIndices.push(_index);
         mappingValues[_index] = _value;
     }
-    function getMappingValue(uint256 _index) public view returns (uint256) {
-        return mappingValues[_index];
-    }
 
     function getStructureLength1() public view returns (uint256) {
         return arrayStructures.length;
@@ -81,9 +68,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
         Structure1 memory structure;
         arrayStructures.push(structure);
         arrayStructures[arrayStructures.length - 1].value = _value;
-    }
-    function getStructureValue1(uint256 _index) public view returns (uint256) {
-        return arrayStructures[_index].value;
     }
     function getStructureArrayLength1(uint256 _index) public view returns (uint256) {
         return arrayStructures[_index].arrayValues.length;
@@ -104,9 +88,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
         mappingStructures[mappingStructuresLength - 1] = structure;
         mappingStructures[mappingStructuresLength - 1].value = _value;
     }
-    function getStructureValue2(uint256 _index) public view returns (uint256) {
-        return mappingStructures[_index].value;
-    }
     function getStructureArrayLength2(uint256 _index) public view returns (uint256) {
         return mappingStructures[_index].arrayValues.length;
     }
@@ -119,9 +100,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
 
     function setStructureValueToCheck2(uint256 _index, uint256 _value) public {
         mappingStructures[_index].valueToCheck = _value;
-    }
-    function getStructureValueToCheck2(uint256 _index) public view returns (uint256) {
-        return mappingStructures[_index].valueToCheck;
     }
 
     function getStructure1ArrayValues(uint256 _index) public view returns (uint256[] memory) {
@@ -141,11 +119,11 @@ contract ContractV2 is ContractInterface, Upgradeable {
 
         require(delegateGet(_testTarget, "getArrayValueLength()") == arrayValues.length);
         for (uint256 i = 0; i < arrayValues.length; i++) {
-            require(delegateGet(_testTarget, "getArrayValue(uint256)", bytes32(i)) == arrayValues[i]);
+            require(delegateGet(_testTarget, "arrayValues(uint256)", bytes32(i)) == arrayValues[i]);
         }
         for (uint256 i = 0; i < mappingIndices.length; i++) {
             uint256 index = mappingIndices[i];
-            require(delegateGet(_testTarget, "getMappingValue(uint256)", bytes32(index)) ==
+            require(delegateGet(_testTarget, "mappingValues(uint256)", bytes32(index)) ==
                 mappingValues[index]);
         }
 

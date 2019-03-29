@@ -33,6 +33,8 @@ contract Dispatcher is Upgradeable {
         require(_target.isContract());
         // Checks that target contract inherits Dispatcher state
         verifyState(_target);
+        // `verifyState` must work with its contract
+        verifyUpgradeableState(_target, _target);
         target = _target;
         secretHash = _newSecretHash;
         finishUpgrade();
@@ -50,6 +52,8 @@ contract Dispatcher is Upgradeable {
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         // Checks that target contract has "correct" (as much as possible) state layout
         verifyState(_target);
+        //`verifyState` must work with its contract
+        verifyUpgradeableState(_target, _target);
         if (target.isContract()) {
             verifyUpgradeableState(target, _target);
         }
