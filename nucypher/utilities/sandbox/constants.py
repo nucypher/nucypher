@@ -78,7 +78,7 @@ INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + 
 
 MAX_TEST_SEEDER_ENTRIES = 20
 
-TESTING_ETH_AIRDROP_AMOUNT = int(Web3().fromWei(100, 'ether'))
+TESTING_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
 
 #

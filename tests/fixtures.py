@@ -394,6 +394,7 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
+    assert len(all_yall) >= NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     ursula_addresses = all_yall[:NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
 
     token_airdrop(origin=etherbase,
