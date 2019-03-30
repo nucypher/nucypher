@@ -6,6 +6,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.control.specifications import AliceSpecification, BobSpecification, EnricoSpecification
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import NotFound
 
 

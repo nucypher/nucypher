@@ -41,9 +41,9 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, key_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
+from nucypher.crypto.signing import Signature, InvalidSignature
+from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature, construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -165,11 +165,7 @@ class Policy:
 
     @property
     def id(self) -> bytes:
-        """
-        Forms an ID unique to the policy per label and Bob via a hash of the
-        label + bob's encrypting pubkey.
-        """
-        return keccak_digest(self.label + bytes(self.bob.stamp))
+        return construct_policy_id(self.label, bytes(self.bob.stamp))
 
     def hrac(self) -> bytes:
         """
@@ -271,7 +267,7 @@ class Policy:
         else:  # ...After *all* the policies are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.active_policies[bytes(self.public_key).hex()] = self
+            self.alice.active_policies[self.id] = self
 
             if publish is True:
                 return self.publish(network_middleware=network_middleware)
