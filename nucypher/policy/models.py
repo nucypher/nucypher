@@ -163,6 +163,14 @@ class Policy:
     def n(self) -> int:
         return len(self.kfrags)
 
+    @property
+    def id(self) -> bytes:
+        """
+        Forms an ID unique to the policy per label and Bob via a hash of the
+        label + bob's encrypting pubkey.
+        """
+        return keccak_digest(self.label + bytes(self.bob.stamp))
+
     def hrac(self) -> bytes:
         """
         This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
