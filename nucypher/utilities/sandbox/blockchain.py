@@ -37,7 +37,6 @@ from web3.middleware import geth_poa_middleware
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.utilities.sandbox.constants import (TESTING_ETH_AIRDROP_AMOUNT,
-                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   INSECURE_DEVELOPMENT_PASSWORD)
 
 
@@ -65,8 +64,13 @@ class TesterBlockchain(Blockchain):
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
 
-    # An account for each Ursula and a few extra for other actors
-    _default_test_accounts = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK + 5
+    _default_test_accounts = constants.NUMBER_OF_ETH_TEST_ACCOUNTS
+
+    _ETHERBASE = 0
+    _ALICE = 1
+    _BOB = 2
+    _FIRST_URSULA = 5
+    _ursulas_range = range(constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
     def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
         if test_accounts is None:
@@ -191,3 +195,30 @@ class TesterBlockchain(Blockchain):
         _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
                                                               policy_secret=random_deployment_secret())
         return testerchain, agents
+
+    @property
+    def etherbase_account(self):
+        return self.interface.w3.eth.accounts[self._ETHERBASE]
+
+    @property
+    def alice_account(self):
+        return self.interface.w3.eth.accounts[self._ALICE]
+
+    @property
+    def bob_account(self):
+        return self.interface.w3.eth.accounts[self._BOB]
+
+    def ursula_account(self, index):
+        if index not in self._ursulas_range:
+            raise ValueError(f"Ursula index must be lower than {constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
+        return self.interface.w3.eth.accounts[index + self._FIRST_URSULA]
+
+    @property
+    def ursulas_accounts(self):
+        return [self.ursula_account(i) for i in self._ursulas_range]
+
+    @property
+    def unassigned_accounts(self):
+        assigned_accounts = set(self.ursulas_accounts + [self.etherbase_account, self.alice_account, self.bob_account])
+        accounts = set(self.interface.w3.eth.accounts)
+        return list(accounts.intersection(assigned_accounts))
