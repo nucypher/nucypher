@@ -72,8 +72,8 @@ class AliceJSONController(AliceInterface, CharacterController):
         return response_data
 
     @character_control_interface
-    def revoke(self, policy_encrypting_key, request):
-        result = super().revoke(policy_encrypting_key)
+    def revoke(self, request):
+        result = super().revoke(**self.serializer.parse_revoke_input(request=request))
         response_data = result
         return response_data
 

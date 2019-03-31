@@ -325,14 +325,13 @@ class Alice(Character, PolicyAuthor):
             response = controller(interface=controller._internal_controller.grant, control_request=request)
             return response
 
-        @alice_control.route("/revoke/<policy_encrypting_key>", methods=['DELETE'])
-        def revoke(policy_encrypting_key):
+        @alice_control.route("/revoke", methods=['DELETE'])
+        def revoke():
             """
             Character control endpoint for policy revocation.
             """
             response = controller(interface=controller._internal_controller.revoke,
-                                  control_request=request,
-                                  policy_encrypting_key=policy_encrypting_key)
+                                  control_request=request)
             return response
 
         return controller
