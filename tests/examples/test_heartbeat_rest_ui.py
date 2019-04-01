@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import time
 from base64 import b64decode
 
 import pytest
@@ -11,8 +10,10 @@ from pytest_dash.application_runners import import_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
+from umbral.keys import UmbralPublicKey
 
 from examples.heartbeat_rest_ui.app import POLICY_INFO_FILE
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 
@@ -27,6 +28,9 @@ BOB_PORT = 11151
 def dash_app():
     dash_app = import_app('examples.heartbeat_rest_ui.char_control_heartbeat', application_name='app')
     yield dash_app
+
+    # destroy app
+    del dash_app
 
 
 @pytest.fixture(scope='function')
@@ -356,7 +360,6 @@ def test_bob_join_policy_failed(dash_driver,
 @responses.activate
 def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
                                           alice_control_test_client,
-                                          enrico_control_test_client,
                                           bob_control_test_client,
                                           federated_bob,
                                           federated_ursulas):
@@ -374,18 +377,6 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     responses.add_callback(responses.POST,
                            url=re.compile(f'{ALICE_URL}/derive_policy_encrypting_key/.*', re.IGNORECASE),
                            callback=derive_key_callback,
-                           content_type='application/json')
-
-    # '/encrypt_message'
-    def encrypt_message_callback(request):
-        encrypt_response = enrico_control_test_client.post('/encrypt_message', data=request.body)
-        return (encrypt_response.status_code,
-                encrypt_response.headers,
-                encrypt_response.data)
-
-    responses.add_callback(responses.POST,
-                           url=f'{ENRICO_URL}/encrypt_message',
-                           callback=encrypt_message_callback,
                            content_type='application/json')
 
     # '/grant'
@@ -465,14 +456,36 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     request_url = responses.calls[0].request.url
     assert f'{ALICE_URL}/derive_policy_encrypting_key' in request_url
 
+    assert 200 == responses.calls[0].response.status_code
     policy_label = request_url[request_url.rfind('/')+1:]
     assert policy_label == policy_label_element.text
 
-    assert 200 == responses.calls[0].response.status_code
     response_json = responses.calls[0].response.text
     response_data = json.loads(response_json)
     derived_policy_key = response_data['result']['policy_encrypting_key']
     assert derived_policy_key == policy_key_element.text
+
+    ########################
+    #  setup enrico endpoint
+    ########################
+    # now that we have the encrypting key we can setup an enrico endpoint
+    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(derived_policy_key))
+    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
+    enrico_control_client = enrico.make_web_controller(crash_on_error=True)._web_app.test_client()
+
+    # '/encrypt_message'
+    def encrypt_message_callback(request):
+        encrypt_response = enrico_control_client.post('/encrypt_message', data=request.body)
+        return (encrypt_response.status_code,
+                encrypt_response.headers,
+                encrypt_response.data)
+
+    responses.add_callback(responses.POST,
+                           url=f'{ENRICO_URL}/encrypt_message',
+                           callback=encrypt_message_callback,
+                           content_type='application/json')
+
+    ########################
 
     ######################
     # switch to enrico tab
@@ -496,7 +509,6 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
 
     assert 200 == responses.calls[1].response.status_code
     response_json = responses.calls[1].response.text
-    print(response_json)
     response_data = json.loads(response_json)
     message_kit = response_data['result']['message_kit']
     assert UmbralMessageKit.from_bytes(b64decode(message_kit))
@@ -507,12 +519,12 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     dash_driver.switch_to.window('_alicia')
 
     # grant access to bob
-    # m_threshold_element = dash_driver.find_element_by_id('m-value')
-    # m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
-    #
-    # n_shares_element = dash_driver.find_element_by_id('n-value')
-    # n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
-    # n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
+    m_threshold_element = dash_driver.find_element_by_id('m-value')
+    m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+
+    n_shares_element = dash_driver.find_element_by_id('n-value')
+    n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
+    n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
     bob_encrypting_key_hex = bytes(federated_bob.public_keys(DecryptingPower)).hex()
     bob_verifying_key_hex = bytes(federated_bob.stamp).hex()
@@ -544,9 +556,9 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     ###################
     dash_driver.switch_to.window('_bob')
 
-    # Give bob a node to remember
-    teacher = list(federated_ursulas)[1]
-    federated_bob.remember_node(teacher)
+    # Simulate bob already knowing all available nodes
+    for ursula in list(federated_ursulas):
+        federated_bob.remember_node(ursula)
 
     read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
 
@@ -561,7 +573,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     read_heartbeats_button.click()
 
     # wait for response
-    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+    heartbeats_element = WebDriverWait(dash_driver, 15).until(
         wait_for_non_empty_text((By.ID, 'heartbeats'))
     )
 

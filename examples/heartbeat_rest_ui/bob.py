@@ -172,6 +172,9 @@ def update_cached_decrypted_heartbeats_list(read_time,
                 print(f'> WARNING: Unable to retrieve re-encryption plaintext for Bob (port: {bob_port}); '
                       f'status code = {response.status_code}; response = {response.content}')
                 policy_joined.pop(bob_port, None)
+                if response.status_code == 500:
+                    # common temporary problem regarding NotEnoughUrsulas; currently ignore and try again
+                    break
                 return ACCESS_DISALLOWED
 
             response_data = json.loads(response.content)
