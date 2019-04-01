@@ -1,3 +1,5 @@
+import os
+
 import click
 import shutil
 from twisted.logger import Logger
@@ -52,7 +54,10 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
         message = f"Destroy top-level configuration directory: {config_root}?"
         click.confirm(message, abort=True)  # ABORT
 
-    shutil.rmtree(config_root, ignore_errors=force)       # config
+    if os.path.isdir(config_root):
+        shutil.rmtree(config_root, ignore_errors=force)  # config
+    else:
+        console_emitter(message=f'No NuCypher configuration root directory found at \'{config_root}\'')
 
     if logs:
         shutil.rmtree(USER_LOG_DIR, ignore_errors=force)  # logs

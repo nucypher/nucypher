@@ -125,6 +125,20 @@ def test_coexisting_configurations(click_runner,
     assert len(os.listdir(public_keys_dir)) == 11
 
     #
+    # Run
+    #
+
+    # Now start running your Ursula!
+    run_args = ('ursula', 'run', '--dry-run',
+                '--config-file', another_ursula_configuration_file_location)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert another_ursula in result.output
+
+
+    #
     # Destroy
     #
 
@@ -232,4 +246,10 @@ def test_nucypher_removal(click_runner, custom_filepath):
     result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert not os.path.isdir(custom_filepath)
-    # Everything is gone
+
+    # Everything is gone, but we'll try again anyways...
+    destruction_args = ('remove', '--config-root', custom_filepath)
+    result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False)
+    assert result.exit_code == 0
+    assert not os.path.isdir(custom_filepath)
+    assert "No NuCypher configuration root directory found" in result.output  # Graceful crash
