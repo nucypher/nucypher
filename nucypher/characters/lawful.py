@@ -700,12 +700,12 @@ class Bob(Character):
 
         cleartexts = []
 
-        if must_do_new_retrieval:
-            capsule.set_correctness_keys(
-                delegating=data_source.policy_pubkey,
-                receiving=self.public_keys(DecryptingPower),
-                verifying=alice_verifying_key)
+        capsule.set_correctness_keys(
+            delegating=data_source.policy_pubkey,
+            receiving=self.public_keys(DecryptingPower),
+            verifying=alice_verifying_key)
 
+        if must_do_new_retrieval:
             # TODO: Consider blocking until map is done being followed.
 
             work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
