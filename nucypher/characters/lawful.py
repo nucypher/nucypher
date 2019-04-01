@@ -527,9 +527,8 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                # if not capsule in self._saved_work_orders[node_id]:
-                # This means we'll overwrite the old work_order (see below).  TODO: Do we want to save it?
-                capsules_to_include.append(capsule)
+                if not capsule in self._saved_work_orders[node_id]:
+                    capsules_to_include.append(capsule)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
