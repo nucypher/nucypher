@@ -290,6 +290,11 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._saved_work_orders)
 
+    the_message_kit.capsule.set_correctness_keys(
+        delegating=the_data_source.policy_pubkey,
+        receiving=federated_bob.public_keys(DecryptingPower),
+        verifying=federated_alice.stamp.as_umbral_pubkey())
+
     new_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
                                                          the_message_kit.capsule,
                                                          num_ursulas=number_left_to_collect)
@@ -300,7 +305,8 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     # Now.
     # At long last.
-    cleartext = federated_bob.verify_from(the_data_source, the_message_kit,
+    cleartext = federated_bob.verify_from(the_data_source,
+                                          the_message_kit,
                                           decrypt=True)
     assert cleartext == b'Welcome to the flippering.'
 
