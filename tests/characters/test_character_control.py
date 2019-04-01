@@ -159,7 +159,7 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
 
 
 def test_bob_character_control_retrieve(bob_control_test_client, enacted_federated_policy, capsule_side_channel):
-    message_kit, data_source = capsule_side_channel
+    message_kit, data_source = capsule_side_channel()
 
     request_data = {
         'label': enacted_federated_policy.label.decode(),

@@ -29,7 +29,6 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel()
-
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
