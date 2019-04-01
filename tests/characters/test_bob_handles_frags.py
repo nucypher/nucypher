@@ -156,12 +156,22 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
 
+    # Since we didn't tell Bob to cache the WorkOrders, Bob didn't save it.
+    assert len(federated_bob._saved_work_orders) == 0
+
+    # This time, we'll tell Bob to cache it.
+    cached_work_orders = federated_bob.generate_work_orders(map_id, capsule, num_ursulas=1, cache=True)
+
     # Bob saved the WorkOrder.
     assert len(federated_bob._saved_work_orders) == 1
     # And the Ursula.
     assert len(federated_bob._saved_work_orders.ursulas) == 1
 
     ursula_id, work_order = list(work_orders.items())[0]
+    cached_id, cached_work_order = list(cached_work_orders.items())[0]
+
+    assert ursula_id == cached_id
+    assert work_order.receipt_bytes == cached_work_order.receipt_bytes
 
     # The work order is not yet complete, of course.
     assert work_order.completed is False
@@ -210,13 +220,24 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_bob,
                                                                    federated_ursulas, capsule_side_channel):
-    # In our last episode, Bob made a WorkOrder for the capsule...
-    assert len(federated_bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)) == 1
+    # In our last episode, Bob made a single WorkOrder...
+    work_orders = list(federated_bob._saved_work_orders.by_ursula.values())
+    assert len(work_orders) == 1
+
+    # ...and it matched the last capsule that came through the side channel.
+    last_capsule_on_side_channel = capsule_side_channel.messages[-1][0].capsule
+    first_and_only_work_order = work_orders[0]
+    list_of_one_capsule = list(first_and_only_work_order.keys())
+    capsule_as_saved = list_of_one_capsule[0]
+    # Indeed, they're the same capsule.
+    assert capsule_as_saved == last_capsule_on_side_channel
+    assert len(federated_bob._saved_work_orders.by_capsule(last_capsule_on_side_channel)) == 1
+
     # ...and he used it to obtain a CFrag from Ursula.
-    assert len(capsule_side_channel[0].capsule._attached_cfrags) == 1
+    assert len(capsule_as_saved._attached_cfrags) == 1
 
     # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
-    work_orders_by_capsule = federated_bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)
+    work_orders_by_capsule = federated_bob._saved_work_orders.by_capsule(capsule_as_saved)
 
     # Bob has just one WorkOrder from that one Ursula.
     assert len(work_orders_by_capsule) == 1
@@ -224,8 +245,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     generated_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
-                                                               capsule_side_channel[0].capsule,
-                                                               num_ursulas=1)
+                                                               last_capsule_on_side_channel,
+                                                               num_ursulas=1,
+                                                               cache=True)
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
