@@ -147,7 +147,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
-    capsule = capsule_side_channel[0].capsule
+    capsule = capsule_side_channel()[0].capsule
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
                                  receiving=federated_bob.public_keys(DecryptingPower),
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
@@ -247,14 +247,14 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     new_cfrag = cfrags[0]
 
     # Attach the CFrag to the Capsule.
-    capsule_side_channel[0].capsule.attach_cfrag(new_cfrag)
+    last_capsule_on_side_channel.attach_cfrag(new_cfrag)
 
 
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
-    the_message_kit, the_data_source = capsule_side_channel
+    the_message_kit, the_data_source = capsule_side_channel.messages[-1]
 
     # Bob has saved two WorkOrders so far.
     assert len(federated_bob._saved_work_orders) == 2
@@ -292,7 +292,7 @@ def test_federated_bob_retrieves(federated_bob,
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
-    the_message_kit, the_data_source = capsule_side_channel
+    the_message_kit, the_data_source = capsule_side_channel()
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
