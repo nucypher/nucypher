@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -8,12 +9,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from umbral.keys import UmbralPublicKey
 
-from examples.heartbeat_demo_ui import demo_keys
+from examples.vehicle_data_exchange import demo_keys
 
 
 @pytest.fixture(scope='module')
 def dash_app():
-    dash_app = import_app('examples.heartbeat_demo_ui.streaming_heartbeat', application_name='app')
+    dash_app = import_app('examples.vehicle_data_exchange.vehicle_data_exchange', application_name='app')
     yield dash_app
 
     # destroy app
@@ -82,7 +83,7 @@ def test_alicia_get_policy_key_from_label(dash_driver):
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
 
-    assert 'heart-data' in policy_label_element.text
+    assert 'vehicle-data' in policy_label_element.text
     assert UmbralPublicKey.from_bytes(bytes.fromhex(policy_key_element.text))
 
 
@@ -105,7 +106,7 @@ def test_alicia_grant(dash_driver):
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
 
-    assert 'heart-data' in policy_label_element.text
+    assert 'vehicle-data' in policy_label_element.text
     assert UmbralPublicKey.from_bytes(bytes.fromhex(policy_key_element.text))
 
     # grant to some recipient
@@ -148,7 +149,7 @@ def test_bob_get_keys(dash_driver):
     # switch to bob tab
     ###################
     # open bob tab
-    bob_link = dash_driver.find_element_by_link_text('BOB')
+    bob_link = dash_driver.find_element_by_link_text('INSURER BOB')
     bob_link.click()
     dash_driver.switch_to.window('_bob')
 
@@ -169,7 +170,7 @@ def test_bob_get_keys(dash_driver):
     assert UmbralPublicKey.from_bytes(bytes.fromhex(keys_text[3]))
 
 
-def test_heartbeat_demo_ui_lifecycle(dash_driver):
+def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     home_page = dash_driver.current_window_handle
 
     # open alicia tab
@@ -179,13 +180,13 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     dash_driver.switch_to.window(home_page)
 
     # open enrico tab
-    enrico_link = dash_driver.find_element_by_link_text('ENRICO (HEART_MONITOR)')
+    enrico_link = dash_driver.find_element_by_link_text('ENRICO (OBD DEVICE)')
     enrico_link.click()
 
     dash_driver.switch_to.window(home_page)
 
     # open bob tab
-    bob_link = dash_driver.find_element_by_link_text('BOB')
+    bob_link = dash_driver.find_element_by_link_text('INSURER BOB')
     bob_link.click()
 
     ######################
@@ -207,7 +208,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
 
     policy_encrypting_key = policy_key_element.text
 
-    assert 'heart-data' in policy_label
+    assert 'vehicle-data' in policy_label
     assert UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
 
     ######################
@@ -224,13 +225,13 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     start_monitoring_button.click()
 
     # wait for response
-    last_heartbeat_element = WebDriverWait(dash_driver, 5).until(
-        wait_for_non_empty_text((By.ID, 'cached-last-heartbeat'))
+    last_readings_element = WebDriverWait(dash_driver, 5).until(
+        wait_for_non_empty_text((By.ID, 'cached-last-readings'))
     )
 
-    assert 'WARNING' not in last_heartbeat_element.text
+    assert 'WARNING' not in last_readings_element.text
     # verify that actual number
-    assert int(last_heartbeat_element.text)
+    assert json.loads(last_readings_element.text)
 
     ###################
     # switch to bob tab
@@ -297,16 +298,16 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     # open bob tab
     dash_driver.switch_to.window('_bob')
 
-    # read heartbeat data
-    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
-    read_heartbeats_button.click()
+    # read car measurement data
+    read_measurements_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+    read_measurements_button.click()
 
     # wait for response
-    heartbeats_element = WebDriverWait(dash_driver, 15).until(
-        wait_for_non_empty_text((By.ID, 'heartbeats'))
+    measurements_element = WebDriverWait(dash_driver, 15).until(
+        wait_for_non_empty_text((By.ID, 'measurements'))
     )
-    assert 'WARNING' not in heartbeats_element.text
-    assert 'not been granted' not in heartbeats_element.text
+    assert 'WARNING' not in measurements_element.text
+    assert 'not been granted' not in measurements_element.text
 
     ######################
     # switch to alicia tab
@@ -325,6 +326,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     revoke_response_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'revoke-response'))
     )
+
     assert 'WARNING' not in revoke_response_element.text
     assert 'Access revoked to recipient' in revoke_response_element.text
     assert bob_encrypting_key_hex in revoke_response_element.text
@@ -335,9 +337,9 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     # open bob tab
     dash_driver.switch_to.window('_bob')
 
-    revoke_heartbeats_element = WebDriverWait(dash_driver, 10).until(
-        wait_until_value_in_text((By.ID, 'heartbeats'), 'WARNING')
+    revoke_measurements_element = WebDriverWait(dash_driver, 10).until(
+        wait_until_value_in_text((By.ID, 'measurements'), 'WARNING')
     )
-    assert 'WARNING' in revoke_heartbeats_element.text
-    assert 'not been granted' in revoke_heartbeats_element.text
-    assert 'or has been revoked' in revoke_heartbeats_element.text
+    assert 'WARNING' in revoke_measurements_element.text
+    assert 'not been granted' in revoke_measurements_element.text
+    assert 'or has been revoked' in revoke_measurements_element.text
