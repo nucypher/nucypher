@@ -33,6 +33,6 @@ From there you can develop, modify code, test as normal.
 * to stop them...
  `docker-compose -f 3-ursulas.yml stop`
 
-## Pycharm
+## Pycharm (pro version only)
 * You can configure pycharm to use the python interperter inside docker.
 * docs for this are [here](https://www.jetbrains.com/help/pycharm/using-docker-compose-as-a-remote-interpreter.html#docker-compose-remote)
