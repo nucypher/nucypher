@@ -28,7 +28,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 9)
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _initialAmount=2 * 10 ** 9)
     return token
 
 
@@ -38,7 +38,16 @@ def escrow_contract(testerchain, token, request):
         # Creator deploys the escrow
         _mining_coefficient = 2 * 10 ** 7
         contract, _ = testerchain.interface.deploy_contract(
-            'MinersEscrow', token.address, 1, 4 * _mining_coefficient, 4, 4, 2, 100, max_allowed_locked_tokens)
+            contract_name='MinersEscrow',
+            _token=token.address,
+            _hoursPerPeriod=1,
+            _miningCoefficient=4 * _mining_coefficient,
+            _lockedPeriodsCoefficient=4,
+            _rewardedPeriods=4,
+            _minLockedPeriods=2,
+            _minAllowableLockedTokens=100,
+            _maxAllowableLockedTokens=max_allowed_locked_tokens
+        )
 
         if request.param:
             secret_hash = testerchain.interface.w3.keccak(secret)

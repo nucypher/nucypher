@@ -39,13 +39,30 @@ def test_upgrading(testerchain, token):
 
     # Deploy contract
     contract_library_v1, _ = testerchain.interface.deploy_contract(
-        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1500
+        contract_name='MinersEscrow',
+        _token=token.address,
+        _hoursPerPeriod=1,
+        _miningCoefficient=8*10**7,
+        _lockedPeriodsCoefficient=4,
+        _rewardedPeriods=4,
+        _minLockedPeriods=2,
+        _minAllowableLockedTokens=100,
+        _maxAllowableLockedTokens=1500
     )
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
     contract_library_v2, _ = testerchain.interface.deploy_contract(
-        'MinersEscrowV2Mock', token.address, 2, 2, 2, 2, 2, 2, 2, 2
+        contract_name='MinersEscrowV2Mock',
+        _token=token.address,
+        _hoursPerPeriod=2,
+        _miningCoefficient=2,
+        _lockedPeriodsCoefficient=2,
+        _rewardedPeriods=2,
+        _minLockedPeriods=2,
+        _minAllowableLockedTokens=2,
+        _maxAllowableLockedTokens=2,
+        _valueToCheck=2
     )
 
     contract = testerchain.interface.w3.eth.contract(
@@ -90,7 +107,15 @@ def test_upgrading(testerchain, token):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = testerchain.interface.deploy_contract(
-        'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
+        contract_name='MinersEscrowBad',
+        _token=token.address,
+        _hoursPerPeriod=2,
+        _miningCoefficient=2,
+        _lockedPeriodsCoefficient=2,
+        _rewardedPeriods=2,
+        _minLockedPeriods=2,
+        _minAllowableLockedTokens=2,
+        _maxAllowableLockedTokens=2
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\

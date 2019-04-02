@@ -310,7 +310,7 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Checks is `reStake` parameter is available for changing
+    * @notice Checks if `reStake` parameter is available for changing
     * @param _miner Miner
     **/
     function isReStakeLocked(address _miner) public view returns (bool) {
