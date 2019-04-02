@@ -7,7 +7,7 @@ The intention of the Docker configurations in this directory is to enable anyone
 * install [Docker](https://docs.docker.com/install/)
 * install [Docker Compose](https://docs.docker.com/compose/install/)
 * cd to dev/docker (where this README is located)
-* `docker-compose up` **this must be done once to complete install**
+* `docker-compose up --build` **this must be done once to complete install**
 
 
 Then you can do things like:
