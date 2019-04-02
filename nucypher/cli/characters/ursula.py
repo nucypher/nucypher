@@ -36,7 +36,6 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -197,18 +196,22 @@ def ursula(click_config,
     else:
 
         # Domains -> bytes | or default
-        domains = [bytes(network, encoding='utf-8')] if network else None
+        domains = set(bytes(network, encoding='utf-8')) if network else None
 
         # Load Ursula from Configuration File
-        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    domains=domains,
-                                                                    registry_filepath=registry_filepath,
-                                                                    provider_uri=provider_uri,
-                                                                    rest_host=rest_host,
-                                                                    rest_port=rest_port,
-                                                                    db_filepath=db_filepath,
-                                                                    poa=poa,
-                                                                    federated_only=federated_only)
+        try:
+            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
+                                                                        domains=domains,
+                                                                        registry_filepath=registry_filepath,
+                                                                        provider_uri=provider_uri,
+                                                                        rest_host=rest_host,
+                                                                        rest_port=rest_port,
+                                                                        db_filepath=db_filepath,
+                                                                        poa=poa,
+                                                                        federated_only=federated_only)
+        except FileNotFoundError:
+            return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
+                                                             config_file=config_file)
 
         click_config.unlock_keyring(character_configuration=ursula_config)
 

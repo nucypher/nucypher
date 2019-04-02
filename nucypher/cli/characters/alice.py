@@ -105,13 +105,17 @@ def alice(click_config,
                                           federated_only=True)
 
     else:
-        alice_config = AliceConfiguration.from_configuration_file(
-            filepath=config_file,
-            domains={network or GLOBAL_DOMAIN},
-            network_middleware=click_config.middleware,
-            rest_port=discovery_port,
-            checksum_public_address=checksum_address,
-            provider_uri=provider_uri)
+        try:
+            alice_config = AliceConfiguration.from_configuration_file(
+                filepath=config_file,
+                domains={network or GLOBAL_DOMAIN},
+                network_middleware=click_config.middleware,
+                rest_port=discovery_port,
+                checksum_public_address=checksum_address,
+                provider_uri=provider_uri)
+        except FileNotFoundError:
+            return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
+                                                             config_file=config_file)
 
     if not dev:
         click_config.unlock_keyring(character_configuration=alice_config)

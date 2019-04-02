@@ -11,14 +11,21 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 
 DESTRUCTION = '''
-*Permanently and irreversibly delete all* nucypher files including
+*Permanently and irreversibly delete all* nucypher files including:
     - Private and Public Keys
     - Known Nodes
     - TLS certificates
     - Node Configurations
-    - Log Files
 
 Delete {}?'''
+
+CHARACTER_DESTRUCTION = '''
+Delete all {name} character files including:
+    - Private and Public Keys
+    - Known Nodes
+    - Node Configuration File
+
+Delete {root}?'''
 
 
 LOG = Logger('cli.actions')
@@ -46,13 +53,12 @@ def load_seednodes(min_stake: int,
 
 
 def destroy_configuration_root(config_root=None, force=False, logs: bool = False) -> str:
-    """CAUTION: This will destroy *all* nucypher configuration files from the filesystem"""
+    """CAUTION: This will destroy *all* nucypher configuration files from the configuration root"""
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
 
     if not force:
-        message = f"Destroy top-level configuration directory: {config_root}?"
-        click.confirm(message, abort=True)  # ABORT
+        click.confirm(DESTRUCTION.format(config_root), abort=True)  # ABORT
 
     if os.path.isdir(config_root):
         shutil.rmtree(config_root, ignore_errors=force)  # config
@@ -68,7 +74,8 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
 def destroy_configuration(character_config, force: bool = False) -> None:
 
         if not force:
-            click.confirm(DESTRUCTION.format(character_config.config_root), abort=True)
+            click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
+                                                       root=character_config.config_root), abort=True)
 
         try:
             character_config.destroy()
@@ -117,3 +124,12 @@ performing accurate re-encryption work orders will result in rewards
 paid out in ETH retro-actively, on-demand.
 
 Accept node operator obligation?""", abort=True)
+
+
+def handle_missing_configuration_file(character_config_class, config_file: str = None):
+    config_file_location = config_file or character_config_class.DEFAULT_CONFIG_FILE_LOCATION
+    message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
+              f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
+              f'\'nucypher {character_config_class._NAME} init\''
+
+    raise click.FileError(filename=config_file_location, hint=message)

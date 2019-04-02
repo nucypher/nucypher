@@ -81,7 +81,7 @@ def test_coexisting_configurations(click_runner,
     assert os.path.isfile(felix_file_location)
     assert len(os.listdir(public_keys_dir)) == 3
 
-    # Use a custom local filepath to init an persistent Alice
+    # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--provider-uri', TEST_PROVIDER_URI,
@@ -94,7 +94,7 @@ def test_coexisting_configurations(click_runner,
     assert os.path.isfile(alice_file_location)
     assert len(os.listdir(public_keys_dir)) == 5
 
-    # Use the same local filepath to init an persistent Ursula
+    # Use the same local filepath to init a persistent Ursula
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--provider-uri', TEST_PROVIDER_URI,
@@ -128,15 +128,16 @@ def test_coexisting_configurations(click_runner,
     # Run
     #
 
-    # Now start running your Ursula!
+    # Run an Ursula amidst the other configuration files
     run_args = ('ursula', 'run', '--dry-run',
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert another_ursula in result.output
 
+    # Check that the proper Ursula console is attached
+    assert another_ursula in result.output
 
     #
     # Destroy

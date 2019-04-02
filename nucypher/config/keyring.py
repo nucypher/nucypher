@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
+import contextlib
 import json
 import os
 import shutil
@@ -666,8 +667,8 @@ class NucypherKeyring:
         keypaths = self._generate_key_filepaths(account=self.checksum_address,
                                                 public_key_dir=public_key_dir,
                                                 private_key_dir=private_key_dir)
+
+        # Remove the parsed paths from the disk, weather they exist or not.
         for filepath in keypaths.values():
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.remove(filepath)
-            except FileNotFoundError:
-                pass
