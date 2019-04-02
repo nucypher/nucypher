@@ -26,9 +26,10 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
   metadata.
 
 ### How to run the demo
-#### Run local node/fleet of nodes
-The code for the NuCypher node can be obtained from [NuCypher (v0.1.0-alpha.8)](https://github.com/nucypher/nucypher/tree/v0.1.0-alpha.8)
+#### Installation of nucypher
+See the [installation guide](http://docs.nucypher.com/en/latest/guides/installation_guide.html) for nucypher.
 
+#### Run local node/fleet of nodes
 Install dependencies (only for the first time): <http://docs.nucypher.com/en/latest/guides/installation_guide.html#pipenv-development-installation>
 
 (After previously running `pipenv shell`)

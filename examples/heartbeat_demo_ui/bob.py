@@ -212,7 +212,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
     if bob_id not in policy_joined:
         bob.join_policy(label.encode(), alice_sig_key)
         print(f'Bob (id:{bob_id}) joined policy with label "{label}" '
-              f'and public key "{policy_data["policy_encrypting_key"]}"')
+              f'and encrypting key "{policy_data["policy_encrypting_key"]}"')
         policy_joined[bob_id] = label
 
     with open(DATA_SOURCE_INFO_FILE, "rb") as file:

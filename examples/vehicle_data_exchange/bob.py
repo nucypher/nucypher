@@ -1,86 +1,52 @@
-from dash.dependencies import Output, Input, State, Event
+import json
+import os
+import shutil
+import sqlite3
+import time
+import traceback
+
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
-import demo_keys
-import json
-import os
+import msgpack
 import pandas as pd
+from dash.dependencies import Output, Input, State, Event
 from plotly.graph_objs import Scatter
 from plotly.graph_objs.layout import Margin
-from plotly.graph_objs.scatter import *
-import sqlite3
-import time
+from umbral.keys import UmbralPublicKey
 
-from app import app, DB_FILE, DB_NAME, PROPERTIES, SEEDNODE_URL
-
-import shutil
-import msgpack
-
-from nucypher.characters.lawful import Bob, Ursula
+from examples.vehicle_data_exchange import demo_keys
+from examples.vehicle_data_exchange.app \
+    import app, DB_FILE, DB_NAME, PROPERTIES, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE
+from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.data_sources import DataSource
 from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 
-from umbral.keys import UmbralPublicKey
-
-from enrico import DATA_SOURCE_INFO_FILE
-from alicia import POLICY_INFO_FILE
-
-ACCESS_REVOKED = "Access Disallowed"
+ACCESS_DISALLOWED = "Access Disallowed"
 
 
 ######################
 # Boring setup stuff #
 ######################
 
-# TODO: path joins?
-TEMP_DOCTOR_DIR = "{}/bob-files".format(os.path.dirname(os.path.abspath(__file__)))
+bob_instances = dict()  # Map: bob_id -> bob instance
 
-TEMP_URSULA_CERTIFICATE_DIR = "{}/ursula-certs".format(TEMP_DOCTOR_DIR)
-TEMP_DOCTOR_CERTIFICATE_DIR = "{}/bob-certs".format(TEMP_DOCTOR_DIR)
-
-# Remove previous demo files and create new ones
-shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)
-os.mkdir(TEMP_DOCTOR_DIR)
-os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
-os.mkdir(TEMP_DOCTOR_CERTIFICATE_DIR)
-
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
-                                         federated_only=True,
-                                         minimum_stake=0)
-
-bob_privkeys = demo_keys.get_recipient_privkeys("bob")
-
-bob_enc_keypair = DecryptingKeypair(private_key=bob_privkeys["enc"])
-bob_sig_keypair = SigningKeypair(private_key=bob_privkeys["sig"])
-enc_power = DecryptingPower(keypair=bob_enc_keypair)
-sig_power = SigningPower(keypair=bob_sig_keypair)
-power_ups = [enc_power, sig_power]
-
-print("Creating Bob ...")
-
-bob = Bob(
-    is_me=True,
-    federated_only=True,
-    crypto_power_ups=power_ups,
-    start_learning_now=True,
-    abort_on_learning_error=True,
-    known_nodes=[ursula],
-    save_metadata=False,
-    network_middleware=RestMiddleware(),
-)
-
-print("Bob = ", bob)
-
-joined = list()
+#############
+# UI Layout #
+#############
 
 
 def get_layout():
-    unique_id = 'bob'
+    unique_id = f'Insurer-{os.urandom(4).hex()}'
 
+    # create bob instance
+    bob = _create_bob(unique_id)
+    bob_instances[unique_id] = bob  # add bob instance to dict
+    print(f'Initializing UI for Bob (id:{unique_id}) = {bob}')
+
+    # generate ui layout
     layout = html.Div([
         html.Div([
             html.Img(src='./assets/nucypher_logo.png'),
@@ -107,17 +73,14 @@ def get_layout():
             html.H3('Properties'),
             html.Div([
                 html.Div('Unique Bob Id:', className='two columns'),
-                html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='one column'),
+                html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='two columns'),
             ], className='row'),
             html.Br(),
-            html.Button('Generate Key Pair',
-                        id='gen-key-button',
+            html.Button('Get Keys',
+                        id='get-keys-button',
                         type='submit',
                         className='button button-primary'),
-            html.Div([
-                html.Div('Public Key:', className='two columns'),
-                html.Div(id='pub-key', className='seven columns'),
-            ], className='row'),
+            html.Div(id='pub-keys', className='row'),
         ]),
         html.Hr(),
         html.Div([
@@ -136,15 +99,71 @@ def get_layout():
     return layout
 
 
+def _create_bob(unique_id: str) -> Bob:
+    # TODO: path joins?
+    temp_bob_dir = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files/bob-{unique_id}-files'
+
+    temp_ursula_certificate_dir = f'{temp_bob_dir}/ursula-certs'
+    temp_bob_certificate_dir = f'{temp_bob_dir}/bob-certs'
+
+    # Ensure previous demo files removed, then create new ones
+    shutil.rmtree(temp_bob_dir, ignore_errors=True)
+    os.mkdir(temp_bob_dir)
+    os.mkdir(temp_ursula_certificate_dir)
+    os.mkdir(temp_bob_certificate_dir)
+
+    ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
+                                             federated_only=True,
+                                             minimum_stake=0)
+
+    bob_privkeys = demo_keys.get_recipient_privkeys(unique_id)
+
+    bob_enc_keypair = DecryptingKeypair(private_key=bob_privkeys["enc"])
+    bob_sig_keypair = SigningKeypair(private_key=bob_privkeys["sig"])
+    enc_power = DecryptingPower(keypair=bob_enc_keypair)
+    sig_power = SigningPower(keypair=bob_sig_keypair)
+    power_ups = [enc_power, sig_power]
+
+    print('Creating Bob with id: {}...'.format(unique_id))
+
+    bob = Bob(
+        is_me=True,
+        federated_only=True,
+        crypto_power_ups=power_ups,
+        start_learning_now=True,
+        abort_on_learning_error=True,
+        known_nodes=[ursula],
+        save_metadata=False,
+        network_middleware=RestMiddleware(),
+    )
+
+    return bob
+
+
+#################
+# Bob's Actions #
+#################
+policy_joined = dict()  # Map: bob_id -> policy_label
+
+
 @app.callback(
-    Output('pub-key', 'children'),
+    Output('pub-keys', 'children'),
     [],
     [State('bob-unique-id', 'children')],
-    [Event('gen-key-button', 'click')]
+    [Event('get-keys-button', 'click')]
 )
-def gen_doctor_pubkey(bob_id):
+def get_bob_pubkeys(bob_id):
     bob_pubkeys = demo_keys.get_recipient_pubkeys(bob_id)
-    return bob_pubkeys['enc'].to_bytes().hex()
+    return html.Div([
+        html.Div([
+            html.Div('Verifying Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['sig'].to_bytes().hex()), className='seven columns')
+        ], className='row'),
+        html.Div([
+            html.Div('Encrypting Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['enc'].to_bytes().hex()), className='seven columns'),
+        ], className='row')
+    ])
 
 
 @app.callback(
@@ -161,27 +180,35 @@ def update_cached_decrypted_measurements_list(read_time, df_json_latest_measurem
         # button never clicked but triggered by interval
         return None
 
+    # get bob instance
+    bob = bob_instances[bob_id]
+
+    bob_enc_key = demo_keys.get_recipient_pubkeys(bob_id)['enc']
+
     # Let's join the policy generated by Alicia. We just need some info about it.
-    with open(POLICY_INFO_FILE, 'r') as f:
-        policy_data = json.load(f)
+    try:
+        with open(POLICY_INFO_FILE.format(bob_enc_key.to_bytes().hex()), 'r') as f:
+            policy_data = json.load(f)
+    except FileNotFoundError:
+        print("No policy file available")
+        return ACCESS_DISALLOWED
 
-    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_pubkey']))
-    alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_sig_pubkey']))
-    label = policy_data['label'].encode()
+    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_encrypting_key']))
+    alice_verifying_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_verifying_key']))
+    label = policy_data['label']
 
-    if not joined:
-        print("The Insurer joins policy for label '{}' "
-              "and pubkey {}".format(policy_data['label'], policy_data['policy_pubkey']))
-
-        bob.join_policy(label, alices_sig_pubkey)
-        joined.append(label)
+    if bob_id not in policy_joined:
+        bob.join_policy(label.encode(), alice_verifying_key)
+        print(f'Insurer (id:{bob_id}) joined policy with label "{label}" '
+              f'and encrypting key "{policy_data["policy_encrypting_key"]}"')
+        policy_joined[bob_id] = label
 
     with open(DATA_SOURCE_INFO_FILE, "rb") as file:
         data_source_metadata = msgpack.load(file, raw=False)
 
     df = pd.DataFrame()
     last_timestamp = time.time() - 5  # last 5s
-    if (df_json_latest_measurements is not None) and (df_json_latest_measurements != ACCESS_REVOKED):
+    if (df_json_latest_measurements is not None) and (df_json_latest_measurements != ACCESS_DISALLOWED):
         df = pd.read_json(df_json_latest_measurements, convert_dates=False)
         if len(df) > 0:
             # sort readings and order by timestamp
@@ -190,19 +217,18 @@ def update_cached_decrypted_measurements_list(read_time, df_json_latest_measurem
             last_timestamp = df['timestamp'].iloc[-1]
 
     # Bob also needs to create a view of the Data Source from its public keys
-    data_source = DataSource.from_public_keys(
-        policy_public_key=policy_pubkey,
-        datasource_public_key=data_source_metadata['data_source_pub_key'],
-        label=label
+    data_source = Enrico.from_public_keys(
+        {SigningPower: data_source_metadata['data_source_verifying_key']},
+        policy_encrypting_key=policy_encrypting_key
     )
 
     db_conn = sqlite3.connect(DB_FILE)
     try:
-        encrypted_df_readings = pd.read_sql_query('SELECT Timestamp, EncryptedData '
-                                                  'FROM {} '
-                                                  'WHERE Timestamp > "{}" '
-                                                  'ORDER BY Timestamp '
-                                                  'LIMIT 30;'.format(DB_NAME, last_timestamp),
+        encrypted_df_readings = pd.read_sql_query(f'SELECT Timestamp, EncryptedData '
+                                                  f'FROM {DB_NAME} '
+                                                  f'WHERE Timestamp > "{last_timestamp}" '
+                                                  f'ORDER BY Timestamp '
+                                                  f'LIMIT 30;',
                                                   db_conn)
 
         for index, row in encrypted_df_readings.iterrows():
@@ -214,13 +240,20 @@ def update_cached_decrypted_measurements_list(read_time, df_json_latest_measurem
                 retrieved_plaintexts = bob.retrieve(
                     message_kit=message_kit,
                     data_source=data_source,
-                    alice_verifying_key=alices_sig_pubkey
+                    alice_verifying_key=alice_verifying_key,
+                    label=label.encode()
                 )
 
                 plaintext = msgpack.loads(retrieved_plaintexts[0], raw=False)
-            except Exception as e:
-                print(str(e))
+            except Ursula.NotEnoughUrsulas as e:
+                # we can ignore
+                print(e)
                 continue
+            except Exception as e:
+                # for the demo, this happens when bob's access is revoked
+                traceback.print_exc()
+                policy_joined.pop(bob_id, None)
+                return ACCESS_DISALLOWED
 
             readings = plaintext['carInfo']
             readings['timestamp'] = row['Timestamp']
@@ -246,8 +279,8 @@ def update_graph(df_json_latest_measurements):
     if df_json_latest_measurements is None:
         return divs
 
-    if df_json_latest_measurements == ACCESS_REVOKED:
-        return html.Div('Your access has either not been granted or has been revoked!', style={'color': 'red'})
+    if df_json_latest_measurements == ACCESS_DISALLOWED:
+        return html.Div('WARNING: Your access has either not been granted or has been revoked!', style={'color': 'red'})
 
     df = pd.read_json(df_json_latest_measurements, convert_dates=False)
     if len(df) == 0:

@@ -258,15 +258,15 @@ def revoke_access(grant_time, revoke_time, recipient_enc_key_hex):
 
     policy = granted_policies.pop(recipient_enc_key_hex, None)
     if policy is None:
-        return 'Policy has not been previously granted for recipient with public key {}'.format(recipient_enc_key_hex)
+        return f'Policy has not been previously granted for recipient with public key {recipient_enc_key_hex}'
 
     print("Revoking access to recipient", recipient_enc_key_hex)
     try:
         failed_revocations = alicia.revoke(policy=policy)
         if failed_revocations:
-            return 'WARNING: Access revoked to recipient with public key {} - but {} nodes failed to revoke'\
-                .format(recipient_enc_key_hex, len(failed_revocations))
+            return f'WARNING: Access revoked to recipient with public key {recipient_enc_key_hex} ' \
+                   f'- but {len(failed_revocations)} nodes failed to revoke'\
 
-        return 'Access revoked to recipient with public key {}!'.format(recipient_enc_key_hex)
+        return f'Access revoked to recipient with public key {recipient_enc_key_hex}!'
     finally:
         os.remove(POLICY_INFO_FILE.format(recipient_enc_key_hex))

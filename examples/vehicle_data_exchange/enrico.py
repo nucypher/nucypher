@@ -1,21 +1,18 @@
-from dash.dependencies import Output, Input, State, Event
-import dash_table
-import dash_core_components as dcc
-import dash_html_components as html
 import json
-import msgpack
-import os
-import pandas as pd
 import random
 import sqlite3
 import time
 
-from nucypher.data_sources import DataSource
+import dash_core_components as dcc
+import dash_html_components as html
+import dash_table
+import msgpack
+import pandas as pd
+from dash.dependencies import Output, Input, State, Event
 from umbral.keys import UmbralPublicKey
 
-from app import app, DB_FILE, DB_NAME, SHARED_FOLDER
-
-DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
+from examples.vehicle_data_exchange.app import app, DB_FILE, DB_NAME, DATA_SOURCE_INFO_FILE
+from nucypher.characters.lawful import Enrico
 
 cached_data_source = list()
 
@@ -43,8 +40,10 @@ layout = html.Div([
     html.Hr(),
     html.H3('Data Policy'),
     html.Div([
-        html.Div('Policy Key (hex): ', className='two columns'),
-        dcc.Input(id='policy-pub-key', type='text', className='seven columns'),
+        html.Div([
+            html.Div('Policy Encrypting Key (hex): ', className='two columns'),
+            dcc.Input(id='policy-enc-key', type='text', className='seven columns'),
+        ], className='row'),
         html.Button('Start Monitoring', id='generate-button', type='submit',
                     className="button button-primary", n_clicks_timestamp='0'),
         dcc.Interval(id='gen-measurements-update', interval=1000, n_intervals=0),
@@ -67,28 +66,27 @@ layout = html.Div([
     Output('cached-last-readings', 'children'),
     [],
     [State('generate-button', 'n_clicks_timestamp'),
-     State('policy-pub-key', 'value'),
+     State('policy-enc-key', 'value'),
      State('cached-last-readings', 'children')],
     [Event('gen-measurements-update', 'interval'),
      Event('generate-button', 'click')]
 )
-def generate_vehicular_data(gen_time, policy_pubkey_hex, cached_last_reading):
+def generate_vehicular_data(gen_time, policy_enc_key_hex, cached_last_reading):
     if int(gen_time) == 0:
         # button has not been clicked as yet or interval triggered before click
         return None
 
-    label = 'vehicle-data'
-
-    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_pubkey_hex))
+    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_enc_key_hex))
     if not cached_data_source:
-        data_source = DataSource(policy_pubkey_enc=policy_pubkey, label=label)
-        data_source_public_key = bytes(data_source.stamp)
+        data_source = Enrico(policy_encrypting_key=policy_encrypting_key)
+        data_source_verifying_key = bytes(data_source.stamp)
 
         data = {
-            'data_source_pub_key': data_source_public_key,
+            'data_source_verifying_key': data_source_verifying_key,
         }
         with open(DATA_SOURCE_INFO_FILE, "wb") as file:
             msgpack.dump(data, file, use_bin_type=True)
+
         cached_data_source.append(data_source)
     else:
         data_source = cached_data_source[0]
@@ -109,7 +107,7 @@ def generate_vehicular_data(gen_time, policy_pubkey_hex, cached_last_reading):
     db_conn = sqlite3.connect(DB_FILE)
     try:
         df.to_sql(name=DB_NAME, con=db_conn, index=False, if_exists='append')
-        print("Added vehicle sensor readings to db:", timestamp, " -> ", latest_reading)
+        print(f'Added vehicle sensor readings to db: {timestamp} -> {latest_reading}')
     finally:
         db_conn.close()
 
@@ -129,11 +127,11 @@ def display_vehicular_data(cached_last_reading):
     duration = 30  # last 30s of readings
     db_conn = sqlite3.connect(DB_FILE)
     try:
-        df = pd.read_sql_query('SELECT Timestamp, EncryptedData '
-                               'FROM {} '
-                               'WHERE Timestamp > "{}" AND Timestamp <= "{}" '
-                               'ORDER BY Timestamp DESC;'
-                               .format(DB_NAME, now - duration, now), db_conn)
+        df = pd.read_sql_query(f'SELECT Timestamp, EncryptedData '
+                               f'FROM {DB_NAME} '
+                               f'WHERE Timestamp > "{now - duration}" AND Timestamp <= "{now}" '
+                               f'ORDER BY Timestamp DESC;',
+                               db_conn)
         rows = df.to_dict('rows')
     finally:
         db_conn.close()
