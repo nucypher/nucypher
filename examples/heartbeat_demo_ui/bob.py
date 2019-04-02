@@ -258,14 +258,15 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
                 hb = msgpack.loads(retrieved_plaintexts[0], raw=False)
                 timestamp = row['Timestamp']
                 cached_hb_values[timestamp] = hb
-            except UnexpectedResponse as e:
+            except Ursula.NotEnoughUrsulas as e:
+                # we can ignore
+                print(e)
+                continue
+            except Exception as e:
                 # for the demo, this happens when bob's access is revoked
                 traceback.print_exc()
                 policy_joined.pop(bob_id, None)
                 return ACCESS_DISALLOWED
-            except Exception as e:
-                traceback.print_exc()
-                continue
     finally:
         db_conn.close()
 

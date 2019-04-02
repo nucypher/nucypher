@@ -240,7 +240,7 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_en
 
     granted_policies[recipient_enc_key_hex] = policy
 
-    return f'Access to policy {policy_label} granted to recipient with encryption public key: {recipient_enc_key_hex}!'
+    return f'Access to policy {policy_label} granted to recipient with encrypting key: {recipient_enc_key_hex}!'
 
 
 @app.callback(

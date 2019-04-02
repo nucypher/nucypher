@@ -89,8 +89,6 @@ def test_alicia_derive_policy_key_failed(dash_driver):
     ######################
     # switch to alicia tab
     ######################
-    base_handle = dash_driver.current_window_handle
-
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
