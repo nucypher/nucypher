@@ -25,16 +25,16 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
   - The Doctor never interacts with Alicia or the Heart Monitor: he only needs the encrypted data and some policy metadata.
 
 ### How to run the demo
-#### Run local node/fleet of nodes
-The code for the NuCypher node can be obtained from [NuCypher (v0.1.0-alpha.12)](https://github.com/nucypher/nucypher/tree/v0.1.0-alpha.12)
+#### Installation of nucypher
+See the [installation guide](http://docs.nucypher.com/en/latest/guides/installation_guide.html) for nucypher.
 
+#### Run local node/fleet of nodes
 Install dependencies (only for the first time): <http://docs.nucypher.com/en/latest/guides/installation_guide.html#pipenv-development-installation>
 
 (After previously running `pipenv shell`)
 For the demo you can run either a single node, in which case m-of-n can only be 1-of-1 **OR** you can run a fleet 
 of nodes where m,n can be greater than 1. See [local fleet instructions](https://docs.nucypher.com/en/latest/demos/local_fleet_demo.html) 
 for more information.
-
 
 #### Run the demo
 Install dependencies (only for the first time):

@@ -1,34 +1,30 @@
 import collections
-from dash.dependencies import Output, Input, State, Event
-import dash_core_components as dcc
-import dash_html_components as html
-import demo_keys
 import json
 import os
-import pandas as pd
-from plotly.graph_objs import Scatter, Layout, Figure
-from plotly.graph_objs.layout import Margin
-from plotly.graph_objs.scatter import *
 import random
+import shutil
 import sqlite3
 import time
 
-from app import app, DB_FILE, DB_NAME, SEEDNODE_URL
-
-import shutil
+import dash_core_components as dcc
+import dash_html_components as html
 import msgpack
+import pandas as pd
+import traceback
 
-from nucypher.characters.lawful import Bob, Ursula
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.data_sources import DataSource
-from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.network.middleware import RestMiddleware, UnexpectedResponse
-
+from dash.dependencies import Output, Input, State, Event
+from plotly.graph_objs import Scatter, Layout
+from plotly.graph_objs.layout import Margin
+from plotly.graph_objs.scatter import *
 from umbral.keys import UmbralPublicKey
 
-from enrico import DATA_SOURCE_INFO_FILE
-from alicia import POLICY_INFO_FILE
+from examples.heartbeat_demo_ui import demo_keys
+from examples.heartbeat_demo_ui.app import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE
+from nucypher.characters.lawful import Bob, Ursula, Enrico
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.network.middleware import RestMiddleware, UnexpectedResponse
 
 ACCESS_DISALLOWED = "Access Disallowed"
 
@@ -54,12 +50,12 @@ def get_layout(first_bob: bool):
         index = random.randint(0, (len(ID_PREFIXES) - 1))
         prefix = ID_PREFIXES[index]
 
-    unique_id = '{}-{}'.format(prefix, os.urandom(4).hex())
+    unique_id = f'{prefix}-{os.urandom(4).hex()}'
 
     # create bob instance
     bob = _create_bob(unique_id)
     bob_instances[unique_id] = bob  # add bob instance to dict
-    print('Bob (id:{}) = {}'.format(unique_id, bob))
+    print(f'Initializing UI for Bob (id:{unique_id}) = {bob}')
 
     # generate ui layout
     layout = html.Div([
@@ -73,12 +69,12 @@ def get_layout(first_bob: bool):
                 ], className='two columns'),
                 html.Div([
                     html.Div([
-                        html.H2('{} BOB'.format(prefix.upper())),
+                        html.H2(f'{prefix.upper()} BOB'),
                         html.P(
-                            "{} Bob is the {} who Alicia will grant access to her encrypted heart rate measurements "
-                            "(which was populated by the Heart Monitor) and requests "
-                            "a re-encrypted ciphertext for each measurement, which can then be decrypted "
-                            "using their private key.".format(prefix, prefix)),
+                            f'{prefix} Bob is the {prefix} who Alicia will grant access to her encrypted heart rate '
+                            f'measurements (which was populated by the Heart Monitor) and requests '
+                            f'a re-encrypted ciphertext for each measurement, which can then be decrypted '
+                            f'using their private key.'),
                     ], className="row")
                 ], className='five columns'),
             ], className='row'),
@@ -91,7 +87,7 @@ def get_layout(first_bob: bool):
                 html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='two columns'),
             ], className='row'),
             html.Br(),
-            html.Button('Get Public Keys',
+            html.Button('Get Keys',
                         id='get-keys-button',
                         type='submit',
                         className='button button-primary'),
@@ -116,10 +112,10 @@ def get_layout(first_bob: bool):
 
 def _create_bob(unique_id: str) -> Bob:
     # TODO: path joins?
-    temp_bob_dir = "{}/bob-files/bob-{}-files".format(os.path.dirname(os.path.abspath(__file__)), unique_id)
+    temp_bob_dir = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files/bob-{unique_id}-files'
 
-    temp_ursula_certificate_dir = "{}/ursula-certs".format(temp_bob_dir)
-    temp_bob_certificate_dir = "{}/bob-certs".format(temp_bob_dir)
+    temp_ursula_certificate_dir = f'{temp_bob_dir}/ursula-certs'
+    temp_bob_certificate_dir = f'{temp_bob_dir}/bob-certs'
 
     # Ensure previous demo files removed, then create new ones
     shutil.rmtree(temp_bob_dir, ignore_errors=True)
@@ -172,12 +168,12 @@ def get_doctor_pubkeys(bob_id):
     bob_pubkeys = demo_keys.get_recipient_pubkeys(bob_id)
     return html.Div([
         html.Div([
-            html.Div('Encryption Public Key (hex):', className='two columns'),
-            html.Div('{}'.format(bob_pubkeys['enc'].to_bytes().hex()), className='seven columns'),
+            html.Div('Verifying Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['sig'].to_bytes().hex()), className='seven columns')
         ], className='row'),
         html.Div([
-            html.Div('Signing Public Key (hex):', className='two columns'),
-            html.Div('{}'.format(bob_pubkeys['sig'].to_bytes().hex()), className='seven columns')
+            html.Div('Encrypting Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['enc'].to_bytes().hex()), className='seven columns'),
         ], className='row')
     ])
 
@@ -199,24 +195,24 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
     # get bob instance
     bob = bob_instances[bob_id]
 
-    bob_enc_pubkey = demo_keys.get_recipient_pubkeys(bob_id)['enc']
+    bob_enc_key = demo_keys.get_recipient_pubkeys(bob_id)['enc']
 
     # Let's join the policy generated by Alicia. We just need some info about it.
     try:
-        with open(POLICY_INFO_FILE.format(bob_enc_pubkey.to_bytes().hex()), 'r') as f:
+        with open(POLICY_INFO_FILE.format(bob_enc_key.to_bytes().hex()), 'r') as f:
             policy_data = json.load(f)
     except FileNotFoundError:
         print("No policy file available")
         return ACCESS_DISALLOWED
 
-    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_pubkey']))
-    alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_sig_pubkey']))
+    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_encrypting_key']))
+    alice_sig_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_verifying_key']))
     label = policy_data['label']
 
     if bob_id not in policy_joined:
-        bob.join_policy(label.encode(), alices_sig_pubkey)
-        print("Bob (id:{}) joined policy with label '{}' "
-              "and public key {}".format(bob_id, label, policy_data['policy_pubkey']))
+        bob.join_policy(label.encode(), alice_sig_key)
+        print(f'Bob (id:{bob_id}) joined policy with label "{label}" '
+              f'and public key "{policy_data["policy_encrypting_key"]}"')
         policy_joined[bob_id] = label
 
     with open(DATA_SOURCE_INFO_FILE, "rb") as file:
@@ -232,18 +228,18 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
         last_timestamp = list(cached_hb_values.keys())[-1]
 
     # Bob also needs to create a view of the Data Source from its public keys
-    data_source = DataSource.from_public_keys(
-        policy_public_key=policy_pubkey,
-        datasource_public_key=data_source_metadata['data_source_pub_key'],
-        label=label.encode()
+    # The doctor also needs to create a view of the Data Source from its public keys
+    data_source = Enrico.from_public_keys(
+        {SigningPower: data_source_metadata['data_source_verifying_key']},
+        policy_encrypting_key=policy_encrypting_key
     )
 
     db_conn = sqlite3.connect(DB_FILE)
     try:
-        df = pd.read_sql_query('SELECT Timestamp, EncryptedData '
-                               'FROM {} '
-                               'WHERE Timestamp > "{}" '
-                               'ORDER BY Timestamp;'.format(DB_NAME, last_timestamp),
+        df = pd.read_sql_query(f'SELECT Timestamp, EncryptedData '
+                               f'FROM {DB_NAME} '
+                               f'WHERE Timestamp > "{last_timestamp}" '
+                               f'ORDER BY Timestamp;',
                                db_conn)
 
         for index, row in df.iterrows():
@@ -255,21 +251,21 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
                 retrieved_plaintexts = bob.retrieve(
                     message_kit=message_kit,
                     data_source=data_source,
-                    alice_verifying_key=alices_sig_pubkey
+                    alice_verifying_key=alice_sig_key,
+                    label=label.encode()
                 )
 
                 hb = msgpack.loads(retrieved_plaintexts[0], raw=False)
+                timestamp = row['Timestamp']
+                cached_hb_values[timestamp] = hb
             except UnexpectedResponse as e:
                 # for the demo, this happens when bob's access is revoked
-                print(e)
+                traceback.print_exc()
                 policy_joined.pop(bob_id, None)
                 return ACCESS_DISALLOWED
             except Exception as e:
-                print(e)
+                traceback.print_exc()
                 continue
-
-            timestamp = row['Timestamp']
-            cached_hb_values[timestamp] = hb
     finally:
         db_conn.close()
 
@@ -289,7 +285,7 @@ def update_graph(json_cached_readings):
         return ''
 
     if json_cached_readings == ACCESS_DISALLOWED:
-        return html.Div('Your access has either not been granted or has been revoked!', style={'color': 'red'})
+        return html.Div('WARNING: Your access has either not been granted or has been revoked!', style={'color': 'red'})
 
     cached_hb_values = json.loads(json_cached_readings, object_pairs_hook=collections.OrderedDict)
     if len(cached_hb_values) == 0:

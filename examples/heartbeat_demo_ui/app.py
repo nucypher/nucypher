@@ -1,7 +1,7 @@
 import dash
 import os
 import shutil
-from demo_keys import KEYS_FOLDER
+from examples.heartbeat_demo_ui.demo_keys import KEYS_FOLDER
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -25,6 +25,11 @@ DB_NAME = 'HeartBeat'
 SHARED_FOLDER = './shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
+
+# policy information
+POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
+
+DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
 
 # remove old bob-files
 BOB_FILES = './bob-files'
