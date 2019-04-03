@@ -9,8 +9,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from umbral.keys import UmbralPublicKey
 
-from examples.vehicle_data_exchange import demo_keys
-
 
 @pytest.fixture(scope='module')
 def dash_app(federated_ursulas):
@@ -24,6 +22,8 @@ def dash_app(federated_ursulas):
 
     # cleanup
     del dash_app
+    from examples.vehicle_data_exchange import app
+    app.cleanup()
     del os.environ["TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT"]
 
 
@@ -117,6 +117,8 @@ def test_alicia_grant(dash_driver):
 
     # grant to some recipient
     recipient_id = f'test-{os.urandom(4)}'
+
+    from examples.vehicle_data_exchange import demo_keys
     recipient_keys = demo_keys.get_recipient_pubkeys(recipient_id)
 
     m_threshold_element = dash_driver.find_element_by_id('m-value')

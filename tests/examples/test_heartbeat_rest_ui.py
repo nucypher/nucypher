@@ -51,6 +51,8 @@ def dash_app():
 
     # destroy app
     del dash_app
+    from examples.heartbeat_rest_ui import app
+    app.cleanup()
 
 
 @pytest.fixture(scope='function')

@@ -24,3 +24,9 @@ os.mkdir(SHARED_FOLDER)
 
 # policy information
 POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, 'policy_metadata.{}.json')
+
+
+def cleanup():
+    cleanup_directories = [DATA_FOLDER, SHARED_FOLDER]
+    for directory in cleanup_directories:
+        shutil.rmtree(directory, ignore_errors=True)

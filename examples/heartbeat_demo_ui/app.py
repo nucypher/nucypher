@@ -42,3 +42,11 @@ port = os.getenv("TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT")   # port used for unit 
 if port is None:
     port = '11500'  # default local ursula
 SEEDNODE_URL = f'localhost:{port}'
+
+
+def cleanup():
+    cleanup_directories = [KEYS_FOLDER, DATA_FOLDER, SHARED_FOLDER, BOB_FILES,
+                           f'{os.path.dirname(os.path.abspath(__file__))}/alicia-files']
+    for directory in cleanup_directories:
+        shutil.rmtree(directory, ignore_errors=True)
+
