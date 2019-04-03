@@ -41,8 +41,8 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.crypto.signing import Signature, InvalidSignature
-from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
+from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature, construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
