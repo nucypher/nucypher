@@ -267,7 +267,7 @@ class Policy:
         else:  # ...After *all* the policies are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.active_policies[self.id] = self
+            self.alice.add_active_policy(self)
 
             if publish is True:
                 return self.publish(network_middleware=network_middleware)
