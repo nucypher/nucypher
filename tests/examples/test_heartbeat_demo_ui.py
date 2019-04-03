@@ -12,12 +12,18 @@ from examples.heartbeat_demo_ui import demo_keys
 
 
 @pytest.fixture(scope='module')
-def dash_app():
+def dash_app(federated_ursulas):
+    # get port of a test federated ursula and set env variable
+    node = list(federated_ursulas)[0]
+    os.environ["TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT"] = str(node.rest_information()[0].port)
+
+    # import app
     dash_app = import_app('examples.heartbeat_demo_ui.streaming_heartbeat', application_name='app')
     yield dash_app
 
-    # destroy app
+    # cleanup
     del dash_app
+    del os.environ["TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT"]
 
 
 @pytest.fixture(scope='function')
@@ -77,7 +83,7 @@ def test_alicia_get_policy_key_from_label(dash_driver):
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -100,7 +106,7 @@ def test_alicia_grant(dash_driver):
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -134,7 +140,7 @@ def test_alicia_grant(dash_driver):
     grant_button.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 5).until(
+    grant_response_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
@@ -157,7 +163,7 @@ def test_bob_get_keys(dash_driver):
     get_keys_button.click()
 
     # wait for response
-    pub_keys_element = WebDriverWait(dash_driver, 5).until(
+    pub_keys_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'pub-keys'))
     )
 
@@ -199,7 +205,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -224,7 +230,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     start_monitoring_button.click()
 
     # wait for response
-    last_heartbeat_element = WebDriverWait(dash_driver, 5).until(
+    last_heartbeat_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'cached-last-heartbeat'))
     )
 
@@ -243,7 +249,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     get_keys_button.click()
 
     # wait for response
-    pub_keys_element = WebDriverWait(dash_driver, 5).until(
+    pub_keys_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'pub-keys'))
     )
 
@@ -283,7 +289,7 @@ def test_heartbeat_demo_ui_lifecycle(dash_driver):
     grant_button.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 5).until(
+    grant_response_element = WebDriverWait(dash_driver, 10).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 

@@ -5,13 +5,12 @@ import random
 import shutil
 import sqlite3
 import time
+import traceback
 
 import dash_core_components as dcc
 import dash_html_components as html
 import msgpack
 import pandas as pd
-import traceback
-
 from dash.dependencies import Output, Input, State, Event
 from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
@@ -25,7 +24,8 @@ from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.network.middleware import RestMiddleware, UnexpectedResponse
+from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 ACCESS_DISALLOWED = "Access Disallowed"
 
@@ -124,8 +124,12 @@ def _create_bob(unique_id: str) -> Bob:
     os.mkdir(temp_ursula_certificate_dir)
     os.mkdir(temp_bob_certificate_dir)
 
+    network_middleware = None
+    if 'TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                              federated_only=True,
+                                             network_middleware=network_middleware,
                                              minimum_stake=0)
 
     bob_privkeys = demo_keys.get_recipient_privkeys(unique_id)
@@ -138,6 +142,9 @@ def _create_bob(unique_id: str) -> Bob:
 
     print('Creating Bob with id: {}...'.format(unique_id))
 
+    network_middleware = RestMiddleware()
+    if 'TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     bob = Bob(
         is_me=True,
         federated_only=True,
@@ -146,7 +153,7 @@ def _create_bob(unique_id: str) -> Bob:
         abort_on_learning_error=True,
         known_nodes=[ursula],
         save_metadata=False,
-        network_middleware=RestMiddleware(),
+        network_middleware=network_middleware,
     )
 
     return bob

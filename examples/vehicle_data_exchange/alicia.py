@@ -16,6 +16,7 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 ######################
 # Boring setup stuff #
@@ -32,34 +33,46 @@ TEMP_URSULA_CERTIFICATE_DIR = f'{TEMP_ALICE_DIR}/ursula-certs'
 # Alicia, the Authority of the Policy #
 #######################################
 
-
-# We get a persistent Alice.
+recreate_alicia = 'TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT' in os.environ  # check if running as unit test
 passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
-try:  # If we had an existing Alicia in disk, let's get it from there
-    alice_config_file = os.path.join(TEMP_ALICE_DIR, "config_root", "alice.config")
-    new_alice_config = AliceConfiguration.from_configuration_file(
-        filepath=alice_config_file,
-        network_middleware=RestMiddleware(),
-        start_learning_now=False,
-        save_metadata=False,
-    )
-    alicia = new_alice_config(passphrase=passphrase)
-except:  # If anything fails, let's create Alicia from scratch
+if not recreate_alicia:
+    # We get a persistent Alice.
+    try:  # If we had an existing Alicia in disk, let's get it from there
+        alice_config_file = os.path.join(TEMP_ALICE_DIR, "config_root", "alice.config")
+        new_alice_config = AliceConfiguration.from_configuration_file(
+            filepath=alice_config_file,
+            network_middleware=RestMiddleware(),
+            start_learning_now=False,
+            save_metadata=False,
+        )
+        alicia = new_alice_config(passphrase=passphrase)
+    except:  # If anything fails, let's create Alicia from scratch
+        recreate_alicia = True
+
+if recreate_alicia:
     # Remove previous demo files and create new ones
     shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
     os.mkdir(TEMP_ALICE_DIR)
     os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
 
+    network_middleware = None
+    if 'TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                              federated_only=True,
+                                             network_middleware=network_middleware,
                                              minimum_stake=0)
 
+    network_middleware = None
+    if 'TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     alice_config = AliceConfiguration(
         config_root=os.path.join(TEMP_ALICE_DIR, "config_root"),
         is_me=True,
         known_nodes={ursula},
         start_learning_now=False,
         federated_only=True,
+        network_middleware=network_middleware,
         learn_on_same_thread=True,
     )
     alice_config.initialize(password=passphrase)
@@ -70,7 +83,7 @@ except:  # If anything fails, let's create Alicia from scratch
     alice_config_file = alice_config.to_configuration_file()
 
 # Let's get to learn about the NuCypher network
-alicia.start_learning_loop(now=False)  # now=False because if 'True' takes too long to load for unit tests
+alicia.start_learning_loop(now=True)
 
 
 layout = html.Div([

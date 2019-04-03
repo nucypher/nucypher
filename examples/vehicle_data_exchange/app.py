@@ -53,4 +53,7 @@ shutil.rmtree(BOB_FILES, ignore_errors=True)
 os.mkdir(BOB_FILES)
 
 # We expect the url of the seednode to be local
-SEEDNODE_URL = "localhost:11500"
+port = os.getenv("TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT")   # port used for unit test
+if port is None:
+    port = '11500'  # default local ursula
+SEEDNODE_URL = f'localhost:{port}'

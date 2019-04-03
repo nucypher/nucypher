@@ -13,12 +13,18 @@ from examples.vehicle_data_exchange import demo_keys
 
 
 @pytest.fixture(scope='module')
-def dash_app():
+def dash_app(federated_ursulas):
+    # get port of a test federated ursula and set env variable
+    node = list(federated_ursulas)[0]
+    os.environ["TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT"] = str(node.rest_information()[0].port)
+
+    # import app
     dash_app = import_app('examples.vehicle_data_exchange.vehicle_data_exchange', application_name='app')
     yield dash_app
 
-    # destroy app
+    # cleanup
     del dash_app
+    del os.environ["TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT"]
 
 
 @pytest.fixture(scope='function')

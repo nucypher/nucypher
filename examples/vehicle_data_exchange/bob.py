@@ -23,6 +23,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 ACCESS_DISALLOWED = "Access Disallowed"
 
@@ -112,8 +113,12 @@ def _create_bob(unique_id: str) -> Bob:
     os.mkdir(temp_ursula_certificate_dir)
     os.mkdir(temp_bob_certificate_dir)
 
+    network_middleware = None
+    if 'TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                              federated_only=True,
+                                             network_middleware=network_middleware,
                                              minimum_stake=0)
 
     bob_privkeys = demo_keys.get_recipient_privkeys(unique_id)
@@ -126,6 +131,9 @@ def _create_bob(unique_id: str) -> Bob:
 
     print('Creating Bob with id: {}...'.format(unique_id))
 
+    network_middleware = RestMiddleware()
+    if 'TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT' in os.environ:
+        network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
     bob = Bob(
         is_me=True,
         federated_only=True,
@@ -134,7 +142,7 @@ def _create_bob(unique_id: str) -> Bob:
         abort_on_learning_error=True,
         known_nodes=[ursula],
         save_metadata=False,
-        network_middleware=RestMiddleware(),
+        network_middleware=network_middleware,
     )
 
     return bob
@@ -143,6 +151,7 @@ def _create_bob(unique_id: str) -> Bob:
 #################
 # Bob's Actions #
 #################
+
 policy_joined = dict()  # Map: bob_id -> policy_label
 
 

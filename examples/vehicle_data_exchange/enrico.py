@@ -23,7 +23,7 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.Div([
-                html.Img(src='./assets/enrico.png', style={'height': '150px', 'width': '220px'}),
+                html.Img(src='./assets/enrico_obd.png', style={'height': '150px', 'width': '220px'}),
             ], className='two columns'),
             html.Div([
                 html.Div([
