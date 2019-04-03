@@ -51,4 +51,5 @@ $ pipenv shell
 ```
 
 * You can interact with the demo at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)
+    * Multiple `Bobs` can be created by clicking on the Bob link more than once.
 

@@ -2,7 +2,7 @@ import json
 import os
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
-KEYS_FOLDER = './keys'
+KEYS_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/keys'
 
 RECIPIENT_PUBLIC_JSON = KEYS_FOLDER + '/recipient.{}.public.json'
 RECIPIENT_PRIVATE_JSON = KEYS_FOLDER + '/recipient.{}.private.json'

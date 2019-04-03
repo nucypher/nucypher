@@ -25,8 +25,8 @@ from nucypher.utilities.logging import SimpleObserver
 globalLogPublisher.addObserver(SimpleObserver())
 #
 # # Temporary file storage
-TEMP_ALICE_DIR = "{}/alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
-TEMP_URSULA_CERTIFICATE_DIR = "{}/ursula-certs".format(TEMP_ALICE_DIR)
+TEMP_ALICE_DIR = f'{os.path.dirname(os.path.abspath(__file__))}/alicia-files'
+TEMP_URSULA_CERTIFICATE_DIR = f'{TEMP_ALICE_DIR}/ursula-certs'
 
 #######################################
 # Alicia, the Authority of the Policy #
@@ -70,7 +70,7 @@ except:  # If anything fails, let's create Alicia from scratch
     alice_config_file = alice_config.to_configuration_file()
 
 # Let's get to learn about the NuCypher network
-alicia.start_learning_loop(now=True)
+alicia.start_learning_loop(now=False)  # now=False because if 'True' takes too long to load for unit tests
 
 
 layout = html.Div([

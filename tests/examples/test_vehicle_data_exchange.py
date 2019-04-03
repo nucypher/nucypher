@@ -320,7 +320,7 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     revoke_encryption_key_element.clear()
     revoke_encryption_key_element.send_keys(bob_encrypting_key_hex)
     revoke_button = dash_driver.find_element_by_id('revoke-button')
-    revoke_button.click()
+    revoke_button.send_keys(Keys.SPACE)  # workaround because element not viewable and can't be directly clicked
 
     # wait for response
     revoke_response_element = WebDriverWait(dash_driver, 10).until(

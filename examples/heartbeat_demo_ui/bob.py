@@ -19,7 +19,8 @@ from plotly.graph_objs.scatter import *
 from umbral.keys import UmbralPublicKey
 
 from examples.heartbeat_demo_ui import demo_keys
-from examples.heartbeat_demo_ui.app import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE
+from examples.heartbeat_demo_ui.app \
+    import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE, BOB_FILES
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -112,7 +113,7 @@ def get_layout(first_bob: bool):
 
 def _create_bob(unique_id: str) -> Bob:
     # TODO: path joins?
-    temp_bob_dir = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files/bob-{unique_id}-files'
+    temp_bob_dir = f'{BOB_FILES}/bob-{unique_id}-files'
 
     temp_ursula_certificate_dir = f'{temp_bob_dir}/ursula-certs'
     temp_bob_certificate_dir = f'{temp_bob_dir}/bob-certs'

@@ -15,14 +15,15 @@ shutil.rmtree(KEYS_FOLDER, ignore_errors=True)
 os.mkdir(KEYS_FOLDER)
 
 # remove old data files and re-create data folder
-shutil.rmtree('./data', ignore_errors=True)
-os.mkdir('./data')
+DATA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/data'
+shutil.rmtree(DATA_FOLDER, ignore_errors=True)
+os.mkdir(DATA_FOLDER)
 
-DB_FILE = './data/heartbeats.db'
+DB_FILE = f'{DATA_FOLDER}/heartbeats.db'
 DB_NAME = 'HeartBeat'
 
 # create shared folder for data shared between characters
-SHARED_FOLDER = './shared'
+SHARED_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 
@@ -32,7 +33,7 @@ POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
 DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
 
 # remove old bob-files
-BOB_FILES = './bob-files'
+BOB_FILES = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files'
 shutil.rmtree(BOB_FILES, ignore_errors=True)
 os.mkdir(BOB_FILES)
 
