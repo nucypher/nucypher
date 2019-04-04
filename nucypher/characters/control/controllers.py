@@ -1,5 +1,4 @@
 from abc import ABC
-from base64 import b64encode, b64decode
 
 from constant_sorrow.constants import NO_WEB_APP_ATTACHED
 from flask import Response, Flask
@@ -7,13 +6,18 @@ from hendrix.deploy.base import HendrixDeploy
 from twisted.logger import Logger
 
 from nucypher.characters.control.emitters import StdoutEmitter, WebEmitter
-from nucypher.characters.control.interfaces import AliceInterface, character_control_interface, EnricoInterface, \
+from nucypher.characters.control.interfaces import (
+    AliceInterface,
+    character_control_interface,
+    EnricoInterface,
     BobInterface
+)
 from nucypher.characters.control.serializers import (
     AliceControlJSONSerializer,
     BobControlJSONSerializer,
     EnricoControlJSONSerializer,
-    CharacterControlSerializer)
+    CharacterControlSerializer
+)
 from nucypher.characters.control.specifications import CharacterSpecification
 
 
@@ -192,8 +196,7 @@ class WebController(CharacterController):
             return
 
         # TODO #845: Make non-blocking web control startup
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": self._web_app,
-                                                             "http_port": http_port})
+        hx_deployer = HendrixDeploy(action="start", options={"wsgi": self._web_app, "http_port": http_port})
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
     def __call__(self, *args, **kwargs):
@@ -245,5 +248,5 @@ class WebController(CharacterController):
         # Send to Emitter
         #
         else:
-            self.log.debug(f"{interface_name} [200 - OK]")  # TODO - include interface name in metadata
+            self.log.debug(f"{interface_name} [200 - OK]")
             return response

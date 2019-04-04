@@ -19,15 +19,6 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH, MOCK_ALLOCATION_REGISTRY_FILEPATH)
 
 
-def test_nucypher_deploy_cli_help(testerchain, custom_filepath, click_runner):
-
-    help_args = ('--help',)
-    result = click_runner.invoke(deploy, help_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert "Usage: deploy [OPTIONS] ACTION" in result.output
-    testerchain.sever_connection()
-
-
 def test_nucypher_deploy_contracts(testerchain, click_runner, mock_primary_registry_filepath):
 
     # We start with a blockchain node, and nothing else...

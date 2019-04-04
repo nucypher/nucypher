@@ -2,12 +2,16 @@ import os
 
 import pytest
 
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN, INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI, \
-    MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2
+from nucypher.utilities.sandbox.constants import (
+    TEMPORARY_DOMAIN,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    TEST_PROVIDER_URI,
+    MOCK_IP_ADDRESS,
+    MOCK_IP_ADDRESS_2
+)
 
 
 def test_coexisting_configurations(click_runner,
@@ -19,9 +23,14 @@ def test_coexisting_configurations(click_runner,
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
+
+               # Upgradeable Contracts
                'NUCYPHER_MINER_ESCROW_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_POLICY_MANAGER_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
+               'NUCYPHER_MINING_ADJUDICATOR_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_USER_ESCROW_PROXY_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
+
+               # Auxiliary
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
 
     # Future configuration filepaths for assertions...

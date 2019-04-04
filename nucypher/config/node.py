@@ -356,7 +356,7 @@ class NodeConfiguration(ABC):
             with open(filepath, 'r') as file:
                 raw_contents = file.read()
                 payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(raw_contents)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             raise  # TODO: Do we need better exception handling here?
         return payload
 

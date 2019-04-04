@@ -150,7 +150,7 @@ class BobControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMix
 
     @staticmethod
     def dump_join_policy_output(response: dict):
-        pass  # TODO
+        pass  # TODO: Needs spec + control endpoint
 
     def load_retrieve_input(self, request: dict):
         parsed_input = dict(label=request['label'].encode(),

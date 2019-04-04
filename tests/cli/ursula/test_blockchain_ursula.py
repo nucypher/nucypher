@@ -281,8 +281,8 @@ def test_collect_rewards_integration(click_runner,
     # Back to the Ursulas...
     #
     half_stake_time = token_economics.minimum_locked_periods // 2          # Test setup
-    logger = staking_participant.log                   # Enter the Teacher's Logger, and
-    current_period = 1                                 # State the initial period for incrementing
+    logger = staking_participant.log  # Enter the Teacher's Logger, and
+    current_period = 1                # State the initial period for incrementing
 
     miner = Miner(checksum_address=staking_participant.checksum_public_address,
                   blockchain=blockchain, is_me=True)
