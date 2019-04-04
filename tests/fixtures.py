@@ -26,7 +26,7 @@ from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
-    DispatcherDeployer
+    DispatcherDeployer, MiningAdjudicatorDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -368,23 +368,19 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+    miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
+    miner_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
-    miner_escrow_deployer.deploy()
-
-    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    policy_manager_deployer = PolicyManagerDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
-
-    policy_manager_deployer.deploy()
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
+    policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
+
+    adjudicator_deployer = MiningAdjudicatorDeployer(deployer_address=origin)
+    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     return token_agent, miner_agent, policy_agent
 
