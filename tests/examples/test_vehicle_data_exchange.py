@@ -7,7 +7,7 @@ from pytest_dash.application_runners import import_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from umbral.keys import UmbralPublicKey
+from umbral.keys import UmbralPublicKey, UmbralPrivateKey
 
 
 @pytest.fixture(scope='module')
@@ -118,9 +118,6 @@ def test_alicia_grant(dash_driver):
     # grant to some recipient
     recipient_id = f'test-{os.urandom(4)}'
 
-    from examples.vehicle_data_exchange import demo_keys
-    recipient_keys = demo_keys.get_recipient_pubkeys(recipient_id)
-
     m_threshold_element = dash_driver.find_element_by_id('m-value')
     m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
 
@@ -128,8 +125,8 @@ def test_alicia_grant(dash_driver):
     n_shares_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
     n_shares_element.send_keys(Keys.ARROW_UP)  # 2 -> 3
 
-    bob_encrypting_key_hex = recipient_keys['enc'].to_bytes().hex()
-    bob_verifying_key_hex = recipient_keys['sig'].to_bytes().hex()
+    bob_encrypting_key_hex = UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex()
+    bob_verifying_key_hex = UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex()
 
     bob_verifying_key_element = dash_driver.find_element_by_id('recipient-sig-key-grant')
     bob_verifying_key_element.clear()

@@ -1,7 +1,6 @@
 import dash
 import os
 import shutil
-from examples.vehicle_data_exchange.demo_keys import KEYS_FOLDER
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -10,6 +9,7 @@ server = app.server
 app.config.suppress_callback_exceptions = True
 
 # remove old key files and re-create folder
+KEYS_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/keys'
 shutil.rmtree(KEYS_FOLDER, ignore_errors=True)
 os.mkdir(KEYS_FOLDER)
 
