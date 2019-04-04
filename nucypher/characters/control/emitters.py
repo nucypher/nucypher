@@ -138,7 +138,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
                          'error': {'code': str(code),
                                    'message': str(message),
                                    'data': data},
-                         'id': None}
+                         'id': None}  # error has no ID
         return response_data
 
     def __serialize(self, data: dict, delimiter=delimiter, as_bytes: bool = False) -> Union[str, bytes]:
@@ -189,7 +189,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
             self.log.info(f"Error {e.code} | {e.message}")
         return size
 
-    def __emit_rpc_response(self, response: dict, request_id: int) -> int:
+    def __emit_rpc_response(self, response: dict, request_id: int, duration) -> int:
         """
         Write RPC response object to stdout and return the number of bytes written.
         """
@@ -198,7 +198,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         assembled_response = self.assemble_response(response=response, message_id=request_id)
         size = self.__write(data=assembled_response)
         if not self.quiet:
-            self.log.info(f"OK | Responded to IPC request #{request_id} - ({size} bytes)")
+            self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
         return size
 
 
@@ -226,10 +226,11 @@ class WebEmitter:
             return self.__emit_exception(*args, **kwargs)
 
     @staticmethod
-    def assemble_response(response: dict, request_id: int) -> dict:
+    def assemble_response(response: dict, request_id: int, duration) -> dict:
         response_data = {'result': response,
                          'version': str(nucypher.__version__),
-                         'id': str(request_id)}
+                         'id': str(request_id),
+                         'duration': str(duration)}
         return response_data
 
     def __emit_exception(drone_character,
@@ -245,8 +246,12 @@ class WebEmitter:
             raise e
         return drone_character.sink(str(e), status=response_code)
 
-    def __emit_http_response(drone_character, response) -> Response:
-        serialized_response = WebEmitter.transport_serializer(response)
-        response = drone_character.sink(serialized_response, status=200)  # < ---------- HTTP OUTPUT
-        response.headers["Content-Type"] = "application/json"
+    def __emit_http_response(drone_character, response, request_id, duration) -> Response:
+        assembled_response = drone_character.assemble_response(response=response,
+                                                               request_id=request_id,
+                                                               duration=duration)
+        serialized_response = WebEmitter.transport_serializer(assembled_response)
+
+        # ---------- HTTP OUTPUT
+        response = drone_character.sink(response=serialized_response, status=200, content_type="application/json")
         return response

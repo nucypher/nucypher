@@ -48,11 +48,8 @@ def character_control_interface(func):
         responding = maya.now()
         duration = responding - received
 
-        # Assemble response with metadata
-        response_with_metadata = instance.serializer.build_response_metadata(response=response, duration=duration)
-
         # Emit
-        return instance.emitter(response=response_with_metadata, request_id=request_id)
+        return instance.emitter(response=response, request_id=request_id, duration=duration)
 
     return wrapped
 

@@ -1,7 +1,7 @@
+import datetime
 import json
 from base64 import b64encode, b64decode
 
-import datetime
 import maya
 import pytest
 
@@ -66,7 +66,7 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     assert response.status_code == 400
 
 
-def test_alice_character_control_revoke(alice_control_test_client, federated_bob):
+def test_alice_character_control_revoke(alice_web_controller_test_client, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
     grant_request_data = {
@@ -77,7 +77,7 @@ def test_alice_character_control_revoke(alice_control_test_client, federated_bob
         'n': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
-    response = alice_control_test_client.put('/grant', data=json.dumps(grant_request_data))
+    response = alice_web_controller_test_client.put('/grant', data=json.dumps(grant_request_data))
     assert response.status_code == 200
 
     revoke_request_data = {
@@ -85,7 +85,7 @@ def test_alice_character_control_revoke(alice_control_test_client, federated_bob
         'bob_verifying_key': bytes(federated_bob.stamp).hex()
     }
 
-    response = alice_control_test_client.delete(f'/revoke', data=json.dumps(revoke_request_data))
+    response = alice_web_controller_test_client.delete(f'/revoke', data=json.dumps(revoke_request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
