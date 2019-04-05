@@ -207,7 +207,8 @@ def ursula(click_config,
                                                                     rest_host=rest_host,
                                                                     rest_port=rest_port,
                                                                     db_filepath=db_filepath,
-                                                                    poa=poa)
+                                                                    poa=poa,
+                                                                    federated_only=federated_only)
 
         click_config.unlock_keyring(character_configuration=ursula_config)
 
@@ -232,7 +233,7 @@ def ursula(click_config,
     teacher_uris = [teacher_uri] if teacher_uri else list()
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
-                                           federated_only=federated_only,
+                                           federated_only=ursula_config.federated_only,
                                            network_middleware=click_config.middleware)
 
     # Produce - Step 2
