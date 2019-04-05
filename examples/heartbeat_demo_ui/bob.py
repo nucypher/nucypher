@@ -19,7 +19,7 @@ from umbral.keys import UmbralPublicKey
 
 from examples.utilities.demo_keys import DemoKeyGenerator, ENCRYPTING_KEY, VERIFYING_KEY
 from examples.heartbeat_demo_ui.app \
-    import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE, BOB_FILES, KEYS_FOLDER
+    import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE, BOB_FOLDER, KEYS_FOLDER
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -115,7 +115,7 @@ def get_layout(first_bob: bool):
 
 def _create_bob(unique_id: str) -> Bob:
     # TODO: path joins?
-    temp_bob_dir = f'{BOB_FILES}/bob-{unique_id}-files'
+    temp_bob_dir = f'{BOB_FOLDER}/bob-{unique_id}-files'
 
     temp_ursula_certificate_dir = f'{temp_bob_dir}/ursula-certs'
     temp_bob_certificate_dir = f'{temp_bob_dir}/bob-certs'

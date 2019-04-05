@@ -14,7 +14,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from examples.vehicle_data_exchange import alicia, enrico, bob
-from examples.vehicle_data_exchange.app import app
+from examples.vehicle_data_exchange.app import app, cleanup
 
 
 app.layout = html.Div([
@@ -54,4 +54,7 @@ def display_page(pathname):
 
 
 if __name__ == '__main__':
-    app.run_server()
+    try:
+        app.run_server()
+    finally:
+        cleanup()

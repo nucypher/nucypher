@@ -9,12 +9,12 @@ server = app.server
 app.config.suppress_callback_exceptions = True
 app.title = "NuCypher Heartbeat Demo"
 
-# remove old key files and re-create folder
+# key files
 KEYS_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/keys'
 shutil.rmtree(KEYS_FOLDER, ignore_errors=True)
 os.mkdir(KEYS_FOLDER)
 
-# remove old data files and re-create data folder
+# data files
 DATA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/data'
 shutil.rmtree(DATA_FOLDER, ignore_errors=True)
 os.mkdir(DATA_FOLDER)
@@ -32,10 +32,15 @@ POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
 
 DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
 
-# remove old bob-files
-BOB_FILES = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files'
-shutil.rmtree(BOB_FILES, ignore_errors=True)
-os.mkdir(BOB_FILES)
+# alicia-files
+ALICIA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/alicia-files'
+shutil.rmtree(ALICIA_FOLDER, ignore_errors=True)
+os.mkdir(ALICIA_FOLDER)
+
+# bob-files
+BOB_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files'
+shutil.rmtree(BOB_FOLDER, ignore_errors=True)
+os.mkdir(BOB_FOLDER)
 
 # We expect the url of the seednode to be local
 port = os.getenv("TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT")   # port used for unit test
@@ -45,8 +50,6 @@ SEEDNODE_URL = f'localhost:{port}'
 
 
 def cleanup():
-    cleanup_directories = [KEYS_FOLDER, DATA_FOLDER, SHARED_FOLDER, BOB_FILES,
-                           f'{os.path.dirname(os.path.abspath(__file__))}/alicia-files']
+    cleanup_directories = [KEYS_FOLDER, DATA_FOLDER, SHARED_FOLDER, BOB_FOLDER, ALICIA_FOLDER]
     for directory in cleanup_directories:
         shutil.rmtree(directory, ignore_errors=True)
-
