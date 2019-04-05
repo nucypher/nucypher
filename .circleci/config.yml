@@ -12,6 +12,14 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - pipenv_install_36_browser:
+          filters:
+            tags:
+              only: /.*/
+      - pip_install_36_browser:
+          filters:
+            tags:
+              only: /.*/
       - pipenv_install_37:
           filters:
             tags:
@@ -142,6 +150,14 @@ workflows:
               only: /.*/
           requires:
           - cli
+      - web_examples:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_36_browser
+            - pipenv_install_36_browser
       - mypy:
           context: "NuCypher Tests"
           filters:
@@ -470,7 +486,7 @@ jobs:
           command: pipenv run pytest tests/learning
       - capture_test_results
 
-  examples:
+  web_examples:
     <<: *python_36_base_browser
     steps:
       - prepare_environment
