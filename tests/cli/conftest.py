@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
-    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH
+    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH, TESTING_ETH_AIRDROP_AMOUNT
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
@@ -111,7 +111,7 @@ def deployed_blockchain():
     # Blockchain
     #
     blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=5, poa=True)
-    blockchain.ether_airdrop(amount=1000000000)
+    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
     origin, *everyone = blockchain.interface.w3.eth.accounts
 
     #

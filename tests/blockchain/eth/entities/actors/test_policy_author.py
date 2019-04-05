@@ -18,13 +18,14 @@ import pytest
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import PolicyAuthor
+from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 
 
 @pytest.mark.slow()
 @pytest.fixture(scope='module')
 def author(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    token_agent.ether_airdrop(amount=100000 * constants.M)
+    token_agent.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
     _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
     author = PolicyAuthor(checksum_address=alice)
     return author
@@ -32,7 +33,6 @@ def author(testerchain, three_agents):
 
 @pytest.mark.slow()
 def test_create_policy_author(testerchain, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
     _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
     policy_author = PolicyAuthor(checksum_address=alice)
     assert policy_author.checksum_public_address == alice

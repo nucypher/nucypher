@@ -20,6 +20,7 @@ requests = "*"
 sqlalchemy = "*"
 maya = "*"
 flask = "*"
+flask_sqlalchemy = "*"
 # Third-Party Ethereum
 py-evm = "==0.2.0a39"
 eth-tester = "*"
@@ -31,6 +32,7 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 boto3 = "*"
+flask-limiter = "*"
 
 [dev-packages]
 # Pytest
@@ -54,6 +56,7 @@ bumpversion = "*"
 sphinx = "*"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
+aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
 # Test Demos

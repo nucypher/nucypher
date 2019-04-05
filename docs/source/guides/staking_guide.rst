@@ -4,30 +4,30 @@ NuCypher Staking Guide
 
 **Ursula Staking Actions**
 
-+-------------------+-------------------------------------------------------------------------+
-| Action            |  Description                                                            |
-+===================+=========================================================================+
-|  `stake`          | Initialize or view NuCpher stakes (used with `--value` and `--duration`)|
-+-------------------+-------------------------------------------------------------------------+
-|  `divide-stake`   | Divide stake, used with `--value` and `--duration`                      |
-+-------------------+-------------------------------------------------------------------------+
-|  `collect-reward` | Collect staking reward (Policy reward collection in future PR)          |
-+-------------------+-------------------------------------------------------------------------+
++-------------------+------------------------------------------------------------------------------+
+| Action            |  Description                                                                 |
++===================+==============================================================================+
+|  ``stake``        | Initialize or view NuCypher stakes (used with ``--value`` and ``--duration``)|
++-------------------+------------------------------------------------------------------------------+
+| ``collect-reward``| Collect staking reward (Policy reward collection in future PR)               |
++-------------------+------------------------------------------------------------------------------+
 
 
 **Ursula Staking Options**
 
-+----------------+----------------------------------------+
-| Option         |  Description                           |
-+================+========================================+
-|  `--value`     | Stake value                            |
-+----------------+----------------------------------------+
-|  `--duration`  | Stake duration of extension            |
-+----------------+----------------------------------------+
-|  `--index`     | Stake index                            |
-+----------------+----------------------------------------+
-|  `--list`      | List stakes (used with `stake` action) |
-+----------------+----------------------------------------+
++-----------------+--------------------------------------------+
+| Option          |  Description                               |
++=================+============================================+
+|  ``--value``    | Stake value                                |
++-----------------+--------------------------------------------+
+|  ``--duration`` | Stake duration of extension                |
++-----------------+--------------------------------------------+
+|  ``--index``    | Stake index                                |
++-----------------+--------------------------------------------+
+|  ``--list``     | List stakes (used with ``stake`` action)   |
++-----------------+--------------------------------------------+
+|  ``--divide``   | Divide stakes (used with ``stake`` action) |
++-----------------+--------------------------------------------+
 
 
 
@@ -39,7 +39,7 @@ Interactive Method
     (nucypher)$ nucypher ursula stake
 
 
-*Initial a new stake*
+*Initialize a new stake*
 
 .. code:: bash
 
@@ -92,7 +92,7 @@ Interactive Method
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula divide-stake
+    (nucypher)$ nucypher ursula stake --divide
 
 
     | # | Duration     | Enact     | Expiration | Value
@@ -100,7 +100,7 @@ Interactive Method
     | 0 | 32 periods . | yesterday | 14 Apr ... | 30000 NU
 
     Select a stake to divide: 0
-    Enter target value (must be less than 3000 NU): 1500
+    Enter target value (must be less than 30000 NU): 15000
     Enter number of periods to extend: 30
 
     ============================== ORIGINAL STAKE ============================
@@ -133,17 +133,17 @@ Inline Method
 +----------------+------------+--------------+
 
 
-*Stake 3000 NU for 90 Periods*
+*Stake 30000 NU for 90 Periods*
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula stake --value 3000 --duration 90
+    (nucypher)$ nucypher ursula stake --value 30000 --duration 90
     ...
 
 
-*Divide stake at index 0, at 1500 NU for 30 additional Periods*
+*Divide stake at index 0, at 15000 NU for 30 additional Periods*
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula divide-stake --index 0 --value 1500 --duration 30
+    (nucypher)$ nucypher ursula stake --divide --index 0 --value 15000 --duration 30
     ...

@@ -138,4 +138,5 @@ class WebEmitter:
     def __emit_http_response(drone_character, response) -> Response:
         serialized_response = WebEmitter.transport_serializer(response)
         response = drone_character._sink_callable(serialized_response, status=200)  # < ---------- HTTP OUTPUT
+        response.headers["Content-Type"] = "application/json"
         return response

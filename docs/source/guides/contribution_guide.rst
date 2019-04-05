@@ -171,7 +171,7 @@ Building Documentation
 
 .. note::
 
-  ``sphinx``, ``recommonmark``, and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
+  ``sphinx``, ``recommonmark``, ``aafigure`` and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
   by running ``pip install -e .[docs]`` from the project directory.
 
 

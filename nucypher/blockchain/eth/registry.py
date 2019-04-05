@@ -41,7 +41,6 @@ class EthereumContractRegistry:
     _multi_contract = True
     _contract_name = NotImplemented
 
-    # TODO: Integrate with config classes
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
     class RegistryError(Exception):
@@ -66,6 +65,16 @@ class EthereumContractRegistry:
     @property
     def filepath(self):
         return self.__filepath
+
+    @property
+    def enrolled_names(self):
+        entries = iter(record[0] for record in self.read())
+        return entries
+
+    @property
+    def enrolled_addresses(self):
+        entries = iter(record[1] for record in self.read())
+        return entries
 
     def _swap_registry(self, filepath: str) -> bool:
         self.__filepath = filepath

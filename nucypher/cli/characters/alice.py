@@ -28,9 +28,10 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
 @click.option('--bob-verifying-key', help="Bob's verifying key as a hexideicmal string", type=click.STRING)
+@click.option('--policy-encrypting-key', help="The Policy encrypting key derived from a label", type=click.STRING)
 @click.option('--label', help="The label for a policy", type=click.STRING)
-@click.option('--m', help="M", type=click.INT)
-@click.option('--n', help="N", type=click.INT)
+@click.option('--m', help="M-Threshold KFrags", type=click.INT)
+@click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -53,6 +54,7 @@ def alice(click_config,
           dry_run,
           bob_encrypting_key,
           bob_verifying_key,
+          policy_encrypting_key,
           label,
           m,
           n):
@@ -76,7 +78,7 @@ def alice(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_alice_config = AliceConfiguration.generate(password=click_config._get_password(confirm=True),
+        new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
                                                        config_root=config_root,
                                                        rest_host="localhost",
                                                        domains={network} if network else None,
@@ -186,7 +188,7 @@ def alice(click_config,
         return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":
-        raise NotImplementedError  # TODO: Implement revoke entry point
+        return ALICE.controller.revoke(policy_encrypting_key=policy_encrypting_key)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

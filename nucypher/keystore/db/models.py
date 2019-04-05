@@ -38,6 +38,9 @@ class Key(Base):
         self.key_data = key_data
         self.is_signing = is_signing
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(id={self.id})'
+
     @classmethod
     def from_umbral_key(cls, umbral_key, is_signing):
         fingerprint = fingerprint_from_key(umbral_key)
@@ -71,6 +74,9 @@ class PolicyArrangement(Base):
         # self.bob_pubkey_sig_id = bob_pubkey_sig_id
         self.alice_signature = alice_signature
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(id={self.id})'
+
 
 class Workorder(Base):
     __tablename__ = 'workorders'
@@ -85,3 +91,6 @@ class Workorder(Base):
         self.bob_pubkey_sig_id = bob_pubkey_sig_id
         self.bob_signature = bob_signature
         self.arrangement_id = arrangement_id
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(id={self.id})'

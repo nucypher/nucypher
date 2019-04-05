@@ -12,18 +12,18 @@
 
 ----
 
-The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral) 
-threshold proxy re-encryption scheme to provide cryptographic access control 
-for distributed apps and protocols. 
-Applications can use the NuCypher network to facilitate end-to-end encrypted 
-data sharing via sharing policies. Access permissions are baked into the 
-underlying encryption, and access can only be explicitly granted by the data owner. 
-Consequently, the data owner has ultimate control over access to their data. 
-At no point is the data decrypted nor can the underlying private keys be 
+The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
+threshold proxy re-encryption scheme to provide cryptographic access control
+for distributed apps and protocols.
+Applications can use the NuCypher network to facilitate end-to-end encrypted
+data sharing via sharing policies. Access permissions are baked into the
+underlying encryption, and access can only be explicitly granted by the data owner.
+Consequently, the data owner has ultimate control over access to their data.
+At no point is the data decrypted nor can the underlying private keys be
 determined by the NuCypher network.
 
-01. Alice, the data owner, grants access to her encrypted data to 
-anyone she wants by creating a policy and uploading it to 
+01. Alice, the data owner, grants access to her encrypted data to
+anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
 02. Using her policy's public key, any entity can encrypt data on Alice's behalf.
@@ -39,9 +39,9 @@ re-encrypt data in exchange for payment in fees and token rewards.
 Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.
 
-04. Bob, a data recipient, sends an access request to the NuCypher network. 
-If Bob was granted an access policy by Alice, 
-the data is re-encrypted for his public key, 
+04. Bob, a data recipient, sends an access request to the NuCypher network.
+If Bob was granted an access policy by Alice,
+the data is re-encrypted for his public key,
 and he can subsequently decrypt it with his private key.
 
 More detailed information:
@@ -81,6 +81,8 @@ and accept bug reports.
 If you're interested in contributing code, please check out our [Contribution Guide](https://docs.nucypher.com/en/latest/guides/contribution_guide.html)
 and browse our [Open Issues](https://github.com/nucypher/nucypher/issues) for potential areas to contribute.
 
+Get up and running quickly by using our [docker development setup](dev/docker/README.md)
+
 # Security
 
 If you identify vulnerabilities with _any_ nucypher code, please email security@nucypher.com with relevant information to your findings.
@@ -97,4 +99,5 @@ A great place to begin your research is by working on our testnet.
 Please see our [documentation](https://docs.nucypher.com) to get started.
 We ask that you please respect testnet machines and their owners.
 If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what you're doing and immediately email security@nucypher.com.
+
 

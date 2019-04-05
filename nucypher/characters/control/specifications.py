@@ -35,6 +35,29 @@ class CharacterSpecification(ABC):
         else:
             return cls._specifications
 
+    @staticmethod
+    def __validate(specification: tuple, data: dict, error_class):
+
+        invalid_fields = set(data.keys()) - set(specification)
+        if invalid_fields:
+            pretty_invalid_fields = ', '.join(invalid_fields)
+            raise error_class(f"Got: {pretty_invalid_fields}")
+
+        missing_fields = set(specification) - set(data.keys())
+        if missing_fields:
+            pretty_missing_fields = ', '.join(missing_fields)
+            raise error_class(f"Got: {pretty_missing_fields}")
+
+        return True
+
+    def validate_request(self, interface_name: str, request: dict) -> bool:
+        input_specification, _ = self.get_specifications(interface_name=interface_name)
+        return self.__validate(specification=input_specification, data=request, error_class=self.InvalidInputField)
+
+    def validate_response(self, interface_name: str, response: dict) -> bool:
+        _, output_specification = self.get_specifications(interface_name=interface_name)
+        return self.__validate(specification=output_specification, data=response, error_class=self.InvalidInputField)
+
 
 class AliceSpecification(CharacterSpecification):
 
@@ -47,9 +70,8 @@ class AliceSpecification(CharacterSpecification):
     __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
 
-    # TODO: Implement Revoke Spec
-    __revoke = ((),  # In
-                ())  # Out
+    __revoke = (('policy_encrypting_key', ),  # In
+                ('failed_revocations',))     # Out
 
     __public_keys = ((),
                      ('alice_verifying_key',))

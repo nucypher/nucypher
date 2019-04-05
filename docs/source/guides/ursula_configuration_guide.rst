@@ -24,19 +24,21 @@ If your installation in non-functional, be sure you have the latest version inst
 2(a). Configure a new Ursula node
 
 *Decentralized Ursula Configuration*
+
 .. code:: bash
 
     (nucypher)$ nucypher ursula init --provider-uri <YOUR PROVIDER URI> --network <NETWORK NAME>
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - *ipc:///tmp/geth.ipc*   - Geth Development Node (IPC; Also use --poa flag)
-    - *http://localhost:7545* - Ganache TestRPC (HTTP-JSON-RPC)
-    - *ws://0.0.0.0:8080*     - Websocket Provider
+    - ``ipc:///tmp/geth.ipc``   - Geth Development Node (IPC; **Note**: Also use ``--poa`` flag)
+    - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
+    - ``ws://0.0.0.0:8080``     - Websocket Provider
 
 2(b). Configure a new Ursula node
 
 *Federated Ursula Initialization*
+
 .. code:: bash
 
     (nucypher)$ nucypher ursula init --federated-only --network <NETWORK NAME>

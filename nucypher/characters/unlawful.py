@@ -72,14 +72,14 @@ class Vladimir(Ursula):
     @classmethod
     def attach_transacting_key(cls, blockchain):
         """
-        Upload Vladimir's ETH keys to the keychain via web3 / RPC.
+        Upload Vladimir's ETH keys to the keychain via web3.
         """
         try:
             password = INSECURE_DEVELOPMENT_PASSWORD
-            blockchain.interface.w3.personal.importRawKey(private_key=cls.fraud_key, passphrase=password)
+            blockchain.interface.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError, ):
             # check if Vlad's key is already on the keyring...
-            if cls.fraud_address in blockchain.interface.w3.personal.listAccounts:
+            if cls.fraud_address in blockchain.interface.w3.eth.accounts:
                 return True
             else:
                 raise

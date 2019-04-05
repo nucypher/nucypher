@@ -29,8 +29,7 @@ def test_nucypher_deploy_contracts(testerchain, click_runner, mock_primary_regis
     command = ('contracts',
                '--registry-outfile', mock_primary_registry_filepath,
                '--provider-uri', TEST_PROVIDER_URI,
-               '--poa',
-               )
+               '--poa')
 
     user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*6
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

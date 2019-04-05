@@ -34,7 +34,6 @@ from constant_sorrow.constants import (
 )
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
-from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 
@@ -45,7 +44,7 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
     __default_timeout = 10  # seconds
-    # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
+    # __default_transaction_gas_limit = 500000  # TODO #842: determine sensible limit and validate transactions
 
     class InterfaceError(Exception):
         pass
@@ -232,7 +231,8 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'tester':
 
                 if uri_breakdown.netloc == 'pyevm':
-                    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': NUCYPHER_GAS_LIMIT})
+                    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT
+                    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
                     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
@@ -296,7 +296,7 @@ class BlockchainInterface:
         try:
             contract_records = self.registry.search(contract_address=address)
         except RuntimeError:
-            raise self.InterfaceError('Corrupted Registrar')  # TODO: Integrate with Registry
+            raise self.InterfaceError('Corrupted Registrar')  # TODO #461: Integrate with Registry
         else:
             if not contract_records:
                 raise self.UnknownContract("No such contract with address {}".format(address))

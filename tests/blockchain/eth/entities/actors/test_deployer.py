@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 
 
 @pytest.mark.slow()
@@ -39,7 +40,7 @@ def test_rapid_deployment():
                                             registry=registry,
                                             provider_uri='tester://pyevm')
     blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=4)
-    blockchain.ether_airdrop(amount=1000000000)
+    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
     origin, *everyone = blockchain.interface.w3.eth.accounts
 
     deployer = Deployer(blockchain=blockchain,

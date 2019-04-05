@@ -2,13 +2,32 @@ import json
 import os
 
 import click
-from flask import Flask, render_template
+import eth_utils
+import math
+import maya
+import time
+from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
+from datetime import datetime, timedelta
+from flask import Flask, render_template, Response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from nacl.hash import sha256
+from sqlalchemy import create_engine, or_
+from twisted.internet import threads, reactor
+from twisted.internet.task import LoopingCall
+from twisted.logger import Logger
+
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
-
-from nucypher.characters.banners import MOE_BANNER
+from nucypher.blockchain.eth.actors import NucypherTokenActor
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD, NULL_ADDRESS
+from nucypher.blockchain.eth.token import NU
+from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
+from nucypher.crypto.powers import SigningPower
+from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
 
@@ -95,3 +114,363 @@ class Moe(Character):
 
         if not dry_run:
             deployer.run()
+
+
+class Felix(Character, NucypherTokenActor):
+    """
+    A NuCypher ERC20 faucet / Airdrop scheduler.
+
+    Felix is a web application that gives NuCypher *testnet* tokens to registered addresses
+    with a scheduled reduction of disbursement amounts, and an HTTP endpoint
+    for handling new address registration.
+
+    The main goal of Felix is to provide a source of testnet tokens for
+    research and the development of production-ready nucypher dApps.
+    """
+
+    _default_crypto_powerups = [SigningPower]  # identity only
+
+    DISTRIBUTION_INTERVAL = 60*60              # seconds (60*60=1Hr)
+    DISBURSEMENT_INTERVAL = HOURS_PER_PERIOD   # (24) hours
+    STAGING_DELAY = 10  # seconds
+
+    BATCH_SIZE = 10                            # transactions
+    MULTIPLIER = 0.95                          # 5% reduction of previous stake is 0.95, for example
+    MAXIMUM_DISBURSEMENT = MAX_ALLOWED_LOCKED  # NuNits
+    INITIAL_DISBURSEMENT = MIN_ALLOWED_LOCKED  # NuNits
+    MINIMUM_DISBURSEMENT = 1e18                # NuNits
+    # TRANSACTION_GAS = 40000                    # gas  TODO
+
+    TEMPLATE_NAME = 'felix.html'
+
+    # Node Discovery
+    LEARNING_TIMEOUT = 30                      # seconds
+    _SHORT_LEARNING_DELAY = 60                 # seconds
+    _LONG_LEARNING_DELAY = 120                 # seconds
+    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 1
+
+    # Twisted
+    _CLOCK = reactor
+    _AIRDROP_QUEUE = dict()
+
+    class NoDatabase(RuntimeError):
+        pass
+
+    def __init__(self,
+                 db_filepath: str,
+                 rest_host: str,
+                 rest_port: int,
+                 crash_on_error: bool = False,
+                 *args, **kwargs):
+
+        # Character
+        super().__init__(*args, **kwargs)
+        self.log = Logger(f"felix-{self.checksum_public_address[-6::]}")
+
+        # Network
+        self.rest_port = rest_port
+        self.rest_host = rest_host
+        self.rest_app = NOT_RUNNING
+        self.crash_on_error = crash_on_error
+
+        # Database
+        self.db_filepath = db_filepath
+        self.db = NO_DATABASE_AVAILABLE
+        self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
+
+        # Blockchain
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.reserved_addresses = [self.checksum_public_address, NULL_ADDRESS]
+
+        # Update reserved addresses with deployed contracts
+        existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
+        self.reserved_addresses.extend(existing_entries)
+
+        # Distribution
+        self.__distributed = 0    # Track NU Output
+        self.__airdrop = 0        # Track Batch
+        self.__disbursement = 0   # Track Quantity
+        self._distribution_task = LoopingCall(f=self.airdrop_tokens)
+        self._distribution_task.clock = self._CLOCK
+        self.start_time = NOT_RUNNING
+
+        # Banner
+        self.log.info(FELIX_BANNER.format(self.checksum_public_address))
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = f'{class_name}(checksum_address={self.checksum_public_address}, db_filepath={self.db_filepath})'
+        return r
+
+    def make_web_app(self):
+        from flask import request
+        from flask_sqlalchemy import SQLAlchemy
+
+        # WSGI/Flask Service
+        short_name = bytes(self.stamp).hex()[:6]
+        self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
+
+        # Flask Settings
+        self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
+        self.rest_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+        try:
+            self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
+        except KeyError:
+            raise OSError("The 'NUCYPHER_FELIX_DB_SECRET' is not set.  Export your application secret and try again.")
+
+        # Database
+        self.db = SQLAlchemy(self.rest_app)
+
+        # Database Tables
+        class Recipient(self.db.Model):
+            """
+            The one and only table in Felix's database; Used to track recipients and airdrop metadata.
+            """
+
+            __tablename__ = 'recipient'
+
+            id = self.db.Column(self.db.Integer, primary_key=True)
+            address = self.db.Column(self.db.String, unique=True, nullable=False)
+            joined = self.db.Column(self.db.DateTime, nullable=False, default=datetime.utcnow)
+            total_received = self.db.Column(self.db.String, default='0', nullable=False)
+            last_disbursement_amount = self.db.Column(self.db.String, nullable=False, default=0)
+            last_disbursement_time = self.db.Column(self.db.DateTime, nullable=True, default=None)
+            is_staking = self.db.Column(self.db.Boolean, nullable=False, default=False)
+
+            def __repr__(self):
+                return f'{self.__class__.__name__}(id={self.id})'
+
+        self.Recipient = Recipient  # Bind to outer class
+
+        # Flask decorators
+        rest_app = self.rest_app
+        limiter = Limiter(self.rest_app, key_func=get_remote_address, headers_enabled=True)
+
+        #
+        # REST Routes
+        #
+
+        @rest_app.route("/", methods=['GET'])
+        @limiter.limit("100/day;20/hour;1/minute")
+        def home():
+            rendering = render_template(self.TEMPLATE_NAME)
+            return rendering
+
+        @rest_app.route("/register", methods=['POST'])
+        @limiter.limit("5 per day")
+        def register():
+            """Handle new recipient registration via POST request."""
+            try:
+                new_address = request.form['address']
+            except KeyError:
+                return Response(status=400)  # TODO
+
+            if not eth_utils.is_checksum_address(new_address):
+                return Response(status=400)  # TODO
+
+            if new_address in self.reserved_addresses:
+                return Response(status=400)  # TODO
+
+            try:
+                with ThreadedSession(self.db_engine) as session:
+
+                    existing = Recipient.query.filter_by(address=new_address).all()
+                    if existing:
+                        # Address already exists; Abort
+                        self.log.debug(f"{new_address} is already enrolled.")
+                        return Response(status=400)
+
+                    # Create the record
+                    recipient = Recipient(address=new_address, joined=datetime.now())
+                    session.add(recipient)
+                    session.commit()
+
+            except Exception as e:
+                # Pass along exceptions to the logger
+                self.log.critical(str(e))
+                raise
+
+            else:
+                return Response(status=200)  # TODO
+
+        return rest_app
+
+    def create_tables(self) -> None:
+        return self.db.create_all(app=self.rest_app)
+
+    def start(self,
+              host: str,
+              port: int,
+              web_services: bool = True,
+              distribution: bool = True,
+              crash_on_error: bool = False):
+
+        self.crash_on_error = crash_on_error
+
+        if self.start_time is not NOT_RUNNING:
+            raise RuntimeError("Felix is already running.")
+
+        self.start_time = maya.now()
+        payload = {"wsgi": self.rest_app, "http_port": port}
+        deployer = HendrixDeploy(action="start", options=payload)
+        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
+
+        if distribution is True:
+            self.start_distribution()
+
+        if web_services is True:
+            deployer.run()  # <-- Blocking call (Reactor)
+
+    def start_distribution(self, now: bool = True) -> bool:
+        """Start token distribution"""
+        self.log.info(NU_BANNER)
+        self.log.info("Starting NU Token Distribution | START")
+        self._distribution_task.start(interval=self.DISTRIBUTION_INTERVAL, now=now)
+        return True
+
+    def stop_distribution(self) -> bool:
+        """Start token distribution"""
+        self.log.info("Stopping NU Token Distribution | STOP")
+        self._distribution_task.stop()
+        return True
+
+    def __calculate_disbursement(self, recipient) -> int:
+        """Calculate the next reward for a recipient once the are selected for distribution"""
+
+        # Initial Reward - sets the future rates
+        if recipient.last_disbursement_time is None:
+            amount = self.INITIAL_DISBURSEMENT
+
+        # Cap reached, We'll continue to leak the minimum disbursement
+        elif int(recipient.total_received) >= self.MAXIMUM_DISBURSEMENT:
+            amount = self.MINIMUM_DISBURSEMENT
+
+        # Calculate the next disbursement
+        else:
+            amount = math.ceil(int(recipient.last_disbursement_amount) * self.MULTIPLIER)
+            if amount < self.MINIMUM_DISBURSEMENT:
+                amount = self.MINIMUM_DISBURSEMENT
+
+        return int(amount)
+
+    def __transfer(self, disbursement: int, recipient_address: str) -> str:
+        """Perform a single token transfer transaction from one account to another."""
+
+        self.__disbursement += 1
+        txhash = self.token_agent.transfer(amount=disbursement,
+                                           target_address=recipient_address,
+                                           sender_address=self.checksum_public_address)
+
+        self.log.info(f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} | "
+                      f"({str(NU(disbursement, 'NuNit'))}) -> {recipient_address}")
+        return txhash
+
+    def airdrop_tokens(self):
+        """
+        Calculate airdrop eligibility via faucet registration
+        and transfer tokens to selected recipients.
+        """
+
+        with ThreadedSession(self.db_engine) as session:
+            population = session.query(self.Recipient).count()
+
+        message = f"{population} registered faucet recipients; " \
+                  f"Distributed {str(NU(self.__distributed, 'NuNit'))} since {self.start_time.slang_time()}."
+        self.log.debug(message)
+        if population is 0:
+            return  # Abort - no recipients are registered.
+
+        # For filtration
+        since = datetime.now() - timedelta(hours=self.DISBURSEMENT_INTERVAL)
+
+        datetime_filter = or_(self.Recipient.last_disbursement_time <= since,
+                              self.Recipient.last_disbursement_time == None)
+
+        with ThreadedSession(self.db_engine) as session:
+            candidates = session.query(self.Recipient).filter(datetime_filter).all()
+            if not candidates:
+                self.log.info("No eligible recipients this round.")
+                return
+
+        # Discard invalid addresses, in-depth
+        invalid_addresses = list()
+
+        def siphon_invalid_entries(candidate):
+            address_is_valid = eth_utils.is_checksum_address(candidate.address)
+            if not address_is_valid:
+                invalid_addresses.append(candidate.address)
+            return address_is_valid
+
+        candidates = list(filter(siphon_invalid_entries, candidates))
+
+        if invalid_addresses:
+            self.log.info(f"{len(invalid_addresses)} invalid entries detected. Pruning database.")
+
+            # TODO: Is this needed? - Invalid entries are rejected at the endpoint view.
+            # Prune database of invalid records
+            # with ThreadedSession(self.db_engine) as session:
+            #     bad_eggs = session.query(self.Recipient).filter(self.Recipient.address in invalid_addresses).all()
+            #     for egg in bad_eggs:
+            #         session.delete(egg.id)
+            #     session.commit()
+
+        if not candidates:
+            self.log.info("No eligible recipients this round.")
+            return
+
+        d = threads.deferToThread(self.__do_airdrop, candidates=candidates)
+        self._AIRDROP_QUEUE[self.__airdrop] = d
+        return d
+
+    def __do_airdrop(self, candidates: list):
+
+        self.log.info(f"Staging Airdrop #{self.__airdrop}.")
+
+        # Staging
+        staged_disbursements = [(r, self.__calculate_disbursement(recipient=r)) for r in candidates]
+        batches = list(staged_disbursements[index:index+self.BATCH_SIZE] for index in range(0, len(staged_disbursements), self.BATCH_SIZE))
+        total_batches = len(batches)
+
+        self.log.info("====== Staged Airdrop ======")
+        for recipient, disbursement in staged_disbursements:
+            self.log.info(f"{recipient.address} ... {str(disbursement)[:-18]}")
+        self.log.info("==========================")
+
+        # Staging Delay
+        self.log.info(f"Airdrop will commence in {self.STAGING_DELAY} seconds...")
+        if self.STAGING_DELAY > 3:
+            time.sleep(self.STAGING_DELAY - 3)
+        for i in range(3):
+            time.sleep(1)
+            self.log.info(f"NU Token airdrop starting in {3 - i} seconds...")
+
+        # Slowly, in series...
+        for batch, staged_disbursement in enumerate(batches, start=1):
+            self.log.info(f"======= Batch #{batch} ========")
+
+            for recipient, disbursement in staged_disbursement:
+
+                # Perform the transfer... leaky faucet.
+                self.__transfer(disbursement=disbursement, recipient_address=recipient.address)
+                self.__distributed += disbursement
+
+                # Update the database record
+                recipient.last_disbursement_amount = str(disbursement)
+                recipient.total_received = str(int(recipient.total_received) + disbursement)
+                recipient.last_disbursement_time = datetime.now()
+
+                self.db.session.add(recipient)
+                self.db.session.commit()
+
+            # end inner loop
+            self.log.info(f"Completed Airdrop #{self.__airdrop} Batch #{batch} of {total_batches}.")
+
+        # end outer loop
+        now = maya.now()
+        next_interval_slang = now.add(seconds=self.DISTRIBUTION_INTERVAL).slang_time()
+        self.log.info(f"Completed Airdrop #{self.__airdrop}; Next airdrop is {next_interval_slang}.")
+
+        del self._AIRDROP_QUEUE[self.__airdrop]
+        self.__airdrop += 1
+

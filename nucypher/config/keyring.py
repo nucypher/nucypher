@@ -542,8 +542,11 @@ class NucypherKeyring:
         _private_key_dir = _base_filepaths['private_key_dir']
 
         # Write to disk
-        os.mkdir(_public_key_dir, mode=0o744)   # public dir
-        os.mkdir(_private_key_dir, mode=0o700)  # private dir
+        if not os.path.isdir(_public_key_dir):
+            os.mkdir(_public_key_dir, mode=0o744)   # public dir
+
+        if not os.path.isdir(_private_key_dir):
+            os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
         #
         # Generate New Keypairs

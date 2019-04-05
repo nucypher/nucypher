@@ -30,7 +30,7 @@ author = 'NuCypher'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.1.0-alpha.20'
+release = '0.1.0-alpha.21'
 
 
 # -- General configuration ---------------------------------------------------
@@ -51,6 +51,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'aafigure.sphinxext',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
