@@ -233,7 +233,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
     # ...and, although this WorkOrder has the same capsules as the saved one...
-    assert new_work_order.capsules == saved_work_order.capsules
+    for (new_item, saved_item) in zip(new_work_order.tasks, saved_work_order.tasks):
+        assert new_item.capsule == saved_item.capsule
 
     # ...it's not the same WorkOrder.
     assert new_work_order != saved_work_order
