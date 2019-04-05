@@ -398,7 +398,7 @@ class NodeConfiguration(ABC):
                                                   deserializer=cls.NODE_DESERIALIZER)
 
         # Deserialize domains to UTF-8 bytestrings
-        domains = list(domain.encode() for domain in payload['domains'])
+        domains = set(domain.encode() for domain in payload['domains'])
         payload.update(dict(node_storage=node_storage, domains=domains))
 
         # Filter out Nones from overrides to detect, well, overrides
