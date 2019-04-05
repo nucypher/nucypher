@@ -116,6 +116,7 @@ MOCK_IP_ADDRESS = '0.0.0.0'
 
 MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
-MOCK_URSULA_DB_FILEPATH = ':memory:'
+MOCK_URSULA_DB_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}-{os.urandom(4).hex()}')
+#MOCK_URSULA_DB_FILEPATH = ':memory:'
 
 PYEVM_GAS_LIMIT = 6500000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?

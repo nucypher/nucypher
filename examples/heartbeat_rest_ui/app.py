@@ -10,13 +10,23 @@ app.config.suppress_callback_exceptions = True
 app.title = "NuCypher Heartbeat Demo"
 
 # remove old data files and re-create data folder
-shutil.rmtree('./data', ignore_errors=True)
-os.mkdir('./data')
+DATA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/data'
+shutil.rmtree(DATA_FOLDER, ignore_errors=True)
+os.mkdir(DATA_FOLDER)
+
+DB_FILE = os.path.join(DATA_FOLDER, 'heartbeats.db')
+DB_NAME = 'HeartBeat'
 
 # create shared folder for data shared between characters
-SHARED_FOLDER = './shared'
+SHARED_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 
-DB_FILE = './data/heartbeats.db'
-DB_NAME = 'HeartBeat'
+# policy information
+POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, 'policy_metadata.{}.json')
+
+
+def cleanup():
+    cleanup_directories = [DATA_FOLDER, SHARED_FOLDER]
+    for directory in cleanup_directories:
+        shutil.rmtree(directory, ignore_errors=True)

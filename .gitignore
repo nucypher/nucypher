@@ -37,5 +37,10 @@ variables*.yml
 *ansible/inventory/*
 .env
 /tests/metrics/results/
+/tests/examples/data
+/tests/examples/shared
+/tests/examples/keys
+/tests/examples/bob-files
+/tests/examples/alicia-files
 /docs/build
 .python-version

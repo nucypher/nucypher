@@ -3,18 +3,18 @@ import json
 import random
 import sqlite3
 import time
-from base64 import b64encode, b64decode
+from base64 import b64decode
 
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import requests
-from alicia import POLICY_INFO_FILE
-from app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
 from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
 from plotly.graph_objs.scatter import *
+
+from examples.heartbeat_rest_ui.app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
 
 ACCESS_DISALLOWED = "Access Disallowed"
 
@@ -37,7 +37,7 @@ def get_layout(first_bob: bool):
         index = random.randint(0, (len(ID_PREFIXES) - 1))
         prefix = ID_PREFIXES[index]
 
-    print('Initializing UI for Bob ({})'.format(prefix))
+    print(f'Initializing UI for Bob ({prefix})')
 
     # generate ui layout
     layout = html.Div([
@@ -51,12 +51,12 @@ def get_layout(first_bob: bool):
                 ], className='two columns'),
                 html.Div([
                     html.Div([
-                        html.H2('{} BOB'.format(prefix.upper())),
+                        html.H2(f'{prefix.upper()} BOB'),
                         html.P(
-                            "{} Bob is the {} who Alicia will grant access to her encrypted heart rate measurements "
-                            "(which was populated by the Heart Monitor) and requests "
-                            "a re-encrypted ciphertext for each measurement, which can then be decrypted "
-                            "using their private key.".format(prefix, prefix)),
+                            f'{prefix} Bob is the {prefix} who Alicia will grant access to her encrypted heart rate '
+                            f'measurements (which was populated by the Heart Monitor) and requests '
+                            f'a re-encrypted ciphertext for each measurement, which can then be decrypted '
+                            f'using their private key.'),
                     ], className="row")
                 ], className='five columns'),
             ], className='row'),
@@ -71,10 +71,6 @@ def get_layout(first_bob: bool):
             html.Div([
                 html.Div("Bob's Encrypting Key (hex):", className='two columns'),
                 dcc.Input(id='bob-enc-key', type='text', className="seven columns")
-            ], className='row'),
-            html.Div([
-                html.Div("Enrico's Verifying Key (hex):", className='two columns'),
-                dcc.Input(id='enrico-sig-key', type='text', className='seven columns'),
             ], className='row'),
             html.Div([
                 html.Button('Read Heartbeats', id='read-button', type='submit',
@@ -102,16 +98,14 @@ policy_joined = dict()  # Map: bob_port -> policy_label
     [State('read-button', 'n_clicks_timestamp'),
      State('latest-decrypted-heartbeats', 'children'),
      State('bob-port', 'value'),
-     State('bob-enc-key', 'value'),
-     State('enrico-sig-key', 'value')],
+     State('bob-enc-key', 'value')],
     [Event('heartbeat-update', 'interval'),
      Event('read-button', 'click')]
 )
 def update_cached_decrypted_heartbeats_list(read_time,
                                             json_latest_values,
                                             bob_port,
-                                            bob_enc_key_hex,
-                                            enrico_sig_key_hex):
+                                            bob_enc_key_hex):
     if int(read_time) == 0:
         # button never clicked but triggered by interval
         return None
@@ -125,14 +119,14 @@ def update_cached_decrypted_heartbeats_list(read_time,
         return ACCESS_DISALLOWED
 
     policy_label = policy_data['label']
-    alice_sig_key_hex = policy_data['alice_sig_pubkey']
-    policy_enc_key_hex = policy_data['policy_pubkey']
+    alice_sig_key_hex = policy_data['alice_verifying_key']
+    policy_enc_key_hex = policy_data['policy_encrypting_key']
 
     if bob_port not in policy_joined:
         # Use Bob's Character control to join policy
         request_data = {
             'label': policy_label,
-            'alice_signing_key': alice_sig_key_hex,
+            'alice_verifying_key': alice_sig_key_hex,
         }
         response = requests.post(f'{BOB_URL.format(bob_port)}/join_policy', data=json.dumps(request_data))
         if response.status_code != 200:
@@ -168,24 +162,24 @@ def update_cached_decrypted_heartbeats_list(read_time,
             request_data = {
                 'label': policy_label,
                 'policy_encrypting_key': policy_enc_key_hex,
-                'alice_signing_key': alice_sig_key_hex,
+                'alice_verifying_key': alice_sig_key_hex,
                 'message_kit': message_kit_b64,
-                'datasource_signing_key': enrico_sig_key_hex,
             }
 
-            response = requests.post('{}/retrieve'.format(BOB_URL.format(bob_port)), data=json.dumps(request_data))
+            response = requests.post(f'{BOB_URL.format(bob_port)}/retrieve', data=json.dumps(request_data))
             if response.status_code != 200:
                 # TODO do something - is access disallowed the only case here? NotEnoughUrsulas?
                 print(f'> WARNING: Unable to retrieve re-encryption plaintext for Bob (port: {bob_port}); '
                       f'status code = {response.status_code}; response = {response.content}')
                 policy_joined.pop(bob_port, None)
+                if response.status_code == 500:
+                    # common temporary problem regarding NotEnoughUrsulas; currently ignore and try again
+                    break
                 return ACCESS_DISALLOWED
 
             response_data = json.loads(response.content)
-            plaintext = response_data['result']['plaintext'][0]
-            print(">>>>> Derek plaintext", plaintext)
+            plaintext = response_data['result']['cleartexts'][0]
             hb = int(b64decode(plaintext))
-            #hb = msgpack.loads(b64decode(plaintext), raw=False)
 
             # cache measurement
             timestamp = row['Timestamp']
@@ -209,7 +203,7 @@ def update_graph(json_cached_readings):
         return ''
 
     if json_cached_readings == ACCESS_DISALLOWED:
-        return html.Div('Your access has either not been granted or has been revoked!', style={'color': 'red'})
+        return html.Div('WARNING: Your access has either not been granted or has been revoked!', style={'color': 'red'})
 
     cached_hb_values = json.loads(json_cached_readings, object_pairs_hook=collections.OrderedDict)
     if len(cached_hb_values) == 0:
