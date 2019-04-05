@@ -484,7 +484,7 @@ jobs:
       - prepare_environment
       - run:
           name: Example UI Apps Tests
-          command: pipenv run pytest tests/examples --webdriver Chrome
+          command: pipenv run pytest tests/examples
 
   heartbeat_demo:
     <<: *python_36_base
