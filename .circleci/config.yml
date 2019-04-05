@@ -12,14 +12,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - pipenv_install_36_browser:
-          filters:
-            tags:
-              only: /.*/
-      - pip_install_36_browser:
-          filters:
-            tags:
-              only: /.*/
       - pipenv_install_37:
           filters:
             tags:
@@ -156,8 +148,7 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pip_install_36_browser
-            - pipenv_install_36_browser
+            - cli
       - mypy:
           context: "NuCypher Tests"
           filters:
