@@ -178,6 +178,7 @@ workflows:
             - build_docs
             - heartbeat_demo
             - finnegans_wake_demo
+            - web_examples
       - build_docker:
           filters:
             tags:
