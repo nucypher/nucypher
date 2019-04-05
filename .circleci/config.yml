@@ -224,6 +224,12 @@ python_36_base: &python_36_base
   docker:
     - image: circleci/python:3.6
 
+python_36_base_browser: &python_36_base_browser
+  parallelism: 1
+  working_directory: ~/nucypher
+  docker:
+    - image: circleci/python:3.6-browsers
+
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
@@ -317,6 +323,20 @@ jobs:
       - pip_install
   pipenv_install_36:
     <<: *python_36_base
+    steps:
+      - pipenv_install
+      - persist_to_workspace:
+          root: ~/.local/share/virtualenvs/
+          paths:
+            - nucypher-*
+
+  # Python 3.6 with browsers
+  pip_install_36_browser:
+    <<: *python_36_base_browser
+    steps:
+      - pip_install
+  pipenv_install_36_browser:
+    <<: *python_36_base_browser
     steps:
       - pipenv_install
       - persist_to_workspace:
@@ -449,6 +469,14 @@ jobs:
           name: Learner Tests
           command: pipenv run pytest tests/learning
       - capture_test_results
+
+  examples:
+    <<: *python_36_base_browser
+    steps:
+      - prepare_environment
+      - run:
+          name: Example UI Apps Tests
+          command: pipenv run pytest tests/examples --webdriver Chrome
 
   heartbeat_demo:
     <<: *python_36_base
