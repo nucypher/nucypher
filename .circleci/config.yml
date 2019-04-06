@@ -386,6 +386,7 @@ jobs:
             pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: reports
+      - capture_test_results
 
   config:
     <<: *python_36_base
