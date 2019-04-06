@@ -1043,7 +1043,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
 
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
-        node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]
+        node_info['domains'] = set(constant_or_bytes(d) for d in domains_vbytes)
 
         ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
         return ursula
