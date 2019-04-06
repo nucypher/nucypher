@@ -350,7 +350,7 @@ jobs:
       - run:
           name: Blockchain Agent Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   actors:
@@ -361,7 +361,7 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml  $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   deployers:
@@ -372,7 +372,7 @@ jobs:
       - run:
           name: Contract Deployer Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   contracts:
@@ -383,7 +383,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: reports
 
@@ -395,7 +395,7 @@ jobs:
       - run:
           name: Node Configuration Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/config/**/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   crypto:
@@ -414,7 +414,7 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/network/**/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   keystore:
@@ -425,7 +425,7 @@ jobs:
       - run:
           name: Keystore Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/keystore/**/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
@@ -436,7 +436,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest $(circleci tests glob tests/characters/**/test_*.py --cov=nucypher --cov-report xml:reports/coverage.xml | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   learning:
