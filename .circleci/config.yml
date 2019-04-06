@@ -481,7 +481,8 @@ jobs:
   web_examples:
     <<: *python_36_base_browser
     steps:
-      - prepare_environment
+      - checkout
+      - pipenv_install
       - run:
           name: Example UI Apps Tests
           command: pipenv run pytest tests/examples
