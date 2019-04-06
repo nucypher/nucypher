@@ -170,7 +170,7 @@ def make_rest_app(
         # Let's find a better way.  #555
         for node in nodes:
             if GLOBAL_DOMAIN not in serving_domains:
-                if not serving_domains.intersection(node.serving_domains):
+                if not set(serving_domains).intersection(set(node.serving_domains)):
                     continue  # This node is not serving any of our domains.
 
             if node in node_tracker:
