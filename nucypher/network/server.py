@@ -170,7 +170,7 @@ def make_rest_app(
         # Let's find a better way.  #555
         for node in nodes:
             if GLOBAL_DOMAIN not in serving_domains:
-                if not serving_domains.intersection(node.serving_domains):
+                if not set(serving_domains).intersection(set(node.serving_domains)):
                     continue  # This node is not serving any of our domains.
 
             if node in node_tracker:
@@ -304,8 +304,7 @@ def make_rest_app(
     def reencrypt_via_rest(id_as_hex):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
-        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
+
         with ThreadedSession(db_engine) as session:
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
@@ -315,35 +314,30 @@ def make_rest_app(
         # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
+        alices_address = canonical_address_from_umbral_key(alices_verifying_key)
+
+        work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
+                                                 rest_payload=request.data,
+                                                 ursula_pubkey_bytes=bytes(stamp),
+                                                 alice_address=alices_address)
+
+        log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
+
         cfrag_byte_stream = b""
 
-        alices_address = canonical_address_from_umbral_key(alices_verifying_key)
-        if not alices_address == work_order.alice_address:
-            message = f"This Bob ({work_order.bob}) sent an Alice's ETH address " \
-                      f"({work_order.alice_address}) that doesn't match " \
-                      f"the one I have ({alices_address})."
-            raise SuspiciousActivity(message)
+        for task in work_order.tasks:
+            # Ursula signs on top of Bob's signature of each task.
+            # Now both are committed to the same task.  See #259.
+            reencryption_metadata = bytes(stamp(bytes(task.signature)))
 
-        bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
-        if not work_order.alice_address_signature.verify(message=alices_address,
-                                                         verifying_key=bob_pubkey):
-            message = f"This Bob ({work_order.bob}) sent an invalid signature of Alice's ETH address"
-            raise InvalidSignature(message)
-
-        # This is Bob's signature of Alice's verifying key as ETH address.
-        alice_address_signature = bytes(work_order.alice_address_signature)
-
-        for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
-            # This is the capsule signed by Bob
-            capsule_signature = bytes(capsule_signature)
-            # Ursula signs on top of it. Now both are committed to the same capsule.
-            # She signs Alice's address too.
-            ursula_signature = stamp(capsule_signature + alice_address_signature)
+            capsule = task.capsule
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=bytes(ursula_signature))
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)
             log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
-            signature = stamp(bytes(cfrag) + bytes(capsule))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
+
+            # Finally, Ursula commits to her result
+            reencryption_signature = stamp(bytes(cfrag))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
 
         # TODO: Put this in Ursula's datastore
         work_order_tracker.append(work_order)

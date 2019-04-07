@@ -41,8 +41,8 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.crypto.signing import Signature, InvalidSignature
-from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
 from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
@@ -534,112 +534,137 @@ class TreasureMap:
 
 class WorkOrder:
 
-    class NotFromBob(InvalidSignature):
-        def __init__(self):
-            super().__init__("This doesn't appear to be from Bob.")
+    class Task:
+        def __init__(self, capsule, signature, cfrag=None, reencryption_signature=None):
+            self.capsule = capsule
+            self.signature = signature
+            self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
+            self.reencryption_signature = reencryption_signature
+
+        def get_specification(self, ursula_pubkey, alice_address, blockhash):
+            task_specification = (bytes(self.capsule),
+                                  bytes(ursula_pubkey),
+                                  alice_address,
+                                  blockhash)
+            return b''.join(task_specification)
+
+        def __bytes__(self):
+            data = bytes(self.capsule) + bytes(self.signature)
+            if self.cfrag and self.reencryption_signature:
+                data += bytes(self.cfrag) + bytes(self.reencryption_signature)
+            return data
+
+        @classmethod
+        def from_bytes(cls, data: bytes):
+            item_splitter = capsule_splitter + signature_splitter
+            capsule, signature, remainder = item_splitter(data, return_remainder=True)
+            if remainder:
+                remainder_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
+                cfrag, reencryption_signature = remainder_splitter(remainder)
+                return cls(capsule=capsule, signature=signature,
+                           cfrag=cfrag, reencryption_signature=reencryption_signature)
+            else:
+                return cls(capsule=capsule, signature=signature)
+
+        def attach_work_result(self, cfrag, reencryption_signature):
+            self.cfrag = cfrag
+            self.reencryption_signature = reencryption_signature
 
     def __init__(self,
                  bob: Bob,
                  arrangement_id,
-                 capsules: List[Capsule],
-                 capsule_signatures: List[Signature],
                  alice_address: bytes,
-                 alice_address_signature: bytes,
-                 receipt_bytes: bytes,
+                 tasks: List,
                  receipt_signature,
                  ursula=None,
+                 blockhash=None
                  ) -> None:
         self.bob = bob
         self.arrangement_id = arrangement_id
-        self.capsules = capsules
-        self.capsule_signatures = capsule_signatures
         self.alice_address = alice_address
-        self.alice_address_signature = alice_address_signature
-        self.receipt_bytes = receipt_bytes
+        self.tasks = tasks
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+        self.blockhash = blockhash or b'\x00' * 32  # TODO
         self.completed = False
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
+            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.tasks],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
-        return (self.receipt_bytes, self.receipt_signature) == (
-            other.receipt_bytes, other.receipt_signature)
+        return self.receipt_signature == other.receipt_signature
 
     def __len__(self):
-        return len(self.capsules)
+        return len(self.tasks)
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
         alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
+        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
 
-        capsules_bytes = []
-        capsule_signatures = []
+        # TODO: Bob's input to prove freshness for this work order
+        blockhash = b'\x00' * 32
+
+        tasks, tasks_bytes = [], []
         for capsule in capsules:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
-            capsule_bytes = bytes(capsule)
-            capsules_bytes.append(capsule_bytes)
-            capsule_signatures.append(bob.stamp(capsule_bytes))
 
-        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
-        alice_address_signature = bytes(bob.stamp(alice_address))
+            task = cls.Task(capsule, signature=None)
+            specification = task.get_specification(ursula.stamp, alice_address, blockhash)
+            task.signature = bob.stamp(specification)
+            tasks.append(task)
+            tasks_bytes.append(bytes(task))
 
-        receipt_bytes = b"wo:" + ursula.canonical_public_address
-        receipt_bytes += msgpack.dumps(capsules_bytes)
+        # TODO: What's the goal of the receipt? Should it include only the capsules?
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
         receipt_signature = bob.stamp(receipt_bytes)
 
-        return cls(bob, arrangement_id, capsules, capsule_signatures,
-                   alice_address, alice_address_signature,
-                   receipt_bytes, receipt_signature, ursula)
+        return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
+                   receipt_signature=receipt_signature,
+                   alice_address=alice_address,
+                   ursula=ursula, blockhash=blockhash)
 
     @classmethod
-    def from_rest_payload(cls, arrangement_id, rest_payload):
+    def from_rest_payload(cls, arrangement_id, rest_payload, ursula_pubkey_bytes, alice_address):
 
-        # TODO: Use JSON instead? This is a mess.
         payload_splitter = BytestringSplitter(Signature) + key_splitter
-        signature, bob_pubkey_sig, remainder = payload_splitter(rest_payload,
-                                                                msgpack_remainder=True)
+        payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
 
-        receipt_bytes, *remainder = remainder
-        packed_capsules, packed_signatures, *remainder = remainder
-        alice_address, alice_address_signature = remainder
-        alice_address_signature = Signature.from_bytes(alice_address_signature)
-        if not alice_address_signature.verify(alice_address, bob_pubkey_sig):
-            raise cls.NotFromBob()
+        signature, bob_pubkey_sig, (tasks_bytes, blockhash) = payload_elements
 
-        capsules, capsule_signatures = list(), list()
-        for capsule_bytes, capsule_signature in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
-            capsules.append(Capsule.from_bytes(capsule_bytes, params=default_params()))
-            capsule_signature = Signature.from_bytes(capsule_signature)
-            capsule_signatures.append(capsule_signature)
-            if not capsule_signature.verify(capsule_bytes, bob_pubkey_sig):
-                raise cls.NotFromBob()
+        # TODO: check freshness of blockhash?
 
-        verified = signature.verify(receipt_bytes, bob_pubkey_sig)
-        if not verified:
-            raise cls.NotFromBob()
+        # Check receipt
+        receipt_bytes = b"wo:" + ursula_pubkey_bytes + msgpack.dumps(tasks_bytes)
+        if not signature.verify(receipt_bytes, bob_pubkey_sig):
+            raise InvalidSignature()
+
+        tasks = []
+        for task_bytes in tasks_bytes:
+            task = cls.Task.from_bytes(task_bytes)
+            tasks.append(task)
+
+            # Each task signature has to match the original specification
+            specification = task.get_specification(ursula_pubkey_bytes, alice_address, blockhash)
+            if not task.signature.verify(specification, bob_pubkey_sig):
+                raise InvalidSignature()
+
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, arrangement_id, capsules, capsule_signatures,
-                   alice_address, alice_address_signature,
-                   receipt_bytes, signature)
+        return cls(bob=bob,
+                   arrangement_id=arrangement_id,
+                   tasks=tasks,
+                   alice_address=alice_address,
+                   blockhash=blockhash,
+                   receipt_signature=signature)
 
     def payload(self):
-        capsules_as_bytes = [bytes(p) for p in self.capsules]
-        capsule_signatures_as_bytes = [bytes(s) for s in self.capsule_signatures]
-        packed_receipt_and_capsules = msgpack.dumps(
-            (self.receipt_bytes,
-             msgpack.dumps(capsules_as_bytes),
-             msgpack.dumps(capsule_signatures_as_bytes),
-             self.alice_address,
-             self.alice_address_signature,
-             )
-        )
-        return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
+        tasks_bytes = [bytes(item) for item in self.tasks]
+        payload_elements = msgpack.dumps((tasks_bytes, self.blockhash))
+        return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
@@ -647,27 +672,28 @@ class WorkOrder:
             raise ValueError("Ursula gave back the wrong number of cfrags.  "
                              "She's up to something.")
 
-        alice_address_signature = bytes(self.alice_address_signature)
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for counter, capsule in enumerate(self.capsules):
-            cfrag, signature = cfrags_and_signatures[counter]
-
-            # Validate CFrag metadata
-            capsule_signature = bytes(self.capsule_signatures[counter])
-            metadata_input = capsule_signature + alice_address_signature
+        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
+            # Validate re-encryption metadata
+            metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
             if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
-                raise InvalidSignature("Invalid metadata for {}.".format(cfrag))
+                raise InvalidSignature(f"Invalid metadata for {cfrag}.")
+                # TODO: Instead of raising, we should do something
 
-            # Validate work order response signatures
-            if signature.verify(bytes(cfrag) + bytes(capsule), ursula_verifying_key):
+            # Validate re-encryption signatures
+            if reencryption_signature.verify(bytes(cfrag), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
-                raise InvalidSignature("{} is not properly signed by Ursula.".format(cfrag))
-        else:
-            self.completed = maya.now()
-            return good_cfrags
+                raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
+                # TODO: Instead of raising, we should do something
+
+        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
+            task.attach_work_result(cfrag, reencryption_signature)
+
+        self.completed = maya.now()
+        return good_cfrags
 
 
 class WorkOrderHistory:

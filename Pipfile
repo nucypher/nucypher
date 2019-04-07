@@ -11,7 +11,7 @@ python_version = "3"
 umbral = "==0.1.3a0"
 constant-sorrow = ">=0.1.0a8"
 bytestring-splitter = ">=1.0.0a4"
-hendrix = ">=3.2.2"
+hendrix = ">=3.2.3"
 # Third-Party
 pyopenssl = "*"
 cryptography = ">=2.3"
@@ -36,18 +36,17 @@ flask-limiter = "*"
 
 [dev-packages]
 # Pytest
-pytest = "==4.0.2"
+pytest = "*"
 pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
-pytest-cov = "==2.5.1"
+pytest-cov = "*"
 pytest-mock = "*"
 # Tools
 moto = "*"
 mypy = "*"
 # Coverage
 coverage = "*"
-python-coveralls = "*"
 # Deployment
 py-solc = {editable = true,git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"

@@ -536,10 +536,10 @@ class Bob(Character):
 
     def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
-        for counter, capsule in enumerate(work_order.capsules):
+        for task in work_order.tasks:
             # TODO: Maybe just update the work order here instead of setting it anew.
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
-            work_orders_by_ursula[capsule] = work_order
+            work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
     def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
@@ -1043,7 +1043,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
 
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
-        node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]
+        node_info['domains'] = set(constant_or_bytes(d) for d in domains_vbytes)
 
         ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
         return ursula

@@ -494,7 +494,8 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
+            self.log.warn("Unhandled error during node learning: {}".format(cleaned_traceback))
             if not self._learning_task.running:
                 self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.
 
@@ -771,7 +772,7 @@ class Learner:
         new_nodes = []
         for node in node_list:
             if GLOBAL_DOMAIN not in self.learning_domains:
-                if not self.learning_domains.intersection(node.serving_domains):
+                if not set(self.learning_domains).intersection(set(node.serving_domains)):
                     continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
