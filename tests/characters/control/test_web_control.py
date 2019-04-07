@@ -6,9 +6,33 @@ import maya
 import pytest
 
 import nucypher
+from nucypher.characters.control.serializers import AliceControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
+
+
+def test_label_whose_b64_representation_is_invalid_utf8():
+    # In our Discord, user robin#2324 (github username @robin-thomas) reported certain labels
+    # break Bob's retrieve endpoint.
+    # convo starts here: https://ptb.discordapp.com/channels/411401661714792449/411401661714792451/564353305887637517
+
+    bad_label = '516d593559505355376d454b61374751577146467a47754658396d516a685674716b7663744b376b4b666a35336d'
+
+    request = {}
+    request['label'] = bad_label
+    request['bob_encrypting_key'] = "cd5cd4"
+    request['bob_verifying_key'] = "01230123"
+    request['m'] = 1
+    request['n'] = 2
+    parsed = AliceControlJSONSerializer.load_create_policy_input(request)
+
+    response = {}
+    response['label'] = parsed['label']
+    response['policy_encrypting_key'] = "054054"
+
+    # FIXME: This raises UnicodeDecodeError.  #920
+    AliceControlJSONSerializer.dump_create_policy_output(response)
 
 
 def test_alice_web_character_control_create_policy(alice_web_controller_test_client, create_policy_control_request):
