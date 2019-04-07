@@ -107,6 +107,8 @@ contract ContractV1 is Upgradeable {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "storageValue()") == storageValue);
         bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
+        // WARNING: sometimes execution of keccak256(string storage) on a long string (more than 31 bytes)
+        // leads to out of gas or exception
         require(value.length == bytes(dynamicallySizedValue).length &&
             keccak256(value) == keccak256(bytes(dynamicallySizedValue)));
 
@@ -121,8 +123,8 @@ contract ContractV1 is Upgradeable {
 
         require(delegateGet(_testTarget, "getStructureLength1()") == arrayStructures.length);
         for (uint256 i = 0; i < arrayStructures.length; i++) {
-            Structure1 memory structure1 = delegateGetStructure1(_testTarget, "arrayStructures(uint256)", bytes32(i));
-            require(structure1.value == arrayStructures[i].value);
+            require(delegateGet(_testTarget, "arrayStructures(uint256)", bytes32(i)) == arrayStructures[i].value);
+
             require(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i)) ==
                 arrayStructures[i].arrayValues.length);
             for (uint256 j = 0; j < arrayStructures[i].arrayValues.length; j++) {
@@ -134,8 +136,8 @@ contract ContractV1 is Upgradeable {
 
         require(delegateGet(_testTarget, "getStructureLength2()") == mappingStructuresLength);
         for (uint256 i = 0; i < mappingStructuresLength; i++) {
-            Structure2 memory structure2 = delegateGetStructure2(_testTarget, "mappingStructures(uint256)", bytes32(i));
-            require(structure2.value == mappingStructures[i].value);
+            require(delegateGet(_testTarget, "mappingStructures(uint256)", bytes32(i)) == mappingStructures[i].value);
+
             require(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i)) ==
                 mappingStructures[i].arrayValues.length);
             for (uint256 j = 0; j < mappingStructures[i].arrayValues.length; j++) {
@@ -143,24 +145,6 @@ contract ContractV1 is Upgradeable {
                         _testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j)) ==
                     mappingStructures[i].arrayValues[j]);
             }
-        }
-    }
-
-    function delegateGetStructure1(address _target, string memory _signature, bytes32 _argument)
-        internal returns (Structure1 memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
-        assembly {
-            result := memoryAddress
-        }
-    }
-
-    function delegateGetStructure2(address _target, string memory _signature, bytes32 _argument)
-        internal returns (Structure2 memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
-        assembly {
-            result := memoryAddress
         }
     }
 

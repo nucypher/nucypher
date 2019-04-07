@@ -15,7 +15,7 @@ contract ContractV3 is ContractV2 {
     }
 
     function setAnotherStorageValue(uint256 _value) public {
-        anotherStorageValue = _value * 2;
+        anotherStorageValue = _value;
     }
 
     function verifyState(address _testTarget) public {

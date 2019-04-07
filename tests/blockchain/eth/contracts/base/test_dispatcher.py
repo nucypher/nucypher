@@ -50,6 +50,7 @@ def test_dispatcher(testerchain):
     contract1_lib, _ = testerchain.interface.deploy_contract('ContractV1', 1)
     contract2_lib, _ = testerchain.interface.deploy_contract('ContractV2', 1)
     contract3_lib, _ = testerchain.interface.deploy_contract('ContractV3', 2)
+    contract4_lib, _ = testerchain.interface.deploy_contract('ContractV4', 3)
     contract2_bad_storage_lib, _ = testerchain.interface.deploy_contract('ContractV2BadStorage')
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
     assert contract1_lib.address == dispatcher.functions.target().call()
@@ -322,7 +323,7 @@ def test_dispatcher(testerchain):
     tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     contract_instance = testerchain.interface.w3.eth.contract(
-        abi=contract2_lib.abi,
+        abi=contract3_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
     assert contract3_lib.address == dispatcher.functions.target().call()
@@ -344,6 +345,9 @@ def test_dispatcher(testerchain):
     assert 13 == contract_instance.functions.getStructureArrayValue2(0, 1).call()
     assert 2 == contract_instance.functions.storageValueToCheck().call()
     assert 'Hello' == contract_instance.functions.dynamicallySizedValue().call()
+    tx = contract_instance.functions.setAnotherStorageValue(77).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 77 == contract_instance.functions.anotherStorageValue().call()
 
     events = upgrades.get_all_entries()
     assert 4 == len(events)
@@ -392,6 +396,78 @@ def test_dispatcher(testerchain):
     events = test_event_v1_log.get_all_entries()
     assert 1 == len(events)
     assert 33 == events[0]['args']['value']
+
+    # Check upgrading to the contract with explicit storage slots
+    tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    contract_instance = testerchain.interface.w3.eth.contract(
+        abi=contract4_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+    assert contract4_lib.address == dispatcher.functions.target().call()
+    assert 30 == contract_instance.functions.returnValue().call()
+    assert 5 == contract_instance.functions.storageValue().call()
+    assert 2 == contract_instance.functions.getArrayValueLength().call()
+    assert 12 == contract_instance.functions.arrayValues(0).call()
+    assert 232 == contract_instance.functions.arrayValues(1).call()
+    assert 41 == contract_instance.functions.mappingValues(14).call()
+    assert 31 == contract_instance.functions.mappingValues(13).call()
+    assert 3 == contract_instance.functions.arrayStructures(0).call()
+    assert 4 == contract_instance.functions.arrayStructures(1).call()
+    assert 11 == contract_instance.functions.getStructureArrayValue1(0, 0).call()
+    assert 111 == contract_instance.functions.getStructureArrayValue1(0, 1).call()
+    assert 12 == contract_instance.functions.getStructureArrayValue1(0, 2).call()
+    assert [4, 55] == contract_instance.functions.mappingStructures(0).call()
+    assert [5, 0] == contract_instance.functions.mappingStructures(1).call()
+    assert 12 == contract_instance.functions.getStructureArrayValue2(0, 0).call()
+    assert 13 == contract_instance.functions.getStructureArrayValue2(0, 1).call()
+    assert 3 == contract_instance.functions.storageValueToCheck().call()
+    assert 'Hello' == contract_instance.functions.dynamicallySizedValue().call()
+    assert 77 == contract_instance.functions.anotherStorageValue().call()
+
+    events = state_verifications.get_all_entries()
+    assert 10 == len(events)
+    event_args = events[8]['args']
+    assert contract4_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[9]['args']
+
+    events = upgrade_finishings.get_all_entries()
+    assert 6 == len(events)
+    event_args = events[5]['args']
+    assert contract4_lib.address == event_args['target']
+    assert creator == event_args['sender']
+
+    # Upgrade to the previous version - check that new `verifyState` can handle old contract
+    tx = dispatcher.functions.upgrade(contract3_lib.address, secret3, secret_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert contract3_lib.address == dispatcher.functions.target().call()
+    assert 20 == contract_instance.functions.returnValue().call()
+    assert 5 == contract_instance.functions.storageValue().call()
+    assert 2 == contract_instance.functions.getArrayValueLength().call()
+    assert 12 == contract_instance.functions.arrayValues(0).call()
+    assert 232 == contract_instance.functions.arrayValues(1).call()
+    assert 41 == contract_instance.functions.mappingValues(14).call()
+    assert 31 == contract_instance.functions.mappingValues(13).call()
+    assert 3 == contract_instance.functions.arrayStructures(0).call()
+    assert 4 == contract_instance.functions.arrayStructures(1).call()
+    assert 11 == contract_instance.functions.getStructureArrayValue1(0, 0).call()
+    assert 111 == contract_instance.functions.getStructureArrayValue1(0, 1).call()
+    assert 12 == contract_instance.functions.getStructureArrayValue1(0, 2).call()
+    assert [4, 55] == contract_instance.functions.mappingStructures(0).call()
+    assert [5, 0] == contract_instance.functions.mappingStructures(1).call()
+    assert 12 == contract_instance.functions.getStructureArrayValue2(0, 0).call()
+    assert 13 == contract_instance.functions.getStructureArrayValue2(0, 1).call()
+    assert 2 == contract_instance.functions.storageValueToCheck().call()
+    assert 'Hello' == contract_instance.functions.dynamicallySizedValue().call()
+    assert 77 == contract_instance.functions.anotherStorageValue().call()
+
+    events = state_verifications.get_all_entries()
+    assert 12 == len(events)
+    event_args = events[10]['args']
+    assert contract3_lib.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[11]['args']
 
 
 @pytest.mark.slow
