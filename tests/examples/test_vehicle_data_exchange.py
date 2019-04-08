@@ -9,6 +9,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey
 
+WAIT_TIMEOUT_SECS = 15
+
 
 @pytest.fixture(scope='module')
 def dash_app(federated_ursulas):
@@ -22,14 +24,14 @@ def dash_app(federated_ursulas):
 
     # cleanup
     del dash_app
-    from examples.vehicle_data_exchange import app
-    app.cleanup()
+    from examples.vehicle_data_exchange.app import cleanup
+    cleanup()
     del os.environ["TEST_VEHICLE_DATA_EXCHANGE_SEEDNODE_PORT"]
 
 
 @pytest.fixture(scope='function')
 def dash_driver(dash_threaded, dash_app):
-    dash_threaded(dash_app)
+    dash_threaded(dash_app, start_timeout=30)
     dash_driver = dash_threaded.driver
     home_page = dash_driver.current_window_handle
 
@@ -80,11 +82,13 @@ def test_alicia_get_policy_key_from_label(dash_driver):
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -103,11 +107,13 @@ def test_alicia_grant(dash_driver):
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -116,8 +122,6 @@ def test_alicia_grant(dash_driver):
     assert UmbralPublicKey.from_bytes(bytes.fromhex(policy_key_element.text))
 
     # grant to some recipient
-    recipient_id = f'test-{os.urandom(4)}'
-
     m_threshold_element = dash_driver.find_element_by_id('m-value')
     m_threshold_element.send_keys(Keys.ARROW_UP)  # 1 -> 2
 
@@ -140,7 +144,7 @@ def test_alicia_grant(dash_driver):
     grant_button.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 5).until(
+    grant_response_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
@@ -159,11 +163,13 @@ def test_bob_get_keys(dash_driver):
     dash_driver.switch_to.window('_bob')
 
     # get keys
-    get_keys_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#get-keys-button')
+    get_keys_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                '#get-keys-button',
+                                                                WAIT_TIMEOUT_SECS)
     get_keys_button.click()
 
     # wait for response
-    pub_keys_element = WebDriverWait(dash_driver, 5).until(
+    pub_keys_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'pub-keys'))
     )
 
@@ -201,11 +207,13 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 5).until(
+    policy_key_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -221,7 +229,9 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     ######################
     dash_driver.switch_to.window('_enrico')
 
-    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#generate-button")
+    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                        "#generate-button",
+                                                                        WAIT_TIMEOUT_SECS)
 
     policy_encrypting_key_element = dash_driver.find_element_by_id('policy-enc-key')
     policy_encrypting_key_element.clear()
@@ -230,7 +240,7 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     start_monitoring_button.click()
 
     # wait for response
-    last_readings_element = WebDriverWait(dash_driver, 5).until(
+    last_readings_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'cached-last-readings'))
     )
 
@@ -245,11 +255,13 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     dash_driver.switch_to.window('_bob')
 
     # get keys
-    get_keys_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#get-keys-button')
+    get_keys_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                '#get-keys-button',
+                                                                WAIT_TIMEOUT_SECS)
     get_keys_button.click()
 
     # wait for response
-    pub_keys_element = WebDriverWait(dash_driver, 5).until(
+    pub_keys_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'pub-keys'))
     )
 
@@ -289,7 +301,7 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     grant_button.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 5).until(
+    grant_response_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
@@ -304,11 +316,13 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     dash_driver.switch_to.window('_bob')
 
     # read car measurement data
-    read_measurements_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+    read_measurements_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                         "#read-button",
+                                                                         WAIT_TIMEOUT_SECS)
     read_measurements_button.click()
 
     # wait for response
-    measurements_element = WebDriverWait(dash_driver, 15).until(
+    measurements_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'measurements'))
     )
     assert 'WARNING' not in measurements_element.text
@@ -328,7 +342,7 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     revoke_button.send_keys(Keys.SPACE)  # workaround because element not viewable and can't be directly clicked
 
     # wait for response
-    revoke_response_element = WebDriverWait(dash_driver, 10).until(
+    revoke_response_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'revoke-response'))
     )
 
@@ -342,7 +356,7 @@ def test_vehicle_data_exchange_ui_lifecycle(dash_driver):
     # open bob tab
     dash_driver.switch_to.window('_bob')
 
-    revoke_measurements_element = WebDriverWait(dash_driver, 10).until(
+    revoke_measurements_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_until_value_in_text((By.ID, 'measurements'), 'WARNING')
     )
     assert 'WARNING' in revoke_measurements_element.text

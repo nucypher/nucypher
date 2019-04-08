@@ -23,6 +23,8 @@ BOB_URL = "http://localhost:11151"
 
 BOB_PORT = 11151
 
+WAIT_TIMEOUT_SECS = 15
+
 
 @pytest.fixture(scope='module')
 def alice_control_test_client(federated_alice):
@@ -49,15 +51,15 @@ def dash_app():
     dash_app = import_app('examples.heartbeat_rest_ui.char_control_heartbeat', application_name='app')
     yield dash_app
 
-    # destroy app
+    # cleanup
     del dash_app
-    from examples.heartbeat_rest_ui import app
-    app.cleanup()
+    from examples.heartbeat_rest_ui.app import cleanup
+    cleanup()
 
 
 @pytest.fixture(scope='function')
 def dash_driver(dash_threaded, dash_app):
-    dash_threaded(dash_app)
+    dash_threaded(dash_app, start_timeout=30)
     dash_driver = dash_threaded.driver
     home_page = dash_driver.current_window_handle
 
@@ -114,11 +116,13 @@ def test_alicia_derive_policy_key_failed(dash_driver):
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 10).until(
+    policy_key_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -181,11 +185,13 @@ def test_alicia_grant_failed(dash_driver,
 
     # Grant can only occur with a policy key previously derived
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    WebDriverWait(dash_driver, 10).until(
+    WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
 
@@ -212,7 +218,7 @@ def test_alicia_grant_failed(dash_driver,
     grant_button.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 10).until(
+    grant_response_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
@@ -255,11 +261,13 @@ def test_enrico_encrypt_data_failed(dash_driver):
     ######################
     dash_driver.switch_to.window('_enrico')
 
-    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#generate-button")
+    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                        "#generate-button",
+                                                                        WAIT_TIMEOUT_SECS)
     start_monitoring_button.click()
 
     # wait for response
-    last_heartbeat_element = WebDriverWait(dash_driver, 5).until(
+    last_heartbeat_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'cached-last-heartbeat'))
     )
 
@@ -284,7 +292,9 @@ def test_bob_no_policy_file_failed(dash_driver,
 
     dash_driver.switch_to.window('_bob')
 
-    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                       "#read-button",
+                                                                       WAIT_TIMEOUT_SECS)
 
     bob_port_element = dash_driver.find_element_by_id('bob-port')
     bob_port_element.clear()
@@ -298,7 +308,7 @@ def test_bob_no_policy_file_failed(dash_driver,
     read_heartbeats_button.click()
 
     # wait for response
-    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+    heartbeats_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'heartbeats'))
     )
 
@@ -349,7 +359,9 @@ def test_bob_join_policy_failed(dash_driver,
 
     dash_driver.switch_to.window('_bob')
 
-    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                       "#read-button",
+                                                                       WAIT_TIMEOUT_SECS)
 
     bob_port_element = dash_driver.find_element_by_id('bob-port')
     bob_port_element.clear()
@@ -363,7 +375,7 @@ def test_bob_join_policy_failed(dash_driver,
     read_heartbeats_button.click()
 
     # wait for response
-    heartbeats_element = WebDriverWait(dash_driver, 5).until(
+    heartbeats_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'heartbeats'))
     )
 
@@ -461,11 +473,13 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     dash_driver.switch_to.window('_alicia')
 
     # derive label and policy key
-    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver, '#create-policy-button')
+    create_policy_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                     '#create-policy-button',
+                                                                     WAIT_TIMEOUT_SECS)
     create_policy_button.click()
 
     # wait for response
-    policy_key_element = WebDriverWait(dash_driver, 10).until(
+    policy_key_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'policy-enc-key'))
     )
     policy_label_element = dash_driver.find_element_by_id('policy-label')
@@ -512,11 +526,13 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     ######################
     dash_driver.switch_to.window('_enrico')
 
-    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#generate-button")
+    start_monitoring_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                        "#generate-button",
+                                                                        WAIT_TIMEOUT_SECS)
     start_monitoring_button.click()
 
     # wait for response
-    last_heartbeat_element = WebDriverWait(dash_driver, 5).until(
+    last_heartbeat_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'cached-last-heartbeat'))
     )
     # verify that actual number
@@ -561,7 +577,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     grant_button_element.click()
 
     # wait for response
-    grant_response_element = WebDriverWait(dash_driver, 10).until(
+    grant_response_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'grant-response'))
     )
 
@@ -580,7 +596,9 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     for ursula in list(federated_ursulas):
         federated_bob.remember_node(ursula)
 
-    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver, "#read-button")
+    read_heartbeats_button = wait_for.wait_for_element_by_css_selector(dash_driver,
+                                                                       "#read-button",
+                                                                       WAIT_TIMEOUT_SECS)
 
     bob_port_element = dash_driver.find_element_by_id('bob-port')
     bob_port_element.clear()
@@ -593,7 +611,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     read_heartbeats_button.click()
 
     # wait for response
-    heartbeats_element = WebDriverWait(dash_driver, 15).until(
+    heartbeats_element = WebDriverWait(dash_driver, WAIT_TIMEOUT_SECS).until(
         wait_for_non_empty_text((By.ID, 'heartbeats'))
     )
 
