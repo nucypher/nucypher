@@ -280,6 +280,9 @@ def test_enrico_encrypt_data_failed(dash_driver):
     assert 'WARNING' in last_heartbeat_element.text
     assert str(bad_status_code) in last_heartbeat_element.text
 
+    # cleanup due to enrico running in a loop - causes cleanup problems
+    dash_driver.close()
+
 
 def test_bob_no_policy_file_failed(dash_driver,
                                    federated_bob):
@@ -618,3 +621,7 @@ def test_heartbeat_rest_ui_demo_lifecycle(dash_driver,
     assert 4 <= len(responses.calls)  # at least an extra call to /join_policy and another to /retrieve
     assert 'WARNING' not in heartbeats_element.text
     assert 'not been granted' not in heartbeats_element.text
+
+    # cleanup due to enrico running in a loop - causes cleanup problems
+    dash_driver.switch_to.window('_enrico')
+    dash_driver.close()
