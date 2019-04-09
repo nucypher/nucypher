@@ -110,8 +110,7 @@ def deployed_blockchain():
     #
     # Blockchain
     #
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=5, poa=True)
-    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
+    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=5, poa=True)
     origin, *everyone = blockchain.interface.w3.eth.accounts
 
     #

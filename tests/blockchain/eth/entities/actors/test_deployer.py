@@ -39,8 +39,7 @@ def test_rapid_deployment():
     interface = BlockchainDeployerInterface(compiler=compiler,
                                             registry=registry,
                                             provider_uri='tester://pyevm')
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=4)
-    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
+    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=4)
     origin, *everyone = blockchain.interface.w3.eth.accounts
 
     deployer = Deployer(blockchain=blockchain,

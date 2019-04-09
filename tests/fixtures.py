@@ -341,11 +341,10 @@ def testerchain(solidity_compiler):
                                                      provider_uri='tester://pyevm')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=False)
+    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
 
     origin, *everyone = testerchain.interface.w3.eth.accounts
     deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
-    testerchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
 
     yield testerchain
     testerchain.sever_connection()

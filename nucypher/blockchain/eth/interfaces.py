@@ -68,7 +68,7 @@ class BlockchainInterface:
                  compiler: SolidityCompiler = None) -> None:
 
         """
-        A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
+        A blockchain "network interface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
          Filesystem          Configuration           Node              Client                  EVM
