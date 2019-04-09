@@ -4,7 +4,7 @@
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
 [![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
-[![coveralls](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)](https://coveralls.io/github/nucypher/nucypher?branch=master)
+[![codecov](https://codecov.io/gh/nucypher/nucypher/branch/master/graph/badge.svg)](https://codecov.io/gh/nucypher/nucypher)
 [![circleci](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
 [![discord](https://img.shields.io/discord/411401661714792449.svg)](https://discord.gg/7rmXa3S)
 [![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/)
