@@ -1,3 +1,5 @@
+import os
+
 import click
 import shutil
 from twisted.logger import Logger
@@ -5,18 +7,25 @@ from typing import List
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 
 DESTRUCTION = '''
-*Permanently and irreversibly delete all* nucypher files including
+*Permanently and irreversibly delete all* nucypher files including:
     - Private and Public Keys
     - Known Nodes
     - TLS certificates
     - Node Configurations
-    - Log Files
 
 Delete {}?'''
+
+CHARACTER_DESTRUCTION = '''
+Delete all {name} character files including:
+    - Private and Public Keys
+    - Known Nodes
+    - Node Configuration File
+
+Delete {root}?'''
 
 
 LOG = Logger('cli.actions')
@@ -43,45 +52,43 @@ def load_seednodes(min_stake: int,
     return teacher_nodes
 
 
-def destroy_system_configuration(config_class,
-                                 config_file=None,
-                                 network=None,
-                                 config_root=None,
-                                 force=False,
-                                 log=LOG):
+def destroy_configuration_root(config_root=None, force=False, logs: bool = False) -> str:
+    """CAUTION: This will destroy *all* nucypher configuration files from the configuration root"""
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
 
-    try:
-        character_config = config_class.from_configuration_file(filepath=config_file, domains={network})
+    if not force:
+        click.confirm(DESTRUCTION.format(config_root), abort=True)  # ABORT
 
-    except FileNotFoundError:
-        config_file_location = config_file or config_class.DEFAULT_CONFIG_FILE_LOCATION
-
-        if not force:
-            message = "No configuration file found at {}; \n" \
-                      "Destroy top-level configuration directory: {}?".format(config_file_location, config_root)
-            click.confirm(message, abort=True)  # ABORT
-
-        shutil.rmtree(config_root, ignore_errors=False)
-
+    if os.path.isdir(config_root):
+        shutil.rmtree(config_root, ignore_errors=force)  # config
     else:
+        console_emitter(message=f'No NuCypher configuration root directory found at \'{config_root}\'')
+
+    if logs:
+        shutil.rmtree(USER_LOG_DIR, ignore_errors=force)  # logs
+
+    return config_root
+
+
+def destroy_configuration(character_config, force: bool = False) -> None:
+
         if not force:
-            click.confirm(DESTRUCTION.format(character_config.config_root), abort=True)
+            click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
+                                                       root=character_config.config_root), abort=True)
 
         try:
-            character_config.destroy(force=force)
+            character_config.destroy()
+
         except FileNotFoundError:
             message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
             console_emitter(message=message, color='red')
-            log.debug(message)
+            character_config.log.debug(message)
             raise click.Abort()
         else:
             message = "Deleted configuration files at {}".format(character_config.config_root)
             console_emitter(message=message, color='green')
-            log.debug(message)
-
-    return config_root
+            character_config.log.debug(message)
 
 
 def forget(configuration):
@@ -117,3 +124,12 @@ performing accurate re-encryption work orders will result in rewards
 paid out in ETH retro-actively, on-demand.
 
 Accept node operator obligation?""", abort=True)
+
+
+def handle_missing_configuration_file(character_config_class, config_file: str = None):
+    config_file_location = config_file or character_config_class.DEFAULT_CONFIG_FILE_LOCATION
+    message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
+              f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
+              f'\'nucypher {character_config_class._NAME} init\''
+
+    raise click.FileError(filename=config_file_location, hint=message)

@@ -62,10 +62,7 @@ def bob(click_config,
         """Create a brand-new persistent Bob"""
 
         if dev:
-            actions.handle_control_output(message="WARNING: Using temporary storage area",
-                                          quiet=quiet,
-                                          color='yellow',
-                                          json=click_config.json)
+            click_config.emit(message="WARNING: Using temporary storage area", color='yellow')
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -82,22 +79,6 @@ def bob(click_config,
         return painting.paint_new_installation_help(new_configuration=new_bob_config,
                                                     config_file=config_file)
 
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-
-        if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-
-        destroyed_path = actions.destroy_system_configuration(config_class=BobConfiguration,
-                                                              config_file=config_file,
-                                                              network=network,
-                                                              config_root=config_root,
-                                                              force=force)
-
-        return click_config.emitter(message=f"Destroyed {destroyed_path}")
-
-
     #
     # Get Bob Configuration
     #
@@ -109,12 +90,17 @@ def bob(click_config,
                                       federated_only=True,
                                       network_middleware=click_config.middleware)
     else:
-        bob_config = BobConfiguration.from_configuration_file(
-            filepath=config_file,
-            domains={network or GLOBAL_DOMAIN},
-            rest_port=discovery_port,
-            provider_uri=provider_uri,
-            network_middleware=click_config.middleware)
+
+        try:
+            bob_config = BobConfiguration.from_configuration_file(
+                filepath=config_file,
+                domains={network or GLOBAL_DOMAIN},
+                rest_port=discovery_port,
+                provider_uri=provider_uri,
+                network_middleware=click_config.middleware)
+        except FileNotFoundError:
+            return actions.handle_missing_configuration_file(character_config_class=BobConfiguration,
+                                                             config_file=config_file)
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else list()
@@ -166,6 +152,13 @@ def bob(click_config,
 
         response = BOB.controller.retrieve(request=bob_request_data)
         return response
+
+    elif action == "destroy":
+        """Delete Bob's character configuration files from the disk"""
+        if dev:
+            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+        return actions.destroy_configuration(character_config=bob_config)
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

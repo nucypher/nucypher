@@ -46,6 +46,8 @@ class StdoutEmitter:
         """
         Write pretty messages to stdout.  For Human consumption only.
         """
+        if response and message:
+            raise ValueError(f'{self.__class__.__name__} received both a response and a message.')
 
         if self.quiet:
             # reduces the number of CLI conditionals by
@@ -75,7 +77,7 @@ class IPCStdoutEmitter(StdoutEmitter):
 
     transport_serializer = json.dumps
 
-    def _emit(self, response: dict = None, message: str = None) -> None:
+    def _emit(self, response: dict = None, message: str = None, *args, **kwargs) -> None:
         """
         Write data to stdout.  For machine consumption only.
         """

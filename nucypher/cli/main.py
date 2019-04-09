@@ -23,6 +23,7 @@ from twisted.logger import globalLogPublisher
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
 from nucypher.cli import status
+from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
@@ -56,26 +57,27 @@ def nucypher_cli(click_config,
     else:
         emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
 
-    NucypherClickConfig.emitter = emitter
-    click_config.emitter(message=NUCYPHER_BANNER)
+    click_config.attach_emitter(emitter)
+    click_config.emit(message=NUCYPHER_BANNER)
 
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    # Logging
-    if not no_logs:
-        GlobalConsoleLogger.start_if_not_started()
-
     if debug:
         click_config.log_to_sentry = False
-        click_config.log_to_file = True
-        globalLogPublisher.removeObserver(logToSentry)  # Sentry
+        click_config.log_to_file = True                 # File Logging
+        globalLogPublisher.addObserver(SimpleObserver())  # Console Logging
+        globalLogPublisher.removeObserver(logToSentry)  # No Sentry
         GlobalConsoleLogger.set_log_level(log_level_name='debug')
 
-    elif quiet:
+    elif quiet:  # Disable Logging
         globalLogPublisher.removeObserver(logToSentry)
         globalLogPublisher.removeObserver(SimpleObserver)
         globalLogPublisher.removeObserver(getJsonFileObserver())
+
+    # Logging
+    if not no_logs:
+        GlobalConsoleLogger.start_if_not_started()
 
     # CLI Session Configuration
     click_config.verbose = verbose
@@ -89,14 +91,22 @@ def nucypher_cli(click_config,
     # Only used for testing outputs;
     # Redirects outputs to in-memory python containers.
     if mock_networking:
-        click_config.emitter(message="WARNING: Mock networking is enabled")
+        click_config.emit(message="WARNING: Mock networking is enabled")
         click_config.middleware = MockRestMiddleware()
     else:
         click_config.middleware = RestMiddleware()
 
     # Global Warnings
     if click_config.verbose:
-        click_config.emitter("Verbose mode is enabled", color='blue')
+        click_config.emit("Verbose mode is enabled", color='blue')
+
+
+@click.command()
+@click.option('--logs', help="Also destroy logs", is_flag=True)
+@click.option('--force', help="Don't ask for confirmation and Ignore Errors", is_flag=True)
+@click.option('--config-root', help="Custom configuration directory", type=click.Path())
+def remove(logs, force, config_root):
+    destroy_configuration_root(config_root=config_root, force=force, logs=logs)
 
 
 #
@@ -125,13 +135,18 @@ Inversely, commenting out an entry point here will disable it.
 """
 
 ENTRY_POINTS = (
+
+    # Utility Sub-Commands
+    remove,         # Remove NuCypher Files
     status.status,  # Network Status
-    alice.alice,  # Author of Policies
-    bob.bob,  # Builder of Capsules
+
+    # Characters
+    alice.alice,    # Author of Policies
+    bob.bob,        # Builder of Capsules
     enrico.enrico,  # Encryptor of Data
-    moe.moe,  # Monitor
+    moe.moe,        # Monitor
     ursula.ursula,  # Untrusted Re-Encryption Proxy
-    felix.felix         # Faucet
+    felix.felix     # Faucet
 )
 
 for entry_point in ENTRY_POINTS:

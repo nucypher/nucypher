@@ -14,24 +14,35 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import pytest
 
-
+import nucypher
 from nucypher.cli.deploy import deploy
-from nucypher.cli.main import nucypher_cli
+from nucypher.cli.main import nucypher_cli, ENTRY_POINTS
 
 
-def test_nucypher_help_message(click_runner):
-    help_args = ('--help', )
-    result = click_runner.invoke(nucypher_cli, help_args, catch_exceptions=False)
+def test_echo_nucypher_version(click_runner):
+    version_args = ('--version', )
+    result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert str(nucypher.__version__) in result.output, 'Version text was not produced.'
+
+
+@pytest.mark.parametrize('command', (('--help', ), tuple()))
+def test_nucypher_help_message(click_runner, command):
+    entry_points = {command.name for command in ENTRY_POINTS}
+    result = click_runner.invoke(nucypher_cli, tuple(), catch_exceptions=False)
     assert result.exit_code == 0
     assert '[OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
+    assert all(e in result.output for e in entry_points)
 
 
-def test_nucypher_ursula_help_message(click_runner):
-    help_args = ('ursula', '--help')
+@pytest.mark.parametrize('entry_point', tuple(command.name for command in ENTRY_POINTS))
+def test_character_help_messages(click_runner, entry_point):
+    help_args = (entry_point, '--help')
     result = click_runner.invoke(nucypher_cli, help_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert 'ursula [OPTIONS] ACTION' in result.output, 'Missing or invalid help text was produced.'
+    assert f'{entry_point}' in result.output, 'Missing or invalid help text was produced.'
 
 
 def test_nucypher_deploy_help_message(click_runner):

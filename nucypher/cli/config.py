@@ -43,7 +43,7 @@ from nucypher.utilities.logging import (
 class NucypherClickConfig:
 
     # Output Sinks
-    emitters = list()
+    __emitter = None
     capture_stdout = False
     __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
@@ -89,7 +89,7 @@ class NucypherClickConfig:
             self.blockchain = character_configuration.blockchain
             self.accounts = self.blockchain.interface.w3.eth.accounts
 
-    def get_password(self, confirm: bool =False) -> str:
+    def get_password(self, confirm: bool = False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
 
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
@@ -102,39 +102,37 @@ class NucypherClickConfig:
     def unlock_keyring(self, character_configuration: NodeConfiguration):
         try:  # Unlock Keyring
             if not self.quiet:
-                self.emit('Decrypting keyring...', fg='blue')
+                self.emit(message='Decrypting keyring...', color='blue')
             character_configuration.keyring.unlock(password=self.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 
     @classmethod
+    def attach_emitter(cls, emitter) -> None:
+        cls.__emitter = emitter
+
+    @classmethod
     def emit(cls, *args, **kwargs):
-        for emitter in cls.emitters:
-            emitter(*args, **kwargs)
+        cls.__emitter(*args, **kwargs)
 
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
-
-    # Deploy Environment Variables
-    miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
-    policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
-    user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
 
     Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
 
     def collect_deployment_secrets(self) -> Secrets:
 
-        miner_secret = self.miner_escrow_deployment_secret
+        miner_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
         if not miner_secret:
             miner_secret = click.prompt('Enter MinerEscrow Deployment Secret', hide_input=True,
                                         confirmation_prompt=True)
 
-        policy_secret = self.policy_manager_deployment_secret
+        policy_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
         if not policy_secret:
             policy_secret = click.prompt('Enter PolicyManager Deployment Secret', hide_input=True,
                                          confirmation_prompt=True)
 
-        escrow_proxy_secret = self.user_escrow_proxy_deployment_secret
+        escrow_proxy_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
         if not escrow_proxy_secret:
             escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
                                                confirmation_prompt=True)

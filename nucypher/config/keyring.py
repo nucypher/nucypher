@@ -15,8 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
+import contextlib
 import json
 import os
+import shutil
 import stat
 from json import JSONDecodeError
 
@@ -456,14 +458,15 @@ class NucypherKeyring:
         if self.is_unlocked:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
+        self.log.info("Unlocking keyring.")
         try:
-            self.log.info("Unlocking keyring.")
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
-            self.log.info("Finished unlocking.")
         except CryptoError:
-            raise
+            self.log.info("Keyring unlock failed.")
+            raise self.AuthenticationFailed
         else:
             self.__derived_key_material = derived_key
+            self.log.info("Finished unlocking.")
         return self.is_unlocked
 
     @unlock_required
@@ -656,3 +659,16 @@ class NucypherKeyring:
             if not rule:
                 failures.append(failure_message)
         return failures
+
+    def destroy(self):
+        base_filepaths = self._generate_base_filepaths(keyring_root=self.__keyring_root)
+        public_key_dir = base_filepaths['public_key_dir']
+        private_key_dir = base_filepaths['private_key_dir']
+        keypaths = self._generate_key_filepaths(account=self.checksum_address,
+                                                public_key_dir=public_key_dir,
+                                                private_key_dir=private_key_dir)
+
+        # Remove the parsed paths from the disk, weather they exist or not.
+        for filepath in keypaths.values():
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(filepath)
