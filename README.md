@@ -12,15 +12,18 @@
 
 ----
 
-The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
-threshold proxy re-encryption scheme to provide cryptographic access control
+The NuCypher network facilitates end-to-end encrypted data sharing
 for distributed apps and protocols.
-Applications can use the NuCypher network to facilitate end-to-end encrypted
-data sharing via sharing policies. Access permissions are baked into the
-underlying encryption, and access can only be explicitly granted by the data owner.
+Access permissions are baked into the underlying encryption,
+and access can only be explicitly granted by the data owner via sharing policies.
 Consequently, the data owner has ultimate control over access to their data.
 At no point is the data decrypted nor can the underlying private keys be
 determined by the NuCypher network.
+
+Under the hood, the NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
+threshold proxy re-encryption scheme to provide cryptographic access control.
+
+# How does NuCypher work?
 
 01. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
