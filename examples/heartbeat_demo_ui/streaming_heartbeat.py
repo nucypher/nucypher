@@ -24,7 +24,7 @@ app.layout = html.Div([
 
 index_page = html.Div([
     html.Div([
-        html.Img(src='./assets/nucypher_logo.png'),
+        html.Img(src='/assets/nucypher_logo.png'),
     ], className='banner'),
     html.A('ALICIA', href='/alicia', target='_alicia'),
     html.Br(),
@@ -35,7 +35,7 @@ index_page = html.Div([
     html.Hr(),
     html.H2('Overview'),
     html.Div([
-        html.Img(src='./assets/heartbeat_demo_overview.png'),
+        html.Img(src='/assets/heartbeat_demo_overview.png'),
     ], className='overview')
 ])
 

@@ -42,12 +42,12 @@ def get_layout(first_bob: bool):
     # generate ui layout
     layout = html.Div([
         html.Div([
-            html.Img(src='./assets/nucypher_logo.png'),
+            html.Img(src='/assets/nucypher_logo.png'),
         ], className='banner'),
         html.Div([
             html.Div([
                 html.Div([
-                    html.Img(src='./assets/bob.png'),
+                    html.Img(src='/assets/bob.png'),
                 ], className='two columns'),
                 html.Div([
                     html.Div([

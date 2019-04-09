@@ -37,17 +37,12 @@ of nodes where m,n can be greater than 1. See [local fleet instructions](https:/
 for more information.
 
 #### Run the demo
-Install dependencies (only for the first time):
-```sh
-$ pipenv install --dev --skip-lock --pre
-```
+Assuming you already have `nucypher` installed and a local demo fleet of Ursulas deployed:
 
-Start the demo:
+(After previously running `pipenv shell`)
 ```sh
-$ pipenv shell
-
-(heartbeat_demo)$ python streaming_heartbeat.py
+(nucypher)$ python examples/heartbeat_demo_ui/streaming_heartbeat.py
 ```
 
 * You can interact with the demo at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)
-    * Multiple `Bobs` can be created by clicking on the Bob link more than once.
+    * Multiple `Bobs` can be created by repeatedly opening the Bob link in a new tab.

@@ -46,16 +46,12 @@ to be executed at different times throughout the demo.
 
 1. Start the Demo UI
 
-    Install dependencies (only for the first time):
-    ```sh
-    $ pipenv install --dev --skip-lock --pre
-    ```
+    Assuming you already have `nucypher` installed and a local demo fleet of Ursulas deployed:
     
+    (after running `pipenv shell`)
     Start the demo:
     ```sh
-    $ pipenv shell
-    
-    (heartbeat_demo)$ python char_control_heartbeat.py
+    (nucypher)$ python examples/heartbeat_rest_ui/char_control_heartbeat.py
     ```
     
     The UI can now be viewed in your browser at [http://127.0.0.1:8050/](http://127.0.0.1:8050/). 

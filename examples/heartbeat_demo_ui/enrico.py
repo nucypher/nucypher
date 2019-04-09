@@ -17,12 +17,12 @@ cached_data_source = list()
 
 layout = html.Div([
     html.Div([
-        html.Img(src='./assets/nucypher_logo.png'),
+        html.Img(src='/assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
         html.Div([
             html.Div([
-                html.Img(src='./assets/enrico.png'),
+                html.Img(src='/assets/enrico.png'),
             ], className='two columns'),
             html.Div([
                 html.Div([

@@ -4,13 +4,15 @@ import shutil
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash("NuCypher Heartbeat Data Sharing Application", external_stylesheets=external_stylesheets)
+app = dash.Dash("NuCypher REST Heartbeat Data Sharing Application",
+                external_stylesheets=external_stylesheets,
+                assets_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'),
+                suppress_callback_exceptions=True)
 server = app.server
-app.config.suppress_callback_exceptions = True
-app.title = "NuCypher Heartbeat Demo"
+app.title = "NuCypher REST Heartbeat Demo"
 
 # remove old data files and re-create data folder
-DATA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/data'
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 shutil.rmtree(DATA_FOLDER, ignore_errors=True)
 os.mkdir(DATA_FOLDER)
 
@@ -18,7 +20,7 @@ DB_FILE = os.path.join(DATA_FOLDER, 'heartbeats.db')
 DB_NAME = 'HeartBeat'
 
 # create shared folder for data shared between characters
-SHARED_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/shared'
+SHARED_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared')
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 

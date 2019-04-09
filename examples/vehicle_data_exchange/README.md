@@ -38,18 +38,14 @@ of nodes where m,n can be greater than 1. See [local fleet instructions](https:/
 for more information.
 
 #### Run the demo
-Install dependencies (only for the first time):
-```sh
-$ pipenv install --dev --skip-lock --pre
-```
+Assuming you already have `nucypher` installed and a local demo fleet of Ursulas deployed:
 
+(After previously running `pipenv shell`)
 Start the demo:
 ```sh
-$ pipenv shell
-
-(vehicle-data-exchange)$ python vehicle_data_exchange.py
+(nucypher)$ python examples/vehicle_data_exchange/vehicle_data_exchange.py
 ```
 
 * You can interact with the demo at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)
-    * Multiple `Bobs` can be created by clicking on the Bob link more than once.
+    * Multiple `Bobs` can be created by repeatedly opening the Bob link in a new tab.
 

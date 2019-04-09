@@ -63,12 +63,12 @@ def get_layout(first_bob: bool):
     # generate ui layout
     layout = html.Div([
         html.Div([
-            html.Img(src='./assets/nucypher_logo.png'),
+            html.Img(src='/assets/nucypher_logo.png'),
         ], className='banner'),
         html.Div([
             html.Div([
                 html.Div([
-                    html.Img(src='./assets/bob.png'),
+                    html.Img(src='/assets/bob.png'),
                 ], className='two columns'),
                 html.Div([
                     html.Div([
@@ -115,10 +115,10 @@ def get_layout(first_bob: bool):
 
 def _create_bob(unique_id: str) -> Bob:
     # TODO: path joins?
-    temp_bob_dir = f'{BOB_FOLDER}/bob-{unique_id}-files'
+    temp_bob_dir = os.path.join(BOB_FOLDER, f'bob-{unique_id}-files')
 
-    temp_ursula_certificate_dir = f'{temp_bob_dir}/ursula-certs'
-    temp_bob_certificate_dir = f'{temp_bob_dir}/bob-certs'
+    temp_ursula_certificate_dir = os.path.join(temp_bob_dir, 'ursula-certs')
+    temp_bob_certificate_dir = os.path.join(temp_bob_dir, 'bob-certs')
 
     # Ensure previous demo files removed, then create new ones
     shutil.rmtree(temp_bob_dir, ignore_errors=True)

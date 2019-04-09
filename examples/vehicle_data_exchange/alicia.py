@@ -24,7 +24,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 globalLogPublisher.addObserver(SimpleObserver())
 #
 # # Temporary file storage
-TEMP_URSULA_CERTIFICATE_DIR = f'{ALICIA_FOLDER}/ursula-certs'
+TEMP_URSULA_CERTIFICATE_DIR = os.path.join(ALICIA_FOLDER, 'ursula-certs')
 
 #######################################
 # Alicia, the Authority of the Policy #
@@ -66,12 +66,12 @@ alicia.start_learning_loop(now=True)
 
 layout = html.Div([
     html.Div([
-        html.Img(src='./assets/nucypher_logo.png'),
+        html.Img(src='/assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
         html.Div([
             html.Div([
-                html.Img(src='./assets/alicia.png'),
+                html.Img(src='/assets/alicia.png'),
             ], className='two columns'),
             html.Div([
                 html.Div([

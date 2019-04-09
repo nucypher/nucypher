@@ -15,12 +15,12 @@ ALICE_URL = "http://localhost:8151"
 
 layout = html.Div([
     html.Div([
-        html.Img(src='./assets/nucypher_logo.png'),
+        html.Img(src='/assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
         html.Div([
             html.Div([
-                html.Img(src='./assets/alicia.png'),
+                html.Img(src='/assets/alicia.png'),
             ], className='two columns'),
             html.Div([
                 html.Div([

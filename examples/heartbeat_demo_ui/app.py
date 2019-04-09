@@ -4,26 +4,28 @@ import shutil
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash("NuCypher Heartbeat Data Sharing Application", external_stylesheets=external_stylesheets)
+app = dash.Dash("NuCypher Heartbeat Data Sharing Application",
+                external_stylesheets=external_stylesheets,
+                assets_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'),
+                suppress_callback_exceptions=True)
 server = app.server
-app.config.suppress_callback_exceptions = True
 app.title = "NuCypher Heartbeat Demo"
 
 # key files
-KEYS_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/keys'
+KEYS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'keys')
 shutil.rmtree(KEYS_FOLDER, ignore_errors=True)
 os.mkdir(KEYS_FOLDER)
 
 # data files
-DATA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/data'
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 shutil.rmtree(DATA_FOLDER, ignore_errors=True)
 os.mkdir(DATA_FOLDER)
 
-DB_FILE = f'{DATA_FOLDER}/heartbeats.db'
+DB_FILE = os.path.join(DATA_FOLDER, 'heartbeats.db')
 DB_NAME = 'HeartBeat'
 
 # create shared folder for data shared between characters
-SHARED_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/shared'
+SHARED_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared')
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
 
@@ -33,12 +35,12 @@ POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
 DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
 
 # alicia-files
-ALICIA_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/alicia-files'
+ALICIA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'alicia-files')
 shutil.rmtree(ALICIA_FOLDER, ignore_errors=True)
 os.mkdir(ALICIA_FOLDER)
 
 # bob-files
-BOB_FOLDER = f'{os.path.dirname(os.path.abspath(__file__))}/bob-files'
+BOB_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bob-files')
 shutil.rmtree(BOB_FOLDER, ignore_errors=True)
 os.mkdir(BOB_FOLDER)
 
