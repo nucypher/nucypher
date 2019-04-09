@@ -9,6 +9,7 @@ app = dash.Dash("NuCypher Vehicular Data Sharing Application",
                 assets_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'),
                 suppress_callback_exceptions=True)
 server = app.server
+app.title = "NuCypher Vehicular Data Demo"
 
 # key files
 KEYS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'keys')
