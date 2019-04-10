@@ -4,23 +4,26 @@
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
 [![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
-[![coveralls](https://coveralls.io/repos/github/nucypher/nucypher/badge.svg?branch=master)](https://coveralls.io/github/nucypher/nucypher?branch=master)
+[![codecov](https://codecov.io/gh/nucypher/nucypher/branch/master/graph/badge.svg)](https://codecov.io/gh/nucypher/nucypher)
 [![circleci](https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci)](https://circleci.com/gh/nucypher/nucypher/tree/master)
-[![discord](https://img.shields.io/discord/411401661714792449.svg)](https://discord.gg/7rmXa3S)
+[![discord](https://img.shields.io/discord/411401661714792449.svg?logo=discord)](https://discord.gg/7rmXa3S)
 [![Documentation Status](https://readthedocs.org/projects/nucypher/badge/?version=latest)](https://nucypher.readthedocs.io/en/latest/)
 [![license](https://img.shields.io/pypi/l/nucypher.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ----
 
-The NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
-threshold proxy re-encryption scheme to provide cryptographic access control
+The NuCypher network facilitates end-to-end encrypted data sharing
 for distributed apps and protocols.
-Applications can use the NuCypher network to facilitate end-to-end encrypted
-data sharing via sharing policies. Access permissions are baked into the
-underlying encryption, and access can only be explicitly granted by the data owner.
+Access permissions are baked into the underlying encryption,
+and access can only be explicitly granted by the data owner via sharing policies.
 Consequently, the data owner has ultimate control over access to their data.
 At no point is the data decrypted nor can the underlying private keys be
 determined by the NuCypher network.
+
+Under the hood, the NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
+threshold proxy re-encryption scheme to provide cryptographic access control.
+
+# How does NuCypher work?
 
 01. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
