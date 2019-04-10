@@ -460,13 +460,40 @@ class MiningAdjudicatorAgent(EthereumContractAgent):
     _proxy_name = "Dispatcher"
 
     def evaluate_cfrag(self,
-                       capsule: bytes,
+                       capsule_bytes: bytes,
                        capsule_signature_by_requester: bytes,
                        capsule_signature_by_requester_and_miner: bytes,
-                       cfrag: bytes,
+                       cfrag_bytes: bytes,
                        cfrag_signature_by_miner: bytes,
                        requester_public_key: bytes,
                        miner_public_key: bytes,
                        miner_piblc_key_signature: bytes,
                        precomputed_data: bytes):
-        pass
+        """
+
+        From Contract Source:
+
+        function evaluateCFrag(
+            bytes memory _capsuleBytes,
+            bytes memory _capsuleSignatureByRequester,
+            bytes memory _capsuleSignatureByRequesterAndMiner,
+            bytes memory _cFragBytes,
+            bytes memory _cFragSignatureByMiner,
+            bytes memory _requesterPublicKey,
+            bytes memory _minerPublicKey,
+            bytes memory _minerPublicKeySignature,
+            bytes memory _preComputedData
+        )
+
+        :param capsule:
+        :param capsule_signature_by_requester:
+        :param capsule_signature_by_requester_and_miner:
+        :param cfrag:
+        :param cfrag_signature_by_miner:
+        :param requester_public_key:
+        :param miner_public_key:
+        :param miner_piblc_key_signature:
+        :param precomputed_data:
+        :return:
+        """
+        # TODO: #931 - Challenge Agent and Actor
