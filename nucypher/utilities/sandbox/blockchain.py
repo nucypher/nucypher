@@ -222,4 +222,4 @@ class TesterBlockchain(Blockchain):
     def unassigned_accounts(self):
         assigned_accounts = set(self.ursulas_accounts + [self.etherbase_account, self.alice_account, self.bob_account])
         accounts = set(self.interface.w3.eth.accounts)
-        return list(accounts.intersection(assigned_accounts))
+        return list(accounts.difference(assigned_accounts))

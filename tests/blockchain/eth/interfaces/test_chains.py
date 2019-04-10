@@ -44,7 +44,16 @@ def test_testerchain_creation(testerchain):
     ursulas = [testerchain.ursula_account(i) for i in range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)]
     assert ursulas == testerchain.ursulas_accounts
 
+    # Check that the remaining accounts are different from the previous ones:
+    assert set([etherbase, alice, bob] + ursulas).isdisjoint(set(testerchain.unassigned_accounts))
+
     # Check that accounts are funded
     for account in testerchain.interface.w3.eth.accounts:
         assert testerchain.interface.w3.eth.getBalance(account) >= TESTING_ETH_AIRDROP_AMOUNT
+
+    # Check that accounts can send transactions
+    for account in testerchain.interface.w3.eth.accounts:
+        tx = {'to': etherbase, 'from': account, 'value': 100}
+        txhash = testerchain.interface.w3.eth.sendTransaction(tx)
+        _receipt = testerchain.wait_for_receipt(txhash)
 
