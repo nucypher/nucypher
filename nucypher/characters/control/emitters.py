@@ -3,7 +3,6 @@ import sys
 from typing import Callable, Union
 
 import click
-import maya
 from flask import Response
 from twisted.logger import Logger
 
@@ -92,6 +91,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         self.log = Logger("JSON-RPC-Emitter")
 
     class JSONRPCError(RuntimeError):
+        code = None
         message = "Unknown JSON-RPC Error"
 
     class ParseError(JSONRPCError):
@@ -185,8 +185,8 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
                 raise self.JSONRPCError
 
         size = self.__write(data=assembled_error)
-        if not self.quiet:
-            self.log.info(f"Error {e.code} | {e.message}")
+        # if not self.quiet:
+        #     self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
         return size
 
     def __emit_rpc_response(self, response: dict, request_id: int, duration) -> int:

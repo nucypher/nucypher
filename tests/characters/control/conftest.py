@@ -87,6 +87,7 @@ def create_policy_control_request(federated_bob):
         'label': b64encode(bytes(b'test')).decode(),
         'm': 2,
         'n': 3,
+        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
     return method_name, params
 

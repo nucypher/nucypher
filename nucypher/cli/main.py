@@ -58,7 +58,7 @@ def nucypher_cli(click_config,
 
     click_config.attach_emitter(emitter)
     if not json_ipc:
-        click_config.emitter(message=NUCYPHER_BANNER)
+        click_config.emit(message=NUCYPHER_BANNER)
 
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")

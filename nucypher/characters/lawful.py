@@ -49,9 +49,12 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
+from nucypher.characters.control.controllers import (
+    AliceJSONController,
+    BobJSONController,
+    EnricoJSONController,
     WebController
-from nucypher.config.constants import GLOBAL_DOMAIN
+)
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH

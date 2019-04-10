@@ -94,7 +94,7 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
     assert response_data['result']['failed_revocations'] == 0
 
 
-def test_alice_character_control_decrypt(alice_control_test_client,
+def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_federated_policy,
                                          capsule_side_channel):
 
@@ -108,7 +108,7 @@ def test_alice_character_control_decrypt(alice_control_test_client,
         'message_kit': message_kit,
     }
 
-    response = alice_control_test_client.post('/decrypt', data=json.dumps(request_data))
+    response = alice_web_controller_test_client.post('/decrypt', data=json.dumps(request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
@@ -118,15 +118,15 @@ def test_alice_character_control_decrypt(alice_control_test_client,
         assert bytes(plaintext, encoding='utf-8') == b'Welcome to the flippering.'
 
     # Send bad data to assert error returns
-    response = alice_control_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
+    response = alice_web_controller_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     del(request_data['message_kit'])
-    response = alice_control_test_client.put('/decrypt', data=json.dumps(request_data))
+    response = alice_web_controller_test_client.put('/decrypt', data=json.dumps(request_data))
     assert response.status_code == 405
 
 
-def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
+def test_bob_character_control_join_policy(bob_web_controller_test_client, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
         'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
@@ -135,17 +135,17 @@ def test_bob_character_control_join_policy(bob_control_test_client, enacted_fede
     # Simulate passing in a teacher-uri
     enacted_federated_policy.bob.remember_node(enacted_federated_policy.ursulas[0])
 
-    response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
+    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO
     assert response.status_code == 200
 
     # Send bad data to assert error returns
-    response = bob_control_test_client.post('/join_policy', data=json.dumps({'bad': 'input'}))
+    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     # Missing Key results in bad request
     del(request_data['alice_verifying_key'])
-    response = bob_control_test_client.post('/join_policy', data=json.dumps(request_data))
+    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 
 
