@@ -58,7 +58,7 @@ sphinx_rtd_theme = "*"
 aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
-# Test Demos
+# Run/Test UI Demo Apps
 dash = "==0.34.0"
 dash-html-components = "==0.13.4"
 dash-core-components = "==0.41.0"
@@ -67,6 +67,7 @@ pandas = "==0.23.4"
 plotly = "==3.5.0"
 pytest-dash = "==2.1.0"
 responses = "*"
+instapy-chromedriver = "*"
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
