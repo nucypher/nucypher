@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 def user_escrow_proxy(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     testerchain = policy_agent.blockchain
-    deployer, alice, bob, *all_yall = testerchain.interface.w3.eth.accounts
+    deployer = testerchain.etherbase_account
 
     escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
                                                     secret_hash=os.urandom(32))
@@ -44,7 +44,7 @@ def user_escrow_proxy(three_agents):
 def test_deploy_and_allocate(three_agents, user_escrow_proxy):
     token_agent, miner_agent, policy_agent = three_agents
     testerchain = policy_agent.blockchain
-    origin, alice, bob, *all_yall = testerchain.interface.w3.eth.accounts
+    origin = testerchain.etherbase_account
 
     deployments = dict()
     allocation = MIN_ALLOWED_LOCKED * 1
@@ -82,7 +82,7 @@ def test_deploy_and_allocate(three_agents, user_escrow_proxy):
         assert receipt['status'] == 1, "Transaction Rejected {}".format(deposit_txhash)
         deposit_txhashes[address] = deposit_txhash
 
-        beneficiary = random.choice(all_yall)
+        beneficiary = random.choice(testerchain.unassigned_accounts)
         assignment_txhash = deployer.assign_beneficiary(beneficiary)
         receipt = testerchain.wait_for_receipt(txhash=assignment_txhash)
         assert receipt['status'] == 1, "Transaction Rejected {}".format(assignment_txhash)

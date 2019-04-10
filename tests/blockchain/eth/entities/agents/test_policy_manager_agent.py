@@ -29,32 +29,30 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 @pytest.mark.usefixtures('blockchain_ursulas')
 def policy_meta(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     agent = policy_agent
 
     _policy_id = os.urandom(16)
     node_addresses = list(miner_agent.sample(quantity=3, duration=1))
     _txhash = agent.create_policy(policy_id=_policy_id,
-                                  author_address=someone,
+                                  author_address=testerchain.alice_account,
                                   value=MIN_ALLOWED_LOCKED,
                                   periods=10,
                                   initial_reward=20,
                                   node_addresses=node_addresses)
 
-    return MockPolicyMetadata(_policy_id, someone, node_addresses)
+    return MockPolicyMetadata(_policy_id, testerchain.alice_account, node_addresses)
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_create_policy(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     agent = policy_agent
 
     policy_id = os.urandom(16)
     node_addresses = list(miner_agent.sample(quantity=3, duration=1))
     txhash = agent.create_policy(policy_id=policy_id,
-                                 author_address=someone,
+                                 author_address=testerchain.alice_account,
                                  value=MIN_ALLOWED_LOCKED,
                                  periods=10,
                                  initial_reward=20,
