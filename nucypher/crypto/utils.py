@@ -32,6 +32,14 @@ def fingerprint_from_key(public_key: Any):
     return keccak_digest(bytes(public_key)).hex().encode()
 
 
+def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
+    """
+    Forms an ID unique to the policy per label and Bob's signing pubkey via
+    a keccak hash of the two.
+    """
+    return keccak_digest(label + stamp)
+
+
 def canonical_address_from_umbral_key(public_key: UmbralPublicKey) -> bytes:
     pubkey_raw_bytes = public_key.to_bytes(is_compressed=False)[1:]
     eth_pubkey = EthKeyAPI.PublicKey(pubkey_raw_bytes)

@@ -86,21 +86,23 @@ def test_alice_character_control_grant(alice_control_test_client, federated_bob)
 def test_alice_character_control_revoke(alice_control_test_client, federated_bob):
     bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
 
-    request_data = {
+    grant_request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
-        'label': 'test',
+        'label': 'test-revoke',
         'm': 2,
         'n': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
-    response = alice_control_test_client.put('/grant', data=json.dumps(request_data))
+    response = alice_control_test_client.put('/grant', data=json.dumps(grant_request_data))
     assert response.status_code == 200
 
-    response_data = json.loads(response.data)
-    policy_pubkey = response_data['result']['policy_encrypting_key']
+    revoke_request_data = {
+        'label': 'test',
+        'bob_verifying_key': bytes(federated_bob.stamp).hex()
+    }
 
-    response = alice_control_test_client.delete(f'/revoke/{policy_pubkey}')
+    response = alice_control_test_client.delete(f'/revoke', data=json.dumps(revoke_request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)

@@ -109,8 +109,11 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
 
         return response_data
 
-    # The revoke endpoint only uses a URL-param; ergo, we have no need for
-    # a de/serialization method.
+    @staticmethod
+    def parse_revoke_input(request: dict):
+        parsed_input = dict(label=request['label'].encode(),
+                            bob_verifying_key=bytes.fromhex(request['bob_verifying_key']))
+        return parsed_input
 
     @staticmethod
     def dump_public_keys_output(response: dict):

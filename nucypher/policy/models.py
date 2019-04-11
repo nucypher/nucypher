@@ -42,8 +42,8 @@ from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGT
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, key_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature
+from nucypher.crypto.splitters import key_splitter, capsule_splitter
+from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature, construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -163,6 +163,10 @@ class Policy:
     def n(self) -> int:
         return len(self.kfrags)
 
+    @property
+    def id(self) -> bytes:
+        return construct_policy_id(self.label, bytes(self.bob.stamp))
+
     def hrac(self) -> bytes:
         """
         This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
@@ -263,7 +267,7 @@ class Policy:
         else:  # ...After *all* the policies are enacted
             # Create Alice's revocation kit
             self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.active_policies[bytes(self.public_key).hex()] = self
+            self.alice.add_active_policy(self)
 
             if publish is True:
                 return self.publish(network_middleware=network_middleware)

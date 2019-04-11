@@ -26,6 +26,7 @@ from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -49,6 +50,10 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
 
     # Create the Policy, Granting access to Bob
     policy = blockchain_alice.grant(blockchain_bob, label, m=2, n=n, expiration=policy_end_datetime)
+
+    # Check the policy ID
+    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    assert policy_id == policy.id
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
@@ -77,6 +82,14 @@ def test_federated_grant(federated_alice, federated_bob):
 
     # Create the Policy, granting access to Bob
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
+
+    # Check the policy ID
+    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    assert policy_id == policy.id
+
+    # Check Alice's active policies
+    assert policy_id in federated_alice.active_policies
+    assert federated_alice.active_policies[policy_id] == policy
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
