@@ -18,12 +18,12 @@ def dash_app(federated_ursulas):
     os.environ["TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT"] = str(node.rest_information()[0].port)
 
     # import app
-    dash_app = import_app('examples.heartbeat_demo_ui.streaming_heartbeat', application_name='app')
+    dash_app = import_app('examples.heartbeat_demo.ui.streaming_heartbeat', application_name='app')
     yield dash_app
 
     # cleanup
     del dash_app
-    from examples.heartbeat_demo_ui.app import cleanup
+    from examples.heartbeat_demo.ui.app import cleanup
     cleanup()
     del os.environ["TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT"]
 

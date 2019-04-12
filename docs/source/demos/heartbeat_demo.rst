@@ -72,7 +72,7 @@ Assuming you already have ``nucypher`` installed with the ``demos`` extra
 and a :doc:`local fleet of Ursulas </demos/local_fleet_demo>` alive,
 running the Heartbeat demo only involves executing the
 ``alicia.py`` and ``doctor.py`` scripts, contained in the
-``examples/heartbeat_demo`` directory.
+``examples/heartbeat_demo/cli`` directory.
 
 First, run ``alicia.py``:
 

@@ -14,7 +14,7 @@ from plotly.graph_objs import Scatter, Layout
 from plotly.graph_objs.layout import Margin
 from plotly.graph_objs.scatter import *
 
-from examples.heartbeat_rest_ui.app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
+from examples.heartbeat_demo.rest_ui.app import app, DB_FILE, DB_NAME, POLICY_INFO_FILE
 
 ACCESS_DISALLOWED = "Access Disallowed"
 

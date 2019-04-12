@@ -6,7 +6,7 @@ echo "Starting Up Heartbeat Demo Test..."
 "${0%/*}"/../local_fleet/run_local_fleet.sh
 
 # Move to examples directory
-cd "${0%/*}"/../../examples/heartbeat_demo/
+cd "${0%/*}"/../../examples/heartbeat_demo/cli
 
 # Run Alicia
 echo "Starting Alicia..."

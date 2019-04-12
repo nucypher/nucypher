@@ -13,8 +13,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from examples.heartbeat_rest_ui import alicia, enrico, bob
-from examples.heartbeat_rest_ui.app import app, cleanup
+from examples.heartbeat_demo.ui import bob, enrico, alicia
+from examples.heartbeat_demo.ui.app import app, cleanup
 
 
 app.layout = html.Div([

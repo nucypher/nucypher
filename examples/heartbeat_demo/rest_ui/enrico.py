@@ -1,3 +1,4 @@
+import json
 import random
 import sqlite3
 import time
@@ -5,15 +6,13 @@ import time
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
-import msgpack
 import pandas as pd
+import requests
+from examples.heartbeat_demo.rest_ui.app import app, DB_FILE, DB_NAME
 from dash.dependencies import Output, Input, State, Event
-from umbral.keys import UmbralPublicKey
+from base64 import b64encode
 
-from examples.heartbeat_demo_ui.app import app, DB_FILE, DB_NAME, DATA_SOURCE_INFO_FILE
-from nucypher.characters.lawful import Enrico
-
-cached_data_source = list()
+ENRICO_URL = "http://localhost:5151"
 
 layout = html.Div([
     html.Div([
@@ -39,10 +38,6 @@ layout = html.Div([
     html.Hr(),
     html.H3('Data Policy'),
     html.Div([
-        html.Div([
-            html.Div('Policy Encrypting Key (hex): ', className='two columns'),
-            dcc.Input(id='policy-enc-key', type='text', className='seven columns'),
-        ], className='row'),
         html.Button('Start Monitoring', id='generate-button', type='submit',
                     className="button button-primary", n_clicks_timestamp='0'),
         dcc.Interval(id='gen-heartbeat-update', interval=1000, n_intervals=0),
@@ -65,36 +60,19 @@ layout = html.Div([
     Output('cached-last-heartbeat', 'children'),
     [],
     [State('generate-button', 'n_clicks_timestamp'),
-     State('policy-enc-key', 'value'),
      State('cached-last-heartbeat', 'children')],
     [Event('gen-heartbeat-update', 'interval'),
      Event('generate-button', 'click')]
 )
-def generate_heartbeat_data(gen_time, policy_enc_key_hex, last_heart_rate):
+def generate_heartbeat_data(gen_time, last_heart_rate):
     if int(gen_time) == 0:
         # button has not been clicked as yet or interval triggered before click
         return None
-
-    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_enc_key_hex))
-    if not cached_data_source:
-        data_source = Enrico(policy_encrypting_key=policy_encrypting_key)
-        data_source_verifying_key = bytes(data_source.stamp)
-
-        data = {
-            'data_source_verifying_key': data_source_verifying_key,
-        }
-        with open(DATA_SOURCE_INFO_FILE, "wb") as file:
-            msgpack.dump(data, file, use_bin_type=True)
-
-        cached_data_source.append(data_source)
-    else:
-        data_source = cached_data_source[0]
 
     if last_heart_rate is not None:
         try:
             last_heart_rate = int(last_heart_rate)
         except ValueError:
-            # ignore
             last_heart_rate = 80
     else:
         last_heart_rate = 80
@@ -102,14 +80,28 @@ def generate_heartbeat_data(gen_time, policy_enc_key_hex, last_heart_rate):
     heart_rate = random.randint(max(60, last_heart_rate - 5),
                                 min(100, last_heart_rate + 5))
 
-    plaintext = msgpack.dumps(heart_rate, use_bin_type=True)
-    message_kit, _signature = data_source.encrypt_message(plaintext)
-    kit_bytes = message_kit.to_bytes()
+    heart_rate_bytes = bytes(str(heart_rate), encoding='utf-8')
+
+    # Use enrico character control to encrypt plaintext data using REST endpoint
+    request_data = {
+        'message': b64encode(heart_rate_bytes).decode()
+    }
+
+    response = requests.post(f'{ENRICO_URL}/encrypt_message', data=json.dumps(request_data))
+    if response.status_code != 200:
+        print(f'> WARNING: Problem encrypting plaintext message for heart rate {heart_rate} using enrico character '
+              f'control - it will be ignored; status code = {response.status_code}; response = {response.content}')
+        # just return previous successful added heart rate - ignore failed recent measurement
+        return f'> WARNING: Problem encrypting plaintext message for heart rate {heart_rate} using enrico character ' \
+               f'control - it will be ignored; status code = {response.status_code}'
+
+    response_data = json.loads(response.content)
+    message_kit = response_data['result']['message_kit']  # b64 str
 
     timestamp = time.time()
     df = pd.DataFrame.from_dict({
         'Timestamp': [timestamp],
-        'EncryptedData': [kit_bytes.hex()],
+        'EncryptedData': [message_kit],
     })
 
     # add new heartbeat data

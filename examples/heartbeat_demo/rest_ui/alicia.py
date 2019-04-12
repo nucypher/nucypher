@@ -1,68 +1,16 @@
-import datetime
-import json
+import dash_core_components as dcc
+from dash.dependencies import Output, Input, State, Event
+import dash_html_components as html
 import os
 
-import dash_core_components as dcc
-import dash_html_components as html
+from examples.heartbeat_demo.rest_ui.app import app, POLICY_INFO_FILE
+
+import datetime
 import maya
-from dash.dependencies import Output, Input, State, Event
-from twisted.logger import globalLogPublisher
-from umbral.keys import UmbralPublicKey
+import json
+import requests
 
-from examples.heartbeat_demo_ui.app import app, SEEDNODE_URL, POLICY_INFO_FILE, ALICIA_FOLDER
-from nucypher.characters.lawful import Bob, Ursula
-from nucypher.config.characters import AliceConfiguration
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.utilities.logging import SimpleObserver
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-######################
-# Boring setup stuff #
-######################
-#
-# # Twisted Logger
-globalLogPublisher.addObserver(SimpleObserver())
-#
-# # Temporary file storage
-TEMP_URSULA_CERTIFICATE_DIR = os.path.join(ALICIA_FOLDER, 'ursula-certs')
-
-#######################################
-# Alicia, the Authority of the Policy #
-#######################################
-
-passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
-# Remove previous demo files and create new ones
-os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
-
-network_middleware = None
-if 'TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT' in os.environ:
-    network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
-                                         federated_only=True,
-                                         network_middleware=network_middleware,
-                                         minimum_stake=0)
-
-network_middleware = None
-if 'TEST_HEARTBEAT_DEMO_UI_SEEDNODE_PORT' in os.environ:
-    network_middleware = MockRestMiddleware()  # use of federated_ursulas for unit tests
-alice_config = AliceConfiguration(
-    config_root=os.path.join(ALICIA_FOLDER, "config_root"),
-    is_me=True,
-    known_nodes={ursula},
-    start_learning_now=False,
-    federated_only=True,
-    network_middleware=network_middleware,
-    learn_on_same_thread=True,
-)
-alice_config.initialize(password=passphrase)
-alice_config.keyring.unlock(password=passphrase)
-alicia = alice_config.produce()
-
-# We will save Alicia's config to a file for later use
-alice_config_file = alice_config.to_configuration_file()
-
-# Let's get to learn about the NuCypher network
-alicia.start_learning_loop(now=True)
+ALICE_URL = "http://localhost:8151"
 
 
 layout = html.Div([
@@ -117,7 +65,7 @@ layout = html.Div([
         ], className='row'),
         html.Div([
             html.Div('Recipient Verifying Key (hex): ', className='two columns'),
-            dcc.Input(id='recipient-sig-key-grant', type='text', className='seven columns')
+            dcc.Input(id='recipient-sig-key-grant', type='text', className='seven columns'),
         ], className='row'),
         html.Div([
             html.Div('Recipient Encrypting Key (hex): ', className='two columns'),
@@ -130,7 +78,7 @@ layout = html.Div([
         ], className='row'),
         html.Br(),
         html.Div([
-            html.Div('Revoke Recipient Encrypting Key (hex): ', className='two columns'),
+            html.Div('Revoke Recipient Encrypting Key: ', className='two columns'),
             dcc.Input(id='recipient-enc-key-revoke', type='text', className='seven columns'),
         ], className='row'),
         html.Div([
@@ -160,8 +108,17 @@ def create_policy_label():
 )
 def create_policy_key(policy_label):
     if policy_label is not None:
-        policy_encrypting_key = alicia.get_policy_pubkey_from_label(policy_label.encode())
-        return policy_encrypting_key.to_bytes().hex()
+
+        # Obtain policy public key based on label from alicia character control REST endpoint
+        response = requests.post(f'{ALICE_URL}/derive_policy_encrypting_key/{policy_label}')
+
+        if response.status_code != 200:
+            print(f'> ERROR: Problem obtaining policy public key; status code = {response.status_code}; '
+                  f'response = {response.content}')
+            return f'> ERROR: Problem obtaining policy public key; status code = {response.status_code}'
+
+        response_data = json.loads(response.content)
+        return response_data['result']['policy_encrypting_key']
 
     return ''
 
@@ -175,12 +132,12 @@ def create_policy_key(policy_label):
      State('days', 'value'),
      State('m-value', 'value'),
      State('n-value', 'value'),
-     State('recipient-enc-key-grant', 'value'),
-     State('recipient-sig-key-grant', 'value')],
+     State('recipient-sig-key-grant', 'value'),
+     State('recipient-enc-key-grant', 'value')],
     [Event('grant-button', 'click'),
      Event('revoke-button', 'click')]
 )
-def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_enc_key_hex, recipient_sig_key_hex):
+def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_sig_key_hex, recipient_enc_key_hex):
     if policy_label is None:
         # policy not yet created so can't grant access
         return ''
@@ -188,41 +145,43 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_en
         # either triggered at start or because revoke was executed
         return ''
 
-    # Alicia now wants to share data associated with this label.
-    # To do so, she needs the public key of the recipient.
-    enc_key = UmbralPublicKey.from_bytes(bytes.fromhex(recipient_enc_key_hex))
-    sig_key = UmbralPublicKey.from_bytes(bytes.fromhex(recipient_sig_key_hex))
-
-    powers_and_material = {
-        DecryptingPower: enc_key,
-        SigningPower: sig_key
-    }
-
-    # We create a view of the Bob who's going to be granted access.
-    bob = Bob.from_public_keys(powers_and_material=powers_and_material,
-                               federated_only=True)
-
-    # Here are our remaining Policy details, such as:
-    # - Policy duration
+    # expiration time of policy
     policy_end_datetime = maya.now() + datetime.timedelta(days=int(days))
 
     # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
     #               she requires Bob to seek collaboration of at least 3 Ursulas
+    request_data = {
+        'bob_encrypting_key': recipient_enc_key_hex,
+        'bob_verifying_key': recipient_sig_key_hex,
+        'm': int(m),
+        'n': int(n),
+        'label': policy_label,
+        'expiration': policy_end_datetime.iso8601(),
+    }
+
     # With this information, Alicia creates a policy granting access to Bob.
-    # The policy is sent to the NuCypher network.
+    # The policy is sent to the NuCypher network via the character control REST endpoint for alicia
     print(f'Creating access to policy {policy_label} for the Bob with public key {recipient_enc_key_hex}...')
-    policy = alicia.grant(bob=bob,
-                          label=policy_label.encode(),
-                          m=int(m),
-                          n=int(n),
-                          expiration=policy_end_datetime)
+
+    response = requests.put(f'{ALICE_URL}/grant', data=json.dumps(request_data))
+
+    if response.status_code != 200:
+        print(f'> ERROR: Problem granting access to recipient with public key {recipient_enc_key_hex} '
+              f'for policy {policy_label} ; status code = {response.status_code}; response = {response.content}')
+        return f'> ERROR: Problem granting access to recipient with public key {recipient_enc_key_hex} for ' \
+               f'policy {policy_label} ; status code = {response.status_code};'
+
     print("Done!")
+
+    response_data = json.loads(response.content)
+    alice_verifying_key = response_data['result']['alice_verifying_key']
+    policy_enc_key = response_data['result']['policy_encrypting_key']
 
     # For the demo, we need a way to share with Bob some additional info
     # about the policy, so we store it in a JSON file
     policy_info = {
-        "policy_encrypting_key": policy.public_key.to_bytes().hex(),
-        "alice_verifying_key": bytes(alicia.stamp).hex(),
+        "policy_encrypting_key": policy_enc_key,
+        "alice_verifying_key": alice_verifying_key,
         "label": policy_label,
     }
 
@@ -230,9 +189,9 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_en
     with open(POLICY_INFO_FILE.format(recipient_enc_key_hex), 'w') as f:
         json.dump(policy_info, f)
 
-    granted_policies[recipient_enc_key_hex] = policy
+    granted_policies[recipient_enc_key_hex] = policy_label
 
-    return f'Access to policy {policy_label} granted to recipient with encrypting key: {recipient_enc_key_hex}!'
+    return f'Access to policy {policy_label} granted to recipient with encryption public key: {recipient_enc_key_hex}!'
 
 
 @app.callback(
@@ -243,22 +202,25 @@ def grant_access(revoke_time, grant_time, policy_label, days, m, n, recipient_en
     [Event('revoke-button', 'click'),
      Event('grant-button', 'click')]
 )
-def revoke_access(grant_time, revoke_time, recipient_enc_key_hex):
+def revoke_access(grant_time, revoke_time, recipient_pubkey_hex):
     if int(grant_time) >= int(revoke_time):
         # either triggered at start or because grant was executed
         return ''
 
-    policy = granted_policies.pop(recipient_enc_key_hex, None)
-    if policy is None:
-        return f'Policy has not been previously granted for recipient with public key {recipient_enc_key_hex}'
+    return f'Access revoked to recipient with public key {recipient_pubkey_hex}! - Not implemented as yet'
 
-    print("Revoking access to recipient", recipient_enc_key_hex)
-    try:
-        failed_revocations = alicia.revoke(policy=policy)
-        if failed_revocations:
-            return f'WARNING: Access revoked to recipient with public key {recipient_enc_key_hex} ' \
-                   f'- but {len(failed_revocations)} nodes failed to revoke'
-
-        return f'Access revoked to recipient with public key {recipient_enc_key_hex}!'
-    finally:
-        os.remove(POLICY_INFO_FILE.format(recipient_enc_key_hex))
+    # TODO: revocation is not yet available via the character control; below is how it would be done with the python API
+    # policy = granted_policies.pop(recipient_pubkey_hex, None)
+    # if policy is None:
+    #     return 'Policy has not been previously granted for recipient with public key {}'.format(recipient_pubkey_hex)
+    #
+    # print("Revoking access to recipient", recipient_pubkey_hex)
+    # try:
+    #     failed_revocations = alicia.revoke(policy=policy)
+    #     if failed_revocations:
+    #         return 'WARNING: Access revoked to recipient with public key {} - but {} nodes failed to revoke'\
+    #             .format(recipient_pubkey_hex, len(failed_revocations))
+    #
+    #     return 'Access revoked to recipient with public key {}!'.format(recipient_pubkey_hex)
+    # finally:
+    #     os.remove(POLICY_INFO_FILE.format(recipient_pubkey_hex))

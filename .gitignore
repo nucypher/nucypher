@@ -23,10 +23,10 @@ chains
 .ethash
 nucypher_cli/examples/examples-runtime-cruft/*
 nucypher_cli/examples/finnegans-wake.txt
-examples/heartbeat_demo/*.json
-examples/heartbeat_demo/*.msgpack
-examples/heartbeat_demo/doctor-files/
-examples/heartbeat_demo/alicia-files/
+examples/heartbeat_demo/cli/*.json
+examples/heartbeat_demo/cli/*.msgpack
+examples/heartbeat_demo/cli/doctor-files/
+examples/heartbeat_demo/cli/alicia-files/
 mypy_reports/
 reports/
 test-*
@@ -37,10 +37,5 @@ variables*.yml
 *ansible/inventory/*
 .env
 /tests/metrics/results/
-/tests/examples/data
-/tests/examples/shared
-/tests/examples/keys
-/tests/examples/bob-files
-/tests/examples/alicia-files
 /docs/build
 .python-version

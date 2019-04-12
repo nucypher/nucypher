@@ -12,7 +12,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from umbral.keys import UmbralPublicKey
 
-from examples.heartbeat_rest_ui.app import POLICY_INFO_FILE
+from examples.heartbeat_demo.rest_ui.app import POLICY_INFO_FILE
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
@@ -48,12 +48,12 @@ def enrico_control_test_client(capsule_side_channel):
 
 @pytest.fixture(scope='module')
 def dash_app():
-    dash_app = import_app('examples.heartbeat_rest_ui.char_control_heartbeat', application_name='app')
+    dash_app = import_app('examples.heartbeat_demo.rest_ui.char_control_heartbeat', application_name='app')
     yield dash_app
 
     # cleanup
     del dash_app
-    from examples.heartbeat_rest_ui.app import cleanup
+    from examples.heartbeat_demo.rest_ui.app import cleanup
     cleanup()
 
 

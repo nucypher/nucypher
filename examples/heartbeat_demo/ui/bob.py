@@ -18,7 +18,7 @@ from plotly.graph_objs.scatter import *
 from umbral.keys import UmbralPublicKey
 
 from examples.utilities.demo_keys import DemoKeyGenerator, ENCRYPTING_KEY, VERIFYING_KEY
-from examples.heartbeat_demo_ui.app \
+from examples.heartbeat_demo.ui.app \
     import app, DB_FILE, DB_NAME, SEEDNODE_URL, POLICY_INFO_FILE, DATA_SOURCE_INFO_FILE, BOB_FOLDER, KEYS_FOLDER
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
