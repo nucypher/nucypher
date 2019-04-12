@@ -460,47 +460,62 @@ class Miner(NucypherTokenActor):
 
         """
 
+        # Validate function input
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        stake = self.__stakes[stake_index]
+        # Re-read stakes from blockchain and select stake to divide
+        self.__read_stakes()
+        current_stake = self.stakes[stake_index]
 
+        # Ensure selected stake is active
+        if current_stake.is_expired:
+            raise self.MinerError(f'Cannot dive an expired stake')
+
+        # Validate stake division parameters
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - stake.end_period
+            additional_periods = datetime_to_period(datetime=expiration) - current_stake.end_period
             if additional_periods <= 0:
                 raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
-        if target_value >= stake.value:
+        if target_value >= current_stake.value:
             raise self.MinerError(f"Cannot divide stake; Value ({target_value}) must be less "
-                                  f"than the existing stake value {stake.value}.")
+                                  f"than the existing stake value {current_stake.value}.")
 
-        current_stake = self.stakes[stake_index]
+        #
+        # Generate Stakes
+        #
 
+        # Modified Original Stake
         new_stake_1 = Stake(owner_address=self.checksum_public_address,
                             index=len(self.stakes)+1,
                             start_period=current_stake.start_period,
-                            end_period=current_stake.end_period + additional_periods,
+                            end_period=current_stake.end_period,
                             value=target_value,
                             economics=self.economics)
 
+        # New Derived Stake
         new_stake_2 = Stake(owner_address=self.checksum_public_address,
                             index=len(self.stakes)+1,
                             start_period=current_stake.start_period,
                             end_period=current_stake.end_period + additional_periods,
-                            value=stake.value - target_value,
+                            value=current_stake.value - target_value,
                             economics=self.economics)
 
         # Ensure both halves are for valid amounts
         new_stake_1.validate_value()
         new_stake_2.validate_value()
 
+        # Transmit the stake division transaction
         tx = self.miner_agent.divide_stake(miner_address=self.checksum_public_address,
                                            stake_index=stake_index,
                                            target_value=int(target_value),
                                            periods=additional_periods)
-
         self.blockchain.wait_for_receipt(tx)
-        self.__read_stakes()  # update local on-chain stake cache
+
+        # Update stake cache
+        self.__read_stakes()
+
         return tx
 
     @only_me
@@ -545,8 +560,7 @@ class Miner(NucypherTokenActor):
 
         current_period = self.miner_agent.get_current_period()
         stake = Stake(owner_address=self.checksum_public_address,
-                      index=len(self.stakes)+1,
-                      start_period=current_period,
+                      start_period=current_period+1,
                       end_period=current_period + lock_periods,
                       value=amount,
                       economics=self.economics)

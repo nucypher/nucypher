@@ -136,10 +136,10 @@ class Stake:
 
     def __init__(self,
                  owner_address: str,
-                 index: int,
                  value: NU,
                  start_period: int,
                  end_period: int,
+                 index: int = None,
                  economics: TokenEconomics = None,
                  validate_now: bool = True):
 
@@ -172,6 +172,22 @@ class Stake:
 
     def __eq__(self, other) -> bool:
         return bool(self.value == other.value)
+
+    @property
+    def is_active(self):
+        now = maya.now()
+        if now >= self.end_datetime:
+            return False
+        else:
+            return True
+
+    @property
+    def is_expired(self):
+        now = maya.now()
+        if now >= self.end_datetime:
+            return True
+        else:
+            return False
 
     @classmethod
     def from_stake_info(cls,
