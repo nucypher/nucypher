@@ -2,11 +2,8 @@ import dash
 import os
 import shutil
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
 app = dash.Dash("NuCypher Heartbeat Data Sharing Application",
-                external_stylesheets=external_stylesheets,
-                assets_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'),
+                assets_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets'),
                 suppress_callback_exceptions=True)
 server = app.server
 app.title = "NuCypher Heartbeat Demo"
