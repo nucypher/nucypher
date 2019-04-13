@@ -25,7 +25,6 @@ from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Deployer
@@ -36,8 +35,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.constants import CONTRACT_ROOT
-from nucypher.utilities.sandbox.constants import (TESTING_ETH_AIRDROP_AMOUNT,
-                                                  INSECURE_DEVELOPMENT_PASSWORD)
+from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
@@ -115,14 +113,9 @@ class TesterBlockchain(Blockchain):
         Generate additional unlocked accounts transferring a balance to each account on creation.
         """
         addresses = list()
-        insecure_password = INSECURE_DEVELOPMENT_PASSWORD
         for _ in range(quantity):
-
-            umbral_priv_key = UmbralPrivateKey.gen_key()
-            address = self.interface.w3.geth.personal.importRawKey(umbral_priv_key.to_bytes(),
-                                                                   insecure_password)
-
-            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
+            privkey = '0x' + os.urandom(32).hex()
+            address = self.interface.provider.ethereum_tester.add_account(privkey)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
