@@ -239,7 +239,6 @@ class BlockchainInterface:
                                                    num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
                 elif uri_breakdown.netloc == 'geth':
                     # Hardcoded gethdev IPC provider
                     provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
@@ -394,7 +393,7 @@ class BlockchainInterface:
     def unlock_account(self, address, password, duration):
         if 'tester' in self.provider_uri:
             return True  # Test accounts are unlocked by default.
-        return self.w3.personal.unlockAccount(address, password, duration)
+        return self.w3.geth.personal.unlockAccount(address, password, duration)
 
 
 class BlockchainDeployerInterface(BlockchainInterface):

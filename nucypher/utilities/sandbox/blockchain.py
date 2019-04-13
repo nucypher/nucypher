@@ -119,8 +119,8 @@ class TesterBlockchain(Blockchain):
         for _ in range(quantity):
 
             umbral_priv_key = UmbralPrivateKey.gen_key()
-            address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
-                                                              passphrase=insecure_password)
+            address = self.interface.w3.geth.personal.importRawKey(umbral_priv_key.to_bytes(),
+                                                                   insecure_password)
 
             assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
             addresses.append(address)
