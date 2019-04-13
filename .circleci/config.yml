@@ -339,7 +339,7 @@ jobs:
       - prepare_environment
       - run:
           name: Blockchain Interface Tests
-          command: pipenv run pytest tests/blockchain/eth/interfaces --cov=nucypher --cov-report xml:reports/coverage.xml
+          command: pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/interfaces/*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   agents:
@@ -384,8 +384,6 @@ jobs:
           name: Ethereum Contract Unit Tests
           command: |
             pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
-      - store_test_results:
-          path: reports
       - capture_test_results
 
   config:
@@ -479,9 +477,8 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pipenv run pytest tests/cli --cov=nucypher --cov-report xml:reports/coverage.xml
-      - store_test_results:  # pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
-          path: reports
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
+      - capture_test_results
 
   mypy:
     <<: *python_36_base
