@@ -383,7 +383,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob tests/blockchain/eth/contracts/**/test_*.py | circleci tests split --split-by=timings)
       - capture_test_results
 
   config:
