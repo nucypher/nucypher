@@ -16,18 +16,21 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
 
 import datetime
 import maya
+import os
 import pytest
+import time
 
+from twisted.internet import task
 from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.keystore.keystore import NotFound
 from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -137,6 +140,37 @@ def test_revocation(federated_alice, federated_bob):
     # Try to revoke the already revoked policy
     already_revoked = federated_alice.revoke(policy)
     assert len(already_revoked) == 3
+
+
+def test_arrangement_auto_expiration(federated_alice, federated_ursulas, federated_bob):
+    test_clock = task.Clock()
+
+    m, n = 2, 3
+    policy_end_datetime = maya.now() + datetime.timedelta(seconds=1)
+    label = b'arrangement auto-expiration test'
+
+    policy = federated_alice.grant(federated_bob, label, m=m, n=n,
+                                   expiration=policy_end_datetime)
+
+    breakpoint()
+
+    # Test that arrangement exists
+    for kfrag in policy.kfrags:
+        arrangement = policy._enacted_arrangements[kfrag]
+        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(
+                arrangement.id.hex().encode())
+        assert retrieved_policy.kfrag == kfrag
+
+    # Advance task clock to expire arrangement and sleep to advance
+    # computer clock.
+    test_clock.advance(61)
+    time.sleep(2)
+
+    for kfrag in policy.kfrags:
+        arrangement = policy._enacted_arrangements[kfrag]
+        with pytest.raises(NotFound):
+            arrangement.ursula.datastore.get_policy_arrangement(
+                    arrangement.id.hex().encode())
 
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):

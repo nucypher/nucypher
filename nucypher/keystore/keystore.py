@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from bytestring_splitter import BytestringSplitter
+from datetime import datetime
 from sqlalchemy.orm import sessionmaker
 from typing import Union
 from umbral.kfrags import KFrag
@@ -51,6 +52,20 @@ class KeyStore(object):
         # This will probably be on the reactor thread for most production configs.
         # Best to treat like hot lava.
         self._session_on_init_thread = Session()
+
+    def delete_expired_arrangements(self, session=None):
+        """
+        Queries the keystore and deletes expired arrangements.
+        """
+        session = session or self._session_on_init_thread
+        from datetime import timedelta
+        curr_datetime = datetime.utcnow()
+        curr_datetime += timedelta(days=1)
+
+        import pudb; pudb.set_trace()
+        session.query(PolicyArrangement).filter(
+            PolicyArrangement.expiration <= curr_datetime).delete()
+        session.commit()
 
     def add_key(self, key, is_signing=True, session=None) -> Key:
         """

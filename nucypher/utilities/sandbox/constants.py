@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import os
 import socket
+import tempfile
 import time
 from datetime import datetime
 from random import SystemRandom
@@ -116,6 +117,7 @@ MOCK_IP_ADDRESS = '0.0.0.0'
 
 MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
-MOCK_URSULA_DB_FILEPATH = ':memory:'
+MOCK_URSULA_DB_FILEPATH = tempfile.mkstemp()[1]
+#MOCK_URSULA_DB_FILEPATH = ':memory:'
 
 PYEVM_GAS_LIMIT = 6500000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
