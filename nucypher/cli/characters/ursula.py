@@ -364,13 +364,13 @@ def ursula(click_config,
 
                 click.confirm("Is this correct?", abort=True)
 
-            txhash_bytes = URSULA.divide_stake(stake_index=index,
-                                               target_value=value,
-                                               additional_periods=extension)
+            modified_stake, new_stake = URSULA.divide_stake(stake_index=index,
+                                                            target_value=value,
+                                                            additional_periods=extension)
 
             if not quiet:
                 click.secho('Successfully divided stake', fg='green')
-                click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}')
+                click.secho(f'Transaction Hash ........... {new_stake.receipt}')
 
             # Show the resulting stake list
             painting.paint_stakes(stakes=URSULA.stakes)
@@ -421,8 +421,8 @@ def ursula(click_config,
         if not force:
             click.confirm("Publish staged stake to the blockchain?", abort=True)
 
-        staking_transactions = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
-        painting.paint_staking_confirmation(ursula=URSULA, transactions=staking_transactions)
+        stake = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
+        painting.paint_staking_confirmation(ursula=URSULA, transactions=stake.transactions)
         return
 
     elif action == 'confirm-activity':

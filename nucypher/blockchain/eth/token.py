@@ -1,13 +1,12 @@
 from _pydecimal import Decimal
-
-import eth_utils
-import maya
-from eth_utils import currency
-from nacl.hash import sha256
 from typing import Union, Tuple
 
-from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+import maya
+from constant_sorrow.constants import NEW_STAKE, NO_STAKING_RECEIPT
+from eth_utils import currency
+from twisted.logger import Logger
+
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.utils import datetime_at_period, datetime_to_period
 
 
@@ -132,16 +131,22 @@ class Stake:
     A quantity of tokens and staking duration for one stake for one miner.
     """
 
+    class StakingError(Exception):
+        """Raised when a staking operation cannot be executed due to failure."""
+
     __ID_LENGTH = 16
 
     def __init__(self,
-                 owner_address: str,
+                 miner,
                  value: NU,
                  start_period: int,
                  end_period: int,
-                 index: int = None,
-                 economics: TokenEconomics = None,
+                 index: int,
                  validate_now: bool = True):
+
+        self.miner = miner
+        owner_address = miner.checksum_public_address
+        self.log = Logger(f'stake-{owner_address}-{index}')
 
         # Stake Metadata
         self.owner_address = owner_address
@@ -156,15 +161,22 @@ class Stake:
         self.end_datetime = datetime_at_period(period=end_period)
         self.duration_delta = self.end_datetime - self.start_datetime
 
+        self.blockchain = miner.blockchain
+
+        # Agency
+        self.miner_agent = miner.miner_agent
+        self.token_agent = miner.token_agent
+
         # Economics
-        if not economics:
-            economics = TokenEconomics()
-        self.economics = economics
-        self.minimum_nu = NU(int(economics.minimum_allowed_locked), 'NuNit')
-        self.maximum_nu = NU(int(economics.maximum_allowed_locked), 'NuNit')
+        self.economics = miner.economics
+        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), 'NuNit')
+        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), 'NuNit')
 
         if validate_now:
             self.validate_duration()
+
+        self.transactions = NO_STAKING_RECEIPT
+        self.receipt = NO_STAKING_RECEIPT
 
     def __repr__(self) -> str:
         r = f'Stake(index={self.index}, value={self.value}, end_period={self.end_period})'
@@ -173,55 +185,46 @@ class Stake:
     def __eq__(self, other) -> bool:
         return bool(self.value == other.value)
 
-    @property
-    def is_active(self):
-        now = maya.now()
-        if now >= self.end_datetime:
-            return False
-        else:
-            return True
+    #
+    # Metadata
+    #
 
     @property
-    def is_expired(self):
-        now = maya.now()
-        if now >= self.end_datetime:
+    def is_expired(self) -> bool:
+        current_period = self.miner_agent.get_current_period()
+        if current_period >= self.end_period:
             return True
         else:
             return False
+
+    @property
+    def is_active(self) -> bool:
+        return not self.is_expired
 
     @classmethod
     def from_stake_info(cls,
-                        owner_address: str,
+                        miner,
                         index: int,
-                        stake_info: Tuple[int, int, int],
-                        economics: TokenEconomics) -> 'Stake':
+                        stake_info: Tuple[int, int, int]
+                        ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
         start_period, end_period, value = stake_info
-        instance = cls(owner_address=owner_address,
+
+        instance = cls(miner=miner,
                        index=index,
                        start_period=start_period,
                        end_period=end_period,
-                       value=NU(value, 'NuNit'),
-                       economics=economics)
+                       value=NU(value, 'NuNit'))
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:
         """Returns a tuple representing the blockchain record of a stake"""
         return self.start_period, self.end_period, int(self.value)
 
-    @property
-    def id(self) -> str:
-        """TODO: Unique staking ID, currently unused"""
-        digest_elements = list()
-        digest_elements.append(eth_utils.to_canonical_address(address=self.owner_address))
-        digest_elements.append(str(self.index).encode())
-        digest_elements.append(str(self.start_period).encode())
-        digest_elements.append(str(self.end_period).encode())
-        digest_elements.append(str(self.value).encode())
-        digest = b'|'.join(digest_elements)
-        stake_id = sha256(digest).hex()[:16]  # type: str
-        return stake_id[:self.__ID_LENGTH]
+    #
+    # Duration
+    #
 
     @property
     def periods_remaining(self) -> int:
@@ -239,6 +242,10 @@ class Stake:
         else:
             result = delta.seconds
         return result
+
+    #
+    # Validation
+    #
 
     @staticmethod
     def __handle_validation_failure(rulebook: Tuple[Tuple[bool, str], ...]) -> bool:
@@ -275,14 +282,134 @@ class Stake:
         rulebook = (
 
             (self.economics.minimum_locked_periods <= self.duration,
-             'Locktime ({duration}) too short; must be at least {minimum}'
+             'Stake duration of ({duration}) is too short; must be at least {minimum} periods.'
              .format(minimum=self.economics.minimum_locked_periods, duration=self.duration)),
 
             (self.economics.maximum_locked_periods >= self.duration,
-             'Locktime ({duration}) too long; must be no more than {maximum}'
+             'Stake duration of ({duration}) is too long; must be no more than {maximum} periods.'
              .format(maximum=self.economics.maximum_locked_periods, duration=self.duration)),
         )
 
         if raise_on_fail is True:
             self.__handle_validation_failure(rulebook=rulebook)
         return all(rulebook)
+
+    #
+    # Blockchain
+    #
+
+    @classmethod
+    def __deposit(cls, miner, amount: int, lock_periods: int) -> Tuple[str, str]:
+        """Public facing method for token locking."""
+
+        approve_txhash = miner.token_agent.approve_transfer(amount=amount,
+                                                            target_address=miner.miner_agent.contract_address,
+                                                            sender_address=miner.checksum_public_address)
+
+        deposit_txhash = miner.miner_agent.deposit_tokens(amount=amount,
+                                                          lock_periods=lock_periods,
+                                                          sender_address=miner.checksum_public_address)
+
+        return approve_txhash, deposit_txhash
+
+    def divide(self, target_value: NU, additional_periods: int = None) -> tuple:
+        """
+        Modifies the unlocking schedule and value of already locked tokens.
+
+        This actor requires that is_me is True, and that the expiration datetime is after the existing
+        locking schedule of this miner, or an exception will be raised.
+       """
+
+        # Re-read stakes from blockchain and select stake to divide
+        current_stake = self
+
+        # Ensure selected stake is active
+        if current_stake.is_expired:
+            raise self.StakingError(f'Cannot divide an expired stake')
+
+        if target_value >= current_stake.value:
+            raise self.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
+                                    f"than the existing stake value {current_stake.value}.")
+
+        #
+        # Generate SubStakes
+        #
+
+        # Modified Original Stake
+        modified_stake = Stake(miner=self.miner,
+                               index=self.index,
+                               start_period=current_stake.start_period,
+                               end_period=current_stake.end_period,
+                               value=target_value)
+
+        # New Derived Stake
+        end_period = current_stake.end_period + additional_periods
+        new_stake = Stake(miner=self.miner,
+                          start_period=current_stake.start_period,
+                          end_period=end_period,
+                          value=current_stake.value - target_value,
+                          index=NEW_STAKE)
+
+        #
+        # Validate
+        #
+
+        # Ensure both halves are for valid amounts
+        modified_stake.validate_value()
+        new_stake.validate_value()
+
+        # Detect recycled or inconsistent slot then check start period or fail
+        stake_info = self.miner_agent.get_stake_info(miner_address=self.owner_address, stake_index=self.index)
+        first_period, last_period, locked_value = stake_info
+        if not modified_stake.start_period == first_period:
+            raise self.StakingError("Inconsistent staking cache, aborting stake division. ")
+
+        #
+        # Transact
+        #
+
+        # Transmit the stake division transaction
+        tx = self.miner_agent.divide_stake(miner_address=self.owner_address,
+                                           stake_index=self.index,
+                                           target_value=int(target_value),
+                                           periods=additional_periods)
+        receipt = self.blockchain.wait_for_receipt(tx)
+        new_stake.receipt = receipt
+
+        return modified_stake, new_stake
+
+    @classmethod
+    def initialize_stake(cls, miner, amount: NU, lock_periods: int = None) -> 'Stake':
+
+        # Value
+        amount = NU(int(amount), 'NuNit')
+
+        # Duration
+        current_period = miner.miner_agent.get_current_period()
+        end_period = current_period + lock_periods
+
+        stake = Stake(miner=miner,
+                      start_period=current_period+1,
+                      end_period=end_period,
+                      value=amount,
+                      index=NEW_STAKE)
+
+        # Validate
+        stake.validate_value()
+        stake.validate_duration()
+
+        # Transact
+        approve_txhash, initial_deposit_txhash = stake.__deposit(amount=int(amount),
+                                                                 lock_periods=lock_periods,
+                                                                 miner=miner)
+
+        # Store the staking transactions on the instance
+        staking_transactions = dict(approve=approve_txhash, deposit=initial_deposit_txhash)
+        stake.transactions = staking_transactions
+
+        # Log and return Stake instance
+        log = Logger(f'stake-{miner.checksum_public_address}-creation')
+        log.info("{} Initialized new stake: {} tokens for {} periods".format(miner.checksum_public_address,
+                                                                             amount,
+                                                                             lock_periods))
+        return stake

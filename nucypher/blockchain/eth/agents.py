@@ -174,6 +174,10 @@ class MinerAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(tx)
         return tx
 
+    def get_last_active_period(self, address: str) -> int:
+        period = self.contract.functions.getLastActivePeriod(address).call()
+        return int(period)
+
     def confirm_activity(self, node_address: str) -> str:
         """Miner rewarded for every confirmed period"""
 
@@ -496,4 +500,4 @@ class MiningAdjudicatorAgent(EthereumContractAgent):
         :param precomputed_data:
         :return:
         """
-        # TODO: #931 - Challenge Agent and Actor
+        # TODO: #931 - Challenge Agent and Actor - "Investigator"
