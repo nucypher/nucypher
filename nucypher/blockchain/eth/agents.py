@@ -139,19 +139,25 @@ class MinerAgent(EthereumContractAgent):
 
     def get_locked_tokens(self, miner_address: str, periods: int = 0) -> int:
         """
-        Returns the amount of tokens this miner has locked.
-
-        TODO: Validate input (periods not less then 0)
+        Returns the amount of tokens this miner has locked
+        for a given duration in periods measured from the current period forwards.
         """
+        if periods < 0:
+            raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
         return self.contract.functions.getLockedTokens(miner_address, periods).call()
 
     def owned_tokens(self, address: str) -> int:
         return self.contract.functions.minerInfo(address).call()[0]
 
-    def get_stake_info(self, miner_address: str, stake_index: int):
+    def get_stake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
         last_period = self.contract.functions.getLastPeriodOfSubStake(miner_address, stake_index).call()
         return first_period, last_period, locked_value
+
+    def get_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int, int]:
+        result = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
+        first_period, last_period, periods, locked = result
+        return first_period, last_period, periods, locked
 
     def get_all_stakes(self, miner_address: str):
         stakes_length = self.contract.functions.getSubStakesLength(miner_address).call()

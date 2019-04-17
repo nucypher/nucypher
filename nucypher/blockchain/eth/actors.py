@@ -21,8 +21,15 @@ from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
 
 import maya
-from constant_sorrow import constants
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_ADDRESS, EMPTY_STAKING_SLOT
+from constant_sorrow.constants import (
+    CONTRACT_NOT_DEPLOYED,
+    NO_DEPLOYER_ADDRESS,
+    EMPTY_STAKING_SLOT,
+    UNKNOWN_STAKES,
+    NOT_STAKING,
+    NO_STAKES,
+    STRANGER_MINER
+)
 from twisted.internet import task, reactor
 from twisted.logger import Logger
 
@@ -46,8 +53,7 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import (datetime_to_period,
-                                           calculate_period_duration)
+from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
 
 
 def only_me(func):
@@ -322,11 +328,17 @@ class Miner(NucypherTokenActor):
                  economics: TokenEconomics = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
         self.log = Logger("miner")
         self.is_me = is_me
+
         if not economics:
             economics = TokenEconomics()
         self.economics = economics
+
+        #
+        # Blockchain
+        #
 
         if is_me:
             self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
@@ -334,21 +346,26 @@ class Miner(NucypherTokenActor):
             # Staking Loop
             self.__current_period = None
             self._abort_on_staking_error = True
-            self._staking_task = task.LoopingCall(self._confirm_period)
+            self._staking_task = task.LoopingCall(self.heartbeat)
 
         else:
-            self.token_agent = constants.STRANGER_MINER
+            self.token_agent = STRANGER_MINER
 
         self.miner_agent = MinerAgent(blockchain=self.blockchain)
 
-        self.__stakes = constants.NO_STAKES
-        self.__start_time = constants.NO_STAKES
-        self.__uptime_period = constants.NO_STAKES
-        self.__terminal_period = constants.NO_STAKES
+        #
+        # Stakes
+        #
 
-        # Read on-chain stakes
-        self.__read_stakes()
-        if self.stakes and start_staking_loop:
+        self.__stakes = UNKNOWN_STAKES
+        self.__start_time = NOT_STAKING
+        self.__uptime_period = NOT_STAKING
+        self.__terminal_period = UNKNOWN_STAKES
+
+        self.__read_stakes()  # "load-in":  Read on-chain stakes
+
+        # Start the callbacks if there are active stakes
+        if (self.stakes is not NO_STAKES) and start_staking_loop:
             self.stake()
 
     #
@@ -363,7 +380,7 @@ class Miner(NucypherTokenActor):
         this function multiple time within the same period.
         """
         # Get the last stake end period of all stakes
-        terminal_period = max(stake.end_period for stake in self.stakes.values())
+        terminal_period = max(stake.end_period for stake in self.stakes)
 
         if confirm_now:
             self.confirm_activity()
@@ -390,9 +407,10 @@ class Miner(NucypherTokenActor):
         if self.__current_period != onchain_period:
 
             # Let's see how much time has passed
-            delta = self.__current_period - self.last_active_period
-            if delta > 1:
-                self.log.warn(f"{delta} Missed staking confirmation(s) detected")
+            # TODO: Follow-up actions for downtime
+            missed_periods = onchain_period - self.last_active_period
+            if missed_periods:
+                self.log.warn(f"MISSED CONFIRMATION - {missed_periods} missed staking confirmations detected!")
                 self.__read_stakes()  # Invalidate the stake cache
 
             # Check for stake expiration and exit
@@ -403,10 +421,18 @@ class Miner(NucypherTokenActor):
 
             # Write to Blockchain
             self.confirm_activity()
-            self.__current_period = period
+
+            # Update local period cache
+            self.__current_period = onchain_period
             self.log.info("Confirmed activity for period {}".format(self.__current_period))
 
-    @only_me
+    def heartbeat(self):
+        """Used with LoopingCall"""
+        try:
+            self._confirm_period()
+        except Exception:
+            raise
+
     def _crash_gracefully(self, failure=None):
         """
         A facility for crashing more gracefully in the event that an exception is unhandled in a different thread.
@@ -425,22 +451,21 @@ class Miner(NucypherTokenActor):
     @only_me
     def start_staking_loop(self, now=True) -> None:
         if self._staking_task.running:
-            return False
-        else:
-            d = self._staking_task.start(interval=self.__current_period_sample_rate, now=now)
-            d.addErrback(self.handle_staking_errors)
-            self.log.info(f"Starting Staking Loop NOW - running until period {self.__terminal_period}")
-            return d
+            return
+        d = self._staking_task.start(interval=self.__current_period_sample_rate, now=now)
+        d.addErrback(self.handle_staking_errors)
+        self.log.info(f"STARTED STAKING - Scheduled end period is currently {self.__terminal_period}")
 
     @property
     def is_staking(self) -> bool:
         """Checks if this Miner currently has active stakes / locked tokens."""
         return bool(self.locked_tokens > NU.ZERO())
 
-    @property
-    def locked_tokens(self) -> NU:
-        """Returns the amount of tokens this miner has locked."""
-        return NU(self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address), 'NU')
+    def locked_tokens(self, periods: int = 0) -> NU:
+        """Returns the amount of tokens this miner has locked for a given duration in periods."""
+        raw_value = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address, periods=periods)
+        value = NU(raw_value, 'NU')
+        return value
 
     @property
     def current_stake(self) -> NU:
@@ -449,7 +474,7 @@ class Miner(NucypherTokenActor):
         """
 
         if self.stakes:
-            return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NuNit')
+            return NU(sum(int(stake.value) for stake in self.stakes), 'NuNit')
         else:
             return NU.ZERO()
 
@@ -478,17 +503,14 @@ class Miner(NucypherTokenActor):
         if expiration:
             additional_periods = datetime_to_period(datetime=expiration) - current_stake.end_period
             if additional_periods <= 0:
-                raise Stake.StakingError("Expiration {} must be at least 1 period from now.".format(expiration))
-
-        # Check the new stake will not exceed the staking limit
-        if (self.total_staked + target_value) > self.economics.maximum_allowed_locked:
-            raise Stake.StakingError(f"Cannot divide stake - Maximum stake value exceeded with a target value of {target_value}.")
+                raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
+                                         f"current stake's end period ({current_stake.end_period}).")
 
         # Do it already!
         modified_stake, new_stake = current_stake.divide(target_value=target_value,
                                                          additional_periods=additional_periods)
 
-        # Update stake cache
+        # Update staking cache
         self.__read_stakes()
 
         return modified_stake, new_stake
@@ -522,43 +544,73 @@ class Miner(NucypherTokenActor):
         if not self.token_balance >= amount:
             raise self.MinerError(f"Insufficient token balance ({self.token_agent}) for new stake initialization of {amount}")
 
-        # Write to blockchain
-        stake = Stake.initialize_stake(miner=self, amount=amount, lock_periods=lock_periods)
+        # Ensure the new stake will not exceed the staking limit
+        if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
+            raise Stake.StakingError(f"Cannot divide stake - Maximum stake value exceeded with a target value of {amount}.")
 
-        # Update local on-chain stake cache
-        self.__read_stakes()
-        return stake
+        #
+        # Stake
+        #
+
+        # Write to blockchain
+        new_stake = Stake.initialize_stake(miner=self, amount=amount, lock_periods=lock_periods)
+        self.__read_stakes()  # Update local staking cache
+        return new_stake
 
     #
     # Staking Cache
     #
 
     def __read_stakes(self) -> None:
+        """Rewrite the local staking cache by reading on-chain stakes"""
 
+        existing_records = len(self.__stakes)
+
+        # Candidate replacement cache values
+        onchain_stakes, terminal_period = list(), 0
+
+        # Read from blockchain
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
 
-        stakes = dict()
-        terminal_period = 0
-        for index, stake_info in enumerate(stakes_reader):
+        for onchain_index, stake_info in enumerate(stakes_reader):
+
             if not stake_info:
-                stake = EMPTY_STAKING_SLOT
+                # This stake index is empty on-chain
+                onchain_stake = EMPTY_STAKING_SLOT
+
             else:
-                stake = Stake.from_stake_info(miner=self, stake_info=stake_info, index=index)
-                if stake.end_period > terminal_period:
-                    terminal_period = stake.end_period
+                # On-chain stake detected
+                onchain_stake = Stake.from_stake_info(miner=self,
+                                                      stake_info=stake_info,
+                                                      index=onchain_index)
 
-            stakes[index] = stake
+                # Search for the terminal period
+                if onchain_stake.end_period > terminal_period:
+                    terminal_period = onchain_stake.end_period
 
-        self.__terminal_period = terminal_period
-        self.__stakes = stakes
+            # Store the replacement stake
+            onchain_stakes.append(onchain_stake)
+
+        # Commit the new stake and terminal values to the cache
+        if not onchain_stakes:
+            self.__stakes = NO_STAKES.bool_value(False)
+        else:
+            self.__terminal_period = terminal_period
+            self.__stakes = onchain_stakes
+
+        # Record most recent cache update
+        self.__updated = maya.now()
+        new_records = existing_records - len(self.__stakes)
+        self.log.debug(f"Updated local staking cache ({new_records} new records).")
+
+    def refresh_staking_cache(self) -> None:
+        """Public staking cache invalidation method"""
+        return self.__read_stakes()
 
     @property
-    def stakes(self) -> Dict[str, Stake]:
-        """Return all cached stakes from the blockchain."""
+    def stakes(self) -> Dict[int, Stake]:
+        """Return all cached stake instances from the blockchain."""
         return self.__stakes
-
-    def refresh_staking_cache(self):
-        return self.__read_stakes()
 
     #
     # Reward and Collection

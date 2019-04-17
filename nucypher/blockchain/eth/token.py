@@ -6,7 +6,6 @@ from constant_sorrow.constants import NEW_STAKE, NO_STAKING_RECEIPT
 from eth_utils import currency
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.utils import datetime_at_period, datetime_to_period
 
 
@@ -154,7 +153,6 @@ class Stake:
         self.value = value
         self.start_period = start_period
         self.end_period = end_period
-        self.duration = (self.end_period-self.start_period) + 1
 
         # Time
         self.start_datetime = datetime_at_period(period=start_period)
@@ -225,6 +223,12 @@ class Stake:
     #
     # Duration
     #
+
+    @property
+    def duration(self) -> int:
+        """Return stake duration in periods"""
+        result = (self.end_period - self.start_period) + 1
+        return result
 
     @property
     def periods_remaining(self) -> int:
@@ -298,6 +302,22 @@ class Stake:
     # Blockchain
     #
 
+    def sync(self) -> None:
+        """Update this stakes attributes with on-chain values."""
+
+        # Read from blockchain
+        stake_info = self.miner_agent.get_stake_info(miner_address=self.owner_address,
+                                                     stake_index=self.index)  # < -- Read form blockchain
+
+        first_period, last_period, locked_value = stake_info
+        if not self.start_period == first_period:
+            # TODO: Provide an escape path or re-attempt in implementation
+            raise self.StakingError("Inconsistent staking cache, aborting stake division.")
+
+        # Mutate the instance with the on-chain values
+        self.end_period = last_period
+        self.value = NU.from_nunits(locked_value)
+
     @classmethod
     def __deposit(cls, miner, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
@@ -320,34 +340,35 @@ class Stake:
         locking schedule of this miner, or an exception will be raised.
        """
 
-        # Re-read stakes from blockchain and select stake to divide
-        current_stake = self
+        # Read on-chain stake
+        self.sync()
 
         # Ensure selected stake is active
-        if current_stake.is_expired:
-            raise self.StakingError(f'Cannot divide an expired stake')
+        if self.is_expired:
+            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.end_datetime}.')
 
-        if target_value >= current_stake.value:
+        if target_value >= self.value:
             raise self.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
-                                    f"than the existing stake value {current_stake.value}.")
+                                    f"than the existing stake value {self.value}.")
 
         #
         # Generate SubStakes
         #
 
         # Modified Original Stake
+        remaining_stake_value = self.value - target_value
         modified_stake = Stake(miner=self.miner,
                                index=self.index,
-                               start_period=current_stake.start_period,
-                               end_period=current_stake.end_period,
-                               value=target_value)
+                               start_period=self.start_period,
+                               end_period=self.end_period,
+                               value=remaining_stake_value)
 
         # New Derived Stake
-        end_period = current_stake.end_period + additional_periods
+        end_period = self.end_period + additional_periods
         new_stake = Stake(miner=self.miner,
-                          start_period=current_stake.start_period,
+                          start_period=self.start_period,
                           end_period=end_period,
-                          value=current_stake.value - target_value,
+                          value=target_value,
                           index=NEW_STAKE)
 
         #
@@ -358,14 +379,8 @@ class Stake:
         modified_stake.validate_value()
         new_stake.validate_value()
 
-        # Detect recycled or inconsistent slot then check start period or fail
-        stake_info = self.miner_agent.get_stake_info(miner_address=self.owner_address, stake_index=self.index)
-        first_period, last_period, locked_value = stake_info
-        if not modified_stake.start_period == first_period:
-            raise self.StakingError("Inconsistent staking cache, aborting stake division. ")
-
         #
-        # Transact
+        # Transmit
         #
 
         # Transmit the stake division transaction
