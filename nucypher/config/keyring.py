@@ -422,13 +422,6 @@ class NucypherKeyring:
 
         return __key_filepaths
 
-    def _export_wallet_to_node(self, blockchain, password):  # TODO: Deprecate with geth.parity signing EIPs
-        """Decrypt the wallet with a password, then import the key to the nodes's keyring over RPC"""
-        with open(self.__wallet_path, 'rb') as wallet:
-            data = wallet.read().decode(FILE_ENCODING)
-            account = Account.decrypt(keyfile_json=data, password=password)
-            blockchain.interface.w3.personal.importRawKey(private_key=account, password=password)
-
     @unlock_required
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""

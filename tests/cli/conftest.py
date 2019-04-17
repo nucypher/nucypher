@@ -97,9 +97,7 @@ def custom_filepath_2():
 @pytest.fixture(scope='session')
 def deployed_blockchain():
 
-    #
     # Interface
-    #
     compiler = SolidityCompiler()
     registry = InMemoryEthereumContractRegistry()
     allocation_registry = InMemoryAllocationRegistry()
@@ -107,20 +105,13 @@ def deployed_blockchain():
                                             registry=registry,
                                             provider_uri=TEST_PROVIDER_URI)
 
-    #
     # Blockchain
-    #
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=5, poa=True)
-    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
-    origin, *everyone = blockchain.interface.w3.eth.accounts
+    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=5, poa=True)
+    deployer_address = blockchain.etherbase_account
 
-    #
-    # Delpoyer
-    #
+    # Deployer
     deployer = Deployer(blockchain=blockchain,
-                        deployer_address=origin)
-
-    deployer_address, *all_yall = deployer.blockchain.interface.w3.eth.accounts
+                        deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
     deployer.deploy_network_contracts(miner_secret=os.urandom(32),
@@ -130,6 +121,7 @@ def deployed_blockchain():
     deployer.deploy_escrow_proxy(secret=os.urandom(32))
 
     # Start with some hard-coded cases...
+    all_yall = blockchain.unassigned_accounts
     allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS}]
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)

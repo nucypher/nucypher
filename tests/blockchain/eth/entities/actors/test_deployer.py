@@ -39,14 +39,11 @@ def test_rapid_deployment():
     interface = BlockchainDeployerInterface(compiler=compiler,
                                             registry=registry,
                                             provider_uri='tester://pyevm')
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=4)
-    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
-    origin, *everyone = blockchain.interface.w3.eth.accounts
+    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=4)
+    deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain,
-                        deployer_address=origin)
-
-    deployer_address, *all_yall = deployer.blockchain.interface.w3.eth.accounts
+                        deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
     deployer.deploy_network_contracts(miner_secret=os.urandom(32),
@@ -58,6 +55,7 @@ def test_rapid_deployment():
     # Deploy User Escrow
     total_allocations = 100
 
+    all_yall = blockchain.unassigned_accounts
     # Start with some hard-coded cases...
     allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS},
                        {'address': all_yall[2], 'amount': MIN_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS*2},

@@ -149,12 +149,10 @@ def alice_federated_test_config(federated_ursulas):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
                                 provider_uri="tester://pyevm",
-                                checksum_public_address=alice_address,
+                                checksum_public_address=token_agent.blockchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
@@ -181,11 +179,9 @@ def bob_federated_test_config():
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
     config = BobConfiguration(dev_mode=True,
                               provider_uri="tester://pyevm",
-                              checksum_public_address=bob_address,
+                              checksum_public_address=token_agent.blockchain.bob_account,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -314,10 +310,10 @@ def federated_ursulas(ursula_federated_test_config):
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas
 
-#
-# Blokchain
-#
 
+#
+# Blockchain
+#
 
 
 @pytest.fixture(scope='session')
@@ -341,13 +337,9 @@ def testerchain(solidity_compiler):
                                                      provider_uri='tester://pyevm')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface,
-                                   test_accounts=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                   airdrop=False)
+    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
 
-    origin, *everyone = testerchain.interface.w3.eth.accounts
-    deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
-    testerchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
+    deployer_interface.deployer_address = testerchain.etherbase_account  # Set the deployer address from a freshly created test account
 
     yield testerchain
     testerchain.sever_connection()
@@ -362,7 +354,7 @@ def three_agents(testerchain):
     """
 
     """Launch all Nucypher ethereum contracts"""
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
@@ -394,17 +386,15 @@ def three_agents(testerchain):
 @pytest.fixture(scope="module")
 def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
+    blockchain = token_agent.blockchain
 
-    ursula_addresses = all_yall[:NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
-
-    token_airdrop(origin=etherbase,
-                  addresses=ursula_addresses,
+    token_airdrop(origin=blockchain.etherbase_account,
+                  addresses=blockchain.ursulas_accounts,
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     # Leave out the last Ursula for manual stake testing
-    *all_but_the_last_ursula, the_last_ursula = ursula_addresses
+    *all_but_the_last_ursula, the_last_ursula = blockchain.ursulas_accounts
 
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           ether_addresses=all_but_the_last_ursula,
@@ -416,6 +406,6 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
                                                      stake=False)
 
     _ursulas.extend(_non_staking_ursula)
-    token_agent.blockchain.time_travel(periods=1)
+    blockchain.time_travel(periods=1)
     yield _ursulas
 

@@ -25,7 +25,6 @@ from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 @pytest.fixture(scope='module')
 def author(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    token_agent.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
     _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
     author = PolicyAuthor(checksum_address=alice)
     return author

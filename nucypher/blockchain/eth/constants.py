@@ -87,3 +87,11 @@ MINING_COEFFICIENT = (
     MIN_ALLOWED_LOCKED,     # Min amount of tokens that can be locked
     MAX_ALLOWED_LOCKED      # Max amount of tokens that can be locked
 )
+
+# Testing and development
+
+NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
+
+NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + 10
+
+

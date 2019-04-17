@@ -18,27 +18,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 from functools import partial
-
-from twisted.logger import Logger
-
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import List, Tuple, Dict
 
+from twisted.logger import Logger
+from web3 import Web3
+from web3.middleware import geth_poa_middleware
+
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+
+from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.constants import CONTRACT_ROOT
-from umbral.keys import UmbralPrivateKey
-from web3.middleware import geth_poa_middleware
-
-from nucypher.blockchain.eth import constants
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  INSECURE_DEVELOPMENT_PASSWORD)
+from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
@@ -64,7 +61,14 @@ class TesterBlockchain(Blockchain):
     _PROVIDER_URI = 'tester://pyevm'
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
-    _default_test_accounts = 10
+
+    _default_test_accounts = constants.NUMBER_OF_ETH_TEST_ACCOUNTS
+
+    _ETHERBASE = 0
+    _ALICE = 1
+    _BOB = 2
+    _FIRST_URSULA = 5
+    _ursulas_range = range(constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
     def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
         if test_accounts is None:
@@ -75,20 +79,15 @@ class TesterBlockchain(Blockchain):
         self.attach_middleware(w3=self.interface.w3, poa=poa)
 
         # Generate additional ethereum accounts for testing
-        population = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
-
+        population = test_accounts
         enough_accounts = len(self.interface.w3.eth.accounts) >= population
-        if test_accounts is not None and not enough_accounts:
-
+        if not enough_accounts:
             accounts_to_make = population - len(self.interface.w3.eth.accounts)
-            test_accounts = test_accounts if test_accounts is not None else population
-
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
-
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
         if airdrop is True:  # ETH for everyone!
-            self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+            self.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
 
     @staticmethod
     def free_gas_price_strategy(w3, transaction_params=None):
@@ -114,14 +113,9 @@ class TesterBlockchain(Blockchain):
         Generate additional unlocked accounts transferring a balance to each account on creation.
         """
         addresses = list()
-        insecure_password = INSECURE_DEVELOPMENT_PASSWORD
         for _ in range(quantity):
-
-            umbral_priv_key = UmbralPrivateKey.gen_key()
-            address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
-                                                              passphrase=insecure_password)
-
-            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
+            privkey = '0x' + os.urandom(32).hex()
+            address = self.interface.provider.ethereum_tester.add_account(privkey)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
@@ -141,7 +135,8 @@ class TesterBlockchain(Blockchain):
 
             _receipt = self.wait_for_receipt(txhash)
             tx_hashes.append(txhash)
-            self.log.info("Airdropped {} ETH {} -> {}".format(amount, tx['from'], tx['to']))
+            eth_amount = Web3().fromWei(amount, 'ether')
+            self.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
         return tx_hashes
 
@@ -194,3 +189,30 @@ class TesterBlockchain(Blockchain):
         _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
                                                               policy_secret=random_deployment_secret())
         return testerchain, agents
+
+    @property
+    def etherbase_account(self):
+        return self.interface.w3.eth.accounts[self._ETHERBASE]
+
+    @property
+    def alice_account(self):
+        return self.interface.w3.eth.accounts[self._ALICE]
+
+    @property
+    def bob_account(self):
+        return self.interface.w3.eth.accounts[self._BOB]
+
+    def ursula_account(self, index):
+        if index not in self._ursulas_range:
+            raise ValueError(f"Ursula index must be lower than {constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
+        return self.interface.w3.eth.accounts[index + self._FIRST_URSULA]
+
+    @property
+    def ursulas_accounts(self):
+        return [self.ursula_account(i) for i in self._ursulas_range]
+
+    @property
+    def unassigned_accounts(self):
+        assigned_accounts = set(self.ursulas_accounts + [self.etherbase_account, self.alice_account, self.bob_account])
+        accounts = set(self.interface.w3.eth.accounts)
+        return list(accounts.difference(assigned_accounts))

@@ -26,7 +26,12 @@ from string import digits, ascii_uppercase
 
 from web3 import Web3
 
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, NUNITS_PER_TOKEN
+from nucypher.blockchain.eth.constants import (
+    DISPATCHER_SECRET_LENGTH,
+    NUNITS_PER_TOKEN,
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+)
+
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
 
@@ -57,7 +62,7 @@ MOCK_URSULA_STARTING_PORT = select_test_port()
 
 MOCK_KNOWN_URSULAS_CACHE = {}
 
-NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
+NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 
 
 #
@@ -66,9 +71,7 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
-DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(NUNITS_PER_TOKEN)
-
-DEVELOPMENT_ETH_AIRDROP_AMOUNT = 10 ** 6 * 10 ** 18  # wei -> ether
+DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1_000_000 * int(NUNITS_PER_TOKEN)
 
 MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 
@@ -78,7 +81,7 @@ INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + 
 
 MAX_TEST_SEEDER_ENTRIES = 20
 
-TESTING_ETH_AIRDROP_AMOUNT = int(Web3().fromWei(100, 'ether'))
+TESTING_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
 
 #
