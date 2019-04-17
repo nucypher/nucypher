@@ -25,6 +25,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.token import NU
 from nucypher.policy.models import IndisputableEvidence
 from umbral import pre
 from umbral.curvebn import CurveBN
@@ -57,7 +58,7 @@ REWARD_COEFFICIENT = 2
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 9)
+    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', _initialAmount=int(NU(2 * 10 ** 9, 'NuNit')))
     return contract
 
 
