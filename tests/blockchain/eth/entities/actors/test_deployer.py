@@ -50,10 +50,9 @@ def test_rapid_deployment(token_economics):
                                       policy_secret=os.urandom(32),
                                       adjudicator_secret=os.urandom(32))
 
-    # User Escrow Proxy
+    # Deploy User Escrow, too (+ Linker)
     deployer.deploy_escrow_proxy(secret=os.urandom(32))
 
-    # Deploy User Escrow
     total_allocations = 100
 
     all_yall = blockchain.unassigned_accounts

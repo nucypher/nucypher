@@ -272,7 +272,7 @@ def ursula(click_config,
 
             if not URSULA.federated_only and URSULA.stakes:
                 click_config.emit(
-                    message=f"Staking {str(URSULA.total_staked)} ~ Keep Ursula Online!",
+                    message=f"Staking {str(URSULA.current_stake)} ~ Keep Ursula Online!",
                     color='blue',
                     bold=True)
 

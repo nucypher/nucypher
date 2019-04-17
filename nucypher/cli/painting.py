@@ -118,7 +118,7 @@ def paint_node_status(ursula, start_time):
              teacher]
 
     if not ursula.federated_only and ursula.stakes:
-        total_staked = f'Total Staked ........ {ursula.total_staked} NU-wei'
+        total_staked = f'Total Staked ........ {ursula.current_stake} NU-wei'
         stats.append(total_staked)
 
         current_period = f'Current Period ...... {ursula.miner_agent.get_current_period()}'
@@ -260,7 +260,7 @@ def paint_stakes(stakes):
     breaky = f'| - | ------------ | ----------- | -----------| ----- '
     click.secho(header, bold=True)
     click.secho(breaky, bold=True)
-    for index, stake in stakes.items():
+    for index, stake in enumerate(stakes):
         row = prettify_stake(stake_index=index, stake=stake)
         click.echo(row)
     return

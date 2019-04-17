@@ -172,4 +172,4 @@ def deploy(click_config,
         click.secho(f"Successfully destroyed {registry_filepath}", fg='red')
 
     else:
-        raise click.BadArgumentUsage
+        raise click.BadArgumentUsage(message=f"Unknown action '{action}'")

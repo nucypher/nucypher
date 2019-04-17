@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 import pytest
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
@@ -39,8 +41,7 @@ def user_escrow_proxy(three_agents):
 def test_user_escrow_deployer(three_agents, testerchain):
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                    secret_hash=os.urandom(32))
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, secret_hash=os.urandom(32))
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
 

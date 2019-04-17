@@ -30,6 +30,7 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     UserEscrowAgent,
     MiningAdjudicatorAgent)
+
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from .chains import Blockchain

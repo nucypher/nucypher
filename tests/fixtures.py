@@ -15,10 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
@@ -38,7 +38,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+                                                  MOCK_POLICY_DEFAULT_M)
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware

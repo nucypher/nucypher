@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 from nucypher.blockchain.eth.agents import PolicyAgent
@@ -44,9 +46,8 @@ def test_policy_manager_deployer(testerchain):
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    deployer = PolicyManagerDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    deployer = PolicyManagerDeployer(deployer_address=origin,
+                                     secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
 
     deployment_txhashes = deployer.deploy()
     assert len(deployment_txhashes) == 3

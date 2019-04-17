@@ -26,7 +26,6 @@ from string import digits, ascii_uppercase
 
 from web3 import Web3
 
-from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -56,15 +55,7 @@ MOCK_POLICY_DEFAULT_M = 3
 
 MOCK_URSULA_STARTING_PORT = select_test_port()
 
-MOCK_KNOWN_URSULAS_CACHE = {}
-
-# Testing and development
-
-NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
-
-NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + 10
-
-NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+MOCK_KNOWN_URSULAS_CACHE = dict()
 
 
 #
@@ -73,13 +64,19 @@ NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
+NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
+
+NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + 10
+
+NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = NU(1_000_000, 'NU')
 
-DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().fromWei(100, 'ether'))
+DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
-MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(16)
 
-POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(16)
 
 INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
 
