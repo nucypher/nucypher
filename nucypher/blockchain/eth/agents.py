@@ -215,6 +215,7 @@ class MinerAgent(EthereumContractAgent):
     #
     # Contract Utilities
     #
+
     def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
@@ -458,7 +459,7 @@ class UserEscrowAgent(EthereumContractAgent):
 
 
 class MiningAdjudicatorAgent(EthereumContractAgent):
-    """TODO"""
+    """TODO Issue #931"""
 
     registry_contract_name = "MiningAdjudicator"
     _proxy_name = "Dispatcher"

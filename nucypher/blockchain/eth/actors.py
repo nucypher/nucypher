@@ -51,6 +51,7 @@ from nucypher.blockchain.eth.utils import (datetime_to_period,
 
 
 def only_me(func):
+    """Decorator to enforce invocation of permissioned actor methods"""
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
             raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
@@ -92,7 +93,7 @@ class NucypherTokenActor:
         return r
 
     @property
-    def eth_balance(self):
+    def eth_balance(self) -> int:
         """Return this actors's current ETH balance"""
         balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
         return self.blockchain.interface.w3.fromWei(balance, 'ether')
@@ -106,6 +107,15 @@ class NucypherTokenActor:
 
 
 class Deployer(NucypherTokenActor):
+
+    # Registry of deployer classes
+    deployers = (
+        NucypherTokenDeployer,
+        MinerEscrowDeployer,
+        PolicyManagerDeployer,
+        MiningAdjudicatorDeployer,
+        UserEscrowProxyDeployer,
+    )
 
     contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
 
@@ -160,20 +170,19 @@ class Deployer(NucypherTokenActor):
         self.blockchain.interface.deployer_address = value
 
     @property
-    def token_balance(self):
+    def token_balance(self) -> NU:
         if self.token_agent is CONTRACT_NOT_DEPLOYED:
-            raise self.ActorError("Token contract not deployed")
+            message = f"{self.token_agent.contract_name} contract is not deployed, or the registry has missing records."
+            raise self.ActorError(message)
         return super().token_balance
 
-    def deploy_token_contract(self):
-
+    def deploy_token_contract(self) -> dict:
         token_deployer = NucypherTokenDeployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-
         txhashes = token_deployer.deploy()
         self.token_agent = token_deployer.make_agent()
         return txhashes
 
-    def deploy_miner_contract(self, secret: bytes):
+    def deploy_miner_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
         miner_escrow_deployer = MinerEscrowDeployer(blockchain=self.blockchain,
                                                     deployer_address=self.deployer_address,
@@ -183,7 +192,7 @@ class Deployer(NucypherTokenActor):
         self.miner_agent = miner_escrow_deployer.make_agent()
         return txhashes
 
-    def deploy_policy_contract(self, secret: bytes):
+    def deploy_policy_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
         policy_manager_deployer = PolicyManagerDeployer(blockchain=self.blockchain,
                                                         deployer_address=self.deployer_address,
@@ -193,7 +202,7 @@ class Deployer(NucypherTokenActor):
         self.policy_agent = policy_manager_deployer.make_agent()
         return txhashes
 
-    def deploy_mining_adjudicator_contract(self, secret: bytes):
+    def deploy_mining_adjudicator_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
         mining_adjudicator_deployer = MiningAdjudicatorDeployer(blockchain=self.blockchain,
                                                                 deployer_address=self.deployer_address,
@@ -203,7 +212,7 @@ class Deployer(NucypherTokenActor):
         self.adjudicator_agent = mining_adjudicator_deployer.make_agent()
         return txhashes
 
-    def deploy_escrow_proxy(self, secret: bytes):
+    def deploy_escrow_proxy(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
         escrow_proxy_deployer = UserEscrowProxyDeployer(blockchain=self.blockchain,
                                                         deployer_address=self.deployer_address,
@@ -212,7 +221,7 @@ class Deployer(NucypherTokenActor):
         txhashes = escrow_proxy_deployer.deploy()
         return txhashes
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry) -> UserEscrowDeployer:
         user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)
@@ -255,7 +264,7 @@ class Deployer(NucypherTokenActor):
                                      allocations: List[Dict[str, Union[str, int]]],
                                      allocation_outfile: str = None,
                                      allocation_registry: AllocationRegistry = None,
-                                     ) -> None:
+                                     ) -> Dict[str, dict]:
         """
 
         Example allocation dataset (one year is 31540000 seconds):
@@ -268,14 +277,18 @@ class Deployer(NucypherTokenActor):
             raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
         if allocation_registry is None:
             allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
+
+        allocation_txhashes = dict()
         for allocation in allocations:
             deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
-            deployer.deliver(value=allocation['amount'],
-                             duration=allocation['duration'],
-                             beneficiary_address=allocation['address'])
+            txhashes = deployer.deliver(value=allocation['amount'],
+                                        duration=allocation['duration'],
+                                        beneficiary_address=allocation['address'])
+            allocation_txhashes[allocation['address']] = txhashes
+        return allocation_txhashes
 
     @staticmethod
-    def __read_allocation_data(filepath: str):
+    def __read_allocation_data(filepath: str) -> list:
         with open(filepath, 'r') as allocation_file:
             data = allocation_file.read()
             try:
@@ -284,9 +297,13 @@ class Deployer(NucypherTokenActor):
                 raise
         return allocation_data
 
-    def deploy_beneficiaries_from_file(self, allocation_data_filepath: str, allocation_outfile: str = None):
+    def deploy_beneficiaries_from_file(self,
+                                       allocation_data_filepath: str,
+                                       allocation_outfile: str = None) -> dict:
+
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
+        txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
+        return txhashes
 
 
 class Miner(NucypherTokenActor):
@@ -366,10 +383,11 @@ class Miner(NucypherTokenActor):
     @only_me
     def _confirm_period(self):
 
-        period = self.miner_agent.get_current_period()
+        onchain_period = self.miner_agent.get_current_period()  # < -- Read from contract
         self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
 
-        if self.__current_period != period:
+        # Check if the period has changed on-chain
+        if self.__current_period != onchain_period:
 
             # Let's see how much time has passed
             delta = self.__current_period - self.last_active_period
@@ -377,12 +395,13 @@ class Miner(NucypherTokenActor):
                 self.log.warn(f"{delta} Missed staking confirmation(s) detected")
                 self.__read_stakes()  # Invalidate the stake cache
 
-            # Check for stake expiration
+            # Check for stake expiration and exit
             stake_expired = self.__current_period >= self.__terminal_period
             if stake_expired:
                 self.log.info('STOPPED STAKING - Final stake ended.')
                 return True
 
+            # Write to Blockchain
             self.confirm_activity()
             self.__current_period = period
             self.log.info("Confirmed activity for period {}".format(self.__current_period))
@@ -390,13 +409,11 @@ class Miner(NucypherTokenActor):
     @only_me
     def _crash_gracefully(self, failure=None):
         """
-        A facility for crashing more gracefully in the event that an exception
-        is unhandled in a different thread, especially inside a loop like the learning loop.
+        A facility for crashing more gracefully in the event that an exception is unhandled in a different thread.
         """
         self._crashed = failure
         failure.raiseException()
 
-    @only_me
     def handle_staking_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_staking_error:
@@ -406,7 +423,7 @@ class Miner(NucypherTokenActor):
             self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
 
     @only_me
-    def start_staking_loop(self, now=True):
+    def start_staking_loop(self, now=True) -> None:
         if self._staking_task.running:
             return False
         else:
@@ -417,8 +434,8 @@ class Miner(NucypherTokenActor):
 
     @property
     def is_staking(self) -> bool:
-        """Checks if this Miner currently has locked tokens."""
-        return bool(self.locked_tokens > 0)
+        """Checks if this Miner currently has active stakes / locked tokens."""
+        return bool(self.locked_tokens > NU.ZERO())
 
     @property
     def locked_tokens(self) -> NU:
@@ -426,7 +443,11 @@ class Miner(NucypherTokenActor):
         return NU(self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address), 'NU')
 
     @property
-    def total_staked(self) -> NU:
+    def current_stake(self) -> NU:
+        """
+        The total number of staked tokens, either locked or unlocked in the current period.
+        """
+
         if self.stakes:
             return NU(sum(int(stake.value) for stake in self.stakes.values()), 'NuNit')
         else:
@@ -439,11 +460,11 @@ class Miner(NucypherTokenActor):
                      additional_periods: int = None,
                      expiration: maya.MayaDT = None) -> tuple:
 
-        # Validate function input
+        # Calculate duration in periods
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        # Select stake to divide
+        # Select stake to divide from local cache
         try:
             current_stake = self.stakes[stake_index]
         except KeyError:
@@ -479,10 +500,20 @@ class Miner(NucypherTokenActor):
                          expiration: maya.MayaDT = None,
                          entire_balance: bool = False) -> Stake:
 
+        """Create a new stake."""
+
+        #
+        # Duration
+        #
+
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if expiration:
             lock_periods = calculate_period_duration(future_time=expiration)
+
+        #
+        # Value
+        #
 
         if entire_balance and amount:
             raise ValueError("Specify an amount or entire balance, not both")

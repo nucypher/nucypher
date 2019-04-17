@@ -502,7 +502,6 @@ class UserEscrowDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         deployment_transactions = dict()
-
         linker_contract = self.blockchain.interface.get_contract_by_name(name=self.__linker_deployer.contract_name)
         args = (self.contract_name, linker_contract.address, self.token_agent.contract_address)
         user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(*args, enroll=False)
@@ -552,10 +551,10 @@ class MiningAdjudicatorDeployer(ContractDeployer):
         self.__proxy_contract = proxy_contract
 
         # Wrap the escrow contract
-        wrapped_mining_adjudicator_contract = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=mining_adjudicator_contract)
+        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=mining_adjudicator_contract)
 
         # Switch the contract for the wrapped one
-        mining_adjudicator_contract = wrapped_mining_adjudicator_contract
+        mining_adjudicator_contract = wrapped
 
         # Gather the transaction hashes
         deployment_transactions = {'deployment': deploy_txhash,

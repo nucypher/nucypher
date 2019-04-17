@@ -312,7 +312,7 @@ class Stake:
 
         return approve_txhash, deposit_txhash
 
-    def divide(self, target_value: NU, additional_periods: int = None) -> tuple:
+    def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
         """
         Modifies the unlocking schedule and value of already locked tokens.
 
@@ -398,7 +398,7 @@ class Stake:
         stake.validate_value()
         stake.validate_duration()
 
-        # Transact
+        # Transmit
         approve_txhash, initial_deposit_txhash = stake.__deposit(amount=int(amount),
                                                                  lock_periods=lock_periods,
                                                                  miner=miner)
