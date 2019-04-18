@@ -217,7 +217,7 @@ class BlockchainInterface:
         return self.w3.node_version.node
 
     def add_provider(self,
-                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester] = None,
+                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTesterProvider] = None,
                      provider_uri: str = None,
                      timeout: int = None) -> None:
 
