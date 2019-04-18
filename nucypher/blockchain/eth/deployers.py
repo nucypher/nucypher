@@ -171,7 +171,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self.contract_name,
-                                       self.__economics.total_supply)
+                                       self.__economics.erc20_deployment_supply)
 
         self._contract = _contract
         return {'txhash': deployment_txhash}
@@ -275,7 +275,10 @@ class MinerEscrowDeployer(ContractDeployer):
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer tokens to the miner escrow #
-        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, self.__economics.reward_supply).transact(origin_args)
+        reward_txhash = self.token_agent.contract.functions.transfer(
+            the_escrow_contract.address,
+            self.__economics.escrow_deployment_reward_supply
+        ).transact(origin_args)
 
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 

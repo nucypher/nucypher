@@ -407,6 +407,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class NoDeployerAddress(RuntimeError):
         pass
 
+    class DeploymentFailed(RuntimeError):
+        pass
+
     def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)  # Depends on web3 instance
         self.__deployer_address = deployer_address if deployer_address is not None else NO_DEPLOYER_CONFIGURED
@@ -419,7 +422,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def deployer_address(self, checksum_address: str) -> None:
         self.__deployer_address = checksum_address
 
-    def deploy_contract(self, contract_name: str, *constructor_args, enroll: bool = True, **kwargs) -> Tuple[Contract, str]:
+    def deploy_contract(self,
+                        contract_name: str,
+                        *constructor_args,
+                        enroll: bool = True,
+                        **kwargs
+                        ) -> Tuple[Contract, str]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -428,9 +436,11 @@ class BlockchainDeployerInterface(BlockchainInterface):
             raise self.NoDeployerAddress
 
         #
-        # Build the deployment tx #
+        # Build the deployment transaction #
         #
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+
+        deployment_gas = 6_000_000  # TODO: Gas management
+        deploy_transaction = {'from': self.deployer_address, 'gas': deployment_gas}
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
@@ -444,7 +454,23 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
+        self.log.info(f"Waiting for deployment receipt for {contract_name}")
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
+
+        # Verify deployment success
+
+        # Primary check
+        deployment_status = receipt['status']
+        if deployment_status is 0:
+            failure = f"{contract_name.upper()} Deployment transaction submitted, but receipt returned status code 0. " \
+                      f"Full receipt: \n {receipt}"
+            raise self.DeploymentFailed(failure)
+
+        # Secondary check
+        tx = self.w3.eth.getTransaction(txhash)
+        if tx["gas"] == receipt["gasUsed"]:
+            raise self.DeploymentFailed(f"Deployment transaction failed and consumed 100% of transaction gas ({deployment_gas})")
+
         address = receipt['contractAddress']
         self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 

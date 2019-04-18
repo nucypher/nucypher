@@ -112,7 +112,7 @@ class TokenEconomics:
             maximum_locked_periods = reward_saturation * 365
 
         # Injected
-        self.initial_supply = initial_supply
+        self.__initial_supply = initial_supply
         self.initial_inflation = initial_inflation
         self.token_halving = halving_delay
         self.token_saturation = reward_saturation
@@ -126,8 +126,15 @@ class TokenEconomics:
         self.maximum_locked_periods = maximum_locked_periods
 
     @property
-    def total_supply(self):
-        """ERC20 deployment parameter"""
+    def erc20_deployment_supply(self) -> int:
+        return int(self.__initial_supply)
+
+    @property
+    def escrow_deployment_reward_supply(self) -> int:
+        return int(self.__initial_supply)
+
+    @property
+    def total_supply(self) -> int:
         return int(self.__total_supply)
 
     @property

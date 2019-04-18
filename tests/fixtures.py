@@ -375,14 +375,14 @@ def three_agents(testerchain):
 
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
-
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
 
     policy_manager_deployer.deploy()
+
+    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
