@@ -21,6 +21,7 @@ import random
 import pytest
 
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
+from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SECRET
 
 
 @pytest.fixture(scope='function')
@@ -29,9 +30,9 @@ def user_escrow_proxy(three_agents):
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, secret_hash=os.urandom(32))
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
 
-    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
+    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
     testerchain.interface.registry.clear()
