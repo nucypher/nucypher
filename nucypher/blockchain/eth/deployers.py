@@ -315,7 +315,7 @@ class MinerEscrowDeployer(ContractDeployer):
 
         # Raise if not all-systems-go
         self.check_deployment_readiness()
-        origin_args = {'from': self.deployer_address, 'gas': 5000000}  # TODO
+        origin_args = {'from': self.deployer_address, 'gas': 5000000}  # TODO: Gas management
 
         existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
                                                                                 proxy_name=self.__proxy_deployer.contract_name,
@@ -328,7 +328,7 @@ class MinerEscrowDeployer(ContractDeployer):
         # 2 - Deploy new version #
         the_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
                                                                                        self.token_agent.contract_address,
-                                                                                       *self.__economics.deployment_parameters)
+                                                                                       *self.__economics.staking_deployment_parameters)
 
         policy_agent = PolicyAgent(blockchain=self.blockchain)
         _set_policy_manager_txhash = the_escrow_contract.functions.setPolicyManager(policy_agent.contract_address).transact(origin_args)
