@@ -253,7 +253,7 @@ class MinerEscrowDeployer(ContractDeployer):
         the_escrow_contract, deploy_txhash, = \
             self.blockchain.interface.deploy_contract(self.contract_name,
                                                       self.token_agent.contract_address,
-                                                      *self.__economics.deployment_parameters)
+                                                      *self.__economics.escrow_deployment_parameters)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,

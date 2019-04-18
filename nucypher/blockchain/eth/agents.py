@@ -149,12 +149,12 @@ class MinerAgent(EthereumContractAgent):
     def owned_tokens(self, address: str) -> int:
         return self.contract.functions.minerInfo(address).call()[0]
 
-    def get_stake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int]:
+    def get_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
         last_period = self.contract.functions.getLastPeriodOfSubStake(miner_address, stake_index).call()
         return first_period, last_period, locked_value
 
-    def get_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int, int]:
+    def get_raw_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int, int]:
         result = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
         first_period, last_period, periods, locked = result
         return first_period, last_period, periods, locked
@@ -164,7 +164,7 @@ class MinerAgent(EthereumContractAgent):
         if stakes_length == 0:
             return iter(())  # Empty iterable, There are no stakes
         for stake_index in range(stakes_length):
-            yield self.get_stake_info(miner_address=miner_address, stake_index=stake_index)
+            yield self.get_substake_info(miner_address=miner_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""

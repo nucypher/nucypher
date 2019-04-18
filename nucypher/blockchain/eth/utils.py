@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import maya
 
-from nucypher.blockchain.economics import TokenEconomics
-
 
 def datetime_to_period(datetime: maya.MayaDT) -> int:
     """Converts a MayaDT instance to a period number."""
+    from nucypher.blockchain.economics import TokenEconomics
+
     future_period = datetime.epoch // int(TokenEconomics.seconds_per_period)
     return int(future_period)
 

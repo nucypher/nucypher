@@ -14,12 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from decimal import Decimal, localcontext
 from typing import Tuple
 
-import math
-from decimal import Decimal
-
 from math import log
+
+from nucypher.blockchain.eth.token import NU
+
+
+LOG2 = Decimal(log(2))
 
 
 class TokenEconomics:
@@ -42,6 +47,9 @@ class TokenEconomics:
     where allLockedPeriods == min(T, T1)
     """
 
+    # Decimal
+    _precision = 28
+
     # Token Denomination
     __token_decimals = 18
     nunits_per_token = 10 ** __token_decimals          # Smallest unit designation
@@ -51,24 +59,24 @@ class TokenEconomics:
     seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
 
     # Time Constraints
-    minimum_locked_periods = 30                      # 720 Hours minimum
+    minimum_locked_periods = 30  # 720 Hours minimum
 
     # Value Constraints
-    minimum_allowed_locked = 15000 * nunits_per_token
-    maximum_allowed_locked = int(4e6) * nunits_per_token
+    minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
+    maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
 
     # Supply
-    __default_initial_supply = Decimal(int(1e9) * nunits_per_token)
-    __default_initial_inflation = Decimal(1.0)
-    __default_token_halving = Decimal(2.0)     # years
-    __default_reward_saturation = Decimal(1.0)  # years
+    __default_initial_supply = NU(int(1_000_000_000), 'NU').to_nunits()
+    __default_initial_inflation = 1
+    __default_token_halving = 2      # years
+    __default_reward_saturation = 1  # years
     __default_small_stake_multiplier = Decimal(0.5)
 
     def __init__(self,
-                 initial_supply: Decimal = __default_initial_supply,
-                 initial_inflation: Decimal = __default_initial_inflation,
-                 halving_delay: Decimal = __default_token_halving,
-                 reward_saturation: Decimal = __default_reward_saturation,
+                 initial_supply: int = __default_initial_supply,
+                 initial_inflation: int = __default_initial_inflation,
+                 halving_delay: int = __default_token_halving,
+                 reward_saturation: int = __default_reward_saturation,
                  small_stake_multiplier: Decimal = __default_small_stake_multiplier
                  ):
         """
@@ -79,66 +87,52 @@ class TokenEconomics:
         :param small_stake_multiplier: Fraction of maximum reward rate paid to those who are about to unlock tokens
         """
 
+        #
+        # Calculate
+        #
+
+        with localcontext() as ctx:
+            ctx.prec = self._precision
+
+            initial_supply = Decimal(initial_supply)
+
+            # ERC20 Token parameter
+            total_supply = initial_supply * (1 + initial_inflation * halving_delay / LOG2)
+
+            # Remaining / Reward Supply - Escrow Parameter
+            reward_supply = total_supply - initial_supply
+
+            # k2 - Escrow parameter
+            staking_coefficient = 365 ** 2 * reward_saturation * halving_delay / LOG2 / (1 - small_stake_multiplier)
+
+            # k1 - Escrow parameter
+            locked_periods_coefficient = 365 * reward_saturation * small_stake_multiplier / (1 - small_stake_multiplier)
+
+            # Awarded periods- Escrow parameter
+            maximum_locked_periods = reward_saturation * 365
+
+        # Injected
         self.initial_supply = initial_supply
         self.initial_inflation = initial_inflation
         self.token_halving = halving_delay
         self.token_saturation = reward_saturation
         self.small_stake_multiplier = small_stake_multiplier
-        self.log_scale = Decimal(log(2))
 
-        #
-        # Calculate
-        #
-
-        # ERC20 Token parameter
-        self.__total_supply = int(initial_supply * (1 + initial_inflation * halving_delay / self.log_scale))
-
-        # Remaining / Reward Supply - Escrow Parameter
-        self.__reward_supply = int(self.__total_supply - self.initial_supply)
-
-        # k2 - Escrow parameter
-        self.__staking_coefficient = 365 ** 2 * reward_saturation * halving_delay / self.log_scale / (1 - small_stake_multiplier)
-
-        # k1 - Escrow parameter
-        self.__locked_periods_coefficient = 365 * reward_saturation * small_stake_multiplier / (1 - small_stake_multiplier)
-
-        # Maximum locked periods- Escrow parameter
-        self.__awarded_periods = reward_saturation * 365
+        # Calculated
+        self.__total_supply = total_supply
+        self.reward_supply = reward_supply
+        self.staking_coefficient = staking_coefficient
+        self.locked_periods_coefficient = locked_periods_coefficient
+        self.maximum_locked_periods = maximum_locked_periods
 
     @property
-    def k1(self) -> int:
-        return int(self.__locked_periods_coefficient)
-
-    @property
-    def k2(self) -> int:
-        return int(self.__staking_coefficient)
-
-    @property
-    def locked_periods_coefficient(self) -> int:
-        return self.__locked_periods_coefficient
-
-    @property
-    def staking_coefficient(self) -> int:
-        return self.__staking_coefficient
-
-    @property
-    def awarded_periods(self) -> int:
-        return int(self.__awarded_periods)
-
-    @property
-    def maximum_locked_periods(self) -> int:
-        return int(self.__awarded_periods)
-
-    @property
-    def total_supply(self) -> int:
+    def total_supply(self):
+        """ERC20 deployment parameter"""
         return int(self.__total_supply)
 
     @property
-    def reward_supply(self) -> int:
-        return int(self.__reward_supply)
-
-    @property
-    def deployment_parameters(self) -> Tuple[int, ...]:
+    def escrow_deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast to uint256 compatible type for solidity + EVM"""
         deploy_parameters = (
 
             # Period

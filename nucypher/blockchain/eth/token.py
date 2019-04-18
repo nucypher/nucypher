@@ -306,8 +306,8 @@ class Stake:
         """Update this stakes attributes with on-chain values."""
 
         # Read from blockchain
-        stake_info = self.miner_agent.get_stake_info(miner_address=self.owner_address,
-                                                     stake_index=self.index)  # < -- Read form blockchain
+        stake_info = self.miner_agent.get_substake_info(miner_address=self.owner_address,
+                                                        stake_index=self.index)  # < -- Read form blockchain
 
         first_period, last_period, locked_value = stake_info
         if not self.start_period == first_period:
