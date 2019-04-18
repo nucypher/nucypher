@@ -21,6 +21,7 @@ import random
 import pytest
 
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
+from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SECRET
 
 
 @pytest.fixture(scope='function')
