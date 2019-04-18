@@ -194,7 +194,8 @@ class TesterBlockchain(Blockchain):
         random_deployment_secret = partial(os.urandom, DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
                                                               policy_secret=random_deployment_secret(),
-                                                              adjudicator_secret=random_deployment_secret())
+                                                              adjudicator_secret=random_deployment_secret(),
+                                                              user_escrow_proxy_secret=random_deployment_secret())
         return testerchain, agents
 
     @property
