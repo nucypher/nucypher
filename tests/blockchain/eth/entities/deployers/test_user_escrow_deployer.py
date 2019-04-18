@@ -27,10 +27,9 @@ def user_escrow_proxy(three_agents):
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                    secret_hash=os.urandom(32))
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
 
-    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
+    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
     testerchain.interface.registry.clear()
@@ -41,9 +40,9 @@ def user_escrow_proxy(three_agents):
 def test_user_escrow_deployer(three_agents, testerchain):
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, secret_hash=os.urandom(32))
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
 
-    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
+    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
 
     deployer = UserEscrowDeployer(deployer_address=deployer)
 
