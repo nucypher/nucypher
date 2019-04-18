@@ -43,18 +43,18 @@ def test_rough_economics():
                        reward_saturation=1,
                        small_stake_multiplier=Decimal(0.5))
 
-    assert float(round(e.total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
+    assert float(round(e.erc20_total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
 
     # Check that we have correct numbers in day 1
-    initial_rate = (e.total_supply - e.initial_supply) * (e.locked_periods_coefficient + 365) / e.staking_coefficient
+    initial_rate = (e.erc20_total_supply - e.initial_supply) * (e.locked_periods_coefficient + 365) / e.staking_coefficient
     assert int(initial_rate) == int(e.initial_inflation * e.initial_supply / 365)
 
-    initial_rate_small = (e.total_supply - e.initial_supply) * e.locked_periods_coefficient / e.staking_coefficient
+    initial_rate_small = (e.erc20_total_supply - e.initial_supply) * e.locked_periods_coefficient / e.staking_coefficient
     assert int(initial_rate_small) == int(initial_rate / 2)
 
     # Sanity check that total and reward supply calculated correctly
-    assert int(LOG2 / (e.token_halving * 365) * (e.total_supply - e.initial_supply)) == int(initial_rate)
-    assert int(e.reward_supply) == int(e.total_supply - Decimal(int(1e9)))
+    assert int(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - e.initial_supply)) == int(initial_rate)
+    assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
 
 def test_exact_economics():
@@ -135,22 +135,22 @@ def test_exact_economics():
         ctx.prec = TokenEconomics._precision
 
         # Check that total_supply calculated correctly
-        assert Decimal(e.total_supply) / e.initial_supply == expected_supply_ratio
-        assert e.total_supply == expected_total_supply
+        assert Decimal(e.erc20_total_supply) / e.initial_supply == expected_supply_ratio
+        assert e.erc20_total_supply == expected_total_supply
 
         # Check reward rates
-        initial_rate = Decimal((e.total_supply - e.initial_supply) * (e.locked_periods_coefficient + 365) / e.staking_coefficient)
+        initial_rate = Decimal((e.erc20_total_supply - e.initial_supply) * (e.locked_periods_coefficient + 365) / e.staking_coefficient)
         assert initial_rate == Decimal((e.initial_inflation * e.initial_supply) / 365)
 
-        initial_rate_small = (e.total_supply - e.initial_supply) * e.locked_periods_coefficient / e.staking_coefficient
+        initial_rate_small = (e.erc20_total_supply - e.initial_supply) * e.locked_periods_coefficient / e.staking_coefficient
         assert Decimal(initial_rate_small) == Decimal(initial_rate / 2)
 
         # Check reward supply
-        assert Decimal(LOG2 / (e.token_halving * 365) * (e.total_supply - e.initial_supply)) == initial_rate
+        assert Decimal(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - e.initial_supply)) == initial_rate
         assert e.reward_supply == expected_total_supply - expected_initial_supply
 
         # Check deployment parameters
-        assert e.escrow_deployment_parameters == expected_deployment_parameters
+        assert e.staking_deployment_parameters == expected_deployment_parameters
 
 
 def test_economic_parameter_aliases():
@@ -161,7 +161,7 @@ def test_economic_parameter_aliases():
     assert int(e.staking_coefficient) == 768812
     assert e.maximum_locked_periods == 365
 
-    deployment_params = e.escrow_deployment_parameters
+    deployment_params = e.staking_deployment_parameters
     assert isinstance(deployment_params, tuple)
     for parameter in deployment_params:
         assert isinstance(parameter, int)

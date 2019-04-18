@@ -35,11 +35,11 @@ def test_create_token(testerchain, token_economics):
     assert creator == testerchain.interface.w3.eth.coinbase
 
     # Create an ERC20 token
-    token, txhash = testerchain.interface.deploy_contract('NuCypherToken', token_economics.total_supply)
+    token, txhash = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     assert txhash is not None
 
     # Account balances
-    assert token_economics.total_supply == token.functions.balanceOf(creator).call()
+    assert token_economics.erc20_total_supply == token.functions.balanceOf(creator).call()
     assert 0 == token.functions.balanceOf(account1).call()
 
     # Basic properties
@@ -59,7 +59,7 @@ def test_create_token(testerchain, token_economics):
     tx = token.functions.transfer(account1, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 10000 == token.functions.balanceOf(account1).call()
-    assert token_economics.total_supply - 10000 == token.functions.balanceOf(creator).call()
+    assert token_economics.erc20_total_supply - 10000 == token.functions.balanceOf(creator).call()
     tx = token.functions.transfer(account2, 10).transact({'from': account1})
     testerchain.wait_for_receipt(tx)
     assert 10000 - 10 == token.functions.balanceOf(account1).call()
@@ -75,7 +75,7 @@ def test_approve_and_call(testerchain, token_economics):
     account1 = testerchain.interface.w3.eth.accounts[1]
     account2 = testerchain.interface.w3.eth.accounts[2]
 
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', token_economics.total_supply)
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     mock, _ = testerchain.interface.deploy_contract('ReceiveApprovalMethodMock')
 
     # Approve some value and check allowance

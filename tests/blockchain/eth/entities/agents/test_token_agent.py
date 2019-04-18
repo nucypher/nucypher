@@ -58,7 +58,7 @@ def test_get_balance(agent, token_economics):
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == token_economics.total_supply
+    assert balance == token_economics.erc20_total_supply
 
 
 def test_approve_transfer(agent, token_economics):

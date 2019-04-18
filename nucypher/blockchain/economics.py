@@ -112,7 +112,7 @@ class TokenEconomics:
             maximum_locked_periods = reward_saturation * 365
 
         # Injected
-        self.__initial_supply = initial_supply
+        self.initial_supply = initial_supply
         self.initial_inflation = initial_inflation
         self.token_halving = halving_delay
         self.token_saturation = reward_saturation
@@ -126,20 +126,20 @@ class TokenEconomics:
         self.maximum_locked_periods = maximum_locked_periods
 
     @property
-    def erc20_deployment_supply(self) -> int:
-        return int(self.__initial_supply)
+    def erc20_initial_supply(self) -> int:
+        return int(self.initial_supply)
 
     @property
-    def escrow_deployment_reward_supply(self) -> int:
-        return int(self.__initial_supply)
+    def erc20_reward_supply(self) -> int:
+        return int(self.reward_supply)
 
     @property
-    def total_supply(self) -> int:
+    def erc20_total_supply(self) -> int:
         return int(self.__total_supply)
 
     @property
-    def escrow_deployment_parameters(self) -> Tuple[int, ...]:
-        """Cast to uint256 compatible type for solidity + EVM"""
+    def staking_deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
         deploy_parameters = (
 
             # Period

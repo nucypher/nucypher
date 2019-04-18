@@ -46,8 +46,9 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
+        args = {'from': origin, 'gasPrice': token_agent.blockchain.interface.w3.eth.gasPrice}
         for address in addresses:
-            txhash = token_agent.contract.functions.transfer(address, int(amount)).transact({'from': origin})
+            txhash = token_agent.contract.functions.transfer(address, int(amount)).transact(args)
             yield txhash
 
     receipts = list()

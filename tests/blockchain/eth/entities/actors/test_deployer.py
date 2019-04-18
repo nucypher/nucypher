@@ -28,7 +28,11 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT, ONE_YEAR_IN_SECONDS
+from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT, ONE_YEAR_IN_SECONDS, \
+    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET, \
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET
+
+NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
 
 
 @pytest.mark.slow()
@@ -46,14 +50,14 @@ def test_rapid_deployment(token_economics):
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
-    deployer.deploy_network_contracts(miner_secret=os.urandom(32),
-                                      policy_secret=os.urandom(32),
-                                      adjudicator_secret=os.urandom(32))
+    deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+                                      policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET)
 
     # Deploy User Escrow, too (+ Linker)
-    deployer.deploy_escrow_proxy(secret=os.urandom(32))
+    deployer.deploy_escrow_proxy(secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
-    total_allocations = 100
+    total_allocations = NUMBER_OF_ALLOCATIONS_IN_TESTS
 
     all_yall = blockchain.unassigned_accounts
     # Start with some hard-coded cases...
@@ -76,7 +80,8 @@ def test_rapid_deployment(token_economics):
         acct = w3.eth.account.create(random_password)
         beneficiary_address = acct.address
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
-        duration = random.randint(token_economics.minimum_locked_periods, token_economics.maximum_locked_periods*3)
+        duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
+                                  (token_economics.maximum_locked_periods*ONE_YEAR_IN_SECONDS)*3)
         random_allocation = {'address': beneficiary_address, 'amount': amount, 'duration': duration}
         allocation_data.append(random_allocation)
 

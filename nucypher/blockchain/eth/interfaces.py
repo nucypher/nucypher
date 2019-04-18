@@ -440,7 +440,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
 
         deployment_gas = 6_000_000  # TODO: Gas management
-        deploy_transaction = {'from': self.deployer_address, 'gas': deployment_gas}
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)

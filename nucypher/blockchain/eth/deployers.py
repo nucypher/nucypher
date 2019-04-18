@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address
 from typing import Tuple, Dict
 from web3.contract import Contract
@@ -171,7 +170,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self.contract_name,
-                                       self.__economics.erc20_deployment_supply)
+                                       self.__economics.erc20_total_supply)  # TODO: Is this the correct supply value (total vs inital economic parameter)?
 
         self._contract = _contract
         return {'txhash': deployment_txhash}
@@ -247,13 +246,13 @@ class MinerEscrowDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         # Build deployment arguments
-        origin_args = {'from': self.deployer_address}
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
 
         # 1 - Deploy #
         the_escrow_contract, deploy_txhash, = \
             self.blockchain.interface.deploy_contract(self.contract_name,
                                                       self.token_agent.contract_address,
-                                                      *self.__economics.escrow_deployment_parameters)
+                                                      *self.__economics.staking_deployment_parameters)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
@@ -277,7 +276,7 @@ class MinerEscrowDeployer(ContractDeployer):
         # 3 - Transfer tokens to the miner escrow #
         reward_txhash = self.token_agent.contract.functions.transfer(
             the_escrow_contract.address,
-            self.__economics.escrow_deployment_reward_supply
+            self.__economics.erc20_reward_supply
         ).transact(origin_args)
 
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
@@ -472,7 +471,13 @@ class UserEscrowDeployer(ContractDeployer):
         self.blockchain.wait_for_receipt(approve_txhash)
 
         # Deposit
-        txhash = self.contract.functions.initialDeposit(value, duration).transact({'from': self.deployer_address})
+        try:
+            # TODO: Gas management
+            args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
+            txhash = self.contract.functions.initialDeposit(value, duration).transact(args)
+        except TransactionFailed:
+            raise
+
         allocation_transactions['initial_deposit'] = txhash
         self.blockchain.wait_for_receipt(txhash)
         return txhash

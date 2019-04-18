@@ -30,6 +30,7 @@ from constant_sorrow.constants import (
     NO_STAKES,
     STRANGER_MINER
 )
+from eth_tester.exceptions import TransactionFailed
 from twisted.internet import task, reactor
 from twisted.logger import Logger
 
@@ -154,6 +155,8 @@ class Deployer(NucypherTokenActor):
             MiningAdjudicatorDeployer.contract_name: self.deploy_mining_adjudicator_contract,
         }
 
+        self.log = Logger("Deployment-Actor")
+
     def __repr__(self):
         r = '{name}({blockchain}, {deployer_address})'.format(name=self.__class__.__name__,
                                                               blockchain=self.blockchain,
@@ -270,6 +273,7 @@ class Deployer(NucypherTokenActor):
                                      allocations: List[Dict[str, Union[str, int]]],
                                      allocation_outfile: str = None,
                                      allocation_registry: AllocationRegistry = None,
+                                     crash_on_failure: bool = True,
                                      ) -> Dict[str, dict]:
         """
 
@@ -284,13 +288,28 @@ class Deployer(NucypherTokenActor):
         if allocation_registry is None:
             allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
 
-        allocation_txhashes = dict()
+        allocation_txhashes, failed = dict(), list()
         for allocation in allocations:
             deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
-            txhashes = deployer.deliver(value=allocation['amount'],
-                                        duration=allocation['duration'],
-                                        beneficiary_address=allocation['address'])
-            allocation_txhashes[allocation['address']] = txhashes
+
+            try:
+                txhashes = deployer.deliver(value=allocation['amount'],
+                                            duration=allocation['duration'],
+                                            beneficiary_address=allocation['address'])
+            except TransactionFailed:
+                if crash_on_failure:
+                    raise
+                self.log.debug(f"Failed allocation transaction for {allocation['amount']} to {allocation['address']}")
+                failed.append(allocation)
+                continue
+
+            else:
+                allocation_txhashes[allocation['address']] = txhashes
+
+        if failed:
+            # TODO: More with these failures: send to isolated logfile, and reattempt
+            self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
+
         return allocation_txhashes
 
     @staticmethod

@@ -29,7 +29,7 @@ from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUN
 def miner(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+    token_airdrop(token_agent, origin=testerchain.etherbase_account, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
     miner = Miner(checksum_address=everybody_else[0], is_me=True)
     return miner
 

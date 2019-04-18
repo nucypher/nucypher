@@ -98,7 +98,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
-            min_locktime, max_locktime = economics.minimum_locked_periods, economics.awarded_periods
+            min_locktime, max_locktime = economics.minimum_locked_periods, economics.maximum_locked_periods
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)
