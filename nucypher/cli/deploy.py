@@ -96,15 +96,19 @@ def deploy(click_config,
     if action == 'upgrade':
         if not contract_name:
             raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
-        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        deployer.upgrade_contract(contract_name=contract_name, existing_secret=existing_secret, new_plaintext_secret=new_secret)
+        deployer.upgrade_contract(contract_name=contract_name,
+                                  existing_plaintext_secret=existing_secret,
+                                  new_plaintext_secret=new_secret)
         return
 
     elif action == 'rollback':
-        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        deployer.rollback_contract(contract_name=contract_name, existing_plaintext_secret=existing_secret, new_plaintext_secret=new_secret)
+        deployer.rollback_contract(contract_name=contract_name,
+                                   existing_plaintext_secret=existing_secret,
+                                   new_plaintext_secret=new_secret)
         return
 
     elif action == "deploy":
