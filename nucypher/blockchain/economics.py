@@ -29,8 +29,10 @@ LOG2 = Decimal(log(2))
 
 class TokenEconomics:
     """
-    Calculate parameters to use in token and escrow deployment
+    Calculate parameters to use in token and escrow blockchain deployments
     from high-level human-understandable parameters.
+
+    --------------------------
 
     Formula for staking in one period:
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
@@ -45,6 +47,14 @@ class TokenEconomics:
 
     kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
     where allLockedPeriods == min(T, T1)
+
+    --------------------------
+
+    Academic Reference:
+
+    NuCypher: Mining & Staking Economics - Michael Egorov, MacLane Wilkison, NuCypher
+    <https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf>
+
     """
 
     # Decimal
@@ -96,7 +106,7 @@ class TokenEconomics:
 
             initial_supply = Decimal(initial_supply)
 
-            # ERC20 Token parameter
+            # ERC20 Token parameter (See Equation 4 in Mining paper)
             total_supply = initial_supply * (1 + initial_inflation * halving_delay / LOG2)
 
             # Remaining / Reward Supply - Escrow Parameter
