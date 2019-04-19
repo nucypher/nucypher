@@ -42,7 +42,7 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isfile(known_nodes_dir)
 
     # Deploy contracts
-    deploy_args = ('contracts',
+    deploy_args = ('deploy',
                    '--registry-outfile', mock_primary_registry_filepath,
                    '--provider-uri', TEST_PROVIDER_URI,
                    '--deployer-address', deployer,

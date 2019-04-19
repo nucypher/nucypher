@@ -36,7 +36,7 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
                'FLASK_DEBUG': '1'}
 
     # Deploy contracts
-    deploy_args = ('contracts',
+    deploy_args = ('deploy',
                    '--registry-outfile', mock_primary_registry_filepath,
                    '--provider-uri', TEST_PROVIDER_URI,
                    '--poa')
