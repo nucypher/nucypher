@@ -29,7 +29,7 @@ TEST_DURATION = 60*60
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def allocation_value(token_economics):
     allocation = token_economics.minimum_allowed_locked * 10
     return allocation

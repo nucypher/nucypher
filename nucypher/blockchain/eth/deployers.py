@@ -170,7 +170,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self.contract_name,
-                                       self.__economics.erc20_total_supply)  # TODO: Is this the correct supply value (total vs inital economic parameter)?
+                                       self.__economics.erc20_total_supply)
 
         self._contract = _contract
         return {'txhash': deployment_txhash}
@@ -228,12 +228,12 @@ class MinerEscrowDeployer(ContractDeployer):
 
     def deploy(self) -> dict:
         """
-        Deploy and publish the NuCypher Token contract
+        Deploy and publish the MinersEscrow contract
         to the blockchain network specified in self.blockchain.network.
 
         Deployment can only ever be executed exactly once!
 
-        Emits the folowing blockchain network transactions:
+        Emits the following blockchain network transactions:
             - MinerEscrow contract deployment
             - MinerEscrow dispatcher deployment
             - Transfer reward tokens origin -> MinerEscrow contract

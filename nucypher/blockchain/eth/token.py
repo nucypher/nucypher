@@ -190,10 +190,7 @@ class Stake:
     @property
     def is_expired(self) -> bool:
         current_period = self.miner_agent.get_current_period()
-        if current_period >= self.end_period:
-            return True
-        else:
-            return False
+        return bool(current_period >= self.end_period)
 
     @property
     def is_active(self) -> bool:
@@ -307,7 +304,7 @@ class Stake:
 
         # Read from blockchain
         stake_info = self.miner_agent.get_substake_info(miner_address=self.owner_address,
-                                                        stake_index=self.index)  # < -- Read form blockchain
+                                                        stake_index=self.index)  # < -- Read from blockchain
 
         first_period, last_period, locked_value = stake_info
         if not self.start_period == first_period:

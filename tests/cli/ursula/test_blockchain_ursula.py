@@ -29,19 +29,19 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 from web3 import Web3
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def stake_value(token_economics):
     value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
     return value
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def policy_rate():
     rate = Web3.toWei(21, 'gwei')
     return rate
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def policy_value(token_economics, policy_rate):
     value = policy_rate * token_economics.minimum_locked_periods  # * len(ursula)
     return value

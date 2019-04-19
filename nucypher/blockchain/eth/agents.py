@@ -478,7 +478,7 @@ class MiningAdjudicatorAgent(EthereumContractAgent):
                        cfrag_signature_by_miner: bytes,
                        requester_public_key: bytes,
                        miner_public_key: bytes,
-                       miner_piblc_key_signature: bytes,
+                       miner_public_key_signature: bytes,
                        precomputed_data: bytes):
         """
 

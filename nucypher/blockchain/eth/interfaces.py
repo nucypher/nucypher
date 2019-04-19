@@ -289,7 +289,7 @@ class BlockchainInterface:
                        factory=Contract) -> Contract:
         """
         Used for upgradeable contracts; Returns a new contract object assembled
-        with it's own address but the abi of the other.
+        with its own address but the abi of the other.
         """
 
         # Wrap the contract

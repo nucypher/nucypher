@@ -396,7 +396,7 @@ class Miner(NucypherTokenActor):
         """
         High-level staking looping call initialization, this function aims
         to be safely called at any time - For example, it is okay to call
-        this function multiple time within the same period.
+        this function multiple times within the same period.
         """
         # Get the last stake end period of all stakes
         terminal_period = max(stake.end_period for stake in self.stakes)
@@ -483,7 +483,7 @@ class Miner(NucypherTokenActor):
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this miner has locked for a given duration in periods."""
         raw_value = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address, periods=periods)
-        value = NU(raw_value, 'NU')
+        value = NU.from_nunits(raw_value)
         return value
 
     @property
@@ -627,7 +627,7 @@ class Miner(NucypherTokenActor):
         return self.__read_stakes()
 
     @property
-    def stakes(self) -> Dict[int, Stake]:
+    def stakes(self) -> List[Stake]:
         """Return all cached stake instances from the blockchain."""
         return self.__stakes
 
