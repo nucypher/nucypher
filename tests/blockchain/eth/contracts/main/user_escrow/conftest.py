@@ -27,7 +27,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _initialAmount=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 

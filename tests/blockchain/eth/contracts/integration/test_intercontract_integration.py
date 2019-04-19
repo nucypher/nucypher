@@ -58,7 +58,7 @@ REWARD_COEFFICIENT = 2
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', _initialAmount=int(NU(2 * 10 ** 9, 'NuNit')))
+    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return contract
 
 
