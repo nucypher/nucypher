@@ -232,7 +232,7 @@ def test_rollback(click_runner):
     contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
                              'PolicyManager',      # v4 -> v3
                              'MiningAdjudicator',  # v4 -> v3
-                             # 'UserEscrowProxy'     # v4 -> v3  # TODO
+                             # 'UserEscrowProxy'     # v4 -> v3  # TODO: Rollback support for UserEscrowProxy
                              )
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
@@ -246,7 +246,7 @@ def test_rollback(click_runner):
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        records = blockchain.interface.registry.search(contract_name=contract_name)  # TODO
+        records = blockchain.interface.registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
