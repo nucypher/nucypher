@@ -206,13 +206,13 @@ class DispatcherDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address}  # FIXME
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}  # TODO: Gas management
         txhash = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash).transact(origin_args)
         _receipt = self.blockchain.wait_for_receipt(txhash=txhash)
         return txhash
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> bytes:
-        origin_args = {'from': self.deployer_address}  # FIXME
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}  # TODO: Gas management
         txhash = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash).transact(origin_args)
         _receipt = self.blockchain.wait_for_receipt(txhash=txhash)
         return txhash
@@ -410,10 +410,10 @@ class PolicyManagerDeployer(ContractDeployer):
         self.__proxy_contract = proxy_contract
 
         # Wrap the escrow contract
-        wrapped_policy_manager_contract = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=policy_manager_contract)
+        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=policy_manager_contract)
 
         # Switch the contract for the wrapped one
-        policy_manager_contract = wrapped_policy_manager_contract
+        policy_manager_contract = wrapped
 
         # Configure the MinerEscrow by setting the PolicyManager
         policy_setter_txhash = self.miner_agent.contract.functions.setPolicyManager(policy_manager_contract.address) \
@@ -436,6 +436,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
+                                                                                proxy_name=self.__proxy_deployer.contract_name,
                                                                                 use_proxy_address=False)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
@@ -750,6 +751,7 @@ class MiningAdjudicatorDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
+                                                                                proxy_name=self.__proxy_deployer.contract_name,
                                                                                 use_proxy_address=False)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
