@@ -506,7 +506,7 @@ class LibraryLinkerDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address}  # FIXME
+        origin_args = {'from': self.deployer_address}  # TODO: Gas management
         txhash = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash).transact(origin_args)
         _receipt = self.blockchain.wait_for_receipt(txhash=txhash)
         return txhash
