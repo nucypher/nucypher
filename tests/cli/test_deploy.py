@@ -306,7 +306,7 @@ def test_rollback(click_runner):
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        records = blockchain.interface.registry.search(contract_name=contract_name)  # TODO
+        records = blockchain.interface.registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
