@@ -23,7 +23,8 @@ import os
 import pytest
 import time
 
-from twisted.internet import task
+import pytest_twisted
+from twisted.internet import task, threads
 from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob
@@ -31,10 +32,13 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.keystore.keystore import NotFound
+from nucypher.keystore.threading import ThreadedSession
+from nucypher.network.server import ProxyRESTServer
 from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
+from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
 @pytest.mark.skip(reason="to be implemented")  # TODO
@@ -142,35 +146,41 @@ def test_revocation(federated_alice, federated_bob):
     assert len(already_revoked) == 3
 
 
-def test_arrangement_auto_expiration(federated_alice, federated_ursulas, federated_bob):
-    test_clock = task.Clock()
+@pytest_twisted.inlineCallbacks
+def test_arrangement_auto_expiration(federated_alice, federated_ursulas, federated_bob, test_clock):
 
     m, n = 2, 3
-    policy_end_datetime = maya.now() + datetime.timedelta(seconds=1)
+    policy_end_datetime = maya.now() + datetime.timedelta(seconds=2)
     label = b'arrangement auto-expiration test'
 
-    policy = federated_alice.grant(federated_bob, label, m=m, n=n,
+    policy = federated_alice.grant(federated_bob,
+                                   label,
+                                   m=m, n=n,
                                    expiration=policy_end_datetime)
 
-    breakpoint()
-
-    # Test that arrangement exists
+    # Test that arrangement exists (Main Thread)
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
-        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(
-                arrangement.id.hex().encode())
+        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
         assert retrieved_policy.kfrag == kfrag
 
-    # Advance task clock to expire arrangement and sleep to advance
-    # computer clock.
-    test_clock.advance(61)
-    time.sleep(2)
+    def start_ursulas_and_fast_forward():  # Run Delayed calls on each thread
+        for ursula in federated_ursulas:
+            start_pytest_ursula_services(ursula=ursula)
+            ursula.rest_server._CLOCK.advance(amount=10)
 
-    for kfrag in policy.kfrags:
-        arrangement = policy._enacted_arrangements[kfrag]
-        with pytest.raises(NotFound):
-            arrangement.ursula.datastore.get_policy_arrangement(
-                    arrangement.id.hex().encode())
+    def verify_destroyed_policies(_callback_result):
+
+        for expired_kfrag in policy.kfrags:
+            expired_arrangement = policy._enacted_arrangements[expired_kfrag]
+
+            # This arrangement *should* be auto-expired by now
+            with pytest.raises(NotFound):
+                expired_arrangement.ursula.datastore.get_policy_arrangement(expired_arrangement.id.hex().encode())
+
+    d = threads.deferToThread(start_ursulas_and_fast_forward)
+    d.addCallback(verify_destroyed_policies)
+    yield d
 
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):

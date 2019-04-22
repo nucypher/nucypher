@@ -23,6 +23,7 @@ import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
+from twisted.internet import task, reactor
 
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, MIN_LOCKED_PERIODS
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
@@ -35,6 +36,7 @@ from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
+from nucypher.network.server import ProxyRESTServer
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
                                                   MOCK_POLICY_DEFAULT_M, TESTING_ETH_AIRDROP_AMOUNT)
@@ -308,8 +310,18 @@ def blockchain_bob(bob_blockchain_test_config):
     return _bob
 
 
+@pytest.fixture(scope="module", autouse=True)
+def test_clock():
+    test_clock = task.Clock()
+    ProxyRESTServer._CLOCK = test_clock
+    yield test_clock
+    ProxyRESTServer._CLOCK = reactor
+
+
 @pytest.fixture(scope="module")
-def federated_ursulas(ursula_federated_test_config):
+def federated_ursulas(ursula_federated_test_config, test_clock):
+    ProxyRESTServer._CLOCK = test_clock
+
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas

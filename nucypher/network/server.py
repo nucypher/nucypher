@@ -22,7 +22,7 @@ from typing import Callable, Tuple
 from flask import Flask, Response
 from flask import request
 from jinja2 import Template, TemplateError
-from twisted.internet import task
+from twisted.internet import task, reactor
 from twisted.logger import Logger
 from umbral import pre
 from umbral.keys import UmbralPublicKey
@@ -55,9 +55,11 @@ status_template = Template(_status_template_content)
 
 
 class ProxyRESTServer:
-    log = Logger("characters")
     SERVER_VERSION = LEARNING_LOOP_VERSION
     log = Logger("network-server")
+
+    _CLOCK = reactor
+    _EXPIRATION_INTERVAL = 60  # seconds
 
     def __init__(self,
                  rest_host: str,
@@ -72,9 +74,11 @@ class ProxyRESTServer:
             self.rest_app = rest_app
             self.datastore = datastore
 
-            self.__auto_expiration_task = task.LoopingCall(
-                datastore.delete_expired_arrangements)
-            self.__auto_expiration_task.start(60)
+            # TODO: Move to Ursula
+            self.__auto_expiration_task = task.LoopingCall(datastore.delete_expired_arrangements)
+            self.__auto_expiration_task.clock = self._CLOCK
+            self.__auto_expiration_task.start(interval=self._EXPIRATION_INTERVAL)
+
         else:
             self.rest_app = constants.PUBLIC_ONLY
 
