@@ -14,14 +14,17 @@ from nucypher.blockchain.eth.agents import (
     MiningAdjudicatorAgent
 )
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
-    MOCK_ALLOCATION_INFILE,
-    MOCK_REGISTRY_FILEPATH, MOCK_ALLOCATION_REGISTRY_FILEPATH
+    MOCK_REGISTRY_FILEPATH,
+    MOCK_ALLOCATION_REGISTRY_FILEPATH,
+    INSECURE_DEVELOPMENT_PASSWORD
 )
 
 
@@ -35,15 +38,63 @@ PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
-def test_nucypher_deploy_all_contracts(testerchain, click_runner, mock_primary_registry_filepath):
+def make_testerchain(provider_uri, solidity_compiler):
+
+    # Destroy existing blockchain
+    BlockchainInterface.disconnect()
+    TesterBlockchain.sever_connection()
+
+    registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
+    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
+                                                     registry=registry,
+                                                     provider_uri=provider_uri)
+
+    # Create new blockchain
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   eth_airdrop=True,
+                                   free_transactions=False,
+                                   poa=True)
+
+    # Set the deployer address from a freshly created test account
+    deployer_interface.deployer_address = testerchain.etherbase_account
+    return testerchain
+
+
+def pyevm_testerchain():
+    return 'tester://pyevm'
+
+
+def geth_poa_devchain():
+    _testerchain = make_testerchain(provider_uri='tester://geth', solidity_compiler=SolidityCompiler())
+    return f'ipc://{_testerchain.interface.provider.ipc_path}'
+
+
+@pytest.mark.parametrize('blockchain', [geth_poa_devchain, pyevm_testerchain])
+def test_nucypher_deploy_contracts(click_runner,
+                                   blockchain,
+                                   mock_primary_registry_filepath,
+                                   mock_allocation_infile,
+                                   token_economics):
+
+    #
+    # Setup
+    #
+
+    provider_uri = blockchain()
 
     # We start with a blockchain node, and nothing else...
+    if os.path.isfile(mock_primary_registry_filepath):
+        os.remove(mock_primary_registry_filepath)
     assert not os.path.isfile(mock_primary_registry_filepath)
 
-    command = ('deploy',
+    #
+    # Main
+    #
+
+    command = ['deploy',
                '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', TEST_PROVIDER_URI,
-               '--poa')
+               '--provider-uri', provider_uri,
+               '--poa']
 
     user_input = 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8)
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -85,7 +136,6 @@ def test_nucypher_deploy_all_contracts(testerchain, click_runner, mock_primary_r
     # and at least the others can be instantiated
     assert PolicyAgent()
     assert MiningAdjudicatorAgent()
-    testerchain.sever_connection()
 
 
 def test_upgrade_contracts(click_runner):
@@ -334,17 +384,46 @@ def test_rollback(click_runner):
         assert targeted_address == rollback_target_address
 
 
-def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_infile, token_economics):
+def test_nucypher_deploy_allocation_contracts(click_runner,
+                                              testerchain,
+                                              mock_primary_registry_filepath,
+                                              mock_allocation_infile,
+                                              token_economics):
+
+    TesterBlockchain.sever_connection()
+
+    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
+        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
+    assert not os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH)
+
+    # We start with a blockchain node, and nothing else...
+    if os.path.isfile(mock_primary_registry_filepath):
+        os.remove(mock_primary_registry_filepath)
+    assert not os.path.isfile(mock_primary_registry_filepath)
+
+    command = ['contracts',
+               '--registry-outfile', mock_primary_registry_filepath,
+               '--provider-uri', 'tester://pyevm',
+               '--poa']
+
+    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    #
+    # Main
+    #
 
     deploy_command = ('allocations',
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                      '--allocation-infile', MOCK_ALLOCATION_INFILE,
+                      '--allocation-infile', mock_allocation_infile.filepath,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
-                      '--provider-uri', TEST_PROVIDER_URI,
+                      '--provider-uri', 'tester://pyevm',
                       '--poa')
 
     user_input = 'Y\n'*2
-    result = click_runner.invoke(deploy, deploy_command,
+    result = click_runner.invoke(deploy,
+                                 deploy_command,
                                  input=user_input,
                                  catch_exceptions=False)
     assert result.exit_code == 0
@@ -353,7 +432,14 @@ def test_nucypher_deploy_allocations(testerchain, click_runner, mock_allocation_
     beneficiary = testerchain.interface.w3.eth.accounts[-1]
     allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
-    assert user_escrow_agent.unvested_tokens == token_economics.maximum_allowed_locked
+    assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
+
+    #
+    # Tear Down
+    #
+
+    # Destroy existing blockchain
+    BlockchainInterface.disconnect()
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):

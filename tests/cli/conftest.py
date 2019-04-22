@@ -63,11 +63,15 @@ def nominal_federated_configuration_fields():
 
 @pytest.fixture(scope='module')
 def mock_allocation_infile(testerchain, token_economics):
-    accounts = testerchain.interface.w3.eth.accounts[5::]
-    allocation_data = [{'address': addr, 'amount': token_economics.maximum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS} for addr in accounts]
+    accounts = testerchain.unassigned_accounts
+    allocation_data = [{'address': addr,
+                        'amount': token_economics.minimum_allowed_locked,
+                        'duration': ONE_YEAR_IN_SECONDS}
+                       for addr in accounts]
+
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
+
     registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_INFILE)
     yield registry
     os.remove(MOCK_ALLOCATION_INFILE)
@@ -116,7 +120,7 @@ def deployed_blockchain(token_economics):
                                             provider_uri=TEST_PROVIDER_URI)
 
     # Blockchain
-    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=5, poa=True)
+    blockchain = TesterBlockchain(interface=interface, eth_airdrop=True, test_accounts=5, poa=True)
     deployer_address = blockchain.etherbase_account
 
     # Deployer
