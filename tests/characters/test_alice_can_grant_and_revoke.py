@@ -34,7 +34,6 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
-@pytest.mark.skip(reason="to be implemented")  # TODO
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
