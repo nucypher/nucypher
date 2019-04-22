@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.token import NU
 
 secret = (123456).to_bytes(32, byteorder='big')
 
@@ -26,7 +27,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', int(2e9))
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 

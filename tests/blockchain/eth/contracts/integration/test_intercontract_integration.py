@@ -25,6 +25,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.token import NU
 from nucypher.policy.models import IndisputableEvidence
 from umbral import pre
 from umbral.curvebn import CurveBN
@@ -37,25 +38,9 @@ from cryptography.hazmat.primitives import hashes
 NULL_ADDR = '0x' + '0' * 40
 
 VALUE_FIELD = 0
-DECIMALS_FIELD = 1
-CONFIRMED_PERIOD_1_FIELD = 2
-CONFIRMED_PERIOD_2_FIELD = 3
-LAST_ACTIVE_PERIOD_FIELD = 4
+RE_STAKE_FIELD = 3
 
-CLIENT_FIELD = 0
-RATE_FIELD = 1
-FIRST_REWARD_FIELD = 2
-START_PERIOD_FIELD = 3
-LAST_PERIOD_FIELD = 4
 DISABLED_FIELD = 5
-
-REWARD_FIELD = 0
-REWARD_RATE_FIELD = 1
-LAST_MINED_PERIOD_FIELD = 2
-
-ACTIVE_STATE = 0
-UPGRADE_WAITING_STATE = 1
-FINISHED_STATE = 2
 
 SECRET_LENGTH = 32
 escrow_secret = os.urandom(SECRET_LENGTH)
@@ -73,7 +58,7 @@ REWARD_COEFFICIENT = 2
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 9)
+    contract, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return contract
 
 
@@ -338,23 +323,35 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
-    # Deposit some tokens to the user escrow and lock them
+    # Create the first user escrow, set and lock re-stake parameter
     user_escrow_1, _ = testerchain.interface.deploy_contract(
         'UserEscrow', user_escrow_linker.address, token.address)
     user_escrow_proxy_1 = testerchain.interface.w3.eth.contract(
         abi=user_escrow_proxy.abi,
         address=user_escrow_1.address,
         ContractFactoryClass=Contract)
-
     tx = user_escrow_1.functions.transferOwnership(ursula3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    assert not escrow.functions.minerInfo(user_escrow_1.address).call()[RE_STAKE_FIELD]
+    tx = user_escrow_proxy_1.functions.setReStake(True).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = user_escrow_proxy_1.functions.lockReStake(period + 22).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.minerInfo(user_escrow_1.address).call()[RE_STAKE_FIELD]
+    # Can't unlock re-stake parameter now
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow_proxy_1.functions.setReStake(False).transact({'from': ursula3})
+        testerchain.wait_for_receipt(tx)
+
+    # Deposit some tokens to the user escrow and lock them
     tx = token.functions.approve(user_escrow_1.address, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = user_escrow_1.functions.initialDeposit(10000, 20 * 60 * 60).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+
     user_escrow_2, _ = testerchain.interface.deploy_contract(
         'UserEscrow', user_escrow_linker.address, token.address)
-
     tx = user_escrow_2.functions.transferOwnership(ursula4).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(user_escrow_2.address, 10000).transact({'from': creator})
@@ -480,6 +477,12 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
+    # Turn on re-stake for Ursula1
+    assert not escrow.functions.minerInfo(ursula1).call()[RE_STAKE_FIELD]
+    tx = escrow.functions.setReStake(True).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.minerInfo(ursula1).call()[RE_STAKE_FIELD]
+
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -567,6 +570,12 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     testerchain.wait_for_receipt(tx)
     tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
+
+    # Turn off re-stake for Ursula1
+    assert escrow.functions.minerInfo(ursula1).call()[RE_STAKE_FIELD]
+    tx = escrow.functions.setReStake(False).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    assert not escrow.functions.minerInfo(ursula1).call()[RE_STAKE_FIELD]
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -913,7 +922,17 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(hours=1)
 
+    # Can't unlock re-stake parameter yet
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow_proxy_1.functions.setReStake(False).transact({'from': ursula3})
+        testerchain.wait_for_receipt(tx)
+
     testerchain.time_travel(hours=1)
+    # Now can turn off re-stake
+    tx = user_escrow_proxy_1.functions.setReStake(False).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    assert not escrow.functions.minerInfo(user_escrow_1.address).call()[RE_STAKE_FIELD]
+
     tx = escrow.functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': ursula2})

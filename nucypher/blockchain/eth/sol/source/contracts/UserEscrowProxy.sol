@@ -22,6 +22,8 @@ contract UserEscrowProxy {
     event Mined(address indexed owner);
     event PolicyRewardWithdrawn(address indexed owner, uint256 value);
     event MinRewardRateSet(address indexed owner, uint256 value);
+    event ReStakeSet(address indexed owner, bool reStake);
+    event ReStakeLocked(address indexed owner, uint16 lockUntilPeriod);
 
     NuCypherToken public token;
     MinersEscrow public escrow;
@@ -56,6 +58,24 @@ contract UserEscrowProxy {
         address payable userEscrowAddress = address(bytes20(address(this)));
         UserEscrowLibraryLinker linker = UserEscrow(userEscrowAddress).linker();
         return UserEscrowProxy(linker.target());
+    }
+
+    /**
+    * @notice Set `reStake` parameter in the miners escrow
+    * @param _reStake Value for parameter
+    **/
+    function setReStake(bool _reStake) public {
+        getStateContract().escrow().setReStake(_reStake);
+        emit ReStakeSet(msg.sender, _reStake);
+    }
+
+    /**
+    * @notice Lock `reStake` parameter in the miners escrow
+    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
+    **/
+    function lockReStake(uint16 _lockReStakeUntilPeriod) public {
+        getStateContract().escrow().lockReStake(_lockReStakeUntilPeriod);
+        emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
     }
 
     /**

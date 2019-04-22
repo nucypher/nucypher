@@ -428,7 +428,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_bytecode = contract_factory.constructor(*constructor_args).buildTransaction(deploy_transaction)
+        deploy_bytecode = contract_factory.constructor(*constructor_args, **kwargs).buildTransaction(deploy_transaction)
         self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
 
         #

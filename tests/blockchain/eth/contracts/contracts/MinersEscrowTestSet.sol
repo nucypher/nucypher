@@ -16,7 +16,7 @@ contract MinersEscrowBad is MinersEscrow {
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint16 _rewardedPeriods,
-        uint16 _minReleasePeriods,
+        uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens
     )
@@ -27,7 +27,7 @@ contract MinersEscrowBad is MinersEscrow {
             _miningCoefficient,
             _lockedPeriodsCoefficient,
             _rewardedPeriods,
-            _minReleasePeriods,
+            _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens
         )
@@ -54,7 +54,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint16 _rewardedPeriods,
-        uint16 _minReleasePeriods,
+        uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint256 _valueToCheck
@@ -66,7 +66,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
             _miningCoefficient,
             _lockedPeriodsCoefficient,
             _rewardedPeriods,
-            _minReleasePeriods,
+            _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens
         )

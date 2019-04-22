@@ -19,11 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-VALUE_FIELD = 0
-DECIMALS_FIELD = 1
-CONFIRMED_PERIOD_1_FIELD = 2
-CONFIRMED_PERIOD_2_FIELD = 3
-LAST_ACTIVE_PERIOD_FIELD = 4
 
 MAX_SUB_STAKES = 30
 

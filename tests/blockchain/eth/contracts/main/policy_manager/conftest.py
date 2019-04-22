@@ -55,6 +55,9 @@ def policy_manager(testerchain, escrow, request):
     tx = escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
+    # Travel to the start of the next period to prevent problems with unexpected overflow first period
+    testerchain.time_travel(hours=1)
+
     # Register nodes
     tx = escrow.functions.register(node1).transact()
     testerchain.wait_for_receipt(tx)

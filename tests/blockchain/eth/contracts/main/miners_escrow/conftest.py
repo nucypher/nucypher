@@ -19,12 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.token import NU
 
 VALUE_FIELD = 0
-DECIMALS_FIELD = 1
-CONFIRMED_PERIOD_1_FIELD = 2
-CONFIRMED_PERIOD_2_FIELD = 3
-LAST_ACTIVE_PERIOD_FIELD = 4
 
 secret = (123456).to_bytes(32, byteorder='big')
 
@@ -32,7 +29,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 9)
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 
@@ -42,7 +39,16 @@ def escrow_contract(testerchain, token, request):
         # Creator deploys the escrow
         _mining_coefficient = 2 * 10 ** 7
         contract, _ = testerchain.interface.deploy_contract(
-            'MinersEscrow', token.address, 1, 4 * _mining_coefficient, 4, 4, 2, 100, max_allowed_locked_tokens)
+            contract_name='MinersEscrow',
+            _token=token.address,
+            _hoursPerPeriod=1,
+            _miningCoefficient=4 * _mining_coefficient,
+            _lockedPeriodsCoefficient=4,
+            _rewardedPeriods=4,
+            _minLockedPeriods=2,
+            _minAllowableLockedTokens=100,
+            _maxAllowableLockedTokens=max_allowed_locked_tokens
+        )
 
         if request.param:
             secret_hash = testerchain.interface.w3.keccak(secret)

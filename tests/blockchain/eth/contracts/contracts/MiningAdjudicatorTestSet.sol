@@ -16,7 +16,9 @@ contract MinersEscrowForMiningAdjudicatorMock {
         uint256 value;
         uint16 stubValue1;
         uint16 stubValue2;
-        uint16 stubValue3;
+        bool stubValue3;
+        uint16 stubValue4;
+        uint16 stubValue5;
     }
 
     mapping (address => MinerInfo) public minerInfo;

@@ -14,10 +14,10 @@ contract NuCypherToken is ERC20, ERC20Detailed('NuCypher', 'NU', 18) {
 
     /**
     * @notice Set amount of tokens
-    * @param _initialAmount Initial amount of tokens
+    * @param _totalSupply Total number of tokens
     **/
-    constructor (uint256 _initialAmount) public {
-        _mint(msg.sender, _initialAmount);
+    constructor (uint256 _totalSupply) public {
+        _mint(msg.sender, _totalSupply);
     }
 
     /**
