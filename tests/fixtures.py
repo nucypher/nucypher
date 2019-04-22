@@ -321,6 +321,7 @@ def token_economics():
     economics = TokenEconomics()
     return economics
 
+
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
@@ -339,15 +340,19 @@ def testerchain(solidity_compiler):
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
                                                      registry=memory_registry,
-                                                     provider_uri='tester://pyevm')
+                                                     provider_uri='tester://geth')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   eth_airdrop=True,
+                                   free_transactions=True,
+                                   poa=True)
 
     # Set the deployer address from a freshly created test account
     deployer_interface.deployer_address = testerchain.etherbase_account
 
     yield testerchain
+    deployer_interface.disconnect()
     testerchain.sever_connection()
 
 
