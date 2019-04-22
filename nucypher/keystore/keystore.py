@@ -58,13 +58,9 @@ class KeyStore(object):
         Queries the keystore and deletes expired arrangements.
         """
         session = session or self._session_on_init_thread
-        from datetime import timedelta
         curr_datetime = datetime.utcnow()
-        curr_datetime += timedelta(days=1)
-
-        import pudb; pudb.set_trace()
-        session.query(PolicyArrangement).filter(
-            PolicyArrangement.expiration <= curr_datetime).delete()
+        expired_records_query = session.query(PolicyArrangement).filter(PolicyArrangement.expiration >= curr_datetime)
+        expired_records_query.delete()
         session.commit()
 
     def add_key(self, key, is_signing=True, session=None) -> Key:
@@ -149,7 +145,7 @@ class KeyStore(object):
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
 
         if not policy_arrangement:
-              raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
+            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):
