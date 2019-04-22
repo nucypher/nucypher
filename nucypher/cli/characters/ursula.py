@@ -154,7 +154,7 @@ def ursula(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step - ue a fleet to detect the IP?
 
         ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      config_root=config_root,

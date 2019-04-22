@@ -581,6 +581,7 @@ class NodeConfiguration(ABC):
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
+
         return self.config_root
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:

@@ -632,7 +632,9 @@ class UserEscrowDeployer(ContractDeployer):
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
         if not is_checksum_address(beneficiary_address):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
-        txhash = self.contract.functions.transferOwnership(beneficiary_address).transact({'from': self.deployer_address})
+        txhash = self.contract.functions.transferOwnership(beneficiary_address).transact({'from': self.deployer_address,
+                                                                                          'gas': 500_000,
+                                                                                          'gasPrice': self.blockchain.interface.w3.eth.gasPrice})  # TODO: Gas
         self.blockchain.wait_for_receipt(txhash)
         self.__beneficiary_address = beneficiary_address
         return txhash
@@ -650,10 +652,12 @@ class UserEscrowDeployer(ContractDeployer):
         # Deposit
         try:
             # TODO: Gas management
-            args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
+            args = {'from': self.deployer_address,
+                    'gasPrice': self.blockchain.interface.w3.eth.gasPrice,
+                    'gas': 200_000}
             txhash = self.contract.functions.initialDeposit(value, duration).transact(args)
         except TransactionFailed:
-            raise
+            raise  # TODO
 
         allocation_transactions['initial_deposit'] = txhash
         self.blockchain.wait_for_receipt(txhash)
