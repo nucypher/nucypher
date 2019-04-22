@@ -189,13 +189,13 @@ def multisig(testerchain, escrow, policy_manager, adjudicator, user_escrow_proxy
         testerchain.interface.w3.eth.accounts
     contract_owners = sorted(contract_owners)
     contract, _ = testerchain.interface.deploy_contract('MultiSig', 2, contract_owners)
-    tx = escrow.functions.transferOwnership(contract.address).transact()
+    tx = escrow.functions.transferOwnership(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.transferOwnership(contract.address).transact()
+    tx = policy_manager.functions.transferOwnership(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = adjudicator.functions.transferOwnership(contract.address).transact()
+    tx = adjudicator.functions.transferOwnership(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_linker.functions.transferOwnership(contract.address).transact()
+    tx = user_escrow_linker.functions.transferOwnership(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     return contract
 

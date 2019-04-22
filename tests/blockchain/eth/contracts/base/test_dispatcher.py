@@ -23,7 +23,7 @@ from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.chains import Blockchain
 
-SECRET_LENGTH = 32
+SECRET_LENGTH = 16
 
 
 @pytest.mark.slow
@@ -275,7 +275,7 @@ def test_dispatcher(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 5 == contract_instance.functions.storageValue().call()
 
-    events = rollbacks.get_all_entries()
+    events = rollbacks.get_all_entries()  # FIXME
     assert 1 == len(events)
     event_args = events[0]['args']
     assert contract2_lib.address == event_args['from']

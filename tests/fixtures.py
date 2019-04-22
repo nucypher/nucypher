@@ -363,12 +363,16 @@ def testerchain(solidity_compiler):
                                                      provider_uri=TEST_PROVIDER_URI)
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   eth_airdrop=True,
+                                   free_transactions=True,
+                                   poa=True)
 
     # Set the deployer address from a freshly created test account
     deployer_interface.deployer_address = testerchain.etherbase_account
 
     yield testerchain
+    deployer_interface.disconnect()
     testerchain.sever_connection()
 
 
