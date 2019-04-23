@@ -23,6 +23,7 @@ import click
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.cli.config import nucypher_deployer_config
@@ -36,6 +37,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
@@ -50,6 +52,7 @@ def deploy(click_config,
            action,
            poa,
            provider_uri,
+           geth,
            deployer_address,
            contract_name,
            allocation_infile,
@@ -74,6 +77,20 @@ def deploy(click_config,
         registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
     # Connect to Blockchain
+    password = click.prompt("Enter Geth node password", hide_input=True)
+
+    if geth:
+
+        # TODO: Only devnet for now
+        # Spawn geth child process
+        geth_process = NuCypherGethDevnetProcess(password=password, config_root=config_root)
+
+        geth_process.start()  # TODO: Graceful shutdown
+        geth_process.wait_for_ipc(timeout=30)
+
+        provider_uri = f"ipc://{geth_process.ipc_path}"
+        poa = False
+
     blockchain = Blockchain.connect(provider_uri=provider_uri,
                                     registry=registry,
                                     deployer=True,
@@ -82,12 +99,24 @@ def deploy(click_config,
 
     # OK - Let's init a Deployment actor
     if not deployer_address:
-        etherbase = blockchain.interface.w3.eth.accounts[0]
-        deployer_address = etherbase  # TODO: Make this required instead, perhaps interactive
+        for index, address in enumerate(blockchain.interface.w3.eth.accounts):
+            click.secho(f"{index} --- {address}")
+        deployer_address_index = click.prompt("Select deployer address",
+                                              default=0,
+                                              type=click.IntRange(0, len(blockchain.interface.w3.eth.accounts)))
+        deployer_address = blockchain.interface.w3.eth.accounts[deployer_address_index]
 
     click.confirm("Deployer Address is {} - Continue?".format(deployer_address), abort=True)
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
+    click.secho(f"Deployer ETH balance: {deployer.eth_balance}")
+    if deployer.eth_balance is 0:
+        click.secho("Deployer address has no ETH.", fg='red', bold=True)
+        raise click.Abort()
+
+    # Unlock TODO: Integrate with keyring?
+    if geth:
+        blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
 
     #
     # Upgrade

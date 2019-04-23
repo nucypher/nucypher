@@ -1,19 +1,20 @@
 {
-    "coinbase"   : "0x5Cf95CBCaa65378D3051afd440aC1c1Fb3f3F3D5",
+    "coinbase"   : "0x973A688654D9b06546401DBA8A15d5D7e4f69062",
     "difficulty" : "0x10000",
-    "extraData"  : "",
+    "extraData"  : "0x",
     "gasLimit"   : "0x8000000",
     "nonce"      : "0x0112358132134550",
     "mixhash"    : "0x0000000000000000000000000000000000000000000000000000000000000000",
     "parentHash" : "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp"  : "0x00",
-    "alloc": {},
+    "alloc": {
+      "0x973A688654D9b06546401DBA8A15d5D7e4f69062": {"balance":  "100000000000000000000000"}
+    },
     "config": {
-      "chainId": "112358",
+      "chainId": 112358,
       "homesteadBlock": 0,
       "eip155Block": 0,
       "eip158Block": 0,
-      "daoForkBlock": 0,
-      "daoForkSupport": "true"
+      "byzantiumBlock": 0
     }
   }
