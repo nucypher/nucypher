@@ -117,7 +117,7 @@ def test_exact_economics():
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
         assert expected_reward_supply == expected_total_supply - expected_initial_supply
-        assert reward_saturation * 365 == expected_locked_periods_coefficient
+        assert reward_saturation * 365 * multiplier == expected_locked_periods_coefficient * (1 - multiplier)
         assert int(365 ** 2 * reward_saturation * halving / log(2) / (1-multiplier)) == expected_staking_coefficient
 
     # After sanity checking, assemble expected test deployment parameters
