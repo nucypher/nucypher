@@ -148,6 +148,7 @@ def test_revocation(federated_alice, federated_bob):
 
 @pytest_twisted.inlineCallbacks
 def test_arrangement_auto_expiration(federated_alice, federated_ursulas, federated_bob, test_clock):
+    ProxyRESTServer._EXPIRATION_INTERVAL = 2
 
     m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(seconds=2)
@@ -165,9 +166,11 @@ def test_arrangement_auto_expiration(federated_alice, federated_ursulas, federat
         assert retrieved_policy.kfrag == kfrag
 
     def start_ursulas_and_fast_forward():  # Run Delayed calls on each thread
+
         for ursula in federated_ursulas:
             start_pytest_ursula_services(ursula=ursula)
-            ursula.rest_server._CLOCK.advance(amount=10)
+            for _ in range(30):
+                ursula.rest_server._CLOCK.advance(amount=1)
 
     def verify_destroyed_policies(_callback_result):
 

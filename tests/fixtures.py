@@ -321,7 +321,6 @@ def test_clock():
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config, test_clock):
     ProxyRESTServer._CLOCK = test_clock
-
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas

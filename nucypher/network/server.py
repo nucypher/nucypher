@@ -119,7 +119,7 @@ def make_rest_app(
     else:
         db_uri = 'sqlite://'  # TODO: Is this a sane default? See #667
 
-    engine = create_engine(db_uri)
+    engine = create_engine(db_uri, connect_args={'check_same_thread': False})  # TODO: ?
 
     Base.metadata.create_all(engine)
     datastore = keystore.KeyStore(engine)

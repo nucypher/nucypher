@@ -58,8 +58,8 @@ class KeyStore(object):
         Queries the keystore and deletes expired arrangements.
         """
         session = session or self._session_on_init_thread
-        curr_datetime = datetime.utcnow()
-        expired_records_query = session.query(PolicyArrangement).filter(PolicyArrangement.expiration >= curr_datetime)
+        nowish = datetime.utcnow()
+        expired_records_query = session.query(PolicyArrangement).filter(PolicyArrangement.expiration <= nowish)
         expired_records_query.delete()
         session.commit()
 
