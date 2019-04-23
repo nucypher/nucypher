@@ -21,6 +21,7 @@ from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -35,6 +36,7 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -60,6 +62,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
@@ -89,6 +92,7 @@ def ursula(click_config,
            config_root,
            config_file,
            provider_uri,
+           geth,
            recompile_solidity,
            no_registry,
            registry_filepath,
@@ -121,7 +125,7 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
     if not quiet:
-        log = Logger('ursula.cli')
+        log = Logger('ursula.cli')  # TODO: Why is this unused?
 
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
@@ -212,7 +216,37 @@ def ursula(click_config,
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                              config_file=config_file)
 
-        click_config.unlock_keyring(character_configuration=ursula_config)
+        #
+        # Authenticate
+        #
+
+        password = click_config.get_password()
+        click_config.unlock_keyring(character_configuration=ursula_config, password=password)
+
+        #
+        # Post-Auth
+        #
+
+        # Web3 Provider Shortcuts
+        ursula_config.node_process = None  # TODO: move me brightly
+        if geth:
+            if federated_only:
+                raise click.BadOptionUsage(option_name="--geth",
+                                           message="Federated only cannot be used with the --geth flag")
+
+            # Spawn geth child process
+            # TODO: Only devnet for now
+            geth_process = NuCypherGethDevnetProcess(config_root=config_root or DEFAULT_CONFIG_ROOT)
+            geth_process.start()
+            geth_process.wait_for_ipc(timeout=30)
+            provider_uri = f"ipc://{geth_process.ipc_path}"
+
+            # Overwrite the ursula config *after* auth to prevent eager process spawning
+            ursula_config.node_process = geth_process
+            ursula_config.provider_uri = provider_uri
+
+        # under the rug
+        del password
 
     # Handle destruction *before* network bootstrap and character initialization below
     if action == "destroy":
