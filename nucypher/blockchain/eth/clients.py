@@ -37,7 +37,7 @@ class NuCypherGethDevProcess(BaseGethProcess, LoggingMixin):
 
 class NuCypherGethDevnetProcess(LoggingMixin, BaseGethProcess):
 
-    GENESIS_FILEPATH = os.path.join('deploy', 'geth', 'genesis.json')
+    GENESIS_SOURCE_FILEPATH = os.path.join('deploy', 'geth', 'genesis.json')
     __CHAIN_NAME = 'devnet'
     __CHAIN_ID = NUCYPHER_CHAIN_IDS[__CHAIN_NAME]
 
@@ -66,20 +66,18 @@ class NuCypherGethDevnetProcess(LoggingMixin, BaseGethProcess):
             base_dir = os.path.join(config_root, '.ethereum')
         self.data_dir = get_chain_data_dir(base_dir=base_dir, name=self.__CHAIN_NAME)
 
-        # Hardcoded Geth CLI args for devnet child process
+        # Hardcoded Geth CLI args for devnet child process ("light client")
         ipc_path = os.path.join(self.data_dir, 'geth.ipc')
-        geth_kwargs = {'unlock': '0',
-                       'network_id': str(self.__CHAIN_ID),
+        geth_kwargs = {'network_id': str(self.__CHAIN_ID),
                        'port': '30303',
                        'verbosity': '5',
-                       'rpc_enabled': 'true',
                        'data_dir': self.data_dir,
                        'ipc_path': ipc_path}
 
         _coinbase = ensure_account_exists(**geth_kwargs)
 
         # Genesis & Blockchain Init
-        genesis_filepath = self.GENESIS_FILEPATH
+        genesis_filepath = os.path.join(self.data_dir, 'genesis.json')
         needs_init = all((
             not os.path.exists(genesis_filepath),
             not is_live_chain(self.data_dir),
@@ -87,7 +85,9 @@ class NuCypherGethDevnetProcess(LoggingMixin, BaseGethProcess):
         ))
 
         if needs_init:
-            with open(genesis_filepath) as file:
+            click.confirm("Generate new genesis block?", abort=True)
+
+            with open(self.GENESIS_SOURCE_FILEPATH) as file:
                 genesis_data = json.loads(file.read())
             initialize_chain(genesis_data, **geth_kwargs)
 
