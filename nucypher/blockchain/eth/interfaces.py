@@ -588,11 +588,11 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Instantiate & Enroll contract
         #
 
-        contract = self.w3.eth.contract(address=address, abi=Contract.abi)
+        contract = self.w3.eth.contract(address=address, abi=contract_factory.abi)
 
         if enroll is True:
             self.registry.enroll(contract_name=contract_name,
                                  contract_address=contract.address,
-                                 contract_abi=Contract.abi)
+                                 contract_abi=contract_factory.abi)
 
         return contract, txhash  # receipt
