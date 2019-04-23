@@ -33,7 +33,7 @@ def test_rough_economics():
     if allLockedPeriods > awarded_periods then allLockedPeriods = awarded_periods
     kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
     """
 
@@ -56,6 +56,9 @@ def test_rough_economics():
     assert int(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - e.initial_supply)) == int(initial_rate)
     assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
+    # Sanity check for locked_periods_coefficient (k1) and staking_coefficient (k2)
+    assert e.locked_periods_coefficient * e.token_halving == e.staking_coefficient * LOG2 * e.small_stake_multiplier / 365
+
 
 def test_exact_economics():
     """
@@ -68,7 +71,7 @@ def test_exact_economics():
     if allLockedPeriods > awarded_periods then allLockedPeriods = awarded_periods
     kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
     """
 
@@ -90,6 +93,8 @@ def test_exact_economics():
     multiplier = 0.5
     expected_locked_periods_coefficient = 365
     expected_staking_coefficient = 768812
+
+    assert expected_locked_periods_coefficient * halving == round(expected_staking_coefficient * log(2) * multiplier / 365)
 
     #
     # Sanity

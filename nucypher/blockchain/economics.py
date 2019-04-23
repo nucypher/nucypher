@@ -45,7 +45,7 @@ class TokenEconomics:
 
     ...but also...
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
 
     --------------------------
