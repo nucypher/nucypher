@@ -228,16 +228,14 @@ def ursula(click_config,
         #
 
         # Web3 Provider Shortcuts
-        ursula_config.node_process = None  # TODO: move me brightly
+        ursula_config.node_process = None  # TODO: move me brightly (use for cleanup)
         if geth:
             if federated_only:
-                raise click.BadOptionUsage(option_name="--geth",
-                                           message="Federated only cannot be used with the --geth flag")
+                raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
             # Spawn geth child process
-            # TODO: Only devnet for now
-            geth_process = NuCypherGethDevnetProcess(config_root=config_root or DEFAULT_CONFIG_ROOT)
-            geth_process.start()
+            geth_process = NuCypherGethDevnetProcess(password=password, config_root=config_root)  # TODO: Only devnet for now
+            geth_process.start()  # TODO: Graceful shutdown
             geth_process.wait_for_ipc(timeout=30)
             provider_uri = f"ipc://{geth_process.ipc_path}"
 
