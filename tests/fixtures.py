@@ -340,7 +340,7 @@ def testerchain(solidity_compiler):
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
                                                      registry=memory_registry,
-                                                     provider_uri='tester://geth')
+                                                     provider_uri='tester://pyevm')
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface,
