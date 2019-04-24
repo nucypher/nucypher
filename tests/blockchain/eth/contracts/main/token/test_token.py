@@ -21,7 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.mark.slow()
-def test_create_token(testerchain):
+def test_create_token(testerchain, token_economics):
     """
     These are tests for standard tokens taken from Consensys github:
     https://github.com/ConsenSys/Tokens/
@@ -32,12 +32,14 @@ def test_create_token(testerchain):
     account1 = testerchain.interface.w3.eth.accounts[1]
     account2 = testerchain.interface.w3.eth.accounts[2]
 
+    assert creator == testerchain.interface.w3.eth.coinbase
+
     # Create an ERC20 token
-    token, txhash = testerchain.interface.deploy_contract('NuCypherToken', 10 ** 9)
+    token, txhash = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     assert txhash is not None
 
     # Account balances
-    assert 10 ** 9 == token.functions.balanceOf(creator).call()
+    assert token_economics.erc20_total_supply == token.functions.balanceOf(creator).call()
     assert 0 == token.functions.balanceOf(account1).call()
 
     # Basic properties
@@ -47,15 +49,17 @@ def test_create_token(testerchain):
 
     # Cannot send ETH to the contract because there is no payable function
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.interface.w3.eth.sendTransaction(
-            {'from': testerchain.interface.w3.eth.coinbase, 'to': token.address, 'value': 10 ** 9})
+        tx = testerchain.interface.w3.eth.sendTransaction({'from': testerchain.interface.w3.eth.coinbase,
+                                                           'to': token.address,
+                                                           'value': 100,
+                                                           'gasPrice': 0})
         testerchain.wait_for_receipt(tx)
 
     # Can transfer tokens
     tx = token.functions.transfer(account1, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 10000 == token.functions.balanceOf(account1).call()
-    assert 10 ** 9 - 10000 == token.functions.balanceOf(creator).call()
+    assert token_economics.erc20_total_supply - 10000 == token.functions.balanceOf(creator).call()
     tx = token.functions.transfer(account2, 10).transact({'from': account1})
     testerchain.wait_for_receipt(tx)
     assert 10000 - 10 == token.functions.balanceOf(account1).call()
@@ -66,12 +70,12 @@ def test_create_token(testerchain):
 
 
 @pytest.mark.slow()
-def test_approve_and_call(testerchain):
+def test_approve_and_call(testerchain, token_economics):
     creator = testerchain.interface.w3.eth.accounts[0]
     account1 = testerchain.interface.w3.eth.accounts[1]
     account2 = testerchain.interface.w3.eth.accounts[2]
 
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', 10 ** 9)
+    token, _ = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     mock, _ = testerchain.interface.deploy_contract('ReceiveApprovalMethodMock')
 
     # Approve some value and check allowance

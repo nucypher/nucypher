@@ -33,22 +33,19 @@ from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
     initialize_sentry,
-    getJsonFileObserver)
+    getJsonFileObserver
+)
 
-
-#
-# Click CLI Config
-#
 
 class NucypherClickConfig:
 
     # Output Sinks
-    __emitter = None
     capture_stdout = False
+    __emitter = None
     __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
     # Environment Variables
-    config_file = os.environ.get('NUCYPHER_CONFIG_FILE', None)
+    config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", __sentry_endpoint)
     log_to_sentry = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
@@ -63,7 +60,8 @@ class NucypherClickConfig:
         globalLogPublisher.addObserver(getTextFileObserver())
         globalLogPublisher.addObserver(getJsonFileObserver())
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # Logging
         self.quiet = False
@@ -81,8 +79,7 @@ class NucypherClickConfig:
             character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
             character_configuration.connect_to_contracts()
         except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found; " \
-                      "Did you mean to pass --federated-only?"
+            message = "No contract registry found; Did you mean to pass --federated-only?"
             raise EthereumContractRegistry.NoRegistry(message)
 
         else:
@@ -118,28 +115,44 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
+    __secrets = ('miner_secret', 'policy_secret', 'escrow_proxy_secret', 'mining_adjudicator_secret')
+    Secrets = collections.namedtuple('Secrets', __secrets)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Deployment Environment Variables
+        self.miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
+        self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
+        self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
+        self.mining_adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
 
     def collect_deployment_secrets(self) -> Secrets:
 
-        miner_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
-        if not miner_secret:
-            miner_secret = click.prompt('Enter MinerEscrow Deployment Secret', hide_input=True,
-                                        confirmation_prompt=True)
+        if not self.miner_escrow_deployment_secret:
+            self.miner_escrow_deployment_secret = click.prompt('Enter MinerEscrow Deployment Secret',
+                                                               hide_input=True,
+                                                               confirmation_prompt=True)
 
-        policy_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
-        if not policy_secret:
-            policy_secret = click.prompt('Enter PolicyManager Deployment Secret', hide_input=True,
-                                         confirmation_prompt=True)
+        if not self.policy_manager_deployment_secret:
+            self.policy_manager_deployment_secret = click.prompt('Enter PolicyManager Deployment Secret',
+                                                                 hide_input=True,
+                                                                 confirmation_prompt=True)
 
-        escrow_proxy_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
-        if not escrow_proxy_secret:
-            escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
-                                               confirmation_prompt=True)
+        if not self.user_escrow_proxy_deployment_secret:
+            self.user_escrow_proxy_deployment_secret = click.prompt('Enter UserEscrowProxy Deployment Secret',
+                                                                    hide_input=True,
+                                                                    confirmation_prompt=True)
 
-        secrets = self.Secrets(miner_secret=miner_secret,                 # type: str
-                               policy_secret=policy_secret,               # type: str
-                               escrow_proxy_secret=escrow_proxy_secret    # type: str
+        if not self.mining_adjudicator_deployment_secret:
+            self.mining_adjudicator_deployment_secret = click.prompt('Enter MiningAdjudicator Deployment Secret',
+                                                                     hide_input=True,
+                                                                     confirmation_prompt=True)
+
+        secrets = self.Secrets(miner_secret=self.miner_escrow_deployment_secret,                    # type: str
+                               policy_secret=self.policy_manager_deployment_secret,                 # type: str
+                               escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,        # type: str
+                               mining_adjudicator_secret=self.mining_adjudicator_deployment_secret  # type: str
                                )
         return secrets
 

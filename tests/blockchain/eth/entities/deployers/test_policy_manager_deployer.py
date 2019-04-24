@@ -14,11 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 from nucypher.blockchain.eth.agents import PolicyAgent
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
+    MinerEscrowDeployer,
+    PolicyManagerDeployer,
+    DispatcherDeployer
+)
 
 
 def test_policy_manager_deployer(testerchain):
@@ -30,7 +36,7 @@ def test_policy_manager_deployer(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
@@ -39,10 +45,9 @@ def test_policy_manager_deployer(testerchain):
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
-    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
-    deployer = PolicyManagerDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    deployer = PolicyManagerDeployer(deployer_address=origin,
+                                     secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
 
     deployment_txhashes = deployer.deploy()
     assert len(deployment_txhashes) == 3

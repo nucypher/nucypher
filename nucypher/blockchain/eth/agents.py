@@ -22,10 +22,9 @@ from twisted.logger import Logger
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
-from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -140,26 +139,32 @@ class MinerAgent(EthereumContractAgent):
 
     def get_locked_tokens(self, miner_address: str, periods: int = 0) -> int:
         """
-        Returns the amount of tokens this miner has locked.
-
-        TODO: Validate input (periods not less then 0)
+        Returns the amount of tokens this miner has locked
+        for a given duration in periods measured from the current period forwards.
         """
+        if periods < 0:
+            raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
         return self.contract.functions.getLockedTokens(miner_address, periods).call()
 
     def owned_tokens(self, address: str) -> int:
         return self.contract.functions.minerInfo(address).call()[0]
 
-    def get_stake_info(self, miner_address: str, stake_index: int):
+    def get_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
         last_period = self.contract.functions.getLastPeriodOfSubStake(miner_address, stake_index).call()
         return first_period, last_period, locked_value
+
+    def get_raw_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int, int]:
+        result = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
+        first_period, last_period, periods, locked = result
+        return first_period, last_period, periods, locked
 
     def get_all_stakes(self, miner_address: str):
         stakes_length = self.contract.functions.getSubStakesLength(miner_address).call()
         if stakes_length == 0:
             return iter(())  # Empty iterable, There are no stakes
         for stake_index in range(stakes_length):
-            yield self.get_stake_info(miner_address=miner_address, stake_index=stake_index)
+            yield self.get_substake_info(miner_address=miner_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
@@ -174,6 +179,10 @@ class MinerAgent(EthereumContractAgent):
                                                  ).transact({'from': miner_address})
         self.blockchain.wait_for_receipt(tx)
         return tx
+
+    def get_last_active_period(self, address: str) -> int:
+        period = self.contract.functions.getLastActivePeriod(address).call()
+        return int(period)
 
     def confirm_activity(self, node_address: str) -> str:
         """Miner rewarded for every confirmed period"""
@@ -212,6 +221,7 @@ class MinerAgent(EthereumContractAgent):
     #
     # Contract Utilities
     #
+
     def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
@@ -251,7 +261,7 @@ class MinerAgent(EthereumContractAgent):
                 deltas.append(next_point - previous_point)
 
             addresses = set(self.contract.functions.sample(deltas, duration).call())
-            addresses.discard(str(constants.NULL_ADDRESS))
+            addresses.discard(str(Blockchain.NULL_ADDRESS))
 
             if len(addresses) >= quantity:
                 return system_random.sample(addresses, quantity)
@@ -452,3 +462,49 @@ class UserEscrowAgent(EthereumContractAgent):
         txhash = self.__proxy_contract.functions.setMinRewardRate(rate).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
+
+
+class MiningAdjudicatorAgent(EthereumContractAgent):
+    """TODO Issue #931"""
+
+    registry_contract_name = "MiningAdjudicator"
+    _proxy_name = "Dispatcher"
+
+    def evaluate_cfrag(self,
+                       capsule_bytes: bytes,
+                       capsule_signature_by_requester: bytes,
+                       capsule_signature_by_requester_and_miner: bytes,
+                       cfrag_bytes: bytes,
+                       cfrag_signature_by_miner: bytes,
+                       requester_public_key: bytes,
+                       miner_public_key: bytes,
+                       miner_public_key_signature: bytes,
+                       precomputed_data: bytes):
+        """
+
+        From Contract Source:
+
+        function evaluateCFrag(
+            bytes memory _capsuleBytes,
+            bytes memory _capsuleSignatureByRequester,
+            bytes memory _capsuleSignatureByRequesterAndMiner,
+            bytes memory _cFragBytes,
+            bytes memory _cFragSignatureByMiner,
+            bytes memory _requesterPublicKey,
+            bytes memory _minerPublicKey,
+            bytes memory _minerPublicKeySignature,
+            bytes memory _preComputedData
+        )
+
+        :param capsule:
+        :param capsule_signature_by_requester:
+        :param capsule_signature_by_requester_and_miner:
+        :param cfrag:
+        :param cfrag_signature_by_miner:
+        :param requester_public_key:
+        :param miner_public_key:
+        :param miner_piblc_key_signature:
+        :param precomputed_data:
+        :return:
+        """
+        # TODO: #931 - Challenge Agent and Actor - "Investigator"

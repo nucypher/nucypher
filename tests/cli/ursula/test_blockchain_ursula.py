@@ -11,7 +11,6 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
-from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -23,33 +22,46 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, TESTING_ETH_AIRDROP_AMOUNT)
+    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 from web3 import Web3
 
 
-STAKE_VALUE = NU(MIN_ALLOWED_LOCKED * 2, 'NuNit')
-POLICY_RATE = Web3.toWei(21, 'gwei')
-POLICY_VALUE = POLICY_RATE * MIN_LOCKED_PERIODS   # * len(ursula)
+@pytest.fixture(scope='module')
+def stake_value(token_economics):
+    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+    return value
+
+
+@pytest.fixture(scope='module')
+def policy_rate():
+    rate = Web3.toWei(21, 'gwei')
+    return rate
+
+
+@pytest.fixture(scope='module')
+def policy_value(token_economics, policy_rate):
+    value = policy_rate * token_economics.minimum_locked_periods  # * len(ursula)
+    return value
 
 
 @pytest.fixture(autouse=True, scope='module')
-def funded_blockchain(deployed_blockchain):
+def funded_blockchain(deployed_blockchain, token_economics):
 
     # Who are ya'?
     blockchain, _deployer_address, registry = deployed_blockchain
     deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
 
     # Free ETH!!!
-    blockchain.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
+    blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     # Free Tokens!!!
     token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
                   origin=_deployer_address,
                   addresses=everyone_else,
-                  amount=MIN_ALLOWED_LOCKED*5)
+                  amount=token_economics.minimum_allowed_locked*5)
 
     # HERE YOU GO
     yield blockchain, _deployer_address
@@ -145,11 +157,16 @@ def test_initialize_system_blockchain_configuration(click_runner,
         assert str(TEMPORARY_DOMAIN, encoding='utf-8') in config_data['domains']
 
 
-def test_init_ursula_stake(click_runner, configuration_file_location, funded_blockchain):
+def test_init_ursula_stake(click_runner,
+                           configuration_file_location,
+                           funded_blockchain,
+                           stake_value,
+                           token_economics):
+
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
-                  '--value', STAKE_VALUE.to_tokens(),
-                  '--duration', MIN_LOCKED_PERIODS,
+                  '--value', stake_value.to_tokens(),
+                  '--duration', token_economics.minimum_locked_periods,
                   '--poa',
                   '--force')
 
@@ -164,10 +181,14 @@ def test_init_ursula_stake(click_runner, configuration_file_location, funded_blo
     stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
-    assert NU(int(value), 'NuNit') == STAKE_VALUE
+    assert NU(int(value), 'NuNit') == stake_value
 
 
-def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_location):
+def test_list_ursula_stakes(click_runner,
+                            funded_blockchain,
+                            configuration_file_location,
+                            stake_value):
+
     _blockchain, _deployer_address = funded_blockchain
 
     stake_args = ('ursula', 'stake',
@@ -178,10 +199,10 @@ def test_list_ursula_stakes(click_runner, funded_blockchain, configuration_file_
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(STAKE_VALUE) in result.output
+    assert str(stake_value) in result.output
 
 
-def test_ursula_divide_stakes(click_runner, configuration_file_location):
+def test_ursula_divide_stakes(click_runner, configuration_file_location, token_economics):
 
     divide_args = ('ursula', 'stake',
                    '--divide',
@@ -189,7 +210,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location):
                    '--poa',
                    '--force',
                    '--index', 0,
-                   '--value', NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens(),
+                   '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--duration', 10)
 
     result = click_runner.invoke(nucypher_cli,
@@ -206,7 +227,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location):
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(NU(MIN_ALLOWED_LOCKED, 'NuNit').to_tokens()) in result.output
+    assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
 def test_run_blockchain_ursula(click_runner,
@@ -241,7 +262,9 @@ def test_collect_rewards_integration(click_runner,
                                      charlie_blockchain_test_config,
                                      random_policy_label,
                                      blockchain_ursulas,
-                                     staking_participant):
+                                     staking_participant,
+                                     token_economics,
+                                     policy_value):
 
     blockchain = staking_participant.blockchain
 
@@ -257,9 +280,9 @@ def test_collect_rewards_integration(click_runner,
     #
     # Back to the Ursulas...
     #
-    half_stake_time = MIN_LOCKED_PERIODS // 2          # Test setup
-    logger = staking_participant.log                   # Enter the Teacher's Logger, and
-    current_period = 1                                 # State the initial period for incrementing
+    half_stake_time = token_economics.minimum_locked_periods // 2          # Test setup
+    logger = staking_participant.log  # Enter the Teacher's Logger, and
+    current_period = 1                # State the initial period for incrementing
 
     miner = Miner(checksum_address=staking_participant.checksum_public_address,
                   blockchain=blockchain, is_me=True)
@@ -278,7 +301,7 @@ def test_collect_rewards_integration(click_runner,
     blockchain_policy = alice.grant(bob=bob,
                                     label=random_policy_label,
                                     m=M, n=1,
-                                    value=POLICY_VALUE,
+                                    value=policy_value,
                                     expiration=expiration,
                                     handpicked_ursulas={staking_participant})
 

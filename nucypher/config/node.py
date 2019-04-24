@@ -16,19 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import binascii
 import json
 import os
 import secrets
-
-import eth_utils
-import shutil
 import string
 from abc import ABC
 from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 from typing import List, Set
 
+import binascii
+import eth_utils
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -44,7 +42,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR, GLOBAL_DOMAIN
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
@@ -356,7 +354,7 @@ class NodeConfiguration(ABC):
             with open(filepath, 'r') as file:
                 raw_contents = file.read()
                 payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(raw_contents)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             raise  # TODO: Do we need better exception handling here?
         return payload
 

@@ -36,7 +36,6 @@ from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.constants import NUMBER_OF_ETH_TEST_ACCOUNTS
 
 
 class BlockchainInterface:
@@ -218,7 +217,7 @@ class BlockchainInterface:
         return self.w3.node_version.node
 
     def add_provider(self,
-                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider] = None,
+                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester] = None,
                      provider_uri: str = None,
                      timeout: int = None) -> None:
 
@@ -232,15 +231,19 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'tester':
 
                 if uri_breakdown.netloc == 'pyevm':
-                    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT
+                    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+
+                    # Initialize
                     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
                     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
-                    pyevm_backend.reset_to_genesis(genesis_params=genesis_params,
-                                                   num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+                    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+
+                    # Test provider entry-point
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
                 elif uri_breakdown.netloc == 'geth':
-                    # Hardcoded gethdev IPC provider
+                    # TODO: Hardcoded geth - dev IPC provider - for now
                     provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
 
                 else:
@@ -259,7 +262,7 @@ class BlockchainInterface:
                 provider = HTTPProvider(endpoint_uri=provider_uri)
 
             else:
-                raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
+                raise self.InterfaceError("'{}' is not a supported provider protocol".format(uri_breakdown.scheme))
 
             self.__provider = provider
 
@@ -280,11 +283,13 @@ class BlockchainInterface:
                                             ContractFactoryClass=Contract)
             return contract
 
-    def _wrap_contract(self, wrapper_contract: Contract,
-                       target_contract: Contract, factory=Contract) -> Contract:
+    def _wrap_contract(self,
+                       wrapper_contract: Contract,
+                       target_contract: Contract,
+                       factory=Contract) -> Contract:
         """
-        Used for upgradeable contracts;
-        Returns a new contract object assembled with the address of one contract but the abi or another.
+        Used for upgradeable contracts; Returns a new contract object assembled
+        with its own address but the abi of the other.
         """
 
         # Wrap the contract
@@ -371,23 +376,24 @@ class BlockchainInterface:
         backend. If the backend is based on eth-tester, then it uses the
         eth-tester signing interface to do so.
         """
-        provider = self.provider
-        if isinstance(provider, EthereumTesterProvider):
+
+        if isinstance(self.provider, EthereumTesterProvider):
+            # Tests only
             address = to_canonical_address(account)
-            sig_key = provider.ethereum_tester.backend._key_lookup[address]
+            sig_key = self.provider.ethereum_tester.backend._key_lookup[address]
             signed_message = sig_key.sign_msg(message)
             return signed_message
-        else:
-            return self.w3.eth.sign(account, data=message)  # TODO: Technically deprecated...
 
-    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
+        else:
+            return self.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs
+
+    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
         """
         Verifies a hex string signature and message hash are from the provided
         public key.
         """
         is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
-
         return is_valid_sig and (sig_pubkey == pubkey)
 
     def unlock_account(self, address, password, duration):
@@ -399,6 +405,9 @@ class BlockchainInterface:
 class BlockchainDeployerInterface(BlockchainInterface):
 
     class NoDeployerAddress(RuntimeError):
+        pass
+
+    class DeploymentFailed(RuntimeError):
         pass
 
     def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
@@ -413,7 +422,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def deployer_address(self, checksum_address: str) -> None:
         self.__deployer_address = checksum_address
 
-    def deploy_contract(self, contract_name: str, *constructor_args, enroll: bool = True, **kwargs) -> Tuple[Contract, str]:
+    def deploy_contract(self,
+                        contract_name: str,
+                        *constructor_args,
+                        enroll: bool = True,
+                        **kwargs
+                        ) -> Tuple[Contract, str]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -422,8 +436,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
             raise self.NoDeployerAddress
 
         #
-        # Build the deployment tx #
+        # Build the deployment transaction #
         #
+
+        deployment_gas = 6_000_000  # TODO: Gas management
         deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
@@ -438,7 +454,23 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
+        self.log.info(f"Waiting for deployment receipt for {contract_name}")
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
+
+        # Verify deployment success
+
+        # Primary check
+        deployment_status = receipt['status']
+        if deployment_status is 0:
+            failure = f"{contract_name.upper()} Deployment transaction submitted, but receipt returned status code 0. " \
+                      f"Full receipt: \n {receipt}"
+            raise self.DeploymentFailed(failure)
+
+        # Secondary check
+        tx = self.w3.eth.getTransaction(txhash)
+        if tx["gas"] == receipt["gasUsed"]:
+            raise self.DeploymentFailed(f"Deployment transaction failed and consumed 100% of transaction gas ({deployment_gas})")
+
         address = receipt['contractAddress']
         self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 

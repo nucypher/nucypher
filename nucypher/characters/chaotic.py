@@ -19,9 +19,10 @@ from twisted.logger import Logger
 
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, HOURS_PER_PERIOD, NULL_ADDRESS
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -130,23 +131,23 @@ class Felix(Character, NucypherTokenActor):
 
     _default_crypto_powerups = [SigningPower]  # identity only
 
-    DISTRIBUTION_INTERVAL = 60*60              # seconds (60*60=1Hr)
-    DISBURSEMENT_INTERVAL = HOURS_PER_PERIOD   # (24) hours
-    STAGING_DELAY = 10  # seconds
-
-    BATCH_SIZE = 10                            # transactions
-    MULTIPLIER = 0.95                          # 5% reduction of previous stake is 0.95, for example
-    MAXIMUM_DISBURSEMENT = MAX_ALLOWED_LOCKED  # NuNits
-    INITIAL_DISBURSEMENT = MIN_ALLOWED_LOCKED  # NuNits
-    MINIMUM_DISBURSEMENT = 1e18                # NuNits
-    # TRANSACTION_GAS = 40000                    # gas  TODO
-
     TEMPLATE_NAME = 'felix.html'
 
+    # Intervals
+    DISTRIBUTION_INTERVAL = 60*60   # seconds (60*60=1Hr)
+    DISBURSEMENT_INTERVAL = 24      # (24) hours
+    STAGING_DELAY = 10              # seconds
+
+    # Disbursement
+    BATCH_SIZE = 10                 # transactions
+    MULTIPLIER = 0.95               # 5% reduction of previous stake is 0.95, for example
+    MINIMUM_DISBURSEMENT = 1e18     # NuNits
+    # TRANSACTION_GAS = 40000       # gas  TODO
+
     # Node Discovery
-    LEARNING_TIMEOUT = 30                      # seconds
-    _SHORT_LEARNING_DELAY = 60                 # seconds
-    _LONG_LEARNING_DELAY = 120                 # seconds
+    LEARNING_TIMEOUT = 30           # seconds
+    _SHORT_LEARNING_DELAY = 60      # seconds
+    _LONG_LEARNING_DELAY = 120      # seconds
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 1
 
     # Twisted
@@ -161,6 +162,7 @@ class Felix(Character, NucypherTokenActor):
                  rest_host: str,
                  rest_port: int,
                  crash_on_error: bool = False,
+                 economics: TokenEconomics = None,
                  *args, **kwargs):
 
         # Character
@@ -180,7 +182,7 @@ class Felix(Character, NucypherTokenActor):
 
         # Blockchain
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.reserved_addresses = [self.checksum_public_address, NULL_ADDRESS]
+        self.reserved_addresses = [self.checksum_public_address, Blockchain.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
         existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
@@ -193,6 +195,13 @@ class Felix(Character, NucypherTokenActor):
         self._distribution_task = LoopingCall(f=self.airdrop_tokens)
         self._distribution_task.clock = self._CLOCK
         self.start_time = NOT_RUNNING
+
+        if not economics:
+            economics = TokenEconomics()
+        self.economics = economics
+
+        self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked
+        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked
 
         # Banner
         self.log.info(FELIX_BANNER.format(self.checksum_public_address))
@@ -209,11 +218,7 @@ class Felix(Character, NucypherTokenActor):
         # WSGI/Flask Service
         short_name = bytes(self.stamp).hex()[:6]
         self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
-
-        # Flask Settings
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
-        self.rest_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
         try:
             self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
         except KeyError:
@@ -297,6 +302,7 @@ class Felix(Character, NucypherTokenActor):
         return rest_app
 
     def create_tables(self) -> None:
+        self.make_web_app()
         return self.db.create_all(app=self.rest_app)
 
     def start(self,

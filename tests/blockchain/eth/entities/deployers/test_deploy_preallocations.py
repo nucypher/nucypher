@@ -20,7 +20,6 @@ import random
 
 import pytest
 
-from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
 
 
@@ -30,8 +29,7 @@ def user_escrow_proxy(three_agents):
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                    secret_hash=os.urandom(32))
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, secret_hash=os.urandom(32))
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
     testerchain.time_travel(seconds=120)
@@ -41,13 +39,13 @@ def user_escrow_proxy(three_agents):
 
 
 @pytest.mark.slow()
-def test_deploy_and_allocate(three_agents, user_escrow_proxy):
+def test_deploy_and_allocate(three_agents, user_escrow_proxy, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
 
     deployments = dict()
-    allocation = MIN_ALLOWED_LOCKED * 1
+    allocation = token_economics.minimum_allowed_locked * 1
     number_of_deployments = 1
 
     _last_deployment_address = None
@@ -77,7 +75,7 @@ def test_deploy_and_allocate(three_agents, user_escrow_proxy):
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_txhash = deployer.initial_deposit(value=allocation, duration=MAX_MINTING_PERIODS)
+        deposit_txhash = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
         receipt = testerchain.wait_for_receipt(txhash=deposit_txhash)
         assert receipt['status'] == 1, "Transaction Rejected {}".format(deposit_txhash)
         deposit_txhashes[address] = deposit_txhash

@@ -20,30 +20,35 @@ import os
 from functools import partial
 from typing import List, Tuple, Dict
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from twisted.logger import Logger
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-
-from nucypher.blockchain.eth import constants
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
+from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import CONTRACT_ROOT
-from nucypher.utilities.sandbox.constants import TESTING_ETH_AIRDROP_AMOUNT
+from nucypher.utilities.sandbox.constants import (
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_ETH_TEST_ACCOUNTS,
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT
+)
 
 
-def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
+def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
+        args = {'from': origin, 'gasPrice': token_agent.blockchain.interface.w3.eth.gasPrice}
         for address in addresses:
-            txhash = token_agent.contract.functions.transfer(address, amount).transact({'from': origin})
+            txhash = token_agent.contract.functions.transfer(address, int(amount)).transact(args)
             yield txhash
 
     receipts = list()
@@ -62,20 +67,21 @@ class TesterBlockchain(Blockchain):
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
 
-    _default_test_accounts = constants.NUMBER_OF_ETH_TEST_ACCOUNTS
+    _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS
 
+    # Reserved addresses
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
     _FIRST_URSULA = 5
-    _ursulas_range = range(constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+    _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
     def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
         if test_accounts is None:
             test_accounts = self._default_test_accounts
 
         super().__init__(*args, **kwargs)
-        self.log = Logger("test-blockchain")  # type: Logger
+        self.log = Logger("test-blockchain")
         self.attach_middleware(w3=self.interface.w3, poa=poa)
 
         # Generate additional ethereum accounts for testing
@@ -87,7 +93,7 @@ class TesterBlockchain(Blockchain):
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
         if airdrop is True:  # ETH for everyone!
-            self.ether_airdrop(amount=TESTING_ETH_AIRDROP_AMOUNT)
+            self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     @staticmethod
     def free_gas_price_strategy(w3, transaction_params=None):
@@ -140,7 +146,7 @@ class TesterBlockchain(Blockchain):
 
         return tx_hashes
 
-    def time_travel(self, hours: int=None, seconds: int=None, periods: int=None):
+    def time_travel(self, hours: int = None, seconds: int = None, periods: int = None):
         """
         Wait the specified number of wait_hours by comparing
         block timestamps and mines a single block.
@@ -151,8 +157,8 @@ class TesterBlockchain(Blockchain):
             raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
 
         if periods:
-            duration = (constants.HOURS_PER_PERIOD * periods) * (60*60)
-            base = constants.HOURS_PER_PERIOD * 60 * 60
+            duration = (TokenEconomics.hours_per_period * periods) * (60 * 60)
+            base = TokenEconomics.hours_per_period * 60 * 60
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
@@ -185,9 +191,10 @@ class TesterBlockchain(Blockchain):
         origin = testerchain.interface.w3.eth.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
-        random_deployment_secret = partial(os.urandom, DISPATCHER_SECRET_LENGTH)
+        random_deployment_secret = partial(os.urandom, DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
-                                                              policy_secret=random_deployment_secret())
+                                                              policy_secret=random_deployment_secret(),
+                                                              adjudicator_secret=random_deployment_secret())
         return testerchain, agents
 
     @property
@@ -204,7 +211,7 @@ class TesterBlockchain(Blockchain):
 
     def ursula_account(self, index):
         if index not in self._ursulas_range:
-            raise ValueError(f"Ursula index must be lower than {constants.NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
+            raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.interface.w3.eth.accounts[index + self._FIRST_URSULA]
 
     @property

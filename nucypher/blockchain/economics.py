@@ -14,60 +14,177 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from decimal import Decimal, localcontext
+from typing import Tuple
+
 from math import log
 
+from nucypher.blockchain.eth.token import NU
 
-class Economics:
-    def __init__(
-            self,
-            initial_supply=10**9,
-            initial_inflation=1.0,
-            T_half=2.0,
-            T_sat=1.0,
-            small_staker_multiplier=0.5) -> None:
+
+LOG2 = Decimal(log(2))
+
+
+class TokenEconomics:
+    """
+    Calculate parameters to use in token and escrow blockchain deployments
+    from high-level human-understandable parameters.
+
+    --------------------------
+
+    Formula for staking in one period:
+    (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
+
+    K2 - Staking coefficient
+    K1 - Locked periods coefficient
+
+    if allLockedPeriods > awarded_periods then allLockedPeriods = awarded_periods
+    kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
+
+    ...but also...
+
+    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    where allLockedPeriods == min(T, T1)
+
+    --------------------------
+
+    Academic Reference:
+
+    NuCypher: Mining & Staking Economics - Michael Egorov, MacLane Wilkison, NuCypher
+    <https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf>
+
+    """
+
+    # Decimal
+    _precision = 28
+
+    # Token Denomination
+    __token_decimals = 18
+    nunits_per_token = 10 ** __token_decimals          # Smallest unit designation
+
+    # Period Definition
+    hours_per_period = 24                            # Hours in single period
+    seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
+
+    # Time Constraints
+    minimum_locked_periods = 30  # 720 Hours minimum
+
+    # Value Constraints
+    minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
+    maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
+
+    # Supply
+    __default_initial_supply = NU(int(1_000_000_000), 'NU').to_nunits()
+    __default_initial_inflation = 1
+    __default_token_halving = 2      # years
+    __default_reward_saturation = 1  # years
+    __default_small_stake_multiplier = Decimal(0.5)
+
+    def __init__(self,
+                 initial_supply: int = __default_initial_supply,
+                 initial_inflation: int = __default_initial_inflation,
+                 halving_delay: int = __default_token_halving,
+                 reward_saturation: int = __default_reward_saturation,
+                 small_stake_multiplier: Decimal = __default_small_stake_multiplier
+                 ):
         """
-        Calculate parameters to use in token issuer from high-level
-        human-understandable parameters
-
-        :param initial_supply: coins at t=0,
-        :param initial_inflation: inflation in day 1 expressed in units of year**-1
-            e.g. 1/365 of all coins in day 1 is 1 year**-1
-        :param T_half: time for inflation halving in years
-        :param T_sat: "saturation" time - if staking is longer than T_sat, the
-            reward doesn't get higher
-        :param small_staker_multiplier: what fraction of max reward rate do we
-            pay to those who are about to unlock coins
+        :param initial_supply: Tokens at t=0
+        :param initial_inflation: Inflation on day 1 expressed in units of year**-1
+        :param halving_delay: Time for inflation halving in years
+        :param reward_saturation: "saturation" time - if staking is longer than T_sat, the reward doesn't get any higher
+        :param small_stake_multiplier: Fraction of maximum reward rate paid to those who are about to unlock tokens
         """
 
-        # Saving input in case we'll need it
-        self.input_params = dict(
-                initial_supply=initial_supply,
-                initial_inflation=initial_inflation,
-                T_half=T_half,
-                T_sat=T_sat,
-                small_staker_multiplier=small_staker_multiplier)
+        #
+        # Calculate
+        #
 
-        # Formula used in smart contract
+        with localcontext() as ctx:
+            ctx.prec = self._precision
 
-        # * @dev Formula for mining in one period
-        # (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
-        # if allLockedPeriods > awardedPeriods then allLockedPeriods = awardedPeriods
-        # @param _miningCoefficient Mining coefficient (k2)
-        # @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
+            initial_supply = Decimal(initial_supply)
 
-        self.total_supply = initial_supply * (1 + initial_inflation * T_half / log(2))
+            # ERC20 Token parameter (See Equation 4 in Mining paper)
+            total_supply = initial_supply * (1 + initial_inflation * halving_delay / LOG2)
 
-        # kappa * log(2) / T_half === (k1 + allLockedPeriods) / k2
-        # but also
-        # kappa = (small_staker_multiplier +
-        #           (1 - small_staker_multiplier) * min(T, T1) / T1)
+            # Remaining / Reward Supply - Escrow Parameter
+            reward_supply = total_supply - initial_supply
 
-        # In Issuer.sol, allLockedPeriods is min(T, T1) days already
+            # k2 - Escrow parameter
+            staking_coefficient = 365 ** 2 * reward_saturation * halving_delay / LOG2 / (1 - small_stake_multiplier)
 
-        self.miningCoefficient = \
-            365 ** 2 * T_sat * T_half / log(2) / (1 - small_staker_multiplier)
+            # k1 - Escrow parameter
+            locked_periods_coefficient = 365 * reward_saturation * small_stake_multiplier / (1 - small_stake_multiplier)
 
-        self.lockedPeriodsCoefficent = \
-            365 * T_sat * small_staker_multiplier / (1 - small_staker_multiplier)
+            # Awarded periods- Escrow parameter
+            maximum_locked_periods = reward_saturation * 365
 
-        self.awardedPeriods = T_sat * 365
+        # Injected
+        self.initial_supply = initial_supply
+        self.initial_inflation = initial_inflation
+        self.token_halving = halving_delay
+        self.token_saturation = reward_saturation
+        self.small_stake_multiplier = small_stake_multiplier
+
+        # Calculated
+        self.__total_supply = total_supply
+        self.reward_supply = reward_supply
+        self.staking_coefficient = staking_coefficient
+        self.locked_periods_coefficient = locked_periods_coefficient
+        self.maximum_locked_periods = maximum_locked_periods
+
+    @property
+    def erc20_initial_supply(self) -> int:
+        return int(self.initial_supply)
+
+    @property
+    def erc20_reward_supply(self) -> int:
+        return int(self.reward_supply)
+
+    @property
+    def erc20_total_supply(self) -> int:
+        return int(self.__total_supply)
+
+    @property
+    def staking_deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
+        deploy_parameters = (
+
+            # Period
+            self.hours_per_period,            # Hours in single period
+
+            # Coefficients
+            self.staking_coefficient,         # Staking coefficient (k2)
+            self.locked_periods_coefficient,  # Locked periods coefficient (k1)
+            self.maximum_locked_periods,      # Max periods that will be additionally rewarded (awarded_periods)
+
+            # Constraints
+            self.minimum_locked_periods,      # Min amount of periods during which tokens can be locked
+            self.minimum_allowed_locked,      # Min amount of tokens that can be locked
+            self.maximum_allowed_locked       # Max amount of tokens that can be locked
+        )
+        return tuple(map(int, deploy_parameters))
+
+
+class SlashingEconomics:
+
+    algorithm_sha256 = 1
+    base_penalty = 100
+    penalty_history_coefficient = 10
+    percentage_penalty_coefficient = 8
+    reward_coefficient = 2
+
+    @property
+    def deployment_parameters(self):
+
+        deployment_parameters = [
+            self.algorithm_sha256,
+            self.base_penalty,
+            self.penalty_history_coefficient,
+            self.percentage_penalty_coefficient,
+            self.reward_coefficient
+        ]
+
+        return deployment_parameters

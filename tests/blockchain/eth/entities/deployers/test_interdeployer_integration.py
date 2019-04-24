@@ -20,11 +20,10 @@ import pytest
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
-from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               ContractDeployer)
+                                               ContractDeployer, DispatcherDeployer)
 
 
 @pytest.mark.slow()
@@ -57,11 +56,12 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     # Miner Escrow
     #
-    miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         blockchain=testerchain,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+
     assert miner_escrow_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
@@ -84,11 +84,12 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     # Policy Manager
     #
-    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         blockchain=testerchain,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+
     assert policy_manager_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):

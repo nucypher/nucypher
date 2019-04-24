@@ -39,13 +39,16 @@ DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 USER_LOG_DIR = APP_DIR.user_log_dir
 
 
-# Static Seednodes
+# Static Seednodes (Not from seeder contract)
 SeednodeMetadata = namedtuple('seednode', ['checksum_public_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
 
 
-# Domains
 """
+=======
+DOMAINS
+=======
+
 If this domain is among those being learned or served, then domain checking is skipped.
 A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
 A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
@@ -53,7 +56,9 @@ A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
 GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'
 
 # Sentry
-NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher DNS domain
+NUCYPHER_SENTRY_PUBLIC_KEY = "d8af7c4d692e4692a455328a280d845e"
+NUCYPHER_SENTRY_USER_ID = '1310685'
+NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUCYPHER_SENTRY_USER_ID}"
 
 # Web
 TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')

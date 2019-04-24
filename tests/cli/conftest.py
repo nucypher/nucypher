@@ -19,21 +19,29 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import os
-import shutil
 
 import pytest
+import shutil
 from click.testing import CliRunner
 
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.constants import MAX_ALLOWED_LOCKED, ONE_YEAR_IN_SECONDS
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry, \
+from nucypher.blockchain.eth.registry import (
+    InMemoryEthereumContractRegistry,
+    InMemoryAllocationRegistry,
     AllocationRegistry
+)
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH, TEST_PROVIDER_URI, \
-    MOCK_ALLOCATION_INFILE, MOCK_REGISTRY_FILEPATH, TESTING_ETH_AIRDROP_AMOUNT
+from nucypher.utilities.sandbox.constants import (
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    TEST_PROVIDER_URI,
+    MOCK_ALLOCATION_INFILE,
+    MOCK_REGISTRY_FILEPATH,
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    ONE_YEAR_IN_SECONDS
+)
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
@@ -53,9 +61,10 @@ def nominal_federated_configuration_fields():
 
 
 @pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain):
+def mock_allocation_infile(testerchain, token_economics):
     accounts = testerchain.interface.w3.eth.accounts[5::]
-    allocation_data = [{'address': addr, 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS} for addr in accounts]
+    allocation_data = [{'address': addr, 'amount': token_economics.maximum_allowed_locked,
+                        'duration': ONE_YEAR_IN_SECONDS} for addr in accounts]
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
     registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_INFILE)
@@ -95,7 +104,7 @@ def custom_filepath_2():
 
 
 @pytest.fixture(scope='session')
-def deployed_blockchain():
+def deployed_blockchain(token_economics):
 
     # Interface
     compiler = SolidityCompiler()
@@ -110,19 +119,21 @@ def deployed_blockchain():
     deployer_address = blockchain.etherbase_account
 
     # Deployer
-    deployer = Deployer(blockchain=blockchain,
-                        deployer_address=deployer_address)
+    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
     deployer.deploy_network_contracts(miner_secret=os.urandom(32),
-                                      policy_secret=os.urandom(32))
+                                      policy_secret=os.urandom(32),
+                                      adjudicator_secret=os.urandom(32))
 
     # User Escrow Proxy
     deployer.deploy_escrow_proxy(secret=os.urandom(32))
 
     # Start with some hard-coded cases...
     all_yall = blockchain.unassigned_accounts
-    allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS}]
+    allocation_data = [{'address': all_yall[1],
+                        'amount': token_economics.maximum_allowed_locked,
+                        'duration': ONE_YEAR_IN_SECONDS}]
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
 
