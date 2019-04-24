@@ -70,11 +70,16 @@ class Blockchain:
                 deployer: bool = False,
                 compile: bool = False,
                 poa: bool = False,
-                force: bool = True
+                force: bool = True,
+                fetch_registry: bool = True
                 ) -> 'Blockchain':
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            registry = registry or EthereumContractRegistry()
+            if not registry and fetch_registry:
+                registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
+            else:
+                registry = registry or EthereumContractRegistry()
+
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
             interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
