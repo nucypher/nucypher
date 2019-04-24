@@ -257,6 +257,7 @@ class NodeConfiguration(ABC):
         #
         # Development Mode
         #
+
         if dev_mode:
 
             # Ephemeral dev settings
@@ -301,16 +302,31 @@ class NodeConfiguration(ABC):
     def known_nodes(self):
         return self.__fleet_state
 
-    def connect_to_blockchain(self, recompile_contracts: bool = False):
+    def connect_to_blockchain(self, enode: str = None, recompile_contracts: bool = False) -> None:
+        """
+
+        :param enode: ETH seednode or bootnode enode address to start learning from,
+                      i.e. 'enode://e54eebad24dc...e1f6d246bea455@52.71.255.237:30303'
+
+        :param recompile_contracts: Recompile all contracts on connection.
+
+        :return: None
+        """
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
-                                             poa=self.poa)
+                                             poa=self.poa,
+                                             fetch_registry=True)
 
         self.accounts = self.blockchain.interface.w3.eth.accounts
-        self.log.debug("Established connection to provider {}".format(self.blockchain.interface.provider_uri))
+
+        if enode:
+            if self.blockchain.interface.client_version == 'geth':
+                self.blockchain.interface.w3.geth.admin.addPeer(enode)
+            else:
+                raise NotImplementedError
 
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
