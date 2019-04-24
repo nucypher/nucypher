@@ -141,14 +141,14 @@ class BlockchainInterface:
         https: // github.com / ethereum / eth - tester     # available-backends
 
 
-        * HTTP Provider - supply endpiont_uri
-        * Websocket Provider - supply endpoint uri and websocket=True
-        * IPC Provider - supply IPC path
-        * Custom Provider - supply an iterable of web3.py provider instances
+        * HTTP Provider - Web3 HTTP provider, typically JSON RPC 2.0 over HTTP
+        * Websocket Provider - Web3 WS provider, typically JSON RPC 2.0 over WS, supply endpoint uri and websocket=True
+        * IPC Provider - Web3 File based IPC provider transported over standard I/O
+        * Custom Provider - A pre-initialized web3.py provider instance to attach to this interface
 
         """
 
-        self.log = Logger("blockchain-interface")                       # type: Logger
+        self.log = Logger("blockchain-interface")
 
         #
         # Providers
@@ -163,12 +163,18 @@ class BlockchainInterface:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
         elif provider_uri:
             self.provider_uri = provider_uri
-            self.add_provider(provider_uri=provider_uri)
+            self.attach_provider(provider_uri=provider_uri)
         elif provider:
             self.provider_uri = MANUAL_PROVIDERS_SET
-            self.add_provider(provider)
+            self.attach_provider(provider)
         else:
             self.log.warn("No provider supplied for new blockchain interface; Using defaults")
+
+        # Ethereum client metadata
+        self._node_technology = NO_BLOCKCHAIN_CONNECTION
+        self._node_version = NO_BLOCKCHAIN_CONNECTION
+        self._platform = NO_BLOCKCHAIN_CONNECTION
+        self._backend = NO_BLOCKCHAIN_CONNECTION
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -198,6 +204,19 @@ class BlockchainInterface:
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
+    @property
+    def client_version(self) -> str:
+        if self.__provider is NO_BLOCKCHAIN_CONNECTION:
+            return "Unknown"
+
+        if self.is_connected:
+            node_info = self.w3.clientVersion.split(os.sep)
+            node_technology, node_version, platform, go_version = node_info
+        else:
+            return str(NO_BLOCKCHAIN_CONNECTION)
+
+        return node_technology.lower()
+
     def connect(self):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
@@ -213,7 +232,9 @@ class BlockchainInterface:
             raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
 
         if self.is_connected:
-            self.log.info('Successfully Connected to {}'.format(self.provider_uri))
+            self.log.info('ATTACHED WEB3 PROVIDER {}'.format(self.provider_uri))
+            node_info = self.w3.clientVersion.split('/')
+            self._node_technology, self._node_version, self._platform, self._backend = node_info
             return self.is_connected
         else:
             raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
@@ -234,9 +255,9 @@ class BlockchainInterface:
         """Return node version information"""
         return self.w3.node_version.node
 
-    def add_provider(self,
-                     provider: Web3Providers = None,
-                     provider_uri: str = None) -> None:
+    def attach_provider(self,
+                        provider: Web3Providers = None,
+                        provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
@@ -493,10 +514,18 @@ class BlockchainInterface:
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
         return is_valid_sig and (sig_pubkey == pubkey)
 
-    def unlock_account(self, address, password, duration):
+    def unlock_account(self, address, password):
+        # TODO: Parity
+        # TODO: Duration
+
         if 'tester' in self.provider_uri:
             return True  # Test accounts are unlocked by default.
-        return self.w3.geth.personal.unlockAccount(address, password, duration)
+
+        elif self.client_version == 'geth':
+            return self.w3.geth.personal.unlockAccount(address, password)
+
+        else:
+            raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
 
 
 class BlockchainDeployerInterface(BlockchainInterface):

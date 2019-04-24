@@ -124,6 +124,7 @@ def ursula(click_config,
     #
     # Boring Setup Stuff
     #
+
     if not quiet:
         log = Logger('ursula.cli')  # TODO: Why is this unused?
 
@@ -136,6 +137,7 @@ def ursula(click_config,
     #
     # Pre-Launch Warnings
     #
+
     if not click_config.quiet:
         if dev:
             click.secho("WARNING: Running in Development mode", fg='yellow')
@@ -143,8 +145,9 @@ def ursula(click_config,
             click.secho("WARNING: Force is enabled", fg='yellow')
 
     #
-    # Unauthenticated Configurations & Un-configured Ursula Control
+    # Unauthenticated & Un-configured Ursula Configuration
     #
+
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
@@ -180,7 +183,7 @@ def ursula(click_config,
         return
 
     #
-    # Configured Ursulas
+    # Generate Configuration
     #
 
     # Development Configuration
@@ -195,7 +198,7 @@ def ursula(click_config,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_filepath=db_filepath)
-    # Authenticated Configurations
+    # Production Configurations
     else:
 
         # Domains -> bytes | or default
@@ -217,24 +220,18 @@ def ursula(click_config,
                                                              config_file=config_file)
 
         #
-        # Authenticate
+        # Spawn Client Node
         #
 
-        password = click_config.get_password()
-        click_config.unlock_keyring(character_configuration=ursula_config, password=password)
-
-        #
-        # Post-Auth
-        #
-
-        # Web3 Provider Shortcuts
-        ursula_config.node_process = None  # TODO: move me brightly (use for cleanup)
+        ursula_config.node_process = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
         if geth:
             if federated_only:
-                raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+                raise click.BadOptionUsage(option_name="--geth",
+                                           message="Federated only cannot be used with the --geth flag")
 
-            # Spawn geth child process
-            geth_process = NuCypherGethDevnetProcess(password=password, config_root=config_root)  # TODO: Only devnet for now
+            # Spawn locked geth process
+            # TODO: Only devnet for now
+            geth_process = NuCypherGethDevnetProcess(config_root=config_root)
             geth_process.start()  # TODO: Graceful shutdown
             geth_process.wait_for_ipc(timeout=30)
             provider_uri = f"ipc://{geth_process.ipc_path}"
@@ -243,19 +240,20 @@ def ursula(click_config,
             ursula_config.node_process = geth_process
             ursula_config.provider_uri = provider_uri
 
-        # under the rug
-        del password
+    #
+    # Configured Pre-Authentication Actions
+    #
 
     # Handle destruction *before* network bootstrap and character initialization below
     if action == "destroy":
         """Delete all configuration files from the disk"""
         if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            message = "'nucypher ursula destroy' cannot be used in --dev mode - There is nothing to destroy."
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=ursula_config, force=force)
 
     #
-    # Connect to Blockchain (Non-Federated)
+    # Connect to Blockchain
     #
 
     if not ursula_config.federated_only:
@@ -265,24 +263,38 @@ def ursula(click_config,
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
     #
+    # Authenticate
+    #
+
+    password = click_config.get_password()
+    click_config.unlock_keyring(character_configuration=ursula_config, password=password)
+    del password  # ... under the rug
+
+    #
     # Launch Warnings
     #
 
     if ursula_config.federated_only:
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
 
-    # Seed - Step 1
+    #
+    # Seed
+    #
+
     teacher_uris = [teacher_uri] if teacher_uri else list()
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=ursula_config.federated_only,
                                            network_middleware=click_config.middleware)
 
-    # Produce - Step 2
+    #
+    # Produce
+    #
+
     URSULA = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
 
     #
-    # Action Switch
+    # Authenticated Action Switch
     #
 
     if action == 'run':
@@ -423,7 +435,7 @@ def ursula(click_config,
 
         # Gather stake value
         if not value:
-            min_locked = NU(URSULA.miner_agent.economics.minimum_allowed_locked, 'NuNit')
+            min_locked = NU(URSULA.economics.minimum_allowed_locked, 'NuNit')
             value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=min_locked)
         else:
             value = NU(int(value), 'NU')
