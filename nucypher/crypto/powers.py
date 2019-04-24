@@ -98,13 +98,13 @@ class BlockchainPower(CryptoPowerUp):
         self.account = account
         self.is_unlocked = False
 
-    def unlock_account(self, password: str, duration: int = None):
+    def unlock_account(self, password: str):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
 
-        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password, duration=duration)
+        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password)
 
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))

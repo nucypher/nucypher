@@ -21,6 +21,7 @@ import collections
 import os
 
 import click
+import requests
 from constant_sorrow.constants import NO_PASSWORD, NO_BLOCKCHAIN_CONNECTION
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
@@ -63,6 +64,9 @@ class NucypherClickConfig:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # You guessed it
+        self.debug = False
+
         # Logging
         self.quiet = False
         self.log = Logger(self.__class__.__name__)
@@ -78,10 +82,19 @@ class NucypherClickConfig:
         try:
             character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
             character_configuration.connect_to_contracts()
-        except EthereumContractRegistry.NoRegistry:
-            message = "No contract registry found; Did you mean to pass --federated-only?"
-            raise EthereumContractRegistry.NoRegistry(message)
 
+        except EthereumContractRegistry.NoRegistry:
+            # message = "No contract registry found; Did you mean to pass --federated-only?"
+            # raise EthereumContractRegistry.NoRegistry(message)
+            EthereumContractRegistry.from_latest_publication()
+
+        except Exception as e:
+            if self.debug:
+                raise
+            click.secho(str(e), fg='red', bold=True)
+            raise click.Abort()
+
+        # Success
         else:
             self.blockchain = character_configuration.blockchain
             self.accounts = self.blockchain.interface.w3.eth.accounts
@@ -97,12 +110,25 @@ class NucypherClickConfig:
         return self.__keyring_password
 
     def unlock_keyring(self, password: str, character_configuration: NodeConfiguration):
-        try:  # Unlock Keyring
-            if not self.quiet:
-                self.emit(message='Decrypting keyring...', color='blue')
+
+        if not self.quiet:
+            self.emit(message='Decrypting keyring...', color='blue')
+
+        if character_configuration.dev_mode:
+            return True  # Dev accounts are always unlocked
+
+        # NuCypher
+        try:
             character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
+
+        # Eth Client Node
+        try:
+            self.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+                                                     password=password,)
+        except ValueError as e:
+            raise   # TODO
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:
