@@ -156,6 +156,8 @@ def test_exact_economics():
 
         # Check deployment parameters
         assert e.staking_deployment_parameters == expected_deployment_parameters
+        assert e.erc20_initial_supply == expected_initial_supply
+        assert e.erc20_reward_supply == expected_reward_supply
 
 
 def test_economic_parameter_aliases():

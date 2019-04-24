@@ -277,11 +277,11 @@ class Deployer(NucypherTokenActor):
                                      ) -> Dict[str, dict]:
         """
 
-        Example allocation dataset (one year is 31540000 seconds):
+        Example allocation dataset (one year is 31536000 seconds):
 
-        data = [{'address': '0xdeadbeef', 'amount': 100, 'duration': 31540000},
-                {'address': '0xabced120', 'amount': 133432, 'duration': 31540000*2},
-                {'address': '0xf7aefec2', 'amount': 999, 'duration': 31540000*3}]
+        data = [{'address': '0xdeadbeef', 'amount': 100, 'duration': 31536000},
+                {'address': '0xabced120', 'amount': 133432, 'duration': 31536000*2},
+                {'address': '0xf7aefec2', 'amount': 999, 'duration': 31536000*3}]
         """
         if allocation_registry and allocation_outfile:
             raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
