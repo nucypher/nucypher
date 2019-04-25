@@ -92,3 +92,14 @@ def test_ec_point_operations(testerchain, reencryption_validator):
 
     P_plus_P = reencryption_validator.functions.addAffineJacobian(P.to_affine(), P.to_affine()).call()
     assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), P_plus_P).call()
+
+
+# TODO: See https://github.com/nucypher/nucypher/issues/626#issuecomment-486186171
+@pytest.mark.skip(reason="no way of testing library constants for the moment")
+def test_umbral_constants(testerchain, reencryption_validator):
+    umbral_params = default_params()
+    u_xcoord, u_ycoord = umbral_params.u.to_affine()
+    u_sign = 2 + (u_ycoord % 2)
+    assert u_sign == reencryption_validator.functions.UMBRAL_PARAMETER_U_SIGN().call()
+    assert u_xcoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_XCOORD().call()
+    assert u_ycoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_YCOORD().call()
