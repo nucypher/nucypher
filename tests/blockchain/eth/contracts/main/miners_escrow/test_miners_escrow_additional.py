@@ -231,13 +231,15 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert ursula == event_args['miner']
     assert period + 1 == event_args['lockUntilPeriod']
 
-    # Ursula deposits some tokens
+    # Ursula deposits some tokens and confirms activity
     tx = token.functions.transfer(ursula, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, 10000).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     sub_stake = 1000
     tx = escrow.functions.deposit(sub_stake, 10).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
@@ -336,11 +338,15 @@ def test_re_stake(testerchain, token, escrow_contract):
     sub_stake_duration = escrow.functions.getSubStakeInfo(ursula, 0).call()[2]
     tx = escrow.functions.deposit(sub_stake_2, sub_stake_duration).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(ursula2, stake).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, stake).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(stake, sub_stake_duration).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
