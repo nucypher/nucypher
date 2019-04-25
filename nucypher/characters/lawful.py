@@ -837,6 +837,7 @@ class Ursula(Teacher, Character, Miner):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
+                         password=password,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,

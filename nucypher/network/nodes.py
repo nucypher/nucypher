@@ -840,7 +840,7 @@ class Teacher:
                  timestamp=NOT_SIGNED,
                  identity_evidence=NOT_SIGNED,
                  substantiate_immediately=False,
-                 passphrase=None,
+                 password=None,
                  ) -> None:
 
         self.serving_domains = domains
@@ -854,7 +854,7 @@ class Teacher:
         self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
 
         if substantiate_immediately:
-            self.substantiate_stamp(password=passphrase)  # TODO: Derive from keyring
+            self.substantiate_stamp(password=password)  # TODO: Derive from keyring
 
     class InvalidNode(SuspiciousActivity):
         """
