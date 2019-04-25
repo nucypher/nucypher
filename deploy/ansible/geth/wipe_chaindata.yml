@@ -28,6 +28,19 @@
         state: absent
         mode: 0755
 
+    - name: "Destroy Standard Blockchain Data Directory"
+      become: yes
+      become_flags: "-H -S"
+      file:
+        path: /home/.ethereum/geth/chaindata
+        state: absent
+        mode: 0755
+
+    - name: "Destroy DAG"
+      become: yes
+      become_flags: "-H -S"
+      shell: "rm -rf /root/.ethash"
+
     - name: "Create Custom Blockchain Data Directory"
       file:
         path: /home/ubuntu/chaindata

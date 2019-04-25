@@ -103,6 +103,7 @@
         mode: 0755
       vars:
         etherbase: "0"
+        rpchost: "localhost"
         datadir: "/home/ubuntu/chaindata"
         networkid: "112358"
         syncmode: "full"
