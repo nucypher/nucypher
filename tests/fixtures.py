@@ -24,7 +24,7 @@ import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
     DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -319,6 +319,12 @@ def federated_ursulas(ursula_federated_test_config):
 @pytest.fixture(scope='session')
 def token_economics():
     economics = TokenEconomics()
+    return economics
+
+
+@pytest.fixture(scope='session')
+def slashing_economics():
+    economics = SlashingEconomics()
     return economics
 
 @pytest.fixture(scope='session')
