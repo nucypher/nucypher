@@ -177,14 +177,14 @@ def paint_known_nodes(ursula) -> None:
 def paint_contract_status(ursula_config, click_config):
     contract_payload = """
 
-    | NuCypher ETH Contracts |
+| NuCypher ETH Contracts |
 
-    Provider URI ............. {provider_uri}
-    Registry Path ............ {registry_filepath}
+Provider URI ............. {provider_uri}
+Registry Path ............ {registry_filepath}
 
-    NucypherToken ............ {token}
-    MinerEscrow .............. {escrow}
-    PolicyManager ............ {manager}
+NucypherToken ............ {token}
+MinerEscrow .............. {escrow}
+PolicyManager ............ {manager}
 
     """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
                registry_filepath=ursula_config.blockchain.interface.registry.filepath,
@@ -195,15 +195,15 @@ def paint_contract_status(ursula_config, click_config):
     click.secho(contract_payload)
 
     network_payload = """
-    | Blockchain Network |
+| Blockchain Network |
 
-    Current Period ........... {period}
-    Gas Price ................ {gas_price}
-    Active Staking Ursulas ... {ursulas}
+Current Period ........... {period}
+Gas Price ................ {gas_price}
+Active Staking Ursulas ... {ursulas}
 
-    """.format(period=click_config.miner_agent.get_current_period(),
-               gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
-               ursulas=click_config.miner_agent.get_miner_population())
+    """.format(period=ursula_config.miner_agent.get_current_period(),
+               gas_price=ursula_config.blockchain.interface.w3.eth.gasPrice,
+               ursulas=ursula_config.miner_agent.get_miner_population())
     click.secho(network_payload)
 
 
