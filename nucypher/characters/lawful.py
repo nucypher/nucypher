@@ -16,14 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import time
 from base64 import b64encode, b64decode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
+from random import shuffle
 from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
+import time
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -32,17 +37,8 @@ from eth_utils import to_checksum_address
 from flask import request, Response
 from twisted.internet import threads
 from twisted.logger import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
 
 import nucypher
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -67,6 +63,11 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher, NodeSprout
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -609,7 +610,9 @@ class Bob(Character):
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for node_id, arrangement_id in treasure_map_to_use:
+        random_walk = list(treasure_map_to_use)
+        shuffle(random_walk)  # Mutates list in-place
+        for node_id, arrangement_id in random_walk:
 
             capsules_to_include = []
             for capsule in capsules:
@@ -792,7 +795,8 @@ class Bob(Character):
                         capsule.attach_cfrag(pre_task.cfrag)
                     except UmbralCorrectnessError:
                         task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                        from nucypher.policy.models import IndisputableEvidence
+                        # TODO: WARNING - This block is untested.
+                        from nucypher.policy.collections import IndisputableEvidence
                         evidence = IndisputableEvidence(task=task, work_order=work_order)
                         # I got a lot of problems with you people ...
                         the_airing_of_grievances.append(evidence)
