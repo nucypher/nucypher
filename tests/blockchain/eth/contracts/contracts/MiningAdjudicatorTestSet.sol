@@ -12,21 +12,16 @@ import "contracts/proxy/Upgradeable.sol";
 **/
 contract MinersEscrowForMiningAdjudicatorMock {
 
-    struct MinerInfo {
-        uint256 value;
-        uint16 stubValue1;
-        uint16 stubValue2;
-        bool stubValue3;
-        uint16 stubValue4;
-        uint16 stubValue5;
-    }
-
     uint32 public secondsPerPeriod = 1;
-    mapping (address => MinerInfo) public minerInfo;
+    mapping (address => uint256) public minerInfo;
     mapping (address => uint256) public rewardInfo;
 
     function setMinerInfo(address _miner, uint256 _amount) public {
-        minerInfo[_miner].value = _amount;
+        minerInfo[_miner] = _amount;
+    }
+
+    function getAllTokens(address _miner) public view returns (uint256) {
+        return minerInfo[_miner];
     }
 
     function slashMiner(
@@ -37,7 +32,7 @@ contract MinersEscrowForMiningAdjudicatorMock {
     )
         public
     {
-        minerInfo[_miner].value -= _penalty;
+        minerInfo[_miner] -= _penalty;
         rewardInfo[_investigator] += _reward;
     }
 

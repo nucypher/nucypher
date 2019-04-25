@@ -146,7 +146,7 @@ contract MiningAdjudicator is Upgradeable {
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
         // Check that miner can be slashed
-        (uint256 minerValue,,,,,) = escrow.minerInfo(miner);
+        uint256 minerValue = escrow.getAllTokens(miner);
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
