@@ -34,11 +34,12 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         super().start()
 
     def initialize_blockchain(self, geth_kwargs: dict) -> None:
+        log = Logger('nucypher-geth-init')
         with open(self.GENESIS_SOURCE_FILEPATH) as file:
             genesis_data = json.loads(file.read())
-            self.log.info(f"Read genesis file '{self.GENESIS_SOURCE_FILEPATH}'")
+            log.info(f"Read genesis file '{self.GENESIS_SOURCE_FILEPATH}'")
 
-        self.log.info(f'Initializing new blockchain database and genesis block.')
+        log.info(f'Initializing new blockchain database and genesis block.')
         initialize_chain(genesis_data, **geth_kwargs)
 
 
@@ -67,6 +68,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
     __CHAIN_ID = NUCYPHER_CHAIN_IDS[_CHAIN_NAME]
 
     def __init__(self,
+                 password,
                  config_root: str = None,
                  overrides: dict = None):
 
@@ -97,7 +99,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
                        'data_dir': self.data_dir,
                        'ipc_path': ipc_path}
 
-        _coinbase = ensure_account_exists(**geth_kwargs)
+        _coinbase = ensure_account_exists(password=password, **geth_kwargs)
 
         # Genesis & Blockchain Init
         self.genesis_filepath = os.path.join(self.data_dir, self.GENESIS_FILENAME)

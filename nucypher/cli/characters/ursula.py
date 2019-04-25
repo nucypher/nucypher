@@ -200,6 +200,7 @@ def ursula(click_config,
                                             db_filepath=db_filepath)
     # Production Configurations
     else:
+        password = click_config.get_password()  # TODO All providers need to unlock
 
         # Domains -> bytes | or default
         domains = set(bytes(network, encoding='utf-8')) if network else None
@@ -225,13 +226,13 @@ def ursula(click_config,
 
         ursula_config.node_process = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
         if geth:
+
             if federated_only:
-                raise click.BadOptionUsage(option_name="--geth",
-                                           message="Federated only cannot be used with the --geth flag")
+                raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
             # Spawn locked geth process
             # TODO: Only devnet for now
-            geth_process = NuCypherGethDevnetProcess(config_root=config_root)
+            geth_process = NuCypherGethDevnetProcess(config_root=config_root, password=password.encode())
             geth_process.start()  # TODO: Graceful shutdown
             geth_process.wait_for_ipc(timeout=30)
             provider_uri = f"ipc://{geth_process.ipc_path}"
@@ -266,9 +267,8 @@ def ursula(click_config,
     # Authenticate
     #
 
-    password = click_config.get_password()
-    click_config.unlock_keyring(character_configuration=ursula_config, password=password)
-    del password  # ... under the rug
+    if not dev:
+        click_config.unlock_keyring(character_configuration=ursula_config, password=password)
 
     #
     # Launch Warnings
@@ -292,7 +292,9 @@ def ursula(click_config,
     # Produce
     #
 
-    URSULA = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
+    URSULA = ursula_config(password=password, known_nodes=teacher_nodes, lonely=lonely)
+    del password  # ... under the rug
+
 
     #
     # Authenticated Action Switch
