@@ -159,6 +159,8 @@ contract ReEncryptionValidatorMock {
 
     using UmbralDeserializer for bytes;
 
+//    TODO: Test constants when https://github.com/ethereum/solidity/issues/1290 is solved
+
 //    uint8 public constant UMBRAL_PARAMETER_U_SIGN = ReEncryptionValidator.UMBRAL_PARAMETER_U_SIGN();
 //    uint256 public constant UMBRAL_PARAMETER_U_XCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_XCOORD();
 //    uint256 public constant UMBRAL_PARAMETER_U_YCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_YCOORD();
@@ -235,7 +237,7 @@ contract ReEncryptionValidatorMock {
         return ReEncryptionValidator.addAffineJacobian(P, Q);
     }
 
-    function doubleJacobian(uint[3] memory P) internal pure returns (uint[3] memory) {
+    function doubleJacobian(uint[3] memory P) public pure returns (uint[3] memory) {
         return ReEncryptionValidator.doubleJacobian(P);
     }
 }

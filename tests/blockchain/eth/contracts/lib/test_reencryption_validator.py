@@ -38,28 +38,24 @@ def test_extended_keccak_to_bn(testerchain, reencryption_validator):
 
 
 @pytest.mark.slow
-def test_extended_keccak_to_bn(testerchain, reencryption_validator):
-    test_data = os.urandom(40)
-    h = hash_to_curvebn(test_data, params=default_params(), hash_class=ExtendedKeccak)
-    assert int(h) == reencryption_validator.functions.extendedKeccakToBN(test_data).call()
-
-
-@pytest.mark.slow
 def test_ec_point_operations(testerchain, reencryption_validator):
     valid_point = Point.gen_rand()
     x, y = valid_point.to_affine()
 
+    # Test is_on_curve
     assert reencryption_validator.functions.is_on_curve(x, y).call()
 
     bad_y = y - 1
     assert not reencryption_validator.functions.is_on_curve(x, bad_y).call()
 
+    # Test check_compressed_point
     sign = 2 + (y % 2)
     assert reencryption_validator.functions.check_compressed_point(sign, x, y).call()
 
     bad_sign = 3 - (y % 2)
     assert not reencryption_validator.functions.check_compressed_point(bad_sign, x, y).call()
 
+    # Test ecmulVerify
     P = valid_point
     scalar = CurveBN.gen_rand()
     Q = scalar * P
@@ -67,3 +63,32 @@ def test_ec_point_operations(testerchain, reencryption_validator):
 
     assert reencryption_validator.functions.ecmulVerify(x, y, int(scalar), qx, qy).call()
     assert not reencryption_validator.functions.ecmulVerify(x, y, int(scalar), x, y).call()
+
+    # Test eqAffineJacobian
+    Q_affine = [qx, qy]
+    Q_jacobian = [qx, qy, 1]
+    assert reencryption_validator.functions.eqAffineJacobian(Q_affine, Q_jacobian).call()
+
+    P_jacobian = [x, y, 1]
+    assert not reencryption_validator.functions.eqAffineJacobian(Q_affine, P_jacobian).call()
+
+    point_at_infinity = [x, y, 0]
+    random_point = Point.gen_rand()
+    assert not reencryption_validator.functions.eqAffineJacobian(random_point.to_affine(), point_at_infinity).call()
+
+    # Test doubleJacobian
+    doubleP = reencryption_validator.functions.doubleJacobian(P_jacobian).call()
+    assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), doubleP).call()
+
+    # Test addAffineJacobian
+    scalar1 = CurveBN.gen_rand()
+    scalar2 = CurveBN.gen_rand()
+    R1 = scalar1 * P
+    R2 = scalar2 * P
+
+    assert R1 + R2 == (scalar1 + scalar2) * P
+    R = reencryption_validator.functions.addAffineJacobian(R1.to_affine(), R2.to_affine()).call()
+    assert reencryption_validator.functions.eqAffineJacobian((R1 + R2).to_affine(), R).call()
+
+    P_plus_P = reencryption_validator.functions.addAffineJacobian(P.to_affine(), P.to_affine()).call()
+    assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), P_plus_P).call()
