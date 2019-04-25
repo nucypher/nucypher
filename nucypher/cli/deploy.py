@@ -91,14 +91,15 @@ def deploy(click_config,
         registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
     # Eth Node
+    password = click.prompt("Enter ETH node password", hide_input=True)
+
     if geth:
         # TODO: Only devnet for now
         # Spawn geth child process
-        geth_process = NuCypherGethDevnetProcess(config_root=config_root)
+        geth_process = NuCypherGethDevnetProcess(config_root=config_root, password=password.encode())
         geth_process.start()  # TODO: Graceful shutdown
         geth_process.wait_for_ipc(timeout=30)
         provider_uri, poa = f"ipc://{geth_process.ipc_path}", False
-
 
     # Deployment-tuned blockchain connection
     blockchain = Blockchain.connect(provider_uri=provider_uri,
@@ -131,9 +132,8 @@ def deploy(click_config,
         raise click.Abort()
 
     # Authenticate ETH Node
-    if geth:
-        password = click.prompt("Enter Geth node password", hide_input=True)
-        blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
+    # if geth:
+    blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
 
     # Add ETH Bootnode or Peer
     if enode:
@@ -177,7 +177,7 @@ def deploy(click_config,
             try:
                 deployer_func = deployer.deployers[contract_name]
             except KeyError:
-                message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}
+                message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
                 click.secho(message, fg='red', bold=True)
                 raise click.Abort()
             else:
