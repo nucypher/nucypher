@@ -126,7 +126,7 @@ class NucypherClickConfig:
         # Eth Client Node
         try:
             self.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
-                                                     password=password,)
+                                                     password=password)
         except ValueError as e:
             raise   # TODO
 
@@ -147,13 +147,13 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def collect_deployment_secrets(self) -> Secrets:
+
         # Deployment Environment Variables
-        self.miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
+        self.miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINERS_ESCROW_SECRET")
         self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
         self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
         self.mining_adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
-
-    def collect_deployment_secrets(self) -> Secrets:
 
         if not self.miner_escrow_deployment_secret:
             self.miner_escrow_deployment_secret = click.prompt('Enter MinerEscrow Deployment Secret',
