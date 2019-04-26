@@ -1,15 +1,19 @@
 import json
 import os
 
+from constant_sorrow.constants import NOT_RUNNING
 from geth import LoggingMixin
 from geth.accounts import ensure_account_exists
-from geth.chain import get_chain_data_dir, initialize_chain, is_live_chain, \
+from geth.chain import (
+    get_chain_data_dir,
+    initialize_chain,
+    is_live_chain,
     is_ropsten_chain
+)
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
 
 NUCYPHER_CHAIN_IDS = {
     'devnet': 112358,
@@ -20,6 +24,7 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
 
     GENESIS_FILENAME = 'genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join('deploy', 'geth', GENESIS_FILENAME)
+    IPC_PROTOCOL = 'ipc'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
 
@@ -29,9 +34,17 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         super().__init__(*args, **kwargs)
         self.log = Logger('nucypher-geth')
 
-    def start(self):
+    @property
+    def provider_uri(self, scheme: str = None):
+        if not scheme:
+            scheme = self.IPC_PROTOCOL
+        uri = f"{scheme}://{self.ipc_path}"
+        return uri
+
+    def start(self, timeout: int = 30):
         self.log.info("STARTING GETH NOW")
         super().start()
+        self.wait_for_ipc(timeout=timeout)
 
     def initialize_blockchain(self, geth_kwargs: dict) -> None:
         log = Logger('nucypher-geth-init')
@@ -68,7 +81,6 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
     __CHAIN_ID = NUCYPHER_CHAIN_IDS[_CHAIN_NAME]
 
     def __init__(self,
-                 password,
                  config_root: str = None,
                  overrides: dict = None):
 
@@ -99,8 +111,6 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
                        'data_dir': self.data_dir,
                        'ipc_path': ipc_path}
 
-        _coinbase = ensure_account_exists(password=password, **geth_kwargs)
-
         # Genesis & Blockchain Init
         self.genesis_filepath = os.path.join(self.data_dir, self.GENESIS_FILENAME)
         needs_init = all((
@@ -113,4 +123,16 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
             log.debug("Local system needs geth blockchain initialization")
             self.initialize_blockchain(geth_kwargs=geth_kwargs)
 
+        self.__process = NOT_RUNNING
+
         super().__init__(geth_kwargs)
+
+    @classmethod
+    def ensure_account_exists(cls, password: str, data_dir: str):
+        geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
+                       'port': str(cls.P2P_PORT),
+                       'verbosity': str(cls.VERBOSITY),
+                       'data_dir': data_dir,
+                       'password': password.encode()}
+        etherbase = ensure_account_exists(**geth_kwargs)
+        return etherbase
