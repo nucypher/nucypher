@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 from datetime import datetime
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
@@ -55,6 +56,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 def only_me(func):
@@ -188,16 +190,21 @@ class Deployer(NucypherTokenActor):
             raise self.UnknownContract(contract_name)
         return Deployer
 
-    def deploy_contract(self, contract_name: str, plaintext_secret: str = None) -> Tuple[dict, ContractDeployer]:
+    def deploy_contract(self,
+                        contract_name: str,
+                        gas_limit: int = None,
+                        plaintext_secret: str = None,
+                        ) -> Tuple[dict, ContractDeployer]:
+
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
             secret_hash = self.blockchain.interface.w3.keccak(bytes(plaintext_secret, encoding='utf-8'))
-            txhashes = deployer.deploy(secret_hash=secret_hash)
+            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
-            txhashes = deployer.deploy()
+            txhashes = deployer.deploy(gas_limit=gas_limit)
         return txhashes, deployer
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
