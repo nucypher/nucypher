@@ -187,7 +187,10 @@ def test_collect_staking_reward(three_agents):
 
     # Confirm Activity
     _txhash = agent.confirm_activity(node_address=someone)
-    testerchain.time_travel(periods=1)
+    testerchain.time_travel(periods=2)
+
+    # Mint
+    _txhash = agent.mint(node_address=someone)
 
     old_balance = token_agent.get_balance(address=someone)
 
