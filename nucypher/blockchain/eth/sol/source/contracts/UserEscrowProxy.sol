@@ -1,7 +1,7 @@
 pragma solidity ^0.5.3;
 
 
-import "./UserEscrow.sol";
+import "contracts/UserEscrow.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
@@ -14,16 +14,17 @@ import "contracts/PolicyManager.sol";
 **/
 contract UserEscrowProxy {
 
-    event DepositedAsMiner(address indexed owner, uint256 value, uint16 periods);
-    event WithdrawnAsMiner(address indexed owner, uint256 value);
-    event Locked(address indexed owner, uint256 value, uint16 periods);
-    event Divided(address indexed owner, uint256 index, uint256 newValue, uint16 periods);
-    event ActivityConfirmed(address indexed owner);
-    event Mined(address indexed owner);
-    event PolicyRewardWithdrawn(address indexed owner, uint256 value);
-    event MinRewardRateSet(address indexed owner, uint256 value);
-    event ReStakeSet(address indexed owner, bool reStake);
-    event ReStakeLocked(address indexed owner, uint16 lockUntilPeriod);
+    event DepositedAsMiner(address indexed sender, uint256 value, uint16 periods);
+    event WithdrawnAsMiner(address indexed sender, uint256 value);
+    event Locked(address indexed sender, uint256 value, uint16 periods);
+    event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
+    event ActivityConfirmed(address indexed sender);
+    event Mined(address indexed sender);
+    event PolicyRewardWithdrawn(address indexed sender, uint256 value);
+    event MinRewardRateSet(address indexed sender, uint256 value);
+    event ReStakeSet(address indexed sender, bool reStake);
+    event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
+    event WorkerSet(address indexed sender, address worker);
 
     NuCypherToken public token;
     MinersEscrow public escrow;
@@ -58,6 +59,15 @@ contract UserEscrowProxy {
         address payable userEscrowAddress = address(bytes20(address(this)));
         UserEscrowLibraryLinker linker = UserEscrow(userEscrowAddress).linker();
         return UserEscrowProxy(linker.target());
+    }
+
+    /**
+    * @notice Set `worker` parameter in the miners escrow
+    * @param _worker Worker address. Use zero address to set miner as worker
+    **/
+    function setWorker(address _worker) public {
+        getStateContract().escrow().setWorker(_worker);
+        emit WorkerSet(msg.sender, _worker);
     }
 
     /**
