@@ -18,16 +18,39 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pytest
 
+from umbral import pre
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+from umbral.signing import Signature, Signer
 
+from nucypher.policy.models import IndisputableEvidence
 
 @pytest.fixture(scope='module')
 def reencryption_validator(testerchain):
     contract, _ = testerchain.interface.deploy_contract('ReEncryptionValidatorMock')
     return contract
+
+
+def fragments(metadata):
+    delegating_privkey = UmbralPrivateKey.gen_key()
+    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
+    signing_privkey = UmbralPrivateKey.gen_key()
+    signer = Signer(signing_privkey)
+    priv_key_bob = UmbralPrivateKey.gen_key()
+    pub_key_bob = priv_key_bob.get_pubkey()
+    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
+                                 signer=signer,
+                                 receiving_pubkey=pub_key_bob,
+                                 threshold=2,
+                                 N=4,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
+    return capsule, cfrag
 
 
 @pytest.mark.slow
@@ -103,3 +126,21 @@ def test_umbral_constants(testerchain, reencryption_validator):
     assert u_sign == reencryption_validator.functions.UMBRAL_PARAMETER_U_SIGN().call()
     assert u_xcoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_XCOORD().call()
     assert u_ycoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_YCOORD().call()
+
+
+@pytest.mark.slow
+def test_compute_proof_challenge_scalar(testerchain, reencryption_validator):
+    metadata = os.urandom(33)
+    capsule, cfrag = fragments(metadata)
+
+    assert cfrag.verify_correctness(capsule)
+
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+
+    # Bob prepares supporting Evidence
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+
+    proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
+    computeProofChallengeScalar = reencryption_validator.functions.computeProofChallengeScalar
+    assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()

@@ -139,16 +139,6 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     evidence_data = evidence.precompute_values()
     assert len(evidence_data) == 20 * 32 + 32 + 20 + 1
 
-    # This check is a workaround in order to test the signature validation is correct.
-    # In reality, this check should be part of the isCapsuleFragCorrect logic,
-    # but we're facing with "Stack too deep" errors at the moment.
-    # address = adjudicator_contract.functions.aliceAddress(cfrag_bytes, evidence_data).call()
-    # assert address == to_checksum_address(evidence_data[-21:-1].hex())
-
-    proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
-    # computeProofChallengeScalar = adjudicator_contract.functions.computeProofChallengeScalar
-    # assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
-
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
     data_hash = hash_ctx.finalize()
