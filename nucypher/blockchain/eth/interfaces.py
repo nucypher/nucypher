@@ -514,7 +514,7 @@ class BlockchainInterface:
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
         return is_valid_sig and (sig_pubkey == pubkey)
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address, password, duration=None):
         # TODO: Parity
         # TODO: Duration
 
@@ -552,6 +552,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         contract_name: str,
                         *constructor_args,
                         enroll: bool = True,
+                        gas_limit: int = None,
                         **kwargs
                         ) -> Tuple[Contract, str]:
         """
@@ -565,12 +566,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        #                1_668_973
-        # deployment_gas = 6_500_000  # TODO: Gas management
-        deploy_transaction = {'from': self.deployer_address,
-                              # 'gas': deployment_gas,
-                              'gasPrice': self.w3.eth.gasPrice
-                              }
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        if gas_limit:
+            deploy_transaction.update({'gas': gas_limit})
 
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
