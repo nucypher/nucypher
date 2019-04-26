@@ -109,7 +109,10 @@ class NucypherClickConfig:
         self.__keyring_password = keyring_password
         return self.__keyring_password
 
-    def unlock_keyring(self, password: str, character_configuration: NodeConfiguration):
+    def unlock_keyring(self,
+                       password: str,
+                       character_configuration: NodeConfiguration,
+                       client_keyring: bool = True):
 
         if not self.quiet:
             self.emit(message='Decrypting keyring...', color='blue')
@@ -124,11 +127,12 @@ class NucypherClickConfig:
             raise character_configuration.keyring.AuthenticationFailed
 
         # Eth Client Node
-        try:
-            self.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
-                                                     password=password)
-        except ValueError as e:
-            raise   # TODO
+        if client_keyring:
+            try:
+                character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+                                                                            password=password)
+            except ValueError as e:
+                raise   # TODO
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:
