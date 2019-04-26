@@ -68,6 +68,7 @@ def deploy(click_config,
            amount,
            recipient_address,
            config_root,
+           gas_limit,
            force):
     """Manage contract and registry deployment"""
 
