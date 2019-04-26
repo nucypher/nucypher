@@ -42,6 +42,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -142,6 +143,7 @@ class NodeConfiguration(ABC):
                  # Blockchain
                  poa: bool = False,
                  provider_uri: str = None,
+                 geth: bool = False,
 
                  # Registry
                  registry_source: str = None,
@@ -247,6 +249,7 @@ class NodeConfiguration(ABC):
         #
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
+        self.geth = geth
 
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
@@ -420,7 +423,7 @@ class NodeConfiguration(ABC):
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
         if not filepath:
-            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'
+            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'  # FIXME
             filepath = os.path.join(self.config_root, filename)
 
         if os.path.isfile(filepath):
@@ -616,6 +619,10 @@ class NodeConfiguration(ABC):
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         if not self.federated_only and not self.checksum_public_address:
+            if self.geth:
+                data_dir = os.path.join(self.config_root, '.ethereum', NuCypherGethDevnetProcess._CHAIN_NAME)
+                etherbase = NuCypherGethDevnetProcess.ensure_account_exists(password=password, data_dir=data_dir)
+
             checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
         else:
             checksum_address = self.checksum_public_address
