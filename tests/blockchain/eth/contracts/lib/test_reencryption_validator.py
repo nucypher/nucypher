@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pytest
 
+from eth_tester.exceptions import TransactionFailed
+
 from umbral import pre
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
@@ -144,3 +146,67 @@ def test_compute_proof_challenge_scalar(testerchain, reencryption_validator):
     proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
     computeProofChallengeScalar = reencryption_validator.functions.computeProofChallengeScalar
     assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+
+
+@pytest.mark.slow
+def test_validate_cfrag(testerchain, reencryption_validator):
+    ###############################
+    # Test: Ursula produces correct proof:
+    ###############################
+    metadata = os.urandom(33)
+    capsule, cfrag = fragments(metadata)
+
+    assert cfrag.verify_correctness(capsule)
+
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+
+    # Bob prepares supporting Evidence
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+
+    evidence_data = evidence.precompute_values()
+    assert len(evidence_data) == 20 * 32 + 32 + 20 + 1
+
+    # Challenge using good data
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+    assert reencryption_validator.functions.validateCFrag(*args).call()
+
+    ###############################
+    # Test: Ursula produces incorrect proof:
+    ###############################
+    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    cfrag_bytes = cfrag.to_bytes()
+    assert not cfrag.verify_correctness(capsule)
+
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+    assert not reencryption_validator.functions.validateCFrag(*args).call()
+
+    ###############################
+    # Test: Bob produces wrong precomputed data
+    ###############################
+
+    metadata = os.urandom(34)
+    capsule, cfrag = fragments(metadata)
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    assert cfrag.verify_correctness(capsule)
+
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
+    evidence_data = evidence.precompute_values()
+
+    # Bob produces a random point and gets the bytes of coords x and y
+    random_point_bytes = Point.gen_rand().to_bytes(is_compressed=False)[1:]
+    # He uses this garbage instead of correct precomputation of z*E
+    evidence_data = bytearray(evidence_data)
+    evidence_data[32:32 + 64] = random_point_bytes
+    evidence_data = bytes(evidence_data)
+
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+
+    # Evaluation must fail since Bob precomputed wrong values
+    with pytest.raises(TransactionFailed):
+        _ = reencryption_validator.functions.validateCFrag(*args).call()
+
