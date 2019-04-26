@@ -102,6 +102,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)
+            ursula.confirm_activity()
 
         ursulas.append(ursula)
         # Store this Ursula in our global cache.
