@@ -99,6 +99,8 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': miner})
     testerchain.wait_for_receipt(tx)
+    tx = contract.functions.setWorker(miner).transact({'from': miner})
+    testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
     tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
@@ -434,3 +436,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert sub_stake == escrow.functions.getLockedTokensInPast(ursula, 1).call()
     assert sub_stake == escrow.functions.getLockedTokens(ursula).call()
     assert sub_stake == escrow.functions.lockedPerPeriod(period - 1).call()
+
+
+@pytest.mark.slow
+def test_worker(testerchain, token, escrow_contract):
+    pass
