@@ -149,7 +149,7 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     events = miner_deposits.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 1500 == event_args['value']
     assert 5 == event_args['periods']
 
@@ -180,6 +180,9 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     with pytest.raises((TransactionFailed, ValueError)):
         tx = proxy.functions.lockReStake(0).transact({'from': user})
         testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = proxy.functions.setWorker(user).transact({'from': user})
+        testerchain.wait_for_receipt(tx)
 
     locks = user_escrow_proxy.events.Locked.createFilter(fromBlock='latest')
     divides = user_escrow_proxy.events.Divided.createFilter(fromBlock='latest')
@@ -189,6 +192,7 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     withdraws = user_escrow.events.TokensWithdrawn.createFilter(fromBlock='latest')
     re_stakes = user_escrow_proxy.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_locks = user_escrow_proxy.events.ReStakeLocked.createFilter(fromBlock='latest')
+    worker_logs = user_escrow_proxy.events.WorkerSet.createFilter(fromBlock='latest')
 
     # Use miners methods through the user escrow
     tx = user_escrow_proxy.functions.lock(100, 1).transact({'from': user})
@@ -226,17 +230,22 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     testerchain.wait_for_receipt(tx)
     assert 123 == escrow.functions.lockReStakeUntilPeriod().call()
 
+    # Test setting worker
+    tx = user_escrow_proxy.functions.setWorker(user).transact({'from': user})
+    testerchain.wait_for_receipt(tx)
+    assert user == escrow.functions.worker().call()
+
     events = locks.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 100 == event_args['value']
     assert 1 == event_args['periods']
 
     events = divides.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 1 == event_args['index']
     assert 100 == event_args['newValue']
     assert 1 == event_args['periods']
@@ -244,33 +253,39 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     events = confirms.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
 
     events = mints.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
 
     events = miner_withdraws.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 1500 == event_args['value']
     event_args = events[1]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 1000 == event_args['value']
 
     events = re_stakes.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert event_args['reStake']
 
     events = re_stake_locks.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 123 == event_args['lockUntilPeriod']
+
+    events = worker_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user == event_args['sender']
+    assert user == event_args['worker']
 
     # User can withdraw reward for mining but no more than locked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -333,7 +348,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     events = miner_reward.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 10000 == event_args['value']
 
     events = rewards.get_all_entries()
@@ -351,5 +366,5 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     events = min_reward_sets.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user == event_args['owner']
+    assert user == event_args['sender']
     assert 222 == event_args['value']
