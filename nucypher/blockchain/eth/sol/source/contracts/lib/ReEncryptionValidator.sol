@@ -63,7 +63,7 @@ library ReEncryptionValidator {
         require(alicesAddress == _precomputed.alicesKeyAsAddress, "Bad KFrag signature");
 
         // Compute proof's challenge scalar h, used in all ZKP verification equations
-        uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
+        uint256 h = computeProofChallengeScalar(_capsule, _cFrag);
 
         //////
         // Verifying 1st equation: z*E == h*E_1 + E_2
@@ -257,13 +257,9 @@ library ReEncryptionValidator {
     }
 
     function computeProofChallengeScalar(
-        bytes memory _capsuleBytes,
-        bytes memory _cFragBytes
+        UmbralDeserializer.Capsule memory _capsule,
+        UmbralDeserializer.CapsuleFrag memory _cFrag
     ) internal pure returns (uint256) {
-
-        // TODO: Optimize this since they have already been parsed by the caller
-        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
-        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
 
         // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2, metadata)
         bytes memory hashInput = abi.encodePacked(

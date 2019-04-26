@@ -185,7 +185,9 @@ contract ReEncryptionValidatorMock {
     )
         public pure returns (uint256)
     {
-        return ReEncryptionValidator.computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
+        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+        return ReEncryptionValidator.computeProofChallengeScalar(_capsule, _cFrag);
     }
 
     function aliceAddress(
