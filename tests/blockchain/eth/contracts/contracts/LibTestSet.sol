@@ -190,15 +190,6 @@ contract ReEncryptionValidatorMock {
         return ReEncryptionValidator.computeProofChallengeScalar(_capsule, _cFrag);
     }
 
-    function aliceAddress(
-        bytes memory _cFragBytes,
-        bytes memory _precomputedBytes
-    )
-        public pure returns (address)
-    {
-        return ReEncryptionValidator.aliceAddress(_cFragBytes, _precomputedBytes);
-    }
-
     function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
         return ReEncryptionValidator.extendedKeccakToBN(_data);
     }

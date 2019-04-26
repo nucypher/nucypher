@@ -307,29 +307,6 @@ library ReEncryptionValidator {
 
     }
 
-    // This function was introduced just to facilitate debugging and testing
-    // of Alice's address extraction from her signature
-    // TODO: Consider moving this somewhere else, or even removing it
-    function aliceAddress(
-        bytes memory _cFragBytes,
-        bytes memory _precomputedBytes
-    )
-        internal pure
-        returns (address)
-    {
-        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
-        UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
-
-        // Extract Alice's address and check that it corresponds to the one provided
-        address alicesAddress = SignatureVerifier.recover(
-            _precomputed.hashedKFragValidityMessage,
-            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
-        );
-        return alicesAddress;
-    }
-
-    // TODO: Consider changing to internal
-    // TODO: Unit test wrt to Umbral implementation
     function extendedKeccakToBN (bytes memory _data) internal pure returns (uint256) {
 
         bytes32 upper;
