@@ -2,11 +2,13 @@ import os
 
 import click
 
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 @click.command()
@@ -19,12 +21,14 @@ from nucypher.config.characters import FelixConfiguration
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True, default=False)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+@click.option('--no-password', help="Assume eth node accounts are already unlocked", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @nucypher_click_config
@@ -38,6 +42,7 @@ def felix(click_config,
           port,
           discovery_port,
           provider_uri,
+          geth,
           config_root,
           checksum_address,
           poa,
@@ -45,7 +50,10 @@ def felix(click_config,
           db_filepath,
           no_registry,
           registry_filepath,
+          no_password,
           force):
+
+    click.clear()
 
     if not click_config.quiet:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
@@ -53,18 +61,23 @@ def felix(click_config,
     if action == "init":
         """Create a brand-new Felix"""
 
-        # Validate "Init" Input
+        # Validate
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
-        # Validate "Init" Input
-        if not checksum_address:
-            raise click.BadArgumentUsage('--checksum-address is required to initialize a new Felix configuration.')
-
         # Acquire Keyring Password
         if not config_root:                         # Flag
-            config_root = click_config.config_file  # Envvar
+            config_root = DEFAULT_CONFIG_ROOT       # Envvar or default
         new_password = click_config.get_password(confirm=True)
+
+        if geth:
+            data_dir = os.path.join(config_root, '.ethereum', network)
+            new_checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=new_password, data_dir=data_dir)
+            click.prompt(f"New geth address is {new_checksum_address}. \n"
+                         f"Press ENTER key to continue", default=True)
+
+        elif not checksum_address:
+            raise click.BadArgumentUsage('--checksum-address is required to initialize a new Felix configuration.')
 
         new_felix_config = FelixConfiguration.generate(password=new_password,
                                                        config_root=config_root,
@@ -85,12 +98,13 @@ def felix(click_config,
 
         return  # <-- do not remove (conditional flow control)
 
-    #
-    # Authenticated Configurations
-    #
-
     # Domains -> bytes | or default
     domains = [bytes(network, encoding='utf-8')] if network else None
+
+    ETH_NODE = None
+    if geth:
+        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        ETH_NODE.start()
 
     # Load Felix from Configuration File with overrides
     try:
@@ -102,24 +116,31 @@ def felix(click_config,
                                                                   rest_port=port,
                                                                   db_filepath=db_filepath,
                                                                   poa=poa)
+
     except FileNotFoundError:
         click.secho(f"No Felix configuration file found at {config_file}. "
                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
 
-    else:
+    # Connect to Blockchain
+    felix_config.connect_to_blockchain()
 
-        # Produce Teacher Ursulas
-        teacher_uris = [teacher_uri] if teacher_uri else list()
-        teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
-                                               min_stake=min_stake,
-                                               federated_only=False,
-                                               network_middleware=click_config.middleware)
+    # Authenticate
+    password = click_config.get_password(confirm=False)
+    click_config.unlock_keyring(character_configuration=felix_config,
+                                password=password,
+                                client_keyring=not no_password)
 
-        # Produce Felix
-        click_config.unlock_keyring(character_configuration=felix_config)
-        FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
-        FELIX.make_web_app()  # attach web application, but dont start service
+    # Produce Teacher Ursulas
+    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                           min_stake=min_stake,
+                                           federated_only=False,
+                                           network_middleware=click_config.middleware)
+
+    # Produce Felix
+    FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
+    FELIX.make_web_app()  # attach web application, but dont start service
 
     if action == "createdb":  # Initialize Database
         if os.path.isfile(FELIX.db_filepath):
@@ -129,7 +150,7 @@ def felix(click_config,
             click.secho(f"Destroyed existing database {FELIX.db_filepath}")
 
         FELIX.create_tables()
-        click.secho(f"Created new database at {FELIX.db_filepath}")
+        click.secho(f"\nCreated new database at {FELIX.db_filepath}", fg='green')
 
     elif action == 'view':
         token_balance = FELIX.token_balance
@@ -139,20 +160,26 @@ Address .... {FELIX.checksum_public_address}
 NU ......... {str(token_balance)}
 ETH ........ {str(eth_balance)}
         """)
-        return
 
     elif action == "accounts":
         accounts = FELIX.blockchain.interface.w3.eth.accounts
         for account in accounts:
             click.secho(account)
-        return
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
-        return actions.destroy_configuration(character_config=felix_config, force=force)
+        actions.destroy_configuration(character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
-        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True, crash_on_error=click_config.debug)
 
-    else:                     # Error
+        FELIX.start(host=host,
+                    port=port,
+                    web_services=not dry_run,
+                    distribution=True,
+                    crash_on_error=click_config.debug)
+
+    else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
+
+    if ETH_NODE:
+        ETH_NODE.stop()
