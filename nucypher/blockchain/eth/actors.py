@@ -327,6 +327,21 @@ class Deployer(NucypherTokenActor):
         txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
         return txhashes
 
+    def save_deployment_receipts(self, transactions: dict) -> str:
+        filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
+        with open(filepath, 'w') as file:
+            data = dict()
+            for contract_name, transactions in transactions.items():
+                contract_records = dict()
+                for tx_name, txhash in transactions.items():
+                    receipt = {item: str(result) for item, result in self.blockchain.wait_for_receipt(txhash).items()}
+                    contract_records.update({tx_name: receipt for tx_name in transactions})
+                data[contract_name] = contract_records
+            data = json.dumps(data, indent=4)
+            file.write(data)
+        return filepath
+
 
 class Miner(NucypherTokenActor):
     """
