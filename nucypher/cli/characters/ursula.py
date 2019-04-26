@@ -21,7 +21,7 @@ from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherGethDevProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -125,6 +125,8 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
 
+    ETH_NODE = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
+
     if not quiet:
         log = Logger('ursula.cli')  # TODO: Why is this unused?
 
@@ -161,9 +163,15 @@ def ursula(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step - ue a fleet to detect the IP?
+            # TODO: Remove this step - use a fleet node to detect the IP
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
 
-        ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
+        new_password = click_config.get_password(confirm=True)
+
+        if geth:
+            provider_uri = 'geth://auto'
+
+        ursula_config = UrsulaConfiguration.generate(password=new_password,
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
@@ -188,6 +196,11 @@ def ursula(click_config,
 
     # Development Configuration
     if dev:
+
+        ETH_NODE = NuCypherGethDevProcess()
+        ETH_NODE.start()()
+        provider_uri = ETH_NODE.provider_uri
+
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
@@ -200,7 +213,6 @@ def ursula(click_config,
                                             db_filepath=db_filepath)
     # Production Configurations
     else:
-        password = click_config.get_password()  # TODO All providers need to unlock
 
         # Domains -> bytes | or default
         domains = set(bytes(network, encoding='utf-8')) if network else None
@@ -224,22 +236,15 @@ def ursula(click_config,
         # Spawn Client Node
         #
 
-        ursula_config.node_process = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
         if geth:
-
             if federated_only:
                 raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
-            # Spawn locked geth process
-            # TODO: Only devnet for now
-            geth_process = NuCypherGethDevnetProcess(config_root=config_root, password=password.encode())
-            geth_process.start()  # TODO: Graceful shutdown
-            geth_process.wait_for_ipc(timeout=30)
-            provider_uri = f"ipc://{geth_process.ipc_path}"
+            ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+            ETH_NODE.start()
 
             # Overwrite the ursula config *after* auth to prevent eager process spawning
-            ursula_config.node_process = geth_process
-            ursula_config.provider_uri = provider_uri
+            ursula_config.provider_uri = ETH_NODE.provider_uri
 
     #
     # Configured Pre-Authentication Actions
@@ -257,7 +262,7 @@ def ursula(click_config,
     # Connect to Blockchain
     #
 
-    if not ursula_config.federated_only:
+    if not ursula_config.federated_only:  # TODO: Pass ETH_NODE?
         click_config.connect_to_blockchain(character_configuration=ursula_config,
                                            recompile_contracts=recompile_solidity)
 
@@ -267,7 +272,11 @@ def ursula(click_config,
     # Authenticate
     #
 
-    if not dev:
+    if dev:
+        # Development accounts are always unlocked and use one-time random keys.
+        password = None
+    else:
+        password = click_config.get_password()
         click_config.unlock_keyring(character_configuration=ursula_config, password=password)
 
     #
@@ -347,6 +356,8 @@ def ursula(click_config,
         # Graceful Exit / Crash
         finally:
             click_config.emit(message="Stopping Ursula", color='green')
+            if ETH_NODE:
+                ETH_NODE.stop()
             ursula_config.cleanup()
             click_config.emit(message="Ursula Stopped", color='red')
         return
