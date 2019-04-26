@@ -243,6 +243,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
+    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
     #
     # Wait 1 period and confirm activity
     #
