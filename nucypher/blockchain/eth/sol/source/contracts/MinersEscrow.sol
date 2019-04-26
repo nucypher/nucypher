@@ -375,7 +375,8 @@ contract MinersEscrow is Issuer {
             "Not enough time has passed since the previous setting worker");
         require(_worker == address(0) || workerToMiner[_worker] == address(0),
             "Specified worker is already in use");
-        require(minerInfo[_worker].value == 0, "Specified worker is a miner");
+        require(minerInfo[_worker].value == 0 || _worker == msg.sender,
+            "Specified worker is an another miner");
 
         // remove relation between the old worker and the miner
         if (info.worker != address(0)) {
@@ -543,7 +544,7 @@ contract MinersEscrow is Issuer {
         if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
             saveSubStake(info, nextPeriod, 0, _periods, _value);
         } else {
-            // TODO check and add docs. maybe extract or rename event
+            // next period is confirmed
             saveSubStake(info, nextPeriod, 0, _periods - 1, _value);
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_value);
             emit ActivityConfirmed(_miner, nextPeriod, _value);
@@ -619,7 +620,6 @@ contract MinersEscrow is Issuer {
         // if the next period is confirmed and
         // old sub stake is finishing in the current period then update confirmation
         if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
-            // TODO maybe extract or rename event
             lockedPerPeriod[startPeriod] = lockedPerPeriod[startPeriod].add(_newValue);
             emit ActivityConfirmed(msg.sender, startPeriod, _newValue);
         }
@@ -650,6 +650,8 @@ contract MinersEscrow is Issuer {
     * @notice Confirm activity for the next period and mine for the previous period
     **/
     function confirmActivity() external onlyMiner {
+        require(getWorkerByMiner(msg.sender) == tx.origin, "Only worker can confirm activity");
+
         uint16 lastActivePeriod = getLastActivePeriod(msg.sender);
         mint(msg.sender);
         MinerInfo storage info = minerInfo[msg.sender];
@@ -693,13 +695,16 @@ contract MinersEscrow is Issuer {
     * @notice Mint tokens for previous periods if miner locked their tokens and confirmed activity
     **/
     function mint() external onlyMiner {
-        // save last active period to the storage if only one period is confirmed
-        // because after this minting confirmed periods can be empty and can't calculate period from them
+        // save last active period to the storage if both periods will be empty after minting
+        // because we won't be able to calculate last active period
         // see getLastActivePeriod(address)
         MinerInfo storage info = minerInfo[msg.sender];
-        // TODO recheck condition
-        if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
-            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
+        uint16 previousPeriod = getCurrentPeriod().sub16(1);
+        if (info.confirmedPeriod1 <= previousPeriod &&
+            info.confirmedPeriod2 <= previousPeriod &&
+            (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD))
+        {
             info.lastActivePeriod = AdditionalMath.max16(info.confirmedPeriod1, info.confirmedPeriod2);
         }
         mint(msg.sender);
@@ -1237,7 +1242,9 @@ contract MinersEscrow is Issuer {
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
             infoToCheck.reStake == info.reStake &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
-            infoToCheck.lastActivePeriod == info.lastActivePeriod);
+            infoToCheck.lastActivePeriod == info.lastActivePeriod &&
+            infoToCheck.worker == info.worker &&
+            infoToCheck.workerStartPeriod == info.workerStartPeriod);
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner) ==
             info.pastDowntime.length);
@@ -1256,6 +1263,11 @@ contract MinersEscrow is Issuer {
                 subStakeInfoToCheck.lastPeriod == subStakeInfo.lastPeriod &&
                 subStakeInfoToCheck.periods == subStakeInfo.periods &&
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
+        }
+
+        if (info.worker != address(0)) {
+            require(address(delegateGet(_testTarget, "workerToMiner(address)", bytes32(uint256(info.worker)))) ==
+                workerToMiner[info.worker]);
         }
     }
 
