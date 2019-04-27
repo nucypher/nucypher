@@ -330,7 +330,7 @@ class BlockchainInterface:
             # Built-In
 
             # - IPC -
-            elif uri_breakdown.scheme == 'ipc':
+            elif uri_breakdown.scheme in ('ipc', 'file'):
                 # https://web3py.readthedocs.io/en/latest/providers.html#ipcprovider
                 provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
 
