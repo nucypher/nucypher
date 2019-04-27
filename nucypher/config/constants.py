@@ -29,6 +29,7 @@ from nucypher.blockchain.eth import sol
 
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
+DEPLOY_DIR = os.path.join(BASE_DIR, 'deploy')
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contracts')
 
