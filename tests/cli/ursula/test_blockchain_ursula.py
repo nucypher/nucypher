@@ -1,20 +1,17 @@
 import json
 import os
 import random
-import secrets
-import string
 
 import datetime
 import maya
 import pytest
-from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox import constants
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import (
@@ -22,7 +19,9 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH, TEMPORARY_DOMAIN, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+    MOCK_REGISTRY_FILEPATH,
+    TEMPORARY_DOMAIN,
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
@@ -82,26 +81,6 @@ def staking_participant(funded_blockchain, blockchain_ursulas):
 def configuration_file_location(custom_filepath):
     _configuration_file_location = os.path.join(constants.MOCK_CUSTOM_INSTALLATION_PATH, 'ursula.config')
     return _configuration_file_location
-
-
-@pytest.fixture(scope="module")
-def charlie_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
-    config = BobConfiguration(dev_mode=True,
-                              provider_uri="tester://pyevm",
-                              checksum_public_address=bob_address,
-                              network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas,
-                              start_learning_now=False,
-                              abort_on_learning_error=True,
-                              federated_only=False,
-                              import_seed_registry=False,
-                              save_metadata=False,
-                              reload_metadata=False)
-    yield config
-    config.cleanup()
 
 
 @pytest.fixture(scope='module')
@@ -235,7 +214,6 @@ def test_run_blockchain_ursula(click_runner,
                                funded_blockchain,
                                alice_blockchain_test_config,
                                bob_blockchain_test_config,
-                               charlie_blockchain_test_config,
                                random_policy_label,
                                blockchain_ursulas,
                                staking_participant):
@@ -255,31 +233,18 @@ def test_run_blockchain_ursula(click_runner,
 
 
 def test_collect_rewards_integration(click_runner,
-                                     funded_blockchain,
                                      configuration_file_location,
                                      alice_blockchain_test_config,
                                      bob_blockchain_test_config,
-                                     charlie_blockchain_test_config,
                                      random_policy_label,
                                      blockchain_ursulas,
                                      staking_participant,
                                      token_economics,
-                                     policy_value):
+                                     policy_value,
+                                     policy_rate):
 
     blockchain = staking_participant.blockchain
 
-    # Alice creates a policy and grants Bob access
-    alice = alice_blockchain_test_config.produce(blockchain=funded_blockchain,
-                                                 network_middleware=MockRestMiddleware(),
-                                                 known_nodes=blockchain_ursulas)
-
-    bob = bob_blockchain_test_config.produce(blockchain=blockchain,
-                                             network_middleware=MockRestMiddleware(),
-                                             known_nodes=blockchain_ursulas)
-
-    #
-    # Back to the Ursulas...
-    #
     half_stake_time = token_economics.minimum_locked_periods // 2          # Test setup
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1                # State the initial period for incrementing
@@ -296,11 +261,15 @@ def test_collect_rewards_integration(click_runner,
         blockchain.time_travel(periods=1)
         miner.confirm_activity()
 
+    # Alice creates a policy and grants Bob access
+    alice = alice_blockchain_test_config.produce()
+    bob = bob_blockchain_test_config.produce()
+
     M, N = 1, 1
     expiration = maya.now() + datetime.timedelta(days=3)
     blockchain_policy = alice.grant(bob=bob,
                                     label=random_policy_label,
-                                    m=M, n=1,
+                                    m=M, n=N,
                                     value=policy_value,
                                     expiration=expiration,
                                     handpicked_ursulas={staking_participant})
@@ -312,34 +281,19 @@ def test_collect_rewards_integration(click_runner,
     enrico = Enrico(policy_encrypting_key=blockchain_policy.public_key,
                     network_middleware=MockRestMiddleware())
 
-    for index, _period in enumerate(range(half_stake_time-5)):
+    verifying_key = alice.stamp.as_umbral_pubkey()
+
+    for index in range(half_stake_time-5):
         logger.debug(f"period {current_period}")
+        random_data = os.urandom(random.randrange(20, 100))
+        ciphertext, signature = enrico.encrypt_message(message=random_data)
 
-        alphabet = string.ascii_letters + string.digits
-
-        # Random Request Periods
-        if not random.choice((True, False)):
-            continue  # maybe re-encrypt
-
-        max_reencryptions_per_period = 5
-        quantity = random.choice(range(max_reencryptions_per_period+1))
-        quantity *= index  # factorial or 0
-        verifying_key = UmbralPublicKey.from_bytes(bytes(alice.stamp))
-
-        # Random Re-encryptions
-        for _i in range(quantity):
-
-            # Encrypt
-            random_data = ''.join(secrets.choice(alphabet) for i in range(secrets.choice(range(20, 100))))
-            ciphertext, signature = enrico.encrypt_message(message=bytes(random_data, encoding='utf-8'))
-
-            # Retrieve
-            payload = dict(message_kit=ciphertext,
-                           data_source=enrico,
-                           alice_verifying_key=verifying_key,
-                           label=random_policy_label)
-
-            _cleartext = bob.retrieve(**payload)
+        # Retrieve
+        cleartexts = bob.retrieve(message_kit=ciphertext,
+                                  data_source=enrico,
+                                  alice_verifying_key=verifying_key,
+                                  label=random_policy_label)
+        assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing
         blockchain.time_travel(periods=1)
@@ -359,6 +313,7 @@ def test_collect_rewards_integration(click_runner,
 
     # The address the client wants Ursula to send rewards to
     burner_wallet = blockchain.interface.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
+    # The rewards wallet is initially empty
     assert blockchain.interface.w3.eth.getBalance(burner_wallet.address) == 0
 
     # Snag a random teacher from the fleet
@@ -381,6 +336,6 @@ def test_collect_rewards_integration(click_runner,
     collected_reward = blockchain.interface.w3.eth.getBalance(burner_wallet.address)
     assert collected_reward != 0
 
-    expected_reward = Web3.toWei(21, 'gwei') * 30 * M
+    expected_reward = policy_rate * 30
     assert collected_reward == expected_reward
     assert miner.eth_balance == pre_stake_eth_balance

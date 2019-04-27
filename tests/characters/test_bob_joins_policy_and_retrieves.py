@@ -1,5 +1,4 @@
 import os
-import time
 
 import datetime
 import maya
@@ -14,11 +13,10 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def test_federated_bob_full_retrieve_flow(federated_ursulas,
-                                 federated_bob,
-                                 federated_alice,
-                                 capsule_side_channel,
-                                 enacted_federated_policy
-                                 ):
+                                          federated_bob,
+                                          federated_alice,
+                                          capsule_side_channel,
+                                          enacted_federated_policy):
     # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
