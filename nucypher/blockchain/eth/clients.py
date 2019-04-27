@@ -13,7 +13,7 @@ from geth.chain import (
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, DEPLOY_DIR
 
 NUCYPHER_CHAIN_IDS = {
     'devnet': 112358,
@@ -22,8 +22,6 @@ NUCYPHER_CHAIN_IDS = {
 
 class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
 
-    GENESIS_FILENAME = 'genesis.json'
-    GENESIS_SOURCE_FILEPATH = os.path.join('deploy', 'geth', GENESIS_FILENAME)
     IPC_PROTOCOL = 'ipc'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
@@ -46,15 +44,6 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         super().start()
         self.wait_for_ipc(timeout=timeout)
 
-    def initialize_blockchain(self, geth_kwargs: dict) -> None:
-        log = Logger('nucypher-geth-init')
-        with open(self.GENESIS_SOURCE_FILEPATH) as file:
-            genesis_data = json.loads(file.read())
-            log.info(f"Read genesis file '{self.GENESIS_SOURCE_FILEPATH}'")
-
-        log.info(f'Initializing new blockchain database and genesis block.')
-        initialize_chain(genesis_data, **geth_kwargs)
-
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
 
@@ -75,6 +64,9 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):
+
+    GENESIS_FILENAME = 'testnet_genesis.json'
+    GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
 
     P2P_PORT = 30303
     _CHAIN_NAME = 'devnet'
@@ -126,6 +118,16 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         self.__process = NOT_RUNNING
 
         super().__init__(geth_kwargs)
+
+    @classmethod
+    def initialize_blockchain(cls, geth_kwargs: dict) -> None:
+        log = Logger('nucypher-geth-init')
+        with open(cls.GENESIS_SOURCE_FILEPATH) as file:
+            genesis_data = json.loads(file.read())
+            log.info(f"Read genesis file '{cls.GENESIS_SOURCE_FILEPATH}'")
+
+        log.info(f'Initializing new blockchain database and genesis block.')
+        initialize_chain(genesis_data, **geth_kwargs)
 
     @classmethod
     def ensure_account_exists(cls, password: str, data_dir: str):
