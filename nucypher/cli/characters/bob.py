@@ -72,7 +72,7 @@ def bob(click_config,
                                                    rest_host="localhost",
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
-                                                   no_registry=click_config.no_registry,
+                                                   download_registry=click_config.no_registry,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
