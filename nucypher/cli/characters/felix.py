@@ -72,7 +72,8 @@ def felix(click_config,
 
         if geth:
             data_dir = os.path.join(config_root, '.ethereum', network)
-            new_checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=new_password, data_dir=data_dir)
+            new_checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=new_password,
+                                                                                   data_dir=data_dir)
             click.prompt(f"New geth address is {new_checksum_address}. \n"
                          f"Press ENTER key to continue", default=True)
 
