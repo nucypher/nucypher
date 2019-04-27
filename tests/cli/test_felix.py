@@ -36,12 +36,12 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
                'FLASK_DEBUG': '1'}
 
     # Deploy contracts
-    deploy_args = ('deploy',
+    deploy_args = ('contracts',
                    '--registry-outfile', mock_primary_registry_filepath,
                    '--provider-uri', TEST_PROVIDER_URI,
                    '--poa')
 
-    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8  # TODO: Use Env Vars
+    user_input = '0\n'+'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8  # TODO: Use Env Vars
     result = click_runner.invoke(deploy.deploy, deploy_args, input=user_input, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
