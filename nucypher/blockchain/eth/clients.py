@@ -3,7 +3,7 @@ import os
 
 from constant_sorrow.constants import NOT_RUNNING
 from geth import LoggingMixin
-from geth.accounts import ensure_account_exists
+from geth.accounts import ensure_account_exists, get_accounts, create_new_account
 from geth.chain import (
     get_chain_data_dir,
     initialize_chain,
@@ -132,7 +132,11 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
                        'port': str(cls.P2P_PORT),
                        'verbosity': str(cls.VERBOSITY),
-                       'data_dir': data_dir,
-                       'password': password.encode()}
-        etherbase = ensure_account_exists(**geth_kwargs)
-        return etherbase
+                       'data_dir': data_dir}
+
+        accounts = get_accounts(**geth_kwargs)
+        if not accounts:
+            account = create_new_account(password=password.encode(), **geth_kwargs)
+        else:
+            account = accounts[0]
+        return account
