@@ -120,14 +120,14 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         super().__init__(geth_kwargs)
 
     @classmethod
-    def initialize_blockchain(cls, geth_kwargs: dict) -> None:
+    def initialize_blockchain(cls, geth_kwargs: dict, overwrite: bool = True) -> None:
         log = Logger('nucypher-geth-init')
         with open(cls.GENESIS_SOURCE_FILEPATH) as file:
             genesis_data = json.loads(file.read())
             log.info(f"Read genesis file '{cls.GENESIS_SOURCE_FILEPATH}'")
 
         log.info(f'Initializing new blockchain database and genesis block.')
-        initialize_chain(genesis_data, **geth_kwargs)
+        initialize_chain(genesis_data, overwrite=overwrite, **geth_kwargs)
 
     @classmethod
     def ensure_account_exists(cls, password: str, data_dir: str):
