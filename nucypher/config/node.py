@@ -617,21 +617,32 @@ class NodeConfiguration(ABC):
                                        *args, **kwargs)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
+        # Get or create wallet address
         if not self.federated_only and not self.checksum_public_address:
-            if self.geth:
-                data_dir = os.path.join(self.config_root, '.ethereum', NuCypherGethDevnetProcess._CHAIN_NAME)
-                etherbase = NuCypherGethDevnetProcess.ensure_account_exists(password=password, data_dir=data_dir)
+            try:
+                checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
+            except IndexError:
+                client_version = self.interface.w3.clientVersion
+                if 'Geth' in client_version:
+                    data_dir = os.path.join(self.config_root, '.ethereum', NuCypherGethDevnetProcess._CHAIN_NAME)
+                    checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=password, data_dir=data_dir)
 
-            checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
-        else:
+        # Use explicit address
+        elif self.checksum_public_address:
             checksum_address = self.checksum_public_address
+
+        # Generate a federated checksum address
+        elif self.federated_only and not self.checksum_public_address:
+            checksum_address = None
+
+        else:
+            raise RuntimeError("Something wonderful is happening")  # FIXME: Flow control here is a mess
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
-        # Operating mode switch TODO: #466
+        # Operating mode switch
         if self.federated_only:
             self.checksum_public_address = self.keyring.federated_address
         else:

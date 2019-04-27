@@ -198,7 +198,7 @@ def ursula(click_config,
     if dev:
 
         ETH_NODE = NuCypherGethDevProcess()
-        ETH_NODE.start()()
+        ETH_NODE.start()
         provider_uri = ETH_NODE.provider_uri
 
         ursula_config = UrsulaConfiguration(dev_mode=True,
@@ -303,7 +303,6 @@ def ursula(click_config,
     URSULA = ursula_config(password=password, known_nodes=teacher_nodes, lonely=lonely)
     del password  # ... under the rug
 
-
     #
     # Authenticated Action Switch
     #
@@ -335,7 +334,7 @@ def ursula(click_config,
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
             if dry_run:
-                return  # <-- ABORT -X (Last Chance)
+                return  # <-- ABORT - (Last Chance)
 
             # Run - Step 3
             node_deployer = URSULA.get_deployer()
