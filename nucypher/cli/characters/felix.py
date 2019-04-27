@@ -76,9 +76,6 @@ def felix(click_config,
             click.prompt(f"New geth address is {new_checksum_address}. \n"
                          f"Press ENTER key to continue", default=True)
 
-        elif not checksum_address:
-            raise click.BadArgumentUsage('--checksum-address is required to initialize a new Felix configuration.')
-
         new_felix_config = FelixConfiguration.generate(password=new_password,
                                                        config_root=config_root,
                                                        rest_host=host,
