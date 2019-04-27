@@ -179,7 +179,7 @@ def ursula(click_config,
                                                      domains={network} if network else None,
                                                      federated_only=federated_only,
                                                      checksum_public_address=checksum_address,
-                                                     no_registry=federated_only or no_registry,
+                                                     download_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_uri=provider_uri,
                                                      poa=poa)

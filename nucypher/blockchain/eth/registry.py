@@ -76,14 +76,19 @@ class EthereumContractRegistry:
         """
         Get the latest published contract registry from github and save it on the local file system.
         """
+        from nucypher.config.node import NodeConfiguration
+
         github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.__PUBLICATION_FILENAME}'
         response = requests.get(github_endpoint)
         if response.status_code != 200:
             raise cls.RegistryError(f"Failed to fetch registry from {github_endpoint} with status code {response.status_code} ")
 
         filepath = filepath or cls._default_registry_filepath
-        with open(filepath, 'wb') as registry_file:  # TODO: Skip re-write if already up to date
-            registry_file.write(response.content)
+        try:
+            with open(filepath, 'wb') as registry_file:  # TODO: Skip re-write if already up to date
+                registry_file.write(response.content)
+        except FileNotFoundError:
+            raise NodeConfiguration.NoConfigurationRoot
         return filepath
 
     @classmethod
