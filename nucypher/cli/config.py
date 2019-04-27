@@ -126,13 +126,13 @@ class NucypherClickConfig:
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 
-        # Eth Client Node
-        if client_keyring:
-            try:
-                character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
-                                                                            password=password)
-            except ValueError as e:
-                raise   # TODO
+        # # Eth Client Node
+        # if client_keyring:  # FIXME - YIIKES - move to keyring
+        #     try:
+        #         character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+        #                                                                     password=password)
+        #     except ValueError as e:
+        #         raise   # TODO
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:

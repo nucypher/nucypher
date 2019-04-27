@@ -116,8 +116,11 @@ def alice(click_config,
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)
 
+    if not alice_config.federated_only:
+        click_config.connect_to_blockchain(character_configuration=alice_config)
     if not dev:
-        click_config.unlock_keyring(character_configuration=alice_config)
+        click_config.unlock_keyring(character_configuration=alice_config,
+                                    password=click_config.get_password(confirm=False))
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else None
