@@ -91,7 +91,7 @@ def test_nucypher_deploy_contracts(click_runner,
     # Main
     #
 
-    command = ['deploy',
+    command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
                '--provider-uri', provider_uri,
                '--poa']
