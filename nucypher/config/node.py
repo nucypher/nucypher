@@ -37,6 +37,7 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
+from eth_utils import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from umbral.signing import Signature
 
@@ -286,7 +287,7 @@ class NodeConfiguration(ABC):
 
     def __write(self, password: str):
         if not self.federated_only:
-            self.connect_to_blockchain()
+            self.connect_to_blockchain()  # Needed for access to ethereum node addresses and NC key signing
         _new_installation_path = self.initialize(password=password, download_registry=self.download_registry)
         _configuration_filepath = self.to_configuration_file(filepath=self.config_file_location)
 
@@ -634,10 +635,17 @@ class NodeConfiguration(ABC):
                 if not os.path.exists(data_dir):
                     os.mkdir(data_dir)
 
-                client_version = self.interface.w3.clientVersion
+                client_version = self.blockchain.interface.w3.clientVersion
                 if 'Geth' in client_version:
                     checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=password,
                                                                                        data_dir=data_dir)
+
+                else:
+                    raise RuntimeError("THIS IS A TEMPORARY DEBUGGING EXCEPTION")  # TODO
+
+            # Addresses read from some node keyrings are *not* returned in checksum format.
+            checksum_address = to_checksum_address(checksum_address)
+            assert is_checksum_address(checksum_address), f"INVALID ETH ADDRESS {checksum_address}"
 
         # Use explicit address
         elif self.checksum_public_address:
