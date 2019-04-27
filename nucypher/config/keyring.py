@@ -123,6 +123,8 @@ def _write_private_keyfile(keypath: str,
     ---------------------------------------------------------------------
     """
 
+    if os.path.isfile(keypath):
+        raise RuntimeError(f"Private keyfile {keypath} already exists.")
     try:
         keyfile_descriptor = os.open(keypath, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
     finally:
@@ -530,7 +532,7 @@ class NucypherKeyring:
         if curve is None:
             curve = cls.__DEFAULT_TLS_CURVE
 
-        if checksum_address is not None and not is_checksum_address(checksum_address):
+        if checksum_address and not is_checksum_address(checksum_address):
             raise ValueError(f"{checksum_address} is not a valid ethereum checksum address")
 
         _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
