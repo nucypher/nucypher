@@ -77,7 +77,7 @@ def felix(click_config,
                                                        db_filepath=db_filepath,
                                                        domains={network} if network else None,
                                                        checksum_public_address=checksum_address,
-                                                       no_registry=no_registry,
+                                                       download_registry=not no_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_uri=provider_uri,
                                                        poa=poa)

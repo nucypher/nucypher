@@ -84,9 +84,7 @@ class NucypherClickConfig:
             character_configuration.connect_to_contracts()
 
         except EthereumContractRegistry.NoRegistry:
-            # message = "No contract registry found; Did you mean to pass --federated-only?"
-            # raise EthereumContractRegistry.NoRegistry(message)
-            EthereumContractRegistry.from_latest_publication()
+            _registry_filepath = EthereumContractRegistry.from_latest_publication()
 
         except Exception as e:
             if self.debug:
