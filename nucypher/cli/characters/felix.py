@@ -65,18 +65,11 @@ def felix(click_config,
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
-        # Acquire Keyring Password
         if not config_root:                         # Flag
-            config_root = DEFAULT_CONFIG_ROOT       # Envvar or default
+            config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
+
+        # Acquire Keyring Password
         new_password = click_config.get_password(confirm=True)
-
-        if geth:
-            data_dir = os.path.join(config_root, '.ethereum', network)
-            new_checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=new_password,
-                                                                                   data_dir=data_dir)
-            click.prompt(f"New geth address is {new_checksum_address}. \n"
-                         f"Press ENTER key to continue", default=True)
-
         new_felix_config = FelixConfiguration.generate(password=new_password,
                                                        config_root=config_root,
                                                        rest_host=host,
