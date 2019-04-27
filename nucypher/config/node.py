@@ -43,6 +43,7 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -97,6 +98,9 @@ class NodeConfiguration(ABC):
     class InvalidConfiguration(ConfigurationError):
         pass
 
+    class NoConfigurationRoot(InvalidConfiguration):
+        pass
+
     def __init__(self,
 
                  # Base
@@ -148,7 +152,7 @@ class NodeConfiguration(ABC):
                  # Registry
                  registry_source: str = None,
                  registry_filepath: str = None,
-                 import_seed_registry: bool = False  # TODO: needs cleanup
+                 download_registry: bool = True
 
                  ) -> None:
 
@@ -174,12 +178,7 @@ class NodeConfiguration(ABC):
         self.keyring_dir = keyring_dir or UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
-        if import_seed_registry is True:
-            registry_source = self.REGISTRY_SOURCE
-            if not os.path.isfile(registry_source):
-                message = "Seed contract registry does not exist at path {}.".format(registry_filepath)
-                self.log.debug(message)
-                raise RuntimeError(message)
+        self.download_registry = download_registry
         self.__registry_source = registry_source or self.REGISTRY_SOURCE
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
@@ -273,24 +272,22 @@ class NodeConfiguration(ABC):
             password = ''.join(secrets.choice(alphabet) for _ in range(32))
 
             # Auto-initialize
-            self.initialize(password=password, import_registry=import_seed_registry)
+            self.initialize(password=password, download_registry=download_registry)
 
     def __call__(self, *args, **kwargs):
         return self.produce(*args, **kwargs)
 
     @classmethod
-    def generate(cls, password: str, no_registry: bool, *args, **kwargs):
+    def generate(cls, password: str, *args, **kwargs):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         node_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
-        node_config.__write(password=password, no_registry=no_registry)
+        node_config.__write(password=password)
         return node_config
 
-    def __write(self, password: str, no_registry: bool):
-
+    def __write(self, password: str):
         if not self.federated_only:
             self.connect_to_blockchain()
-
-        _new_installation_path = self.initialize(password=password, import_registry=no_registry)
+        _new_installation_path = self.initialize(password=password, download_registry=self.download_registry)
         _configuration_filepath = self.to_configuration_file(filepath=self.config_file_location)
 
     def cleanup(self) -> None:
@@ -544,19 +541,19 @@ class NodeConfiguration(ABC):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self,
-                   password: str,
-                   import_registry: bool = True,
-                   ) -> str:
-        """Initialize a new configuration."""
+    def initialize(self, password: str, download_registry: bool = True) -> str:
+        """Initialize a new configuration and write installation files to disk."""
 
         #
-        # Create Config Root
+        # Create Base System Filepaths
         #
+
         if self.__dev_mode:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
         else:
+
+            # Production Configuration
             try:
                 os.mkdir(self.config_root, mode=0o755)
 
@@ -568,36 +565,42 @@ class NodeConfiguration(ABC):
             except FileNotFoundError:
                 os.makedirs(self.config_root, mode=0o755)
 
-        #
-        # Create Config Subdirectories
-        #
+        # Generate Installation Subdirectories
         self._cache_runtime_filepaths()
-        try:
 
-            # Node Storage
-            self.node_storage.initialize()
+        #
+        # Node Storage
+        #
 
-            # Keyring
-            if not self.dev_mode:
-                if not os.path.isdir(self.keyring_dir):
-                    os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point: COS
-                self.write_keyring(password=password)
+        self.node_storage.initialize()
 
-            # Registry
-            if import_registry and not self.federated_only:
-                self.write_registry(output_filepath=self.registry_filepath,  # type: str
-                                    source=self.__registry_source,           # type: str
-                                    blank=import_registry)                   # type: bool
+        #
+        # Keyring
+        #
 
-        except FileExistsError:
-            existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
-            message = "There are pre-existing files at {}: {}".format(self.config_root, existing_paths)
-            self.log.info(message)
+        if not self.dev_mode:
+            if not os.path.isdir(self.keyring_dir):
+                os.mkdir(self.keyring_dir, mode=0o700)  # TODO: Keyring backend entry point - COS
+            self.write_keyring(password=password)
+
+        #
+        # Registry
+        #
+
+        if download_registry and not self.federated_only:
+            self.registry_filepath = EthereumContractRegistry.download_latest_publication()
+
+        #
+        # Verify
+        #
 
         if not self.__dev_mode:
-            self.validate(config_root=self.config_root, no_registry=import_registry or self.federated_only)
+            self.validate(config_root=self.config_root, no_registry=(not download_registry) or self.federated_only)
 
+        #
         # Success
+        #
+
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
 
