@@ -76,7 +76,12 @@ class Blockchain:
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
             if not registry and fetch_registry:
-                registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
+                from nucypher.config.node import NodeConfiguration
+
+                try:
+                    registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
+                except NodeConfiguration.NoConfigurationRoot:
+                    registry = EthereumContractRegistry()
             else:
                 registry = registry or EthereumContractRegistry()
 
