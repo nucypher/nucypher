@@ -110,8 +110,11 @@ def bob(click_config,
                                            network_domain=network,
                                            network_middleware=click_config.middleware)
 
+    if not bob_config.federated_only:
+        click_config.connect_to_blockchain(character_configuration=bob_config)
     if not dev:
-        click_config.unlock_keyring(character_configuration=bob_config)
+        click_config.unlock_keyring(character_configuration=bob_config,
+                                    password=click_config.get_password(confirm=False))
 
     # Produce
     BOB = bob_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)
