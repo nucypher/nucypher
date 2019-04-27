@@ -30,7 +30,7 @@ def another_testerchain(solidity_compiler):
     memory_registry = InMemoryEthereumContractRegistry()
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
                                                      registry=memory_registry,
-                                                     provider_uri='tester://geth')
+                                                     provider_uri='tester://pyevm')
     testerchain = TesterBlockchain(interface=deployer_interface,
                                    test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
                                    eth_airdrop=True)
