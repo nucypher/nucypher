@@ -44,7 +44,6 @@ def test_alice_control_starts_mocked(click_runner, mocker):
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
-    assert MockKeyring.is_unlocked
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner):
