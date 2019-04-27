@@ -23,11 +23,13 @@ $ nucypher ursula init --federated-only
 ### Run a Persistent Ursula
 
 ```bash
-$ nucypher ursula run --teacher-uri <SEEDNODE_URI> --federated-only
+$ nucypher ursula run --network <NETWORK_DOMAIN> --teacher-uri <SEEDNODE_URI> --federated-only
 ```
 
-Replace `<SEEDNODE_URI>` with the URI of a node running on the network and domain you want
-to connect to (for example `0.0.0.0:9151` or `0xdeadbeef@0.0.0.0:9151`).
+Replace `<NETWORK_DOMAIN>` with the network domain and `<SEEDNODE_URI>` with the URI of a node running on that network
+domain you want to connect to (for example `0.0.0.0:9151` or `0xdeadbeef@0.0.0.0:9151`).
+
+If you're connecting to the `devnet`, you should use `--network devnet --teacher-uri 18.222.119.242:9151`.
 
 ### Run a Geth-Connected Development Ursula
 
