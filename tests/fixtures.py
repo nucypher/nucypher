@@ -75,7 +75,7 @@ def temp_config_root(temp_dir_path):
     """
     default_node_config = NodeConfiguration(dev_mode=True,
                                             config_root=temp_dir_path,
-                                            import_seed_registry=False)
+                                            download_registry=False)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
