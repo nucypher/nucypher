@@ -58,6 +58,12 @@ def felix(click_config,
     if not click_config.quiet:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
 
+    ETH_NODE = None  # TODO: Make constant
+    if geth:
+        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        ETH_NODE.start()
+        provider_uri = ETH_NODE.provider_uri
+
     if action == "init":
         """Create a brand-new Felix"""
 
@@ -91,11 +97,6 @@ def felix(click_config,
 
     # Domains -> bytes | or default
     domains = [bytes(network, encoding='utf-8')] if network else None
-
-    ETH_NODE = None
-    if geth:
-        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
-        ETH_NODE.start()
 
     # Load Felix from Configuration File with overrides
     try:

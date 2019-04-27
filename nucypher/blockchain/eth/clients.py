@@ -2,6 +2,7 @@ import json
 import os
 
 from constant_sorrow.constants import NOT_RUNNING
+from eth_utils import to_checksum_address, is_checksum_address
 from geth import LoggingMixin
 from geth.accounts import ensure_account_exists, get_accounts, create_new_account
 from geth.chain import (
@@ -22,7 +23,7 @@ NUCYPHER_CHAIN_IDS = {
 
 class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
 
-    IPC_PROTOCOL = 'ipc'
+    IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
 
@@ -33,16 +34,25 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         self.log = Logger('nucypher-geth')
 
     @property
-    def provider_uri(self, scheme: str = None):
+    def provider_uri(self, scheme: str = None) -> str:
         if not scheme:
             scheme = self.IPC_PROTOCOL
-        uri = f"{scheme}://{self.ipc_path}"
+        if scheme == 'file':
+            location = self.ipc_path
+        elif scheme in ('http', 'ws'):
+            location = f'{self.rpc_host}:{self.rpc_port}'
+        else:
+            raise ValueError(f'{scheme} is an unknown ethereum node IPC protocol.')
+
+        uri = f"{scheme}://{location}"
         return uri
 
     def start(self, timeout: int = 30):
         self.log.info("STARTING GETH NOW")
         super().start()
-        self.wait_for_ipc(timeout=timeout)
+        self.wait_for_ipc(timeout=timeout)  # on for all nodes by default
+        if self.IPC_PROTOCOL == 'rpc':
+            self.wait_for_rpc(timeout=timeout)
 
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
@@ -65,6 +75,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
+    IPC_PROTOCOL = 'file'
     GENESIS_FILENAME = 'testnet_genesis.json'
     GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
 
@@ -120,17 +131,27 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         super().__init__(geth_kwargs)
 
     @classmethod
+    def get_accounts(cls, data_dir: str):
+        geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
+                       'port': str(cls.P2P_PORT),
+                       'verbosity': str(cls.VERBOSITY),
+                       'data_dir': data_dir}
+        accounts = get_accounts(**geth_kwargs)
+        return accounts
+
+    @classmethod
     def initialize_blockchain(cls, geth_kwargs: dict, overwrite: bool = True) -> None:
         log = Logger('nucypher-geth-init')
         with open(cls.GENESIS_SOURCE_FILEPATH) as file:
             genesis_data = json.loads(file.read())
             log.info(f"Read genesis file '{cls.GENESIS_SOURCE_FILEPATH}'")
 
+        genesis_data.update(dict(overwrite=overwrite))
         log.info(f'Initializing new blockchain database and genesis block.')
-        initialize_chain(genesis_data, overwrite=overwrite, **geth_kwargs)
+        initialize_chain(genesis_data=genesis_data, **geth_kwargs)
 
     @classmethod
-    def ensure_account_exists(cls, password: str, data_dir: str):
+    def ensure_account_exists(cls, password: str, data_dir: str) -> str:
         geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
                        'port': str(cls.P2P_PORT),
                        'verbosity': str(cls.VERBOSITY),
@@ -141,4 +162,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
             account = create_new_account(password=password.encode(), **geth_kwargs)
         else:
             account = accounts[0]
-        return account
+
+        checksum_address = to_checksum_address(account.decode())
+        assert is_checksum_address(checksum_address), f"GETH RETURNED INVALID ETH ADDRESS {checksum_address}"
+        return checksum_address
