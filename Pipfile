@@ -22,7 +22,8 @@ maya = "*"
 flask = "*"
 flask_sqlalchemy = "*"
 # Third-Party Ethereum
-py-evm = "==0.2.0a39"
+py-evm = "*"
+py-geth = "*"
 eth-tester = "*"
 coincurve = "*"
 web3 = "*"
@@ -33,6 +34,7 @@ click = ">=7.0"
 colorama = "*"
 boto3 = "*"
 flask-limiter = "*"
+jinja2 = ">=2.10.1"
 
 [dev-packages]
 # Pytest
