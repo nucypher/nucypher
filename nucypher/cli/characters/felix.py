@@ -123,26 +123,35 @@ def felix(click_config,
                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
 
-    # Connect to Blockchain
-    felix_config.connect_to_blockchain()
+    try:
 
-    # Authenticate
-    password = click_config.get_password(confirm=False)
-    click_config.unlock_keyring(character_configuration=felix_config,
-                                password=password,
-                                client_keyring=not no_password)
+        # Connect to Blockchain
+        felix_config.connect_to_blockchain()
 
-    # Produce Teacher Ursulas
-    teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
-                                           min_stake=min_stake,
-                                           federated_only=False,
-                                           network_middleware=click_config.middleware,
-                                           network_domain=network)
+        # Authenticate
+        password = click_config.get_password(confirm=False)
+        click_config.unlock_keyring(character_configuration=felix_config,
+                                    password=password,
+                                    client_keyring=not no_password)
 
-    # Produce Felix
-    FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
-    FELIX.make_web_app()  # attach web application, but dont start service
+        # Produce Teacher Ursulas
+        teacher_uris = [teacher_uri] if teacher_uri else None
+        teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+                                               min_stake=min_stake,
+                                               federated_only=False,
+                                               network_middleware=click_config.middleware,
+                                               network_domain=network)
+        
+        # Produce Felix
+        FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
+        FELIX.make_web_app()  # attach web application, but dont start service
+
+    except Exception as e:
+        if click_config.debug:
+            raise
+        else:
+            click.secho(str(e), fg='red', bold=True)
+            raise click.Abort
 
     if action == "createdb":  # Initialize Database
         if os.path.isfile(FELIX.db_filepath):
