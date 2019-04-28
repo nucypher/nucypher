@@ -102,6 +102,9 @@ def deploy(click_config,
     if geth:
         # Spawn geth child process
         ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        ETH_NODE.ensure_account_exists(password=click_config.get_password(confirm=True))
+        if not ETH_NODE.initialized:
+            ETH_NODE.initialize_blockchain()
         ETH_NODE.start()  # TODO: Graceful shutdown
         provider_uri = ETH_NODE.provider_uri
 
