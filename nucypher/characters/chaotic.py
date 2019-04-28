@@ -332,6 +332,8 @@ class Felix(Character, NucypherTokenActor):
         """Start token distribution"""
         self.log.info(NU_BANNER)
         self.log.info("Starting NU Token Distribution | START")
+        if self.token_balance is NU.ZERO():
+            raise self.ActorError(f"Felix address {self.checksum_public_address} has 0 NU tokens.")
         self._distribution_task.start(interval=self.DISTRIBUTION_INTERVAL, now=now)
         return True
 
