@@ -66,6 +66,10 @@ __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = BLAKE2B
 
 
+class PrivateKeyExistsError(RuntimeError):
+    pass
+
+
 def unlock_required(func):
     """Method decorator"""
 
@@ -124,7 +128,7 @@ def _write_private_keyfile(keypath: str,
     """
 
     if os.path.isfile(keypath):
-        raise RuntimeError(f"Private keyfile {keypath} already exists.")
+        raise PrivateKeyExistsError(f"Private keyfile {keypath} already exists.")
     try:
         keyfile_descriptor = os.open(keypath, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
     finally:
@@ -597,6 +601,7 @@ class NucypherKeyring:
             rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
                                                   key_data=encrypting_key_metadata,
                                                   serializer=cls._private_key_serializer)
+
             sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
                                                  key_data=signing_key_metadata,
                                                  serializer=cls._private_key_serializer)
