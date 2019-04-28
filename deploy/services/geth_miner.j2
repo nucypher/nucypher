@@ -9,14 +9,14 @@ ExecStart=/usr/bin/geth --datadir {{ datadir }}          \
                         --port 30303                     \
                         --syncmode {{ syncmode }}        \
                         --rpc                            \
-                        --rpcaddr 'localhost'            \
-                        --rpcapi "db,eth,net,web3"       \
+                        --rpcaddr "{{ rpchost }}"        \
+                        --rpcapi "eth,net,web3,miner,debug,personal,rpc,admin"       \
+                        --rpccorsdomain "*"              \
                         --mine                           \
                         --minerthreads 1                 \
                         --ethstats {{ nickname }}:{{ eth_netstats_secret }}@{{ eth_netstats_ip }}:{{ eth_netstats_port }} \
                         --bootnodes {{ bootnode_uri }}   \
-                        --etherbase {{ etherbase }}      \
-                        --verbosity 6                    \
+                        --verbosity 8                    \
 
 [Install]
 WantedBy=multi-user.target
