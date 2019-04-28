@@ -63,7 +63,7 @@ contract UserEscrowProxy {
 
     /**
     * @notice Set `worker` parameter in the miners escrow
-    * @param _worker Worker address. Use zero address to set miner as worker
+    * @param _worker Worker address
     **/
     function setWorker(address _worker) public {
         getStateContract().escrow().setWorker(_worker);
