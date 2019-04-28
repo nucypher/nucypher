@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 from typing import List, Tuple, Dict
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE, TEST_PROVIDER_ON_MAIN_PROCESS
 from twisted.logger import Logger
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
@@ -86,7 +86,7 @@ class TesterBlockchain(Blockchain):
         if test_accounts is None:
             test_accounts = self._default_test_accounts
 
-        super().__init__(*args, **kwargs)
+        super().__init__(provider_process=TEST_PROVIDER_ON_MAIN_PROCESS, *args, **kwargs)
         self.log = Logger("test-blockchain")
         self.attach_middleware(w3=self.interface.w3, poa=poa, free_transactions=free_transactions)
 
