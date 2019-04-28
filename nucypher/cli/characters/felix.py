@@ -15,6 +15,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 @click.command()
 @click.argument('action')
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
@@ -36,6 +37,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 def felix(click_config,
           action,
           teacher_uri,
+          enode,
           min_stake,
           network,
           host,
@@ -143,6 +145,13 @@ def felix(click_config,
                                                min_stake=min_stake,
                                                federated_only=False,
                                                network_middleware=click_config.middleware)
+        # Add ETH Bootnode or Peer
+        if enode:
+            if geth:
+                felix_config.blockchain.interface.w3.geth.admin.addPeer(enode)
+                click.secho(f"Added ethereum peer {enode}")
+            else:
+                raise NotImplemented  # TODO: other backends
 
         # Produce Felix
         FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
