@@ -80,7 +80,7 @@ class NodeConfiguration(ABC):
     TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
 
     # Blockchain
-    DEFAULT_PROVIDER_URI = 'tester://pyevm'
+    DEFAULT_PROVIDER_URI = 'http://localhost:8545'
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
