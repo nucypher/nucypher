@@ -292,6 +292,7 @@ class NodeConfiguration(ABC):
     def cleanup(self) -> None:
         if self.__dev_mode:
             self.__temp_dir.cleanup()
+        self.blockchain.disconnect()
 
     @property
     def dev_mode(self):
@@ -380,7 +381,7 @@ class NodeConfiguration(ABC):
                                 filepath: str = None,
                                 provider_process=None,
                                 **overrides) -> 'NodeConfiguration':
-        
+
         """Initialize a NodeConfiguration from a JSON file."""
 
         from nucypher.config.storages import NodeStorage
