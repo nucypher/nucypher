@@ -1,0 +1,52 @@
+---
+
+- hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_bootnodes' }}"
+  name: "GatherBootnode Facts"
+  user: ubuntu
+  tasks: [ ]
+
+- name: "Initialize blockchain database"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_miners' }}"
+  user: ubuntu
+  gather_facts: false
+  tasks:
+
+    - name: "Render Genesis Configuration"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ./files/genesis.j2
+        dest: /home/ubuntu/genesis.json
+        mode: 0755
+
+    - name: "Create Custom Blockchain Data Directory"
+      file:
+        path: /home/ubuntu/chaindata
+        state: directory
+        mode: 0755
+
+    - name: "Learn About Existing Accounts"
+      shell: geth account list --datadir {{datadir}}
+      register: geth_accounts
+      vars:
+        datadir: "/home/ubuntu/chaindata"
+
+    - name: "Generate Geth Password"
+      shell: head -c 32 /dev/urandom | sha256sum | awk '{print $1}'
+      register: geth_password
+
+    - name: "Create Geth Account"
+      become: yes
+      become_flags: "-H -S"
+      shell: geth account new --datadir /home/ubuntu/chaindata --password ./password.txt
+      register: new_geth_account
+      when: "'Account' not in geth_accounts.stdout"
+
+    - name: "Initialize New Blockchain - Awh"
+      become: yes
+      become_flags: "-H -S"
+      shell: geth --datadir {{datadir}} --networkid {{networkid}} init {{genesis_file}}
+      vars:
+        networkid: "112358"
+        datadir: "/home/ubuntu/chaindata"
+        genesis_file: "/home/ubuntu/genesis.json"
