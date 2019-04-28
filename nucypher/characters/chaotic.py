@@ -8,7 +8,7 @@ import maya
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nacl.hash import sha256
@@ -274,16 +274,18 @@ class Felix(Character, NucypherTokenActor):
         @limiter.limit("5 per day")
         def register():
             """Handle new recipient registration via POST request."""
-            try:
-                new_address = request.form['address']
-            except KeyError:
-                return Response(status=400)  # TODO
+
+            new_address = request.form.get('address') or request.get_json().get('address')
+
+            if not new_address:
+
+                return Response(response="no address", status=400)  # TODO
 
             if not eth_utils.is_checksum_address(new_address):
-                return Response(status=400)  # TODO
+                return Response(response="invalid address", status=400)  # TODO
 
             if new_address in self.reserved_addresses:
-                return Response(status=400)  # TODO
+                return Response(response="reserved", status=400)  # TODO
 
             try:
                 with ThreadedSession(self.db_engine) as session:
@@ -292,7 +294,7 @@ class Felix(Character, NucypherTokenActor):
                     if existing:
                         # Address already exists; Abort
                         self.log.debug(f"{new_address} is already enrolled.")
-                        return Response(status=400)
+                        return Response(response="already enrolled", status=400)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
