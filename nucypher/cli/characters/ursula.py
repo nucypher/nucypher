@@ -40,6 +40,8 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+
 
 
 @click.command()
@@ -121,17 +123,22 @@ def ursula(click_config,
 
     """
 
+    # Validate
+    if federated_only:
+        raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+
+    if click_config.debug and quiet:
+        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
+
     #
     # Boring Setup Stuff
     #
 
-    ETH_NODE = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
-
-    if not quiet:
-        log = Logger('ursula.cli')  # TODO: Why is this unused?
-
-    if click_config.debug and quiet:
-        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
+    # Stage integrated ethereum node process TODO: Only devnet for now
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+    if geth:
+        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        provider_uri = ETH_NODE.provider_uri
 
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(URSULA_BANNER.format(checksum_address or ''))
@@ -168,9 +175,6 @@ def ursula(click_config,
 
         new_password = click_config.get_password(confirm=True)
 
-        if geth:
-            provider_uri = 'geth://auto'
-
         ursula_config = UrsulaConfiguration.generate(password=new_password,
                                                      config_root=config_root,
                                                      rest_host=rest_host,
@@ -181,6 +185,7 @@ def ursula(click_config,
                                                      checksum_public_address=checksum_address,
                                                      download_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
+                                                     provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
@@ -197,14 +202,18 @@ def ursula(click_config,
     # Development Configuration
     if dev:
 
-        ETH_NODE = NuCypherGethDevProcess()
-        ETH_NODE.start()
-        provider_uri = ETH_NODE.provider_uri
+        # TODO: Spawn POA development blockchain with geth --dev
+        # dev_geth_process = NuCypherGethDevProcess()
+        # dev_geth_process.deploy()
+        # dev_geth_process.start()
+        # ETH_NODE = dev_geth_process
+        # provider_uri = ETH_NODE.provider_uri
 
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
                                             registry_filepath=registry_filepath,
+                                            provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
                                             checksum_public_address=checksum_address,
                                             federated_only=federated_only,
@@ -222,6 +231,7 @@ def ursula(click_config,
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
                                                                         domains=domains,
                                                                         registry_filepath=registry_filepath,
+                                                                        provider_process=ETH_NODE,
                                                                         provider_uri=provider_uri,
                                                                         rest_host=rest_host,
                                                                         rest_port=rest_port,
@@ -231,20 +241,12 @@ def ursula(click_config,
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                              config_file=config_file)
-
-        #
-        # Spawn Client Node
-        #
-
-        if geth:
-            if federated_only:
-                raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
-
-            ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
-            ETH_NODE.start()
-
-            # Overwrite the ursula config *after* auth to prevent eager process spawning
-            ursula_config.provider_uri = ETH_NODE.provider_uri
+        except Exception as e:
+            if click_config.debug:
+                raise
+            else:
+                click.secho(str(e), fg='red', bold=True)
+                raise click.Abort
 
     #
     # Configured Pre-Authentication Actions
@@ -262,7 +264,7 @@ def ursula(click_config,
     # Connect to Blockchain
     #
 
-    if not ursula_config.federated_only:  # TODO: Pass ETH_NODE?
+    if not ursula_config.federated_only:
         click_config.connect_to_blockchain(character_configuration=ursula_config,
                                            recompile_contracts=recompile_solidity)
 
@@ -354,8 +356,6 @@ def ursula(click_config,
         # Graceful Exit / Crash
         finally:
             click_config.emit(message="Stopping Ursula", color='green')
-            if ETH_NODE:
-                ETH_NODE.stop()
             ursula_config.cleanup()
             click_config.emit(message="Ursula Stopped", color='red')
         return

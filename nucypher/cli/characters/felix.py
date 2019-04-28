@@ -54,10 +54,13 @@ def felix(click_config,
           no_password,
           force):
 
+    # Intro
     click.clear()
     if not click_config.quiet:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
 
+    # Stage integrated ethereum node process
+    # TODO: Only devnet for now
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     if geth:
         ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
