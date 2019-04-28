@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
-from twisted.logger import Logger
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherGethDevProcess
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -36,12 +36,9 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-
 
 
 @click.command()
@@ -52,6 +49,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
+@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
@@ -83,6 +81,7 @@ def ursula(click_config,
            lonely,
            network,
            teacher_uri,
+           enode,
            min_stake,
            rest_host,
            rest_port,
@@ -299,6 +298,14 @@ def ursula(click_config,
                                            network_domain=network,
                                            network_middleware=click_config.middleware)
 
+    # Add ETH Bootnode or Peer
+    if enode:
+        if geth:
+            ursula_config.blockchain.interface.w3.geth.admin.addPeer(enode)
+            click.secho(f"Added ethereum peer {enode}")
+        else:
+            raise NotImplemented  # TODO: other backends
+
     #
     # Produce
     #
@@ -373,8 +380,8 @@ def ursula(click_config,
         painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
         current_block = URSULA.blockchain.interface.w3.eth.blockNumber
         click.secho(f'Block # {current_block}')
-        click.secho(f'NU Balance: {URSULA.eth_balance}')
-        click.secho(f'ETH Balance: {URSULA.token_balance}')
+        click.secho(f'NU Balance: {URSULA.token_balance}')
+        click.secho(f'ETH Balance: {URSULA.eth_balance}')
         click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
 
         # TODO: Verbose status

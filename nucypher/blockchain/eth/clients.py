@@ -51,7 +51,7 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         self.log.info("STARTING GETH NOW")
         super().start()
         self.wait_for_ipc(timeout=timeout)  # on for all nodes by default
-        if self.IPC_PROTOCOL == 'rpc':
+        if self.IPC_PROTOCOL in ('rpc', 'http'):
             self.wait_for_rpc(timeout=timeout)
 
 
@@ -112,7 +112,8 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
                        'port': str(self.P2P_PORT),
                        'verbosity': str(self.VERBOSITY),
                        'data_dir': self.data_dir,
-                       'ipc_path': ipc_path}
+                       'ipc_path': ipc_path,
+                       }
 
         # Genesis & Blockchain Init
         self.genesis_filepath = os.path.join(self.data_dir, self.GENESIS_FILENAME)
@@ -130,6 +131,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
         self.__process = NOT_RUNNING
         super().__init__(geth_kwargs)  # Attaches self.geth_kwargs in super call
+        self.command = [*self.command, '--syncmode', 'fast']
 
     def get_accounts(self):
         accounts = get_accounts(**self.geth_kwargs)
