@@ -1,0 +1,10 @@
+[Unit]
+Description="Run 'Felix', A NuCypher Test-ERC20 Faucet."
+
+[Service]
+User=ubuntu
+Type=simple
+ExecStart={{ virtualenv_path }}/bin/nucypher felix --network {{ nucypher_network_domain }} --geth
+
+[Install]
+WantedBy=multi-user.target
