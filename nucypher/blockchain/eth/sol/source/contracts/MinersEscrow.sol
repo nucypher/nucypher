@@ -363,9 +363,12 @@ contract MinersEscrow is Issuer {
     //------------------------Main methods------------------------
     /**
     * @notice Set worker
-    * @param _worker Worker address. Use zero address to set miner as worker
+    * @param _worker Worker address
     **/
     function setWorker(address _worker) public onlyMiner {
+        require(_worker != address(0), "Worker's address must not be empty");
+        require(msg.sender != tx.origin, "Only user of an intermediary contract can set a worker");
+
         uint16 currentPeriod = getCurrentPeriod();
         MinerInfo storage info = minerInfo[msg.sender];
 
@@ -373,10 +376,8 @@ contract MinersEscrow is Issuer {
         // TODO move amount of periods to configuration
         require(currentPeriod >= info.workerStartPeriod.add16(1),
             "Not enough time has passed since the previous setting worker");
-        require(_worker == address(0) || workerToMiner[_worker] == address(0),
-            "Specified worker is already in use");
-        require(minerInfo[_worker].value == 0 || _worker == msg.sender,
-            "Specified worker is an another miner");
+        require(workerToMiner[_worker] == address(0), "Specified worker is already in use");
+        require(minerInfo[_worker].value == 0, "Specified worker is an another miner");
 
         // remove relation between the old worker and the miner
         if (info.worker != address(0)) {
@@ -384,9 +385,7 @@ contract MinersEscrow is Issuer {
         }
         info.worker = _worker;
         info.workerStartPeriod = currentPeriod;
-        if (_worker != address(0)) {
-            workerToMiner[_worker] = msg.sender;
-        }
+        workerToMiner[_worker] = msg.sender;
         emit WorkerSet(msg.sender, _worker, currentPeriod);
     }
 
@@ -1227,6 +1226,8 @@ contract MinersEscrow is Issuer {
         require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
+        require(address(delegateGet(_testTarget, "workerToMiner(address)", bytes32(0))) ==
+            workerToMiner[address(0)]);
 
         require(delegateGet(_testTarget, "getMinersLength()") == miners.length);
         if (miners.length == 0) {
@@ -1281,5 +1282,8 @@ contract MinersEscrow is Issuer {
 
         // Create fake period
         lockedPerPeriod[RESERVED_PERIOD] = 111;
+
+        // Create fake worker
+        workerToMiner[address(0)] = address(this);
     }
 }
