@@ -23,7 +23,7 @@ export default {
   },
   methods: {
     onSubmit(){
-      http.post('register', { address: this.address }).then((res) => {
+      http.post('register', { address: this.address }).then(() => {
         this.error = null;
         this.success = true;
       }).catch((err) => {
