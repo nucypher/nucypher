@@ -153,3 +153,31 @@ contract MiningAdjudicatorForMinersEscrowMock {
         escrow.slashMiner(_miner, _penalty, _investigator, _reward);
     }
 }
+
+/**
+* @notice Intermediary contract for testing worker
+**/
+contract Intermediary {
+
+    NuCypherToken token;
+    MinersEscrow escrow;
+
+    constructor(NuCypherToken _token, MinersEscrow _escrow) public {
+        token = _token;
+        escrow = _escrow;
+    }
+
+    function setWorker(address _worker) public {
+        escrow.setWorker(_worker);
+    }
+
+    function deposit(uint256 _value, uint16 _periods) public {
+        token.approve(address(escrow), _value);
+        escrow.deposit(_value, _periods);
+    }
+
+    function confirmActivity() public {
+        escrow.confirmActivity();
+    }
+
+}
