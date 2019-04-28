@@ -124,42 +124,31 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
         if needs_init:
             log.debug("Local system needs geth blockchain initialization")
-            self.initialize_blockchain(geth_kwargs=geth_kwargs)
+            self.initialized = False
+        else:
+            self.initialized = True
 
         self.__process = NOT_RUNNING
+        super().__init__(geth_kwargs)  # Attaches self.geth_kwargs in super call
 
-        super().__init__(geth_kwargs)
-
-    @classmethod
-    def get_accounts(cls, data_dir: str):
-        geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
-                       'port': str(cls.P2P_PORT),
-                       'verbosity': str(cls.VERBOSITY),
-                       'data_dir': data_dir}
-        accounts = get_accounts(**geth_kwargs)
+    def get_accounts(self):
+        accounts = get_accounts(**self.geth_kwargs)
         return accounts
 
-    @classmethod
-    def initialize_blockchain(cls, geth_kwargs: dict, overwrite: bool = True) -> None:
+    def initialize_blockchain(self, overwrite: bool = True) -> None:
         log = Logger('nucypher-geth-init')
-        with open(cls.GENESIS_SOURCE_FILEPATH) as file:
+        with open(self.GENESIS_SOURCE_FILEPATH, 'r') as file:
             genesis_data = json.loads(file.read())
-            log.info(f"Read genesis file '{cls.GENESIS_SOURCE_FILEPATH}'")
+            log.info(f"Read genesis file '{self.GENESIS_SOURCE_FILEPATH}'")
 
         genesis_data.update(dict(overwrite=overwrite))
         log.info(f'Initializing new blockchain database and genesis block.')
-        initialize_chain(genesis_data=genesis_data, **geth_kwargs)
+        initialize_chain(genesis_data=genesis_data, **self.geth_kwargs)
 
-    @classmethod
-    def ensure_account_exists(cls, password: str, data_dir: str) -> str:
-        geth_kwargs = {'network_id': str(cls.__CHAIN_ID),
-                       'port': str(cls.P2P_PORT),
-                       'verbosity': str(cls.VERBOSITY),
-                       'data_dir': data_dir}
-
-        accounts = get_accounts(**geth_kwargs)
+    def ensure_account_exists(self, password: str) -> str:
+        accounts = get_accounts(**self.geth_kwargs)
         if not accounts:
-            account = create_new_account(password=password.encode(), **geth_kwargs)
+            account = create_new_account(password=password.encode(), **self.geth_kwargs)
         else:
             account = accounts[0]
 
