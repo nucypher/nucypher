@@ -9,6 +9,7 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
 @click.command()
@@ -54,14 +55,12 @@ def felix(click_config,
           force):
 
     click.clear()
-
     if not click_config.quiet:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
 
-    ETH_NODE = None  # TODO: Make constant
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     if geth:
         ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
-        ETH_NODE.start()
         provider_uri = ETH_NODE.provider_uri
 
     if action == "init":
@@ -76,17 +75,26 @@ def felix(click_config,
 
         # Acquire Keyring Password
         new_password = click_config.get_password(confirm=True)
-        new_felix_config = FelixConfiguration.generate(password=new_password,
-                                                       config_root=config_root,
-                                                       rest_host=host,
-                                                       rest_port=discovery_port,
-                                                       db_filepath=db_filepath,
-                                                       domains={network} if network else None,
-                                                       checksum_public_address=checksum_address,
-                                                       download_registry=not no_registry,
-                                                       registry_filepath=registry_filepath,
-                                                       provider_uri=provider_uri,
-                                                       poa=poa)
+
+        try:
+            new_felix_config = FelixConfiguration.generate(password=new_password,
+                                                           config_root=config_root,
+                                                           rest_host=host,
+                                                           rest_port=discovery_port,
+                                                           db_filepath=db_filepath,
+                                                           domains={network} if network else None,
+                                                           checksum_public_address=checksum_address,
+                                                           download_registry=not no_registry,
+                                                           registry_filepath=registry_filepath,
+                                                           provider_uri=provider_uri,
+                                                           provider_process=ETH_NODE,
+                                                           poa=poa)
+        except Exception as e:
+            if click_config.debug:
+                raise
+            else:
+                click.secho(str(e), fg='red', bold=True)
+                raise click.Abort
 
         # Paint Help
         painting.paint_new_installation_help(new_configuration=new_felix_config,
@@ -103,6 +111,7 @@ def felix(click_config,
         felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
                                                                   domains=domains,
                                                                   registry_filepath=registry_filepath,
+                                                                  provider_process=ETH_NODE,
                                                                   provider_uri=provider_uri,
                                                                   rest_host=host,
                                                                   rest_port=port,
@@ -164,14 +173,15 @@ ETH ........ {str(eth_balance)}
 
     elif action == 'run':     # Start web services
 
-        FELIX.start(host=host,
-                    port=port,
-                    web_services=not dry_run,
-                    distribution=True,
-                    crash_on_error=click_config.debug)
+        try:
+            FELIX.blockchain.connect()
+            FELIX.start(host=host,
+                        port=port,
+                        web_services=not dry_run,
+                        distribution=True,
+                        crash_on_error=click_config.debug)
+        finally:
+            FELIX.blockchain.disconnect()
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
-
-    if ETH_NODE:
-        ETH_NODE.stop()

@@ -148,7 +148,7 @@ class NodeConfiguration(ABC):
                  # Blockchain
                  poa: bool = False,
                  provider_uri: str = None,
-                 geth: bool = False,
+                 provider_process = None,
 
                  # Registry
                  registry_source: str = None,
@@ -249,7 +249,7 @@ class NodeConfiguration(ABC):
         #
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
-        self.geth = geth
+        self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
 
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
@@ -286,8 +286,6 @@ class NodeConfiguration(ABC):
         return node_config
 
     def __write(self, password: str):
-        if not self.federated_only:
-            self.connect_to_blockchain()  # Needed for access to ethereum node addresses and NC key signing
         _new_installation_path = self.initialize(password=password, download_registry=self.download_registry)
         _configuration_filepath = self.to_configuration_file(filepath=self.config_file_location)
 
@@ -315,14 +313,16 @@ class NodeConfiguration(ABC):
         """
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
-
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
                                              poa=self.poa,
-                                             fetch_registry=True)
+                                             fetch_registry=True,
+                                             provider_process=self.provider_process)
 
+        # Read Ethereum Node Keyring
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
+        # Add Ethereum Peer
         if enode:
             if self.blockchain.interface.client_version == 'geth':
                 self.blockchain.interface.w3.geth.admin.addPeer(enode)
@@ -376,7 +376,11 @@ class NodeConfiguration(ABC):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'NodeConfiguration':
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                provider_process=None,
+                                **overrides) -> 'NodeConfiguration':
+        
         """Initialize a NodeConfiguration from a JSON file."""
 
         from nucypher.config.storages import NodeStorage
@@ -414,7 +418,9 @@ class NodeConfiguration(ABC):
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
         # Instantiate from merged params
-        node_configuration = cls(config_file_location=filepath, **{**payload, **overrides})
+        node_configuration = cls(config_file_location=filepath,
+                                 provider_process=provider_process,
+                                 **{**payload, **overrides})
 
         return node_configuration
 
@@ -570,6 +576,13 @@ class NodeConfiguration(ABC):
         self._cache_runtime_filepaths()
 
         #
+        # Blockchain
+        #
+        if not self.federated_only:
+            if self.provider_process:
+                self.provider_process.initialize_blockchain()
+
+        #
         # Node Storage
         #
 
@@ -621,27 +634,26 @@ class NodeConfiguration(ABC):
                                        *args, **kwargs)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        # Get or create wallet address
-
+        # Note: It is assumed the blockchain is not yet available.
         if not self.federated_only and not self.checksum_public_address:
 
-            # TODO: Bury deeper in keying and powers
-            try:
-                checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
+            #
+            # Integrated Provider Process
+            #
 
-            except IndexError:
+            if self.provider_process:
 
-                data_dir = os.path.join(self.config_root, '.ethereum', NuCypherGethDevnetProcess._CHAIN_NAME)
-                if not os.path.exists(data_dir):
-                    os.mkdir(data_dir)
+                if not os.path.exists(self.provider_process.data_dir):
+                    os.mkdir(self.provider_process.data_dir)
 
-                client_version = self.blockchain.interface.w3.clientVersion
-                if 'Geth' in client_version:
-                    checksum_address = NuCypherGethDevnetProcess.ensure_account_exists(password=password,
-                                                                                       data_dir=data_dir)
+                # Get or create wallet address (geth etherbase)
+                checksum_address = self.provider_process.ensure_account_exists(password=password)
 
-                else:
-                    raise RuntimeError("THIS IS A TEMPORARY DEBUGGING EXCEPTION")  # TODO
+            else:
+                # Manual Web3 Provider, We assume is already running and available
+                self.connect_to_blockchain()
+                # TODO: Create etherbase over RPC instead
+                raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
 
             # Addresses read from some node keyrings are *not* returned in checksum format.
             checksum_address = to_checksum_address(checksum_address)

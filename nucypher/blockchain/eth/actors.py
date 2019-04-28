@@ -89,7 +89,7 @@ class NucypherTokenActor:
             self.checksum_public_address = checksum_address  # type: str
 
         if blockchain is None:
-            blockchain = Blockchain.connect()
+            blockchain = Blockchain.connect()  # Attempt to connect
         self.blockchain = blockchain
 
         self.token_agent = NucypherTokenAgent()
