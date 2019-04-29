@@ -179,4 +179,9 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         return checksum_address
 
     def start(self, *args, **kwargs):
+        # FIXME: Quick and Dirty
+
+        # Write static nodes file to data dir
+        bootnodes_filepath = os.path.join(DEPLOY_DIR, 'static-nodes.json')
+        shutil.copy(bootnodes_filepath, os.path.join(self.data_dir))
         super().start()
