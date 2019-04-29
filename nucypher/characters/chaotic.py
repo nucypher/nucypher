@@ -142,6 +142,7 @@ class Felix(Character, NucypherTokenActor):
     BATCH_SIZE = 10                 # transactions
     MULTIPLIER = 0.95               # 5% reduction of previous stake is 0.95, for example
     MINIMUM_DISBURSEMENT = 1e18     # NuNits
+    ETHER_AIRDROP_AMOUNT = 2e18     # Wei
     # TRANSACTION_GAS = 40000       # gas  TODO
 
     # Node Discovery
@@ -163,6 +164,7 @@ class Felix(Character, NucypherTokenActor):
                  rest_port: int,
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
+                 distribute_ether: bool = True,
                  *args, **kwargs):
 
         # Character
@@ -202,6 +204,9 @@ class Felix(Character, NucypherTokenActor):
 
         self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked
         self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked
+
+        # Optionally send ether with each token transaction
+        self.distribute_ether = distribute_ether
 
         # Banner
         self.log.info(FELIX_BANNER.format(self.checksum_public_address))
@@ -370,8 +375,22 @@ class Felix(Character, NucypherTokenActor):
                                            target_address=recipient_address,
                                            sender_address=self.checksum_public_address)
 
-        self.log.info(f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} | "
-                      f"({str(NU(disbursement, 'NuNit'))}) -> {recipient_address}")
+        if self.distribute_ether:
+            ether = self.ETHER_AIRDROP_AMOUNT
+            transaction = {'to': recipient_address,
+                           'from': self.checksum_public_address,
+                           'value': ether,
+                           'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
+            ether_txhash = self.blockchain.interface.w3.eth.sendTransaction(transaction)
+
+            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
+                          f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
+
+        else:
+            self.log.info(
+                f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
+                f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
+
         return txhash
 
     def airdrop_tokens(self):
@@ -393,7 +412,7 @@ class Felix(Character, NucypherTokenActor):
         since = datetime.now() - timedelta(hours=self.DISBURSEMENT_INTERVAL)
 
         datetime_filter = or_(self.Recipient.last_disbursement_time <= since,
-                              self.Recipient.last_disbursement_time == None)
+                              self.Recipient.last_disbursement_time == None)  # This must be `==` not `is`
 
         with ThreadedSession(self.db_engine) as session:
             candidates = session.query(self.Recipient).filter(datetime_filter).all()
