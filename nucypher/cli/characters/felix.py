@@ -188,6 +188,7 @@ ETH ........ {str(eth_balance)}
     elif action == 'run':     # Start web services
 
         try:
+            click.secho("Waiting for blockchain sync...", fg='yellow')
             FELIX.blockchain.sync()
             FELIX.start(host=host,
                         port=port,
