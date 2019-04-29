@@ -251,7 +251,7 @@ class NodeConfiguration(ABC):
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
 
-        self.blockchain = NO_BLOCKCHAIN_CONNECTION
+        self.blockchain = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.token_agent = NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = NO_BLOCKCHAIN_CONNECTION
@@ -292,7 +292,8 @@ class NodeConfiguration(ABC):
     def cleanup(self) -> None:
         if self.__dev_mode:
             self.__temp_dir.cleanup()
-        self.blockchain.disconnect()
+        if self.blockchain:
+            self.blockchain.disconnect()
 
     @property
     def dev_mode(self):

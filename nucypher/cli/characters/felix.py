@@ -136,8 +136,9 @@ def felix(click_config,
         # Authenticate
         password = click_config.get_password(confirm=False)
         click_config.unlock_keyring(character_configuration=felix_config,
-                                    password=password,
-                                    client_keyring=not no_password)
+                                    password=password)
+
+
 
         # Produce Teacher Ursulas
         teacher_uris = [teacher_uri] if teacher_uri else list()
