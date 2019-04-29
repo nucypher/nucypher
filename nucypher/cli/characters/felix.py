@@ -8,7 +8,7 @@ from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
@@ -145,13 +145,6 @@ def felix(click_config,
                                                min_stake=min_stake,
                                                federated_only=False,
                                                network_middleware=click_config.middleware)
-        # Add ETH Bootnode or Peer
-        if enode:
-            if geth:
-                felix_config.blockchain.interface.w3.geth.admin.addPeer(enode)
-                click.secho(f"Added ethereum peer {enode}")
-            else:
-                raise NotImplemented  # TODO: other backends
 
         # Produce Felix
         FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
@@ -195,7 +188,7 @@ ETH ........ {str(eth_balance)}
     elif action == 'run':     # Start web services
 
         try:
-            FELIX.blockchain.connect()
+            FELIX.blockchain.sync()
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,
