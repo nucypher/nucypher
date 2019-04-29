@@ -37,7 +37,6 @@ class CharacterSpecification(ABC):
 
     @staticmethod
     def __validate(specification: tuple, data: dict, error_class):
-
         invalid_fields = set(data.keys()) - set(specification)
         if invalid_fields:
             pretty_invalid_fields = ', '.join(invalid_fields)
@@ -73,6 +72,9 @@ class AliceSpecification(CharacterSpecification):
     __revoke = (('label', 'bob_verifying_key', ),  # In
                 ('failed_revocations',))     # Out
 
+    __decrypt = (('label', 'policy_encrypting_key', 'message_kit'),  # In
+                  ('cleartexts', ))  # Out
+
     __public_keys = ((),
                      ('alice_verifying_key',))
 
@@ -80,7 +82,8 @@ class AliceSpecification(CharacterSpecification):
                        'derive_policy_encrypting_key': __derive_policy_encrypting_key,
                        'grant': __grant,
                        'revoke': __revoke,
-                       'public_keys': __public_keys}
+                       'public_keys': __public_keys,
+                       'decrypt': __decrypt, }
 
 
 class BobSpecification(CharacterSpecification):

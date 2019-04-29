@@ -35,6 +35,9 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
+@click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string", type=click.STRING)
+@click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
+@click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
 def alice(click_config,
           action,
@@ -57,12 +60,15 @@ def alice(click_config,
           bob_verifying_key,
           label,
           m,
-          n):
+          n,
+          policy_encrypting_key,
+          alice_verifying_key,
+          message_kit
+        ):
 
     """
     Start and manage an "Alice" character.
     """
-
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(ALICE_BANNER)
 
@@ -126,7 +132,6 @@ def alice(click_config,
                                            network_middleware=click_config.middleware)
     # Produce
     ALICE = alice_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)
-
     # Switch to character control emitter
     if click_config.json_ipc:
         ALICE.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
@@ -191,6 +196,21 @@ def alice(click_config,
             message = "'nucypher ursula destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=alice_config, force=force)
+
+    elif action == "decrypt":
+
+        if not all((label, policy_encrypting_key, message_kit)):
+            input_specification, output_specification = ALICE.controller.get_specifications(interface_name='decrypt')
+            required_fields = ', '.join(input_specification)
+            raise click.BadArgumentUsage(f'{required_fields} are required flags to decrypt')
+
+        request_data = {
+            'label': label,
+            'policy_encrypting_key': policy_encrypting_key,
+            'message_kit': message_kit,
+        }
+        response = ALICE.controller.decrypt(request=request_data)
+        return response
 
     else:
         raise click.BadArgumentUsage(f"No such argument {action}")

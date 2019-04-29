@@ -70,7 +70,7 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
-    
+
     banner = ALICE_BANNER
     _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -283,6 +283,30 @@ class Alice(Character, PolicyAuthor):
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
         return failed_revocations
 
+    def decrypt_message_kit(
+        self,
+        message_kit: UmbralMessageKit,
+        data_source: Character,
+        alice_verifying_key: bytes,
+        label: bytes) -> List[bytes]:
+        """
+        Decrypt this Alice's own encrypted data.
+
+        I/O signatures match Bob's retrieve interface.
+        """
+
+        cleartexts = []
+        cleartexts.append(
+            self.verify_from(
+                data_source,
+                message_kit,
+                signature=message_kit.signature,
+                decrypt=True,
+                label=label
+            )
+        )
+        return cleartexts
+
     def make_web_controller(drone_alice, crash_on_error: bool = False):
 
         app_name = bytes(drone_alice.stamp).hex()[:6]
@@ -314,6 +338,18 @@ class Alice(Character, PolicyAuthor):
             """
             response = controller(interface=controller._internal_controller.create_policy,
                                   control_request=request)
+            return response
+
+        @alice_control.route("/decrypt", methods=['POST'])
+        def decrypt():
+            """
+            Character control endpoint for decryption of Alice's own policy data.
+            """
+
+            response = controller(
+                interface=controller._internal_controller.decrypt,
+                control_request=request
+            )
             return response
 
         @alice_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
@@ -624,7 +660,7 @@ class Bob(Character):
             """
             return controller(interface=controller._internal_controller.public_keys,
                               control_request=request)
-        
+
         @bob_control.route('/join_policy', methods=['POST'])
         def join_policy():
             """

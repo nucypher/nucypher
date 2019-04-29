@@ -24,7 +24,7 @@ import pytest
 
 from umbral.kfrags import KFrag
 
-from nucypher.characters.lawful import Bob
+from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
@@ -106,6 +106,47 @@ def test_federated_grant(federated_alice, federated_bob):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
+
+
+def test_alice_can_decrypt(federated_alice, federated_bob):
+    """
+    Test that alice can decrypt data encrypted by an enrico
+    for her own derived policy pubkey.
+    """
+
+    # Setup the policy details
+    m, n = 2, 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    policy = federated_alice.create_policy(
+        federated_bob,
+        label, m, n,
+        federated=True,
+        expiration=policy_end_datetime,
+    )
+
+    enrico = Enrico.from_alice(
+        federated_alice,
+        policy.label,
+    )
+    plaintext = b"this is the first thing i'm encrypting ever."
+
+    # use the enrico to encrypt the message
+    message_kit, signature = enrico.encrypt_message(
+        plaintext
+    )
+
+    # decrypt the data
+    decrypted_data = federated_alice.verify_from(
+        enrico,
+        message_kit,
+        signature=signature,
+        decrypt=True,
+        label=policy.label
+    )
+
+    assert plaintext == decrypted_data
 
 
 @pytest.mark.usefixtures('federated_ursulas')

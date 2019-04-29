@@ -16,6 +16,24 @@ class CharacterControlSerializer(ABC):
         """Invalid data for I/O serialization or deserialization"""
 
 
+class MessageHandlerMixin:
+
+    __message_kit_transport_encoder = b64encode
+    __message_kit_transport_decoder = b64decode
+
+    def set_message_encoder(self, encoder: Callable):
+        self.__message_kit_transport_encoder = encoder
+
+    def set_message_decoder(self, decoder: Callable):
+        self.__message_kit_transport_decoder = decoder
+
+    def encode(self, plaintext: bytes) -> str:
+        return MessageHandlerMixin.__message_kit_transport_encoder(plaintext).encode()
+
+    def decode(self, cleartext: bytes) -> bytes:
+        return MessageHandlerMixin.__message_kit_transport_decoder(cleartext)
+
+
 class CharacterControlJSONSerializer(CharacterControlSerializer):
 
     def __call__(self, data, specification: tuple, *args, **kwargs):
@@ -60,7 +78,7 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
         return response_data
 
 
-class AliceControlJSONSerializer(CharacterControlJSONSerializer):
+class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMixin):
 
     @staticmethod
     def load_create_policy_input(request: dict):
@@ -83,6 +101,17 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
         policy_encrypting_key_hex = bytes(response['policy_encrypting_key']).hex()
         unicode_label = response['label'].decode()
         response_data = {'policy_encrypting_key': policy_encrypting_key_hex, 'label': unicode_label}
+        return response_data
+
+    def load_decrypt_input(self, request: dict) -> dict:
+        parsed_input = dict(label=request['label'].encode(),
+                            policy_encrypting_key=bytes.fromhex(request['policy_encrypting_key']),
+                            message_kit=self.decode(request['message_kit']))
+        return parsed_input
+
+    def dump_decrypt_output(self, response: dict) -> dict:
+        cleartexts = [cleartext.decode() for cleartext in response['cleartexts']]
+        response_data = {'cleartexts': cleartexts}
         return response_data
 
     @staticmethod
@@ -120,24 +149,6 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer):
         verifying_key_hex = response['alice_verifying_key'].to_bytes().hex()
         response_data = {'alice_verifying_key': verifying_key_hex}
         return response_data
-
-
-class MessageHandlerMixin:
-
-    __message_kit_transport_encoder = b64encode
-    __message_kit_transport_decoder = b64decode
-
-    def set_message_encoder(self, encoder: Callable):
-        self.__message_kit_transport_encoder = encoder
-
-    def set_message_decoder(self, decoder: Callable):
-        self.__message_kit_transport_decoder = decoder
-
-    def encode(self, plaintext: bytes) -> str:
-        return MessageHandlerMixin.__message_kit_transport_encoder(plaintext).encode()
-
-    def decode(self, cleartext: bytes) -> bytes:
-        return MessageHandlerMixin.__message_kit_transport_decoder(cleartext)
 
 
 class BobControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMixin):

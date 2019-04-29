@@ -187,8 +187,42 @@ def test_cli_lifecycle(click_runner,
         side_channel.save_message_kit(message_kit=encrypted_message)
         return encrypt_result
 
+    def _alice_decrypts(encrypt_result):
+        """
+        alice forgot what exactly she encrypted for bob.
+        she decrypts it just to make sure.
+        """
+        policy = side_channel.fetch_policy()
+        alice_signing_key = side_channel.fetch_alice_pubkey()
+        message_kit = encrypt_result['result']['message_kit']
+
+        decrypt_args = (
+            '--mock-networking',
+            '--json-ipc',
+            'alice', 'decrypt',
+            '--federated-only',
+            '--config-file', alice_configuration_file_location,
+            '--message-kit', message_kit,
+            '--label', policy.label,
+            '--policy-encrypting-key', policy.encrypting_key,
+        )
+
+        decrypt_response_fail = click_runner.invoke(
+            nucypher_cli, decrypt_args[:-1], catch_exceptions=False, env=envvars)
+        assert decrypt_response_fail.exit_code == 2
+
+        decrypt_response = click_runner.invoke(nucypher_cli, decrypt_args, catch_exceptions=False, env=envvars)
+        decrypt_result = json.loads(decrypt_response.output)
+        for cleartext in decrypt_result['result']['cleartexts']:
+            assert b64decode(cleartext.encode()).decode() == PLAINTEXT
+
+        # replenish the side channel
+        side_channel.save_policy(policy=policy)
+        side_channel.save_alice_pubkey(alice_signing_key)
+        return encrypt_result
+
     """
-    Scene 5: Alice grants access to Bob: 
+    Scene 5: Alice grants access to Bob:
     We catch up with Alice later on, but before she has learned about existing Ursulas...
     """
     teacher = list(federated_ursulas)[0]
@@ -262,8 +296,9 @@ def test_cli_lifecycle(click_runner,
 
     # Run the Callbacks
     d = threads.deferToThread(enrico_encrypts)  # scene 4
-    d.addCallback(_run_teacher)                 # scene 5 (preamble)
-    d.addCallback(_grant)                       # scene 5
-    d.addCallback(_bob_retrieves)               # scene 6
+    d.addCallback(_alice_decrypts)              # scene 5 (uncertainty)
+    d.addCallback(_run_teacher)                 # scene 6 (preamble)
+    d.addCallback(_grant)                       # scene 7
+    d.addCallback(_bob_retrieves)               # scene 8
 
     yield d
