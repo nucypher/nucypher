@@ -302,7 +302,10 @@ class NodeConfiguration(ABC):
     def known_nodes(self):
         return self.__fleet_state
 
-    def connect_to_blockchain(self, enode: str = None, recompile_contracts: bool = False) -> None:
+    def connect_to_blockchain(self,
+                              enode: str = None,
+                              recompile_contracts: bool = False,
+                              full_sync: bool = False) -> None:
         """
 
         :param enode: ETH seednode or bootnode enode address to start learning from,
@@ -318,7 +321,8 @@ class NodeConfiguration(ABC):
                                              compile=recompile_contracts,
                                              poa=self.poa,
                                              fetch_registry=True,
-                                             provider_process=self.provider_process)
+                                             provider_process=self.provider_process,
+                                             full_sync=full_sync)
 
         # Read Ethereum Node Keyring
         self.accounts = self.blockchain.interface.w3.eth.accounts
