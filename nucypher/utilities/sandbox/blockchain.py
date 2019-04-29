@@ -206,6 +206,9 @@ class TesterBlockchain(Blockchain):
         self.interface.w3.eth.web3.testing.mine(1)
         self.log.info("Time traveled to {}".format(end_timestamp))
 
+    def sync(self, timeout: int = 0):
+        return True
+
     @classmethod
     def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
         interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI,
