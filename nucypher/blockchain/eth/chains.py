@@ -105,7 +105,7 @@ class Blockchain:
         self.log.info(f"Waiting for ethereum peers...")
         while not self.peers:
             time.sleep(0)
-            check_for_timeout(timeout=5)
+            check_for_timeout(timeout=30)
 
         needs_sync = False
         for peer in self.peers:
