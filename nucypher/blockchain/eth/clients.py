@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import time
 
 from constant_sorrow.constants import NOT_RUNNING
 from eth_utils import to_checksum_address, is_checksum_address
@@ -14,23 +16,33 @@ from geth.chain import (
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, DEPLOY_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, DEPLOY_DIR, USER_LOG_DIR
 
 NUCYPHER_CHAIN_IDS = {
     'devnet': 112358,
 }
 
 
-class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
+class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
+    LOG_PATH = os.path.join(USER_LOG_DIR, 'nucypher-geth.log')
 
     _CHAIN_NAME = NotImplemented
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 geth_kwargs: dict,
+                 stdout_logfile_path: str = LOG_PATH,
+                 stderr_logfile_path: str = LOG_PATH,
+                 *args, **kwargs):
+
+        super().__init__(geth_kwargs=geth_kwargs,
+                         stdout_logfile_path=stdout_logfile_path,
+                         stderr_logfile_path=stderr_logfile_path,
+                         *args, **kwargs)
+
         self.log = Logger('nucypher-geth')
 
     @property
@@ -47,19 +59,20 @@ class NuCypherGethProcess(BaseGethProcess, LoggingMixin):
         uri = f"{scheme}://{location}"
         return uri
 
-    def start(self, timeout: int = 30):
+    def start(self, timeout: int = 30, extra_delay: int = 1):
         self.log.info("STARTING GETH NOW")
         super().start()
         self.wait_for_ipc(timeout=timeout)  # on for all nodes by default
         if self.IPC_PROTOCOL in ('rpc', 'http'):
             self.wait_for_rpc(timeout=timeout)
+        time.sleep(extra_delay)
 
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
 
     _CHAIN_NAME = 'poa-development'
 
-    def __init__(self, config_root: str = None):
+    def __init__(self, config_root: str = None, *args, **kwargs):
 
         base_dir = config_root if config_root else DEFAULT_CONFIG_ROOT
         base_dir = os.path.join(base_dir, '.ethereum')
@@ -67,7 +80,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
         ipc_path = os.path.join(self.data_dir, 'geth.ipc')
         self.geth_kwargs = {'ipc_path': ipc_path}
-        super().__init__(geth_kwargs=self.geth_kwargs)
+        super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
         self.geth_kwargs.update({'dev': True})
 
         self.command = [*self.command, '--dev']
@@ -85,7 +98,8 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
     def __init__(self,
                  config_root: str = None,
-                 overrides: dict = None):
+                 overrides: dict = None,
+                 *args, **kwargs):
 
         log = Logger('nucypher-geth-devnet')
 
@@ -113,6 +127,8 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
                        'verbosity': str(self.VERBOSITY),
                        'data_dir': self.data_dir,
                        'ipc_path': ipc_path,
+                       'rpc_enabled': True,
+                       'no_discover': True,
                        }
 
         # Genesis & Blockchain Init
@@ -130,7 +146,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
             self.initialized = True
 
         self.__process = NOT_RUNNING
-        super().__init__(geth_kwargs)  # Attaches self.geth_kwargs in super call
+        super().__init__(geth_kwargs=geth_kwargs, *args, **kwargs)  # Attaches self.geth_kwargs in super call
         self.command = [*self.command, '--syncmode', 'fast']
 
     def get_accounts(self):
@@ -147,6 +163,10 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         log.info(f'Initializing new blockchain database and genesis block.')
         initialize_chain(genesis_data=genesis_data, **self.geth_kwargs)
 
+        # Write static nodes file to data dir
+        bootnodes_filepath = os.path.join(DEPLOY_DIR, 'static-nodes.json')
+        shutil.copy(bootnodes_filepath, os.path.join(self.data_dir))
+
     def ensure_account_exists(self, password: str) -> str:
         accounts = get_accounts(**self.geth_kwargs)
         if not accounts:
@@ -157,3 +177,6 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         checksum_address = to_checksum_address(account.decode())
         assert is_checksum_address(checksum_address), f"GETH RETURNED INVALID ETH ADDRESS {checksum_address}"
         return checksum_address
+
+    def start(self, *args, **kwargs):
+        super().start()
