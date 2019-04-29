@@ -7,79 +7,26 @@ import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox import constants
-from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import (
+    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH,
     TEMPORARY_DOMAIN,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
-
-from web3 import Web3
-
-
-@pytest.fixture(scope='module')
-def stake_value(token_economics):
-    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
-    return value
-
-
-@pytest.fixture(scope='module')
-def policy_rate():
-    rate = Web3.toWei(21, 'gwei')
-    return rate
-
-
-@pytest.fixture(scope='module')
-def policy_value(token_economics, policy_rate):
-    value = policy_rate * token_economics.minimum_locked_periods  # * len(ursula)
-    return value
-
-
-@pytest.fixture(autouse=True, scope='module')
-def funded_blockchain(deployed_blockchain, token_economics):
-
-    # Who are ya'?
-    blockchain, _deployer_address, registry = deployed_blockchain
-    deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
-
-    # Free ETH!!!
-    blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
-
-    # Free Tokens!!!
-    token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
-                  origin=_deployer_address,
-                  addresses=everyone_else,
-                  amount=token_economics.minimum_allowed_locked*5)
-
-    # HERE YOU GO
-    yield blockchain, _deployer_address
-
-
-@pytest.fixture(scope='module')
-def staking_participant(funded_blockchain, blockchain_ursulas):
-    # Start up the local fleet
-    for teacher in blockchain_ursulas:
-        start_pytest_ursula_services(ursula=teacher)
-
-    teachers = list(blockchain_ursulas)
-    staking_participant = teachers[-1]
-    return staking_participant
 
 
 @pytest.fixture(scope='module')
 def configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(constants.MOCK_CUSTOM_INSTALLATION_PATH, 'ursula.config')
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, 'ursula.config')
     return _configuration_file_location
 
 

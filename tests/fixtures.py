@@ -18,18 +18,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import os
 import tempfile
+import json
 
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
+from web3 import Web3
+
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
-    DispatcherDeployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
+                                               MinerEscrowDeployer,
+                                               PolicyManagerDeployer,
+                                               DispatcherDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -37,14 +44,18 @@ from nucypher.config.node import NodeConfiguration
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
-from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M)
-from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+                                                  MOCK_POLICY_DEFAULT_M,
+                                                  MOCK_URSULA_STARTING_PORT,
+                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
+                                               make_federated_ursulas,
+                                               start_pytest_ursula_services)
+
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
@@ -421,3 +432,51 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     blockchain.time_travel(periods=1)
     yield _ursulas
 
+
+@pytest.fixture(scope='module')
+def stake_value(token_economics):
+    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+    return value
+
+
+@pytest.fixture(scope='module')
+def policy_rate():
+    rate = Web3.toWei(21, 'gwei')
+    return rate
+
+
+@pytest.fixture(scope='module')
+def policy_value(token_economics, policy_rate):
+    value = policy_rate * token_economics.minimum_locked_periods  # * len(ursula)
+    return value
+
+
+@pytest.fixture(scope='module')
+def funded_blockchain(deployed_blockchain, token_economics):
+
+    # Who are ya'?
+    blockchain, _deployer_address, registry = deployed_blockchain
+    deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
+
+    # Free ETH!!!
+    blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    # Free Tokens!!!
+    token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
+                  origin=_deployer_address,
+                  addresses=everyone_else,
+                  amount=token_economics.minimum_allowed_locked*5)
+
+    # HERE YOU GO
+    yield blockchain, _deployer_address
+
+
+@pytest.fixture(scope='module')
+def staking_participant(funded_blockchain, blockchain_ursulas):
+    # Start up the local fleet
+    for teacher in blockchain_ursulas:
+        start_pytest_ursula_services(ursula=teacher)
+
+    teachers = list(blockchain_ursulas)
+    staking_participant = teachers[-1]
+    return staking_participant
