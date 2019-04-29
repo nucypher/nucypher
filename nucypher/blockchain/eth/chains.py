@@ -176,6 +176,9 @@ class Blockchain:
 
             cls._instance = cls(interface=interface, provider_process=provider_process)
 
+            # Sync blockchain
+            cls._instance.sync()
+
         else:
 
             if provider_uri is not None:
@@ -189,14 +192,13 @@ class Blockchain:
                 # but we want to connect using a different registry.
                 cls._instance.interface.registry = registry
 
-        # Syn blockchain
-        cls._instance.sync()
         return cls._instance
 
     @classmethod
     def disconnect(cls):
-        if cls._instance.__provider_process:
-            cls._instance.__provider_process.stop()
+        if cls._instance is not NO_BLOCKCHAIN_AVAILABLE:
+            if cls._instance.__provider_process:
+                cls._instance.__provider_process.stop()
 
     def get_contract(self, name: str) -> Contract:
         """
