@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
-from nucypher.crypto.powers import SigningPower
+from nucypher.crypto.powers import SigningPower, BlockchainPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
@@ -129,7 +129,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower]  # identity only
+    _default_crypto_powerups = [SigningPower, BlockchainPower]
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -142,8 +142,7 @@ class Felix(Character, NucypherTokenActor):
     BATCH_SIZE = 10                 # transactions
     MULTIPLIER = 0.95               # 5% reduction of previous stake is 0.95, for example
     MINIMUM_DISBURSEMENT = 1e18     # NuNits
-    ETHER_AIRDROP_AMOUNT = 2e18     # Wei
-    # TRANSACTION_GAS = 40000       # gas  TODO
+    ETHER_AIRDROP_AMOUNT = int(2e18)  # Wei
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds

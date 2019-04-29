@@ -109,11 +109,10 @@ class NucypherClickConfig:
 
     def unlock_keyring(self,
                        password: str,
-                       character_configuration: NodeConfiguration,
-                       client_keyring: bool = True):
+                       character_configuration: NodeConfiguration):
 
         if not self.quiet:
-            self.emit(message='Decrypting keyring...', color='blue')
+            self.emit(message='Decrypting NuCypher keyring...', color='yellow')
 
         if character_configuration.dev_mode:
             return True  # Dev accounts are always unlocked
@@ -124,13 +123,11 @@ class NucypherClickConfig:
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
 
-        # # Eth Client Node
-        # if client_keyring:  # FIXME - YIIKES - move to keyring
-        #     try:
-        #         character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
-        #                                                                     password=password)
-        #     except ValueError as e:
-        #         raise   # TODO
+        # Ethereum Client  # TODO : Integrate with Powers API
+        if not character_configuration.federated_only:
+            self.emit(message='Decrypting Ethereum Node Keyring...', color='yellow')
+            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+                                                                        password=password)
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:

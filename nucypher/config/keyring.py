@@ -44,8 +44,12 @@ from constant_sorrow.constants import KEYRING_LOCKED
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
-from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower, \
+    BlockchainPower
 from nucypher.network.server import TLSHostingPower
+from nucypher.blockchain.eth.chains import Blockchain
+
+
 
 FILE_ENCODING = 'utf-8'
 
@@ -499,6 +503,9 @@ class NucypherKeyring:
             wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
+
+        elif power_class is BlockchainPower:
+            new_cryptopower = power_class(blockchain=Blockchain.connect(), account=self.checksum_address)
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
