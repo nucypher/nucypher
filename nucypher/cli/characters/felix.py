@@ -1,6 +1,7 @@
 import os
 
 import click
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.characters.banners import FELIX_BANNER
@@ -9,7 +10,6 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 
 @click.command()
@@ -197,7 +197,7 @@ ETH ........ {str(eth_balance)}
     elif action == 'run':     # Start web services
 
         try:
-            FELIX.blockchain.connect()
+            FELIX.blockchain.sync()
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,
