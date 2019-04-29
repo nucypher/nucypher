@@ -41,7 +41,7 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
                    '--provider-uri', TEST_PROVIDER_URI,
                    '--poa')
 
-    user_input = '0\n'+'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8  # TODO: Use Env Vars
+    user_input = '0\n' + 'Y\n'*2 + f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8 + 'DEPLOY'  # TODO: Use Env Vars
     result = click_runner.invoke(deploy.deploy, deploy_args, input=user_input, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
@@ -104,6 +104,13 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
     def time_travel(_result):
         clock.advance(amount=60)
 
+    # Record starting ether balance
+    recipient = testerchain.interface.w3.eth.accounts[-1]
+    miner = Miner(checksum_address=recipient,
+                  blockchain=testerchain,
+                  is_me=True)
+    original_eth_balance = miner.eth_balance
+
     # Run the callbacks
     d = threads.deferToThread(run_felix)
     d.addCallback(request_felix_landing_page)
@@ -118,6 +125,9 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
                       is_me=True)
 
         assert miner.token_balance == NU(15000, 'NU')
+
+        new_eth_balance = original_eth_balance + testerchain.interface.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
+        assert miner.eth_balance == new_eth_balance
 
     staged_airdrops = Felix._AIRDROP_QUEUE
     next_airdrop = staged_airdrops[0]
