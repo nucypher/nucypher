@@ -14,9 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import time
+
 import geth
+import maya
 from geth.chain import write_genesis_file, initialize_chain
 from twisted.logger import Logger
+from web3.exceptions import BlockNotFound
 from web3.middleware import geth_poa_middleware
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
@@ -39,11 +43,15 @@ class Blockchain:
     class ConnectionNotEstablished(RuntimeError):
         pass
 
+    class SyncTimeout(RuntimeError):
+        pass
+
     def __init__(self,
                  provider_process=None,
                  interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None):
 
         self.log = Logger("blockchain")
+
         self.__provider_process = provider_process
 
         # Default interface
@@ -66,6 +74,66 @@ class Blockchain:
     def interface(self) -> Union[BlockchainInterface, BlockchainDeployerInterface]:
         return self.__interface
 
+    @property
+    def peers(self):
+        if self._instance is NO_BLOCKCHAIN_AVAILABLE:
+            raise self.ConnectionNotEstablished
+        return self.interface.w3.geth.admin.peers()
+
+    @property
+    def syncing(self):
+        if self._instance is NO_BLOCKCHAIN_AVAILABLE:
+            raise self.ConnectionNotEstablished
+        return self.interface.w3.eth.syncing
+
+    def sync(self, timeout: int = 600):
+        """
+        Blocking call that waits for at least one ethereum peer and a full blockchain sync.
+        """
+
+        # Record start time for timeout calculation
+        now = maya.now()
+        start_time = now
+
+        def check_for_timeout(timeout=timeout):
+            last_update = maya.now()
+            duration = (last_update - start_time).seconds
+            if duration > timeout:
+                raise self.SyncTimeout
+
+        # Check for ethereum peers
+        self.log.info(f"Waiting for ethereum peers...")
+        while not self.peers:
+            time.sleep(0)
+            check_for_timeout(timeout=5)
+
+        needs_sync = False
+        for peer in self.peers:
+            peer_block_header = peer['protocols']['eth']['head']
+            try:
+                self.interface.w3.eth.getBlock(peer_block_header)
+            except BlockNotFound:
+                needs_sync = True
+                break
+
+        # Start
+        if needs_sync:
+            peers = len(self.peers)
+            self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
+            while not self.syncing:
+                time.sleep(0)
+                check_for_timeout()
+
+            # Continue until done
+            while self.syncing:
+                current = self.syncing['currentBlock']
+                total = self.syncing['highestBlock']
+                self.log.info(f"Syncing {current}/{total}")
+                time.sleep(1)
+                check_for_timeout()
+
+            return True
+
     @classmethod
     def connect(cls,
                 provider_process=None,
@@ -75,7 +143,8 @@ class Blockchain:
                 compile: bool = False,
                 poa: bool = False,
                 force: bool = True,
-                fetch_registry: bool = True
+                fetch_registry: bool = True,
+                full_sync: bool = True,
                 ) -> 'Blockchain':
 
         log = Logger('blockchain-init')
@@ -106,6 +175,7 @@ class Blockchain:
                 interface.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
             cls._instance = cls(interface=interface, provider_process=provider_process)
+
         else:
 
             if provider_uri is not None:
@@ -119,6 +189,8 @@ class Blockchain:
                 # but we want to connect using a different registry.
                 cls._instance.interface.registry = registry
 
+        # Syn blockchain
+        cls._instance.sync()
         return cls._instance
 
     @classmethod
