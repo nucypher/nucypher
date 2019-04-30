@@ -126,7 +126,7 @@ def ursula_decentralized_test_config(three_agents):
                                         abort_on_learning_error=True,
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
-                                        import_seed_registry=False,
+                                        download_registry=False,
                                         save_metadata=False,
                                         reload_metadata=False)
     yield ursula_config
@@ -157,7 +157,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                import_seed_registry=False,
+                                download_registry=False,
                                 save_metadata=False,
                                 reload_metadata=False)
     yield config
@@ -188,7 +188,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
-                              import_seed_registry=False,
+                              download_registry=False,
                               save_metadata=False,
                               reload_metadata=False)
     yield config
