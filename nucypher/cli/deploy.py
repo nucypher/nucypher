@@ -14,27 +14,23 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
-import json
 import os
-import pprint
 import time
 
 import click
-import requests
+import maya
 from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-import maya
+
 
 @click.command()
 @click.argument('action')
@@ -45,7 +41,7 @@ import maya
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--gas-limit', help="Transaction gas limit", type=click.INT)
+@click.option('--sync/--no-sync', default=True)
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -75,7 +71,7 @@ def deploy(click_config,
            amount,
            recipient_address,
            config_root,
-           gas_limit,
+           sync,
            force):
     """Manage contract and registry deployment"""
 
@@ -114,7 +110,8 @@ def deploy(click_config,
                                     registry=registry,
                                     compile=not no_compile,
                                     deployer=True,
-                                    fetch_registry=False)
+                                    fetch_registry=False,
+                                    full_sync=sync)
 
 
     #
