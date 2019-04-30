@@ -59,7 +59,7 @@ class BlockchainInterface:
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
-    __default_timeout = 30  # seconds
+    __default_timeout = 120  # seconds
     __default_transaction_gas = 500_000  # TODO #842: determine sensible limit and validate transactions
 
     process = None  # TODO
