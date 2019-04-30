@@ -88,7 +88,8 @@ class Blockchain:
 
     def sync(self, timeout: int = 600):
         """
-        Blocking call that waits for at least one ethereum peer and a full blockchain sync.
+        Blocking call that polls the ethereum client for at least one ethereum peer
+        and knowledge of all blocks known by bootnodes.
         """
 
         # Record start time for timeout calculation
@@ -177,7 +178,8 @@ class Blockchain:
             cls._instance = cls(interface=interface, provider_process=provider_process)
 
             # Sync blockchain
-            cls._instance.sync()
+            if full_sync:
+                cls._instance.sync()
 
         else:
 
