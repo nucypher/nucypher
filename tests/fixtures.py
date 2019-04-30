@@ -126,11 +126,10 @@ def ursula_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.usefixtures('three_agents')
-def ursula_decentralized_test_config(three_agents):
+def ursula_decentralized_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
-                                        provider_uri="tester://pyevm",
+                                        provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -158,12 +157,11 @@ def alice_federated_test_config(federated_ursulas):
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
-                                provider_uri="tester://pyevm",
-                                checksum_public_address=token_agent.blockchain.alice_account,
+                                provider_uri=TEST_PROVIDER_URI,
+                                checksum_public_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
@@ -188,11 +186,10 @@ def bob_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def bob_blockchain_test_config(blockchain_ursulas, testerchain):
     config = BobConfiguration(dev_mode=True,
-                              provider_uri="tester://pyevm",
-                              checksum_public_address=token_agent.blockchain.bob_account,
+                              provider_uri=TEST_PROVIDER_URI,
+                              checksum_public_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -337,6 +334,7 @@ def slashing_economics():
     economics = SlashingEconomics()
     return economics
 
+
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
@@ -407,7 +405,7 @@ def three_agents(testerchain):
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, _miner_agent, _policy_agent = three_agents
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
@@ -446,7 +444,7 @@ def policy_rate():
 
 @pytest.fixture(scope='module')
 def policy_value(token_economics, policy_rate):
-    value = policy_rate * token_economics.minimum_locked_periods  # * len(ursula)
+    value = policy_rate * token_economics.minimum_locked_periods
     return value
 
 
@@ -454,20 +452,19 @@ def policy_value(token_economics, policy_rate):
 def funded_blockchain(testerchain, three_agents, token_economics):
 
     # Who are ya'?
-    blockchain = testerchain
-    deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
+    deployer_address, *everyone_else, staking_participant = testerchain.interface.w3.eth.accounts
 
     # Free ETH!!!
-    blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+    testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     # Free Tokens!!!
-    token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
+    token_airdrop(token_agent=NucypherTokenAgent(blockchain=testerchain),
                   origin=deployer_address,
                   addresses=everyone_else,
                   amount=token_economics.minimum_allowed_locked*5)
 
     # HERE YOU GO
-    yield blockchain, deployer_address
+    yield testerchain, deployer_address
 
 
 @pytest.fixture(scope='module')

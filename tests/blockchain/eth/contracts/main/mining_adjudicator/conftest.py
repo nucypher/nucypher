@@ -22,8 +22,6 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.deployers import DispatcherDeployer
 
-secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-
 
 @pytest.fixture()
 def escrow(testerchain):
@@ -43,6 +41,7 @@ def adjudicator_contract(testerchain, escrow, request, slashing_economics):
         slashing_economics.reward_coefficient)
 
     if request.param:
+        secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         secret_hash = testerchain.interface.w3.keccak(secret)
         dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 

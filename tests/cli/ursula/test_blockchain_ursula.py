@@ -114,9 +114,6 @@ def test_list_ursula_stakes(click_runner,
                             funded_blockchain,
                             configuration_file_location,
                             stake_value):
-
-    _blockchain, _deployer_address = funded_blockchain
-
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
                   '--list',
@@ -158,13 +155,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
 
 def test_run_blockchain_ursula(click_runner,
                                configuration_file_location,
-                               funded_blockchain,
-                               alice_blockchain_test_config,
-                               bob_blockchain_test_config,
-                               random_policy_label,
-                               blockchain_ursulas,
                                staking_participant):
-
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
                  '--poa',
@@ -181,8 +172,8 @@ def test_run_blockchain_ursula(click_runner,
 
 def test_collect_rewards_integration(click_runner,
                                      configuration_file_location,
-                                     alice_blockchain_test_config,
-                                     bob_blockchain_test_config,
+                                     blockchain_alice,
+                                     blockchain_bob,
                                      random_policy_label,
                                      blockchain_ursulas,
                                      staking_participant,
@@ -192,9 +183,9 @@ def test_collect_rewards_integration(click_runner,
 
     blockchain = staking_participant.blockchain
 
-    half_stake_time = token_economics.minimum_locked_periods // 2          # Test setup
+    half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
     logger = staking_participant.log  # Enter the Teacher's Logger, and
-    current_period = 1                # State the initial period for incrementing
+    current_period = 1  # State the initial period for incrementing
 
     miner = Miner(checksum_address=staking_participant.checksum_public_address,
                   blockchain=blockchain, is_me=True)
@@ -209,37 +200,34 @@ def test_collect_rewards_integration(click_runner,
         miner.confirm_activity()
 
     # Alice creates a policy and grants Bob access
-    alice = alice_blockchain_test_config.produce()
-    bob = bob_blockchain_test_config.produce()
-
     M, N = 1, 1
     expiration = maya.now() + datetime.timedelta(days=3)
-    blockchain_policy = alice.grant(bob=bob,
-                                    label=random_policy_label,
-                                    m=M, n=N,
-                                    value=policy_value,
-                                    expiration=expiration,
-                                    handpicked_ursulas={staking_participant})
+    blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
+                                               label=random_policy_label,
+                                               m=M, n=N,
+                                               value=policy_value,
+                                               expiration=expiration,
+                                               handpicked_ursulas={staking_participant})
 
     # Bob joins the policy
-    bob.join_policy(random_policy_label, bytes(alice.stamp))
+    blockchain_bob.join_policy(random_policy_label, bytes(blockchain_alice.stamp))
 
     # Enrico Encrypts (of course)
     enrico = Enrico(policy_encrypting_key=blockchain_policy.public_key,
                     network_middleware=MockRestMiddleware())
 
-    verifying_key = alice.stamp.as_umbral_pubkey()
+    verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
-    for index in range(half_stake_time-5):
+    for index in range(half_stake_time - 5):
         logger.debug(f"period {current_period}")
         random_data = os.urandom(random.randrange(20, 100))
         ciphertext, signature = enrico.encrypt_message(message=random_data)
 
         # Retrieve
-        cleartexts = bob.retrieve(message_kit=ciphertext,
-                                  data_source=enrico,
-                                  alice_verifying_key=verifying_key,
-                                  label=random_policy_label)
+        cleartexts = blockchain_bob.retrieve(message_kit=ciphertext,
+                                             data_source=enrico,
+                                             alice_verifying_key=verifying_key,
+                                             label=random_policy_label)
         assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing
