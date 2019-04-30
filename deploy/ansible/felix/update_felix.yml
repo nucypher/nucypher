@@ -19,19 +19,12 @@
         dest: ./code
         version: "{{ git_version }}"
 
-    - name: "Render Felix's Node Service"
+    - name: "Open Felix HTTP Port"
       become: yes
       become_flags: "-H -S"
-      template:
-        src: ../../services/felix_faucet.j2
-        dest: /etc/systemd/system/felix_faucet.service
-        mode: 0755
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ felix_http_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
       vars:
-        keyring_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
-        db_secret: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
-        virtualenv_path: '/home/ubuntu/venv'
-        nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
-        teacher_uri: "{{ networks[lookup('env', 'NUCYPHER_NETWORK_NAME')][0] }}"
+        felix_http_port: 80
 
     - name: "Open Felix HTTP Port"
       become: yes
