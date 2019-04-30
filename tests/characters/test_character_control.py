@@ -124,7 +124,6 @@ def test_alice_character_control_decrypt(mocker, alice_federated_test_config, al
 
     request_data = {
         'label': label,
-        'policy_encrypting_key': policy_encrypting_key,
         'message_kit': message_kit,
     }
 
@@ -141,7 +140,7 @@ def test_alice_character_control_decrypt(mocker, alice_federated_test_config, al
     response = alice_control_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(request_data['policy_encrypting_key'])
+    del(request_data['message_kit'])
     response = alice_control_test_client.put('/decrypt', data=json.dumps(request_data))
     assert response.status_code == 405
 

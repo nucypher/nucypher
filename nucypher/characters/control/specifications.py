@@ -72,8 +72,10 @@ class AliceSpecification(CharacterSpecification):
     __revoke = (('label', 'bob_verifying_key', ),  # In
                 ('failed_revocations',))     # Out
 
-    __decrypt = (('label', 'policy_encrypting_key', 'message_kit'),  # In
-                  ('cleartexts', ))  # Out
+    __decrypt = (
+            ('label', 'message_kit'),  # In
+            ('cleartexts', ),  # Out
+    )
 
     __public_keys = ((),
                      ('alice_verifying_key',))

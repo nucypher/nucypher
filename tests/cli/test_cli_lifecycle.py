@@ -204,7 +204,6 @@ def test_cli_lifecycle(click_runner,
             '--config-file', alice_configuration_file_location,
             '--message-kit', message_kit,
             '--label', policy.label,
-            '--policy-encrypting-key', policy.encrypting_key,
         )
 
         decrypt_response_fail = click_runner.invoke(

@@ -125,20 +125,14 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
 
-    def decrypt(self,
-                label: bytes,
-                policy_encrypting_key: bytes,
-                message_kit: bytes):
+    def decrypt(self, label: bytes, message_kit: bytes):
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
 
         from nucypher.characters.lawful import Enrico
 
-        policy_encrypting_key = UmbralPublicKey.from_bytes(
-            policy_encrypting_key)
-
-        alice_pubkey_sig = self.character.get_policy_pubkey_from_label(label)
+        policy_encrypting_key = self.character.get_policy_pubkey_from_label(label)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         data_source = Enrico.from_public_keys(
@@ -150,7 +144,6 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         plaintexts = self.alice.decrypt_message_kit(
             message_kit=message_kit,
             data_source=data_source,
-            alice_verifying_key=alice_pubkey_sig,
             label=label
         )
 

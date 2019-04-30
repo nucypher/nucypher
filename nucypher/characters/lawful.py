@@ -287,8 +287,9 @@ class Alice(Character, PolicyAuthor):
         self,
         message_kit: UmbralMessageKit,
         data_source: Character,
-        alice_verifying_key: bytes,
-        label: bytes) -> List[bytes]:
+        label: bytes
+    ) -> List[bytes]:
+
         """
         Decrypt this Alice's own encrypted data.
 

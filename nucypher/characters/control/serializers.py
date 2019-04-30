@@ -105,7 +105,6 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
 
     def load_decrypt_input(self, request: dict) -> dict:
         parsed_input = dict(label=request['label'].encode(),
-                            policy_encrypting_key=bytes.fromhex(request['policy_encrypting_key']),
                             message_kit=self.decode(request['message_kit']))
         return parsed_input
 

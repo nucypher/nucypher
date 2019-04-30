@@ -35,8 +35,6 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-@click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string", type=click.STRING)
-@click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
 def alice(click_config,
@@ -61,8 +59,6 @@ def alice(click_config,
           label,
           m,
           n,
-          policy_encrypting_key,
-          alice_verifying_key,
           message_kit
         ):
 
@@ -199,14 +195,13 @@ def alice(click_config,
 
     elif action == "decrypt":
 
-        if not all((label, policy_encrypting_key, message_kit)):
+        if not all((label, message_kit)):
             input_specification, output_specification = ALICE.controller.get_specifications(interface_name='decrypt')
             required_fields = ', '.join(input_specification)
             raise click.BadArgumentUsage(f'{required_fields} are required flags to decrypt')
 
         request_data = {
             'label': label,
-            'policy_encrypting_key': policy_encrypting_key,
             'message_kit': message_kit,
         }
         response = ALICE.controller.decrypt(request=request_data)
