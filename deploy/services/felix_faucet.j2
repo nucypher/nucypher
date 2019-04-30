@@ -2,9 +2,11 @@
 Description="Run 'Felix', A NuCypher Test-ERC20 Faucet."
 
 [Service]
-User=ubuntu
+User=root
 Type=simple
-ExecStart={{ virtualenv_path }}/bin/nucypher felix --network {{ nucypher_network_domain }} --geth
+Environment="NUCYPHER_KEYRING_PASSWORD={{ keyring_password }}"
+Environment="NUCYPHER_FELIX_DB_SECRET={{ db_secret }}"
+ExecStart={{ virtualenv_path }}/bin/nucypher --debug felix run --network {{ nucypher_network_domain }} --geth
 
 [Install]
 WantedBy=multi-user.target
