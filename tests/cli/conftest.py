@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import os
+import shutil
 
 import pytest
-import shutil
 from click.testing import CliRunner
 
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -30,19 +30,28 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     ONE_YEAR_IN_SECONDS,
     MINERS_ESCROW_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
     USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
 def click_runner():
     runner = CliRunner()
     yield runner
+
+
+@pytest.fixture(scope='session')
+def deploy_user_input():
+    account_index = '0\n'
+    yes = 'Y\n'
+    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    deployment_secret = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    user_input = account_index + yes + node_password + (deployment_secret * 8) + 'DEPLOY'
+    return user_input
 
 
 @pytest.fixture(scope='module')
