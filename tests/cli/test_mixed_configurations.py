@@ -49,7 +49,7 @@ def test_coexisting_configurations(click_runner,
                    '--config-root', custom_filepath,
                    '--poa')
 
-    result = click_runner.invoke(deploy.deploy, deploy_args, input='Y', catch_exceptions=False, env=envvars)
+    result = click_runner.invoke(deploy.deploy, deploy_args, input='0\nY\n', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # No keys have been generated...

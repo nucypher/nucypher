@@ -756,7 +756,7 @@ class MiningAdjudicatorDeployer(ContractDeployer):
 
         return deployment_transactions
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit):
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
 
         self.check_deployment_readiness()
 
@@ -771,7 +771,6 @@ class MiningAdjudicatorDeployer(ContractDeployer):
 
         mining_adjudicator_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
                                                                                                self.miner_agent.contract_address,
-                                                                                               gas_limit
                                                                                                *self.__economics.deployment_parameters)
 
         upgrade_tx_hash = proxy_deployer.retarget(new_target=mining_adjudicator_contract.address,

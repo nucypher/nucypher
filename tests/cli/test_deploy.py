@@ -69,9 +69,7 @@ def geth_poa_devchain():
     return f'ipc://{_testerchain.interface.provider.ipc_path}'
 
 
-@pytest.mark.parametrize('blockchain', [geth_poa_devchain, pyevm_testerchain])
 def test_nucypher_deploy_contracts(click_runner,
-                                   blockchain,
                                    mock_primary_registry_filepath,
                                    mock_allocation_infile,
                                    token_economics):
@@ -79,8 +77,6 @@ def test_nucypher_deploy_contracts(click_runner,
     #
     # Setup
     #
-
-    provider_uri = blockchain()
 
     # We start with a blockchain node, and nothing else...
     if os.path.isfile(mock_primary_registry_filepath):
@@ -93,10 +89,10 @@ def test_nucypher_deploy_contracts(click_runner,
 
     command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', provider_uri,
+               '--provider-uri', 'tester://pyevm',
                '--poa']
 
-    user_input = 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8)
+    user_input = '0\n' + 'Y\n' * 2 + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -138,7 +134,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert MiningAdjudicatorAgent()
 
 
-def test_upgrade_contracts(click_runner):
+def test_upgrade_contracts(click_runner, deploy_user_input):
 
     #
     # Setup
@@ -173,8 +169,8 @@ def test_upgrade_contracts(click_runner):
             new_secret = INSECURE_SECRETS[next_version]
         except KeyError:
             continue
-
-        user_input = yes + old_secret + (new_secret * 2)  # twice for confirmation prompt
+        #             addr-----------client password-------confirm----secret----new deploy secret (2x for confirmation)
+        user_input = '0\n' + yes + INSECURE_DEVELOPMENT_PASSWORD + yes + old_secret + (new_secret * 2)
         upgrade_inputs[next_version] = user_input
 
     #
@@ -277,12 +273,11 @@ def test_rollback(click_runner):
     # Stage Rollbacks
     old_secret = INSECURE_SECRETS[PLANNED_UPGRADES]
     rollback_secret = generate_insecure_secret()
-    user_input = yes + old_secret + rollback_secret + rollback_secret
+    user_input = '0\n' + yes + INSECURE_DEVELOPMENT_PASSWORD + yes + old_secret + rollback_secret + rollback_secret
 
     contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
                              'PolicyManager',      # v4 -> v3
                              'MiningAdjudicator',  # v4 -> v3
-                             # 'UserEscrowProxy'     # v4 -> v3  # TODO: Rollback support for UserEscrowProxy
                              )
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
@@ -306,17 +301,11 @@ def test_rollback(click_runner):
         _name, rollback_target_address, *abi = rollback_target
         assert current_target_address != rollback_target_address
 
-        # Select proxy (Dispatcher vs Linker)
-        if contract_name == "UserEscrowProxy":
-            proxy_name = "UserEscrowLibraryLinker"
-        else:
-            proxy_name = 'Dispatcher'
-
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.interface.get_proxy(target_address=current_target_address, proxy_name=proxy_name)
+            blockchain.interface.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
-        proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name=proxy_name)
+        proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()
@@ -326,6 +315,7 @@ def test_rollback(click_runner):
 
 def test_nucypher_deploy_allocation_contracts(click_runner,
                                               testerchain,
+                                              deploy_user_input,
                                               mock_primary_registry_filepath,
                                               mock_allocation_infile,
                                               token_economics):
@@ -344,9 +334,10 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
                '--provider-uri', 'tester://pyevm',
-               '--poa']
+               '--poa',
+               '--no-sync']
 
-    user_input = 'Y\n'+f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8
+    user_input = deploy_user_input
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -361,7 +352,11 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                       '--provider-uri', 'tester://pyevm',
                       '--poa')
 
-    user_input = 'Y\n'*2
+    account_index = '0\n'
+    yes = 'Y\n'
+    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    user_input = account_index + yes + node_password + yes
+
     result = click_runner.invoke(deploy,
                                  deploy_command,
                                  input=user_input,
@@ -390,7 +385,11 @@ def test_destroy_registry(click_runner, mock_primary_registry_filepath):
                        '--provider-uri', TEST_PROVIDER_URI,
                        '--poa')
 
-    user_input = 'Y\n'*2
+    account_index = '0\n'
+    yes = 'Y\n'
+    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    user_input = account_index + yes + node_password + yes + yes
+
     result = click_runner.invoke(deploy, destroy_command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert mock_primary_registry_filepath in result.output
