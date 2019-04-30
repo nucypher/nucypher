@@ -330,14 +330,6 @@ class MinerEscrowDeployer(ContractDeployer):
                                                                                        self.token_agent.contract_address,
                                                                                        *self.__economics.staking_deployment_parameters)
 
-        policy_agent = PolicyAgent(blockchain=self.blockchain)
-        _set_policy_manager_txhash = the_escrow_contract.functions.setPolicyManager(policy_agent.contract_address).transact(origin_args)
-        _set_policy_manager_receipt = self.blockchain.wait_for_receipt(_set_policy_manager_txhash)
-
-        # 3 - Initialize the Miner Escrow contract
-        init_txhash = the_escrow_contract.functions.initialize().transact(origin_args)
-        _init_receipt = self.blockchain.wait_for_receipt(init_txhash)
-
         # 5 - Wrap the escrow contract
         wrapped_escrow_contract = self.blockchain.interface._wrap_contract(wrapper_contract=dispatcher_deployer.contract,
                                                                            target_contract=the_escrow_contract)
@@ -583,21 +575,6 @@ class UserEscrowProxyDeployer(ContractDeployer):
         deployment_transactions['proxy_deployment'] = proxy_deployment_txhash
 
         return deployment_transactions
-
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
-        dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
-                                                 target_contract=existing_bare_contract,
-                                                 deployer_address=self.deployer_address,
-                                                 bare=True)  # acquire agency for the dispatcher itself.
-
-        rollback_txhash = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                       new_secret_hash=new_secret_hash)
-
-        _rollback_receipt = self.blockchain.wait_for_receipt(txhash=rollback_txhash)
-        return rollback_txhash
 
 
 class UserEscrowDeployer(ContractDeployer):
