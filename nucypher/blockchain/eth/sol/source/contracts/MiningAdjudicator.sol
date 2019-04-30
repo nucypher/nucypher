@@ -92,8 +92,8 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65,
-            "Either the requester or miner had an incorrect key length (ie, not 65)");
+        require(_minerPublicKey.length == 64 && _requesterPublicKey.length == 64,
+            "Either the requester or miner had an incorrect key length (ie, not 64)");
 
         // Check that CFrag is not evaluated yet
         bytes32 evaluationHash = SignatureVerifier.hash(
@@ -101,17 +101,14 @@ contract MiningAdjudicator is Upgradeable {
         require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
         // Verify requester's signature of Capsule
-        bytes memory preparedPublicKey = new bytes(64);
-        preparePublicKey(preparedPublicKey, _requesterPublicKey);
         require(SignatureVerifier.verify(
-                _capsuleBytes, _capsuleSignatureByRequester, preparedPublicKey, hashAlgorithm));
+                _capsuleBytes, _capsuleSignatureByRequester, _requesterPublicKey, hashAlgorithm));
 
         // Verify miner's signatures of capsule and CFrag
-        preparePublicKey(preparedPublicKey, _minerPublicKey);
         require(SignatureVerifier.verify(
-                _capsuleSignatureByRequester, _capsuleSignatureByRequesterAndMiner, preparedPublicKey, hashAlgorithm));
+                _capsuleSignatureByRequester, _capsuleSignatureByRequesterAndMiner, _minerPublicKey, hashAlgorithm));
         require(SignatureVerifier.verify(
-                _cFragBytes, _cFragSignatureByMiner, preparedPublicKey, hashAlgorithm));
+                _cFragBytes, _cFragSignature, _minerPublicKey, hashAlgorithm));
 
         // Extract miner's address and check that is real miner
         address miner = SignatureVerifier.recover(
@@ -121,9 +118,8 @@ contract MiningAdjudicator is Upgradeable {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        evaluatedCFrags[evaluationHash] = true;
-
         bool cfragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
+        evaluatedCFrags[evaluationHash] = true;
         emit CFragEvaluated(evaluationHash, miner, msg.sender, cfragIsCorrect);
         if (!cfragIsCorrect) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
@@ -144,20 +140,6 @@ contract MiningAdjudicator is Upgradeable {
         reward = penalty.div(rewardCoefficient);
         // TODO add maximum condition or other overflow protection or other penalty condition
         penaltyHistory[_miner] = penaltyHistory[_miner].add(1);
-    }
-
-    /**
-    * @notice Prepare public key before verification (cut the first byte)
-    **/
-    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey)
-        public pure
-    {
-        assembly {
-            let destination := add(_preparedPublicKey, 32) // skip array length
-            let source := add(_publicKey, 33) // skip array length and first byte in the array
-            mstore(destination, mload(source))
-            mstore(add(destination, 32), mload(add(source, 32)))
-        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`

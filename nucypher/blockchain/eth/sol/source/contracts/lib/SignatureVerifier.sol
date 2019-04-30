@@ -70,7 +70,7 @@ library SignatureVerifier {
     * @dev Uses one of pre built hashing algorithm
     * @param _message Signed message
     * @param _signature Signature of message hash
-    * @param _publicKey secp256k1 public key
+    * @param _publicKey secp256k1 public key in uncompressed format without prefix byte (64 bytes)
     * @param _algorithm Hashing algorithm
     **/
     function verify(
@@ -83,6 +83,7 @@ library SignatureVerifier {
         pure
         returns (bool)
     {
+        require(_publicKey.length == 64);
         return toAddress(_publicKey) == recover(hash(_message, _algorithm), _signature);
     }
 
