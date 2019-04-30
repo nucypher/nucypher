@@ -275,10 +275,13 @@ class Felix(Character, NucypherTokenActor):
         def register():
             """Handle new recipient registration via POST request."""
 
-            new_address = request.form.get('address') or request.get_json().get('address')
+            # get address from form submission or json post
+            new_address = (
+                request.form.get('address') or
+                request.get_json().get('address')
+            )
 
             if not new_address:
-
                 return Response(response="no address", status=400)  # TODO
 
             if not eth_utils.is_checksum_address(new_address):
