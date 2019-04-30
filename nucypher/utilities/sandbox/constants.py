@@ -125,4 +125,4 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
-PYEVM_GAS_LIMIT = 8000000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
+PYEVM_GAS_LIMIT = 8_000_000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?

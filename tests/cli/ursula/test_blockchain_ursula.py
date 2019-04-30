@@ -31,13 +31,13 @@ def configuration_file_location(custom_filepath):
 
 
 @pytest.fixture(scope='module')
-def mock_registry_filepath(deployed_blockchain):
+def mock_registry_filepath(testerchain):
 
-    _blockchain, _deployer_address, _registry = deployed_blockchain
+    registry = testerchain.interface.registry
 
     # Fake the source contract registry
     with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
-        file.write(json.dumps(_registry.read()))
+        file.write(json.dumps(registry.read()))
 
     yield MOCK_REGISTRY_FILEPATH
 

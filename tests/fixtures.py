@@ -18,14 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import os
 import tempfile
-import json
 
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 from web3 import Web3
-
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
@@ -49,6 +47,7 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   MOCK_POLICY_DEFAULT_M,
                                                   MOCK_URSULA_STARTING_PORT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  TEST_PROVIDER_URI,
                                                   )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
@@ -356,7 +355,7 @@ def testerchain(solidity_compiler):
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
                                                      registry=memory_registry,
-                                                     provider_uri='tester://pyevm')
+                                                     provider_uri=TEST_PROVIDER_URI)
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
@@ -452,10 +451,10 @@ def policy_value(token_economics, policy_rate):
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(deployed_blockchain, token_economics):
+def funded_blockchain(testerchain, three_agents, token_economics):
 
     # Who are ya'?
-    blockchain, _deployer_address, registry = deployed_blockchain
+    blockchain = testerchain
     deployer_address, *everyone_else, staking_participant = blockchain.interface.w3.eth.accounts
 
     # Free ETH!!!
@@ -463,12 +462,12 @@ def funded_blockchain(deployed_blockchain, token_economics):
 
     # Free Tokens!!!
     token_airdrop(token_agent=NucypherTokenAgent(blockchain=blockchain),
-                  origin=_deployer_address,
+                  origin=deployer_address,
                   addresses=everyone_else,
                   amount=token_economics.minimum_allowed_locked*5)
 
     # HERE YOU GO
-    yield blockchain, _deployer_address
+    yield blockchain, deployer_address
 
 
 @pytest.fixture(scope='module')
