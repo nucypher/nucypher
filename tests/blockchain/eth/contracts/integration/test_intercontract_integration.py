@@ -57,15 +57,17 @@ def token(testerchain):
 def escrow(testerchain, token):
     # Creator deploys the escrow
     contract, _ = testerchain.interface.deploy_contract(
-        'MinersEscrow',
-        token.address,
-        1,
-        4 * 2 * 10 ** 7,
-        4,
-        4,
-        2,
-        100,
-        2000)
+        contract_name='MinersEscrow',
+        _token=token.address,
+        _hoursPerPeriod=1,
+        _miningCoefficient=8*10**7,
+        _lockedPeriodsCoefficient=4,
+        _rewardedPeriods=4,
+        _minLockedPeriods=2,
+        _minAllowableLockedTokens=100,
+        _maxAllowableLockedTokens=2000,
+        _minWorkerPeriods=2
+    )
 
     secret_hash = testerchain.interface.w3.keccak(escrow_secret)
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
@@ -596,15 +598,17 @@ def test_all(testerchain,
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
     escrow_v2, _ = testerchain.interface.deploy_contract(
-        'MinersEscrow',
-        token.address,
-        1,
-        4 * 2 * 10 ** 7,
-        4,
-        4,
-        2,
-        100,
-        2000)
+        contract_name='MinersEscrow',
+        _token=token.address,
+        _hoursPerPeriod=1,
+        _miningCoefficient=8 * 10 ** 7,
+        _lockedPeriodsCoefficient=4,
+        _rewardedPeriods=4,
+        _minLockedPeriods=2,
+        _minAllowableLockedTokens=100,
+        _maxAllowableLockedTokens=2000,
+        _minWorkerPeriods=2
+    )
     policy_manager_v2, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
     # Ursula and Alice can't upgrade contracts, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
