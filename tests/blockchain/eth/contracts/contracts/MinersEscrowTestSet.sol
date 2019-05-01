@@ -18,7 +18,8 @@ contract MinersEscrowBad is MinersEscrow {
         uint16 _rewardedPeriods,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens
+        uint256 _maxAllowableLockedTokens,
+        uint16 _minWorkerPeriods
     )
         public
         MinersEscrow(
@@ -29,7 +30,8 @@ contract MinersEscrowBad is MinersEscrow {
             _rewardedPeriods,
             _minLockedPeriods,
             _minAllowableLockedTokens,
-            _maxAllowableLockedTokens
+            _maxAllowableLockedTokens,
+            _minWorkerPeriods
         )
     {
     }
@@ -57,6 +59,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
+        uint16 _minWorkerPeriods,
         uint256 _valueToCheck
     )
         public
@@ -68,7 +71,8 @@ contract MinersEscrowV2Mock is MinersEscrow {
             _rewardedPeriods,
             _minLockedPeriods,
             _minAllowableLockedTokens,
-            _maxAllowableLockedTokens
+            _maxAllowableLockedTokens,
+            _minWorkerPeriods
         )
     {
         valueToCheck = _valueToCheck;
