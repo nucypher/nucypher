@@ -202,6 +202,10 @@ contract ReEncryptionValidatorMock {
         return ReEncryptionValidator.check_compressed_point(_pointSign, _pointX, _pointY);
 	}
 
+    function check_serialized_coordinates(bytes memory _coords) public pure returns(bool) {
+		return ReEncryptionValidator.check_serialized_coordinates(_coords);
+	}
+
     function is_on_curve(uint256 Px, uint256 Py) public pure returns (bool) {
         return ReEncryptionValidator.is_on_curve(Px, Py);
     }

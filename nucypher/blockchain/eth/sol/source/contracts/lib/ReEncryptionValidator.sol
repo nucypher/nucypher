@@ -343,6 +343,19 @@ library ReEncryptionValidator {
 		return correct_sign && is_on_curve(_pointX, _pointY);
 	}
 
+    /// @notice Tests if the given serialized coordinates represent a valid EC point
+    /// @param _coords The concatenation of serialized X and Y coordinates
+    /// @return true iff coordinates X and Y are a valid point
+    function check_serialized_coordinates(bytes memory _coords) internal pure returns(bool) {
+        require(_coords.length == 64, "Serialized coordinates should be 64 B");
+        uint256 coordX;
+        uint256 coordY;
+        assembly {
+            coordX := mload(add(_coords, 32))
+            coordY := mload(add(_coords, 64))
+        }
+		return is_on_curve(coordX, coordY);
+	}
 
     /// @notice Tests if a point is on the secp256k1 curve
     /// @param Px The X coordinate of an EC point in affine representation

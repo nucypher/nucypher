@@ -80,6 +80,13 @@ def test_ec_point_operations(testerchain, reencryption_validator):
     bad_sign = 3 - (y % 2)
     assert not reencryption_validator.functions.check_compressed_point(bad_sign, x, y).call()
 
+    # Test check_serialized_coordinates
+    coords = valid_point.to_bytes(is_compressed=False)[1:]
+    assert reencryption_validator.functions.check_serialized_coordinates(coords).call()
+
+    coords = coords[:-1] + ((coords[-1] + 42) % 256).to_bytes(1, 'big')
+    assert not reencryption_validator.functions.check_serialized_coordinates(coords).call()
+
     # Test ecmulVerify
     P = valid_point
     scalar = CurveBN.gen_rand()
@@ -119,7 +126,7 @@ def test_ec_point_operations(testerchain, reencryption_validator):
     assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), P_plus_P).call()
 
 
-# TODO: See https://github.com/nucypher/nucypher/issues/626#issuecomment-486186171
+# TODO: Find a non-intrusive way of testing constants of a Solidity library #954
 @pytest.mark.skip(reason="no way of testing library constants for the moment")
 def test_umbral_constants(testerchain, reencryption_validator):
     umbral_params = default_params()
