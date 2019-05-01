@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
-from typing import Any
+from typing import Any, Union
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -47,39 +47,69 @@ def canonical_address_from_umbral_key(public_key: UmbralPublicKey) -> bytes:
     return canonical_address
 
 
-def recover_pubkey_from_signature(prehashed_message, signature, v_value_to_try=None) -> bytes:
+def recover_pubkey_from_signature(message: bytes,
+                                  signature: Union[bytes, Signature],
+                                  v_value_to_try: int,
+                                  is_prehashed: bool = False) -> bytes:
     """
     Recovers a serialized, compressed public key from a signature.
     It allows to specify a potential v value, in which case it assumes the signature
     has the traditional (r,s) raw format. If a v value is not present, it assumes
     the signature has the recoverable format (r, s, v).
 
-    :param prehashed_message: Prehashed message
+    :param message: Signed message
     :param signature: The signature from which the pubkey is recovered
     :param v_value_to_try: A potential v value to try
+    :param is_prehashed: True if the message is already pre-hashed. Default is False, and message will be hashed with SHA256
     :return: The compressed byte-serialized representation of the recovered public key
     """
 
     signature = bytes(signature)
-    ecdsa_signature_size = Signature.expected_bytes_length()
+    expected_signature_size = Signature.expected_bytes_length()
+    if not len(signature) == expected_signature_size:
+        raise ValueError(f"The signature size should be {expected_signature_size} B.")
 
-    if not v_value_to_try:
-        expected_signature_size = ecdsa_signature_size + 1
-        if not len(signature) == expected_signature_size:
-            raise ValueError(f"When not passing a v value, "
-                             f"the signature size should be {expected_signature_size} B.")
-    elif v_value_to_try in (0, 1, 27, 28):
-        expected_signature_size = ecdsa_signature_size
-        if not len(signature) == expected_signature_size:
-            raise ValueError(f"When passing a v value, "
-                             f"the signature size should be {expected_signature_size} B.")
+    if v_value_to_try in (0, 1, 27, 28):
         if v_value_to_try >= 27:
             v_value_to_try -= 27
         signature = signature + v_value_to_try.to_bytes(1, 'big')
     else:
         raise ValueError("Wrong v value. It should be 0, 1, 27 or 28.")
 
+    kwargs = dict(hasher=None) if is_prehashed else {}
     pubkey = PublicKey.from_signature_and_message(serialized_sig=signature,
-                                                  message=prehashed_message,
-                                                  hasher=None)
+                                                  message=message,
+                                                  **kwargs)
     return pubkey.format(compressed=True)
+
+
+def get_signature_recovery_value(message: bytes,
+                                 signature: Union[bytes, Signature],
+                                 public_key: Union[bytes, UmbralPublicKey],
+                                 is_prehashed: bool = False) -> bytes:
+    """
+    Obtains the recovery value of a standard ECDSA signature.
+
+    :param message: Signed message
+    :param signature: The signature from which the pubkey is recovered
+    :param public_key: The public key for verifying the signature
+    :param is_prehashed: True if the message is already pre-hashed. Default is False, and message will be hashed with SHA256
+    :return: The compressed byte-serialized representation of the recovered public key
+    """
+
+    signature = bytes(signature)
+    ecdsa_signature_size = Signature.expected_bytes_length()
+    if not len(signature) == ecdsa_signature_size:
+        raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
+
+    kwargs = dict(hasher=None) if is_prehashed else {}
+    for v in (0, 1):
+        v_byte = bytes([v])
+        recovered_pubkey = PublicKey.from_signature_and_message(serialized_sig=signature + v_byte,
+                                                                message=message,
+                                                                **kwargs)
+        if bytes(public_key) == recovered_pubkey.format(compressed=True):
+            return v_byte
+    else:
+        raise ValueError("Signature recovery failed. "
+                         "Either the message, the signature or the public key is not correct")

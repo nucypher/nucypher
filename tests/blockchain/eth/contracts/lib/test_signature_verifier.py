@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
-from coincurve import PublicKey
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_tester.exceptions import TransactionFailed
@@ -29,6 +28,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.utils import get_signature_recovery_value
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
@@ -52,6 +52,7 @@ def test_recover(testerchain, signature_verifier):
 
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
+    umbral_pubkey = umbral_privkey.get_pubkey()
     umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
     signer_address = keccak_digest(umbral_pubkey_bytes[1:])
     signer_address = to_normalized_address(signer_address[12:])
@@ -61,20 +62,11 @@ def test_recover(testerchain, signature_verifier):
     signature = signer(message)
 
     # Get recovery id (v) before using contract
-    # If we don't have recovery id while signing than we should try to recover public key with different v
+    # If we don't have recovery id while signing then we should try to recover public key with different v
     # Only the correct v will match the correct public key
-    # First try v = 0
-    recoverable_signature = bytes(signature) + bytes([0])
-    pubkey = PublicKey.from_signature_and_message(recoverable_signature, message_hash, hasher=None)
-    pubkey_bytes = pubkey.format(compressed=False)
-    if pubkey_bytes != umbral_pubkey_bytes:
-        # Extracted public key is not ours, that means v = 1
-        recoverable_signature = bytes(signature) + bytes([1])
-        pubkey = PublicKey.from_signature_and_message(recoverable_signature, message_hash, hasher=None)
-        pubkey_bytes = pubkey.format(compressed=False)
+    v = get_signature_recovery_value(message, signature, umbral_pubkey)
+    recoverable_signature = bytes(signature) + v
 
-    # Check that recovery was ok
-    assert umbral_pubkey_bytes == pubkey_bytes
     # Check recovery method in the contract
     assert signer_address == to_normalized_address(
         signature_verifier.functions.recover(message_hash, recoverable_signature).call())
@@ -99,7 +91,8 @@ def test_recover(testerchain, signature_verifier):
 def test_address(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)[1:]
+    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)[1:]
     signer_address = keccak_digest(umbral_pubkey_bytes)
     signer_address = to_normalized_address(signer_address[12:])
 
@@ -127,25 +120,16 @@ def test_verify(testerchain, signature_verifier):
 
     # Generate Umbral key
     umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
+    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)
 
     # Sign message using SHA-256 hash
     signer = Signer(umbral_privkey)
     signature = signer(message)
 
-    # Prepare message hash
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(message)
-    message_hash = hash_ctx.finalize()
-
     # Get recovery id (v) before using contract
-    # First try v = 0
-    recoverable_signature = bytes(signature) + bytes([0])
-    pubkey = PublicKey.from_signature_and_message(recoverable_signature, message_hash, hasher=None)
-    pubkey_bytes = pubkey.format(compressed=False)
-    if pubkey_bytes != umbral_pubkey_bytes:
-        # Extracted public key is not ours, that means v = 1
-        recoverable_signature = bytes(signature) + bytes([1])
+    v = get_signature_recovery_value(message, signature, umbral_pubkey)
+    recoverable_signature = bytes(signature) + v
 
     # Verify signature
     assert signature_verifier.functions.verify(message,

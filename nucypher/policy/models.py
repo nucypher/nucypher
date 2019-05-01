@@ -43,7 +43,7 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature, construct_policy_id
+from nucypher.crypto.utils import canonical_address_from_umbral_key, get_signature_recovery_value, construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -899,17 +899,10 @@ class IndisputableEvidence:
         alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
 
         # Get KFrag signature's v value
-        v_value = 27
-        pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
-                                                     signature=self.cfrag.proof.kfrag_signature,
-                                                     v_value_to_try=v_value)
-        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
-            v_value = 28
-            pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
-                                                         signature=self.cfrag.proof.kfrag_signature,
-                                                         v_value_to_try=v_value)
-        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
-            raise InvalidSignature("Bad signature: Not possible to recover public key from it.")
+        v_value = get_signature_recovery_value(message=hashed_kfrag_validity_message,
+                                               signature=self.cfrag.proof.kfrag_signature,
+                                               public_key=self.verifying_pubkey,
+                                               is_prehashed=True)
 
         # Bundle everything together
         pieces = (
@@ -918,6 +911,6 @@ class IndisputableEvidence:
             uz_xy, u1_y, u1h_xy, u2_y,
             hashed_kfrag_validity_message,
             alice_address,
-            v_value.to_bytes(1, 'big'),
+            v_value,
         )
         return b''.join(pieces)
