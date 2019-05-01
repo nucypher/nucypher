@@ -47,7 +47,8 @@ def escrow_contract(testerchain, token, request):
             _rewardedPeriods=4,
             _minLockedPeriods=2,
             _minAllowableLockedTokens=100,
-            _maxAllowableLockedTokens=max_allowed_locked_tokens
+            _maxAllowableLockedTokens=max_allowed_locked_tokens,
+            _minWorkerPeriods=1
         )
 
         if request.param:
