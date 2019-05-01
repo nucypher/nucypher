@@ -48,7 +48,8 @@ def test_upgrading(testerchain, token):
         _rewardedPeriods=4,
         _minLockedPeriods=2,
         _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=1500
+        _maxAllowableLockedTokens=1500,
+        _minWorkerPeriods=1
     )
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
@@ -63,6 +64,7 @@ def test_upgrading(testerchain, token):
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
+        _minWorkerPeriods=2,
         _valueToCheck=2
     )
 
@@ -124,7 +126,8 @@ def test_upgrading(testerchain, token):
         _rewardedPeriods=2,
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
-        _maxAllowableLockedTokens=2
+        _maxAllowableLockedTokens=2,
+        _minWorkerPeriods=2
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
