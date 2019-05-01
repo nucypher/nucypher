@@ -127,8 +127,8 @@ def test_exact_economics():
                                       365,      # Max periods that will be additionally rewarded (awarded_periods)
                                       30,       # Min amount of periods during which tokens can be locked
                                       15000000000000000000000,    # min locked NuNits
-                                      4000000000000000000000000)  # max locked NuNits
-
+                                      4000000000000000000000000,  # max locked NuNits
+                                      2)        # Min worker periods
     #
     # Token Economics
     #

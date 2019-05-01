@@ -106,6 +106,7 @@ contract MinersEscrow is Issuer {
 
     mapping (uint16 => uint256) public lockedPerPeriod;
     uint16 public minLockedPeriods;
+    uint16 public minWorkerPeriods;
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
@@ -121,6 +122,7 @@ contract MinersEscrow is Issuer {
     * @param _rewardedPeriods Max periods that will be additionally rewarded
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
+    * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
     **/
     constructor(
         NuCypherToken _token,
@@ -130,7 +132,8 @@ contract MinersEscrow is Issuer {
         uint16 _rewardedPeriods,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens
+        uint256 _maxAllowableLockedTokens,
+        uint16 _minWorkerPeriods
     )
         public
         Issuer(
@@ -146,6 +149,7 @@ contract MinersEscrow is Issuer {
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
+        minWorkerPeriods = _minWorkerPeriods;
     }
 
     /**
@@ -373,8 +377,7 @@ contract MinersEscrow is Issuer {
         MinerInfo storage info = minerInfo[msg.sender];
 
         require(_worker != info.worker, "Specified worker is already set for this miner");
-        // TODO move amount of periods to configuration
-        require(currentPeriod >= info.workerStartPeriod.add16(1),
+        require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
             "Not enough time has passed since the previous setting worker");
         require(workerToMiner[_worker] == address(0), "Specified worker is already in use");
         require(minerInfo[_worker].value == 0, "Specified worker is an another miner");
@@ -1219,7 +1222,7 @@ contract MinersEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
-        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
+        require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
         require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
@@ -1279,6 +1282,7 @@ contract MinersEscrow is Issuer {
         minLockedPeriods = escrow.minLockedPeriods();
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
+        minWorkerPeriods = escrow.minWorkerPeriods();
 
         // Create fake period
         lockedPerPeriod[RESERVED_PERIOD] = 111;
