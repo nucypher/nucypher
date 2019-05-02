@@ -810,6 +810,8 @@ class IndisputableEvidence:
             raise ValueError("All correctness keys are required to compute evidence.  "
                              "Either pass them as arguments or in the capsule.")
 
+        # TODO: check that the metadata is correct.
+
     def get_proof_challenge_scalar(self) -> CurveBN:
         umbral_params = default_params()
         e, v, _ = self.capsule.components()

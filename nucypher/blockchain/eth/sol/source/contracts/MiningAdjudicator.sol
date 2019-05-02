@@ -14,6 +14,7 @@ import "zeppelin/math/Math.sol";
 contract MiningAdjudicator is Upgradeable {
 
     using SafeMath for uint256;
+    using UmbralDeserializer for bytes;
 
     event CFragEvaluated(
         bytes32 indexed evaluationHash,
@@ -69,10 +70,10 @@ contract MiningAdjudicator is Upgradeable {
     /**
     * @notice Submit proof that miner created wrong CFrag
     * @param _capsuleBytes Serialized capsule
-    * @param _capsuleSignatureByRequester Signature of Capsule by requester
-    * @param _capsuleSignatureByRequesterAndMiner Signature of Capsule by requester and miner
     * @param _cFragBytes Serialized CFrag
-    * @param _cFragSignatureByMiner Signature of CFrag by miner
+    * @param _cFragSignature Signature of CFrag by miner
+    * @param _taskSignature Signature of task specification by Bob
+    * @param _recoveryValues Recovery values "v" for signatures above
     * @param _requesterPublicKey Requester's public key that was used to sign Capsule
     * @param _minerPublicKey Miner's public key that was used to sign Capsule and CFrag
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
@@ -81,10 +82,10 @@ contract MiningAdjudicator is Upgradeable {
     // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
         bytes memory _capsuleBytes,
-        bytes memory _capsuleSignatureByRequester,
-        bytes memory _capsuleSignatureByRequesterAndMiner,
         bytes memory _cFragBytes,
-        bytes memory _cFragSignatureByMiner,
+        bytes memory _cFragSignature,
+        bytes memory _taskSignature,
+        bytes2 _recoveryValues,
         bytes memory _requesterPublicKey,
         bytes memory _minerPublicKey,
         bytes memory _minerPublicKeySignature,
@@ -92,23 +93,41 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(_minerPublicKey.length == 64 && _requesterPublicKey.length == 64,
-            "Either the requester or miner had an incorrect key length (ie, not 64)");
+
+        require(ReEncryptionValidator.check_serialized_coordinates(_minerPublicKey),
+                "Miner's public key is invalid");
+        require(ReEncryptionValidator.check_serialized_coordinates(_requesterPublicKey),
+                "Requester's public key is invalid");
 
         // Check that CFrag is not evaluated yet
         bytes32 evaluationHash = SignatureVerifier.hash(
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
         require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
-        // Verify requester's signature of Capsule
+        // Verify miner's signature of CFrag
         require(SignatureVerifier.verify(
-                _capsuleBytes, _capsuleSignatureByRequester, _requesterPublicKey, hashAlgorithm));
+                _cFragBytes,
+                abi.encodePacked(_cFragSignature, _recoveryValues[0]),
+                _minerPublicKey,
+                hashAlgorithm),
+                "CFrag signature is invalid"
+        );
 
-        // Verify miner's signatures of capsule and CFrag
+        // Verify miner's signature of taskSignature and that it corresponds to cfrag.proof.metadata
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
         require(SignatureVerifier.verify(
-                _capsuleSignatureByRequester, _capsuleSignatureByRequesterAndMiner, _minerPublicKey, hashAlgorithm));
-        require(SignatureVerifier.verify(
-                _cFragBytes, _cFragSignature, _minerPublicKey, hashAlgorithm));
+                _taskSignature,
+                abi.encodePacked(_cFrag.proof.metadata, _recoveryValues[1]),
+                _minerPublicKey,
+                hashAlgorithm),
+                "Task signature is invalid"
+        );
+
+        // Verify that _taskSignature is bob's signature of the task specification.
+        // A task specification is: capsule + ursula pubkey + alice address + blockhash
+        // TODO: Construct task specification?
+//        require(SignatureVerifier.verify(
+//                ?, _taskSignature, _requesterPublicKey, hashAlgorithm));
 
         // Extract miner's address and check that is real miner
         address miner = SignatureVerifier.recover(
