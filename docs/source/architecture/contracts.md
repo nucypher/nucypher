@@ -83,30 +83,35 @@ When calculating locked tokens using the `MinersEscrow.getLockedTokens(address, 
 ### Ursula Confirms Activity
 
 In order to confirm activity every period, miners call `MinersEscrow.confirmActivity()` wherein activities for the next period are registered.
-The method `MinersEscrow.confirmActivity` is called every time the methods `MinersEscrow.deposit(uint256, uint16)` or `MinersEscrow.lock(uint256, uint16)` is called.
 The miner gets a reward for every confirmed period.
 
 ### Ursula Generates Staking Rewards
 After the period of activity has passed, the miner may call `MinersEscrow.mint()` method which computes and transfers tokens to the miner's account.
-Also note that calls to `MinersEscrow.lock(uint256, uint16)` and `MinersEscrow.confirmActivity()` are included the `MinersEscrow.mint()` method.
+Also note that calls to `MinersEscrow.confirmActivity()` are included the `MinersEscrow.mint()` method.
 
 The reward value depends on the fraction of locked tokens for the period (only those who confirmed activity are accounted for).
 Also, the reward depends on the number of periods during which the tokens will be locked: if the tokens will be locked for half a year, the coefficient is 1.5.
 The minimum coefficient is 1 (when tokens will get unlocked in the next period), and the maximum is 2 (when the time is 1 year or more).
 The reward is calculated separately for each stake that is active during the mining period and all rewards are summed up.
-The order of calling `mint` by miners (e.g. who calls first, second etc) doesn't matter.
-Miners can claim their rewards by using the `withdraw(uint256)` method. Only non-locked tokens can be withdrawn.
+The order of calling `MinersEscrow.mint()` by miners (e.g. who calls first, second etc) doesn't matter.
+Miners can claim their rewards by using the `MinersEscrow.withdraw(uint256)` method. Only non-locked tokens can be withdrawn.
 
 
 ### Ursula Generates Policy Rewards
 Also the miner gets rewards for policies deployed.
-Computation of a policy reward happens every time `mint()` is called by the `updateReward(address, uint16)` method.
+Computation of a policy reward happens every time `MinersEscrow.mint()` is called by the `PolicyManager.updateReward(address, uint16)` method.
 In order to take the reward, the miner needs to call method `withdraw()` of the contract `PolicyManager`.
-The miner can set a minimum reward rate for a policy. For that, the miner should call the `setMinRewardRate(uint256)` method.
+The miner can set a minimum reward rate for a policy. For that, the miner should call the `PolicyManager.setMinRewardRate(uint256)` method.
 
 
 ### NuCypher Partner Ursula Staking
 Some users will have locked but not staked tokens.
-In that case, an instance of the `UserEscrow` contract will hold their tokens (method `initialDeposit(uint256, uint256)`).
-All tokens will be unlocked after a specified time and the user can retrieve them using the `withdraw(uint256)` method.
+In that case, an instance of the `UserEscrow` contract will hold their tokens (method `UserEscrow.initialDeposit(uint256, uint256)`).
+All tokens will be unlocked after a specified time and the user can retrieve them using the `UserEscrow.withdraw(uint256)` method.
 When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow` and `PolicyManager` contracts.
+
+
+### Ursula's Worker
+In the case when Ursula uses an intermediary contract to lock tokens (for example, `UserEscrow`), the staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the `MinersEscrow.setWorker(address)` method.
+Changing a worker is allowed no more than 1 time in `MinersEscrow.minWorkerPeriods()`.
+Only the worker can confirm activity (by default, the worker is the staker).
