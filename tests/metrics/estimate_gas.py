@@ -18,34 +18,29 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import coincurve
+import io
 import json
 import os
-
-from cryptography.hazmat.primitives.asymmetric import ec
-from eth_utils import to_canonical_address
-
-from nucypher.blockchain.economics import TokenEconomics
-from nucypher.policy.models import IndisputableEvidence, Policy
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer, Signature
-
+import re
 import time
 from os.path import abspath, dirname
 
-import io
-import re
-
+from eth_utils import to_canonical_address
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
+from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
+from nucypher.crypto.utils import get_signature_recovery_value
+from nucypher.policy.models import IndisputableEvidence, Policy
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = TokenEconomics()
@@ -121,26 +116,8 @@ class AnalyzeGas:
 
 
 # TODO organize support functions
+# TODO: Repeated method in test_intercontract_integration
 def generate_args_for_slashing(testerchain, miner, corrupt: bool = True):
-    def sign_data(data, umbral_privkey):
-        umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
-
-        # Prepare hash of the data
-        hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-        hash_ctx.update(data)
-        data_hash = hash_ctx.finalize()
-
-        # Sign data and calculate recoverable signature
-        cryptography_priv_key = umbral_privkey.to_cryptography_privkey()
-        signature_der_bytes = cryptography_priv_key.sign(data, ec.ECDSA(hashes.SHA256()))
-        signature = Signature.from_bytes(signature_der_bytes, der_encoded=True)
-        recoverable_signature = bytes(signature) + bytes([0])
-        pubkey_bytes = coincurve.PublicKey.from_signature_and_message(recoverable_signature, data_hash, hasher=None) \
-            .format(compressed=False)
-        if pubkey_bytes != umbral_pubkey_bytes:
-            recoverable_signature = bytes(signature) + bytes([1])
-        return recoverable_signature
-
     delegating_privkey = UmbralPrivateKey.gen_key()
     _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
     signing_privkey = UmbralPrivateKey.gen_key()
@@ -155,18 +132,35 @@ def generate_args_for_slashing(testerchain, miner, corrupt: bool = True):
                                  sign_delegating_key=False,
                                  sign_receiving_key=False)
     capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=os.urandom(34))
-    capsule_bytes = capsule.to_bytes()
+
+    miner_umbral_private_key = UmbralPrivateKey.gen_key()
+    ursula_pubkey = miner_umbral_private_key.get_pubkey()
+    ursula_pubkey_bytes = ursula_pubkey.to_bytes(is_compressed=False)[1:]
+    specification = bytes(capsule) + ursula_pubkey_bytes + bytes(20) + bytes(32)
+
+    ursulas_signer = Signer(miner_umbral_private_key)
+    bobs_signer = Signer(priv_key_bob)
+    task_signature = bytes(bobs_signer(specification))
+
+    metadata = bytes(ursulas_signer(task_signature))
+
+    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
     if corrupt:
         cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-    cfrag_bytes = cfrag.to_bytes()
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(capsule_bytes + cfrag_bytes)
-    requester_umbral_private_key = UmbralPrivateKey.gen_key()
-    requester_umbral_public_key_bytes = requester_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)
-    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
-    miner_umbral_private_key = UmbralPrivateKey.gen_key()
-    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)
+
+    cfrag_signature = bytes(ursulas_signer(bytes(cfrag)))
+
+    bob_pubkey_bytes = pub_key_bob.to_bytes(is_compressed=False)[1:]
+
+    cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
+                                                     signature=cfrag_signature,
+                                                     public_key=ursula_pubkey)
+    task_signature_v = get_signature_recovery_value(message=task_signature,
+                                                    signature=metadata,
+                                                    public_key=ursula_pubkey)
+    recovery_values = cfrag_signature_v + task_signature_v
+
+    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)[1:]
     # Sign Umbral public key using eth-key
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(miner_umbral_public_key_bytes)
@@ -175,16 +169,15 @@ def generate_args_for_slashing(testerchain, miner, corrupt: bool = True):
     sig_key = testerchain.interface.provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
 
-    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
-    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
     evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
     evidence_data = evidence.precompute_values()
-    return (capsule_bytes,
-            capsule_signature_by_requester,
-            capsule_signature_by_requester_and_miner,
-            cfrag_bytes,
-            cfrag_signature_by_miner,
-            requester_umbral_public_key_bytes,
+
+    return (bytes(capsule),
+            bytes(cfrag),
+            cfrag_signature,
+            task_signature,
+            recovery_values,
+            bob_pubkey_bytes,
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
             evidence_data)

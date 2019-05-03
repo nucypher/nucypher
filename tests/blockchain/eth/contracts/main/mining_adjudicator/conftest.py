@@ -34,11 +34,7 @@ def adjudicator_contract(testerchain, escrow, request, slashing_economics):
     contract, _ = testerchain.interface.deploy_contract(
         'MiningAdjudicator',
         escrow.address,
-        slashing_economics.algorithm_sha256,
-        slashing_economics.base_penalty,
-        slashing_economics.penalty_history_coefficient,
-        slashing_economics.percentage_penalty_coefficient,
-        slashing_economics.reward_coefficient)
+        *slashing_economics.deployment_parameters)
 
     if request.param:
         secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)

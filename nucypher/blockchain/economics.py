@@ -177,7 +177,8 @@ class SlashingEconomics:
     reward_coefficient = 2
 
     @property
-    def deployment_parameters(self):
+    def deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
 
         deployment_parameters = [
             self.algorithm_sha256,
@@ -187,4 +188,4 @@ class SlashingEconomics:
             self.reward_coefficient
         ]
 
-        return deployment_parameters
+        return tuple(map(int, deployment_parameters))
