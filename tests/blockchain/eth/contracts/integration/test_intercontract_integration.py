@@ -109,11 +109,16 @@ def adjudicator(testerchain, escrow, slashing_economics):
 
     secret_hash = testerchain.interface.w3.keccak(adjudicator_secret)
 
+    deployment_parameters = list(slashing_economics.deployment_parameters)
+    # TODO: For some reason this test used non-stadard slashing parameters (#354)
+    deployment_parameters[1] = 300
+    deployment_parameters[3] = 2
+
     # Creator deploys the contract
     contract, _ = testerchain.interface.deploy_contract(
         'MiningAdjudicator',
         escrow.address,
-        *slashing_economics.deployment_parameters)
+        *deployment_parameters)
 
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
@@ -771,7 +776,12 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     total_lock = escrow.functions.lockedPerPeriod(period).call()
     alice1_balance = token.functions.balanceOf(alice1).call()
 
-    algorithm_sha256, base_penalty, *coefficients = slashing_economics.deployment_parameters
+    deployment_parameters = list(slashing_economics.deployment_parameters)
+    # TODO: For some reason this test used non-stadard slashing parameters (#354)
+    deployment_parameters[1] = 300
+    deployment_parameters[3] = 2
+
+    algorithm_sha256, base_penalty, *coefficients = deployment_parameters
     penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
 
     data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula1)
