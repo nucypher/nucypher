@@ -354,7 +354,7 @@ jobs:
 
   basics:
     <<: *python_36_base
-    parallelism: 2
+    parallelism: 1
     steps:
       - prepare_environment
       - run:
