@@ -28,7 +28,7 @@ workflows:
               only: /.*/
           requires:
             - pipenv_install_36
-      - crypto:
+      - basics:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -36,13 +36,6 @@ workflows:
           requires:
             - pipenv_install_36
       - network:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - pipenv_install_36
-      - keystore:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -62,9 +55,8 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - crypto
+            - basics
             - network
-            - keystore
       - agents:
           context: "NuCypher Tests"
           filters:
@@ -93,16 +85,6 @@ workflows:
           requires:
             - blockchain
             # - contracts  (Removed dependency to speed up overall workflow execution)
-      - config:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - blockchain
-            - crypto
-            - network
-            - keystore
       - cli:
           context: "NuCypher Tests"
           filters:
@@ -112,7 +94,6 @@ workflows:
             - agents
             - actors
             - deployers
-            - config
             - character
       - finnegans_wake_demo:
           context: "NuCypher Tests"
@@ -371,24 +352,15 @@ jobs:
             pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
-  config:
+  basics:
     <<: *python_36_base
     parallelism: 2
     steps:
       - prepare_environment
       - run:
-          name: Node Configuration Tests
+          name: Tests for Crypto functions, Node Configuration and Keystore
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/config/**/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
-
-  crypto:
-    <<: *python_36_base
-    steps:
-      - prepare_environment
-      - run:
-          name: Crypto Character Tests
-          command: pipenv run pytest tests/crypto --cov=nucypher --cov-report xml:reports/coverage.xml
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   network:
@@ -399,17 +371,6 @@ jobs:
           name: Network Tests
           command: |
             pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
-
-  keystore:
-    <<: *python_36_base
-    parallelism: 2
-    steps:
-      - prepare_environment
-      - run:
-          name: Keystore Tests
-          command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/keystore/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
