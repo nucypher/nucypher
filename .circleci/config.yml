@@ -143,13 +143,13 @@ workflows:
               only: /.*/
           requires:
           - cli
-      - mypy:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - cli
+#      - mypy:  # Disable mypy for the moment as it was wasting a CircleCI container for nothing
+#          context: "NuCypher Tests"
+#          filters:
+#            tags:
+#              only: /.*/
+#          requires:
+#            - cli
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
