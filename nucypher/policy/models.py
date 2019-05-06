@@ -33,7 +33,6 @@ from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
-from umbral.point import Point
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice, Bob, Ursula, Character
@@ -43,7 +42,10 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key, get_signature_recovery_value, construct_policy_id
+from nucypher.crypto.utils import (canonical_address_from_umbral_key,
+                                   construct_policy_id,
+                                   get_coordinates_as_bytes,
+                                   get_signature_recovery_value)
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -829,9 +831,7 @@ class IndisputableEvidence:
 
         hash_input = (e, e1, e2, v, v1, v2, u, u1, u2, metadata)
 
-        h = hash_to_curvebn(*hash_input,
-                            params=umbral_params,
-                            hash_class=ExtendedKeccak)
+        h = hash_to_curvebn(*hash_input, params=umbral_params, hash_class=ExtendedKeccak)
         return h
 
     def precompute_values(self) -> bytes:
@@ -858,31 +858,24 @@ class IndisputableEvidence:
         vz = z * v
         uz = z * u
 
-        def raw_bytes_from_point(point: Point, only_y_coord=False) -> bytes:
-            uncompressed_point_bytes = point.to_bytes(is_compressed=False)
-            if only_y_coord:
-                y_coord_start = (1 + Point.expected_bytes_length(is_compressed=False)) // 2
-                return uncompressed_point_bytes[y_coord_start:]
-            else:
-                return uncompressed_point_bytes[1:]
-
+        only_y_coord = dict(x_coord=False, y_coord=True)
         # E points
-        e_y = raw_bytes_from_point(e, only_y_coord=True)
-        ez_xy = raw_bytes_from_point(ez)
-        e1_y = raw_bytes_from_point(e1, only_y_coord=True)
-        e1h_xy = raw_bytes_from_point(e1h)
-        e2_y = raw_bytes_from_point(e2, only_y_coord=True)
+        e_y = get_coordinates_as_bytes(e, **only_y_coord)
+        ez_xy = get_coordinates_as_bytes(ez)
+        e1_y = get_coordinates_as_bytes(e1, **only_y_coord)
+        e1h_xy = get_coordinates_as_bytes(e1h)
+        e2_y = get_coordinates_as_bytes(e2, **only_y_coord)
         # V points
-        v_y = raw_bytes_from_point(v, only_y_coord=True)
-        vz_xy = raw_bytes_from_point(vz)
-        v1_y = raw_bytes_from_point(v1, only_y_coord=True)
-        v1h_xy = raw_bytes_from_point(v1h)
-        v2_y = raw_bytes_from_point(v2, only_y_coord=True)
+        v_y = get_coordinates_as_bytes(v, **only_y_coord)
+        vz_xy = get_coordinates_as_bytes(vz)
+        v1_y = get_coordinates_as_bytes(v1, **only_y_coord)
+        v1h_xy = get_coordinates_as_bytes(v1h)
+        v2_y = get_coordinates_as_bytes(v2, **only_y_coord)
         # U points
-        uz_xy = raw_bytes_from_point(uz)
-        u1_y = raw_bytes_from_point(u1, only_y_coord=True)
-        u1h_xy = raw_bytes_from_point(u1h)
-        u2_y = raw_bytes_from_point(u2, only_y_coord=True)
+        uz_xy = get_coordinates_as_bytes(uz)
+        u1_y = get_coordinates_as_bytes(u1, **only_y_coord)
+        u1h_xy = get_coordinates_as_bytes(u1h)
+        u2_y = get_coordinates_as_bytes(u2, **only_y_coord)
 
         # Get hashed KFrag validity message
         hash_function = hashes.Hash(hashes.SHA256(), backend=backend)

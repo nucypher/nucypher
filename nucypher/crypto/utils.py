@@ -19,6 +19,7 @@ from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
 from umbral.keys import UmbralPublicKey
+from umbral.point import Point
 from umbral.signing import Signature
 
 from nucypher.crypto.api import keccak_digest
@@ -113,3 +114,16 @@ def get_signature_recovery_value(message: bytes,
     else:
         raise ValueError("Signature recovery failed. "
                          "Either the message, the signature or the public key is not correct")
+
+
+def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey], x_coord=True, y_coord=True) -> bytes:
+    coordinates_as_bytes = point.to_bytes(is_compressed=False)[1:]
+    middle = len(coordinates_as_bytes)//2
+    if x_coord and y_coord:
+        return coordinates_as_bytes
+    elif x_coord:
+        return coordinates_as_bytes[:middle]
+    elif y_coord:
+        return coordinates_as_bytes[middle:]
+    else:
+        raise ValueError("At least one coordinate must be set")
