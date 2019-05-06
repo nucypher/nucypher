@@ -893,16 +893,6 @@ class Teacher:
         nodes_to_consider = list(self.known_nodes.values()) + [self]
         return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
 
-    def _stamp_has_valid_wallet_signature(self):
-        signature_bytes = self._evidence_of_decentralized_identity
-        if signature_bytes is NOT_SIGNED:
-            return False
-        else:
-            signature = EthSignature(signature_bytes)
-        proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
-        proper_address = proper_pubkey.to_checksum_address()
-        return proper_address == self.checksum_public_address
-
     def update_snapshot(self, checksum, updated, number_of_known_nodes):
         # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
         # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
