@@ -80,15 +80,6 @@ workflows:
             - crypto
             - network
             - keystore
-      - learning:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-          - crypto
-          - network
-          - keystore
       - agents:
           context: "NuCypher Tests"
           filters:
@@ -444,16 +435,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/characters/**/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
-
-  learning:
-    <<: *python_36_base
-    steps:
-      - prepare_environment
-      - run:
-          name: Learner Tests
-          command: pipenv run pytest tests/learning --cov=nucypher --cov-report xml:reports/coverage.xml
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   heartbeat_demo:
