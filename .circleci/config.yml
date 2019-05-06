@@ -27,50 +27,35 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pip_install_36
             - pipenv_install_36
-            - pip_install_37
-            - pipenv_install_37
       - crypto:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_36
             - pipenv_install_36
-            - pip_install_37
-            - pipenv_install_37
       - network:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_36
             - pipenv_install_36
-            - pip_install_37
-            - pipenv_install_37
       - keystore:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_36
             - pipenv_install_36
-            - pip_install_37
-            - pipenv_install_37
       - blockchain:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install_36
             - pipenv_install_36
-            - pip_install_37
-            - pipenv_install_37
       - character:
           context: "NuCypher Tests"
           filters:
@@ -94,10 +79,10 @@ workflows:
             tags:
               only: /.*/
           requires:   #  (Prioritizing this task given that it's awfully slow)
-              - pip_install_36
+#              - pip_install_36
               - pipenv_install_36
-              - pip_install_37
-              - pipenv_install_37
+#              - pip_install_37
+#              - pipenv_install_37
             # - blockchain
             # - contracts
       - deployers:
