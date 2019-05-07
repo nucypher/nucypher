@@ -68,8 +68,13 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+<<<<<<< HEAD
 from nucypher.status.status_app import UrsulaStatusApp
 
+=======
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.status.status_app import UrsulaStatusApp
+>>>>>>> 1d0b38e5... Initial submission to update Moe and Ursula network status pages to use Flask/Dash
 
 class Alice(Character, BlockchainPolicyAuthor):
 
