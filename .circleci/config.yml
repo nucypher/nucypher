@@ -48,86 +48,88 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - basics
-            - network
+            - pipenv_install_36
       - agents:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - basics
-            # - contracts  (Removed dependency to speed up overall workflow execution)
+            - pipenv_install_36
       - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
-          requires:   #  (Prioritizing this task given that it's awfully slow)
-#              - pip_install_36
-              - pipenv_install_36
-#              - pip_install_37
-#              - pipenv_install_37
-            # - blockchain
-            # - contracts
+          requires:
+            - pipenv_install_36
       - deployers:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - basics
-            # - contracts  (Removed dependency to speed up overall workflow execution)
+            - pipenv_install_36
       - cli:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - agents
-            - actors
-            - deployers
+            - pipenv_install_36
+      - tests_ok:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
+            - network
             - character
+            - cli
+            - deployers
+#            - agents     # These jobs are left out to not block execution of workflow
+#            - actors
+#            - contracts
       - finnegans_wake_demo:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - cli
+            - tests_ok
       - heartbeat_demo:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-          - cli
+            - tests_ok
 #      - mypy:  # Disable mypy for the moment as it was wasting a CircleCI container for nothing
 #          context: "NuCypher Tests"
 #          filters:
 #            tags:
 #              only: /.*/
 #          requires:
-#            - cli
+#            - tests_ok
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - cli
+            - tests_ok
       - build_docs:
           filters:
             tags:
               only: /.*/
           requires:
-            - cli
+            - tests_ok
       - test_build:
           filters:
             tags:
               only: /.*/
           requires:
-            - cli
             - build_docs
             - heartbeat_demo
             - finnegans_wake_demo
@@ -293,13 +295,13 @@ jobs:
 
   agents:
     <<: *python_36_base
-    parallelism: 6
+    parallelism: 4
     steps:
       - prepare_environment
       - run:
           name: Blockchain Agent Tests
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/entities/agents/**/*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   actors:
@@ -310,7 +312,7 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml  $(circleci tests glob "tests/blockchain/eth/entities/actors/**/*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml  $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   deployers:
@@ -341,9 +343,9 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Tests for Crypto functions, Node Configuration and Keystore
+          name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   network:
@@ -367,6 +369,24 @@ jobs:
             pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
+  cli:
+    <<: *python_36_base
+    parallelism: 6
+    steps:
+      - prepare_environment
+      - run:
+          name: Nucypher CLI Tests
+          command: |
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
+      - capture_test_results
+
+  tests_ok:
+    <<: *python_36_base
+    steps:
+      - run:
+          name: Nucypher CLI Tests
+          command: echo "Test modules succeeded"
+
   heartbeat_demo:
     <<: *python_36_base
     steps:
@@ -388,17 +408,6 @@ jobs:
           command: ./scripts/demos/run_finnegans_wake_demo.sh
       - store_artifacts:
           path: /tmp/ursulas-logs
-
-  cli:
-    <<: *python_36_base
-    parallelism: 6
-    steps:
-      - prepare_environment
-      - run:
-          name: Nucypher CLI Tests
-          command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
-      - capture_test_results
 
   mypy:
     <<: *python_36_base
