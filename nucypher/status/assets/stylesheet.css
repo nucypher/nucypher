@@ -1,0 +1,70 @@
+body{
+    font-size: 1.5em;
+    line-height: 1.6;
+    font-weight: 400;
+    font-family: Arial,sans-serif;
+    color: #222;
+}
+
+.banner {
+    height: 150px;
+    margin: 0px -10px 10px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 2px;
+}
+
+.banner h2{
+    color: rgb(30,101,243);
+    padding-top: 10px;
+    margin-left: 2%;
+    display: inline-block;
+}
+
+.banner Img{
+    float: left;
+    right: 20px;
+    height: 150px;
+}
+
+.app_name {
+    color: rgb(30,101,243);
+    padding-top: 10px;
+    display: inline-block;
+}
+
+.nucypher-nickname-icon {
+    border-width: 10px;
+    border-style: solid;
+    margin: 3px;
+    padding: 3px;
+    text-align: center;
+    box-shadow: 1px 1px black, -1px -1px black;
+    width: 100px;
+}
+
+.small {
+    float: left;
+    width: 100%;
+    text-shadow: none;
+    font-family: sans;
+    font-size: 12px;
+}
+
+.symbols {
+    float: left;
+    width: 100%;
+}
+
+.single-symbol {
+    font-size: 3em;
+    color: black;
+    text-shadow: 1px 1px black, -1px -1px black;
+}
+
+.address, .small-address {
+    font-family: monospace;
+}
+
+.small-address {
+    text-shadow: none;
+}
