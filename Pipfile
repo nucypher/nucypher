@@ -33,6 +33,11 @@ click = ">=7.0"
 colorama = "*"
 boto3 = "*"
 flask-limiter = "*"
+jinja2 = ">=2.10.1"
+dash = "==0.34.0"
+dash-core-components = "==0.41.0"
+dash-html-components = "==0.13.4"
+dash-dangerously-set-inner-html = "==0.0.2"
 
 [dev-packages]
 # Pytest
