@@ -844,6 +844,8 @@ class Ursula(Teacher, Character, Miner):
                          timestamp=timestamp,
                          identity_evidence=identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
+                         # FIXME: When is_me and not federated_only, the stamp is substantiated twice
+                         # See line 728 above.
                          )
 
         #

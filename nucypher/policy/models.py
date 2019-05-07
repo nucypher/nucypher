@@ -593,7 +593,7 @@ class WorkOrder:
         self.tasks = tasks
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
-        self.blockhash = blockhash or b'\x00' * 32  # TODO
+        self.blockhash = blockhash or b'\x00' * 32  # TODO: #259
         self.completed = False
 
     def __repr__(self):
@@ -688,14 +688,14 @@ class WorkOrder:
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
             if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
                 raise InvalidSignature(f"Invalid metadata for {cfrag}.")
-                # TODO: Instead of raising, we should do something
+                # TODO: Instead of raising, we should do something (#957)
 
             # Validate re-encryption signatures
             if reencryption_signature.verify(bytes(cfrag), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
-                # TODO: Instead of raising, we should do something
+                # TODO: Instead of raising, we should do something (#957)
 
         for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
             task.attach_work_result(cfrag, reencryption_signature)
@@ -784,6 +784,7 @@ class Revocation:
         return True
 
 
+# TODO: Change name to EvaluationEvidence
 class IndisputableEvidence:
 
     def __init__(self,
