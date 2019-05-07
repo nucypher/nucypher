@@ -19,18 +19,20 @@ import pytest
 
 from umbral.keys import UmbralPrivateKey
 
+from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.utils import get_coordinates_as_bytes
 
 
 def test_coordinates_as_bytes():
     pubkey = UmbralPrivateKey.gen_key().pubkey
     point = pubkey.point_key
+    stamp = SignatureStamp(verifying_key=pubkey)
 
     x, y = point.to_affine()
     x = x.to_bytes(32, 'big')
     y = y.to_bytes(32, 'big')
 
-    for p in (point, pubkey):
+    for p in (point, pubkey, stamp):
         assert get_coordinates_as_bytes(p) == x + y
         assert get_coordinates_as_bytes(p, x_coord=False) == y
         assert get_coordinates_as_bytes(p, y_coord=False) == x

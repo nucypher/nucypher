@@ -18,11 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
+
 from umbral.keys import UmbralPublicKey
 from umbral.point import Point
 from umbral.signing import Signature
 
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.signing import SignatureStamp
 
 
 def fingerprint_from_key(public_key: Any):
@@ -116,7 +118,14 @@ def get_signature_recovery_value(message: bytes,
                          "Either the message, the signature or the public key is not correct")
 
 
-def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey], x_coord=True, y_coord=True) -> bytes:
+def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey, SignatureStamp],
+                             x_coord=True,
+                             y_coord=True) -> bytes:
+
+    try:
+        point = point.as_umbral_pubkey()
+    except AttributeError:
+        pass
     coordinates_as_bytes = point.to_bytes(is_compressed=False)[1:]
     middle = len(coordinates_as_bytes)//2
     if x_coord and y_coord:
