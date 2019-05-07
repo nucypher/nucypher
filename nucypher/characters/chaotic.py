@@ -30,6 +30,7 @@ from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.status.status_app import MoeStatusApp
 
 
 class Moe(Character):
@@ -97,12 +98,18 @@ class Moe(Character):
         self.rest_app = Flask("fleet-monitor", template_folder=TEMPLATES_DIR)
         rest_app = self.rest_app
 
-        @rest_app.route("/")
+        @rest_app.route("/status")
         def status():
             try:
                 return render_template('monitor.html')
             except Exception as e:
                 self.log.debug(str(e))
+
+
+        status_app = MoeStatusApp(moe=self,
+                                  title='Moe Monitoring Application',
+                                  flask_server=self.rest_app,
+                                  route_url='/status2/')
 
         #
         # Server
