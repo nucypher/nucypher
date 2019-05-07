@@ -543,11 +543,11 @@ class TreasureMap:
 class WorkOrder:
 
     class Task:
-        def __init__(self, capsule, signature, cfrag=None, reencryption_signature=None):
+        def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
-            self.reencryption_signature = reencryption_signature
+            self.cfrag_signature = cfrag_signature
 
         def get_specification(self, ursula_pubkey, alice_address, blockhash):
             task_specification = (bytes(self.capsule),
@@ -558,8 +558,8 @@ class WorkOrder:
 
         def __bytes__(self):
             data = bytes(self.capsule) + bytes(self.signature)
-            if self.cfrag and self.reencryption_signature:
-                data += bytes(self.cfrag) + bytes(self.reencryption_signature)
+            if self.cfrag and self.cfrag_signature:
+                data += bytes(self.cfrag) + bytes(self.cfrag_signature)
             return data
 
         @classmethod
@@ -576,7 +576,7 @@ class WorkOrder:
 
         def attach_work_result(self, cfrag, reencryption_signature):
             self.cfrag = cfrag
-            self.reencryption_signature = reencryption_signature
+            self.cfrag_signature = reencryption_signature
 
     def __init__(self,
                  bob: Bob,
@@ -682,7 +682,7 @@ class WorkOrder:
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
             # Validate re-encryption metadata
             metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
@@ -691,14 +691,14 @@ class WorkOrder:
                 # TODO: Instead of raising, we should do something (#957)
 
             # Validate re-encryption signatures
-            if reencryption_signature.verify(bytes(cfrag), ursula_verifying_key):
+            if cfrag_signature.verify(bytes(cfrag), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
                 # TODO: Instead of raising, we should do something (#957)
 
-        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
-            task.attach_work_result(cfrag, reencryption_signature)
+        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+            task.attach_work_result(cfrag, cfrag_signature)
 
         self.completed = maya.now()
         return good_cfrags
@@ -788,18 +788,17 @@ class Revocation:
 class IndisputableEvidence:
 
     def __init__(self,
-                 capsule: Capsule,
-                 cfrag: CapsuleFrag,
-                 ursula,
+                 task: 'WorkOrder.Task',
+                 work_order: 'WorkOrder',
                  delegating_pubkey: UmbralPublicKey = None,
                  receiving_pubkey: UmbralPublicKey = None,
                  verifying_pubkey: UmbralPublicKey = None,
                  ) -> None:
-        self.capsule = capsule
-        self.cfrag = cfrag
-        self.ursula = ursula
 
-        keys = capsule.get_correctness_keys()
+        self.task = task
+        self.work_order = work_order
+
+        keys = self.task.capsule.get_correctness_keys()
         key_types = ("delegating", "receiving", "verifying")
         if all(keys[key_type] for key_type in key_types):
             self.delegating_pubkey = keys["delegating"]
@@ -816,17 +815,20 @@ class IndisputableEvidence:
         # TODO: check that the metadata is correct.
 
     def get_proof_challenge_scalar(self) -> CurveBN:
-        umbral_params = default_params()
-        e, v, _ = self.capsule.components()
+        capsule = self.task.capsule
+        cfrag = self.task.cfrag
 
-        e1 = self.cfrag.point_e1
-        v1 = self.cfrag.point_v1
-        e2 = self.cfrag.proof.point_e2
-        v2 = self.cfrag.proof.point_v2
+        umbral_params = default_params()
+        e, v, _ = capsule.components()
+
+        e1 = cfrag.point_e1
+        v1 = cfrag.point_v1
+        e2 = cfrag.proof.point_e2
+        v2 = cfrag.proof.point_v2
         u = umbral_params.u
-        u1 = self.cfrag.proof.point_kfrag_commitment
-        u2 = self.cfrag.proof.point_kfrag_pok
-        metadata = self.cfrag.proof.metadata
+        u1 = cfrag.proof.point_kfrag_commitment
+        u2 = cfrag.proof.point_kfrag_pok
+        metadata = cfrag.proof.metadata
 
         from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 
@@ -836,17 +838,20 @@ class IndisputableEvidence:
         return h
 
     def precompute_values(self) -> bytes:
+        capsule = self.task.capsule
+        cfrag = self.task.cfrag
 
         umbral_params = default_params()
-        e, v, _ = self.capsule.components()
+        e, v, _ = capsule.components()
 
-        e1 = self.cfrag.point_e1
-        v1 = self.cfrag.point_v1
-        e2 = self.cfrag.proof.point_e2
-        v2 = self.cfrag.proof.point_v2
+        e1 = cfrag.point_e1
+        v1 = cfrag.point_v1
+        e2 = cfrag.proof.point_e2
+        v2 = cfrag.proof.point_v2
         u = umbral_params.u
-        u1 = self.cfrag.proof.point_kfrag_commitment
-        u2 = self.cfrag.proof.point_kfrag_pok
+        u1 = cfrag.proof.point_kfrag_commitment
+        u2 = cfrag.proof.point_kfrag_pok
+        metadata = cfrag.proof.metadata
 
         h = self.get_proof_challenge_scalar()
 
@@ -854,7 +859,7 @@ class IndisputableEvidence:
         v1h = h * v1
         u1h = h * u1
 
-        z = self.cfrag.proof.bn_sig
+        z = cfrag.proof.bn_sig
         ez = z * e
         vz = z * v
         uz = z * u
@@ -881,8 +886,8 @@ class IndisputableEvidence:
         # Get hashed KFrag validity message
         hash_function = hashes.Hash(hashes.SHA256(), backend=backend)
 
-        kfrag_id = self.cfrag.kfrag_id
-        precursor = self.cfrag.point_precursor
+        kfrag_id = cfrag.kfrag_id
+        precursor = cfrag.point_precursor
         delegating_pubkey = self.delegating_pubkey
         receiving_pubkey = self.receiving_pubkey
 
