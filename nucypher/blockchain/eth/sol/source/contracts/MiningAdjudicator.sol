@@ -73,7 +73,6 @@ contract MiningAdjudicator is Upgradeable {
     * @param _cFragBytes Serialized CFrag
     * @param _cFragSignature Signature of CFrag by miner
     * @param _taskSignature Signature of task specification by Bob
-    * @param _recoveryValues Recovery values "v" for signatures above
     * @param _requesterPublicKey Requester's public key that was used to sign Capsule
     * @param _minerPublicKey Miner's public key that was used to sign Capsule and CFrag
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
@@ -85,7 +84,6 @@ contract MiningAdjudicator is Upgradeable {
         bytes memory _cFragBytes,
         bytes memory _cFragSignature,
         bytes memory _taskSignature,
-        bytes2 _recoveryValues,
         bytes memory _requesterPublicKey,
         bytes memory _minerPublicKey,
         bytes memory _minerPublicKeySignature,
@@ -104,20 +102,22 @@ contract MiningAdjudicator is Upgradeable {
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
         require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
+        UmbralDeserializer.PreComputedData memory precomp = _preComputedData.toPreComputedData();
+
         // Verify miner's signature of CFrag
         require(SignatureVerifier.verify(
                 _cFragBytes,
-                abi.encodePacked(_cFragSignature, _recoveryValues[0]),
+                abi.encodePacked(_cFragSignature, precomp.lostBytes[1]),
                 _minerPublicKey,
                 hashAlgorithm),
                 "CFrag signature is invalid"
         );
 
         // Verify miner's signature of taskSignature and that it corresponds to cfrag.proof.metadata
-        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         require(SignatureVerifier.verify(
                 _taskSignature,
-                abi.encodePacked(_cFrag.proof.metadata, _recoveryValues[1]),
+                abi.encodePacked(cFrag.proof.metadata, precomp.lostBytes[2]),
                 _minerPublicKey,
                 hashAlgorithm),
                 "Task signature is invalid"

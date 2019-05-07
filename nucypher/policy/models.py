@@ -26,7 +26,7 @@ from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NO
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Generator, List, Set, Optional
+from typing import Generator, List, Set, Optional, Tuple
 
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
@@ -796,7 +796,10 @@ class IndisputableEvidence:
                  ) -> None:
 
         self.task = task
-        self.work_order = work_order
+        self.ursula_pubkey = work_order.ursula.stamp.as_umbral_pubkey()
+        self.bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
+        self.blockhash = work_order.blockhash
+        self.alice_address = work_order.alice_address
 
         keys = self.task.capsule.get_correctness_keys()
         key_types = ("delegating", "receiving", "verifying")
@@ -896,14 +899,28 @@ class IndisputableEvidence:
         hash_function.update(kfrag_validity_message)
         hashed_kfrag_validity_message = hash_function.finalize()
 
-        # Get Alice's verifying pubkey as ETH address
-        alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
-
         # Get KFrag signature's v value
-        v_value = get_signature_recovery_value(message=hashed_kfrag_validity_message,
-                                               signature=self.cfrag.proof.kfrag_signature,
-                                               public_key=self.verifying_pubkey,
-                                               is_prehashed=True)
+        kfrag_signature_v = get_signature_recovery_value(message=hashed_kfrag_validity_message,
+                                                         signature=cfrag.proof.kfrag_signature,
+                                                         public_key=self.verifying_pubkey,
+                                                         is_prehashed=True)
+
+        cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
+                                                         signature=self.task.cfrag_signature,
+                                                         public_key=self.ursula_pubkey)
+
+        metadata_signature_v = get_signature_recovery_value(message=self.task.signature,
+                                                            signature=metadata,
+                                                            public_key=self.ursula_pubkey)
+
+        specification = self.task.get_specification(ursula_pubkey=self.ursula_pubkey,
+                                                    alice_address=self.alice_address,
+                                                    blockhash=self.blockhash)
+        specification_signature_v = get_signature_recovery_value(message=specification,
+                                                                 signature=self.task.signature,
+                                                                 public_key=self.bob_pubkey)
+
+        ursula_pubkey_prefix_byte = bytes(self.ursula_pubkey)[0:1]
 
         # Bundle everything together
         pieces = (
@@ -911,7 +928,12 @@ class IndisputableEvidence:
             v_y, vz_xy, v1_y, v1h_xy, v2_y,
             uz_xy, u1_y, u1h_xy, u2_y,
             hashed_kfrag_validity_message,
-            alice_address,
-            v_value,
+            self.alice_address,
+            # The following single-byte values are interpreted as a single bytes5 variable by the Solidity contract
+            kfrag_signature_v,
+            cfrag_signature_v,
+            metadata_signature_v,
+            specification_signature_v,
+            ursula_pubkey_prefix_byte,
         )
         return b''.join(pieces)

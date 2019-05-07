@@ -58,7 +58,7 @@ library UmbralDeserializer {
         uint256 pointU2yCoord;
         bytes32 hashedKFragValidityMessage;
         address alicesKeyAsAddress;
-        byte kfragSignatureV;
+        bytes5  lostBytes;
     }
 
     uint256 constant BIGNUM_SIZE = 32;
@@ -68,7 +68,7 @@ library UmbralDeserializer {
     uint256 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
     uint256 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
     uint256 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
-    uint256 constant PRECOMPUTED_DATA_SIZE = (20 * BIGNUM_SIZE) + 32 + 20 + 1;
+    uint256 constant PRECOMPUTED_DATA_SIZE = (20 * BIGNUM_SIZE) + 32 + 20 + 5;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -214,8 +214,14 @@ library UmbralDeserializer {
         data.alicesKeyAsAddress = address(bytes20(getBytes32(pointer)));
         pointer += 20;
 
-        data.kfragSignatureV = getByte(pointer);
-        pointer += 1;
+        // Lost bytes: a bytes5 variable holding the following byte values:
+        //     0: kfrag signature recovery value v
+        //     1: cfrag signature recovery value v
+        //     2: metadata signature recovery value v
+        //     3: specification signature recovery value v
+        //     5: ursula pubkey sign byte
+        data.lostBytes = bytes5(getBytes32(pointer));
+        pointer += 5;
 
         require(pointer == initial_pointer + PRECOMPUTED_DATA_SIZE);
     }

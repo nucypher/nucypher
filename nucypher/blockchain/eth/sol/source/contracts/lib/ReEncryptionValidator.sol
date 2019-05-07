@@ -58,7 +58,7 @@ library ReEncryptionValidator {
         // Extract Alice's address and check that it corresponds to the one provided
         address alicesAddress = SignatureVerifier.recover(
             _precomputed.hashedKFragValidityMessage,
-            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
+            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.lostBytes[0])
         );
         require(alicesAddress == _precomputed.alicesKeyAsAddress, "Bad KFrag signature");
 
