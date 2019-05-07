@@ -20,7 +20,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
@@ -68,6 +68,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.status.status_app import UrsulaStatusApp
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -879,6 +880,8 @@ class Ursula(Teacher, Character, Worker):
                     db_filepath=db_filepath,
                     serving_domains=domains,
                 )
+
+                self.status_app = UrsulaStatusApp(self, self.nickname, rest_app, '/status2/')
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
