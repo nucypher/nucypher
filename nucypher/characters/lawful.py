@@ -390,12 +390,12 @@ class Bob(Character):
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    class IncorrectCFragReceived(Exception):
+    class IncorrectCFragsReceived(Exception):
         """
-        Raised when Bob detects an incorrect CFrag returned by some Ursula
+        Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
-        def __init__(self, evidence):
-            self.evidence = evidence
+        def __init__(self, grievances):
+            self.grievances = grievances
 
     def __init__(self, controller=True, *args, **kwargs) -> None:
         Character.__init__(self, *args, **kwargs)
@@ -609,6 +609,7 @@ class Bob(Character):
         work_orders = self.generate_work_orders(map_id, capsule)
 
         cleartexts = []
+        the_airing_of_grievances = []
         work_orders = work_orders.values()
         for work_order in work_orders:
             try:
@@ -616,28 +617,30 @@ class Bob(Character):
             except requests.exceptions.ConnectTimeout:
                 continue
 
-            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
+            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
             try:
                 message_kit.capsule.attach_cfrag(cfrag)
                 if len(message_kit.capsule._attached_cfrags) >= m:
                     break
             except UmbralCorrectnessError:
-                evidence = self.collect_evidence(capsule=capsule,
-                                                 cfrag=cfrag,
-                                                 ursula=work_order.ursula)
-
-                # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
-                raise self.IncorrectCFragReceived(evidence)
+                task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                from nucypher.policy.models import IndisputableEvidence
+                evidence = IndisputableEvidence(task=task, work_order=work_order)
+                # I got a lot of problems with you people ...
+                the_airing_of_grievances.append(evidence)
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+
+        if the_airing_of_grievances:
+            # ... and now you're gonna hear about it!
+            raise self.IncorrectCFragsReceived(the_airing_of_grievances)
+            # TODO: Find a better strategy for handling incorrect CFrags #500
+            #  - There maybe enough cfrags to still open the capsule
+            #  - This line is unreachable when NotEnoughUrsulas
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
         return cleartexts
-
-    def collect_evidence(self, capsule, cfrag, ursula):
-        from nucypher.policy.models import IndisputableEvidence
-        return IndisputableEvidence(capsule, cfrag, ursula)
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):
 
