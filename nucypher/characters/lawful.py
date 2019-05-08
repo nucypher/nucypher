@@ -34,6 +34,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from flask import request, Response
+from nucypher.status.status_app import UrsulaStatusApp
 from twisted.internet import threads
 from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
@@ -68,7 +69,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.status.status_app import UrsulaStatusApp
+from nucypher.network.status.status_app import UrsulaStatusApp
 
 
 class Alice(Character, BlockchainPolicyAuthor):
