@@ -1,17 +1,18 @@
 import json
-import os
-
-import click
-import eth_utils
 import math
-import maya
+import os
 import time
-from decimal import Decimal
-from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+import eth_utils
+import maya
+from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from flask import Flask, render_template, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from hendrix.deploy.base import HendrixDeploy
+from hendrix.experience import hey_joe
 from nacl.hash import sha256
 from sqlalchemy import create_engine, or_
 from twisted.internet import threads, reactor
@@ -21,6 +22,7 @@ from twisted.logger import Logger
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -49,8 +51,7 @@ class Moe(Character):
         def record_fleet_state(self, *args, **kwargs):
             new_state_or_none = super().record_fleet_state(*args, **kwargs)
             if new_state_or_none:
-                checksum, new_state = new_state_or_none
-                hey_joe.send({checksum: self.abridged_state_details(new_state)}, "states")
+                hey_joe.send(None, "states")
             return new_state_or_none
 
     tracker_class = MonitoringTracker
@@ -68,7 +69,6 @@ class Moe(Character):
         return new_node_or_none
 
     def learn_from_teacher_node(self, *args, **kwargs):
-        teacher = self.current_teacher_node(cycle=False)
         new_nodes = super().learn_from_teacher_node(*args, **kwargs)
         hey_joe.send({teacher.checksum_address: Moe.MonitoringTracker.abridged_node_details(teacher)}, "nodes")
         new_teacher = self.current_teacher_node(cycle=False)
@@ -82,11 +82,11 @@ class Moe(Character):
         #
 
         def send_states(subscriber):
-            message = ["states", self.known_nodes.abridged_states_dict()]
+            message = ["states", None]
             subscriber.sendMessage(json.dumps(message).encode())
 
         def send_nodes(subscriber):
-            message = ["nodes", self.known_nodes.abridged_nodes_dict()]
+            message = ["nodes", None]
             subscriber.sendMessage(json.dumps(message).encode())
 
         websocket_service = hey_joe.WebSocketService("127.0.0.1", ws_port)
@@ -96,22 +96,13 @@ class Moe(Character):
         #
         # WSGI Service
         #
-
         self.rest_app = Flask("fleet-monitor", template_folder=TEMPLATES_DIR)
         rest_app = self.rest_app
-
-        @rest_app.route("/status")
-        def status():
-            try:
-                return render_template('monitor.html')
-            except Exception as e:
-                self.log.debug(str(e))
-
-
-        status_app = MoeStatusApp(moe=self,
-                                  title='Moe Monitoring Application',
-                                  flask_server=self.rest_app,
-                                  route_url='/status2/')
+        # attach status app to rest_app
+        MoeStatusApp(moe=self,
+                     title='Moe Monitoring Application',
+                     flask_server=self.rest_app,
+                     route_url='/')
 
         #
         # Server
