@@ -435,7 +435,7 @@ class TreasureMap:
 
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
-        
+
         This way, Bob can generate it and use it to find the TreasureMap.
         """
         self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)

@@ -82,6 +82,12 @@ class AliceJSONController(AliceInterface, CharacterController):
         return response_data
 
     @character_control_interface
+    def decrypt(self, request: dict):
+        result = super().decrypt(**self.serializer.load_decrypt_input(request=request))
+        response_data = self.serializer.dump_decrypt_output(response=result)
+        return response_data
+
+    @character_control_interface
     def public_keys(self, request):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys

@@ -6,11 +6,15 @@ import maya
 import pytest
 
 import nucypher
-from nucypher.characters.lawful import Enrico
+from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
 from nucypher.utilities.sandbox.policy import generate_random_label
+
+from click.testing import CliRunner
+from nucypher.cli.main import nucypher_cli
+click_runner = CliRunner()
 
 
 def test_alice_character_control_create_policy(alice_control_test_client, federated_bob):
@@ -111,6 +115,36 @@ def test_alice_character_control_revoke(alice_control_test_client, federated_bob
     assert response_data['result']['failed_revocations'] == 0
 
 
+def test_alice_character_control_decrypt(mocker, alice_federated_test_config, alice_control_test_client, enacted_federated_policy, capsule_side_channel):
+    message_kit, data_source = capsule_side_channel
+
+    label = enacted_federated_policy.label.decode()
+    policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
+    message_kit = b64encode(message_kit.to_bytes()).decode()
+
+    request_data = {
+        'label': label,
+        'message_kit': message_kit,
+    }
+
+    response = alice_control_test_client.post('/decrypt', data=json.dumps(request_data))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'cleartexts' in response_data['result']
+
+    for plaintext in response_data['result']['cleartexts']:
+        assert bytes(plaintext, encoding='utf-8') == b'Welcome to the flippering.'
+
+    # Send bad data to assert error returns
+    response = alice_control_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
+    assert response.status_code == 400
+
+    del(request_data['message_kit'])
+    response = alice_control_test_client.put('/decrypt', data=json.dumps(request_data))
+    assert response.status_code == 405
+
+
 def test_bob_character_control_join_policy(bob_control_test_client, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
@@ -206,7 +240,7 @@ def test_character_control_lifecycle(alice_control_test_client,
 
     bob_encrypting_key_hex = bob_keys['bob_encrypting_key']
     bob_verifying_key_hex = bob_keys['bob_verifying_key']
-    
+
     # Create a policy via Alice control
     alice_request_data = {
         'bob_encrypting_key': bob_encrypting_key_hex,
