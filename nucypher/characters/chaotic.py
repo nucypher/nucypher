@@ -34,7 +34,7 @@ from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
-from nucypher.network.status.status_app import MoeStatusApp
+from nucypher.network.status.status_page import MoeStatusPage
 
 
 class Moe(Character):
@@ -99,10 +99,10 @@ class Moe(Character):
         self.rest_app = Flask("fleet-monitor", template_folder=TEMPLATES_DIR)
         rest_app = self.rest_app
         # attach status app to rest_app
-        MoeStatusApp(moe=self,
-                     title='Moe Monitoring Application',
-                     flask_server=self.rest_app,
-                     route_url='/')
+        MoeStatusPage(moe=self,
+                      title='Moe Monitoring Application',
+                      flask_server=self.rest_app,
+                      route_url='/')
 
         #
         # Server
