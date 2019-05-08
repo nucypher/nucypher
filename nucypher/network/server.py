@@ -19,20 +19,18 @@ import binascii
 import os
 from typing import Tuple
 
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from flask import Flask, Response
 from flask import request
-from jinja2 import Template, TemplateError
+from hendrix.experience import crosstown_traffic
+from jinja2 import Template
 from twisted.logger import Logger
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
-from hendrix.experience import crosstown_traffic
-
-import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
@@ -380,23 +378,6 @@ def make_rest_app(
             # TODO: Make this a proper 500 or whatever.
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
-
-    @rest_app.route('/status')
-    def status():
-        headers = {"Content-Type": "text/html", "charset": "utf-8"}
-        previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
-
-        try:
-            content = status_template.render(this_node=this_node,
-                                             known_nodes=this_node.known_nodes,
-                                             previous_states=previous_states,
-                                             domains=serving_domains,
-                                             version=nucypher.__version__)
-        except Exception as e:
-            log.debug("Template Rendering Exception: ".format(str(e)))
-            raise TemplateError(str(e)) from e
-
-        return Response(response=content, headers=headers)
 
     return rest_app, datastore
 
