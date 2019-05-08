@@ -53,15 +53,15 @@ class NetworkStatusApp:
             html.Div([
                 NetworkStatusApp.states_table(states_dict)
             ]),
-            html.Hr(),
         ], className='row')
 
     @staticmethod
     def states_table(states_dict) -> html.Table:
+        previous_states = list(states_dict.values())[:5]   # only latest 5
         row = []
-        for key in states_dict:
+        for state in previous_states:
             # store previous states in reverse order
-            row.insert(0, html.Td(NetworkStatusApp.state_detail(states_dict[key])))
+            row.insert(0, html.Td(NetworkStatusApp.state_detail(state)))
         return html.Table([html.Tr(row, id='state-table', className='row')])
 
     @staticmethod
@@ -77,7 +77,7 @@ class NetworkStatusApp:
         ])
 
     @staticmethod
-    def known_nodes(learner: Learner) -> html.Div:
+    def known_nodes(learner: Learner, title='Network Nodes') -> html.Div:
         nodes = list()
 
         nodes_dict = learner.known_nodes.abridged_nodes_dict()
@@ -91,7 +91,7 @@ class NetworkStatusApp:
             nodes.append(node_data)
 
         return html.Div([
-            html.H2('Known Nodes'),
+            html.H2(title),
             html.Div([
                 html.Div('* Current Teacher',
                          style={'backgroundColor': '#1E65F3', 'color': 'white'},
@@ -160,7 +160,7 @@ class NetworkStatusApp:
 
 class MoeStatusApp(NetworkStatusApp):
     """
-    Status app for 'Moe' monitoring node.
+    Status application for 'Moe' monitoring node.
     """
 
     def __init__(self,
@@ -177,28 +177,34 @@ class MoeStatusApp(NetworkStatusApp):
             html.Div(id='header'),
             html.Div(id='prev-states'),
             html.Div(id='known-nodes'),
-            dcc.Interval(id='status-update', interval=1000, n_intervals=0),
+            # hidden update buttons for hendrix notifications
+            html.Div([
+                html.Button(id='hidden-state-button', type='submit', hidden=True),
+                html.Button(id='hidden-node-button', type='submit', hidden=True),
+            ], hidden=True)
         ])
 
         @self.dash_app.callback(Output('header', 'children'),
-                                [Input('url', 'pathname')])
+                                [Input('url', 'pathname')])  # on page-load
         def header(pathname):
             return NetworkStatusApp.header(title)
 
         @self.dash_app.callback(Output('prev-states', 'children'),
-                                events=[Event('status-update', 'interval')])
-        def state():
+                                [Input('url', 'pathname')],  # on page-load
+                                events=[Event('hidden-state-button', 'click')])
+        def state(pathname):
             return NetworkStatusApp.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
-                                events=[Event('status-update', 'interval')])
-        def known_nodes():
+                                [Input('url', 'pathname')],  # on page-load
+                                events=[Event('hidden-node-button', 'click')])
+        def known_nodes(pathname):
             return NetworkStatusApp.known_nodes(moe)
 
 
 class UrsulaStatusApp(NetworkStatusApp):
     """
-    Status app for Ursula node.
+    Status application for Ursula node.
     """
 
     def __init__(self,
@@ -210,22 +216,24 @@ class UrsulaStatusApp(NetworkStatusApp):
                  **kwargs) -> None:
         NetworkStatusApp.__init__(self, title, flask_server, route_url, args, kwargs)
 
+        self.dash_app.assets_ignore = 'hendrix-update.js'  # javascript not needed for Ursula
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
             html.Div(id='header'),
             html.Div(id='ursula_info'),
             html.Div(id='prev-states'),
             html.Div(id='known-nodes'),
-            dcc.Interval(id='status-update', interval=1000, n_intervals=0),
+            # use a periodic update interval (every 2s) instead of notification updates from hendrix used by Moe
+            dcc.Interval(id='status-update', interval=2000, n_intervals=0),
         ])
 
         @self.dash_app.callback(Output('header', 'children'),
-                                [Input('url', 'pathname')])
+                                [Input('url', 'pathname')])  # on page-load
         def header(pathname):
             return NetworkStatusApp.header(title)
 
         @self.dash_app.callback(Output('ursula_info', 'children'),
-                                [Input('url', 'pathname')])
+                                [Input('url', 'pathname')])  # on page-load
         def ursula_info(pathname):
             domains = ''
             for domain in ursula.learning_domains:
@@ -242,7 +250,7 @@ class UrsulaStatusApp(NetworkStatusApp):
                 ], className='row'),
                 html.Div([
                     html.H4('Domains', className='one column'),
-                    html.H5(domains, className='eleven columns'),
+                    html.H4(domains, className='eleven columns'),
                 ], className='row')
             ], className='row')
 
@@ -254,4 +262,4 @@ class UrsulaStatusApp(NetworkStatusApp):
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 events=[Event('status-update', 'interval')])
         def known_nodes():
-            return NetworkStatusApp.known_nodes(ursula)
+            return NetworkStatusApp.known_nodes(ursula, title='Peers')
