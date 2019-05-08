@@ -20,11 +20,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
+from typing import Dict, Iterable, List, Set, Tuple
 
 import maya
 import requests
@@ -494,7 +490,7 @@ class Bob(Character):
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
 
-        alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
+        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
             treasure_map.orient(compass)
@@ -1080,11 +1076,6 @@ class Ursula(Teacher, Character, Miner):
         # Version stuff checked out.  Moving on.
         node_info = cls.internal_splitter(payload)
 
-        powers_and_material = {
-            SigningPower: node_info.pop("verifying_key"),
-            DecryptingPower: node_info.pop("encrypting_key")
-        }
-
         interface_info = node_info.pop("rest_interface")
         node_info['rest_host'] = interface_info.host
         node_info['rest_port'] = interface_info.port
@@ -1095,7 +1086,7 @@ class Ursula(Teacher, Character, Miner):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(constant_or_bytes(d) for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod

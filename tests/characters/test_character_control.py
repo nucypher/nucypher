@@ -6,15 +6,9 @@ import maya
 import pytest
 
 import nucypher
-from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
-from nucypher.utilities.sandbox.policy import generate_random_label
-
-from click.testing import CliRunner
-from nucypher.cli.main import nucypher_cli
-click_runner = CliRunner()
 
 
 def test_alice_character_control_create_policy(alice_control_test_client, federated_bob):
@@ -115,11 +109,13 @@ def test_alice_character_control_revoke(alice_control_test_client, federated_bob
     assert response_data['result']['failed_revocations'] == 0
 
 
-def test_alice_character_control_decrypt(mocker, alice_federated_test_config, alice_control_test_client, enacted_federated_policy, capsule_side_channel):
+def test_alice_character_control_decrypt(alice_control_test_client,
+                                         enacted_federated_policy,
+                                         capsule_side_channel):
+
     message_kit, data_source = capsule_side_channel
 
     label = enacted_federated_policy.label.decode()
-    policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
     message_kit = b64encode(message_kit.to_bytes()).decode()
 
     request_data = {

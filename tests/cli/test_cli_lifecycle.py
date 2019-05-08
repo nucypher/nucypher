@@ -74,7 +74,7 @@ def test_cli_lifecycle(click_runner,
                        custom_filepath_2):
     """
     This is an end to end integration test that runs each cli call
-    in it's own process using only CLI chatacter control entry points,
+    in it's own process using only CLI character control entry points,
     and a mock side channel that runs in the control process
     """
 

@@ -83,7 +83,7 @@ message_kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
 
 # The doctor also needs to create a view of the Data Source from its public keys
 data_source = Enrico.from_public_keys(
-    {SigningPower: data['data_source']},
+    verifying_key=data['data_source'],
     policy_encrypting_key=policy_pubkey
 )
 

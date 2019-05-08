@@ -90,7 +90,7 @@ class Arrangement:
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
         alice_pubkey_sig, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
+        alice = Alice.from_public_keys(verifying_key=alice_pubkey_sig)
         return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
@@ -661,7 +661,7 @@ class WorkOrder:
             if not task.signature.verify(specification, bob_pubkey_sig):
                 raise InvalidSignature()
 
-        bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
+        bob = Bob.from_public_keys(verifying_key=bob_pubkey_sig)
         return cls(bob=bob,
                    arrangement_id=arrangement_id,
                    tasks=tasks,

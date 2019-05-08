@@ -96,13 +96,9 @@ heart_monitor.generate_heart_rate_samples(policy_pubkey,
 from doctor_keys import get_doctor_pubkeys
 doctor_pubkeys = get_doctor_pubkeys()
 
-powers_and_material = {
-    DecryptingPower: doctor_pubkeys['enc'],
-    SigningPower: doctor_pubkeys['sig']
-}
-
 # We create a view of the Bob who's going to be granted access.
-doctor_strange = Bob.from_public_keys(powers_and_material=powers_and_material,
+doctor_strange = Bob.from_public_keys(verifying_key=doctor_pubkeys['sig'],
+                                      encrypting_key=doctor_pubkeys['enc'],
                                       federated_only=True)
 
 # Here are our remaining Policy details, such as:

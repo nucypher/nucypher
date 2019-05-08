@@ -37,15 +37,15 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
+from nucypher.network.protocols import InterfaceInfo
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -246,7 +246,7 @@ def make_rest_app(
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
         alices_verifying_key = policy_message_kit.sender_pubkey_sig
-        alice = _alice_class.from_public_keys({SigningPower: alices_verifying_key})
+        alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
         try:
             cleartext = verifier(alice, policy_message_kit, decrypt=True)
