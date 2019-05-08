@@ -794,8 +794,8 @@ class Ursula(Teacher, Character, Miner):
                     suspicious_activity_tracker=self.suspicious_activities_witnessed,
                     serving_domains=domains,
                 )
-
-                self.status_app = UrsulaStatusApp(self, self.nickname, rest_app, '/status2/')
+                # attach status app to rest_app
+                UrsulaStatusApp(self, self.nickname, rest_app, '/status/')
 
 
                 #

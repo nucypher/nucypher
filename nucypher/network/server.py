@@ -16,43 +16,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
-import os
 from typing import Callable, Tuple
-
-from flask import Flask, Response
-from flask import request
-from jinja2 import Template, TemplateError
-from twisted.logger import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH
 from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
+from flask import Flask, Response
+from flask import request
 from hendrix.experience import crosstown_traffic
+from twisted.logger import Logger
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
-
-HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-TEMPLATES_DIR = os.path.join(HERE, "templates")
-
-with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
-    _status_template_content = f.read()
-status_template = Template(_status_template_content)
+from nucypher.network.protocols import InterfaceInfo
 
 
 class ProxyRESTServer:
@@ -394,26 +384,6 @@ def make_rest_app(
             # TODO: Make this a proper 500 or whatever.
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
-
-    @rest_app.route('/status')
-    def status():
-        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.
-        #       Might be a sign that we need to rethnk this composition.
-
-        headers = {"Content-Type": "text/html", "charset": "utf-8"}
-        this_node = _node_class.from_bytes(node_bytes_caster(), federated_only=federated_only)
-
-        previous_states = list(reversed(node_tracker.states.values()))[:5]
-
-        try:
-            content = status_template.render(this_node=this_node,
-                                             known_nodes=node_tracker,
-                                             previous_states=previous_states)
-        except Exception as e:
-            log.debug("Template Rendering Exception: ".format(str(e)))
-            raise TemplateError(str(e)) from e
-
-        return Response(response=content, headers=headers)
 
     return rest_app, datastore
 
