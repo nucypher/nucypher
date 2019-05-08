@@ -69,12 +69,10 @@ class NetworkStatusApp:
         return html.Div([
             html.H5(state['nickname']),
             html.Div([
-                html.Div([
-                    state['symbol']
-                ], className='single-symbol'),
+                html.Div(state['symbol'], className='single-symbol'),
                 html.Span(state['updated'], className='small'),
-            ], className='nucypher-nickname-icon', style={'border-colour': state['color_hex']})
-        ])
+            ], className='nucypher-nickname-icon', style={'border-color': state["color_hex"]})
+        ], className='state')
 
     @staticmethod
     def known_nodes(learner: Learner, title='Network Nodes') -> html.Div:
