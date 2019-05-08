@@ -67,7 +67,7 @@ from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.status.status_app import UrsulaStatusApp
+from nucypher.network.status.status_app import UrsulaStatusApp
 
 
 class Alice(Character, PolicyAuthor):

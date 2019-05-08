@@ -30,7 +30,7 @@ from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
-from nucypher.status.status_app import MoeStatusApp
+from nucypher.network.status.status_app import MoeStatusApp
 
 
 class Moe(Character):
