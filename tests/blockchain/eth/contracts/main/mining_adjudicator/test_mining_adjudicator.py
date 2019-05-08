@@ -32,8 +32,9 @@ from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 from umbral.signing import Signer
 
-from nucypher.crypto.utils import get_signature_recovery_value
-from nucypher.policy.models import IndisputableEvidence
+from nucypher.characters.lawful import Bob
+from nucypher.crypto.utils import canonical_address_from_umbral_key, get_coordinates_as_bytes
+from nucypher.policy.models import IndisputableEvidence, WorkOrder
 
 
 ALGORITHM_KECCAK256 = 0
@@ -43,10 +44,11 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 # TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
-def mock_ursula_reencrypts(ursula_privkey, corrupt_cfrag: bool = False):
+def mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     delegating_privkey = UmbralPrivateKey.gen_key()
     _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
     signing_privkey = UmbralPrivateKey.gen_key()
+    signing_pubkey = signing_privkey.get_pubkey()
     signer = Signer(signing_privkey)
     priv_key_bob = UmbralPrivateKey.gen_key()
     pub_key_bob = priv_key_bob.get_pubkey()
@@ -57,36 +59,34 @@ def mock_ursula_reencrypts(ursula_privkey, corrupt_cfrag: bool = False):
                                  N=4,
                                  sign_delegating_key=False,
                                  sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
 
-    ursula_pubkey = ursula_privkey.get_pubkey()
-    ursula_pubkey_bytes = ursula_pubkey.to_bytes(is_compressed=False)[1:]
-    specification = bytes(capsule) + ursula_pubkey_bytes + bytes(20) + bytes(32)
+    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
 
-    ursulas_signer = Signer(ursula_privkey)
+    alice_address = canonical_address_from_umbral_key(signing_pubkey)
+    blockhash = bytes(32)
+
+    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
+
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer(specification))
 
-    metadata = bytes(ursulas_signer(task_signature))
+    metadata = bytes(ursula.stamp(task_signature))
 
     cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
 
     if corrupt_cfrag:
         cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
 
-    cfrag_signature = bytes(ursulas_signer(bytes(cfrag)))
+    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
 
-    bob_pubkey_bytes = pub_key_bob.to_bytes(is_compressed=False)[1:]
+    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
+    task = WorkOrder.Task(capsule, task_signature, cfrag, cfrag_signature)
+    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
 
-    cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
-                                                     signature=cfrag_signature,
-                                                     public_key=ursula_pubkey)
-    task_signature_v = get_signature_recovery_value(message=task_signature,
-                                                    signature=metadata,
-                                                    public_key=ursula_pubkey)
-    recovery_values = cfrag_signature_v + task_signature_v
+    evidence = IndisputableEvidence(task, work_order)
 
-    return capsule, cfrag, cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes
+    return evidence
 
 
 def evaluation_hash(capsule, cfrag):
@@ -97,7 +97,8 @@ def evaluation_hash(capsule, cfrag):
 
 
 @pytest.mark.slow
-def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_economics):
+def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_economics, federated_ursulas):
+    ursula = list(federated_ursulas)[0]
     creator, miner, wrong_miner, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
 
@@ -116,10 +117,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     # Prepare one miner
     tx = escrow.functions.setMinerInfo(miner, worker_stake).transact()
     testerchain.wait_for_receipt(tx)
-
-    # Generate miner's Umbral key
-    miner_umbral_private_key = UmbralPrivateKey.gen_key()
-    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)[1:]
+    miner_umbral_public_key_bytes = get_coordinates_as_bytes(ursula.stamp)
 
     # Sign Umbral public key using eth-key
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
@@ -131,31 +129,22 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
 
     # Prepare evaluation data
-    capsule, cfrag, *other_stuff = mock_ursula_reencrypts(miner_umbral_private_key)
-    cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes = other_stuff
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
     assert cfrag.verify_correctness(capsule)
 
-    # Investigator prepares supporting Evidence
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-
     evidence_data = evidence.precompute_values()
-    assert len(evidence_data) == 20 * 32 + 32 + 20 + 1
+    assert len(evidence_data) == 20 * 32 + 32 + 20 + 5
 
     data_hash = evaluation_hash(capsule, cfrag)
     # This capsule and cFrag are not yet evaluated
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
 
-    # Challenge using good data
-    args = (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
 
+    # Challenge using good data
     assert worker_stake == escrow.functions.minerInfo(miner).call()[0]
 
     tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
@@ -177,29 +166,20 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     ###############################
     # Test: Don't evaluate miner with data that already was checked
     ###############################
-    # TODO: be more specific on the expected exception
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*args).transact()
         testerchain.wait_for_receipt(tx)
 
     ###############################
     # Test: Ursula produces incorrect proof:
     ###############################
-    capsule, cfrag, *other_stuff = mock_ursula_reencrypts(miner_umbral_private_key, corrupt_cfrag=True)
-    cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes = other_stuff
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
     assert not cfrag.verify_correctness(capsule)
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
-    args = (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
@@ -231,12 +211,10 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     # Test: Bob produces wrong precomputed data
     ###############################
 
-    capsule, cfrag, *other_stuff = mock_ursula_reencrypts(miner_umbral_private_key)
-    cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes = other_stuff
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
     assert cfrag.verify_correctness(capsule)
-
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
 
     # Bob produces a random point and gets the bytes of coords x and y
     random_point_bytes = Point.gen_rand().to_bytes(is_compressed=False)[1:]
@@ -245,48 +223,29 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     evidence_data[32:32+64] = random_point_bytes
     evidence_data = bytes(evidence_data)
 
-    args = (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-1] = evidence_data
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
 
     # Evaluation must fail since Bob precomputed wrong values
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
         testerchain.wait_for_receipt(tx)
-
-    ###############################
-    # Test: Signatures and Metadata mismatch
-    ###############################
-
-    # TODO
 
     ###############################
     # Test: Second violation. Penalty is increased
     ###############################
 
-    capsule, cfrag, *other_stuff = mock_ursula_reencrypts(miner_umbral_private_key, corrupt_cfrag=True)
-    cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes = other_stuff
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    assert not cfrag.verify_correctness(capsule)
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
-    args = (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
@@ -324,20 +283,13 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
     # Test: Third violation. Penalty reaches the maximum allowed
     ###############################
 
-    capsule, cfrag, *other_stuff = mock_ursula_reencrypts(miner_umbral_private_key, corrupt_cfrag=True)
-    cfrag_signature, task_signature, recovery_values, bob_pubkey_bytes = other_stuff
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    assert not cfrag.verify_correctness(capsule)
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
-    args = (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
@@ -375,40 +327,40 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
 
     # Can't evaluate miner using broken signatures
     wrong_args = list(args)
-    wrong_args[2] = cfrag_signature[1:]
-    with pytest.raises((TransactionFailed, ValueError)):
+    wrong_args[2] = evidence.task.cfrag_signature[1:]
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     wrong_args = list(args)
-    wrong_args[3] = task_signature[1:]
-    with pytest.raises((TransactionFailed, ValueError)):
+    wrong_args[3] = evidence.task.signature[1:]
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     wrong_args = list(args)
     wrong_args[7] = signed_miner_umbral_public_key[1:]
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     # Can't evaluate miner using wrong keys
     wrong_args = list(args)
     wrong_args[5] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)[1:]
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     wrong_args = list(args)
     wrong_args[6] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)[1:]
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     # Can't use signature for another data
     wrong_args = list(args)
     wrong_args[1] = os.urandom(len(bytes(cfrag)))
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
@@ -419,7 +371,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_econ
 
     wrong_args = list(args)
     wrong_args[7] = signed_wrong_miner_umbral_public_key
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
@@ -483,11 +435,11 @@ def test_upgrading(testerchain):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = testerchain.interface.deploy_contract('MiningAdjudicatorBad')
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -503,12 +455,12 @@ def test_upgrading(testerchain):
     assert 3 == contract.functions.percentagePenaltyCoefficient().call()
     assert 4 == contract.functions.rewardCoefficient().call()
     # After rollback new ABI is unavailable
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises((TransactionFailed, ValueError)):
+    with pytest.raises(TransactionFailed):
         tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)

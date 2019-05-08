@@ -937,3 +937,14 @@ class IndisputableEvidence:
             ursula_pubkey_prefix_byte,
         )
         return b''.join(pieces)
+
+    def evaluation_arguments(self) -> Tuple:
+        return (bytes(self.task.capsule),
+                bytes(self.task.cfrag),
+                bytes(self.task.cfrag_signature),
+                bytes(self.task.signature),
+                get_coordinates_as_bytes(self.bob_pubkey),
+                get_coordinates_as_bytes(self.ursula_pubkey),
+                None,   # FIXME: bytes memory _minerPublicKeySignature,
+                self.precompute_values()
+                )
