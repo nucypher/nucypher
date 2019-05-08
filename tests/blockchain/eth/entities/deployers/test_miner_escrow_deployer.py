@@ -30,10 +30,9 @@ def test_token_deployer_and_agent(testerchain):
 
     secret_hash = os.urandom(32)
     deployer = MinerEscrowDeployer(blockchain=testerchain,
-                                   deployer_address=origin,
-                                   secret_hash=secret_hash)
+                                   deployer_address=origin)
 
-    deployment_txhashes = deployer.deploy()
+    deployment_txhashes = deployer.deploy(secret_hash=secret_hash)
 
     for title, txhash in deployment_txhashes.items():
         receipt = testerchain.wait_for_receipt(txhash=txhash)

@@ -88,8 +88,49 @@ def deploy(click_config,
     click.confirm("Deployer Address is {} - Continue?".format(deployer_address), abort=True)
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
-    # The Big Three
-    if action == "contracts":
+
+    #
+    # Upgrade
+    #
+
+    if action == 'upgrade':
+        if not contract_name:
+            raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
+        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
+        new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        deployer.upgrade_contract(contract_name=contract_name,
+                                  existing_plaintext_secret=existing_secret,
+                                  new_plaintext_secret=new_secret)
+        return
+
+    elif action == 'rollback':
+        existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
+        new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
+        deployer.rollback_contract(contract_name=contract_name,
+                                   existing_plaintext_secret=existing_secret,
+                                   new_plaintext_secret=new_secret)
+        return
+
+    elif action == "deploy":
+
+        #
+        # Deploy Single Contract
+        #
+
+        if contract_name:
+
+            try:
+                deployer_func = deployer.deployers[contract_name]
+            except KeyError:
+                message = "No such contract {}. Available contracts are {}".format(contract_name,
+                                                                                   deployer.deployers.keys())
+                click.secho(message, fg='red', bold=True)
+                raise click.Abort()
+            else:
+                _txs, _agent = deployer_func()
+
+            return
+
         secrets = click_config.collect_deployment_secrets()
 
         # Track tx hashes, and new agents
@@ -100,37 +141,22 @@ def deploy(click_config,
             deployer.blockchain.interface.registry._destroy()
 
         try:
-            txhashes, agents = deployer.deploy_network_contracts(miner_secret=bytes(secrets.miner_secret, encoding='utf-8'),
-                                                                 policy_secret=bytes(secrets.policy_secret, encoding='utf-8'),
-                                                                 adjudicator_secret=bytes(secrets.mining_adjudicator_secret, encoding='utf-8'))
+            txhashes, deployers = deployer.deploy_network_contracts(miner_secret=secrets.miner_secret,
+                                                                    policy_secret=secrets.policy_secret,
+                                                                    adjudicator_secret=secrets.mining_adjudicator_secret,
+                                                                    user_escrow_proxy_secret=secrets.escrow_proxy_secret)
         except BlockchainInterface.InterfaceError:
             raise  # TODO: Handle registry management here (contract may already exist)
         else:
             __deployment_transactions.update(txhashes)
 
-        # User Escrow Proxy
-        deployer.deploy_escrow_proxy(secret=bytes(secrets.escrow_proxy_secret, encoding='utf-8'))
         click.secho("Deployed!", fg='green', bold=True)
-
-        #
-        # Deploy Single Contract
-        #
-        if contract_name:
-
-            try:
-                deployer_func = deployer.deployers[contract_name]
-            except KeyError:
-                message = "No such contract {}. Available contracts are {}".format(contract_name, deployer.deployers.keys())
-                click.secho(message, fg='red', bold=True)
-                raise click.Abort()
-            else:
-                _txs, _agent = deployer_func()
 
         registry_outfile = deployer.blockchain.interface.registry.filepath
         click.secho('\nDeployment Transaction Hashes for {}'.format(registry_outfile), bold=True, fg='blue')
         for contract_name, transactions in __deployment_transactions.items():
 
-            heading = '\n{} ({})'.format(contract_name, agents[contract_name].contract_address)
+            heading = '\n{} ({})'.format(contract_name, deployers[contract_name].contract_address)
             click.secho(heading, bold=True)
             click.echo('*'*(42+3+len(contract_name)))
 
@@ -150,6 +176,7 @@ def deploy(click_config,
                 click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
 
         click.secho("Cumulative Gas Consumption: {} gas\n".format(total_gas_used), bold=True, fg='blue')
+        return
 
     elif action == "allocations":
         if not allocation_infile:
@@ -157,6 +184,7 @@ def deploy(click_config,
         click.confirm("Continue deploying and allocating?", abort=True)
         deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                 allocation_outfile=allocation_outfile)
+        return
 
     elif action == "transfer":
         token_agent = NucypherTokenAgent(blockchain=blockchain)
@@ -170,6 +198,7 @@ def deploy(click_config,
         click.confirm(f"Are you absolutely sure you want to destroy the contract registry at {registry_filepath}?", abort=True)
         os.remove(registry_filepath)
         click.secho(f"Successfully destroyed {registry_filepath}", fg='red')
+        return
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")

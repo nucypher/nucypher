@@ -40,8 +40,9 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    ONE_YEAR_IN_SECONDS
-)
+    ONE_YEAR_IN_SECONDS,
+    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
 
 
@@ -122,12 +123,10 @@ def deployed_blockchain(token_economics):
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
-    deployer.deploy_network_contracts(miner_secret=os.urandom(32),
-                                      policy_secret=os.urandom(32),
-                                      adjudicator_secret=os.urandom(32))
-
-    # User Escrow Proxy
-    deployer.deploy_escrow_proxy(secret=os.urandom(32))
+    deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+                                      policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                      user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
     # Start with some hard-coded cases...
     all_yall = blockchain.unassigned_accounts

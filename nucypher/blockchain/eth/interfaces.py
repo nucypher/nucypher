@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from eth_keys.datatypes import PublicKey, Signature
 from eth_utils import to_canonical_address
 from twisted.logger import Logger
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
@@ -217,7 +217,7 @@ class BlockchainInterface:
         return self.w3.node_version.node
 
     def add_provider(self,
-                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester] = None,
+                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTesterProvider] = None,
                      provider_uri: str = None,
                      timeout: int = None) -> None:
 
@@ -309,14 +309,41 @@ class BlockchainInterface:
                 raise self.UnknownContract("No such contract with address {}".format(address))
             return contract_records[0]
 
+    def get_proxy(self, target_address: str, proxy_name: str, factory: Contract = Contract):
+
+        # Lookup proxies; Search for a registered proxy that targets this contract record
+        records = self.registry.search(contract_name=proxy_name)
+
+        dispatchers = list()
+        for name, addr, abi in records:
+            proxy_contract = self.w3.eth.contract(abi=abi,
+                                                  address=addr,
+                                                  ContractFactoryClass=factory)
+
+            # Read this dispatchers target address from the blockchain
+            proxy_live_target_address = proxy_contract.functions.target().call()
+
+            if proxy_live_target_address == target_address:
+                dispatchers.append(proxy_contract)
+
+        if len(dispatchers) > 1:
+            message = f"Multiple Dispatcher deployments are targeting {target_address}"
+            raise self.InterfaceError(message)
+
+        try:
+            return dispatchers[0]
+        except IndexError:
+            raise self.UnknownContract(f"No registered Dispatcher deployments target {target_address}")
+
     def get_contract_by_name(self,
                              name: str,
                              proxy_name: str = None,
                              use_proxy_address: bool = True,
-                             factory: Contract = Contract) -> Contract:
+                             factory: Contract = Contract) -> Union[Contract, List[tuple]]:
         """
         Instantiate a deployed contract from registry data,
-        and assimilate it with it's proxy if it is upgradeable.
+        and assimilate it with it's proxy if it is upgradeable,
+        or return all registered records if use_proxy_address is False.
         """
 
         target_contract_records = self.registry.search(contract_name=name)
@@ -329,7 +356,7 @@ class BlockchainInterface:
 
             proxy_records = self.registry.search(contract_name=proxy_name)
 
-            unified_pairs = list()
+            results = list()
             for proxy_name, proxy_addr, proxy_abi in proxy_records:
                 proxy_contract = self.w3.eth.contract(abi=proxy_abi,
                                                       address=proxy_addr,
@@ -347,15 +374,15 @@ class BlockchainInterface:
                     else:
                         continue
 
-                    unified_pairs.append(pair)
+                    results.append(pair)
 
-            if len(unified_pairs) > 1:
-                address, abi = unified_pairs[0]
+            if len(results) > 1:
+                address, abi = results[0]
                 message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
                 raise self.InterfaceError(message.format(name))
 
             else:
-                selected_address, selected_abi = unified_pairs[0]
+                selected_address, selected_abi = results[0]
 
         else:  # It's not upgradeable
             if len(target_contract_records) != 1:

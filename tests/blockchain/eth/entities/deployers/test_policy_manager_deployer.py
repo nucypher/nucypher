@@ -37,19 +37,16 @@ def test_policy_manager_deployer(testerchain):
     token_agent = token_deployer.make_agent()  # 1: Token
 
     miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+    miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
 
-    miner_escrow_deployer.deploy()
+    miner_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    deployer = PolicyManagerDeployer(deployer_address=origin,
-                                     secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    deployer = PolicyManagerDeployer(deployer_address=origin)
 
-    deployment_txhashes = deployer.deploy()
+    deployment_txhashes = deployer.deploy(secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
     assert len(deployment_txhashes) == 3
 
     for title, txhash in deployment_txhashes.items():

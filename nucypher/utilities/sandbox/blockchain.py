@@ -38,8 +38,9 @@ from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT
-)
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET,
+    MINERS_ESCROW_DEPLOYMENT_SECRET)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -191,10 +192,10 @@ class TesterBlockchain(Blockchain):
         origin = testerchain.interface.w3.eth.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
-        random_deployment_secret = partial(os.urandom, DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
-                                                              policy_secret=random_deployment_secret(),
-                                                              adjudicator_secret=random_deployment_secret())
+        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+                                                              policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                                              adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                                              user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
         return testerchain, agents
 
     @property
