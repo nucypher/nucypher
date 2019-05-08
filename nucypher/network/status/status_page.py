@@ -13,7 +13,7 @@ from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
 
 
-class NetworkStatusApp:
+class NetworkStatusPage:
     COLUMNS = ['Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
 
     def __init__(self,
@@ -51,7 +51,7 @@ class NetworkStatusApp:
         return html.Div([
             html.H2('Previous States'),
             html.Div([
-                NetworkStatusApp.states_table(states_dict)
+                NetworkStatusPage.states_table(states_dict)
             ]),
         ], className='row')
 
@@ -61,7 +61,7 @@ class NetworkStatusApp:
         row = []
         for state in previous_states:
             # store previous states in reverse order
-            row.insert(0, html.Td(NetworkStatusApp.state_detail(state)))
+            row.insert(0, html.Td(NetworkStatusPage.state_detail(state)))
         return html.Table([html.Tr(row, id='state-table', className='row')])
 
     @staticmethod
@@ -97,7 +97,7 @@ class NetworkStatusApp:
             ], className='row'),
             html.Br(),
             html.Div([
-                NetworkStatusApp.nodes_table(nodes, teacher_index)
+                NetworkStatusPage.nodes_table(nodes, teacher_index)
             ], className='row')
         ], className='row')
 
@@ -108,7 +108,7 @@ class NetworkStatusApp:
         for i in range(len(nodes)):
             row = []
             node_dict = nodes[i]
-            for col in NetworkStatusApp.COLUMNS:
+            for col in NetworkStatusPage.COLUMNS:
                 # update this depending on which
                 # columns you want to show links for
                 # and what you want those links to be
@@ -151,12 +151,12 @@ class NetworkStatusApp:
             rows.append(html.Tr(row, style=style_dict, className='row'))
         return html.Table(
             # header
-            [html.Tr([html.Th(col) for col in NetworkStatusApp.COLUMNS], className='row')] +
+            [html.Tr([html.Th(col) for col in NetworkStatusPage.COLUMNS], className='row')] +
             rows,
             id='node-table')
 
 
-class MoeStatusApp(NetworkStatusApp):
+class MoeStatusPage(NetworkStatusPage):
     """
     Status application for 'Moe' monitoring node.
     """
@@ -168,7 +168,7 @@ class MoeStatusApp(NetworkStatusApp):
                  route_url: str,
                  *args,
                  **kwargs) -> None:
-        NetworkStatusApp.__init__(self, title, flask_server, route_url, args, kwargs)
+        NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
 
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
@@ -185,22 +185,22 @@ class MoeStatusApp(NetworkStatusApp):
         @self.dash_app.callback(Output('header', 'children'),
                                 [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return NetworkStatusApp.header(title)
+            return NetworkStatusPage.header(title)
 
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
                                 events=[Event('hidden-state-button', 'click')])
         def state(pathname):
-            return NetworkStatusApp.previous_states(moe)
+            return NetworkStatusPage.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
                                 events=[Event('hidden-node-button', 'click')])
         def known_nodes(pathname):
-            return NetworkStatusApp.known_nodes(moe)
+            return NetworkStatusPage.known_nodes(moe)
 
 
-class UrsulaStatusApp(NetworkStatusApp):
+class UrsulaStatusPage(NetworkStatusPage):
     """
     Status application for Ursula node.
     """
@@ -212,7 +212,7 @@ class UrsulaStatusApp(NetworkStatusApp):
                  route_url: str,
                  *args,
                  **kwargs) -> None:
-        NetworkStatusApp.__init__(self, title, flask_server, route_url, args, kwargs)
+        NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
 
         self.dash_app.assets_ignore = 'hendrix-update.js'  # javascript not needed for Ursula
         self.dash_app.layout = html.Div([
@@ -228,7 +228,7 @@ class UrsulaStatusApp(NetworkStatusApp):
         @self.dash_app.callback(Output('header', 'children'),
                                 [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return NetworkStatusApp.header(title)
+            return NetworkStatusPage.header(title)
 
         @self.dash_app.callback(Output('ursula_info', 'children'),
                                 [Input('url', 'pathname')])  # on page-load
@@ -255,9 +255,9 @@ class UrsulaStatusApp(NetworkStatusApp):
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 events=[Event('status-update', 'interval')])
         def state():
-            return NetworkStatusApp.previous_states(ursula)
+            return NetworkStatusPage.previous_states(ursula)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 events=[Event('status-update', 'interval')])
         def known_nodes():
-            return NetworkStatusApp.known_nodes(ursula, title='Peers')
+            return NetworkStatusPage.known_nodes(ursula, title='Peers')
