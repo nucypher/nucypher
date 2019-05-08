@@ -881,8 +881,8 @@ class Ursula(Teacher, Character, Worker):
                     db_filepath=db_filepath,
                     serving_domains=domains,
                 )
-
-                self.status_app = UrsulaStatusApp(self, self.nickname, rest_app, '/status2/')
+                # attach status app to rest_app
+                UrsulaStatusApp(self, self.nickname, rest_app, '/status/')
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
