@@ -125,11 +125,24 @@ contract MiningAdjudicator is Upgradeable {
 
         // Verify that _taskSignature is bob's signature of the task specification.
         // A task specification is: capsule + ursula pubkey + alice address + blockhash
-        // TODO: Construct task specification?
-//        require(SignatureVerifier.verify(
-//                ?, _taskSignature, _requesterPublicKey, hashAlgorithm));
+        bytes32 miner_xcoord;
+        assembly {
+            miner_xcoord := mload(add(_minerPublicKey, 32))
+        }
+        require(SignatureVerifier.verify(
+                abi.encodePacked(_capsuleBytes,
+                                 precomp.lostBytes[4],
+                                 miner_xcoord,
+                                 precomp.alicesKeyAsAddress,
+                                 bytes32(0)),
+                abi.encodePacked(_taskSignature, precomp.lostBytes[3]),
+                _requesterPublicKey,
+                hashAlgorithm),
+                "Specification signature is invalid"
+        );
 
         // Extract miner's address and check that is real miner
+        // TODO: Rethink _minerPublicKeySignature, as we only need the miner's address...(I think?)
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
         // Check that miner can be slashed
