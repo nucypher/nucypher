@@ -171,15 +171,16 @@ class MoeStatusPage(NetworkStatusPage):
         NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
 
         self.dash_app.layout = html.Div([
-            dcc.Location(id='url', refresh=False),
-            html.Div(id='header'),
-            html.Div(id='prev-states'),
-            html.Div(id='known-nodes'),
             # hidden update buttons for hendrix notifications
             html.Div([
                 html.Button(id='hidden-state-button', type='submit', hidden=True),
                 html.Button(id='hidden-node-button', type='submit', hidden=True),
-            ], hidden=True)
+            ], hidden=True),
+
+            dcc.Location(id='url', refresh=False),
+            html.Div(id='header'),
+            html.Div(id='prev-states'),
+            html.Div(id='known-nodes'),
         ])
 
         @self.dash_app.callback(Output('header', 'children'),
