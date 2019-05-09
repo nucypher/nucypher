@@ -6,16 +6,23 @@ window.onload = function () {
     socket.onopen = function () {
         socket.send(JSON.stringify({'hx_subscribe': 'states'}));
         socket.send(JSON.stringify({'hx_subscribe': 'nodes'}));
-        socket.send(JSON.stringify({'hx_subscribe': 'teachers'}));
         isopen = true;
     }
 
     socket.addEventListener('message', function (event) {
         console.log("Message from server ", event.data);
         if (event.data.startsWith("[\"states\"")) {
-            document.getElementById("hidden-state-button").click(); // Update states
+            var hidden_state_button = document.getElementById("hidden-state-button");
+            // weird timing issue with onload and DOM element potentially not being created as yet
+            if( hidden_state_button != null ) {
+                hidden_state_button.click(); // Update states
+            }
         } else if (event.data.startsWith("[\"nodes\"")) {
-            document.getElementById("hidden-node-button").click(); // Update nodes
+            var hidden_node_button = document.getElementById("hidden-node-button");
+            // weird timing issue with onload and DOM element potentially not being created as yet
+            if( hidden_node_button != null ) {
+                hidden_node_button.click(); // Update nodes
+            }
         }
     });
 
