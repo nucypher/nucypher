@@ -14,18 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 
 import pytest
+from instapy_chromedriver import binary_path
+from selenium.webdriver.chrome.options import Options
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
-# Logger Configuration
-#
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
 
 # Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
@@ -110,3 +108,15 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
+
+
+# pytest-dash selenium hook
+def pytest_setup_selenium(driver_name):
+    options = Options()
+    options.add_argument('--window-size=1920,1080')  # required to make elements visible to selenium
+    options.add_argument('--start-maximized')
+    options.add_argument('--headless')
+    return {
+        'executable_path': binary_path,
+        'options': options,
+    }
