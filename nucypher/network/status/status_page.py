@@ -166,9 +166,69 @@ class MoeStatusPage(NetworkStatusPage):
                  title: str,
                  flask_server: Flask,
                  route_url: str,
+                 ws_port: int,
                  *args,
                  **kwargs) -> None:
         NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
+
+        print(">>>> Derek ", self.dash_app.index_string)
+
+        # modify index_string page template so that the websocket port for hendrix
+        # updates can be directly provided included in javascript snippet
+        self.dash_app.index_string = '''
+        <!DOCTYPE html>
+        <html>
+            <head>
+                {%metas%}
+                <title>{%title%}</title>
+                {%favicon%}
+                {%css%}
+            </head>
+            <body>
+                {%app_entry%}
+                
+                <script>
+                    window.onload = function () {
+                        const ws_port = "''' + str(ws_port) + '''";
+                        const origin_hostname = window.location.hostname;
+                        const socket = new WebSocket("ws://"+ origin_hostname + ":" + ws_port);
+                        socket.binaryType = "arraybuffer";
+                                    
+                        socket.onopen = function () {
+                            socket.send(JSON.stringify({'hx_subscribe': 'states'}));
+                            socket.send(JSON.stringify({'hx_subscribe': 'nodes'}));
+                            isopen = true;
+                        }
+                        
+                        socket.addEventListener('message', function (event) {
+                            console.log("Message from server ", event.data);
+                            if (event.data.startsWith("[\\"states\\"")) {
+                                var hidden_state_button = document.getElementById("hidden-state-button");
+                                // weird timing issue with onload and DOM element potentially not being created as yet
+                                if( hidden_state_button != null ) {
+                                    hidden_state_button.click(); // Update states
+                                }
+                            } else if (event.data.startsWith("[\\"nodes\\"")) {
+                                var hidden_node_button = document.getElementById("hidden-node-button");
+                                // weird timing issue with onload and DOM element potentially not being created as yet
+                                if( hidden_node_button != null ) {
+                                    hidden_node_button.click(); // Update nodes
+                                }
+                            }
+                        });
+                        
+                        socket.onerror = function (error) {
+                            console.log(error.data);
+                        }
+                    }
+                </script>
+                <footer>
+                    {%config%}
+                    {%scripts%}
+                </footer>
+            </body>
+        </html>
+        '''
 
         self.dash_app.layout = html.Div([
             # hidden update buttons for hendrix notifications
@@ -190,13 +250,13 @@ class MoeStatusPage(NetworkStatusPage):
 
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
-                                events=[Event('hidden-state-button', 'click')])
+                                events=[Event('hidden-state-button', 'click')])  # when notified by websocket message
         def state(pathname):
             return NetworkStatusPage.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
-                                events=[Event('hidden-node-button', 'click')])
+                                events=[Event('hidden-node-button', 'click')])  # when notified by websocket message
         def known_nodes(pathname):
             return NetworkStatusPage.known_nodes(moe)
 
@@ -254,11 +314,11 @@ class UrsulaStatusPage(NetworkStatusPage):
             ], className='row')
 
         @self.dash_app.callback(Output('prev-states', 'children'),
-                                events=[Event('status-update', 'interval')])
+                                events=[Event('status-update', 'interval')])  # simply update periodically
         def state():
             return NetworkStatusPage.previous_states(ursula)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
-                                events=[Event('status-update', 'interval')])
+                                events=[Event('status-update', 'interval')])  # simply update periodically
         def known_nodes():
             return NetworkStatusPage.known_nodes(ursula, title='Peers')
