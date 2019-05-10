@@ -24,6 +24,14 @@ contract AdjudicatorInterface {
 
 
 /**
+* @notice WorkLock interface
+**/
+contract WorkLockInterface {
+    function escrow() public view returns (address);
+}
+
+
+/**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
 **/
@@ -79,8 +87,10 @@ contract StakingEscrow is Issuer {
         address worker;
         // period when worker was set
         uint16 workerStartPeriod;
-        // downtime
+        // last confirmed active period
         uint16 lastActivePeriod;
+        bool measureWork;
+        uint256 workDone;
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
     }
@@ -110,6 +120,7 @@ contract StakingEscrow is Issuer {
     uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
+    WorkLockInterface public workLock;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -179,6 +190,16 @@ contract StakingEscrow is Issuer {
         require(_adjudicator.escrow() == address(this),
             "This escrow must be the escrow for the new adjudicator");
         adjudicator = _adjudicator;
+    }
+
+    /**
+    * @notice Set worklock address
+    **/
+    function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
+        // Two-part require...
+        require(address(workLock) == address(0) &&  // Can't workLock once it is set.
+            _workLock.escrow() == address(this));  // This is the escrow for the new workLock.
+        workLock = _workLock;
     }
 
     //------------------------Main getters------------------------
@@ -351,9 +372,29 @@ contract StakingEscrow is Issuer {
         return workerToStaker[_worker];
     }
 
+    /**
+    * @notice Get work that done by the staker
+    **/
+    function getWorkDone(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].workDone;
+    }
+
     //------------------------Main methods------------------------
     /**
-    * @notice Set worker
+    * @notice Start or stop measuring the work of a staker
+    * @param _staker Staker
+    * @param _measureWork Value for `measureWork` parameter
+    * @return Work that was previously done
+    **/
+    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+        require(msg.sender == address(workLock));
+        MinerInfo storage info = stakerInfo[_staker];
+        info.measureWork = _measureWork;
+        return info.workDone;
+        // TODO event
+    }
+
+    /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
@@ -414,6 +455,7 @@ contract StakingEscrow is Issuer {
     * @param _values Amount of tokens to deposit for each staker
     * @param _periods Amount of periods during which tokens will be locked for each staker
     **/
+    // TODO remove?
     function preDeposit(address[] memory _stakers, uint256[] memory _values, uint16[] memory _periods)
         public isInitialized
     {
@@ -472,7 +514,7 @@ contract StakingEscrow is Issuer {
             payload := calldataload(0xA4)
         }
         payload = payload >> 8*(32 - payloadSize);
-        deposit(_from, _value, uint16(payload));
+        deposit(_from, _from, _value, uint16(payload));
     }
 
     /**
@@ -481,7 +523,7 @@ contract StakingEscrow is Issuer {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function deposit(uint256 _value, uint16 _periods) public {
-        deposit(msg.sender, _value, _periods);
+        deposit(msg.sender, msg.sender, _value, _periods);
     }
 
     /**
@@ -490,7 +532,18 @@ contract StakingEscrow is Issuer {
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function deposit(address _staker, uint256 _value, uint16 _periods) internal isInitialized {
+    function deposit(address _staker, uint256 _value, uint16 _periods) public {
+        deposit(_miner, msg.sender, _value, _periods);
+    }
+
+    /**
+    * @notice Deposit tokens
+    * @param _staker Staker
+    * @param _payor Owner of tokens
+    * @param _value Amount of tokens to deposit
+    * @param _periods Amount of periods during which tokens will be locked
+    **/
+    function deposit(address _staker, address _payor, uint256 _value, uint16 _periods) internal isInitialized {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
@@ -501,7 +554,7 @@ contract StakingEscrow is Issuer {
             policyManager.register(_staker, getCurrentPeriod());
         }
         info.value = info.value.add(_value);
-        token.safeTransferFrom(_staker, address(this), _value);
+        token.safeTransferFrom(_payor, address(this), _value);
         lock(_staker, _value, _periods);
         emit Deposited(_staker, _value, _periods);
     }
@@ -752,6 +805,9 @@ contract StakingEscrow is Issuer {
         }
 
         info.value = info.value.add(reward);
+        if (info.measureWork) {
+            info.workDone = info.workDone.add(reward);
+        }
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1219,6 +1275,7 @@ contract StakingEscrow is Issuer {
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
         require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(address(delegateGet(_testTarget, "adjudicator()")) == address(adjudicator));
+        require(address(delegateGet(_testTarget, "workLock()")) == address(workLock));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
         require(address(delegateGet(_testTarget, "workerToStaker(address)", bytes32(0))) ==
@@ -1241,6 +1298,7 @@ contract StakingEscrow is Issuer {
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
             infoToCheck.worker == info.worker &&
             infoToCheck.workerStartPeriod == info.workerStartPeriod);
+        // TODO check work
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", staker) ==
             info.pastDowntime.length);
