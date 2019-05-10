@@ -63,6 +63,8 @@ sphinx_rtd_theme = "*"
 aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
+pytest-dash = "==2.1.0"
+instapy-chromedriver = "*"
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
