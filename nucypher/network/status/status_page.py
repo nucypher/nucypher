@@ -39,7 +39,7 @@ class NetworkStatusPage:
                     html.Img(src='/assets/nucypher_logo.png'),
                 ], className='banner'),
                 html.Div([
-                    html.H1(title, className='app_name'),
+                    html.H1(title, id='status-title', className='app_name'),
                 ], className='row'),
                 html.Div(f'v{nucypher.__version__}', className='row')
             ]),
@@ -170,8 +170,6 @@ class MoeStatusPage(NetworkStatusPage):
                  *args,
                  **kwargs) -> None:
         NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
-
-        print(">>>> Derek ", self.dash_app.index_string)
 
         # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
