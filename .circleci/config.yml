@@ -42,6 +42,13 @@ workflows:
               only: /.*/
           requires:
             - pipenv_install_36
+      - network_status:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pipenv_install_36
       - character:
           context: "NuCypher Tests"
           filters:
@@ -85,6 +92,7 @@ workflows:
           requires:
             - basics
             - network
+            - network_status
             - character
             - cli
             - deployers
@@ -186,6 +194,12 @@ python_36_base: &python_36_base
   docker:
     - image: circleci/python:3.6
 
+python_36_base_browser: &python_36_base_browser
+  parallelism: 1
+  working_directory: ~/nucypher
+  docker:
+    - image: circleci/python:3.6-browsers
+
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
@@ -283,6 +297,20 @@ jobs:
           paths:
             - nucypher-*
 
+  # Python 3.6 with browsers
+  pip_install_36_browser:
+    <<: *python_36_base_browser
+    steps:
+    - pip_install
+  pipenv_install_36_browser:
+    <<: *python_36_base_browser
+    steps:
+    - pipenv_install
+    - persist_to_workspace:
+        root: ~/.local/share/virtualenvs/
+        paths:
+          - nucypher-*
+
   # Python 3.7
   pip_install_37:
     <<: *python_37_base
@@ -355,7 +383,18 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/network/**/test_^(ursula_status)*.py" | circleci tests split --split-by=timings)
+      - capture_test_results
+
+  network_status:
+    <<: *python_36_base_browser
+    steps:
+      - checkout
+      - pipenv_install
+      - run:
+          name: Network Status Page Tests
+          command: |
+            pipenv run pytest --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/network/test_ursula_status.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:

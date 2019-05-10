@@ -63,6 +63,7 @@ sphinx_rtd_theme = "*"
 aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
+# UI testing
 pytest-dash = "==2.1.0"
 instapy-chromedriver = "*"
 
