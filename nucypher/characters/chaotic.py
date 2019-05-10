@@ -96,7 +96,7 @@ class Moe(Character):
         #
         # WSGI Service
         #
-        self.rest_app = Flask("fleet-monitor", template_folder=TEMPLATES_DIR)
+        self.rest_app = Flask("fleet-monitor")
         rest_app = self.rest_app
         # attach status app to rest_app
         MoeStatusPage(moe=self,
