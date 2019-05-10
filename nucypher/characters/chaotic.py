@@ -102,7 +102,8 @@ class Moe(Character):
         MoeStatusPage(moe=self,
                       title='Moe Monitoring Application',
                       flask_server=self.rest_app,
-                      route_url='/')
+                      route_url='/',
+                      ws_port=ws_port)
 
         #
         # Server
