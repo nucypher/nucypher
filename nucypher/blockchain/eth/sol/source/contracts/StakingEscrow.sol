@@ -1297,8 +1297,11 @@ contract StakingEscrow is Issuer {
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
             infoToCheck.worker == info.worker &&
+            infoToCheck.workerStartPeriod == info.workerStartPeriod &&
+            infoToCheck.measureWork == info.measureWork &&
+            infoToCheck.workDone == info.workDone &&
+            infoToCheck.worker == info.worker &&
             infoToCheck.workerStartPeriod == info.workerStartPeriod);
-        // TODO check work
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", staker) ==
             info.pastDowntime.length);
