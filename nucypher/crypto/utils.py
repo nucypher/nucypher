@@ -44,7 +44,7 @@ def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
 
 
 def canonical_address_from_umbral_key(public_key: UmbralPublicKey) -> bytes:
-    pubkey_raw_bytes = public_key.to_bytes(is_compressed=False)[1:]
+    pubkey_raw_bytes = get_coordinates_as_bytes(public_key)
     eth_pubkey = EthKeyAPI.PublicKey(pubkey_raw_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
@@ -102,7 +102,7 @@ def get_signature_recovery_value(message: bytes,
 
     signature = bytes(signature)
     ecdsa_signature_size = Signature.expected_bytes_length()
-    if not len(signature) == ecdsa_signature_size:
+    if len(signature) != ecdsa_signature_size:
         raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
 
     kwargs = dict(hasher=None) if is_prehashed else {}
@@ -121,11 +121,9 @@ def get_signature_recovery_value(message: bytes,
 def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey, SignatureStamp],
                              x_coord=True,
                              y_coord=True) -> bytes:
-
-    try:
+    if isinstance(point, SignatureStamp):
         point = point.as_umbral_pubkey()
-    except AttributeError:
-        pass
+
     coordinates_as_bytes = point.to_bytes(is_compressed=False)[1:]
     middle = len(coordinates_as_bytes)//2
     if x_coord and y_coord:
