@@ -3,23 +3,27 @@
     <b-nav>
       <b-nav-item>
         <div class="mt-3" style="width:100px">
-          <a target="blank" href="https://www.nucypher.com">
+          <a href="https://www.nucypher.com">
             <nu-logo/>
           </a>
         </div>
       </b-nav-item>
-    <b-nav-item><h4 class="mt-3">Felix</h4></b-nav-item>
+      <b-nav-item>
+        <div class="mt-3">
+          <a target="_blank" href="/">
+            <h4>Felix</h4>
+          </a>
+        </div>
+      </b-nav-item>
+      <b-nav-item>
+        <div class="mt-3">
+          <a target="_blank" href="http://23.20.196.108:3000">
+            <h5>eth-stats <div style="width:30px;display:inline-block"><nu-logo/></div></h5>
+          </a>
+        </div>
+      </b-nav-item>
     </b-nav>
-    <b-row class="justify-content-md-center">
-      <b-col md="4">
-        <p>
-          Felix distributes tokens on the NuCypher test net.
-        </p>
-      </b-col>
-      <b-col md="8">
-        <Registration/>
-      </b-col>
-    </b-row>
+    <felix/>
     <b-row class="bottom">
       <b-col style="min-height:400px" cols="12">
       </b-col>
@@ -28,12 +32,12 @@
 </template>
 
 <script>
-import Registration from './components/registration.vue'
+import felix from './pages/felix.vue'
 
 export default {
   name: 'app',
   components: {
-    Registration
+    felix
   }
 }
 </script>

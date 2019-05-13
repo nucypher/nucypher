@@ -26,8 +26,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR
-from nucypher.crypto.powers import SigningPower, TransactingPower
+from nucypher.config.constants import TEMPLATES_DIR, CORS_ORIGINS
+from nucypher.crypto.powers import SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
@@ -110,6 +110,8 @@ class Moe(Character):
 
         deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
         deployer.add_non_tls_websocket_service(websocket_service)
+
+        click.secho(f"Running Moe on 127.0.0.1:{http_port}")
 
         if not dry_run:
             deployer.run()
@@ -221,12 +223,18 @@ class Felix(Character, NucypherTokenActor):
 
     def make_web_app(self):
         from flask import request
+        from flask_cors import CORS, cross_origin
         from flask_sqlalchemy import SQLAlchemy
 
         # WSGI/Flask Service
         short_name = bytes(self.stamp).hex()[:6]
         self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
+
+        # TODO: this does not work.  Maybe a hendrix issue?  No cross-origin
+        # headers are visible on response.
+        CORS(self.rest_app, resources={r"*": {"origins": CORS_ORIGINS}})
+
         try:
             self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
         except KeyError:
@@ -267,11 +275,11 @@ class Felix(Character, NucypherTokenActor):
         @rest_app.route("/", methods=['GET'])
         @limiter.limit("100/day;20/hour;1/minute")
         def home():
-            rendering = render_template(self.TEMPLATE_NAME)
+            rendering = render_template(self.TEMPLATE_NAME, APPS_S3_PATH=APPS_S3_PATH)
             return rendering
 
         @rest_app.route("/register", methods=['POST'])
-        @limiter.limit("5 per day")
+        @cross_origin()
         def register():
             """Handle new recipient registration via POST request."""
 

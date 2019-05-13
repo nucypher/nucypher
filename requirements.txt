@@ -36,6 +36,7 @@ ethpm==0.1.4a19
 flask-limiter==1.0.1
 flask-sqlalchemy==2.4.0
 flask==1.0.3
+flask-cors==3.0.7
 hendrix==3.2.3
 hexbytes==0.2.0
 humanize==0.5.1
