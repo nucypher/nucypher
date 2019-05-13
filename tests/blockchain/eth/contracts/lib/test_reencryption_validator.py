@@ -17,42 +17,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
+from mock import Mock
 
 from eth_tester.exceptions import TransactionFailed
 
-from umbral import pre
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
-from umbral.signing import Signature, Signer
+from umbral.signing import Signer
 
-from nucypher.policy.models import IndisputableEvidence
+from nucypher.crypto.signing import SignatureStamp
+
 
 @pytest.fixture(scope='module')
 def reencryption_validator(testerchain):
     contract, _ = testerchain.interface.deploy_contract('ReEncryptionValidatorMock')
     return contract
-
-
-def fragments(metadata):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-    return capsule, cfrag
 
 
 @pytest.mark.slow
@@ -138,70 +120,71 @@ def test_umbral_constants(testerchain, reencryption_validator):
 
 
 @pytest.mark.slow
-def test_compute_proof_challenge_scalar(testerchain, reencryption_validator):
-    metadata = os.urandom(33)
-    capsule, cfrag = fragments(metadata)
-
-    assert cfrag.verify_correctness(capsule)
-
-    capsule_bytes = capsule.to_bytes()
-    cfrag_bytes = cfrag.to_bytes()
+def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, mock_ursula_reencrypts):
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
 
     # Bob prepares supporting Evidence
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
     proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
     computeProofChallengeScalar = reencryption_validator.functions.computeProofChallengeScalar
     assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
 
 @pytest.mark.slow
-def test_validate_cfrag(testerchain, reencryption_validator):
+def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencrypts):
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
+
     ###############################
     # Test: Ursula produces correct proof:
     ###############################
-    metadata = os.urandom(33)
-    capsule, cfrag = fragments(metadata)
-
-    assert cfrag.verify_correctness(capsule)
-
-    capsule_bytes = capsule.to_bytes()
-    cfrag_bytes = cfrag.to_bytes()
 
     # Bob prepares supporting Evidence
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-
+    evidence = mock_ursula_reencrypts(ursula)
     evidence_data = evidence.precompute_values()
-    assert len(evidence_data) == 20 * 32 + 32 + 20 + 1
+    assert len(evidence_data) == 20 * 32 + 32 + 20 + 5
 
     # Challenge using good data
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
     args = (capsule_bytes, cfrag_bytes, evidence_data)
     assert reencryption_validator.functions.validateCFrag(*args).call()
 
     ###############################
     # Test: Ursula produces incorrect proof:
     ###############################
-    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
     cfrag_bytes = cfrag.to_bytes()
     assert not cfrag.verify_correctness(capsule)
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
     evidence_data = evidence.precompute_values()
-
     args = (capsule_bytes, cfrag_bytes, evidence_data)
     assert not reencryption_validator.functions.validateCFrag(*args).call()
 
     ###############################
     # Test: Bob produces wrong precomputed data
     ###############################
-
-    metadata = os.urandom(34)
-    capsule, cfrag = fragments(metadata)
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
     capsule_bytes = capsule.to_bytes()
     cfrag_bytes = cfrag.to_bytes()
     assert cfrag.verify_correctness(capsule)
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
     evidence_data = evidence.precompute_values()
 
     # Bob produces a random point and gets the bytes of coords x and y

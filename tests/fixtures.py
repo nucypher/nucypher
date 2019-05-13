@@ -25,6 +25,11 @@ from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 from web3 import Web3
 
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
+
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -35,12 +40,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
+from nucypher.policy.models import IndisputableEvidence, WorkOrder
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
@@ -476,3 +483,56 @@ def staking_participant(funded_blockchain, blockchain_ursulas):
     teachers = list(blockchain_ursulas)
     staking_participant = teachers[-1]
     return staking_participant
+
+
+#
+# Re-Encryption
+#
+
+def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
+    delegating_privkey = UmbralPrivateKey.gen_key()
+    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
+    signing_privkey = UmbralPrivateKey.gen_key()
+    signing_pubkey = signing_privkey.get_pubkey()
+    signer = Signer(signing_privkey)
+    priv_key_bob = UmbralPrivateKey.gen_key()
+    pub_key_bob = priv_key_bob.get_pubkey()
+    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
+                                 signer=signer,
+                                 receiving_pubkey=pub_key_bob,
+                                 threshold=2,
+                                 N=4,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
+
+    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
+
+    alice_address = canonical_address_from_umbral_key(signing_pubkey)
+    blockhash = bytes(32)
+
+    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
+
+    bobs_signer = Signer(priv_key_bob)
+    task_signature = bytes(bobs_signer(specification))
+
+    metadata = bytes(ursula.stamp(task_signature))
+
+    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
+
+    if corrupt_cfrag:
+        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+
+    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
+
+    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
+    task = WorkOrder.Task(capsule, task_signature, cfrag, cfrag_signature)
+    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
+
+    evidence = IndisputableEvidence(task, work_order)
+    return evidence
+
+
+@pytest.fixture(scope='session')
+def mock_ursula_reencrypts():
+    return _mock_ursula_reencrypts

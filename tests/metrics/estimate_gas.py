@@ -22,7 +22,9 @@ import io
 import json
 import os
 import re
+import sys
 import time
+from mock import Mock
 from os.path import abspath, dirname
 
 from eth_utils import to_canonical_address
@@ -31,16 +33,20 @@ from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
-from umbral import pre
-from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
-from nucypher.crypto.utils import get_signature_recovery_value
-from nucypher.policy.models import IndisputableEvidence, Policy
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.utils import get_coordinates_as_bytes
+from nucypher.policy.models import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+
+# FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
+sys.path.insert(0, abspath('tests'))
+from fixtures import _mock_ursula_reencrypts as mock_ursula_reencrypts
+
 
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = TokenEconomics()
@@ -115,72 +121,34 @@ class AnalyzeGas:
         globalLogPublisher.addObserver(self)
 
 
-# TODO organize support functions
-# TODO: Repeated method in test_intercontract_integration
-def generate_args_for_slashing(testerchain, miner, corrupt: bool = True):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+def mock_ursula_with_stamp():
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
+    return ursula
 
-    miner_umbral_private_key = UmbralPrivateKey.gen_key()
-    ursula_pubkey = miner_umbral_private_key.get_pubkey()
-    ursula_pubkey_bytes = ursula_pubkey.to_bytes(is_compressed=False)[1:]
-    specification = bytes(capsule) + ursula_pubkey_bytes + bytes(20) + bytes(32)
 
-    ursulas_signer = Signer(miner_umbral_private_key)
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer(specification))
-
-    metadata = bytes(ursulas_signer(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-    if corrupt:
-        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-
-    cfrag_signature = bytes(ursulas_signer(bytes(cfrag)))
-
-    bob_pubkey_bytes = pub_key_bob.to_bytes(is_compressed=False)[1:]
-
-    cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
-                                                     signature=cfrag_signature,
-                                                     public_key=ursula_pubkey)
-    task_signature_v = get_signature_recovery_value(message=task_signature,
-                                                    signature=metadata,
-                                                    public_key=ursula_pubkey)
-    recovery_values = cfrag_signature_v + task_signature_v
-
-    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)[1:]
-    # Sign Umbral public key using eth-key
+def sha256_hash(data):
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(miner_umbral_public_key_bytes)
-    miner_umbral_public_key_hash = hash_ctx.finalize()
-    address = to_canonical_address(miner)
-    sig_key = testerchain.interface.provider.ethereum_tester.backend._key_lookup[address]
+    hash_ctx.update(data)
+    digest = hash_ctx.finalize()
+    return digest
+
+
+def generate_args_for_slashing(testerchain, ursula, account, corrupt_cfrag: bool = True):
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=corrupt_cfrag)
+
+    # Sign Umbral public key using eth-key
+    miner_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
+    provider = testerchain.interface.provider
+    address = to_canonical_address(account)
+    sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
-
-    return (bytes(capsule),
-            bytes(cfrag),
-            cfrag_signature,
-            task_signature,
-            recovery_values,
-            bob_pubkey_bytes,
-            miner_umbral_public_key_bytes,
-            signed_miner_umbral_public_key,
-            evidence_data)
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
+    return args
 
 
 def estimate_gas(analyzer: AnalyzeGas = None) -> None:
@@ -207,6 +175,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Accounts
     origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
+
+    ursula_with_stamp = mock_ursula_with_stamp()
 
     # Contracts
     token_agent = NucypherTokenAgent(blockchain=testerchain)
@@ -680,7 +650,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Slashing
     #
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Slash just value = " + str(
         adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
@@ -692,28 +662,28 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("First slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Second slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Third slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
@@ -732,20 +702,20 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
     log.info("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    slashing_args = generate_args_for_slashing(testerchain, ursula1, corrupt=False)
+    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1, corrupt_cfrag=False)
     log.info("Evaluating correct CFrag = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})

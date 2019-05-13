@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from mock import Mock
 
 import pytest
 from cryptography.hazmat.backends.openssl import backend
@@ -25,14 +26,12 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
-from umbral import pre
-from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.crypto.utils import get_signature_recovery_value
-from nucypher.policy.models import IndisputableEvidence
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.utils import get_coordinates_as_bytes
 
 
 VALUE_FIELD = 0
@@ -134,76 +133,37 @@ def adjudicator(testerchain, escrow, slashing_economics):
     return contract, dispatcher
 
 
-# TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
-# TODO organize support functions
-# TODO: Repeated method in estimate_gas
-def generate_args_for_slashing(testerchain, miner):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+def mock_ursula_with_stamp():
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
+    return ursula
 
-    miner_umbral_private_key = UmbralPrivateKey.gen_key()
-    ursula_pubkey = miner_umbral_private_key.get_pubkey()
-    ursula_pubkey_bytes = ursula_pubkey.to_bytes(is_compressed=False)[1:]
-    specification = bytes(capsule) + ursula_pubkey_bytes + bytes(20) + bytes(32)
 
-    ursulas_signer = Signer(miner_umbral_private_key)
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer(specification))
-
-    metadata = bytes(ursulas_signer(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-    cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-
-    cfrag_signature = bytes(ursulas_signer(bytes(cfrag)))
-
-    bob_pubkey_bytes = pub_key_bob.to_bytes(is_compressed=False)[1:]
-
-    cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
-                                                     signature=cfrag_signature,
-                                                     public_key=ursula_pubkey)
-    task_signature_v = get_signature_recovery_value(message=task_signature,
-                                                    signature=metadata,
-                                                    public_key=ursula_pubkey)
-    recovery_values = cfrag_signature_v + task_signature_v
-
-    miner_umbral_public_key_bytes = miner_umbral_private_key.get_pubkey().to_bytes(is_compressed=False)[1:]
-    # Sign Umbral public key using eth-key
+def sha256_hash(data):
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(miner_umbral_public_key_bytes)
-    miner_umbral_public_key_hash = hash_ctx.finalize()
-    address = to_canonical_address(miner)
-    sig_key = testerchain.interface.provider.ethereum_tester.backend._key_lookup[address]
+    hash_ctx.update(data)
+    digest = hash_ctx.finalize()
+    return digest
+
+
+# TODO organize support functions
+def generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula, account):
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+
+    # Sign Umbral public key using eth-key
+    miner_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
+    provider = testerchain.interface.provider
+    address = to_canonical_address(account)
+    sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
 
-    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
-    evidence_data = evidence.precompute_values()
+    args = list(evidence.evaluation_arguments())
+    args[-2] = signed_miner_umbral_public_key  # FIXME
 
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(bytes(capsule) + bytes(cfrag))
-    data_hash = hash_ctx.finalize()
-
-    return data_hash, (bytes(capsule),
-                       bytes(cfrag),
-                       cfrag_signature,
-                       task_signature,
-                       recovery_values,
-                       bob_pubkey_bytes,
-                       miner_umbral_public_key_bytes,
-                       signed_miner_umbral_public_key,
-                       evidence_data)
+    data_hash = sha256_hash(bytes(evidence.task.capsule) + bytes(evidence.task.cfrag))
+    return data_hash, args
 
 
 @pytest.fixture()
@@ -268,7 +228,16 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
 
 
 @pytest.mark.slow
-def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escrow_proxy, multisig, slashing_economics):
+def test_all(testerchain,
+             token,
+             escrow,
+             policy_manager,
+             adjudicator,
+             user_escrow_proxy,
+             multisig,
+             slashing_economics,
+             mock_ursula_reencrypts):
+
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
 
@@ -279,6 +248,10 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *contracts_owners =\
         testerchain.interface.w3.eth.accounts
     contracts_owners = sorted(contracts_owners)
+
+    # We'll need this later for slashing these Ursulas
+    ursula1_with_stamp = mock_ursula_with_stamp()
+    ursula2_with_stamp = mock_ursula_with_stamp()
 
     # Give clients some ether
     tx = testerchain.interface.w3.eth.sendTransaction(
@@ -784,7 +757,7 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     algorithm_sha256, base_penalty, *coefficients = deployment_parameters
     penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
 
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -806,7 +779,7 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     previous_lock = escrow.functions.getLockedTokensInPast(ursula2, 1).call()
     lock = escrow.functions.getLockedTokens(ursula2).call()
     next_lock = escrow.functions.getLockedTokens(ursula2, 1).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula2)
+    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula2_with_stamp, ursula2)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -890,12 +863,12 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     next_lock = escrow.functions.getLockedTokens(ursula1, 1).call()
     total_lock = escrow.functions.lockedPerPeriod(period).call()
     alice2_balance = token.functions.balanceOf(alice2).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
     testerchain.wait_for_receipt(tx)
     assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
     testerchain.wait_for_receipt(tx)

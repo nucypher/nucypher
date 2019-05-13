@@ -43,52 +43,6 @@ secret = (123456).to_bytes(32, byteorder='big')
 secret2 = (654321).to_bytes(32, byteorder='big')
 
 
-# TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
-def mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signing_pubkey = signing_privkey.get_pubkey()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
-
-    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-
-    alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    blockhash = bytes(32)
-
-    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
-
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer(specification))
-
-    metadata = bytes(ursula.stamp(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-
-    if corrupt_cfrag:
-        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-
-    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
-
-    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    task = WorkOrder.Task(capsule, task_signature, cfrag, cfrag_signature)
-    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
-
-    evidence = IndisputableEvidence(task, work_order)
-
-    return evidence
-
-
 def evaluation_hash(capsule, cfrag):
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(bytes(capsule) + bytes(cfrag))
@@ -97,7 +51,13 @@ def evaluation_hash(capsule, cfrag):
 
 
 @pytest.mark.slow
-def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract, slashing_economics, federated_ursulas):
+def test_evaluate_cfrag(testerchain,
+                        escrow,
+                        adjudicator_contract,
+                        slashing_economics,
+                        federated_ursulas,
+                        mock_ursula_reencrypts
+                        ):
     ursula = list(federated_ursulas)[0]
     creator, miner, wrong_miner, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
