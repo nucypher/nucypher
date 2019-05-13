@@ -294,6 +294,10 @@ def make_rest_app(
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
+
+        # TODO: How to pass Ursula's identity evidence to Bob? #962
+        # 'Identity evidence' is a signature of her stamp with the checksum address
+
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
 

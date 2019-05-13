@@ -102,7 +102,7 @@ def test_evaluate_cfrag(testerchain,
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962  #962
 
     # Challenge using good data
     assert worker_stake == escrow.functions.minerInfo(miner).call()[0]
@@ -139,7 +139,7 @@ def test_evaluate_cfrag(testerchain,
     assert not cfrag.verify_correctness(capsule)
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
@@ -184,7 +184,7 @@ def test_evaluate_cfrag(testerchain,
     evidence_data = bytes(evidence_data)
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
     args[-1] = evidence_data
 
     data_hash = evaluation_hash(capsule, cfrag)
@@ -205,7 +205,7 @@ def test_evaluate_cfrag(testerchain,
     assert not cfrag.verify_correctness(capsule)
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962  #962
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
@@ -249,7 +249,7 @@ def test_evaluate_cfrag(testerchain,
     assert not cfrag.verify_correctness(capsule)
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962  #962
 
     data_hash = evaluation_hash(capsule, cfrag)
     assert not adjudicator_contract.functions.evaluatedCFrags(data_hash).call()

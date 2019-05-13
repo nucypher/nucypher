@@ -142,7 +142,7 @@ contract MiningAdjudicator is Upgradeable {
         );
 
         // Extract miner's address and check that is real miner
-        // TODO: Rethink _minerPublicKeySignature, as we only need the miner's address...(I think?)
+        // TODO: This will depend on the outcome of #962
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
         // Check that miner can be slashed

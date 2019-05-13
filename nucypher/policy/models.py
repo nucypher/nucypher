@@ -945,6 +945,6 @@ class IndisputableEvidence:
                 bytes(self.task.signature),
                 get_coordinates_as_bytes(self.bob_pubkey),
                 get_coordinates_as_bytes(self.ursula_pubkey),
-                None,   # FIXME: bytes memory _minerPublicKeySignature,
+                None,   # FIXME: bytes memory _minerPublicKeySignature #962
                 self.precompute_values()
                 )

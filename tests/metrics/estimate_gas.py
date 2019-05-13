@@ -147,7 +147,7 @@ def generate_args_for_slashing(testerchain, ursula, account, corrupt_cfrag: bool
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME
+    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
     return args
 
 
