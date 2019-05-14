@@ -47,7 +47,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
+@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
@@ -240,10 +240,11 @@ def ursula(click_config,
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
 
     # Seed - Step 1
-    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_uris = [teacher_uri] if teacher_uri else None
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=ursula_config.federated_only,
+                                           network_domain=network,
                                            network_middleware=click_config.middleware)
 
     # Produce - Step 2

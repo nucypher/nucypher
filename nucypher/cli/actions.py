@@ -9,6 +9,8 @@ from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.teachers import TEACHER_NODES
+
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including:
@@ -35,14 +37,17 @@ console_emitter = NucypherClickConfig.emit
 
 def load_seednodes(min_stake: int,
                    federated_only: bool,
+                   network_domain: str,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None
                    ) -> List[Ursula]:
 
     teacher_nodes = list()
     if teacher_uris is None:
-        # Default teacher nodes can be placed here
-        return teacher_nodes
+        try:
+            teacher_uris = TEACHER_NODES[network_domain]
+        except KeyError:
+            raise KeyError(f"No default teacher nodes exist for the specified network: {network_domain}")
     for uri in teacher_uris:
         teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                min_stake=min_stake,
