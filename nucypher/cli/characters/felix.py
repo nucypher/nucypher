@@ -13,7 +13,7 @@ from nucypher.config.characters import FelixConfiguration
 @click.argument('action')
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
+@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
 @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')
 @click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
 @click.option('--discovery-port', help="The host port to run Felix Node Discovery services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_LEARNER_PORT)
