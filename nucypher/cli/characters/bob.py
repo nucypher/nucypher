@@ -103,10 +103,11 @@ def bob(click_config,
                                                              config_file=config_file)
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_uris = [teacher_uri] if teacher_uri else None
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=federated_only,
+                                           network_domain=network,
                                            network_middleware=click_config.middleware)
 
     if not dev:
