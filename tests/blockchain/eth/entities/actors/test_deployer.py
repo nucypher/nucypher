@@ -45,7 +45,7 @@ def test_rapid_deployment(token_economics):
                                             registry=registry,
                                             provider_uri='tester://pyevm')
 
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=4)
+    blockchain = TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

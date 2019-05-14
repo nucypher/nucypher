@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 from datetime import datetime
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
@@ -55,6 +56,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 def only_me(func):
@@ -102,7 +104,7 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> int:
         """Return this actors's current ETH balance"""
-        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
+        balance = self.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
         return self.blockchain.interface.w3.fromWei(balance, 'ether')
 
     @property
@@ -139,8 +141,8 @@ class Deployer(NucypherTokenActor):
 
         self.blockchain = blockchain
         self.__deployer_address = NO_DEPLOYER_ADDRESS
-        if deployer_address:
-            self.deployer_address = deployer_address
+        self.deployer_address = deployer_address
+        self.checksum_public_address = self.deployer_address
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
@@ -188,16 +190,21 @@ class Deployer(NucypherTokenActor):
             raise self.UnknownContract(contract_name)
         return Deployer
 
-    def deploy_contract(self, contract_name: str, plaintext_secret: str = None) -> Tuple[dict, ContractDeployer]:
+    def deploy_contract(self,
+                        contract_name: str,
+                        gas_limit: int = None,
+                        plaintext_secret: str = None,
+                        ) -> Tuple[dict, ContractDeployer]:
+
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
             secret_hash = self.blockchain.interface.w3.keccak(bytes(plaintext_secret, encoding='utf-8'))
-            txhashes = deployer.deploy(secret_hash=secret_hash)
+            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
-            txhashes = deployer.deploy()
+            txhashes = deployer.deploy(gas_limit=gas_limit)
         return txhashes, deployer
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
@@ -319,6 +326,21 @@ class Deployer(NucypherTokenActor):
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
         txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
         return txhashes
+
+    def save_deployment_receipts(self, transactions: dict) -> str:
+        filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
+        with open(filepath, 'w') as file:
+            data = dict()
+            for contract_name, transactions in transactions.items():
+                contract_records = dict()
+                for tx_name, txhash in transactions.items():
+                    receipt = {item: str(result) for item, result in self.blockchain.wait_for_receipt(txhash).items()}
+                    contract_records.update({tx_name: receipt for tx_name in transactions})
+                data[contract_name] = contract_records
+            data = json.dumps(data, indent=4)
+            file.write(data)
+        return filepath
 
 
 class Miner(NucypherTokenActor):

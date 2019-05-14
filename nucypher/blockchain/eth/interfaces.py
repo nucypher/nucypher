@@ -25,17 +25,33 @@ from typing import Tuple, Union, List
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
+import os
+from typing import Tuple, Union
+from urllib.parse import urlparse
 
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
     MANUAL_PROVIDERS_SET,
-    NO_DEPLOYER_CONFIGURED
+    NO_DEPLOYER_CONFIGURED,
+    UNKNOWN_TX_STATUS
 )
+from eth_keys.datatypes import PublicKey, Signature
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
+from eth_utils import to_canonical_address
+from twisted.logger import Logger
+from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
+from web3.contract import Contract
+from web3.providers.eth_tester.main import EthereumTesterProvider
+
+from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+import pprint
+
+
+Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
 
 class BlockchainInterface:
@@ -43,8 +59,10 @@ class BlockchainInterface:
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
-    __default_timeout = 10  # seconds
-    # __default_transaction_gas_limit = 500000  # TODO #842: determine sensible limit and validate transactions
+    __default_timeout = 30  # seconds
+    __default_transaction_gas = 500_000  # TODO #842: determine sensible limit and validate transactions
+
+    process = None  # TODO
 
     class InterfaceError(Exception):
         pass
@@ -123,14 +141,14 @@ class BlockchainInterface:
         https: // github.com / ethereum / eth - tester     # available-backends
 
 
-        * HTTP Provider - supply endpiont_uri
-        * Websocket Provider - supply endpoint uri and websocket=True
-        * IPC Provider - supply IPC path
-        * Custom Provider - supply an iterable of web3.py provider instances
+        * HTTP Provider - Web3 HTTP provider, typically JSON RPC 2.0 over HTTP
+        * Websocket Provider - Web3 WS provider, typically JSON RPC 2.0 over WS, supply endpoint uri and websocket=True
+        * IPC Provider - Web3 File based IPC provider transported over standard I/O
+        * Custom Provider - A pre-initialized web3.py provider instance to attach to this interface
 
         """
 
-        self.log = Logger("blockchain-interface")                       # type: Logger
+        self.log = Logger("blockchain-interface")
 
         #
         # Providers
@@ -145,12 +163,18 @@ class BlockchainInterface:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
         elif provider_uri:
             self.provider_uri = provider_uri
-            self.add_provider(provider_uri=provider_uri)
+            self.attach_provider(provider_uri=provider_uri)
         elif provider:
             self.provider_uri = MANUAL_PROVIDERS_SET
-            self.add_provider(provider)
+            self.attach_provider(provider)
         else:
             self.log.warn("No provider supplied for new blockchain interface; Using defaults")
+
+        # Ethereum client metadata
+        self._node_technology = NO_BLOCKCHAIN_CONNECTION
+        self._node_version = NO_BLOCKCHAIN_CONNECTION
+        self._platform = NO_BLOCKCHAIN_CONNECTION
+        self._backend = NO_BLOCKCHAIN_CONNECTION
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -180,6 +204,19 @@ class BlockchainInterface:
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
+    @property
+    def client_version(self) -> str:
+        if self.__provider is NO_BLOCKCHAIN_CONNECTION:
+            return "Unknown"
+
+        if self.is_connected:
+            node_info = self.w3.clientVersion.split(os.sep)
+            node_technology, node_version, platform, go_version = node_info
+        else:
+            return str(NO_BLOCKCHAIN_CONNECTION)
+
+        return node_technology.lower()
+
     def connect(self):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
@@ -195,7 +232,9 @@ class BlockchainInterface:
             raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
 
         if self.is_connected:
-            self.log.info('Successfully Connected to {}'.format(self.provider_uri))
+            self.log.info('ATTACHED WEB3 PROVIDER {}'.format(self.provider_uri))
+            node_info = self.w3.clientVersion.split('/')
+            self._node_technology, self._node_version, self._platform, self._backend = node_info
             return self.is_connected
         else:
             raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
@@ -216,10 +255,12 @@ class BlockchainInterface:
         """Return node version information"""
         return self.w3.node_version.node
 
-    def add_provider(self,
-                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTesterProvider] = None,
-                     provider_uri: str = None,
-                     timeout: int = None) -> None:
+    def attach_provider(self,
+                        provider: Web3Providers = None,
+                        provider_uri: str = None) -> None:
+        """
+        https://web3py.readthedocs.io/en/latest/providers.html#providers
+        """
 
         if not provider_uri and not provider:
             raise self.NoProvider("No URI or provider instances supplied.")
@@ -227,10 +268,16 @@ class BlockchainInterface:
         if provider_uri and not provider:
             uri_breakdown = urlparse(provider_uri)
 
-            # PyEVM
+            #
+            # Web3 Providers
+            #
+
+            # Test Endpoints
+
             if uri_breakdown.scheme == 'tester':
 
                 if uri_breakdown.netloc == 'pyevm':
+                    # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
                     from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
 
                     # Initialize
@@ -243,28 +290,71 @@ class BlockchainInterface:
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
                 elif uri_breakdown.netloc == 'geth':
-                    # TODO: Hardcoded geth - dev IPC provider - for now
-                    provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
+
+                    # geth --dev
+                    geth_process = NuCypherGethDevProcess()
+                    geth_process.start()
+                    geth_process.wait_for_ipc(timeout=30)
+                    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=self.timeout)
+                    BlockchainInterface.process = geth_process
+
+                elif uri_breakdown.netloc == 'ganache':
+                    provider = HTTPProvider(endpoint_uri='http://localhost:7545')  # Default Ganache "TestRPC" Endpoint
 
                 else:
                     raise ValueError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
 
-            # IPC
-            elif uri_breakdown.scheme == 'ipc':
-                provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=timeout)
+            # Shortcuts
 
-            # Websocket
+            # - Auto-Detect -
+            elif uri_breakdown.scheme == 'auto':
+                from web3.auto import w3
+                # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
+                connected = w3.isConnected()
+                if not connected:
+                    raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
+                provider = w3.provider
+
+            # - Infura -
+            elif uri_breakdown.scheme == 'infura':
+                # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
+                infura_envvar = 'WEB3_INFURA_API_SECRET'
+                if infura_envvar not in os.environ:
+                    raise self.InterfaceError(f'{infura_envvar} must be set in order to use an Infura Web3 provider.')
+                from web3.auto.infura import w3
+                connected = w3.isConnected()
+                if not connected:
+                    raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
+                provider = w3.provider
+
+            # Built-In
+
+            # - IPC -
+            elif uri_breakdown.scheme == 'ipc':
+                # https://web3py.readthedocs.io/en/latest/providers.html#ipcprovider
+                provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
+
+            # - Websocket -
             elif uri_breakdown.scheme == 'ws':
+                # https://web3py.readthedocs.io/en/latest/providers.html#websocketprovider
                 provider = WebsocketProvider(endpoint_uri=provider_uri)
 
-            # HTTP
+            # - HTTP -
             elif uri_breakdown.scheme in ('http', 'https'):
+                # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
                 provider = HTTPProvider(endpoint_uri=provider_uri)
 
             else:
-                raise self.InterfaceError("'{}' is not a supported provider protocol".format(uri_breakdown.scheme))
+                raise self.InterfaceError(f"'{uri_breakdown.scheme}' is not a supported Web3 provider "
+                                          f"protocol scheme or shortcut.")
 
             self.__provider = provider
+
+    @classmethod
+    def disconnect(cls):
+        if BlockchainInterface.process:
+            if BlockchainInterface.process.is_running:
+                BlockchainInterface.process.stop()
 
     def get_contract_factory(self, contract_name: str) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
@@ -303,10 +393,11 @@ class BlockchainInterface:
         try:
             contract_records = self.registry.search(contract_address=address)
         except RuntimeError:
-            raise self.InterfaceError('Corrupted Registrar')  # TODO #461: Integrate with Registry
+            # TODO #461: Integrate with Registry
+            raise self.InterfaceError(f'Corrupted contract registry: {self.registry.filepath}.')
         else:
             if not contract_records:
-                raise self.UnknownContract("No such contract with address {}".format(address))
+                raise self.UnknownContract(f"No such contract with address: {address}.")
             return contract_records[0]
 
     def get_proxy(self, target_address: str, proxy_name: str, factory: Contract = Contract):
@@ -349,7 +440,7 @@ class BlockchainInterface:
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
-            raise self.UnknownContract("No such contract records with name {}".format(name))
+            raise self.UnknownContract(f"No such contract records with name {name}.")
 
         if proxy_name:  # It's upgradeable
             # Lookup proxies; Search fot a published proxy that targets this contract record
@@ -412,7 +503,7 @@ class BlockchainInterface:
             return signed_message
 
         else:
-            return self.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs
+            return self.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs?
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
         """
@@ -423,10 +514,18 @@ class BlockchainInterface:
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
         return is_valid_sig and (sig_pubkey == pubkey)
 
-    def unlock_account(self, address, password, duration):
+    def unlock_account(self, address, password, duration=None):
+        # TODO: Parity
+        # TODO: Duration
+
         if 'tester' in self.provider_uri:
             return True  # Test accounts are unlocked by default.
-        return self.w3.geth.personal.unlockAccount(address, password, duration)
+
+        elif self.client_version == 'geth':
+            return self.w3.geth.personal.unlockAccount(address, password)
+
+        else:
+            raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
 
 
 class BlockchainDeployerInterface(BlockchainInterface):
@@ -453,6 +552,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         contract_name: str,
                         *constructor_args,
                         enroll: bool = True,
+                        gas_limit: int = None,
                         **kwargs
                         ) -> Tuple[Contract, str]:
         """
@@ -466,48 +566,60 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        deployment_gas = 6_000_000  # TODO: Gas management
         deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        if gas_limit:
+            deploy_transaction.update({'gas': gas_limit})
+
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_bytecode = contract_factory.constructor(*constructor_args, **kwargs).buildTransaction(deploy_transaction)
-        self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
+        transaction = contract_factory.constructor(*constructor_args, **kwargs).buildTransaction(deploy_transaction)
+        self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(transaction['data'])))
 
         #
         # Transmit the deployment tx #
         #
-        txhash = contract_factory.constructor(*constructor_args, **kwargs).transact(transaction=deploy_transaction)
+
+        txhash = self.w3.eth.sendTransaction(transaction=transaction)
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
         self.log.info(f"Waiting for deployment receipt for {contract_name}")
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
 
+        #
         # Verify deployment success
+        #
 
         # Primary check
-        deployment_status = receipt['status']
+        deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
         if deployment_status is 0:
-            failure = f"{contract_name.upper()} Deployment transaction submitted, but receipt returned status code 0. " \
-                      f"Full receipt: \n {receipt}"
+            failure = f"{contract_name.upper()} Deployment transaction transmitted, but receipt returned status code 0. " \
+                      f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
             raise self.DeploymentFailed(failure)
 
-        # Secondary check
-        tx = self.w3.eth.getTransaction(txhash)
-        if tx["gas"] == receipt["gasUsed"]:
-            raise self.DeploymentFailed(f"Deployment transaction failed and consumed 100% of transaction gas ({deployment_gas})")
+        if deployment_status is UNKNOWN_TX_STATUS:
+            self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
+            # Secondary check TODO: Is this a sensible check?
+            tx = self.w3.eth.getTransaction(txhash)
+            if tx["gas"] == receipt["gasUsed"]:
+                raise self.DeploymentFailed(f"Deployment transaction consumed 100% of transaction gas."
+                                            f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
+
+        # Success
         address = receipt['contractAddress']
         self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 
         #
         # Instantiate & Enroll contract
         #
-        contract = contract_factory(address=address)
+
+        contract = self.w3.eth.contract(address=address, abi=contract_factory.abi)
 
         if enroll is True:
             self.registry.enroll(contract_name=contract_name,
                                  contract_address=contract.address,
                                  contract_abi=contract_factory.abi)
-        return contract, txhash
+
+        return contract, txhash  # receipt

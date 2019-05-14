@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-SECRET_LENGTH = 32
+SECRET_LENGTH = 16
 
 
 @pytest.mark.slow
@@ -219,7 +219,7 @@ def test_dispatcher(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 5 == contract_instance.functions.getStorageValue().call()
 
-    events = rollbacks.get_all_entries()
+    events = rollbacks.get_all_entries()  # FIXME
     assert 1 == len(events)
     event_args = events[0]['args']
     assert contract2_lib.address == event_args['from']

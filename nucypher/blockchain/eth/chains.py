@@ -14,8 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import geth
+from geth.chain import write_genesis_file, initialize_chain
 from twisted.logger import Logger
 from web3.middleware import geth_poa_middleware
 
@@ -39,9 +39,9 @@ class Blockchain:
     class ConnectionNotEstablished(RuntimeError):
         pass
 
-    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None) -> None:
+    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None):
 
-        self.log = Logger("blockchain")                       # type: Logger
+        self.log = Logger("blockchain")
 
         # Default interface
         if interface is None:
@@ -69,11 +69,17 @@ class Blockchain:
                 registry: EthereumContractRegistry = None,
                 deployer: bool = False,
                 compile: bool = False,
-                poa: bool = False
+                poa: bool = False,
+                force: bool = True,
+                fetch_registry: bool = True
                 ) -> 'Blockchain':
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            registry = registry or EthereumContractRegistry()
+            if not registry and fetch_registry:
+                registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
+            else:
+                registry = registry or EthereumContractRegistry()
+
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
             interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
@@ -85,7 +91,7 @@ class Blockchain:
         else:
             if provider_uri is not None:
                 existing_uri = cls._instance.interface.provider_uri
-                if existing_uri != provider_uri:
+                if (existing_uri != provider_uri) and not force:
                     raise ValueError("There is an existing blockchain connection to {}. "
                                      "Use Interface.add_provider to connect additional providers".format(existing_uri))
 

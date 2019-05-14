@@ -42,6 +42,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -142,6 +143,7 @@ class NodeConfiguration(ABC):
                  # Blockchain
                  poa: bool = False,
                  provider_uri: str = None,
+                 geth: bool = False,
 
                  # Registry
                  registry_source: str = None,
@@ -247,6 +249,7 @@ class NodeConfiguration(ABC):
         #
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
+        self.geth = geth
 
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
@@ -257,6 +260,7 @@ class NodeConfiguration(ABC):
         #
         # Development Mode
         #
+
         if dev_mode:
 
             # Ephemeral dev settings
@@ -301,16 +305,31 @@ class NodeConfiguration(ABC):
     def known_nodes(self):
         return self.__fleet_state
 
-    def connect_to_blockchain(self, recompile_contracts: bool = False):
+    def connect_to_blockchain(self, enode: str = None, recompile_contracts: bool = False) -> None:
+        """
+
+        :param enode: ETH seednode or bootnode enode address to start learning from,
+                      i.e. 'enode://e54eebad24dc...e1f6d246bea455@52.71.255.237:30303'
+
+        :param recompile_contracts: Recompile all contracts on connection.
+
+        :return: None
+        """
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
-                                             poa=self.poa)
+                                             poa=self.poa,
+                                             fetch_registry=True)
 
         self.accounts = self.blockchain.interface.w3.eth.accounts
-        self.log.debug("Established connection to provider {}".format(self.blockchain.interface.provider_uri))
+
+        if enode:
+            if self.blockchain.interface.client_version == 'geth':
+                self.blockchain.interface.w3.geth.admin.addPeer(enode)
+            else:
+                raise NotImplementedError
 
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
@@ -404,7 +423,7 @@ class NodeConfiguration(ABC):
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
         if not filepath:
-            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'
+            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'  # FIXME
             filepath = os.path.join(self.config_root, filename)
 
         if os.path.isfile(filepath):
@@ -581,6 +600,7 @@ class NodeConfiguration(ABC):
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
+
         return self.config_root
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
@@ -599,6 +619,10 @@ class NodeConfiguration(ABC):
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         if not self.federated_only and not self.checksum_public_address:
+            if self.geth:
+                data_dir = os.path.join(self.config_root, '.ethereum', NuCypherGethDevnetProcess._CHAIN_NAME)
+                etherbase = NuCypherGethDevnetProcess.ensure_account_exists(password=password, data_dir=data_dir)
+
             checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # etherbase
         else:
             checksum_address = self.checksum_public_address

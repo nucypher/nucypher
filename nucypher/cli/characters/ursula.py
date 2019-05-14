@@ -21,6 +21,7 @@ from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherGethDevProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -35,6 +36,7 @@ from nucypher.cli.types import (
     STAKE_VALUE
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -60,6 +62,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
@@ -89,6 +92,7 @@ def ursula(click_config,
            config_root,
            config_file,
            provider_uri,
+           geth,
            recompile_solidity,
            no_registry,
            registry_filepath,
@@ -120,8 +124,11 @@ def ursula(click_config,
     #
     # Boring Setup Stuff
     #
+
+    ETH_NODE = None  # TODO: move me brightly (to blockchain/interface/client?) (use for cleanup)
+
     if not quiet:
-        log = Logger('ursula.cli')
+        log = Logger('ursula.cli')  # TODO: Why is this unused?
 
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
@@ -132,6 +139,7 @@ def ursula(click_config,
     #
     # Pre-Launch Warnings
     #
+
     if not click_config.quiet:
         if dev:
             click.secho("WARNING: Running in Development mode", fg='yellow')
@@ -139,8 +147,9 @@ def ursula(click_config,
             click.secho("WARNING: Force is enabled", fg='yellow')
 
     #
-    # Unauthenticated Configurations & Un-configured Ursula Control
+    # Unauthenticated & Un-configured Ursula Configuration
     #
+
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
@@ -154,9 +163,15 @@ def ursula(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")  # TODO: Remove this step
+            # TODO: Remove this step - use a fleet node to detect the IP
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
 
-        ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
+        new_password = click_config.get_password(confirm=True)
+
+        if geth:
+            provider_uri = 'geth://auto'
+
+        ursula_config = UrsulaConfiguration.generate(password=new_password,
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
@@ -176,11 +191,16 @@ def ursula(click_config,
         return
 
     #
-    # Configured Ursulas
+    # Generate Configuration
     #
 
     # Development Configuration
     if dev:
+
+        ETH_NODE = NuCypherGethDevProcess()
+        ETH_NODE.start()()
+        provider_uri = ETH_NODE.provider_uri
+
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
@@ -191,7 +211,7 @@ def ursula(click_config,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_filepath=db_filepath)
-    # Authenticated Configurations
+    # Production Configurations
     else:
 
         # Domains -> bytes | or default
@@ -212,25 +232,52 @@ def ursula(click_config,
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                              config_file=config_file)
 
-        click_config.unlock_keyring(character_configuration=ursula_config)
+        #
+        # Spawn Client Node
+        #
+
+        if geth:
+            if federated_only:
+                raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+
+            ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+            ETH_NODE.start()
+
+            # Overwrite the ursula config *after* auth to prevent eager process spawning
+            ursula_config.provider_uri = ETH_NODE.provider_uri
+
+    #
+    # Configured Pre-Authentication Actions
+    #
 
     # Handle destruction *before* network bootstrap and character initialization below
     if action == "destroy":
         """Delete all configuration files from the disk"""
         if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            message = "'nucypher ursula destroy' cannot be used in --dev mode - There is nothing to destroy."
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=ursula_config, force=force)
 
     #
-    # Connect to Blockchain (Non-Federated)
+    # Connect to Blockchain
     #
 
-    if not ursula_config.federated_only:
+    if not ursula_config.federated_only:  # TODO: Pass ETH_NODE?
         click_config.connect_to_blockchain(character_configuration=ursula_config,
                                            recompile_contracts=recompile_solidity)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
+
+    #
+    # Authenticate
+    #
+
+    if dev:
+        # Development accounts are always unlocked and use one-time random keys.
+        password = None
+    else:
+        password = click_config.get_password()
+        click_config.unlock_keyring(character_configuration=ursula_config, password=password)
 
     #
     # Launch Warnings
@@ -239,7 +286,10 @@ def ursula(click_config,
     if ursula_config.federated_only:
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
 
-    # Seed - Step 1
+    #
+    # Seed
+    #
+
     teacher_uris = [teacher_uri] if teacher_uri else None
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
@@ -247,11 +297,16 @@ def ursula(click_config,
                                            network_domain=network,
                                            network_middleware=click_config.middleware)
 
-    # Produce - Step 2
-    URSULA = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
+    #
+    # Produce
+    #
+
+    URSULA = ursula_config(password=password, known_nodes=teacher_nodes, lonely=lonely)
+    del password  # ... under the rug
+
 
     #
-    # Action Switch
+    # Authenticated Action Switch
     #
 
     if action == 'run':
@@ -301,6 +356,8 @@ def ursula(click_config,
         # Graceful Exit / Crash
         finally:
             click_config.emit(message="Stopping Ursula", color='green')
+            if ETH_NODE:
+                ETH_NODE.stop()
             ursula_config.cleanup()
             click_config.emit(message="Ursula Stopped", color='red')
         return
@@ -312,6 +369,19 @@ def ursula(click_config,
 
     elif action == "view":
         """Paint an existing configuration to the console"""
+
+        click.secho("BLOCKCHAIN ----------\n")
+        painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
+        current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+        click.secho(f'Block # {current_block}')
+        click.secho(f'NU Balance: {URSULA.eth_balance}')
+        click.secho(f'ETH Balance: {URSULA.token_balance}')
+        click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+
+        # TODO: Verbose status
+        # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
+
+        click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
         return click_config.emit(response=response)
 
@@ -392,7 +462,7 @@ def ursula(click_config,
 
         # Gather stake value
         if not value:
-            min_locked = NU(URSULA.miner_agent.economics.minimum_allowed_locked, 'NuNit')
+            min_locked = NU(URSULA.economics.minimum_allowed_locked, 'NuNit')
             value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=min_locked)
         else:
             value = NU(int(value), 'NU')
