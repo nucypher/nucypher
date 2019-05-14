@@ -44,7 +44,10 @@ def load_seednodes(min_stake: int,
 
     teacher_nodes = list()
     if teacher_uris is None:
-        teacher_uris = TEACHER_NODES[network_domain]
+        try:
+            teacher_uris = TEACHER_NODES[network_domain]
+        except KeyError:
+            raise KeyError(f"No default teacher nodes exist for the specified network: {network_domain}")
     for uri in teacher_uris:
         teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                min_stake=min_stake,
