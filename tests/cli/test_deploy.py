@@ -134,7 +134,11 @@ def test_nucypher_deploy_contracts(click_runner,
     assert MiningAdjudicatorAgent()
 
 
-def test_upgrade_contracts(click_runner, deploy_user_input):
+def test_upgrade_contracts(click_runner):
+    contracts_to_upgrade = ('MinersEscrow',  # Initial upgrades (version 2)
+                            'PolicyManager',
+                            'MiningAdjudicator',
+                            'UserEscrowProxy')
 
     #
     # Setup
