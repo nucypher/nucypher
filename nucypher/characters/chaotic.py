@@ -8,7 +8,7 @@ import maya
 import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, render_template, Response, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nacl.hash import sha256
@@ -228,7 +228,11 @@ class Felix(Character, NucypherTokenActor):
 
         # WSGI/Flask Service
         short_name = bytes(self.stamp).hex()[:6]
-        self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
+        self.rest_app = Flask(
+            f"faucet-{short_name}",
+            template_folder=TEMPLATES_DIR,
+            static_url_path=''
+        )
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
 
         # TODO: this does not work.  Maybe a hendrix issue?  No cross-origin
@@ -271,6 +275,11 @@ class Felix(Character, NucypherTokenActor):
         #
         # REST Routes
         #
+
+        @rest_app.route('/js/<path:path>')
+        def send_js(path):
+            print('got path:', path)
+            return send_from_directory('js', path)
 
         @rest_app.route("/", methods=['GET'])
         @limiter.limit("100/day;20/hour;1/minute")
