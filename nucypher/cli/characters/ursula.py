@@ -240,10 +240,11 @@ def ursula(click_config,
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
 
     # Seed - Step 1
-    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_uris = [teacher_uri] if teacher_uri else None
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=ursula_config.federated_only,
+                                           network_domain=network,
                                            network_middleware=click_config.middleware)
 
     # Produce - Step 2
