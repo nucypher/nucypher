@@ -120,10 +120,11 @@ def alice(click_config,
         click_config.unlock_keyring(character_configuration=alice_config)
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else list()
+    teacher_uris = [teacher_uri] if teacher_uri else None
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=federated_only,
+                                           network_domain=network,
                                            network_middleware=click_config.middleware)
     # Produce
     ALICE = alice_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)
