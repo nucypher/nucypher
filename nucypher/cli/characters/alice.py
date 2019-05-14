@@ -1,5 +1,4 @@
 import datetime
-from base64 import b64encode
 
 import click
 import maya
@@ -21,7 +20,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=9151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=8151)  # TODO
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING)
+@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
