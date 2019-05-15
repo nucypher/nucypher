@@ -258,7 +258,10 @@ class BlockchainPolicy(Policy):
         if self.value is NON_PAYMENT:
             self.value = 0
 
-        payload = {'from': self.author.checksum_public_address, 'value': self.value}
+        payload = {'from': self.author.checksum_public_address,
+                   'value': self.value,
+                   'gasPrice': self.author.blockchain.interface.w3.eth.gasPrice}
+
         prearranged_ursulas = list(a.ursula.checksum_public_address for a in self._accepted_arrangements)
 
         txhash = self.author.policy_agent.contract.functions.createPolicy(self.hrac()[:16],
