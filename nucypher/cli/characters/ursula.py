@@ -173,19 +173,24 @@ def ursula(click_config,
         # If the request fails, it falls back to the standard process.
         if not rest_host:
             rest_host = actions.get_external_ip()
-            is_valid_address = False
-            if rest_host is not None and not force:
-                is_valid_address = click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?")
-            if not is_valid_address or rest_host is not None:
-                if force:
-                    raise RuntimeError(f"There was an error determining the IP address: {rest_host}")
-                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:")
+            if rest_host is None and force:
+                raise RuntimeError(f"There was an error determining the IP address automatically.")
+            else:
+                is_valid_address = False
+                if rest_host is not None and not force:
+                    is_valid_address = click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?")
+                    if not is_valid_address:
+                        rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:")
+
 
             # Validate the IPv4 address
             try:
                 socket.inet_aton(rest_host)
+                if force:
+                    click_config.emit(message=f"WARNING: --force is set, using IP {rest_host}", color='yellow')
             except OSError:
                 raise ValueError("The IP address {rest_host} is not a valid IPv4 address.")
+
 
         new_password = click_config.get_password(confirm=True)
 
