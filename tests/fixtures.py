@@ -38,7 +38,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M)
+                                                  MOCK_POLICY_DEFAULT_M, TEST_PROVIDER_URI, TEMPORARY_DOMAIN)
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -47,6 +47,7 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
 #
@@ -120,7 +121,7 @@ def ursula_federated_test_config():
 def ursula_decentralized_test_config(three_agents):
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
-                                        provider_uri="tester://pyevm",
+                                        provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
