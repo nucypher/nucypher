@@ -64,15 +64,16 @@ class MockPolicyCreation:
     Simple mock logic to avoid repeated hammering of blockchain policies.
     """
     waited_for_receipt = False
+    _ether_address = None
     tx_hash = "THIS HAS BEEN A TRANSACTION!"
 
     def __init__(self, *args, **kwargs):
         # TODO: Test that proper arguments are passed here once 316 is closed.
         pass
 
-    def transact(self, alice, payload):
+    def transact(self, payload):
         # TODO: Make a meaningful assertion regarding the value.
-        assert payload['from'] == alice._ether_address
+        assert payload['from'] == self._ether_address
         return self.tx_hash
 
     @classmethod

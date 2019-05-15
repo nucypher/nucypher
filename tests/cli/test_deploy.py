@@ -89,7 +89,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
     command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', 'tester://pyevm',
+               '--provider-uri', TEST_PROVIDER_URI,
                '--poa']
 
     user_input = '0\n' + 'Y\n' * 2 + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
@@ -306,62 +306,6 @@ def test_rollback(click_runner):
             blockchain.interface.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
         proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
-
-        # Deeper - Ensure the proxy targets the old deployment on-chain
-        targeted_address = proxy.functions.target().call()
-        assert targeted_address != current_target
-        assert targeted_address == rollback_target_address
-
-    command = ('contracts',
-               '--upgrade',
-               '--contract-name', 'PolicyManager',
-               '--registry-infile', MOCK_REGISTRY_FILEPATH,
-               '--provider-uri', TEST_PROVIDER_URI,
-               '--poa')
-
-    # Stage Rollbacks
-    old_secret = INSECURE_SECRETS[PLANNED_UPGRADES]
-    rollback_secret = generate_insecure_secret()
-    user_input = yes + old_secret + rollback_secret + rollback_secret
-
-    contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
-                             'PolicyManager',      # v4 -> v3
-                             'MiningAdjudicator',  # v4 -> v3
-                             # 'UserEscrowProxy'     # v4 -> v3  # TODO
-                             )
-    # Execute Rollbacks
-    for contract_name in contracts_to_rollback:
-
-        command = ('rollback',
-                   '--contract-name', contract_name,
-                   '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                   '--provider-uri', TEST_PROVIDER_URI,
-                   '--poa')
-
-        result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0
-
-        records = blockchain.interface.registry.search(contract_name=contract_name)
-        assert len(records) == 4
-
-        *old_records, v3, v4 = records
-        current_target, rollback_target = v4, v3
-
-        _name, current_target_address, *abi = current_target
-        _name, rollback_target_address, *abi = rollback_target
-        assert current_target_address != rollback_target_address
-
-        # Select proxy (Dispatcher vs Linker)
-        if contract_name == "UserEscrowProxy":
-            proxy_name = "UserEscrowLibraryLinker"
-        else:
-            proxy_name = 'Dispatcher'
-
-        # Ensure the proxy targets the rollback target (previous version)
-        with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.interface.get_proxy(target_address=current_target_address, proxy_name=proxy_name)
-
-        proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name=proxy_name)
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()

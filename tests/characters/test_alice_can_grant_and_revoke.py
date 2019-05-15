@@ -38,9 +38,10 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
     # Monkey patch Policy Creation
-    _token_agent, _miner_agent, policy_agent = three_agents
-    policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
-    policy_agent.contract.functions.createPolicy = MockPolicyCreation
+    _token_agent, _miner_agent, _policy_agent = three_agents
+    blockchain_alice.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
+    blockchain_alice.policy_agent.contract.functions.createPolicy = MockPolicyCreation
+    MockPolicyCreation._ether_address = blockchain_alice.checksum_public_address
 
     # Setup the policy details
     n = 3
