@@ -118,7 +118,6 @@ def test_ursula_rest_host_determination(click_runner):
 
     user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
 
-    breakpoint()
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
                                  input=user_input)
 
