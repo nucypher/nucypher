@@ -15,14 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import pytest
 import pytest_twisted as pt
 import time
+
 from twisted.internet import threads
 
 from nucypher.characters.base import Learner
+from nucypher.cli import actions
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
+from nucypher.utilities.sandbox.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT,
+    TEMPORARY_DOMAIN
+)
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -99,3 +105,67 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     yield d
 
 
+def test_ursula_rest_host_determination(click_runner):
+
+    # Patch the get_external_ip call
+    original_call = actions.get_external_ip
+    actions.get_external_ip = lambda: '192.0.2.0'
+
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN
+            )
+
+    user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
+
+    breakpoint()
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                 input=user_input)
+
+    assert result.exit_code == 0
+    assert '(192.0.2.0)' in result.output
+
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            '--force'
+            )
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+
+    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                 input=user_input)
+
+    assert result.exit_code == 0
+    assert 'IP 192.0.2.0' in result.output
+
+    # Patch get_external_ip call to error output
+    actions.get_external_ip = lambda: None
+
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            '--force'
+            )
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    with pytest.raises(RuntimeError):
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True,
+                                     input=user_input)
+
+    # Patch get_external_ip call to return bad IP
+    actions.get_external_ip = lambda: '382.328.382.328'
+
+    args = ('ursula', 'init',
+            '--federated-only',
+            '--network', TEMPORARY_DOMAIN,
+            '--force'
+            )
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    with pytest.raises(OSError):
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True,
+                                     input=user_input)
+
+    # Unpatch call
+    actions.get_external_ip = original_call
