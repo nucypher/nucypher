@@ -234,7 +234,16 @@ class BlockchainInterface:
         if self.is_connected:
             self.log.info('ATTACHED WEB3 PROVIDER {}'.format(self.provider_uri))
             node_info = self.w3.clientVersion.split('/')
-            self._node_technology, self._node_version, self._platform, self._backend = node_info
+
+            try:
+                self._node_technology, self._node_version, self._platform, self._backend = node_info
+
+            # Gracefully degrade
+            except ValueError:
+                self._node_technology, self._node_version, self._platform = node_info
+                self._backend = NotImplemented
+                # Raises ValueError if the ethereum client does not support the nodeInfo endpoint
+
             return self.is_connected
         else:
             raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
