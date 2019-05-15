@@ -70,9 +70,6 @@ def alice(click_config,
     if action == 'init':
         """Create a brand-new persistent Alice"""
 
-        if not network:
-            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
-
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
