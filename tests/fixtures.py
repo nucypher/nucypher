@@ -54,7 +54,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   MOCK_POLICY_DEFAULT_M,
                                                   MOCK_URSULA_STARTING_PORT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  TEST_PROVIDER_URI,
+                                                  TEMPORARY_DOMAIN,
+                                                  TEST_PROVIDER_URI
                                                   )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
@@ -64,6 +65,7 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
 
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
 #

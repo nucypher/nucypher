@@ -48,7 +48,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
+@click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
