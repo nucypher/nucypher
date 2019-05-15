@@ -156,8 +156,9 @@ contract MinersEscrow is Issuer {
     * @notice Set policy manager address
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
-        require(address(policyManager) == address(0) &&
-            _policyManager.escrow() == address(this));
+        require(address(policyManager) == address(0), "Policy manager can be set only once");
+        require(_policyManager.escrow() == address(this),
+            "This escrow must be the escrow for the new policy manager");
         policyManager = _policyManager;
     }
 
@@ -165,9 +166,9 @@ contract MinersEscrow is Issuer {
     * @notice Set mining adjudicator address
     **/
     function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
-        // Two-part require...
-        require(address(miningAdjudicator) == address(0) &&  // Can't adjudicator once it is set.
-            _miningAdjudicator.escrow() == address(this));  // This is the escrow for the new adjudicator.
+        require(address(miningAdjudicator) == address(0), "Adjudicator can be set only once");
+        require(_miningAdjudicator.escrow() == address(this),
+            "This escrow must be the escrow for the new adjudicator");
         miningAdjudicator = _miningAdjudicator;
     }
 
@@ -1163,6 +1164,7 @@ contract MinersEscrow is Issuer {
         }
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
@@ -1209,6 +1211,7 @@ contract MinersEscrow is Issuer {
         }
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         MinersEscrow escrow = MinersEscrow(_target);

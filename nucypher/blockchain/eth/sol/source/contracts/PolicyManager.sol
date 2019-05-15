@@ -500,6 +500,7 @@ contract PolicyManager is Upgradeable {
         }
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
@@ -535,6 +536,7 @@ contract PolicyManager is Upgradeable {
             bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.rewardDelta[11]);
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         PolicyManager policyManager = PolicyManager(_target);

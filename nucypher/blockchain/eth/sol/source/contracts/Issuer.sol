@@ -173,6 +173,7 @@ contract Issuer is Upgradeable {
         return totalSupply - Math.max(currentSupply1, currentSupply2);
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
@@ -186,6 +187,7 @@ contract Issuer is Upgradeable {
         require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
     }
 
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         Issuer issuer = Issuer(_target);

@@ -9,6 +9,7 @@ import "contracts/proxy/Upgradeable.sol";
 * The contract uses assembler code to access some storage variables instead of relying on the compiler
 * This demonstrates how to mitigate possible changes in the compiler while using the proxy pattern
 * Many methods are not optimized on purpose to increase readability
+* see https://solidity.readthedocs.io/en/latest/miscellaneous.html#layout-of-state-variables-in-storage
 **/
 contract ContractV4 is Upgradeable {
 
