@@ -704,8 +704,8 @@ class Learner:
         unresponsive_nodes = set()
         try:
             # TODO: Streamline path generation
-            certificate_filepath = self.node_storage.generate_certificate_filepath(
-                checksum_address=current_teacher.checksum_public_address)
+            certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
+
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
