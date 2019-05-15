@@ -706,7 +706,7 @@ class Ursula(Teacher, Character, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domains: Set = (GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
+                 domains: Set = None,  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,
@@ -733,6 +733,11 @@ class Ursula(Teacher, Character, Miner):
         #
         # Character
         #
+        if domains is None:
+            # TODO: Clean up imports
+            from nucypher.config.node import NodeConfiguration
+            domains = (NodeConfiguration.DEFAULT_DOMAIN,)
+
         self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,

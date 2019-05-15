@@ -169,9 +169,8 @@ def make_rest_app(
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
         for node in nodes:
-            if GLOBAL_DOMAIN not in serving_domains:
-                if not set(serving_domains).intersection(set(node.serving_domains)):
-                    continue  # This node is not serving any of our domains.
+            if not set(serving_domains).intersection(set(node.serving_domains)):
+                continue  # This node is not serving any of our domains.
 
             if node in node_tracker:
                 if node.timestamp <= node_tracker[node.checksum_public_address].timestamp:
