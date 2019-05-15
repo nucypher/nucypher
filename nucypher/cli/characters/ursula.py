@@ -20,6 +20,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import socket
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
@@ -124,7 +125,7 @@ def ursula(click_config,
     """
 
     # Validate
-    if federated_only:
+    if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
     if click_config.debug and quiet:
