@@ -90,14 +90,14 @@ def charlie_blockchain_test_config(blockchain_ursulas, three_agents):
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = BobConfiguration(dev_mode=True,
-                              provider_uri="tester://pyevm",
+                              provider_uri=TEST_PROVIDER_URI,
                               checksum_public_address=bob_address,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
-                              import_seed_registry=False,
+                              download_registry=False,
                               save_metadata=False,
                               reload_metadata=False)
     yield config

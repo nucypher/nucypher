@@ -733,6 +733,7 @@ class Ursula(Teacher, Character, Miner):
         #
         # Character
         #
+
         if domains is None:
             # TODO: Clean up imports
             from nucypher.config.node import NodeConfiguration
