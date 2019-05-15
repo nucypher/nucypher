@@ -16,9 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+
 import click
+import socket
+
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from constant_sorrow.constants import TEMPORARY_DOMAIN
 from twisted.internet import stdio
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
@@ -123,7 +125,7 @@ def ursula(click_config,
     """
 
     # Validate
-    if federated_only:
+    if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
     if click_config.debug and quiet:
@@ -159,18 +161,34 @@ def ursula(click_config,
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
-        if not network:
-            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
-
         if dev:
             click_config.emit(message="WARNING: Using temporary storage area", color='yellow')
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
+        # Attempts to automatically get the external IP from ifconfig.me
+        # If the request fails, it falls back to the standard process.
         if not rest_host:
-            # TODO: Remove this step - use a fleet node to detect the IP
-            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
+            rest_host = actions.get_external_ip()
+            if rest_host is None and force:
+                raise RuntimeError(f"There was an error determining the IP address automatically.")
+            else:
+                is_valid_address = False
+                if rest_host is not None and not force:
+                    is_valid_address = click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?")
+                    if not is_valid_address:
+                        rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:")
+
+
+            # Validate the IPv4 address
+            try:
+                socket.inet_aton(rest_host)
+                if force:
+                    click_config.emit(message=f"WARNING: --force is set, using IP {rest_host}", color='yellow')
+            except OSError:
+                raise ValueError("The IP address {rest_host} is not a valid IPv4 address.")
+
 
         new_password = click_config.get_password(confirm=True)
 

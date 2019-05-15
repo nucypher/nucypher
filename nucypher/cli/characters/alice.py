@@ -70,9 +70,6 @@ def alice(click_config,
     if action == 'init':
         """Create a brand-new persistent Alice"""
 
-        if not network:
-            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
-
         if dev:
             click_config.emitter(message="WARNING: Using temporary storage area", color='yellow')
 

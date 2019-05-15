@@ -1,7 +1,27 @@
-import os
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+
 
 import click
+import os
+import requests
 import shutil
+
 from twisted.logger import Logger
 from typing import List
 
@@ -83,6 +103,13 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
         shutil.rmtree(USER_LOG_DIR, ignore_errors=force)  # logs
 
     return config_root
+
+
+def get_external_ip():
+    ip_request = requests.get('https://ifconfig.me/')
+    if ip_request.status_code == 200:
+        return ip_request.text
+    return None
 
 
 def destroy_configuration(character_config, force: bool = False) -> None:
