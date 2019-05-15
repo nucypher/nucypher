@@ -416,4 +416,3 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     _ursulas.extend(_non_staking_ursula)
     blockchain.time_travel(periods=1)
     yield _ursulas
-
