@@ -97,3 +97,5 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     d.addCallback(run_ursula)
 
     yield d
+
+
