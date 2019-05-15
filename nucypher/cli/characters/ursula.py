@@ -161,9 +161,6 @@ def ursula(click_config,
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
-        if not network:
-            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
-
         if dev:
             click_config.emit(message="WARNING: Using temporary storage area", color='yellow')
 
