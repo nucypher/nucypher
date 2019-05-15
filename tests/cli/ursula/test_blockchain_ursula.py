@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
@@ -28,6 +28,26 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 def configuration_file_location(custom_filepath):
     _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, 'ursula.config')
     return _configuration_file_location
+
+
+@pytest.fixture(scope="module")
+def charlie_blockchain_test_config(blockchain_ursulas, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
+
+    config = BobConfiguration(dev_mode=True,
+                              provider_uri=TEST_PROVIDER_URI,
+                              checksum_public_address=bob_address,
+                              network_middleware=MockRestMiddleware(),
+                              known_nodes=blockchain_ursulas,
+                              start_learning_now=False,
+                              abort_on_learning_error=True,
+                              federated_only=False,
+                              download_registry=False,
+                              save_metadata=False,
+                              reload_metadata=False)
+    yield config
+    config.cleanup()
 
 
 @pytest.fixture(scope='module')
