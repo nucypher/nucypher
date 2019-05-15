@@ -71,10 +71,6 @@ def felix(click_config,
     if action == "init":
         """Create a brand-new Felix"""
 
-        # Validate
-        if not network:
-            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
-
         if not config_root:                         # Flag
             config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
 
