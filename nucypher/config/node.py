@@ -658,7 +658,6 @@ class NodeConfiguration(ABC):
             else:
                 # Manual Web3 Provider, We assume is already running and available
                 self.connect_to_blockchain()
-                # TODO: Create etherbase over RPC instead
                 raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
 
             # Addresses read from some node keyrings are *not* returned in checksum format.

@@ -10,7 +10,7 @@ from nucypher.cli.config import NucypherClickConfig
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
-
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including:
@@ -42,12 +42,21 @@ def load_seednodes(min_stake: int,
                    teacher_uris: list = None
                    ) -> List[Ursula]:
 
+    if network_domain is None:
+        from nucypher.config.node import NodeConfiguration
+        network_domain = NodeConfiguration.DEFAULT_DOMAIN
+
     teacher_nodes = list()
     if teacher_uris is None:
-        try:
-            teacher_uris = TEACHER_NODES[network_domain]
-        except KeyError:
-            raise KeyError(f"No default teacher nodes exist for the specified network: {network_domain}")
+        teacher_uris = list()
+
+        # Skip Test Domain
+        if network_domain != TEMPORARY_DOMAIN:
+            try:
+                teacher_uris = TEACHER_NODES[network_domain]
+            except KeyError:
+                raise KeyError(f"No default teacher nodes exist for the specified network: {network_domain}")
+
     for uri in teacher_uris:
         teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                min_stake=min_stake,
