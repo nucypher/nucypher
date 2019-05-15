@@ -107,7 +107,7 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
 
 def get_external_ip():
     ip_request = requests.get('https://ifconfig.me/')
-    if ip_request.status == 200:
+    if ip_request.status_code == 200:
         return ip_request.text
     return None
 
