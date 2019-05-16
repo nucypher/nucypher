@@ -27,6 +27,7 @@ from typing import List
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
+from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
@@ -53,6 +54,10 @@ Delete {root}?'''
 LOG = Logger('cli.actions')
 
 console_emitter = NucypherClickConfig.emit
+
+
+class UnknownIPAddress(RuntimeError):
+    pass
 
 
 def load_seednodes(min_stake: int,
@@ -105,31 +110,48 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
     return config_root
 
 
-def get_external_ip():
+def get_external_ip_from_centralized_source():
     ip_request = requests.get('https://ifconfig.me/')
     if ip_request.status_code == 200:
         return ip_request.text
-    return None
+    raise UnknownIPAddress(f"There was an error determining the IP address automatically. (status code {ip_request.status_code})")
+
+
+def determine_external_ip_address(force: bool = False) -> str:
+    try:
+        rest_host = get_external_ip_from_centralized_source()
+    except UnknownIPAddress:
+        if force:
+            raise
+    else:
+        # Interactive
+        if not force:
+            if not click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"):
+                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:", type=IPV4_ADDRESS)
+        else:
+            console_emitter(message=f"WARNING: --force is set, using auto-detected IP '{rest_host}'", color='yellow')
+
+        return rest_host
 
 
 def destroy_configuration(character_config, force: bool = False) -> None:
 
-        if not force:
-            click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
-                                                       root=character_config.config_root), abort=True)
+    if not force:
+        click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
+                                                   root=character_config.config_root), abort=True)
 
-        try:
-            character_config.destroy()
+    try:
+        character_config.destroy()
 
-        except FileNotFoundError:
-            message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
-            console_emitter(message=message, color='red')
-            character_config.log.debug(message)
-            raise click.Abort()
-        else:
-            message = "Deleted configuration files at {}".format(character_config.config_root)
-            console_emitter(message=message, color='green')
-            character_config.log.debug(message)
+    except FileNotFoundError:
+        message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
+        console_emitter(message=message, color='red')
+        character_config.log.debug(message)
+        raise click.Abort()
+    else:
+        message = "Deleted configuration files at {}".format(character_config.config_root)
+        console_emitter(message=message, color='green')
+        character_config.log.debug(message)
 
 
 def forget(configuration):
