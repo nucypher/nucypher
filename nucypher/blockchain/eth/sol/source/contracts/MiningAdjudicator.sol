@@ -92,9 +92,9 @@ contract MiningAdjudicator is Upgradeable {
         public
     {
 
-        require(ReEncryptionValidator.check_serialized_coordinates(_minerPublicKey),
+        require(ReEncryptionValidator.checkSerializedCoordinates(_minerPublicKey),
                 "Miner's public key is invalid");
-        require(ReEncryptionValidator.check_serialized_coordinates(_requesterPublicKey),
+        require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
                 "Requester's public key is invalid");
 
         // Check that CFrag is not evaluated yet

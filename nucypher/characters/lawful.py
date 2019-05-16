@@ -390,8 +390,8 @@ class Bob(Character):
         """
         Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
-        def __init__(self, grievances):
-            self.grievances = grievances
+        def __init__(self, evidence: List):
+            self.evidence = evidence
 
     def __init__(self, controller=True, *args, **kwargs) -> None:
         Character.__init__(self, *args, **kwargs)

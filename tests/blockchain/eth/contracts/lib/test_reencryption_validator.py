@@ -49,25 +49,25 @@ def test_ec_point_operations(testerchain, reencryption_validator):
     valid_point = Point.gen_rand()
     x, y = valid_point.to_affine()
 
-    # Test is_on_curve
-    assert reencryption_validator.functions.is_on_curve(x, y).call()
+    # Test isOnCurve
+    assert reencryption_validator.functions.isOnCurve(x, y).call()
 
     bad_y = y - 1
-    assert not reencryption_validator.functions.is_on_curve(x, bad_y).call()
+    assert not reencryption_validator.functions.isOnCurve(x, bad_y).call()
 
-    # Test check_compressed_point
+    # Test checkCompressedPoint
     sign = 2 + (y % 2)
-    assert reencryption_validator.functions.check_compressed_point(sign, x, y).call()
+    assert reencryption_validator.functions.checkCompressedPoint(sign, x, y).call()
 
     bad_sign = 3 - (y % 2)
-    assert not reencryption_validator.functions.check_compressed_point(bad_sign, x, y).call()
+    assert not reencryption_validator.functions.checkCompressedPoint(bad_sign, x, y).call()
 
-    # Test check_serialized_coordinates
+    # Test checkSerializedCoordinates
     coords = valid_point.to_bytes(is_compressed=False)[1:]
-    assert reencryption_validator.functions.check_serialized_coordinates(coords).call()
+    assert reencryption_validator.functions.checkSerializedCoordinates(coords).call()
 
     coords = coords[:-1] + ((coords[-1] + 42) % 256).to_bytes(1, 'big')
-    assert not reencryption_validator.functions.check_serialized_coordinates(coords).call()
+    assert not reencryption_validator.functions.checkSerializedCoordinates(coords).call()
 
     # Test ecmulVerify
     P = valid_point

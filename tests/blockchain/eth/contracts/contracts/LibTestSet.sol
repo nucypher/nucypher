@@ -194,20 +194,20 @@ contract ReEncryptionValidatorMock {
         return ReEncryptionValidator.extendedKeccakToBN(_data);
     }
 
-	function check_compressed_point(
+	function checkCompressedPoint(
 		uint8 _pointSign,
 		uint256 _pointX,
 		uint256 _pointY
 	) public pure returns(bool) {
-        return ReEncryptionValidator.check_compressed_point(_pointSign, _pointX, _pointY);
+        return ReEncryptionValidator.checkCompressedPoint(_pointSign, _pointX, _pointY);
 	}
 
-    function check_serialized_coordinates(bytes memory _coords) public pure returns(bool) {
-		return ReEncryptionValidator.check_serialized_coordinates(_coords);
+    function checkSerializedCoordinates(bytes memory _coords) public pure returns(bool) {
+		return ReEncryptionValidator.checkSerializedCoordinates(_coords);
 	}
 
-    function is_on_curve(uint256 Px, uint256 Py) public pure returns (bool) {
-        return ReEncryptionValidator.is_on_curve(Px, Py);
+    function isOnCurve(uint256 Px, uint256 Py) public pure returns (bool) {
+        return ReEncryptionValidator.isOnCurve(Px, Py);
     }
 
     function ecmulVerify(
