@@ -330,6 +330,8 @@ class Deployer(NucypherTokenActor):
     def save_deployment_receipts(self, transactions: dict) -> str:
         filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
         filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
+        # TODO: Do not assume default config root
+        os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
             for contract_name, transactions in transactions.items():
