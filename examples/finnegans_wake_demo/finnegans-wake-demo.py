@@ -1,7 +1,7 @@
-import os
-
 import datetime
 import maya
+import os
+
 from twisted.logger import globalLogPublisher
 from umbral.keys import UmbralPublicKey
 
@@ -9,6 +9,7 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
 ######################
@@ -52,7 +53,8 @@ label = b"secret/files/and/stuff"
 ALICE = Alice(network_middleware=RestMiddleware(),
               known_nodes=[ursula],
               learn_on_same_thread=True,
-              federated_only=True)
+              federated_only=True,
+              domains={TEMPORARY_DOMAIN})
 
 # Alice can get the public key even before creating the policy.
 # From this moment on, any Data Source that knows the public key
@@ -64,7 +66,8 @@ BOB = Bob(known_nodes=[ursula],
           network_middleware=RestMiddleware(),
           federated_only=True,
           start_learning_now=True,
-          learn_on_same_thread=True)
+          learn_on_same_thread=True,
+          domains={TEMPORARY_DOMAIN})
 
 ALICE.start_learning_loop(now=True)
 

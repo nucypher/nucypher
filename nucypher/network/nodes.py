@@ -533,14 +533,10 @@ class Learner:
         self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
-        if cycle:
-            self.cycle_teacher_node()
-
-        if not self._current_teacher_node:
+        if cycle or not self._current_teacher_node:
             self.cycle_teacher_node()
 
         teacher = self._current_teacher_node
-
         return teacher
 
     def learn_about_nodes_now(self, force=False):
