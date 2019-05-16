@@ -276,6 +276,7 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('--mock-networking',
                        'ursula', 'collect-reward',
+                       '--rest-host', MOCK_IP_ADDRESS,
                        '--teacher-uri', random_teacher.rest_interface,
                        '--config-file', configuration_file_location,
                        '--withdraw-address', burner_wallet.address,
