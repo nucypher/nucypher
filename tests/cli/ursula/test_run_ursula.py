@@ -23,6 +23,7 @@ from twisted.internet import threads
 
 from nucypher.characters.base import Learner
 from nucypher.cli import actions
+from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.constants import (
@@ -108,63 +109,54 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
 def test_ursula_rest_host_determination(click_runner):
 
     # Patch the get_external_ip call
-    original_call = actions.get_external_ip
-    actions.get_external_ip = lambda: '192.0.2.0'
+    original_call = actions.get_external_ip_from_centralized_source
+    try:
+        actions.get_external_ip_from_centralized_source = lambda: '192.0.2.0'
 
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN
-            )
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN
+                )
 
-    user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
+        user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
 
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                 input=user_input)
-
-    assert result.exit_code == 0
-    assert '(192.0.2.0)' in result.output
-
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            '--force'
-            )
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
-                                 input=user_input)
-
-    assert result.exit_code == 0
-    assert 'IP 192.0.2.0' in result.output
-
-    # Patch get_external_ip call to error output
-    actions.get_external_ip = lambda: None
-
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            '--force'
-            )
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    with pytest.raises(RuntimeError):
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True,
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
                                      input=user_input)
 
-    # Patch get_external_ip call to return bad IP
-    actions.get_external_ip = lambda: '382.328.382.328'
+        assert result.exit_code == 0
+        assert '(192.0.2.0)' in result.output
 
-    args = ('ursula', 'init',
-            '--federated-only',
-            '--network', TEMPORARY_DOMAIN,
-            '--force'
-            )
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN,
+                '--force'
+                )
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    with pytest.raises(OSError):
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True,
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
                                      input=user_input)
 
-    # Unpatch call
-    actions.get_external_ip = original_call
+        assert result.exit_code == 0
+        assert '192.0.2.0' in result.output
+
+        # Patch get_external_ip call to error output
+        def amazing_ip_oracle():
+            raise UnknownIPAddress
+        actions.get_external_ip_from_centralized_source = amazing_ip_oracle
+
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN,
+                '--force'
+                )
+
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
+        assert result.exit_code == 1
+        assert isinstance(result.exception, UnknownIPAddress)
+
+    finally:
+        # Unpatch call
+        actions.get_external_ip_from_centralized_source = original_call

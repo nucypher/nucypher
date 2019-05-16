@@ -640,13 +640,15 @@ class NodeConfiguration(ABC):
                                        *args, **kwargs)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        #
+        # Decentralized
+        #
+
         # Note: It is assumed the blockchain is not yet available.
         if not self.federated_only and not self.checksum_public_address:
 
-            #
-            # Integrated Provider Process
-            #
-
+            # "Casual Geth"
             if self.provider_process:
 
                 if not os.path.exists(self.provider_process.data_dir):
@@ -655,12 +657,14 @@ class NodeConfiguration(ABC):
                 # Get or create wallet address (geth etherbase)
                 checksum_address = self.provider_process.ensure_account_exists(password=password)
 
+            # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
             else:
-                # Manual Web3 Provider, We assume is already running and available
                 self.connect_to_blockchain()
-                raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
+                if not self.blockchain.interface.w3.eth.accounts:
+                    raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
+                checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # TODO: Make this a configurable default in config files
 
-            # Addresses read from some node keyrings are *not* returned in checksum format.
+            # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
             checksum_address = to_checksum_address(checksum_address)
             assert is_checksum_address(checksum_address), f"INVALID ETH ADDRESS {checksum_address}"
 
@@ -669,11 +673,8 @@ class NodeConfiguration(ABC):
             checksum_address = self.checksum_public_address
 
         # Generate a federated checksum address
-        elif self.federated_only and not self.checksum_public_address:
-            checksum_address = None
-
         else:
-            raise RuntimeError("Something wonderful is happening")  # FIXME: Flow control here is a mess
+            checksum_address = None
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,

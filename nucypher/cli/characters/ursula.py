@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
+from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -35,8 +36,8 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     STAKE_DURATION,
     STAKE_EXTENSION,
-    STAKE_VALUE
-)
+    STAKE_VALUE,
+    IPV4_ADDRESS)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -170,25 +171,7 @@ def ursula(click_config,
         # Attempts to automatically get the external IP from ifconfig.me
         # If the request fails, it falls back to the standard process.
         if not rest_host:
-            rest_host = actions.get_external_ip()
-            if rest_host is None and force:
-                raise RuntimeError(f"There was an error determining the IP address automatically.")
-            else:
-                is_valid_address = False
-                if rest_host is not None and not force:
-                    is_valid_address = click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?")
-                    if not is_valid_address:
-                        rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:")
-
-
-            # Validate the IPv4 address
-            try:
-                socket.inet_aton(rest_host)
-                if force:
-                    click_config.emit(message=f"WARNING: --force is set, using IP {rest_host}", color='yellow')
-            except OSError:
-                raise ValueError("The IP address {rest_host} is not a valid IPv4 address.")
-
+            rest_host = actions.determine_external_ip_address(force=force)
 
         new_password = click_config.get_password(confirm=True)
 
@@ -394,16 +377,17 @@ def ursula(click_config,
     elif action == "view":
         """Paint an existing configuration to the console"""
 
-        click.secho("BLOCKCHAIN ----------\n")
-        painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
-        current_block = URSULA.blockchain.interface.w3.eth.blockNumber
-        click.secho(f'Block # {current_block}')
-        click.secho(f'NU Balance: {URSULA.token_balance}')
-        click.secho(f'ETH Balance: {URSULA.eth_balance}')
-        click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+        if not URSULA.federated_only:
+            click.secho("BLOCKCHAIN ----------\n")
+            painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
+            current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+            click.secho(f'Block # {current_block}')
+            click.secho(f'NU Balance: {URSULA.token_balance}')
+            click.secho(f'ETH Balance: {URSULA.eth_balance}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
 
-        # TODO: Verbose status
-        # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
+            # TODO: Verbose status
+            # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
