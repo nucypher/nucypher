@@ -54,7 +54,6 @@ If this domain is among those being learned or served, then domain checking is s
 A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
 A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
 """
-GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'  # TODO: Deprecate
 
 # Sentry
 NUCYPHER_SENTRY_PUBLIC_KEY = "d8af7c4d692e4692a455328a280d845e"
