@@ -12,11 +12,13 @@ import "zeppelin/ownership/Ownable.sol";
 **/
 contract Upgradeable is Ownable {
 
+    event StateVerified(address indexed testTarget, address sender);
+    event UpgradeFinished(address indexed target, address sender);
+
     /**
-    * @dev Contracts at the target must reserve the first location in storage for this address as
-    * they will be called through this contract.
-    * Stored data actually lives in the Dispatcher.
-    * However the storage layout is specified here in the implementing contracts.
+    * @dev Contracts at the target must reserve the same location in storage for this address as in Dispatcher
+    * Stored data actually lives in the Dispatcher
+    * However the storage layout is specified here in the implementing contracts
     **/
     address public target;
 
@@ -31,16 +33,39 @@ contract Upgradeable is Ownable {
     bytes32 public secretHash;
 
     /**
+    * @dev Upgrade status. Explicit `uint8` type is used instead of `bool` to save gas by excluding 0 value
+    **/
+    uint8 public isUpgrade;
+
+    /** Constants for `isUpgrade` field **/
+    uint8 constant UPGRADE_FALSE = 1;
+    uint8 constant UPGRADE_TRUE = 2;
+
+    /**
+    * @dev Checks that function executed while upgrading
+    * Recommended to add to `verifyState` and `finishUpgrade` methods
+    **/
+    modifier onlyWhileUpgrading()
+    {
+        require(isUpgrade == UPGRADE_TRUE);
+        _;
+    }
+
+    /**
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     **/
-    function verifyState(address _testTarget) public /*onlyOwner*/;
+    function verifyState(address _testTarget) public onlyWhileUpgrading {
+        emit StateVerified(_testTarget, msg.sender);
+    }
 
     /**
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     **/
-    function finishUpgrade(address _target) public /*onlyOwner*/;
+    function finishUpgrade(address _target) public onlyWhileUpgrading {
+        emit UpgradeFinished(_target, msg.sender);
+    }
 
     /**
     * @dev Base method to get data
@@ -60,23 +85,22 @@ contract Upgradeable is Ownable {
     )
         internal returns (bytes32 memoryAddress)
     {
-        bytes4 targetCall = bytes4(keccak256(abi.encodePacked(_signature)));
+        bytes4 targetCall = bytes4(keccak256(bytes(_signature)));
         assembly {
-            let freeMemAddress := mload(0x40)
-            mstore(freeMemAddress, targetCall)
+            memoryAddress := mload(0x40)
+            mstore(memoryAddress, targetCall)
             if gt(_numberOfArguments, 0) {
-                mstore(add(freeMemAddress, 0x04), _argument1)
+                mstore(add(memoryAddress, 0x04), _argument1)
             }
             if gt(_numberOfArguments, 1) {
-                mstore(add(freeMemAddress, 0x24), _argument2)
+                mstore(add(memoryAddress, 0x24), _argument2)
             }
-            switch delegatecall(gas, _target, freeMemAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
+            switch delegatecall(gas, _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
                 case 0 {
-                    revert(freeMemAddress, 0)
+                    revert(memoryAddress, 0)
                 }
                 default {
-                    returndatacopy(freeMemAddress, 0x0, returndatasize)
-                    memoryAddress := freeMemAddress
+                    returndatacopy(memoryAddress, 0x0, returndatasize)
                 }
         }
     }

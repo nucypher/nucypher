@@ -71,6 +71,14 @@ def test_upgrading(testerchain, token):
         ContractFactoryClass=Contract)
     assert 1500 == contract.functions.maxAllowableLockedTokens().call()
 
+    # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.finishUpgrade(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     # Initialize contract and miner
     policy_manager, _ = testerchain.interface.deploy_contract(
         'PolicyManagerForMinersEscrowMock', token.address, contract.address
@@ -141,6 +149,31 @@ def test_upgrading(testerchain, token):
         tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
+
+    events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()
+    assert 4 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[2]['args']
+    event_args = events[3]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = dispatcher.events.UpgradeFinished.createFilter(fromBlock=0).get_all_entries()
+    assert 3 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[2]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']
 
 
 @pytest.mark.slow

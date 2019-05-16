@@ -156,9 +156,9 @@ contract MinersEscrow is Issuer {
     * @notice Set policy manager address
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
-        require(address(policyManager) == address(0) &&
-            address(_policyManager) != address(0) &&
-            _policyManager.escrow() == address(this));
+        require(address(policyManager) == address(0), "Policy manager can be set only once");
+        require(_policyManager.escrow() == address(this),
+            "This escrow must be the escrow for the new policy manager");
         policyManager = _policyManager;
     }
 
@@ -166,10 +166,9 @@ contract MinersEscrow is Issuer {
     * @notice Set mining adjudicator address
     **/
     function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
-        // Three-part require...
-        require(address(miningAdjudicator) == address(0) &&  // Can't adjudicator once it is set.
-            address(_miningAdjudicator) != address(0) &&  // Check to make sure that we're setting it somewhere.
-            _miningAdjudicator.escrow() == address(this));  // This is the escrow for the new adjudicator.
+        require(address(miningAdjudicator) == address(0), "Adjudicator can be set only once");
+        require(_miningAdjudicator.escrow() == address(this),
+            "This escrow must be the escrow for the new adjudicator");
         miningAdjudicator = _miningAdjudicator;
     }
 
@@ -1165,15 +1164,13 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
-        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) ==
-            minLockedPeriods);
-        require(delegateGet(_testTarget, "minAllowableLockedTokens()") ==
-            minAllowableLockedTokens);
-        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") ==
-            maxAllowableLockedTokens);
-        require(address(uint160(delegateGet(_testTarget, "policyManager()"))) == address(policyManager));
+        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
+        require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
+        require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
+        require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
@@ -1214,7 +1211,8 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
+    function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         MinersEscrow escrow = MinersEscrow(_target);
         minLockedPeriods = escrow.minLockedPeriods();

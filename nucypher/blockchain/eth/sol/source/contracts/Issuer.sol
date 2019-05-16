@@ -56,7 +56,7 @@ contract Issuer is Upgradeable {
     )
         public
     {
-        require(address(_token) != address(0) &&
+        require(_token.totalSupply() > 0 &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
@@ -173,7 +173,9 @@ contract Issuer is Upgradeable {
         return totalSupply - Math.max(currentSupply1, currentSupply2);
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public {
+        super.verifyState(_testTarget);
         require(address(uint160(delegateGet(_testTarget, "token()"))) == address(token));
         require(delegateGet(_testTarget, "miningCoefficient()") == miningCoefficient);
         require(delegateGet(_testTarget, "lockedPeriodsCoefficient()") == lockedPeriodsCoefficient);
@@ -185,7 +187,9 @@ contract Issuer is Upgradeable {
         require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
+    function finishUpgrade(address _target) public {
+        super.finishUpgrade(_target);
         Issuer issuer = Issuer(_target);
         token = issuer.token();
         miningCoefficient = issuer.miningCoefficient();

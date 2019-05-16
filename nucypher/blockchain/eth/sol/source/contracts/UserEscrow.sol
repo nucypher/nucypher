@@ -4,6 +4,7 @@ pragma solidity ^0.5.3;
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
+import "zeppelin/utils/Address.sol";
 import "contracts/NuCypherToken.sol";
 
 
@@ -11,6 +12,7 @@ import "contracts/NuCypherToken.sol";
 * @notice Contract links library with UserEscrow
 **/
 contract UserEscrowLibraryLinker is Ownable {
+    using Address for address;
 
     address public target;
     bytes32 public secretHash;
@@ -20,7 +22,7 @@ contract UserEscrowLibraryLinker is Ownable {
     * @param _newSecretHash Secret hash (keccak256)
     **/
     constructor(address _target, bytes32 _newSecretHash) public {
-        require(_target != address(0));
+        require(_target.isContract());
         target = _target;
         secretHash = _newSecretHash;
     }
@@ -32,7 +34,7 @@ contract UserEscrowLibraryLinker is Ownable {
     * @param _newSecretHash New secret hash (keccak256)
     **/
     function upgrade(address _target, bytes memory _secret, bytes32 _newSecretHash) public onlyOwner {
-        require(_target != address(0));
+        require(_target.isContract());
         require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         target = _target;
         secretHash = _newSecretHash;
@@ -49,6 +51,7 @@ contract UserEscrowLibraryLinker is Ownable {
 contract UserEscrow is Ownable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
+    using Address for address;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 duration);
     event TokensWithdrawn(address indexed owner, uint256 value);
@@ -64,7 +67,8 @@ contract UserEscrow is Ownable {
     * @param _token Token contract
     **/
     constructor(UserEscrowLibraryLinker _linker, NuCypherToken _token) public {
-        require(address(_token) != address(0) && address(_linker) != address(0));
+        // check that the input addresses are contracts
+        require(_token.totalSupply() > 0 && _linker.target().isContract());
         linker = _linker;
         token = _token;
     }
@@ -117,9 +121,13 @@ contract UserEscrow is Ownable {
     **/
     function () external payable onlyOwner {
         address libraryTarget = linker.target();
-        require(libraryTarget != address(0));
+        require(libraryTarget.isContract());
+        // execute requested function from target contract using storage of the dispatcher
         (bool callSuccess,) = libraryTarget.delegatecall(msg.data);
         if (callSuccess) {
+            // copy result of the request to the return data
+            // we can use the second return value from `delegatecall` (bytes memory)
+            // but it will consume a little more gas
             assembly {
                 returndatacopy(0x0, 0x0, returndatasize)
                 return(0x0, returndatasize)

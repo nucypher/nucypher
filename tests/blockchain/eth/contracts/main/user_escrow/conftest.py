@@ -16,13 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import os
 import pytest
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.token import NU
-
-secret = (123456).to_bytes(32, byteorder='big')
-
 
 @pytest.fixture()
 def token(testerchain):
@@ -60,6 +58,7 @@ def proxy(testerchain, token, escrow, policy_manager):
 
 @pytest.fixture()
 def linker(testerchain, proxy):
+    secret = os.urandom(32)
     secret_hash = testerchain.interface.w3.keccak(secret)
     linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker

@@ -92,9 +92,10 @@ contract PolicyManager is Upgradeable {
     * @param _escrow Escrow contract
     **/
     constructor(MinersEscrow _escrow) public {
-        require(address(_escrow) != address(0));
+        // if the input address is not the MinerEscrow than calling `secondsPerPeriod` will throw error
+        secondsPerPeriod = _escrow.secondsPerPeriod();
+        require(secondsPerPeriod > 0);
         escrow = _escrow;
-        secondsPerPeriod = escrow.secondsPerPeriod();
     }
 
     /**
@@ -499,8 +500,10 @@ contract PolicyManager is Upgradeable {
         }
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
-        require(address(uint160(delegateGet(_testTarget, "escrow()"))) == address(escrow));
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public {
+        super.verifyState(_testTarget);
+        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
@@ -511,14 +514,16 @@ contract PolicyManager is Upgradeable {
             policyToCheck.lastPeriod == policy.lastPeriod &&
             policyToCheck.disabled == policy.disabled);
 
-        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)",
-            RESERVED_POLICY_ID) == policy.arrangements.length);
-        ArrangementInfo storage arrangement = policy.arrangements[0];
-        ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
-            _testTarget, RESERVED_POLICY_ID, 0);
-        require(arrangementToCheck.node == arrangement.node &&
-            arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
-            arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+        require(delegateGet(_testTarget, "getArrangementsLength(bytes16)", RESERVED_POLICY_ID) ==
+            policy.arrangements.length);
+        if (policy.arrangements.length > 0) {
+            ArrangementInfo storage arrangement = policy.arrangements[0];
+            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
+                _testTarget, RESERVED_POLICY_ID, 0);
+            require(arrangementToCheck.node == arrangement.node &&
+                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
+                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+        }
 
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
         NodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
@@ -531,7 +536,9 @@ contract PolicyManager is Upgradeable {
             bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.rewardDelta[11]);
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
+    function finishUpgrade(address _target) public {
+        super.finishUpgrade(_target);
         PolicyManager policyManager = PolicyManager(_target);
         escrow = policyManager.escrow();
         secondsPerPeriod = policyManager.secondsPerPeriod();

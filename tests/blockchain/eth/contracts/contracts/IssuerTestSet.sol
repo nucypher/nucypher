@@ -67,9 +67,6 @@ contract IssuerBad is Upgradeable {
 //    uint256 public currentSupply1;
     uint256 public currentSupply2;
 
-    function verifyState(address) public {}
-    function finishUpgrade(address) public {}
-
 }
 
 
@@ -102,7 +99,7 @@ contract IssuerV2Mock is Issuer {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
         require(delegateGet(_testTarget, "valueToCheck()") == valueToCheck);
     }

@@ -482,6 +482,10 @@ def test_upgrading(testerchain):
     secret_hash = testerchain.interface.w3.keccak(secret)
     secret2_hash = testerchain.interface.w3.keccak(secret2)
 
+    # Only escrow contract is allowed in MiningAdjudicator constructor
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('MiningAdjudicator', creator, ALGORITHM_KECCAK256, 1, 2, 3, 4)
+
     # Deploy contracts
     escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
     escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
@@ -498,6 +502,14 @@ def test_upgrading(testerchain):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
+
+    # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.finishUpgrade(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
     assert address1 == contract.functions.escrow().call()
@@ -552,3 +564,28 @@ def test_upgrading(testerchain):
         tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash) \
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
+
+    events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()
+    assert 4 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[2]['args']
+    event_args = events[3]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = dispatcher.events.UpgradeFinished.createFilter(fromBlock=0).get_all_entries()
+    assert 3 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[2]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']

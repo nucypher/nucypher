@@ -54,7 +54,7 @@ contract MiningAdjudicator is Upgradeable {
         public
     {
         // Sanity checks.
-        require(address(_escrow) != address(0) &&  // This contract has an escrow, and it's not the null address.
+        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
@@ -160,9 +160,11 @@ contract MiningAdjudicator is Upgradeable {
         }
     }
 
-    function verifyState(address _testTarget) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public {
+        super.verifyState(_testTarget);
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
-        require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
+        require(SignatureVerifier.HashAlgorithm(delegateGet(_testTarget, "hashAlgorithm()")) == hashAlgorithm);
         require(delegateGet(_testTarget, "basePenalty()") == basePenalty);
         require(delegateGet(_testTarget, "penaltyHistoryCoefficient()") == penaltyHistoryCoefficient);
         require(delegateGet(_testTarget, "percentagePenaltyCoefficient()") == percentagePenaltyCoefficient);
@@ -171,10 +173,13 @@ contract MiningAdjudicator is Upgradeable {
             penaltyHistory[RESERVED_ADDRESS]);
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
-        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != 0);
+        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) ==
+            (evaluatedCFrags[evaluationCFragHash] ? 1 : 0));
     }
 
-    function finishUpgrade(address _target) public onlyOwner {
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
+    function finishUpgrade(address _target) public {
+        super.finishUpgrade(_target);
         MiningAdjudicator targetContract = MiningAdjudicator(_target);
         escrow = targetContract.escrow();
         hashAlgorithm = targetContract.hashAlgorithm();

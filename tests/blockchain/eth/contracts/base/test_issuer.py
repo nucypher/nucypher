@@ -35,6 +35,10 @@ def test_issuer(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     ursula = testerchain.interface.w3.eth.accounts[1]
 
+    # Only token contract is allowed in Issuer constructor
+    with pytest.raises((TransactionFailed, ValueError)):
+        testerchain.interface.deploy_contract('IssuerMock', ursula, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+
     # Creator deploys the issuer
     issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
@@ -172,6 +176,14 @@ def test_upgrading(testerchain, token):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
 
+    # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.finishUpgrade(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     # Give tokens for reward and initialize contract
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -227,3 +239,28 @@ def test_upgrading(testerchain, token):
         tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
+
+    events = dispatcher.events.StateVerified.createFilter(fromBlock=0).get_all_entries()
+    assert 4 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+    assert event_args == events[2]['args']
+    event_args = events[3]['args']
+    assert contract_library_v2.address == event_args['testTarget']
+    assert creator == event_args['sender']
+
+    events = dispatcher.events.UpgradeFinished.createFilter(fromBlock=0).get_all_entries()
+    assert 3 == len(events)
+    event_args = events[0]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[1]['args']
+    assert contract_library_v2.address == event_args['target']
+    assert creator == event_args['sender']
+    event_args = events[2]['args']
+    assert contract_library_v1.address == event_args['target']
+    assert creator == event_args['sender']
