@@ -9,7 +9,6 @@ from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import GLOBAL_DOMAIN
 
 
 @click.command()
@@ -104,7 +103,7 @@ def alice(click_config,
         try:
             alice_config = AliceConfiguration.from_configuration_file(
                 filepath=config_file,
-                domains={network or GLOBAL_DOMAIN},
+                domains={network} if network else None,
                 network_middleware=click_config.middleware,
                 rest_port=discovery_port,
                 checksum_public_address=checksum_address,
