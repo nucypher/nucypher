@@ -210,8 +210,9 @@ class BlockchainInterface:
             return "Unknown"
 
         if self.is_connected:
-            node_info = self.w3.clientVersion.split(os.sep)
-            node_technology, node_version, platform, go_version = node_info
+            node_info = self.w3.clientVersion.split('/')
+            # ex: 'EthereumJS TestRPC', 'v2.2.1', 'ethereum-js', '5.2'
+            node_technology = node_info[0]
         else:
             return str(NO_BLOCKCHAIN_CONNECTION)
 
@@ -445,7 +446,6 @@ class BlockchainInterface:
         and assimilate it with it's proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
-
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
@@ -527,12 +527,11 @@ class BlockchainInterface:
         # TODO: Parity
         # TODO: Duration
 
-        if 'tester' in self.provider_uri:
+        if 'tester' in self.provider_uri or self.client_version == 'ethereumjs testrpc':
             return True  # Test accounts are unlocked by default.
 
         elif self.client_version == 'geth':
             return self.w3.geth.personal.unlockAccount(address, password)
-
         else:
             raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
 

@@ -92,7 +92,7 @@ class NucypherTokenActor:
             blockchain = Blockchain.connect()  # Attempt to connect
         self.blockchain = blockchain
 
-        self.token_agent = NucypherTokenAgent()
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):

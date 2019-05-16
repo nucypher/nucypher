@@ -102,60 +102,60 @@ class NodeConfiguration(ABC):
     class NoConfigurationRoot(InvalidConfiguration):
         pass
 
-    def __init__(self,
+    def __init__(
+        self,
 
-                 # Base
-                 config_root: str = None,
-                 config_file_location: str = None,
+        # Base
+        config_root: str = None,
+        config_file_location: str = None,
 
-                 # Mode
-                 dev_mode: bool = False,
-                 federated_only: bool = False,
+        # Mode
+        dev_mode: bool = False,
+        federated_only: bool = False,
 
-                 # Identity
-                 is_me: bool = True,
-                 checksum_public_address: str = None,
-                 crypto_power: CryptoPower = None,
+        # Identity
+        is_me: bool = True,
+        checksum_public_address: str = None,
+        crypto_power: CryptoPower = None,
 
-                 # Keyring
-                 keyring: NucypherKeyring = None,
-                 keyring_dir: str = None,
+        # Keyring
+        keyring: NucypherKeyring = None,
+        keyring_dir: str = None,
 
-                 # Learner
-                 learn_on_same_thread: bool = False,
-                 abort_on_learning_error: bool = False,
-                 start_learning_now: bool = True,
+        # Learner
+        learn_on_same_thread: bool = False,
+        abort_on_learning_error: bool = False,
+        start_learning_now: bool = True,
 
-                 # REST
-                 rest_host: str = None,
-                 rest_port: int = None,
+        # REST
+        rest_host: str = None,
+        rest_port: int = None,
 
-                 # TLS
-                 tls_curve: EllipticCurve = None,
-                 certificate: Certificate = None,
+        # TLS
+        tls_curve: EllipticCurve = None,
+        certificate: Certificate = None,
 
-                 # Network
-                 domains: Set[str] = None,
-                 interface_signature: Signature = None,
-                 network_middleware: RestMiddleware = None,
+        # Network
+        domains: Set[str] = None,
+        interface_signature: Signature = None,
+        network_middleware: RestMiddleware = None,
 
-                 # Node Storage
-                 known_nodes: set = None,
-                 node_storage: NodeStorage = None,
-                 reload_metadata: bool = True,
-                 save_metadata: bool = True,
+        # Node Storage
+        known_nodes: set = None,
+        node_storage: NodeStorage = None,
+        reload_metadata: bool = True,
+        save_metadata: bool = True,
 
-                 # Blockchain
-                 poa: bool = False,
-                 provider_uri: str = None,
-                 provider_process = None,
+        # Blockchain
+        poa: bool = False,
+        provider_uri: str = None,
+        provider_process=None,
 
-                 # Registry
-                 registry_source: str = None,
-                 registry_filepath: str = None,
-                 download_registry: bool = True
-
-                 ) -> None:
+        # Registry
+        registry_source: str = None,
+        registry_filepath: str = None,
+        download_registry: bool = True,
+    ) -> None:
 
         # Logs
         self.log = Logger(self.__class__.__name__)
@@ -306,7 +306,9 @@ class NodeConfiguration(ABC):
     def connect_to_blockchain(self,
                               enode: str = None,
                               recompile_contracts: bool = False,
-                              full_sync: bool = False) -> None:
+                              full_sync: bool = False,
+                              dev: bool = False,
+                            ) -> None:
         """
 
         :param enode: ETH seednode or bootnode enode address to start learning from,
@@ -323,7 +325,9 @@ class NodeConfiguration(ABC):
                                              poa=self.poa,
                                              fetch_registry=True,
                                              provider_process=self.provider_process,
-                                             full_sync=full_sync)
+                                             full_sync=full_sync,
+                                             dev=dev,
+                                            )
 
         # Read Ethereum Node Keyring
         self.accounts = self.blockchain.interface.w3.eth.accounts
@@ -468,7 +472,7 @@ class NodeConfiguration(ABC):
             if not os.path.exists(path):
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
-                    message += ' Did you mean to pass --federated-only?'                    
+                    message += ' Did you mean to pass --federated-only?'
                 raise NodeConfiguration.InvalidConfiguration(message.format(path))
         return True
 
@@ -607,8 +611,11 @@ class NodeConfiguration(ABC):
         # Registry
         #
 
+        RegistryClass = EthereumContractRegistry._get_registry_class(
+            dev=self.dev_mode)
+
         if download_registry and not self.federated_only:
-            self.registry_filepath = EthereumContractRegistry.download_latest_publication()
+            self.registry_filepath = RegistryClass.download_latest_publication()
 
         #
         # Verify

@@ -27,6 +27,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--dev', help="Write to dev contract registry", is_flag=True)
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
@@ -49,6 +50,7 @@ def felix(click_config,
           config_root,
           checksum_address,
           poa,
+          dev,
           config_file,
           db_filepath,
           no_registry,
@@ -75,25 +77,26 @@ def felix(click_config,
         if not network:
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
-        if not config_root:                         # Flag
-            config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
+        if not config_root:                    # Flag
+            config_root = DEFAULT_CONFIG_ROOT  # Envvar or init-only default
 
         # Acquire Keyring Password
         new_password = click_config.get_password(confirm=True)
 
         try:
-            new_felix_config = FelixConfiguration.generate(password=new_password,
-                                                           config_root=config_root,
-                                                           rest_host=host,
-                                                           rest_port=discovery_port,
-                                                           db_filepath=db_filepath,
-                                                           domains={network} if network else None,
-                                                           checksum_public_address=checksum_address,
-                                                           download_registry=not no_registry,
-                                                           registry_filepath=registry_filepath,
-                                                           provider_uri=provider_uri,
-                                                           provider_process=ETH_NODE,
-                                                           poa=poa)
+            new_felix_config = FelixConfiguration.generate(
+                password=new_password,
+                config_root=config_root,
+                rest_host=host,
+                rest_port=discovery_port,
+                db_filepath=db_filepath,
+                domains={network} if network else None,
+                checksum_public_address=checksum_address,
+                download_registry=not no_registry,
+                registry_filepath=registry_filepath,
+                provider_uri=provider_uri,
+                provider_process=ETH_NODE,
+                poa=poa)
         except Exception as e:
             if click_config.debug:
                 raise
@@ -102,9 +105,10 @@ def felix(click_config,
                 raise click.Abort
 
         # Paint Help
-        painting.paint_new_installation_help(new_configuration=new_felix_config,
-                                             config_root=config_root,
-                                             config_file=config_file)
+        painting.paint_new_installation_help(
+            new_configuration=new_felix_config,
+            config_root=config_root,
+            config_file=config_file)
 
         return  # <-- do not remove (conditional flow control)
 
@@ -113,17 +117,20 @@ def felix(click_config,
 
     # Load Felix from Configuration File with overrides
     try:
-        felix_config = FelixConfiguration.from_configuration_file(filepath=config_file,
-                                                                  domains=domains,
-                                                                  registry_filepath=registry_filepath,
-                                                                  provider_process=ETH_NODE,
-                                                                  provider_uri=provider_uri,
-                                                                  rest_host=host,
-                                                                  rest_port=port,
-                                                                  db_filepath=db_filepath,
-                                                                  poa=poa)
+        felix_config = FelixConfiguration.from_configuration_file(
+            filepath=config_file,
+            domains=domains,
+            registry_filepath=registry_filepath,
+            provider_process=ETH_NODE,
+            provider_uri=provider_uri,
+            rest_host=host,
+            rest_port=port,
+            db_filepath=db_filepath,
+            poa=poa,
+            dev_mode=dev,
+        )
 
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         click.secho(f"No Felix configuration file found at {config_file}. "
                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
@@ -131,32 +138,32 @@ def felix(click_config,
     try:
 
         # Connect to Blockchain
-        felix_config.connect_to_blockchain()
+        felix_config.connect_to_blockchain(dev=dev)
 
         # Authenticate
         password = click_config.get_password(confirm=False)
         click_config.unlock_keyring(character_configuration=felix_config,
                                     password=password)
 
-
-
         # Produce Teacher Ursulas
-        teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
-                                               min_stake=min_stake,
-                                               federated_only=felix_config.federated_only,
-                                               network_domains=felix_config.domains,
-                                               network_middleware=click_config.middleware)
-        
+        teacher_nodes = actions.load_seednodes(
+            teacher_uris=[teacher_uri] if teacher_uri else None,
+            min_stake=min_stake,
+            federated_only=felix_config.federated_only,
+            network_domains=felix_config.domains,
+            network_middleware=click_config.middleware)
+
         # Add ETH Bootnode or Peer
         if enode:
             if geth:
                 felix_config.blockchain.interface.w3.geth.admin.addPeer(enode)
                 click.secho(f"Added ethereum peer {enode}")
             else:
-                raise NotImplemented  # TODO: other backends
+                raise NotImplementedError  # TODO: other backends
 
         # Produce Felix
-        FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
+        FELIX = felix_config.produce(
+            domains=network, known_nodes=teacher_nodes)
         FELIX.make_web_app()  # attach web application, but dont start service
 
     except Exception as e:
@@ -174,7 +181,8 @@ def felix(click_config,
             click.secho(f"Destroyed existing database {FELIX.db_filepath}")
 
         FELIX.create_tables()
-        click.secho(f"\nCreated new database at {FELIX.db_filepath}", fg='green')
+        click.secho(
+            f"\nCreated new database at {FELIX.db_filepath}", fg='green')
 
     elif action == 'view':
         token_balance = FELIX.token_balance
@@ -192,10 +200,13 @@ ETH ........ {str(eth_balance)}
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
-        actions.destroy_configuration(character_config=felix_config, force=force)
+        actions.destroy_configuration(
+            character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
-        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True, crash_on_error=click_config.debug)
+        FELIX.start(
+            host=host, port=port, web_services=not dry_run,
+            distribution=True, crash_on_error=click_config.debug)
 
         try:
             click.secho("Waiting for blockchain sync...", fg='yellow')
@@ -204,7 +215,8 @@ ETH ........ {str(eth_balance)}
                         port=port,
                         web_services=not dry_run,
                         distribution=True,
-                        crash_on_error=click_config.debug)
+                        crash_on_error=click_config.debug,
+                        dev=dev)
         finally:
             FELIX.blockchain.disconnect()
 

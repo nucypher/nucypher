@@ -38,6 +38,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--no-publish', help="Do not publish or ask to publish new contract registries", is_flag=True)
 @click.option('--no-password', help="Assume eth node accounts are already unlocked", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
+@click.option('--dev', help="Write to dev contract registry", is_flag=True)
 @click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
@@ -56,6 +57,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 def deploy(click_config,
            action,
            poa,
+           dev,
            no_password,
            no_publish,
            provider_uri,
@@ -111,7 +113,9 @@ def deploy(click_config,
                                     compile=not no_compile,
                                     deployer=True,
                                     fetch_registry=False,
-                                    full_sync=sync)
+                                    full_sync=sync,
+                                    dev=dev,
+                                )
 
 
     #
@@ -136,7 +140,7 @@ def deploy(click_config,
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
 
-    if not no_password:  # (~ dev mode; Assume accounts are already unlocked)
+    if not no_password and not blockchain.is_dev_blockchain:  # (~ dev mode; Assume accounts are already unlocked)
         password = click.prompt("Enter ETH node password", hide_input=True)
         blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
 
@@ -219,7 +223,8 @@ def deploy(click_config,
         click.secho(f"Gas Price ........... {w3.eth.gasPrice}")
 
         click.secho(f"Deployer Address .... {deployer.checksum_public_address}")
-        click.secho(f"ETH ................. {deployer.eth_balance}")
+        click.secho(f"Chain ID............. {deployer.blockchain.chain_id}")
+
 
         # Ask - Last chance to gracefully abort
         if not force:
@@ -296,7 +301,7 @@ def deploy(click_config,
         # Publish Contract Registry
         #
 
-        if not no_publish:
+        if not no_publish and not dev:
             if click.confirm("Publish new contract registry?"):
                 try:
                     response = registry.publish()  # TODO: Handle non-200 response and dehydrate

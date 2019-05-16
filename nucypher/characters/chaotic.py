@@ -129,7 +129,10 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower, BlockchainPower]
+    _default_crypto_powerups = [
+        SigningPower,
+        #BlockchainPower
+    ]
 
     TEMPLATE_NAME = 'felix.html'
 

@@ -46,11 +46,15 @@ class Blockchain:
     class SyncTimeout(RuntimeError):
         pass
 
-    def __init__(self,
-                 provider_process=None,
-                 interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None):
+    def __init__(
+            self,
+            provider_process=None,
+            interface: Union[
+                BlockchainInterface, BlockchainDeployerInterface] = None,
+            dev: bool = False):
 
         self.log = Logger("blockchain")
+        self.dev = dev
 
         self.__provider_process = provider_process
 
@@ -79,6 +83,19 @@ class Blockchain:
         if self._instance is NO_BLOCKCHAIN_AVAILABLE:
             raise self.ConnectionNotEstablished
         return self.interface.w3.geth.admin.peers()
+
+    @property
+    def is_dev_blockchain(self):
+        return {
+            'EthereumJS TestRPC': True,  # ganache
+            'Geth': False,
+        }.get(self.interface._node_technology, True)
+
+    @property
+    def chain_id(self):
+        if self.is_dev_blockchain:
+            return "DEV CHAIN"
+        return self.interface.w3.net.chainId
 
     @property
     def syncing(self):
@@ -146,20 +163,23 @@ class Blockchain:
                 force: bool = True,
                 fetch_registry: bool = True,
                 full_sync: bool = True,
+                dev: bool = False,
                 ) -> 'Blockchain':
 
         log = Logger('blockchain-init')
+
+        RegistryClass = EthereumContractRegistry._get_registry_class(dev=dev)
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
             if not registry and fetch_registry:
                 from nucypher.config.node import NodeConfiguration
 
                 try:
-                    registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
+                    registry = RegistryClass.from_latest_publication()  # from GitHub
                 except NodeConfiguration.NoConfigurationRoot:
-                    registry = EthereumContractRegistry()
+                    registry = RegistryClass()
             else:
-                registry = registry or EthereumContractRegistry()
+                registry = registry or RegistryClass()
 
             # Spawn child process
             if provider_process:
@@ -178,8 +198,9 @@ class Blockchain:
             cls._instance = cls(interface=interface, provider_process=provider_process)
 
             # Sync blockchain
-            if full_sync:
-                cls._instance.sync()
+            if not cls._instance.is_dev_blockchain:
+                if full_sync:
+                    cls._instance.sync()
 
         else:
 
