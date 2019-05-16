@@ -43,12 +43,12 @@ def test_initialize_ursula_defaults(click_runner, mocker):
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only')
 
-    user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    user_input = 'Y\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
     # REST Host
-    assert 'Enter Ursula\'s public-facing IPv4 address' in result.output
+    assert 'Is this the public-facing IPv4 address' in result.output
 
     # Auth
     assert 'Enter keyring password:' in result.output, 'WARNING: User was not prompted for password'
@@ -117,7 +117,7 @@ def test_password_prompt(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'view', '--config-file', custom_config_filepath)
+    view_args = ('ursula', 'view', '--config-file', custom_config_filepath, '--federated-only')
 
     user_input = '{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, view_args, input=user_input, catch_exceptions=False, env=dict())
@@ -206,12 +206,12 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     # Run the destroy command
     destruction_args = ('ursula', 'destroy', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, destruction_args,
-                                 input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
-                                 catch_exceptions=False)
+                                 input='Y\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
+                                 catch_exceptions=False,
+                                 env={'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD})
 
     # CLI Output
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'
-    assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
     assert custom_filepath in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
     assert f'Deleted' in result.output, '"Destroyed" not in output'

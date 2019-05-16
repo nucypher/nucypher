@@ -377,16 +377,17 @@ def ursula(click_config,
     elif action == "view":
         """Paint an existing configuration to the console"""
 
-        click.secho("BLOCKCHAIN ----------\n")
-        painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
-        current_block = URSULA.blockchain.interface.w3.eth.blockNumber
-        click.secho(f'Block # {current_block}')
-        click.secho(f'NU Balance: {URSULA.token_balance}')
-        click.secho(f'ETH Balance: {URSULA.eth_balance}')
-        click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+        if not URSULA.federated_only:
+            click.secho("BLOCKCHAIN ----------\n")
+            painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
+            current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+            click.secho(f'Block # {current_block}')
+            click.secho(f'NU Balance: {URSULA.token_balance}')
+            click.secho(f'ETH Balance: {URSULA.eth_balance}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
 
-        # TODO: Verbose status
-        # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
+            # TODO: Verbose status
+            # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
