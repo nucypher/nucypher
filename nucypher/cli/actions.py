@@ -76,23 +76,20 @@ def load_seednodes(min_stake: int,
     if teacher_uris is None:
         teacher_uris = list()
 
-        # Skip Test Domain
-        if TEMPORARY_DOMAIN in network_domains:
-            return list()
+    for domain in network_domains:
+        try:
+            teacher_uris = TEACHER_NODES[domain]
+        except KeyError:
+            # TODO: If this is a unknown domain, require the caller to pass a teacher URI explicitly?
+            if not teacher_uris:
+                console_emitter(message=f"No default teacher nodes exist for the specified network: {domain}")
 
-        for domain in network_domains:
-            try:
-                teacher_uris = TEACHER_NODES[domain]
-            except KeyError:
-                # If this is a unknown domain, require the caller to pass a teacher URI explicitly
-                if not teacher_uris:
-                    raise KeyError(f"No default teacher nodes exist for the specified network: {domain}")
-            for uri in teacher_uris:
-                teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                                       min_stake=min_stake,
-                                                       federated_only=federated_only,
-                                                       network_middleware=network_middleware)
-                teacher_nodes.append(teacher_node)
+        for uri in teacher_uris:
+            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                   min_stake=min_stake,
+                                                   federated_only=federated_only,
+                                                   network_middleware=network_middleware)
+            teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
         console_emitter(message=f'WARNING - No Bootnodes Available')
