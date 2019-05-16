@@ -71,6 +71,10 @@ def felix(click_config,
     if action == "init":
         """Create a brand-new Felix"""
 
+        # Validate "Init" Input
+        if not network:
+            raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
+
         if not config_root:                         # Flag
             config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
 
@@ -119,7 +123,7 @@ def felix(click_config,
                                                                   db_filepath=db_filepath,
                                                                   poa=poa)
 
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         click.secho(f"No Felix configuration file found at {config_file}. "
                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
@@ -191,6 +195,7 @@ ETH ........ {str(eth_balance)}
         actions.destroy_configuration(character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
+        FELIX.start(host=host, port=port, web_services=not dry_run, distribution=True, crash_on_error=click_config.debug)
 
         try:
             click.secho("Waiting for blockchain sync...", fg='yellow')

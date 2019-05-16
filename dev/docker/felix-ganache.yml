@@ -1,0 +1,40 @@
+version: '3.2'
+
+# creates a nucypher node and a ganache server which can be used for
+# blockchain simulations
+
+# docker-compose -f felix-ganache.yml up
+
+# the following commands, if run in another shell will create a fully function
+# ethereum blockchain with felix faucet server distributing tokens on said chain
+
+# docker-compose -f felix-ganache.yml run nucypher-dev nucypher-deploy contracts --poa --provider-uri http://ganache:8545
+# docker-compose -f felix-ganache.yml run nucypher-dev nucypher felix init --checksum-address "<from output>" --network devnet
+# docker-compose -f felix-ganache.yml run  nucypher-dev nucypher felix createdb --checksum-address "<from output>" --network devnet
+# docker-compose -f felix-ganache.yml run --service-ports nucypher-dev nucypher felix run --checksum-address "<from output>" --network devnet
+
+services:
+  nucypher-dev:
+    ports:
+      - "6151:6151"
+    volumes:
+      - ../..:/code
+    build:
+      context: ../..
+      dockerfile: dev/docker/Dockerfile
+    image: dev:nucypher
+    container_name: nucypher-dev
+    environment:
+      - NUCYPHER_CONFIG_ROOT=/code/config-data
+      - NUCYPHER_FELIX_DB_SECRET=not-a-secure-password.do-not-use
+      - NUCYPHER_CORS_ORIGINS=localhost:8080,localhost:6151,localhost:8081
+  ganache:
+    image: trufflesuite/ganache-cli:v6.1.8
+    ports:
+      - 8545:8545
+    entrypoint:
+      - node
+      - ./build/cli.node.js
+      - --host=0.0.0.0
+      - --port=8545
+      - --gasLimit=8000000

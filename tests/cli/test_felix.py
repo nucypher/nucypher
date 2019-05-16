@@ -1,5 +1,5 @@
 import os
-
+import json
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
@@ -98,6 +98,50 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
         # Register a new recipient
         response = test_client.post('/register', data={'address': felix.blockchain.interface.w3.eth.accounts[-1]})
         assert response.status_code == 200
+
+        # register a recipient by posting json
+        response = test_client.post(
+            '/register',
+            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[-2]}),
+            content_type='application/json'
+        )
+        assert response.status_code == 200
+
+        # same address again should fail with 400
+        response = test_client.post(
+            '/register',
+            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[-2]}),
+            content_type='application/json'
+        )
+        assert response.status_code == 400
+        assert response.data == b'already enrolled'
+
+        # no address should fail with 400
+        response = test_client.post(
+            '/register',
+            data=json.dumps({}),
+            content_type='application/json'
+        )
+        assert response.status_code == 400
+        assert response.data == b'no address'
+
+        # malformed address should fail with 400
+        response = test_client.post(
+            '/register',
+            data=json.dumps({'address': "I read the news today.  Oh boy."}),
+            content_type='application/json'
+        )
+        assert response.status_code == 400
+        assert response.data == b'invalid address'
+
+        # reserved address should fail
+        response = test_client.post(
+            '/register',
+            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[0]}),
+            content_type='application/json'
+        )
+        assert response.status_code == 400
+        assert response.data == b'reserved'
 
         return
 
