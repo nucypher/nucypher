@@ -640,13 +640,15 @@ class NodeConfiguration(ABC):
                                        *args, **kwargs)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        #
+        # Decentralized
+        #
+
         # Note: It is assumed the blockchain is not yet available.
         if not self.federated_only and not self.checksum_public_address:
 
-            #
-            # Integrated Provider Process
-            #
-
+            # "Casual Geth"
             if self.provider_process:
 
                 if not os.path.exists(self.provider_process.data_dir):
