@@ -137,12 +137,11 @@ def felix(click_config,
 
 
         # Produce Teacher Ursulas
-        teacher_uris = [teacher_uri] if teacher_uri else None
-        teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+        teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                                min_stake=min_stake,
-                                               federated_only=False,
-                                               network_middleware=click_config.middleware,
-                                               network_domain=network)
+                                               federated_only=felix_config.federated_only,
+                                               network_domains=felix_config.domains,
+                                               network_middleware=click_config.middleware)
         
         # Add ETH Bootnode or Peer
         if enode:

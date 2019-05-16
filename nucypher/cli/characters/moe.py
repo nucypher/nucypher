@@ -32,7 +32,7 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=True,    # TODO: hardcoded for now
-                                           network_domain=network,
+                                           network_domains={network} if network else None,
                                            network_middleware=click_config.middleware)
 
     # Deserialize network domain name if override passed
