@@ -143,7 +143,7 @@ def test_ursula_rest_host_determination(click_runner):
         # Patch get_external_ip call to error output
         def amazing_ip_oracle():
             raise UnknownIPAddress
-        actions.get_external_ip_from_centralized_source = amazing_ip_oracle()
+        actions.get_external_ip_from_centralized_source = amazing_ip_oracle
 
         args = ('ursula', 'init',
                 '--federated-only',
@@ -152,9 +152,10 @@ def test_ursula_rest_host_determination(click_runner):
                 )
 
         user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
-        
-        with pytest.raises(UnknownIPAddress):
-            _result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
+        assert result.exit_code == 1
+        assert isinstance(result.exception, UnknownIPAddress)
 
     finally:
         # Unpatch call
