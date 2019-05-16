@@ -103,11 +103,10 @@ def bob(click_config,
                                                              config_file=config_file)
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                            min_stake=min_stake,
-                                           federated_only=federated_only,
-                                           network_domain=network,
+                                           federated_only=bob_config.federated_only,
+                                           network_domains=bob_config.domains,
                                            network_middleware=click_config.middleware)
 
     if not bob_config.federated_only:
