@@ -8,10 +8,10 @@ version: '3.2'
 # the following commands, if run in another shell will create a fully function
 # ethereum blockchain with felix faucet server distributing tokens on said chain
 
-# docker-compose -f felix-ganache.yml run nucypher-dev nucypher-deploy contracts --poa --provider-uri http://ganache:8545
-# docker-compose -f felix-ganache.yml run nucypher-dev nucypher felix init --checksum-address "<from output>" --network devnet
-# docker-compose -f felix-ganache.yml run  nucypher-dev nucypher felix createdb --checksum-address "<from output>" --network devnet
-# docker-compose -f felix-ganache.yml run --service-ports nucypher-dev nucypher felix run --checksum-address "<from output>" --network devnet
+# docker-compose -f felix-ganache.yml run nucypher-dev nucypher-deploy contracts --poa --provider-uri http://ganache:8545 --dev
+# docker-compose -f felix-ganache.yml run nucypher-dev nucypher felix init --checksum-address $ADDRESS --provider-uri http://ganache:8545 --network devnet
+# docker-compose -f felix-ganache.yml run  nucypher-dev nucypher felix createdb --checksum-address $ADDRESS --network devnet
+# docker-compose -f felix-ganache.yml run --service-ports nucypher-dev nucypher felix run --checksum-address $ADDRESS --network devnet --dev
 
 services:
   nucypher-dev:
