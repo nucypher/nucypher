@@ -16,9 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
 import os
-from typing import Callable, Tuple
+from typing import Tuple
 
 from flask import Flask, Response
 from flask import request
@@ -30,23 +29,18 @@ from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import (FLEET_STATES_MATCH,
-                                       GLOBAL_DOMAIN,
-                                       NO_KNOWN_NODES)
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
-
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
-from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))

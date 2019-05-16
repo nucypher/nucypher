@@ -6,7 +6,6 @@ from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import BobConfiguration
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.powers import DecryptingPower
 
 
@@ -94,7 +93,7 @@ def bob(click_config,
         try:
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
-                domains={network or GLOBAL_DOMAIN},
+                domains={network} if network else None,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)
