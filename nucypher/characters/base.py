@@ -21,16 +21,17 @@ from typing import Optional
 from typing import Union, List
 
 from constant_sorrow import default_constant_splitter
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_WSGI_APP
 from constant_sorrow.constants import (
-    NO_NICKNAME,
-    NO_BLOCKCHAIN_CONNECTION,
-    STRANGER,
-    NO_SIGNING_POWER,
     DO_NOT_SIGN,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_CONTROL_PROTOCOL,
     NO_DECRYPTION_PERFORMED,
+    NO_NICKNAME,
+    NO_SIGNING_POWER,
+    NO_WSGI_APP,
     SIGNATURE_TO_FOLLOW,
-    SIGNATURE_IS_ON_CIPHERTEXT
+    SIGNATURE_IS_ON_CIPHERTEXT,
+    STRANGER,
 )
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
@@ -154,7 +155,7 @@ class Character(Learner):
         #
         else:  # Feel like a stranger
             if network_middleware is not None:
-                raise TypeError("Network middleware cannot be attached to a Stanger-Character.")
+                raise TypeError("Network middleware cannot be attached to a Stranger-Character.")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
             self.keyring_dir = STRANGER
             self.network_middleware = STRANGER
@@ -257,26 +258,41 @@ class Character(Learner):
         return config.produce(**overrides)
 
     @classmethod
-    def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
+    def from_public_keys(cls,
+                         powers_and_material: Dict = None,
+                         federated_only=True,
+                         verifying_key: Union[bytes, UmbralPublicKey] = None,
+                         encrypting_key: Union[bytes, UmbralPublicKey] = None,
+                         *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
         learn the public parts of more of their powers. Here, we take a Dict
-        (powers_and_key_bytes) in the following format:
-        {CryptoPowerUp class: public_material_bytes}
+        (powers_and_material) in the format {CryptoPowerUp class: material},
+        where material can be bytes or UmbralPublicKey.
 
         Each item in the collection will have the CryptoPowerUp instantiated
-        with the public_material_bytes, and the resulting CryptoPowerUp instance
+        with the given material, and the resulting CryptoPowerUp instance
         consumed by the Character.
 
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_public_address in here.
+        Alternatively, you can pass directly a verifying public key
+        (for SigningPower) and/or an encrypting public key (for DecryptionPower).
 
+        # TODO: Need to be federated only until we figure out the best way to get the checksum_public_address in here.
         """
 
         crypto_power = CryptoPower()
 
+        if powers_and_material is None:
+            powers_and_material = dict()
+
+        if verifying_key:
+            powers_and_material[SigningPower] = verifying_key
+        if encrypting_key:
+            powers_and_material[DecryptingPower] = encrypting_key
+
         for power_up, public_key in powers_and_material.items():
             try:
-                umbral_key = UmbralPublicKey(public_key)
+                umbral_key = UmbralPublicKey.from_bytes(public_key)
             except TypeError:
                 umbral_key = public_key
 

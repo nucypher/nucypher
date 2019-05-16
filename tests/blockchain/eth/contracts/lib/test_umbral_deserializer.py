@@ -143,3 +143,5 @@ def test_cfrag(testerchain, deserializer, fragments):
     assert proof.bn_sig.to_bytes() == result[8]
     assert bytes(proof.kfrag_signature) == result[9]
     assert bytes(proof.metadata) == result[10]
+
+# TODO: Missing test for precomputed_data

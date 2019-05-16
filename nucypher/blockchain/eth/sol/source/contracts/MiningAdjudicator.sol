@@ -14,6 +14,7 @@ import "zeppelin/math/Math.sol";
 contract MiningAdjudicator is Upgradeable {
 
     using SafeMath for uint256;
+    using UmbralDeserializer for bytes;
 
     event CFragEvaluated(
         bytes32 indexed evaluationHash,
@@ -69,10 +70,9 @@ contract MiningAdjudicator is Upgradeable {
     /**
     * @notice Submit proof that miner created wrong CFrag
     * @param _capsuleBytes Serialized capsule
-    * @param _capsuleSignatureByRequester Signature of Capsule by requester
-    * @param _capsuleSignatureByRequesterAndMiner Signature of Capsule by requester and miner
     * @param _cFragBytes Serialized CFrag
-    * @param _cFragSignatureByMiner Signature of CFrag by miner
+    * @param _cFragSignature Signature of CFrag by miner
+    * @param _taskSignature Signature of task specification by Bob
     * @param _requesterPublicKey Requester's public key that was used to sign Capsule
     * @param _minerPublicKey Miner's public key that was used to sign Capsule and CFrag
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
@@ -81,10 +81,9 @@ contract MiningAdjudicator is Upgradeable {
     // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
         bytes memory _capsuleBytes,
-        bytes memory _capsuleSignatureByRequester,
-        bytes memory _capsuleSignatureByRequesterAndMiner,
         bytes memory _cFragBytes,
-        bytes memory _cFragSignatureByMiner,
+        bytes memory _cFragSignature,
+        bytes memory _taskSignature,
         bytes memory _requesterPublicKey,
         bytes memory _minerPublicKey,
         bytes memory _minerPublicKeySignature,
@@ -92,28 +91,58 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
-        require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65,
-            "Either the requester or miner had an incorrect key length (ie, not 65)");
+
+        require(ReEncryptionValidator.checkSerializedCoordinates(_minerPublicKey),
+                "Miner's public key is invalid");
+        require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
+                "Requester's public key is invalid");
 
         // Check that CFrag is not evaluated yet
         bytes32 evaluationHash = SignatureVerifier.hash(
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
         require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
-        // Verify requester's signature of Capsule
-        bytes memory preparedPublicKey = new bytes(64);
-        preparePublicKey(preparedPublicKey, _requesterPublicKey);
-        require(SignatureVerifier.verify(
-                _capsuleBytes, _capsuleSignatureByRequester, preparedPublicKey, hashAlgorithm));
+        UmbralDeserializer.PreComputedData memory precomp = _preComputedData.toPreComputedData();
 
-        // Verify miner's signatures of capsule and CFrag
-        preparePublicKey(preparedPublicKey, _minerPublicKey);
+        // Verify miner's signature of CFrag
         require(SignatureVerifier.verify(
-                _capsuleSignatureByRequester, _capsuleSignatureByRequesterAndMiner, preparedPublicKey, hashAlgorithm));
+                _cFragBytes,
+                abi.encodePacked(_cFragSignature, precomp.lostBytes[1]),
+                _minerPublicKey,
+                hashAlgorithm),
+                "CFrag signature is invalid"
+        );
+
+        // Verify miner's signature of taskSignature and that it corresponds to cfrag.proof.metadata
+        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         require(SignatureVerifier.verify(
-                _cFragBytes, _cFragSignatureByMiner, preparedPublicKey, hashAlgorithm));
+                _taskSignature,
+                abi.encodePacked(cFrag.proof.metadata, precomp.lostBytes[2]),
+                _minerPublicKey,
+                hashAlgorithm),
+                "Task signature is invalid"
+        );
+
+        // Verify that _taskSignature is bob's signature of the task specification.
+        // A task specification is: capsule + ursula pubkey + alice address + blockhash
+        bytes32 miner_xcoord;
+        assembly {
+            miner_xcoord := mload(add(_minerPublicKey, 32))
+        }
+        require(SignatureVerifier.verify(
+                abi.encodePacked(_capsuleBytes,
+                                 precomp.lostBytes[4],
+                                 miner_xcoord,
+                                 precomp.alicesKeyAsAddress,
+                                 bytes32(0)),
+                abi.encodePacked(_taskSignature, precomp.lostBytes[3]),
+                _requesterPublicKey,
+                hashAlgorithm),
+                "Specification signature is invalid"
+        );
 
         // Extract miner's address and check that is real miner
+        // TODO: This will depend on the outcome of #962
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
         // Check that miner can be slashed
@@ -121,9 +150,8 @@ contract MiningAdjudicator is Upgradeable {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        evaluatedCFrags[evaluationHash] = true;
-
         bool cfragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
+        evaluatedCFrags[evaluationHash] = true;
         emit CFragEvaluated(evaluationHash, miner, msg.sender, cfragIsCorrect);
         if (!cfragIsCorrect) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
@@ -144,20 +172,6 @@ contract MiningAdjudicator is Upgradeable {
         reward = penalty.div(rewardCoefficient);
         // TODO add maximum condition or other overflow protection or other penalty condition
         penaltyHistory[_miner] = penaltyHistory[_miner].add(1);
-    }
-
-    /**
-    * @notice Prepare public key before verification (cut the first byte)
-    **/
-    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey)
-        public pure
-    {
-        assembly {
-            let destination := add(_preparedPublicKey, 32) // skip array length
-            let source := add(_publicKey, 33) // skip array length and first byte in the array
-            mstore(destination, mload(source))
-            mstore(add(destination, 32), mload(add(source, 32)))
-        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`

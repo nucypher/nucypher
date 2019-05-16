@@ -75,8 +75,9 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         from nucypher.characters.lawful import Bob
 
-        crypto_powers = {DecryptingPower: bob_encrypting_key, SigningPower: bob_verifying_key}
-        bob = Bob.from_public_keys(crypto_powers, federated_only=federated_only)
+        bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
+                                   verifying_key=bob_verifying_key,
+                                   federated_only=federated_only)
         new_policy = self.character.create_policy(bob, label, m, n, federated=federated_only)
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
@@ -98,8 +99,8 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         from nucypher.characters.lawful import Bob
 
         # Operate
-        bob = Bob.from_public_keys({DecryptingPower: bob_encrypting_key,
-                                    SigningPower: bob_verifying_key},
+        bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
+                                   verifying_key=bob_verifying_key,
                                    federated_only=federated_only)
 
         new_policy = self.character.grant(bob, label, m=m, n=n, expiration=expiration)
@@ -136,7 +137,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         data_source = Enrico.from_public_keys(
-            {SigningPower: message_kit.sender_pubkey_sig},
+            verifying_key=message_kit.sender_pubkey_sig,
             policy_encrypting_key=policy_encrypting_key,
             label=label
         )
@@ -186,7 +187,7 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_verifying_key)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        data_source = Enrico.from_public_keys({SigningPower: message_kit.sender_pubkey_sig},
+        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_pubkey_sig,
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 

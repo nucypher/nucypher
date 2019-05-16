@@ -45,7 +45,7 @@ class TokenEconomics:
 
     ...but also...
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
 
     --------------------------
@@ -177,7 +177,8 @@ class SlashingEconomics:
     reward_coefficient = 2
 
     @property
-    def deployment_parameters(self):
+    def deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
 
         deployment_parameters = [
             self.algorithm_sha256,
@@ -187,4 +188,4 @@ class SlashingEconomics:
             self.reward_coefficient
         ]
 
-        return deployment_parameters
+        return tuple(map(int, deployment_parameters))

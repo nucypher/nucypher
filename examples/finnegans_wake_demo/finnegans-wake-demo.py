@@ -2,13 +2,11 @@ import os
 
 import datetime
 import maya
-import shutil
 from twisted.logger import globalLogPublisher
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
-from nucypher.crypto.powers import SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
 
@@ -128,7 +126,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     enrico_as_understood_by_bob = Enrico.from_public_keys(
-        {SigningPower: data_source_public_key},
+        verifying_key=data_source_public_key,
         policy_encrypting_key=policy_pubkey
     )
 

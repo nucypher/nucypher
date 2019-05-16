@@ -30,22 +30,24 @@ from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH
-from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
+from constant_sorrow.constants import (FLEET_STATES_MATCH,
+                                       GLOBAL_DOMAIN,
+                                       NO_KNOWN_NODES)
 from hendrix.experience import crosstown_traffic
+
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp, Signature
+from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
+from nucypher.network.protocols import InterfaceInfo
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -83,22 +85,12 @@ class ProxyRESTServer:
 
 def make_rest_app(
         db_filepath: str,
-        network_middleware: RestMiddleware,
-        federated_only: bool,
-        treasure_map_tracker: dict,
-        node_tracker: 'FleetStateTracker',
-        node_bytes_caster: Callable,
-        work_order_tracker: list,
-        node_nickname: str,
-        node_recorder: Callable,
-        stamp: SignatureStamp,
-        verifier: Callable,
-        suspicious_activity_tracker: dict,
+        this_node,
         serving_domains,
         log=Logger("http-application-layer")
         ) -> Tuple:
 
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
+    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
 
     from nucypher.keystore import keystore
     from nucypher.keystore.db import Base
@@ -127,10 +119,10 @@ def make_rest_app(
     @rest_app.route("/public_information")
     def public_information():
         """
-        REST endpoint for public keys and address..
+        REST endpoint for public keys and address.
         """
         response = Response(
-            response=node_bytes_caster(),
+            response=bytes(this_node),
             mimetype='application/octet-stream')
 
         return response
@@ -139,17 +131,17 @@ def make_rest_app(
     def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
 
-        if node_tracker.checksum is NO_KNOWN_NODES:
+        if this_node.known_nodes.checksum is NO_KNOWN_NODES:
             return Response(b"", headers=headers, status=204)
 
-        payload = node_tracker.snapshot()
+        payload = this_node.known_nodes.snapshot()
 
-        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in node_tracker)
+        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in this_node.known_nodes)
         ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(node_bytes_caster())
+        ursulas_as_bytes += VariableLengthBytestring(bytes(this_node))
 
         payload += ursulas_as_bytes
-        signature = stamp(payload)
+        signature = this_node.stamp(payload)
         return Response(bytes(signature) + payload, headers=headers)
 
     @rest_app.route('/node_metadata', methods=["POST"])
@@ -157,14 +149,14 @@ def make_rest_app(
         # If these nodes already have the same fleet state, no exchange is necessary.
 
         learner_fleet_state = request.args.get('fleet')
-        if learner_fleet_state == node_tracker.checksum:
+        if learner_fleet_state == this_node.known_nodes.checksum:
             log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
             headers = {'Content-Type': 'application/octet-stream'}
-            payload = node_tracker.snapshot() + bytes(FLEET_STATES_MATCH)
-            signature = stamp(payload)
+            payload = this_node.known_nodes.snapshot() + bytes(FLEET_STATES_MATCH)
+            signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        nodes = _node_class.batch_from_bytes(request.data, federated_only=federated_only)  # TODO: 466
+        nodes = _node_class.batch_from_bytes(request.data, federated_only=this_node.federated_only)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
@@ -173,8 +165,8 @@ def make_rest_app(
                 if not set(serving_domains).intersection(set(node.serving_domains)):
                     continue  # This node is not serving any of our domains.
 
-            if node in node_tracker:
-                if node.timestamp <= node_tracker[node.checksum_public_address].timestamp:
+            if node in this_node.known_nodes:
+                if node.timestamp <= this_node.known_nodes[node.checksum_public_address].timestamp:
                     continue
 
             @crosstown_traffic()
@@ -184,8 +176,8 @@ def make_rest_app(
                     certificate_filepath = forgetful_node_storage.store_node_certificate(
                         certificate=node.certificate)
 
-                    node.verify_node(network_middleware,
-                                     accept_federated_only=federated_only,  # TODO: 466
+                    node.verify_node(this_node.network_middleware,
+                                     accept_federated_only=this_node.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
 
                 # Suspicion
@@ -195,7 +187,7 @@ def make_rest_app(
                     # TODO: Maybe also record the bytes representation separately to disk?
                     message = f"Suspicious Activity: Discovered node with bad signature: {node}.  Announced via REST."
                     log.warn(message)
-                    suspicious_activity_tracker['vladimirs'].append(node)
+                    this_node.suspicious_activities_witnessed['vladimirs'].append(node)
 
                 # Async Sentinel
                 except Exception as e:
@@ -205,7 +197,7 @@ def make_rest_app(
                 # Believable
                 else:
                     log.info("Learned about previously unknown node: {}".format(node))
-                    node_recorder(node)
+                    this_node.remember_node(node)
                     # TODO: Record new fleet state
 
                 # Cleanup
@@ -246,10 +238,10 @@ def make_rest_app(
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
         alices_verifying_key = policy_message_kit.sender_pubkey_sig
-        alice = _alice_class.from_public_keys({SigningPower: alices_verifying_key})
+        alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
         try:
-            cleartext = verifier(alice, policy_message_kit, decrypt=True)
+            cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
         except InvalidSignature:
             # TODO: Perhaps we log this?
             return Response(status_code=400)
@@ -302,6 +294,10 @@ def make_rest_app(
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
+
+        # TODO: How to pass Ursula's identity evidence to Bob? #962
+        # 'Identity evidence' is a signature of her stamp with the checksum address
+
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
 
@@ -318,7 +314,7 @@ def make_rest_app(
 
         work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
                                                  rest_payload=request.data,
-                                                 ursula_pubkey_bytes=bytes(stamp),
+                                                 ursula_pubkey_bytes=bytes(this_node.stamp),
                                                  alice_address=alices_address)
 
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
@@ -328,7 +324,7 @@ def make_rest_app(
         for task in work_order.tasks:
             # Ursula signs on top of Bob's signature of each task.
             # Now both are committed to the same task.  See #259.
-            reencryption_metadata = bytes(stamp(bytes(task.signature)))
+            reencryption_metadata = bytes(this_node.stamp(bytes(task.signature)))
 
             capsule = task.capsule
             capsule.set_correctness_keys(verifying=alices_verifying_key)
@@ -336,11 +332,11 @@ def make_rest_app(
             log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
 
             # Finally, Ursula commits to her result
-            reencryption_signature = stamp(bytes(cfrag))
+            reencryption_signature = this_node.stamp(bytes(cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
 
         # TODO: Put this in Ursula's datastore
-        work_order_tracker.append(work_order)
+        this_node._work_orders.append(work_order)
 
         headers = {'Content-Type': 'application/octet-stream'}
 
@@ -354,12 +350,12 @@ def make_rest_app(
 
         try:
 
-            treasure_map = treasure_map_tracker[treasure_map_bytes]
+            treasure_map = this_node.treasure_maps[treasure_map_bytes]
             response = Response(bytes(treasure_map), headers=headers)
-            log.info("{} providing TreasureMap {}".format(node_nickname, treasure_map_id))
+            log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
 
         except KeyError:
-            log.info("{} doesn't have requested TreasureMap {}".format(stamp, treasure_map_id))
+            log.info("{} doesn't have requested TreasureMap {}".format(this_node.stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
                                 status=404, headers=headers)
 
@@ -379,16 +375,9 @@ def make_rest_app(
             do_store = treasure_map.public_id() == treasure_map_id
 
         if do_store:
-            log.info("{} storing TreasureMap {}".format(stamp, treasure_map_id))
-
-            # # # #
-            # TODO: Now that the DHT is retired, let's do this another way.
-            # self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
-            #                         constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
-            # # # #
-
+            log.info("{} storing TreasureMap {}".format(this_node.stamp, treasure_map_id))
             # TODO 341 - what if we already have this TreasureMap?
-            treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
+            this_node.treasure_maps[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
             # TODO: Make this a proper 500 or whatever.
@@ -397,17 +386,12 @@ def make_rest_app(
 
     @rest_app.route('/status')
     def status():
-        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.
-        #       Might be a sign that we need to rethnk this composition.
-
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
-        this_node = _node_class.from_bytes(node_bytes_caster(), federated_only=federated_only)
-
-        previous_states = list(reversed(node_tracker.states.values()))[:5]
+        previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
 
         try:
             content = status_template.render(this_node=this_node,
-                                             known_nodes=node_tracker,
+                                             known_nodes=this_node.known_nodes,
                                              previous_states=previous_states)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))

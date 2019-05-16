@@ -58,19 +58,19 @@ library ReEncryptionValidator {
         // Extract Alice's address and check that it corresponds to the one provided
         address alicesAddress = SignatureVerifier.recover(
             _precomputed.hashedKFragValidityMessage,
-            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
+            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.lostBytes[0])
         );
         require(alicesAddress == _precomputed.alicesKeyAsAddress, "Bad KFrag signature");
 
         // Compute proof's challenge scalar h, used in all ZKP verification equations
-        uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
+        uint256 h = computeProofChallengeScalar(_capsule, _cFrag);
 
         //////
         // Verifying 1st equation: z*E == h*E_1 + E_2
         //////
 
         // Input validation: E
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _capsule.pointE.sign,
             _capsule.pointE.xCoord,
             _precomputed.pointEyCoord),
@@ -78,7 +78,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: z*E
-        require(is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord),
+        require(isOnCurve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord),
                 "Point zE is not a valid EC point"
         );
         require(ecmulVerify(
@@ -91,7 +91,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: E1
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.pointE1.sign,          // E1_sign
             _cFrag.pointE1.xCoord,        // E1_x
             _precomputed.pointE1yCoord),  // E1_y
@@ -99,7 +99,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: h*E1
-        require(is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord),
+        require(isOnCurve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord),
                 "Point h*E1 is not a valid EC point"
         );
         require(ecmulVerify(
@@ -112,7 +112,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: E2
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.proof.pointE2.sign,        // E2_sign
             _cFrag.proof.pointE2.xCoord,      // E2_x
             _precomputed.pointE2yCoord),      // E2_y
@@ -136,7 +136,7 @@ library ReEncryptionValidator {
         //////
 
         // Input validation: V
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _capsule.pointV.sign,
             _capsule.pointV.xCoord,
             _precomputed.pointVyCoord),
@@ -144,7 +144,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: z*V
-        require(is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord),
+        require(isOnCurve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord),
                 "Point zV is not a valid EC point"
         );
         require(ecmulVerify(
@@ -157,7 +157,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: V1
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.pointV1.sign,         // V1_sign
             _cFrag.pointV1.xCoord,       // V1_x
             _precomputed.pointV1yCoord), // V1_y
@@ -165,7 +165,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: h*V1
-        require(is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord),
+        require(isOnCurve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord),
             "Point h*V1 is not a valid EC point"
         );
         require(ecmulVerify(
@@ -178,7 +178,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: V2
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.proof.pointV2.sign,        // V2_sign
             _cFrag.proof.pointV2.xCoord,      // V2_x
             _precomputed.pointV2yCoord),      // V2_y
@@ -204,7 +204,7 @@ library ReEncryptionValidator {
         // We don't have to validate U since it's fixed and hard-coded
 
         // Input validation: z*U
-        require(is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord),
+        require(isOnCurve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord),
                 "Point z*U is not a valid EC point"
         );
         require(ecmulVerify(
@@ -217,7 +217,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: U1  (a.k.a. KFragCommitment)
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.proof.pointKFragCommitment.sign,     // U1_sign
             _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
             _precomputed.pointU1yCoord),                // U1_y
@@ -225,7 +225,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: h*U1
-        require(is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord),
+        require(isOnCurve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord),
                 "Point h*U1 is not a valid EC point"
         );
         require(ecmulVerify(
@@ -238,7 +238,7 @@ library ReEncryptionValidator {
         );
 
         // Input validation: U2  (a.k.a. KFragPok ("proof of knowledge"))
-        require(check_compressed_point(
+        require(checkCompressedPoint(
             _cFrag.proof.pointKFragPok.sign,    // U2_sign
             _cFrag.proof.pointKFragPok.xCoord,  // U2_x
             _precomputed.pointU2yCoord),        // U2_y
@@ -257,13 +257,9 @@ library ReEncryptionValidator {
     }
 
     function computeProofChallengeScalar(
-        bytes memory _capsuleBytes,
-        bytes memory _cFragBytes
+        UmbralDeserializer.Capsule memory _capsule,
+        UmbralDeserializer.CapsuleFrag memory _cFrag
     ) internal pure returns (uint256) {
-
-        // TODO: Optimize this since they have already been parsed by the caller
-        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
-        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
 
         // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2, metadata)
         bytes memory hashInput = abi.encodePacked(
@@ -311,29 +307,6 @@ library ReEncryptionValidator {
 
     }
 
-    // This function was introduced just to facilitate debugging and testing
-    // of Alice's address extraction from her signature
-    // TODO: Consider moving this somewhere else, or even removing it
-    function aliceAddress(
-        bytes memory _cFragBytes,
-        bytes memory _precomputedBytes
-    )
-        internal pure
-        returns (address)
-    {
-        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
-        UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
-
-        // Extract Alice's address and check that it corresponds to the one provided
-        address alicesAddress = SignatureVerifier.recover(
-            _precomputed.hashedKFragValidityMessage,
-            abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.kfragSignatureV)
-        );
-        return alicesAddress;
-    }
-
-    // TODO: Consider changing to internal
-    // TODO: Unit test wrt to Umbral implementation
     function extendedKeccakToBN (bytes memory _data) internal pure returns (uint256) {
 
         bytes32 upper;
@@ -361,21 +334,34 @@ library ReEncryptionValidator {
     /// @param _pointX The X coordinate of an EC point in affine representation
     /// @param _pointY The Y coordinate of an EC point in affine representation
     /// @return true iff _pointSign and _pointX are the compressed representation of (_pointX, _pointY)
-	function check_compressed_point(
+	function checkCompressedPoint(
 		uint8 _pointSign,
 		uint256 _pointX,
 		uint256 _pointY
 	) internal pure returns(bool) {
 		bool correct_sign = _pointY % 2 == _pointSign - 2;
-		return correct_sign && is_on_curve(_pointX, _pointY);
+		return correct_sign && isOnCurve(_pointX, _pointY);
 	}
 
+    /// @notice Tests if the given serialized coordinates represent a valid EC point
+    /// @param _coords The concatenation of serialized X and Y coordinates
+    /// @return true iff coordinates X and Y are a valid point
+    function checkSerializedCoordinates(bytes memory _coords) internal pure returns(bool) {
+        require(_coords.length == 64, "Serialized coordinates should be 64 B");
+        uint256 coordX;
+        uint256 coordY;
+        assembly {
+            coordX := mload(add(_coords, 32))
+            coordY := mload(add(_coords, 64))
+        }
+		return isOnCurve(coordX, coordY);
+	}
 
     /// @notice Tests if a point is on the secp256k1 curve
     /// @param Px The X coordinate of an EC point in affine representation
     /// @param Py The Y coordinate of an EC point in affine representation
     /// @return true if (Px, Py) is a valid secp256k1 point; false otherwise
-    function is_on_curve(uint256 Px, uint256 Py) internal pure returns (bool) {
+    function isOnCurve(uint256 Px, uint256 Py) internal pure returns (bool) {
         uint256 p = FIELD_ORDER;
 
         if (Px >= p || Py >= p){

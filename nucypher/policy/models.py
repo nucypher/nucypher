@@ -26,14 +26,13 @@ from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NO
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Generator, List, Set, Optional
+from typing import Generator, List, Set, Optional, Tuple
 
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
-from umbral.point import Point
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice, Bob, Ursula, Character
@@ -43,7 +42,10 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
-from nucypher.crypto.utils import canonical_address_from_umbral_key, recover_pubkey_from_signature, construct_policy_id
+from nucypher.crypto.utils import (canonical_address_from_umbral_key,
+                                   construct_policy_id,
+                                   get_coordinates_as_bytes,
+                                   get_signature_recovery_value)
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -88,7 +90,7 @@ class Arrangement:
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
         alice_pubkey_sig, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
+        alice = Alice.from_public_keys(verifying_key=alice_pubkey_sig)
         return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
@@ -541,11 +543,11 @@ class TreasureMap:
 class WorkOrder:
 
     class Task:
-        def __init__(self, capsule, signature, cfrag=None, reencryption_signature=None):
+        def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
-            self.reencryption_signature = reencryption_signature
+            self.cfrag_signature = cfrag_signature
 
         def get_specification(self, ursula_pubkey, alice_address, blockhash):
             task_specification = (bytes(self.capsule),
@@ -556,8 +558,8 @@ class WorkOrder:
 
         def __bytes__(self):
             data = bytes(self.capsule) + bytes(self.signature)
-            if self.cfrag and self.reencryption_signature:
-                data += bytes(self.cfrag) + bytes(self.reencryption_signature)
+            if self.cfrag and self.cfrag_signature:
+                data += bytes(self.cfrag) + bytes(self.cfrag_signature)
             return data
 
         @classmethod
@@ -574,7 +576,7 @@ class WorkOrder:
 
         def attach_work_result(self, cfrag, reencryption_signature):
             self.cfrag = cfrag
-            self.reencryption_signature = reencryption_signature
+            self.cfrag_signature = reencryption_signature
 
     def __init__(self,
                  bob: Bob,
@@ -591,7 +593,7 @@ class WorkOrder:
         self.tasks = tasks
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
-        self.blockhash = blockhash or b'\x00' * 32  # TODO
+        self.blockhash = blockhash or b'\x00' * 32  # TODO: #259
         self.completed = False
 
     def __repr__(self):
@@ -659,7 +661,7 @@ class WorkOrder:
             if not task.signature.verify(specification, bob_pubkey_sig):
                 raise InvalidSignature()
 
-        bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
+        bob = Bob.from_public_keys(verifying_key=bob_pubkey_sig)
         return cls(bob=bob,
                    arrangement_id=arrangement_id,
                    tasks=tasks,
@@ -680,23 +682,23 @@ class WorkOrder:
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
             # Validate re-encryption metadata
             metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
             if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
                 raise InvalidSignature(f"Invalid metadata for {cfrag}.")
-                # TODO: Instead of raising, we should do something
+                # TODO: Instead of raising, we should do something (#957)
 
             # Validate re-encryption signatures
-            if reencryption_signature.verify(bytes(cfrag), ursula_verifying_key):
+            if cfrag_signature.verify(bytes(cfrag), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
-                # TODO: Instead of raising, we should do something
+                # TODO: Instead of raising, we should do something (#957)
 
-        for task, (cfrag, reencryption_signature) in zip(self.tasks, cfrags_and_signatures):
-            task.attach_work_result(cfrag, reencryption_signature)
+        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+            task.attach_work_result(cfrag, cfrag_signature)
 
         self.completed = maya.now()
         return good_cfrags
@@ -782,21 +784,24 @@ class Revocation:
         return True
 
 
+# TODO: Change name to EvaluationEvidence
 class IndisputableEvidence:
 
     def __init__(self,
-                 capsule: Capsule,
-                 cfrag: CapsuleFrag,
-                 ursula,
+                 task: 'WorkOrder.Task',
+                 work_order: 'WorkOrder',
                  delegating_pubkey: UmbralPublicKey = None,
                  receiving_pubkey: UmbralPublicKey = None,
                  verifying_pubkey: UmbralPublicKey = None,
                  ) -> None:
-        self.capsule = capsule
-        self.cfrag = cfrag
-        self.ursula = ursula
 
-        keys = capsule.get_correctness_keys()
+        self.task = task
+        self.ursula_pubkey = work_order.ursula.stamp.as_umbral_pubkey()
+        self.bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
+        self.blockhash = work_order.blockhash
+        self.alice_address = work_order.alice_address
+
+        keys = self.task.capsule.get_correctness_keys()
         key_types = ("delegating", "receiving", "verifying")
         if all(keys[key_type] for key_type in key_types):
             self.delegating_pubkey = keys["delegating"]
@@ -810,40 +815,46 @@ class IndisputableEvidence:
             raise ValueError("All correctness keys are required to compute evidence.  "
                              "Either pass them as arguments or in the capsule.")
 
-    def get_proof_challenge_scalar(self) -> CurveBN:
-        umbral_params = default_params()
-        e, v, _ = self.capsule.components()
+        # TODO: check that the metadata is correct.
 
-        e1 = self.cfrag.point_e1
-        v1 = self.cfrag.point_v1
-        e2 = self.cfrag.proof.point_e2
-        v2 = self.cfrag.proof.point_v2
+    def get_proof_challenge_scalar(self) -> CurveBN:
+        capsule = self.task.capsule
+        cfrag = self.task.cfrag
+
+        umbral_params = default_params()
+        e, v, _ = capsule.components()
+
+        e1 = cfrag.point_e1
+        v1 = cfrag.point_v1
+        e2 = cfrag.proof.point_e2
+        v2 = cfrag.proof.point_v2
         u = umbral_params.u
-        u1 = self.cfrag.proof.point_kfrag_commitment
-        u2 = self.cfrag.proof.point_kfrag_pok
-        metadata = self.cfrag.proof.metadata
+        u1 = cfrag.proof.point_kfrag_commitment
+        u2 = cfrag.proof.point_kfrag_pok
+        metadata = cfrag.proof.metadata
 
         from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 
         hash_input = (e, e1, e2, v, v1, v2, u, u1, u2, metadata)
 
-        h = hash_to_curvebn(*hash_input,
-                            params=umbral_params,
-                            hash_class=ExtendedKeccak)
+        h = hash_to_curvebn(*hash_input, params=umbral_params, hash_class=ExtendedKeccak)
         return h
 
     def precompute_values(self) -> bytes:
+        capsule = self.task.capsule
+        cfrag = self.task.cfrag
 
         umbral_params = default_params()
-        e, v, _ = self.capsule.components()
+        e, v, _ = capsule.components()
 
-        e1 = self.cfrag.point_e1
-        v1 = self.cfrag.point_v1
-        e2 = self.cfrag.proof.point_e2
-        v2 = self.cfrag.proof.point_v2
+        e1 = cfrag.point_e1
+        v1 = cfrag.point_v1
+        e2 = cfrag.proof.point_e2
+        v2 = cfrag.proof.point_v2
         u = umbral_params.u
-        u1 = self.cfrag.proof.point_kfrag_commitment
-        u2 = self.cfrag.proof.point_kfrag_pok
+        u1 = cfrag.proof.point_kfrag_commitment
+        u2 = cfrag.proof.point_kfrag_pok
+        metadata = cfrag.proof.metadata
 
         h = self.get_proof_challenge_scalar()
 
@@ -851,42 +862,35 @@ class IndisputableEvidence:
         v1h = h * v1
         u1h = h * u1
 
-        z = self.cfrag.proof.bn_sig
+        z = cfrag.proof.bn_sig
         ez = z * e
         vz = z * v
         uz = z * u
 
-        def raw_bytes_from_point(point: Point, only_y_coord=False) -> bytes:
-            uncompressed_point_bytes = point.to_bytes(is_compressed=False)
-            if only_y_coord:
-                y_coord_start = (1 + Point.expected_bytes_length(is_compressed=False)) // 2
-                return uncompressed_point_bytes[y_coord_start:]
-            else:
-                return uncompressed_point_bytes[1:]
-
+        only_y_coord = dict(x_coord=False, y_coord=True)
         # E points
-        e_y = raw_bytes_from_point(e, only_y_coord=True)
-        ez_xy = raw_bytes_from_point(ez)
-        e1_y = raw_bytes_from_point(e1, only_y_coord=True)
-        e1h_xy = raw_bytes_from_point(e1h)
-        e2_y = raw_bytes_from_point(e2, only_y_coord=True)
+        e_y = get_coordinates_as_bytes(e, **only_y_coord)
+        ez_xy = get_coordinates_as_bytes(ez)
+        e1_y = get_coordinates_as_bytes(e1, **only_y_coord)
+        e1h_xy = get_coordinates_as_bytes(e1h)
+        e2_y = get_coordinates_as_bytes(e2, **only_y_coord)
         # V points
-        v_y = raw_bytes_from_point(v, only_y_coord=True)
-        vz_xy = raw_bytes_from_point(vz)
-        v1_y = raw_bytes_from_point(v1, only_y_coord=True)
-        v1h_xy = raw_bytes_from_point(v1h)
-        v2_y = raw_bytes_from_point(v2, only_y_coord=True)
+        v_y = get_coordinates_as_bytes(v, **only_y_coord)
+        vz_xy = get_coordinates_as_bytes(vz)
+        v1_y = get_coordinates_as_bytes(v1, **only_y_coord)
+        v1h_xy = get_coordinates_as_bytes(v1h)
+        v2_y = get_coordinates_as_bytes(v2, **only_y_coord)
         # U points
-        uz_xy = raw_bytes_from_point(uz)
-        u1_y = raw_bytes_from_point(u1, only_y_coord=True)
-        u1h_xy = raw_bytes_from_point(u1h)
-        u2_y = raw_bytes_from_point(u2, only_y_coord=True)
+        uz_xy = get_coordinates_as_bytes(uz)
+        u1_y = get_coordinates_as_bytes(u1, **only_y_coord)
+        u1h_xy = get_coordinates_as_bytes(u1h)
+        u2_y = get_coordinates_as_bytes(u2, **only_y_coord)
 
         # Get hashed KFrag validity message
         hash_function = hashes.Hash(hashes.SHA256(), backend=backend)
 
-        kfrag_id = self.cfrag.kfrag_id
-        precursor = self.cfrag.point_precursor
+        kfrag_id = cfrag.kfrag_id
+        precursor = cfrag.point_precursor
         delegating_pubkey = self.delegating_pubkey
         receiving_pubkey = self.receiving_pubkey
 
@@ -895,21 +899,28 @@ class IndisputableEvidence:
         hash_function.update(kfrag_validity_message)
         hashed_kfrag_validity_message = hash_function.finalize()
 
-        # Get Alice's verifying pubkey as ETH address
-        alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
-
         # Get KFrag signature's v value
-        v_value = 27
-        pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
-                                                     signature=self.cfrag.proof.kfrag_signature,
-                                                     v_value_to_try=v_value)
-        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
-            v_value = 28
-            pubkey_bytes = recover_pubkey_from_signature(prehashed_message=hashed_kfrag_validity_message,
-                                                         signature=self.cfrag.proof.kfrag_signature,
-                                                         v_value_to_try=v_value)
-        if not pubkey_bytes == self.verifying_pubkey.to_bytes():
-            raise InvalidSignature("Bad signature: Not possible to recover public key from it.")
+        kfrag_signature_v = get_signature_recovery_value(message=hashed_kfrag_validity_message,
+                                                         signature=cfrag.proof.kfrag_signature,
+                                                         public_key=self.verifying_pubkey,
+                                                         is_prehashed=True)
+
+        cfrag_signature_v = get_signature_recovery_value(message=bytes(cfrag),
+                                                         signature=self.task.cfrag_signature,
+                                                         public_key=self.ursula_pubkey)
+
+        metadata_signature_v = get_signature_recovery_value(message=self.task.signature,
+                                                            signature=metadata,
+                                                            public_key=self.ursula_pubkey)
+
+        specification = self.task.get_specification(ursula_pubkey=self.ursula_pubkey,
+                                                    alice_address=self.alice_address,
+                                                    blockhash=self.blockhash)
+        specification_signature_v = get_signature_recovery_value(message=specification,
+                                                                 signature=self.task.signature,
+                                                                 public_key=self.bob_pubkey)
+
+        ursula_pubkey_prefix_byte = bytes(self.ursula_pubkey)[0:1]
 
         # Bundle everything together
         pieces = (
@@ -917,7 +928,23 @@ class IndisputableEvidence:
             v_y, vz_xy, v1_y, v1h_xy, v2_y,
             uz_xy, u1_y, u1h_xy, u2_y,
             hashed_kfrag_validity_message,
-            alice_address,
-            v_value.to_bytes(1, 'big'),
+            self.alice_address,
+            # The following single-byte values are interpreted as a single bytes5 variable by the Solidity contract
+            kfrag_signature_v,
+            cfrag_signature_v,
+            metadata_signature_v,
+            specification_signature_v,
+            ursula_pubkey_prefix_byte,
         )
         return b''.join(pieces)
+
+    def evaluation_arguments(self) -> Tuple:
+        return (bytes(self.task.capsule),
+                bytes(self.task.cfrag),
+                bytes(self.task.cfrag_signature),
+                bytes(self.task.signature),
+                get_coordinates_as_bytes(self.bob_pubkey),
+                get_coordinates_as_bytes(self.ursula_pubkey),
+                None,   # FIXME: bytes memory _minerPublicKeySignature #962
+                self.precompute_values()
+                )

@@ -21,8 +21,12 @@ from constant_sorrow import constants
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
-from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
-    BlockchainPower, PowerUpError
+from nucypher.crypto.powers import (CryptoPower,
+                                    SigningPower,
+                                    NoSigningPower,
+                                    BlockchainPower,
+                                    PowerUpError)
+from nucypher.crypto.signing import InvalidSignature
 
 """
 Chapter 1: SIGNING
@@ -89,6 +93,24 @@ def test_anybody_can_verify():
 
     # Our everyman can verify it.
     cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
+    assert cleartext is constants.NO_DECRYPTION_PERFORMED
+
+    # Of course, verification fails with any fake message
+    with pytest.raises(InvalidSignature):
+        fake = b"McLovin      892 Momona St.  Honolulu, HI 96820"
+        _ = somebody.verify_from(alice, fake, signature, decrypt=False)
+
+    # Signature verification also works when Alice is not living with our
+    # everyman in the same process, and he only knows her by her public key
+    alice_pubkey_bytes = bytes(alice.stamp)
+    hearsay_alice = Character.from_public_keys({SigningPower: alice_pubkey_bytes})
+
+    cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
+    assert cleartext is constants.NO_DECRYPTION_PERFORMED
+
+    hearsay_alice = Character.from_public_keys(verifying_key=alice_pubkey_bytes)
+
+    cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 

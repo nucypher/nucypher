@@ -23,28 +23,45 @@ import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
+from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
-    DispatcherDeployer
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
+
+from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
+                                               MinerEscrowDeployer,
+                                               PolicyManagerDeployer,
+                                               DispatcherDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.lawful import Enrico
+from nucypher.blockchain.eth.token import NU
+from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
+from nucypher.policy.models import IndisputableEvidence, WorkOrder
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
-from nucypher.utilities.sandbox.constants import (MOCK_URSULA_STARTING_PORT,
-                                                  MOCK_POLICY_DEFAULT_M)
-from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+                                                  MOCK_POLICY_DEFAULT_M,
+                                                  MOCK_URSULA_STARTING_PORT,
+                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  TEST_PROVIDER_URI,
+                                                  )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
+                                               make_federated_ursulas,
+                                               start_pytest_ursula_services)
+
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
@@ -116,11 +133,10 @@ def ursula_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.usefixtures('three_agents')
-def ursula_decentralized_test_config(three_agents):
+def ursula_decentralized_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
-                                        provider_uri="tester://pyevm",
+                                        provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -148,12 +164,11 @@ def alice_federated_test_config(federated_ursulas):
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
-                                provider_uri="tester://pyevm",
-                                checksum_public_address=token_agent.blockchain.alice_account,
+                                provider_uri=TEST_PROVIDER_URI,
+                                checksum_public_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
@@ -178,11 +193,10 @@ def bob_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def bob_blockchain_test_config(blockchain_ursulas, testerchain):
     config = BobConfiguration(dev_mode=True,
-                              provider_uri="tester://pyevm",
-                              checksum_public_address=token_agent.blockchain.bob_account,
+                              provider_uri=TEST_PROVIDER_URI,
+                              checksum_public_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -321,6 +335,13 @@ def token_economics():
     economics = TokenEconomics()
     return economics
 
+
+@pytest.fixture(scope='session')
+def slashing_economics():
+    economics = SlashingEconomics()
+    return economics
+
+
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
@@ -339,7 +360,7 @@ def testerchain(solidity_compiler):
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
                                                      registry=memory_registry,
-                                                     provider_uri='tester://pyevm')
+                                                     provider_uri=TEST_PROVIDER_URI)
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
@@ -391,7 +412,7 @@ def three_agents(testerchain):
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, _miner_agent, _policy_agent = three_agents
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
@@ -415,3 +436,103 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     blockchain.time_travel(periods=1)
     yield _ursulas
 
+
+@pytest.fixture(scope='module')
+def stake_value(token_economics):
+    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+    return value
+
+
+@pytest.fixture(scope='module')
+def policy_rate():
+    rate = Web3.toWei(21, 'gwei')
+    return rate
+
+
+@pytest.fixture(scope='module')
+def policy_value(token_economics, policy_rate):
+    value = policy_rate * token_economics.minimum_locked_periods
+    return value
+
+
+@pytest.fixture(scope='module')
+def funded_blockchain(testerchain, three_agents, token_economics):
+
+    # Who are ya'?
+    deployer_address, *everyone_else, staking_participant = testerchain.interface.w3.eth.accounts
+
+    # Free ETH!!!
+    testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    # Free Tokens!!!
+    token_airdrop(token_agent=NucypherTokenAgent(blockchain=testerchain),
+                  origin=deployer_address,
+                  addresses=everyone_else,
+                  amount=token_economics.minimum_allowed_locked*5)
+
+    # HERE YOU GO
+    yield testerchain, deployer_address
+
+
+@pytest.fixture(scope='module')
+def staking_participant(funded_blockchain, blockchain_ursulas):
+    # Start up the local fleet
+    for teacher in blockchain_ursulas:
+        start_pytest_ursula_services(ursula=teacher)
+
+    teachers = list(blockchain_ursulas)
+    staking_participant = teachers[-1]
+    return staking_participant
+
+
+#
+# Re-Encryption
+#
+
+def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
+    delegating_privkey = UmbralPrivateKey.gen_key()
+    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
+    signing_privkey = UmbralPrivateKey.gen_key()
+    signing_pubkey = signing_privkey.get_pubkey()
+    signer = Signer(signing_privkey)
+    priv_key_bob = UmbralPrivateKey.gen_key()
+    pub_key_bob = priv_key_bob.get_pubkey()
+    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
+                                 signer=signer,
+                                 receiving_pubkey=pub_key_bob,
+                                 threshold=2,
+                                 N=4,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
+
+    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
+
+    alice_address = canonical_address_from_umbral_key(signing_pubkey)
+    blockhash = bytes(32)
+
+    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
+
+    bobs_signer = Signer(priv_key_bob)
+    task_signature = bytes(bobs_signer(specification))
+
+    metadata = bytes(ursula.stamp(task_signature))
+
+    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
+
+    if corrupt_cfrag:
+        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
+
+    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
+
+    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
+    task = WorkOrder.Task(capsule, task_signature, cfrag, cfrag_signature)
+    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
+
+    evidence = IndisputableEvidence(task, work_order)
+    return evidence
+
+
+@pytest.fixture(scope='session')
+def mock_ursula_reencrypts():
+    return _mock_ursula_reencrypts

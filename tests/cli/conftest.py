@@ -24,22 +24,12 @@ import pytest
 import shutil
 from click.testing import CliRunner
 
-from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import (
-    InMemoryEthereumContractRegistry,
-    InMemoryAllocationRegistry,
-    AllocationRegistry
-)
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
-    TEST_PROVIDER_URI,
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     ONE_YEAR_IN_SECONDS
 )
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
@@ -101,43 +91,6 @@ def custom_filepath_2():
     finally:
         with contextlib.suppress(FileNotFoundError):
             shutil.rmtree(_custom_filepath, ignore_errors=True)
-
-
-@pytest.fixture(scope='session')
-def deployed_blockchain(token_economics):
-
-    # Interface
-    compiler = SolidityCompiler()
-    registry = InMemoryEthereumContractRegistry()
-    allocation_registry = InMemoryAllocationRegistry()
-    interface = BlockchainDeployerInterface(compiler=compiler,
-                                            registry=registry,
-                                            provider_uri=TEST_PROVIDER_URI)
-
-    # Blockchain
-    blockchain = TesterBlockchain(interface=interface, airdrop=True, test_accounts=5, poa=True)
-    deployer_address = blockchain.etherbase_account
-
-    # Deployer
-    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
-
-    # The Big Three (+ Dispatchers)
-    deployer.deploy_network_contracts(miner_secret=os.urandom(32),
-                                      policy_secret=os.urandom(32),
-                                      adjudicator_secret=os.urandom(32))
-
-    # User Escrow Proxy
-    deployer.deploy_escrow_proxy(secret=os.urandom(32))
-
-    # Start with some hard-coded cases...
-    all_yall = blockchain.unassigned_accounts
-    allocation_data = [{'address': all_yall[1],
-                        'amount': token_economics.maximum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS}]
-
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
-
-    yield blockchain, deployer_address, registry
 
 
 @pytest.fixture(scope='module')

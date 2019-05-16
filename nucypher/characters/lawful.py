@@ -20,11 +20,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
+from typing import Dict, Iterable, List, Set, Tuple
 
 import maya
 import requests
@@ -390,11 +386,11 @@ class Bob(Character):
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    class IncorrectCFragReceived(Exception):
+    class IncorrectCFragsReceived(Exception):
         """
-        Raised when Bob detects an incorrect CFrag returned by some Ursula
+        Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
-        def __init__(self, evidence):
+        def __init__(self, evidence: List):
             self.evidence = evidence
 
     def __init__(self, controller=True, *args, **kwargs) -> None:
@@ -494,7 +490,7 @@ class Bob(Character):
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
 
-        alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
+        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
             treasure_map.orient(compass)
@@ -609,6 +605,7 @@ class Bob(Character):
         work_orders = self.generate_work_orders(map_id, capsule)
 
         cleartexts = []
+        the_airing_of_grievances = []
         work_orders = work_orders.values()
         for work_order in work_orders:
             try:
@@ -616,28 +613,30 @@ class Bob(Character):
             except requests.exceptions.ConnectTimeout:
                 continue
 
-            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
+            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
             try:
                 message_kit.capsule.attach_cfrag(cfrag)
                 if len(message_kit.capsule._attached_cfrags) >= m:
                     break
             except UmbralCorrectnessError:
-                evidence = self.collect_evidence(capsule=capsule,
-                                                 cfrag=cfrag,
-                                                 ursula=work_order.ursula)
-
-                # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
-                raise self.IncorrectCFragReceived(evidence)
+                task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                from nucypher.policy.models import IndisputableEvidence
+                evidence = IndisputableEvidence(task=task, work_order=work_order)
+                # I got a lot of problems with you people ...
+                the_airing_of_grievances.append(evidence)
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+
+        if the_airing_of_grievances:
+            # ... and now you're gonna hear about it!
+            raise self.IncorrectCFragsReceived(the_airing_of_grievances)
+            # TODO: Find a better strategy for handling incorrect CFrags #500
+            #  - There maybe enough cfrags to still open the capsule
+            #  - This line is unreachable when NotEnoughUrsulas
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
         return cleartexts
-
-    def collect_evidence(self, capsule, cfrag, ursula):
-        from nucypher.policy.models import IndisputableEvidence
-        return IndisputableEvidence(capsule, cfrag, ursula)
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):
 
@@ -779,18 +778,8 @@ class Ursula(Teacher, Character, Miner):
                 # REST Server (Ephemeral Self-Ursula)
                 #
                 rest_app, datastore = make_rest_app(
+                    this_node=self,
                     db_filepath=db_filepath,
-                    network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,  # TODO: 466
-                    treasure_map_tracker=self.treasure_maps,
-                    node_tracker=self.known_nodes,
-                    node_bytes_caster=self.__bytes__,
-                    node_nickname=self.nickname,
-                    work_order_tracker=self._work_orders,
-                    node_recorder=self.remember_node,
-                    stamp=self.stamp,
-                    verifier=self.verify_from,
-                    suspicious_activity_tracker=self.suspicious_activities_witnessed,
                     serving_domains=domains,
                 )
 
@@ -844,6 +833,8 @@ class Ursula(Teacher, Character, Miner):
                          timestamp=timestamp,
                          identity_evidence=identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
+                         # FIXME: When is_me and not federated_only, the stamp is substantiated twice
+                         # See line 728 above.
                          )
 
         #
@@ -1075,11 +1066,6 @@ class Ursula(Teacher, Character, Miner):
         # Version stuff checked out.  Moving on.
         node_info = cls.internal_splitter(payload)
 
-        powers_and_material = {
-            SigningPower: node_info.pop("verifying_key"),
-            DecryptingPower: node_info.pop("encrypting_key")
-        }
-
         interface_info = node_info.pop("rest_interface")
         node_info['rest_host'] = interface_info.host
         node_info['rest_port'] = interface_info.port
@@ -1090,7 +1076,7 @@ class Ursula(Teacher, Character, Miner):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(constant_or_bytes(d) for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod

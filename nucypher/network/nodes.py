@@ -22,7 +22,6 @@ from collections import deque
 from collections import namedtuple
 from contextlib import suppress
 
-from twisted.python.threadpool import ThreadPool
 from typing import Set, Tuple
 
 import maya
@@ -911,8 +910,8 @@ class Teacher:
         signature_bytes = self._evidence_of_decentralized_identity
         if signature_bytes is NOT_SIGNED:
             return False
-        else:
-            signature = EthSignature(signature_bytes)
+
+        signature = EthSignature(signature_bytes)
         proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
         proper_address = proper_pubkey.to_checksum_address()
         return proper_address == self.checksum_public_address

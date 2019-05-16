@@ -17,11 +17,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
+from mock import Mock
+
+from eth_tester.exceptions import TransactionFailed
 
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+from umbral.signing import Signer
+
+from nucypher.crypto.signing import SignatureStamp
 
 
 @pytest.fixture(scope='module')
@@ -38,28 +45,31 @@ def test_extended_keccak_to_bn(testerchain, reencryption_validator):
 
 
 @pytest.mark.slow
-def test_extended_keccak_to_bn(testerchain, reencryption_validator):
-    test_data = os.urandom(40)
-    h = hash_to_curvebn(test_data, params=default_params(), hash_class=ExtendedKeccak)
-    assert int(h) == reencryption_validator.functions.extendedKeccakToBN(test_data).call()
-
-
-@pytest.mark.slow
 def test_ec_point_operations(testerchain, reencryption_validator):
     valid_point = Point.gen_rand()
     x, y = valid_point.to_affine()
 
-    assert reencryption_validator.functions.is_on_curve(x, y).call()
+    # Test isOnCurve
+    assert reencryption_validator.functions.isOnCurve(x, y).call()
 
     bad_y = y - 1
-    assert not reencryption_validator.functions.is_on_curve(x, bad_y).call()
+    assert not reencryption_validator.functions.isOnCurve(x, bad_y).call()
 
+    # Test checkCompressedPoint
     sign = 2 + (y % 2)
-    assert reencryption_validator.functions.check_compressed_point(sign, x, y).call()
+    assert reencryption_validator.functions.checkCompressedPoint(sign, x, y).call()
 
     bad_sign = 3 - (y % 2)
-    assert not reencryption_validator.functions.check_compressed_point(bad_sign, x, y).call()
+    assert not reencryption_validator.functions.checkCompressedPoint(bad_sign, x, y).call()
 
+    # Test checkSerializedCoordinates
+    coords = valid_point.to_bytes(is_compressed=False)[1:]
+    assert reencryption_validator.functions.checkSerializedCoordinates(coords).call()
+
+    coords = coords[:-1] + ((coords[-1] + 42) % 256).to_bytes(1, 'big')
+    assert not reencryption_validator.functions.checkSerializedCoordinates(coords).call()
+
+    # Test ecmulVerify
     P = valid_point
     scalar = CurveBN.gen_rand()
     Q = scalar * P
@@ -67,3 +77,126 @@ def test_ec_point_operations(testerchain, reencryption_validator):
 
     assert reencryption_validator.functions.ecmulVerify(x, y, int(scalar), qx, qy).call()
     assert not reencryption_validator.functions.ecmulVerify(x, y, int(scalar), x, y).call()
+
+    # Test eqAffineJacobian
+    Q_affine = [qx, qy]
+    Q_jacobian = [qx, qy, 1]
+    assert reencryption_validator.functions.eqAffineJacobian(Q_affine, Q_jacobian).call()
+
+    P_jacobian = [x, y, 1]
+    assert not reencryption_validator.functions.eqAffineJacobian(Q_affine, P_jacobian).call()
+
+    point_at_infinity = [x, y, 0]
+    random_point = Point.gen_rand()
+    assert not reencryption_validator.functions.eqAffineJacobian(random_point.to_affine(), point_at_infinity).call()
+
+    # Test doubleJacobian
+    doubleP = reencryption_validator.functions.doubleJacobian(P_jacobian).call()
+    assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), doubleP).call()
+
+    # Test addAffineJacobian
+    scalar1 = CurveBN.gen_rand()
+    scalar2 = CurveBN.gen_rand()
+    R1 = scalar1 * P
+    R2 = scalar2 * P
+
+    assert R1 + R2 == (scalar1 + scalar2) * P
+    R = reencryption_validator.functions.addAffineJacobian(R1.to_affine(), R2.to_affine()).call()
+    assert reencryption_validator.functions.eqAffineJacobian((R1 + R2).to_affine(), R).call()
+
+    P_plus_P = reencryption_validator.functions.addAffineJacobian(P.to_affine(), P.to_affine()).call()
+    assert reencryption_validator.functions.eqAffineJacobian((P + P).to_affine(), P_plus_P).call()
+
+
+# TODO: Find a non-intrusive way of testing constants of a Solidity library #954
+@pytest.mark.skip(reason="no way of testing library constants for the moment")
+def test_umbral_constants(testerchain, reencryption_validator):
+    umbral_params = default_params()
+    u_xcoord, u_ycoord = umbral_params.u.to_affine()
+    u_sign = 2 + (u_ycoord % 2)
+    assert u_sign == reencryption_validator.functions.UMBRAL_PARAMETER_U_SIGN().call()
+    assert u_xcoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_XCOORD().call()
+    assert u_ycoord == reencryption_validator.functions.UMBRAL_PARAMETER_U_YCOORD().call()
+
+
+@pytest.mark.slow
+def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, mock_ursula_reencrypts):
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
+
+    # Bob prepares supporting Evidence
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    proof_challenge_scalar = int(evidence.get_proof_challenge_scalar())
+    computeProofChallengeScalar = reencryption_validator.functions.computeProofChallengeScalar
+    assert proof_challenge_scalar == computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+
+
+@pytest.mark.slow
+def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencrypts):
+    ursula_privkey = UmbralPrivateKey.gen_key()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+                                  signer=Signer(ursula_privkey))
+    ursula = Mock(stamp=ursula_stamp)
+
+    ###############################
+    # Test: Ursula produces correct proof:
+    ###############################
+
+    # Bob prepares supporting Evidence
+    evidence = mock_ursula_reencrypts(ursula)
+    evidence_data = evidence.precompute_values()
+    assert len(evidence_data) == 20 * 32 + 32 + 20 + 5
+
+    # Challenge using good data
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+    assert reencryption_validator.functions.validateCFrag(*args).call()
+
+    ###############################
+    # Test: Ursula produces incorrect proof:
+    ###############################
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    assert not cfrag.verify_correctness(capsule)
+
+    evidence_data = evidence.precompute_values()
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+    assert not reencryption_validator.functions.validateCFrag(*args).call()
+
+    ###############################
+    # Test: Bob produces wrong precomputed data
+    ###############################
+    evidence = mock_ursula_reencrypts(ursula)
+    capsule = evidence.task.capsule
+    cfrag = evidence.task.cfrag
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    assert cfrag.verify_correctness(capsule)
+
+    evidence_data = evidence.precompute_values()
+
+    # Bob produces a random point and gets the bytes of coords x and y
+    random_point_bytes = Point.gen_rand().to_bytes(is_compressed=False)[1:]
+    # He uses this garbage instead of correct precomputation of z*E
+    evidence_data = bytearray(evidence_data)
+    evidence_data[32:32 + 64] = random_point_bytes
+    evidence_data = bytes(evidence_data)
+
+    args = (capsule_bytes, cfrag_bytes, evidence_data)
+
+    # Evaluation must fail since Bob precomputed wrong values
+    with pytest.raises(TransactionFailed):
+        _ = reencryption_validator.functions.validateCFrag(*args).call()
+

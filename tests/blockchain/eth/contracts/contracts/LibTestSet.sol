@@ -159,6 +159,8 @@ contract ReEncryptionValidatorMock {
 
     using UmbralDeserializer for bytes;
 
+//    TODO: Test constants when https://github.com/ethereum/solidity/issues/1290 is solved
+
 //    uint8 public constant UMBRAL_PARAMETER_U_SIGN = ReEncryptionValidator.UMBRAL_PARAMETER_U_SIGN();
 //    uint256 public constant UMBRAL_PARAMETER_U_XCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_XCOORD();
 //    uint256 public constant UMBRAL_PARAMETER_U_YCOORD = ReEncryptionValidator.UMBRAL_PARAMETER_U_YCOORD();
@@ -183,32 +185,29 @@ contract ReEncryptionValidatorMock {
     )
         public pure returns (uint256)
     {
-        return ReEncryptionValidator.computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
-    }
-
-    function aliceAddress(
-        bytes memory _cFragBytes,
-        bytes memory _precomputedBytes
-    )
-        public pure returns (address)
-    {
-        return ReEncryptionValidator.aliceAddress(_cFragBytes, _precomputedBytes);
+        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+        return ReEncryptionValidator.computeProofChallengeScalar(_capsule, _cFrag);
     }
 
     function extendedKeccakToBN (bytes memory _data) public pure returns (uint256) {
         return ReEncryptionValidator.extendedKeccakToBN(_data);
     }
 
-	function check_compressed_point(
+	function checkCompressedPoint(
 		uint8 _pointSign,
 		uint256 _pointX,
 		uint256 _pointY
 	) public pure returns(bool) {
-        return ReEncryptionValidator.check_compressed_point(_pointSign, _pointX, _pointY);
+        return ReEncryptionValidator.checkCompressedPoint(_pointSign, _pointX, _pointY);
 	}
 
-    function is_on_curve(uint256 Px, uint256 Py) public pure returns (bool) {
-        return ReEncryptionValidator.is_on_curve(Px, Py);
+    function checkSerializedCoordinates(bytes memory _coords) public pure returns(bool) {
+		return ReEncryptionValidator.checkSerializedCoordinates(_coords);
+	}
+
+    function isOnCurve(uint256 Px, uint256 Py) public pure returns (bool) {
+        return ReEncryptionValidator.isOnCurve(Px, Py);
     }
 
     function ecmulVerify(
@@ -235,7 +234,7 @@ contract ReEncryptionValidatorMock {
         return ReEncryptionValidator.addAffineJacobian(P, Q);
     }
 
-    function doubleJacobian(uint[3] memory P) internal pure returns (uint[3] memory) {
+    function doubleJacobian(uint[3] memory P) public pure returns (uint[3] memory) {
         return ReEncryptionValidator.doubleJacobian(P);
     }
 }

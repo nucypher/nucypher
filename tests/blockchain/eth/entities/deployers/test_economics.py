@@ -33,7 +33,7 @@ def test_rough_economics():
     if allLockedPeriods > awarded_periods then allLockedPeriods = awarded_periods
     kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
     """
 
@@ -56,6 +56,9 @@ def test_rough_economics():
     assert int(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - e.initial_supply)) == int(initial_rate)
     assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
+    # Sanity check for locked_periods_coefficient (k1) and staking_coefficient (k2)
+    assert e.locked_periods_coefficient * e.token_halving == e.staking_coefficient * LOG2 * e.small_stake_multiplier / 365
+
 
 def test_exact_economics():
     """
@@ -68,7 +71,7 @@ def test_exact_economics():
     if allLockedPeriods > awarded_periods then allLockedPeriods = awarded_periods
     kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
 
-    kappa = (small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1)
+    kappa = small_stake_multiplier + (1 - small_stake_multiplier) * min(T, T1) / T1
     where allLockedPeriods == min(T, T1)
     """
 
@@ -91,6 +94,8 @@ def test_exact_economics():
     expected_locked_periods_coefficient = 365
     expected_staking_coefficient = 768812
 
+    assert expected_locked_periods_coefficient * halving == round(expected_staking_coefficient * log(2) * multiplier / 365)
+
     #
     # Sanity
     #
@@ -112,7 +117,7 @@ def test_exact_economics():
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
         assert expected_reward_supply == expected_total_supply - expected_initial_supply
-        assert reward_saturation * 365 == expected_locked_periods_coefficient
+        assert reward_saturation * 365 * multiplier == expected_locked_periods_coefficient * (1 - multiplier)
         assert int(365 ** 2 * reward_saturation * halving / log(2) / (1-multiplier)) == expected_staking_coefficient
 
     # After sanity checking, assemble expected test deployment parameters
@@ -151,6 +156,8 @@ def test_exact_economics():
 
         # Check deployment parameters
         assert e.staking_deployment_parameters == expected_deployment_parameters
+        assert e.erc20_initial_supply == expected_initial_supply
+        assert e.erc20_reward_supply == expected_reward_supply
 
 
 def test_economic_parameter_aliases():

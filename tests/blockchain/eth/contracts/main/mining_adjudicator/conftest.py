@@ -15,18 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
 
 import pytest
 from web3.contract import Contract
 
-
-ALGORITHM_SHA256 = 1
-BASE_PENALTY = 100
-PENALTY_HISTORY_COEFFICIENT = 10
-PERCENTAGE_PENALTY_COEFFICIENT = 8
-REWARD_COEFFICIENT = 2
-
-secret = (123456).to_bytes(32, byteorder='big')
+from nucypher.blockchain.eth.deployers import DispatcherDeployer
 
 
 @pytest.fixture()
@@ -36,17 +30,14 @@ def escrow(testerchain):
 
 
 @pytest.fixture(params=[False, True])
-def adjudicator_contract(testerchain, escrow, request):
+def adjudicator_contract(testerchain, escrow, request, slashing_economics):
     contract, _ = testerchain.interface.deploy_contract(
         'MiningAdjudicator',
         escrow.address,
-        ALGORITHM_SHA256,
-        BASE_PENALTY,
-        PENALTY_HISTORY_COEFFICIENT,
-        PERCENTAGE_PENALTY_COEFFICIENT,
-        REWARD_COEFFICIENT)
+        *slashing_economics.deployment_parameters)
 
     if request.param:
+        secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         secret_hash = testerchain.interface.w3.keccak(secret)
         dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
