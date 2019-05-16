@@ -68,7 +68,7 @@ class NodeConfiguration(ABC):
     DEFAULT_OPERATING_MODE = 'decentralized'
 
     # Domains
-    DEFAULT_DOMAIN = b'goerli-testnet'
+    DEFAULT_DOMAIN = b'goerli'
 
     # Serializers
     NODE_SERIALIZER = binascii.hexlify
