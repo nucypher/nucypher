@@ -259,10 +259,10 @@ class Character(Learner):
 
     @classmethod
     def from_public_keys(cls,
-                         verifying_key : Union[bytes, UmbralPublicKey] = None,
-                         encrypting_key: Union[bytes, UmbralPublicKey] = None,
                          powers_and_material: Dict = None,
                          federated_only=True,
+                         verifying_key: Union[bytes, UmbralPublicKey] = None,
+                         encrypting_key: Union[bytes, UmbralPublicKey] = None,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
@@ -273,6 +273,9 @@ class Character(Learner):
         Each item in the collection will have the CryptoPowerUp instantiated
         with the given material, and the resulting CryptoPowerUp instance
         consumed by the Character.
+
+        Alternatively, you can pass directly a verifying public key
+        (for SigningPower) and/or an encrypting public key (for DecryptionPower).
 
         # TODO: Need to be federated only until we figure out the best way to get the checksum_public_address in here.
         """
