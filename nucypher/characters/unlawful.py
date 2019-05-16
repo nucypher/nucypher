@@ -36,7 +36,8 @@ class Vladimir(Ursula):
     def from_target_ursula(cls,
                            target_ursula: Ursula,
                            claim_signing_key: bool = False,
-                           attach_transacting_key: bool = True
+                           attach_transacting_key: bool = True,
+                           same_checksum: bool = False,
                            ) -> 'Vladimir':
         """
         Sometimes Vladimir seeks to attack or imitate a *specific* target Ursula.
@@ -51,6 +52,8 @@ class Vladimir(Ursula):
         if attach_transacting_key:
             cls.attach_transacting_key(blockchain=target_ursula.blockchain)
 
+        checksum_address = target_ursula.checksum_public_address if same_checksum else cls.fraud_address
+
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
@@ -58,14 +61,12 @@ class Vladimir(Ursula):
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),
                        network_middleware=cls.network_middleware,
-                       checksum_public_address = cls.fraud_address,
+                       checksum_public_address=checksum_address,
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
                        interface_signature=target_ursula._interface_signature_object,
                        ######### 
                        )
-
-        cls.attach_transacting_key(blockchain=target_ursula.blockchain)
 
         return vladimir
 

@@ -18,9 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
-from nucypher.crypto.powers import SigningPower, CryptoPower
+from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
@@ -105,14 +104,12 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
         vladimir.validate_metadata()
 
 
-def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas):
+def test_vladimir_uses_his_own_signing_key(blockchain_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
     using his own signing key, which he claims is Ursula's.
     """
     his_target = list(blockchain_ursulas)[4]
-
-    fraudulent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
 
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
@@ -127,4 +124,28 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
 
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
-        vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
+        vladimir.verify_node(MockRestMiddleware(), certificate_filepath="doesn't matter")
+
+
+def test_vlad_reuses_identity_evidence_from_ursula(blockchain_ursulas):
+    """
+    Vlad is lazy this time and simply copies Ursula's identity.
+    Of course, he can't verify himself as Ursula.
+    """
+    his_target = list(blockchain_ursulas)[5]
+
+    middleware = MockRestMiddleware()
+    his_target.verify_node(network_middleware=middleware)
+
+    vlad = Vladimir.from_target_ursula(target_ursula=his_target,
+                                       claim_signing_key=True,
+                                       attach_transacting_key=False,
+                                       same_checksum=True)
+
+    assert vlad._evidence_of_decentralized_identity == his_target._evidence_of_decentralized_identity
+
+    vlad.validate_metadata()
+
+    # However, the actual handshake proves him wrong.
+    with pytest.raises(vlad.InvalidNode):
+        vlad.verify_node(middleware, certificate_filepath="doesn't matter")
