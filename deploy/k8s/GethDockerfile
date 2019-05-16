@@ -1,0 +1,7 @@
+from ethereum/client-go
+
+WORKDIR /code
+
+COPY ./scripts/run_geth.sh /code/rungeth.sh
+
+ENTRYPOINT [ "/code/rungeth.sh" ]

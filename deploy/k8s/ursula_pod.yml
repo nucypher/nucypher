@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nucypher-test
+  labels:
+    purpose: test-deployment
+spec:
+  volumes:
+  - name: shareddata
+    emptyDir: {}
+  containers:
+    - name: nucypher-test-container
+      image: nucypher:local #"nucypher/nucypher:v0.1.0-alpha.22"
+      volumeMounts:
+      - name: shareddata
+        mountPath: /mnt/data/
+      resources:
+        requests:
+          memory: "2Gi"
+      imagePullPolicy: Never
+      command: ["bash", "/code/deploy/k8s/scripts/run_ursula.sh"]
+      workingDir: /code
+      env:
+        - name: NUCYPHER_CONFIG_ROOT
+          value: /root/.local/share/nucypher
+        - name: GETH_ROOT
+          value: /mnt/data/geth
+        - name: NUCYPHER_PROVIDER_URI
+          value: "file:///mnt/data/geth/geth.ipc"
+        - name: NUCYPHER_NETWORK
+          value: testnet
+        - name: NUCYPHER_REST_HOST
+          value: "127.0.0.1"
+        - name: NUCYPHER_KEYRING_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nucypher-keyring-password
+              key: keyring-password
+        - name: NUCYPHER_CONFIG_UPLOAD_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: nucypher-aws
+              key: bucket-name
+              optional: true
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nucypher-aws-secrets
+              key: aws-secret-access-key
+              optional: true
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: nucypher-aws-secrets
+              key: aws-access-key-id
+              optional: true
+
+    - name: geth-service
+      image: nucypher:geth
+      volumeMounts:
+      - name: shareddata
+        mountPath: /mnt/data/
+      args: [
+        "--goerli",
+        "--syncmode",
+        "light",
+        "--verbosity",
+        "5",
+        "--datadir",
+        "/mnt/data/geth"
+      ]
+      env:
+       - name: GETH_PW
+         valueFrom:
+           secretKeyRef:
+             name: nucypher-keyring-password
+             key: keyring-password
+  restartPolicy: Never
