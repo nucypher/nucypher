@@ -84,6 +84,7 @@ class EthereumContractRegistry:
             raise cls.RegistryError(f"Failed to fetch registry from {github_endpoint} with status code {response.status_code} ")
 
         filepath = filepath or cls._default_registry_filepath
+        # TODO : Use envvar for config root and registry path
         try:
             with open(filepath, 'wb') as registry_file:  # TODO: Skip re-write if already up to date
                 registry_file.write(response.content)
