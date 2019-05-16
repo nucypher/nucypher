@@ -171,7 +171,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     cached_id, cached_work_order = list(cached_work_orders.items())[0]
 
     assert ursula_id == cached_id
-    assert work_order.receipt_bytes == cached_work_order.receipt_bytes
+    assert work_order.tasks[0].capsule == cached_work_order.tasks[0].capsule
 
     # The work order is not yet complete, of course.
     assert work_order.completed is False

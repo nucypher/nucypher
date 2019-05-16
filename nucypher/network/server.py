@@ -293,8 +293,6 @@ def make_rest_app(
 
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(arrangement_id, request.data)
-        log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         try:
             with ThreadedSession(db_engine) as session:
                 policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
