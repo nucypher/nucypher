@@ -6,6 +6,7 @@ import eth_utils
 import math
 import maya
 import time
+import requests
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
 from flask import Flask, render_template, Response, send_from_directory
@@ -26,7 +27,11 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR, APPS_S3_PATH, CORS_ORIGINS
+from nucypher.config.constants import(
+    TEMPLATES_DIR,
+    APPS_S3_PATH,
+    CORS_ORIGINS,
+    RECAPTCHA_SERVER_SECRET)
 from nucypher.crypto.powers import SigningPower, BlockchainPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
@@ -295,11 +300,44 @@ class Felix(Character, NucypherTokenActor):
                 request.get_json().get('address')
             )
 
+            if RECAPTCHA_SERVER_SECRET:
+                captcha_token = (
+                    request.form.get('captcha') or
+                    request.get_json().get('captcha')
+                )
+                if not captcha_token:
+                    return Response(
+                        response="sketchy bizniss detected", status=400)
+
+                resp = requests.post(
+                    'https://www.google.com/recaptcha/api/siteverify',
+                    data={
+                        "secret": RECAPTCHA_SERVER_SECRET,
+                        "response": captcha_token,
+                    }
+                )
+                # what comes back looks like:
+                # {
+                #   'success': True,
+                #   'challenge_ts': '2019-05-16T23:50:58Z',
+                #   'hostname': '127.0.0.1',
+                #   'score': 0.9,
+                #   'action': 'login'
+                # }
+                captcha_data = resp.json()
+                if not (
+                    captcha_data.get('success') and
+                    captcha_data.get('score') > .7  # we want a C- or better
+                ):
+                    return Response(
+                        response="non human permission denied", status=403)
+
             if not new_address:
                 return Response(response="no address", status=400)  # TODO
 
             if not eth_utils.is_checksum_address(new_address):
                 return Response(response="invalid address", status=400)  # TODO
+
 
             if new_address in self.reserved_addresses:
                 return Response(response="reserved", status=400)  # TODO

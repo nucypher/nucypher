@@ -28,6 +28,7 @@ services:
       - NUCYPHER_CONFIG_ROOT=/code/config-data
       - NUCYPHER_FELIX_DB_SECRET=not-a-secure-password.do-not-use
       - NUCYPHER_CORS_ORIGINS=localhost:8080,localhost:6151,localhost:8081
+      # - NUCYPHER_RECATCHA_SECRET=
   ganache:
     image: trufflesuite/ganache-cli:v6.1.8
     ports:

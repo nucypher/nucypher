@@ -69,3 +69,5 @@ CORS_ORIGINS = os.getenv('NUCYPHER_CORS_ORIGINS', '').split(',') or [
     "127.0.0.1:8080",
     "localhost:8080"
 ]
+
+RECAPTCHA_SERVER_SECRET = os.getenv('NUCYPHER_RECATCHA_SECRET')

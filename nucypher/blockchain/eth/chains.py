@@ -109,6 +109,9 @@ class Blockchain:
         and knowledge of all blocks known by bootnodes.
         """
 
+        if self.is_dev_blockchain:
+            return
+
         # Record start time for timeout calculation
         now = maya.now()
         start_time = now

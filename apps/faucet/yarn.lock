@@ -7661,6 +7661,10 @@ realpath-native@^1.0.0:
   dependencies:
     util.promisify "^1.0.0"
 
+recaptcha-v3@^1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/recaptcha-v3/-/recaptcha-v3-1.5.0.tgz#299ed2f72be07570e6a91342b41d58e2a005db17"
+
 regenerate-unicode-properties@^8.0.2:
   version "8.0.2"
   resolved "https://registry.yarnpkg.com/regenerate-unicode-properties/-/regenerate-unicode-properties-8.0.2.tgz#7b38faa296252376d363558cfbda90c9ce709662"
@@ -9231,6 +9235,12 @@ vue-loader@^15.7.0:
     loader-utils "^1.1.0"
     vue-hot-reload-api "^2.3.0"
     vue-style-loader "^4.1.0"
+
+vue-recaptcha-v3@^1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/vue-recaptcha-v3/-/vue-recaptcha-v3-1.5.0.tgz#b5062d4859aae90875a31f1ec3feb42b43971d6c"
+  dependencies:
+    recaptcha-v3 "^1.5.0"
 
 vue-style-loader@^4.1.0:
   version "4.1.2"

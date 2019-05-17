@@ -16,6 +16,7 @@
     "bootstrap-vue": "^2.0.0-rc.19",
     "core-js": "^2.6.5",
     "vue": "^2.6.10",
+    "vue-recaptcha-v3": "^1.5.0",
     "web3": "^1.0.0-beta.52",
     "web3-utils": "^1.0.0-beta.52"
   },

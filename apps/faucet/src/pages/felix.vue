@@ -8,7 +8,7 @@
             </b-col>
             <b-col md="8">
                 <b-jumbotron class="mechanics" lead="To receive tokens, register your address here:">
-                    <b-form @submit.prevent="onSubmit">
+                    <b-form @submit.prevent="recaptcha">
                         <b-form-input v-model="address" placeholder="Your address"></b-form-input>
                         <b-row style="min-height:6em">
                             <b-col cols="3">
@@ -40,14 +40,18 @@ export default {
     };
   },
   methods: {
-    onSubmit(){
-      http.post('register', { address: this.address }).then(() => {
+    recaptcha() {
+      this.$recaptcha('register').then((token) => {
+        this.onSubmit(token);
+      })
+    },
+    onSubmit(token){
+      http.post('register', { address: this.address, captcha: token }).then(() => {
         this.error = null;
         this.success = true;
       }).catch((err) => {
         this.success = false;
         this.dismissCountDown = 5;
-        console.log(err.response)
         if (err.response !== undefined) {
           if (err.response.data){
             if (err.response.data.indexOf('DOCTYPE HTML') >= 0){
