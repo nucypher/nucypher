@@ -10,14 +10,14 @@ spec:
     emptyDir: {}
   containers:
     - name: nucypher-test-container
-      image: nucypher:local #"nucypher/nucypher:v0.1.0-alpha.22"
+      image: nucypher/nucypher-k8s-deploy-test:delete
+      imagePullPolicy: Always
       volumeMounts:
       - name: shareddata
         mountPath: /mnt/data/
       resources:
         requests:
           memory: "2Gi"
-      imagePullPolicy: Never
       command: ["bash", "/code/deploy/k8s/scripts/run_ursula.sh"]
       workingDir: /code
       env:
@@ -56,7 +56,8 @@ spec:
               optional: true
 
     - name: geth-service
-      image: nucypher:geth
+      image: nucypher/nucypher-geth-v0.1.0-alpha.22:latest
+      imagePullPolicy: Always
       volumeMounts:
       - name: shareddata
         mountPath: /mnt/data/
