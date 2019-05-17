@@ -1,0 +1,28 @@
+{
+  "Comment": "Create a subdomain NS record in the parent domain",
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "hawksbeard.nucypher.farm",
+        "Type": "NS",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "ns-640.awsdns-16.net"
+          },
+          {
+            "Value": "ns-132.awsdns-16.com"
+          },
+          {
+            "Value": "ns-1625.awsdns-11.co.uk"
+          },
+          {
+            "Value": "ns-1408.awsdns-48.org"
+          }
+        ]
+      }
+    }
+  ]
+}
+

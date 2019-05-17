@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ursula-geth
+  labels:
+    app: ursula-geth
+spec:
+  ports:
+    - name: geth-disc-udp
+      port: 30303
+      protocol: UDP
+    - name: geth-disc-tcp
+      port: 30303
+    - name: urs-dash
+      protocol: TCP
+      port: 443
+      targetPort: 9151
+  clusterIP: None
+  selector:
+    app: ursula-geth
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ursula-geth
+spec:
+  selector:
+    matchLabels:
+      app: ursula-geth # has to match .spec.template.metadata.labels
+  serviceName: "ursula-geth"
+  replicas: 6
+  template:
+    metadata:
+      labels:
+        app: ursula-geth # has to match .spec.selector.matchLabels
+    spec:
+      containers:
+        - name: ursula
+          image: nucypher/nucypher-k8s-deploy-test:latest
+          ports:
+            - name: "urs-dash"
+              containerPort: 9151
+          imagePullPolicy: Always
+          volumeMounts:
+          - name: ursula-geth-storage
+            mountPath: /root/.local/share/
+          resources:
+            requests:
+              memory: "1.8Gi"
+          command: ["bash", "/code/deploy/k8s/scripts/run_ursula.sh"]
+          workingDir: /code
+          env:
+            - name: ROOT_DIR
+              value: /root/.local/share/
+            - name: NUCYPHER_PROVIDER_URI
+              value: "file:///root/.local/share/geth/geth.ipc"
+            - name: NUCYPHER_NETWORK
+              value: testnet
+            - name: NUCYPHER_KEYRING_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nucypher-keyring-password
+                  key: keyring-password
+            - name: NUCYPHER_CONFIG_UPLOAD_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: nucypher-aws
+                  key: bucket-name
+                  optional: true
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nucypher-aws-secrets
+                  key: aws-secret-access-key
+                  optional: true
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: nucypher-aws-secrets
+                  key: aws-access-key-id
+                  optional: true
+        - name: geth
+          image: nucypher/nucypher-geth-v0.1.0-alpha.22:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: ".5Gi"
+          volumeMounts:
+            - name: ursula-geth-storage
+              mountPath: /mnt/data/
+          args: [
+            "--goerli",
+            "--syncmode",
+            "light",
+            "--verbosity",
+            "5",
+            "--datadir",
+            "/mnt/data/geth",
+            "--cache 256",
+          ]
+          ports:
+            - name: discovery-udp
+              containerPort: 30303
+              protocol: UDP
+            - name: discovery-tcp
+              containerPort: 30303
+          env:
+            - name: GETH_PW
+              valueFrom:
+                secretKeyRef:
+                  name: nucypher-keyring-password
+                  key: keyring-password
+  volumeClaimTemplates:
+  - metadata:
+      name: ursula-geth-storage
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
