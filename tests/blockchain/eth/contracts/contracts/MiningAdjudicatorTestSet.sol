@@ -15,13 +15,22 @@ contract MinersEscrowForMiningAdjudicatorMock {
     uint32 public secondsPerPeriod = 1;
     mapping (address => uint256) public minerInfo;
     mapping (address => uint256) public rewardInfo;
+    mapping (address => address) public workerToMiner;
 
-    function setMinerInfo(address _miner, uint256 _amount) public {
+    function setMinerInfo(address _miner, uint256 _amount, address _worker) public {
         minerInfo[_miner] = _amount;
+        if (_worker == address(0)) {
+            _worker = _miner;
+        }
+        workerToMiner[_worker] = _miner;
     }
 
     function getAllTokens(address _miner) public view returns (uint256) {
         return minerInfo[_miner];
+    }
+
+    function getMinerByWorker(address _worker) public view returns (address) {
+        return workerToMiner[_worker];
     }
 
     function slashMiner(
