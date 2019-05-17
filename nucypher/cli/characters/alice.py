@@ -9,7 +9,6 @@ from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import GLOBAL_DOMAIN
 
 
 @click.command()
@@ -20,7 +19,7 @@ from nucypher.config.constants import GLOBAL_DOMAIN
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=9151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=8151)  # TODO
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
+@click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
@@ -104,7 +103,7 @@ def alice(click_config,
         try:
             alice_config = AliceConfiguration.from_configuration_file(
                 filepath=config_file,
-                domains={network or GLOBAL_DOMAIN},
+                domains={network} if network else None,
                 network_middleware=click_config.middleware,
                 rest_port=discovery_port,
                 checksum_public_address=checksum_address,
@@ -120,11 +119,10 @@ def alice(click_config,
                                     password=click_config.get_password(confirm=False))
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                            min_stake=min_stake,
-                                           federated_only=federated_only,
-                                           network_domain=network,
+                                           federated_only=alice_config.federated_only,
+                                           network_domains=alice_config.domains,
                                            network_middleware=click_config.middleware)
     # Produce
     ALICE = alice_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)

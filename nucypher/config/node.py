@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherToke
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
@@ -68,7 +68,7 @@ class NodeConfiguration(ABC):
     DEFAULT_OPERATING_MODE = 'decentralized'
 
     # Domains
-    DEFAULT_DOMAIN = b'goerli-testnet'
+    DEFAULT_DOMAIN = b'goerli'
 
     # Serializers
     NODE_SERIALIZER = binascii.hexlify

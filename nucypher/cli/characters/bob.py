@@ -6,7 +6,6 @@ from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
 from nucypher.config.characters import BobConfiguration
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.powers import DecryptingPower
 
 
@@ -18,7 +17,7 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=6151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=11151)  # TODO
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
-@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
+@click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
@@ -94,7 +93,7 @@ def bob(click_config,
         try:
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
-                domains={network or GLOBAL_DOMAIN},
+                domains={network} if network else None,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)
@@ -103,11 +102,10 @@ def bob(click_config,
                                                              config_file=config_file)
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                            min_stake=min_stake,
-                                           federated_only=federated_only,
-                                           network_domain=network,
+                                           federated_only=bob_config.federated_only,
+                                           network_domains=bob_config.domains,
                                            network_middleware=click_config.middleware)
 
     if not bob_config.federated_only:

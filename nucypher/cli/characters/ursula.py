@@ -292,11 +292,10 @@ def ursula(click_config,
     # Seed
     #
 
-    teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                            min_stake=min_stake,
                                            federated_only=ursula_config.federated_only,
-                                           network_domain=network,
+                                           network_domains=ursula_config.domains,
                                            network_middleware=click_config.middleware)
 
     # Add ETH Bootnode or Peer

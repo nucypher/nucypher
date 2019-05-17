@@ -62,32 +62,38 @@ class UnknownIPAddress(RuntimeError):
 
 def load_seednodes(min_stake: int,
                    federated_only: bool,
-                   network_domain: str,
+                   network_domains: set,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None
                    ) -> List[Ursula]:
 
-    if network_domain is None:
+    # Set domains
+    if network_domains is None:
         from nucypher.config.node import NodeConfiguration
-        network_domain = NodeConfiguration.DEFAULT_DOMAIN
+        network_domains = {NodeConfiguration.DEFAULT_DOMAIN, }
 
-    teacher_nodes = list()
+    teacher_nodes = list()  # Ursula
     if teacher_uris is None:
         teacher_uris = list()
 
-        # Skip Test Domain
-        if network_domain != TEMPORARY_DOMAIN:
-            try:
-                teacher_uris = TEACHER_NODES[network_domain]
-            except KeyError:
-                raise KeyError(f"No default teacher nodes exist for the specified network: {network_domain}")
+    for domain in network_domains:
+        try:
+            teacher_uris = TEACHER_NODES[domain]
+        except KeyError:
+            # TODO: If this is a unknown domain, require the caller to pass a teacher URI explicitly?
+            if not teacher_uris:
+                console_emitter(message=f"No default teacher nodes exist for the specified network: {domain}")
 
-    for uri in teacher_uris:
-        teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                               min_stake=min_stake,
-                                               federated_only=federated_only,
-                                               network_middleware=network_middleware)
-        teacher_nodes.append(teacher_node)
+        for uri in teacher_uris:
+            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                   min_stake=min_stake,
+                                                   federated_only=federated_only,
+                                                   network_middleware=network_middleware)
+            teacher_nodes.append(teacher_node)
+
+    if not teacher_nodes:
+        console_emitter(message=f'WARNING - No Bootnodes Available')
+
     return teacher_nodes
 
 

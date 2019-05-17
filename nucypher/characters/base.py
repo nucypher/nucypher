@@ -38,7 +38,7 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -68,7 +68,7 @@ class Character(Learner):
     from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
-                 domains: Set = (GLOBAL_DOMAIN,),
+                 domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
@@ -103,6 +103,8 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
+        if not domains:
+            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
 
         self.federated_only = federated_only  # type: bool
 

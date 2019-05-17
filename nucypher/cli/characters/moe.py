@@ -12,7 +12,7 @@ from nucypher.network.middleware import RestMiddleware
 @click.command()
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--network', help="Network Domain Name", type=click.STRING, default='goerli-testnet')
+@click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=12500)
 @click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -32,7 +32,7 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
     teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=True,    # TODO: hardcoded for now
-                                           network_domain=network,
+                                           network_domains={network} if network else None,
                                            network_middleware=click_config.middleware)
 
     # Deserialize network domain name if override passed

@@ -52,7 +52,6 @@ from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER,
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
     WebController
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -185,7 +184,8 @@ class Alice(Character, PolicyAuthor):
               expiration=None,
               value=None,
               handpicked_ursulas=None,
-              timeout=10):
+              timeout=10,
+              discover_on_this_thread=False):
 
         if not m:
             # TODO: get m from config  #176
@@ -226,7 +226,7 @@ class Alice(Character, PolicyAuthor):
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < n:
-            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True, timeout=timeout)
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=discover_on_this_thread, timeout=timeout)
             if not good_to_go:
                 raise ValueError(
                     "To make a Policy in federated mode, you need to know about "

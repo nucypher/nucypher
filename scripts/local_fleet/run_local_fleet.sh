@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
 echo "Starting Local Development Fleet..."
 
 # Boring Setup Stuff

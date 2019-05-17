@@ -40,7 +40,7 @@ from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
-from nucypher.config.constants import SeednodeMetadata, GLOBAL_DOMAIN
+from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
@@ -771,9 +771,8 @@ class Learner:
 
         new_nodes = []
         for node in node_list:
-            if GLOBAL_DOMAIN not in self.learning_domains:
-                if not set(self.learning_domains).intersection(set(node.serving_domains)):
-                    continue  # This node is not serving any of our domains.
+            if not set(self.learning_domains).intersection(set(node.serving_domains)):
+                continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
             with suppress(KeyError):
