@@ -2,7 +2,9 @@ import datetime
 
 import click
 import maya
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
@@ -23,6 +25,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
@@ -30,6 +33,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
+@click.option('--value', help="M-Threshold KFrags", type=click.FLOAT)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
@@ -47,6 +51,7 @@ def alice(click_config,
           config_root,
           config_file,
           provider_uri,
+          geth,
           no_registry,
           registry_filepath,
           dev,
@@ -57,14 +62,24 @@ def alice(click_config,
           label,
           m,
           n,
-          message_kit
-        ):
+          value,
+          message_kit):
 
     """
     Start and manage an "Alice" character.
     """
+    # Validate
+    if federated_only and geth:
+        raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(ALICE_BANNER)
+
+    # Stage integrated ethereum node process
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+    if geth:
+        ETH_NODE = NuCypherGethGoerliProcess()  # TODO: Only devnet for now
+        provider_uri = ETH_NODE.provider_uri
 
     if action == 'init':
         """Create a brand-new persistent Alice"""
@@ -83,6 +98,7 @@ def alice(click_config,
                                                        federated_only=federated_only,
                                                        download_registry=no_registry,
                                                        registry_filepath=registry_filepath,
+                                                       provider_process=ETH_NODE,
                                                        provider_uri=provider_uri)
 
         return painting.paint_new_installation_help(new_configuration=new_alice_config,
@@ -96,6 +112,7 @@ def alice(click_config,
         alice_config = AliceConfiguration(dev_mode=True,
                                           network_middleware=click_config.middleware,
                                           domains={network},
+                                          provider_process=ETH_NODE,
                                           provider_uri=provider_uri,
                                           federated_only=True)
 
@@ -107,6 +124,7 @@ def alice(click_config,
                 network_middleware=click_config.middleware,
                 rest_port=discovery_port,
                 checksum_public_address=pay_with,
+                provider_process=ETH_NODE,
                 provider_uri=provider_uri)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
@@ -174,6 +192,9 @@ def alice(click_config,
             'n': n,
             'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
         }
+
+        if not ALICE.federated_only:
+            grant_request.update({'value': value})
 
         return ALICE.controller.grant(request=grant_request)
 

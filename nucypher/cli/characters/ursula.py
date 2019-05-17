@@ -23,7 +23,7 @@ import socket
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -136,10 +136,10 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
 
-    # Stage integrated ethereum node process TODO: Only devnet for now
+    # Stage integrated ethereum node process
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     if geth:
-        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        ETH_NODE = NuCypherGethGoerliProcess()  # TODO: Only devnet for now
         provider_uri = ETH_NODE.provider_uri
 
     if not click_config.json_ipc and not click_config.quiet:
@@ -304,7 +304,7 @@ def ursula(click_config,
             ursula_config.blockchain.interface.w3.geth.admin.addPeer(enode)
             click.secho(f"Added ethereum peer {enode}")
         else:
-            raise NotImplemented  # TODO: other backends
+            raise NotImplementedError  # TODO: other backends
 
     #
     # Produce

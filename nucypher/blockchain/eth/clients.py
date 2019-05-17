@@ -329,6 +329,17 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
             self.wait_for_rpc(timeout=timeout)
         time.sleep(extra_delay)
 
+    def ensure_account_exists(self, password: str) -> str:
+        accounts = get_accounts(**self.geth_kwargs)
+        if not accounts:
+            account = create_new_account(password=password.encode(), **self.geth_kwargs)
+        else:
+            account = accounts[0]
+
+        checksum_address = to_checksum_address(account.decode())
+        assert is_checksum_address(checksum_address), f"GETH RETURNED INVALID ETH ADDRESS {checksum_address}"
+        return checksum_address
+
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
 
@@ -414,12 +425,9 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
             self.initialized = True
 
         self.__process = NOT_RUNNING
+
         super().__init__(geth_kwargs=geth_kwargs, *args, **kwargs)  # Attaches self.geth_kwargs in super call
         self.command = [*self.command, '--syncmode', 'fast']
-
-    def get_accounts(self):
-        accounts = get_accounts(**self.geth_kwargs)
-        return accounts
 
     def initialize_blockchain(self, overwrite: bool = True) -> None:
         log = Logger('nucypher-geth-init')
@@ -435,21 +443,59 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
         bootnodes_filepath = os.path.join(DEPLOY_DIR, 'static-nodes.json')
         shutil.copy(bootnodes_filepath, os.path.join(self.data_dir))
 
-    def ensure_account_exists(self, password: str) -> str:
-        accounts = get_accounts(**self.geth_kwargs)
-        if not accounts:
-            account = create_new_account(password=password.encode(), **self.geth_kwargs)
+
+class NuCypherGethGoerliProcess(NuCypherGethProcess):
+
+    IPC_PROTOCOL = 'file'
+    GENESIS_FILENAME = 'testnet_genesis.json'
+    GENESIS_SOURCE_FILEPATH = os.path.join(DEPLOY_DIR, GENESIS_FILENAME)
+
+    P2P_PORT = 30303
+    _CHAIN_NAME = 'goerli'
+    __CHAIN_ID = 5
+
+    def __init__(self,
+                 config_root: str = None,
+                 overrides: dict = None,
+                 *args, **kwargs):
+
+        log = Logger('nucypher-geth-georli')
+
+        if overrides is None:
+            overrides = dict()
+
+        # Validate
+        invalid_override = f"You cannot specify `network_id` for a {self.__class__.__name__}"
+        if 'data_dir' in overrides:
+            raise ValueError(invalid_override)
+        if 'network_id' in overrides:
+            raise ValueError(invalid_override)
+
+        # Set the data dir
+        if config_root is None:
+            base_dir = os.path.join(DEFAULT_CONFIG_ROOT, '.ethereum')
         else:
-            account = accounts[0]
+            base_dir = os.path.join(config_root, '.ethereum')
+        self.data_dir = get_chain_data_dir(base_dir=base_dir, name=self._CHAIN_NAME)
 
-        checksum_address = to_checksum_address(account.decode())
-        assert is_checksum_address(checksum_address), f"GETH RETURNED INVALID ETH ADDRESS {checksum_address}"
-        return checksum_address
+        # Hardcoded Geth CLI args for devnet child process ("light client")
+        ipc_path = os.path.join(self.data_dir, self.IPC_FILENAME)
+        geth_kwargs = {'port': str(self.P2P_PORT),
+                       'verbosity': str(self.VERBOSITY),
+                       'data_dir': self.data_dir,
+                       'ipc_path': ipc_path,
+                       'rpc_enabled': True,
+                       'no_discover': False,
+                       }
 
-    def start(self, *args, **kwargs):
-        # FIXME: Quick and Dirty
+        # Genesis & Blockchain Init
+        all_good = all((
+            not is_ropsten_chain(self.data_dir),
+        ))
 
-        # Write static nodes file to data dir
-        bootnodes_filepath = os.path.join(DEPLOY_DIR, 'static-nodes.json')
-        shutil.copy(bootnodes_filepath, os.path.join(self.data_dir))
-        super().start()
+        if not all_good:
+            raise RuntimeError('Unintentional connection to Ropsten')
+
+        self.__process = NOT_RUNNING
+        super().__init__(geth_kwargs=geth_kwargs, *args, **kwargs)  # Attaches self.geth_kwargs in super call
+        self.command = [*self.command, '--syncmode', 'fast', '--goerli']
