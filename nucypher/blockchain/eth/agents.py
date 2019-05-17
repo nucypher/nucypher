@@ -246,7 +246,7 @@ class MinerAgent(EthereumContractAgent):
 
         miners_population = self.get_miner_population()
         if quantity > miners_population:
-            raise self.NotEnoughMiners('{} miners are available'.format(miners_population))
+            raise self.NotEnoughMiners('{} miners are available, need {} (for wiggle room)'.format(miners_population, quantity))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
