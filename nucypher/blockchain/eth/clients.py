@@ -2,11 +2,12 @@ import json
 import os
 import shutil
 import time
+from abc import ABC, abstractmethod
 
 from constant_sorrow.constants import NOT_RUNNING
 from eth_utils import to_checksum_address, is_checksum_address
 from geth import LoggingMixin
-from geth.accounts import ensure_account_exists, get_accounts, create_new_account
+from geth.accounts import get_accounts, create_new_account
 from geth.chain import (
     get_chain_data_dir,
     initialize_chain,
@@ -15,16 +16,227 @@ from geth.chain import (
 )
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
+from web3 import Web3
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, DEPLOY_DIR, USER_LOG_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 NUCYPHER_CHAIN_IDS = {
     'devnet': 112358,
 }
 
 
-class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
+class Web3ClientError(Exception):
+    pass
 
+
+class Web3ClientConnectionFailed(Web3ClientError):
+    pass
+
+
+class Web3ClientUnexpectedVersionString(Web3ClientError):
+    pass
+
+
+class BaseWeb3ClientAPIHelper(ABC):
+    def __init__(self, w3: Web3):
+        self.web3_instance = w3
+
+    @property
+    def client_version(self) -> str:
+        return self.web3_instance.clientVersion
+
+    @property
+    @abstractmethod
+    def node_technology(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def node_version(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def platform(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def backend(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def peers(self):
+        raise NotImplementedError
+
+    @property
+    def syncing(self):
+        return self.web3_instance.eth.syncing
+
+    @abstractmethod
+    def unlock_account(self, address, password):
+        raise NotImplementedError
+
+
+class GethBaseWeb3ClientAPIHelper(BaseWeb3ClientAPIHelper):
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        client_version = self.client_version
+        node_info = client_version.split('/')
+        if len(node_info) != 4:
+            raise Web3ClientUnexpectedVersionString(f'Unexpected Geth client version string '
+                                                    f'received {client_version}')
+        self.node_technology, self.node_version, self.platform, self.backend = node_info
+
+    def node_technology(self) -> str:
+        return self.node_technology
+
+    def node_version(self) -> str:
+        return self.node_version
+
+    def platform(self) -> str:
+        return self.platform
+
+    def backend(self) -> str:
+        return self.backend
+
+    @property
+    def peers(self):
+        return self.web3_instance.geth.admin.peers()
+
+    def unlock_account(self, address, password):
+        return self.web3_instance.geth.personal.unlockAccount(address, password)
+
+
+class ParityBaseWeb3ClientAPIHelper(BaseWeb3ClientAPIHelper):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        client_version = self.client_version
+        node_info = client_version.split('/')
+        if len(node_info) != 4:
+            raise Web3ClientUnexpectedVersionString(f'Unexpected Parity client version string '
+                                                    f'received {client_version}')
+        self.node_technology, self.node_version, self.platform, self.backend = node_info
+
+    def node_technology(self) -> str:
+        return self.node_technology
+
+    def node_version(self) -> str:
+        return self.node_version
+
+    def platform(self) -> str:
+        return self.platform()
+
+    def backend(self) -> str:
+        return self.backend
+
+    def peers(self) -> str:
+        return self.web3_instance.manager.request_blocking("parity_netPeers", [])
+
+    def unlock_account(self, address, password):
+        return self.web3_instance.parity.unlockAccount.unlockAccount(address, password)
+
+
+class GanacheBaseWeb3ClientAPIHelper(BaseWeb3ClientAPIHelper):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        client_version = self.client_version
+        node_info = client_version.split('/')
+        if len(node_info) != 3:
+            raise Web3ClientUnexpectedVersionString(f'Unexpected Ganache client version string '
+                                                    f'received {client_version}')
+        self.node_technology, self.node_version, self.backend = node_info
+
+    def node_technology(self) -> str:
+        return self.node_technology
+
+    def node_version(self) -> str:
+        return self.node_version
+
+    def platform(self) -> str:
+        raise NotImplementedError('Ganache client does not provide a result for platform')
+
+    def backend(self) -> str:
+        return self.backend
+
+    def peers(self):
+        raise NotImplementedError('Ganache has no (documented) endpoint for peers')
+
+    def unlock_account(self, address, password):
+        raise NotImplementedError("Ganache has a JSONRPC endpoint 'personal_unlockAccount' that we "
+                                  "haven't implemented yet")
+
+
+class Web3Client:
+    GETH = 'Geth'
+    PARITY = 'Parity'
+    GANACHE = 'EthereumJS TestRPC'
+
+    def __init__(self,
+                 w3: Web3):
+        self.web3_instance = w3
+
+        if not self.web3_instance.isConnected():
+            raise Web3ClientConnectionFailed(f'Failed to connect to provider: {self._web3_instance.provider}')
+        self.web3_api_helper = self.determine_web3_api_helper()
+
+    def determine_web3_api_helper(self) -> BaseWeb3ClientAPIHelper:
+        #
+        # *Client version format*
+        # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
+        # Parity Example: "Parity//v1.5.0-unstable-9db3f38-20170103/x86_64-linux-gnu/rustc1.14.0"
+        # Ganache Example: "EthereumJS TestRPC/v2.1.5/ethereum-js"
+        #
+        client_version = self.web3_instance.clientVersion
+        node_info = client_version.split('/')
+        node_technology = node_info[0]
+        if node_technology == Web3Client.GETH:
+            return GethBaseWeb3ClientAPIHelper(self.web3_instance)
+        elif node_technology == Web3Client.PARITY:
+            return ParityBaseWeb3ClientAPIHelper(self.web3_instance)
+        elif node_technology == Web3Client.GANACHE:
+            return GanacheBaseWeb3ClientAPIHelper(self.web3_instance)
+        else:
+            raise NotImplemented
+
+    @property
+    def is_connected(self) -> bool:
+        return self.web3_instance.isConnected()
+
+    @property
+    def node_technology(self) -> str:
+        return self.web3_api_helper.node_technology
+
+    @property
+    def node_version(self) -> str:
+        return self.web3_api_helper.node_version
+
+    @property
+    def platform(self) -> str:
+        return self.web3_api_helper.platform
+
+    @property
+    def backend(self) -> str:
+        return self.web3_api_helper.backend
+
+    @property
+    def peers(self):
+        return self.web3_api_helper.peers
+
+    @property
+    def syncing(self):
+        return self.web3_api_helper.syncing
+
+    def unlock_account(self, address, password):
+        return self.web3_api_helper.unlock_account(address, password)
+
+
+class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
