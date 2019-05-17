@@ -21,11 +21,9 @@ from collections import deque
 import math
 import maya
 from constant_sorrow.constants import UNKNOWN_ARRANGEMENTS, NON_PAYMENT
-from typing import List
-from typing import Set
+from typing import List, Set
 
-from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.actors import PolicyAuthor
+from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula

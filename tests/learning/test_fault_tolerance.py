@@ -13,7 +13,7 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 def test_blockchain_ursula_is_not_valid_with_unsigned_identity_evidence(blockchain_ursulas, caplog):
     lonely_blockchain_learner, blockchain_teacher, unsigned = list(blockchain_ursulas)[0:3]
 
-    unsigned._evidence_of_decentralized_identity = NOT_SIGNED
+    unsigned.identity_evidence = NOT_SIGNED
 
     # Wipe known nodes.
     lonely_blockchain_learner._Learner__known_nodes = FleetStateTracker()

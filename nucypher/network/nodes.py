@@ -850,7 +850,7 @@ class Teacher:
         self.last_seen = NEVER_SEEN("Haven't connected to this node yet.")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
-        self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
+        self.identity_evidence = constant_or_bytes(identity_evidence)
 
         if substantiate_immediately:
             self.substantiate_stamp(password=passphrase)  # TODO: Derive from keyring
@@ -907,7 +907,7 @@ class Teacher:
     #
 
     def _stamp_has_valid_wallet_signature(self):
-        signature_bytes = self._evidence_of_decentralized_identity
+        signature_bytes = self.identity_evidence
         if signature_bytes is NOT_SIGNED:
             return False
 
@@ -920,7 +920,7 @@ class Teacher:
         """
         :return:
         """
-        signature = self._evidence_of_decentralized_identity
+        signature = self.identity_evidence
         if self._stamp_has_valid_wallet_signature():
             self.verified_stamp = True
             return True
@@ -986,7 +986,7 @@ class Teacher:
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
         addresses_match = node_details['public_address'] == self.canonical_public_address
-        evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
+        evidence_matches = node_details['identity_evidence'] == self.identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
@@ -1002,7 +1002,7 @@ class Teacher:
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
         blockchain_power.unlock_account(password=password)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
-        self._evidence_of_decentralized_identity = signature
+        self.identity_evidence = signature
 
     #
     # Interface

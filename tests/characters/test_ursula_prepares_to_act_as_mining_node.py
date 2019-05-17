@@ -54,7 +54,7 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
-    signature_as_bytes = first_ursula._evidence_of_decentralized_identity
+    signature_as_bytes = first_ursula.identity_evidence
     signature = EthSignature(signature_bytes=signature_as_bytes)
     proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(bytes(first_ursula.stamp))
     proper_address_for_first_ursula = proper_public_key_for_first_ursula.to_checksum_address()
@@ -142,7 +142,7 @@ def test_vlad_reuses_identity_evidence_from_ursula(blockchain_ursulas):
                                        attach_transacting_key=False,
                                        same_checksum=True)
 
-    assert vlad._evidence_of_decentralized_identity == his_target._evidence_of_decentralized_identity
+    assert vlad.identity_evidence == his_target.identity_evidence
 
     vlad.validate_metadata()
 
