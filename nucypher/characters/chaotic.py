@@ -31,7 +31,9 @@ from nucypher.config.constants import(
     TEMPLATES_DIR,
     APPS_S3_PATH,
     CORS_ORIGINS,
-    RECAPTCHA_SERVER_SECRET)
+    RECAPTCHA_SERVER_SECRET,
+    FELIX_REGISTER_API_KEY,
+)
 from nucypher.crypto.powers import SigningPower, BlockchainPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
@@ -284,7 +286,6 @@ class Felix(Character, NucypherTokenActor):
             return send_from_directory('js', path)
 
         @rest_app.route("/", methods=['GET'])
-        @limiter.limit("100/day;20/hour;1/minute")
         def home():
             rendering = render_template(self.TEMPLATE_NAME, APPS_S3_PATH=APPS_S3_PATH)
             return rendering
@@ -300,44 +301,46 @@ class Felix(Character, NucypherTokenActor):
                 request.get_json().get('address')
             )
 
-            if RECAPTCHA_SERVER_SECRET:
-                captcha_token = (
-                    request.form.get('captcha') or
-                    request.get_json().get('captcha')
-                )
-                if not captcha_token:
-                    return Response(
-                        response="sketchy bizniss detected", status=400)
 
-                resp = requests.post(
-                    'https://www.google.com/recaptcha/api/siteverify',
-                    data={
-                        "secret": RECAPTCHA_SERVER_SECRET,
-                        "response": captcha_token,
-                    }
-                )
-                # what comes back looks like:
-                # {
-                #   'success': True,
-                #   'challenge_ts': '2019-05-16T23:50:58Z',
-                #   'hostname': '127.0.0.1',
-                #   'score': 0.9,
-                #   'action': 'login'
-                # }
-                captcha_data = resp.json()
-                if not (
-                    captcha_data.get('success') and
-                    captcha_data.get('score') > .7  # we want a C- or better
-                ):
-                    return Response(
-                        response="non human permission denied", status=403)
+            #  both of these are optional if you just want to accept
+            #  all requests for registration
+            if RECAPTCHA_SERVER_SECRET or FELIX_REGISTER_API_KEY:
+
+                captcha_token = request.get_json().get('captcha')
+                if captcha_token:
+                    resp = requests.post(
+                        'https://www.google.com/recaptcha/api/siteverify',
+                        data={
+                            "secret": RECAPTCHA_SERVER_SECRET,
+                            "response": captcha_token})
+                    # what comes back looks like:
+                    # {
+                    #   'success': True,
+                    #   'challenge_ts': '2019-05-16T23:50:58Z',
+                    #   'hostname': '127.0.0.1',
+                    #   'score': 0.9,
+                    #   'action': 'login'
+                    # }
+
+                    captcha_data = resp.json()
+                    if not (
+                        captcha_data.get('success') and
+                        captcha_data.get('score') > .7  # we want a C- or better
+                    ):
+                        return Response(
+                            response="non human permission denied", status=403)
+
+                else:  # no captcha token but we have a FELIX_REGISTER_API_KEY
+                    api_key = request.get_json().get('api_key')
+                    if not api_key or api_key != FELIX_REGISTER_API_KEY:
+                        return Response(
+                            response="sketchy bizniss detected", status=400)
 
             if not new_address:
                 return Response(response="no address", status=400)  # TODO
 
             if not eth_utils.is_checksum_address(new_address):
                 return Response(response="invalid address", status=400)  # TODO
-
 
             if new_address in self.reserved_addresses:
                 return Response(response="reserved", status=400)  # TODO

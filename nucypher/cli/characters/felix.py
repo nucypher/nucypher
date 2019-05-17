@@ -215,8 +215,7 @@ ETH ........ {str(eth_balance)}
                         port=port,
                         web_services=not dry_run,
                         distribution=True,
-                        crash_on_error=click_config.debug,
-                        dev=dev)
+                        crash_on_error=click_config.debug)
         finally:
             FELIX.blockchain.disconnect()
 
