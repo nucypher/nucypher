@@ -254,6 +254,7 @@ def test_all(testerchain,
     # We'll need this later for slashing these Ursulas
     ursula1_with_stamp = mock_ursula_with_stamp()
     ursula2_with_stamp = mock_ursula_with_stamp()
+    ursula3_with_stamp = mock_ursula_with_stamp()
 
     # Give clients some ether
     tx = testerchain.interface.w3.eth.sendTransaction(
@@ -410,6 +411,8 @@ def test_all(testerchain,
     # Wait 1 period and deposit from one more Ursula
     testerchain.time_travel(hours=1)
     tx = user_escrow_proxy_1.functions.depositAsMiner(1000, 10).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    tx = user_escrow_proxy_1.functions.setWorker(ursula3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
@@ -800,6 +803,29 @@ def test_all(testerchain,
     assert total_lock - base_penalty == escrow.functions.lockedPerPeriod(current_period).call()
     assert 0 == escrow.functions.lockedPerPeriod(current_period + 1).call()
     assert alice1_balance + base_penalty == token.functions.balanceOf(alice1).call()
+
+    # Slash user escrow
+    tokens_amount = escrow.functions.getAllTokens(user_escrow_1.address).call()
+    previous_lock = escrow.functions.getLockedTokensInPast(user_escrow_1.address, 1).call()
+    lock = escrow.functions.getLockedTokens(user_escrow_1.address).call()
+    next_lock = escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
+    total_previous_lock = escrow.functions.lockedPerPeriod(current_period - 1).call()
+    total_lock = escrow.functions.lockedPerPeriod(current_period).call()
+    alice1_balance = token.functions.balanceOf(alice1).call()
+
+    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula3_with_stamp, ursula3)
+    assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
+    tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
+    assert adjudicator.functions.evaluatedCFrags(data_hash).call()
+    assert tokens_amount - base_penalty == escrow.functions.getAllTokens(user_escrow_1.address).call()
+    assert previous_lock == escrow.functions.getLockedTokensInPast(user_escrow_1.address, 1).call()
+    assert lock - base_penalty == escrow.functions.getLockedTokens(user_escrow_1.address).call()
+    assert next_lock - base_penalty == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
+    assert total_previous_lock == escrow.functions.lockedPerPeriod(current_period - 1).call()
+    assert total_lock - base_penalty == escrow.functions.lockedPerPeriod(current_period).call()
+    assert 0 == escrow.functions.lockedPerPeriod(current_period + 1).call()
+    assert alice1_balance + base_penalty / reward_coefficient == token.functions.balanceOf(alice1).call()
 
     # Upgrade the adjudicator
     # Deploy the same contract as the second version
