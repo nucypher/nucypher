@@ -83,7 +83,7 @@ class NodeConfiguration(ABC):
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
-    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
+    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)
 
     # Rest + TLS
     DEFAULT_REST_HOST = '127.0.0.1'
@@ -377,16 +377,11 @@ class NodeConfiguration(ABC):
                 raw_contents = file.read()
                 payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(raw_contents)
         except FileNotFoundError:
-            raise  # TODO: Do we need better exception handling here?
+            raise
         return payload
 
     @classmethod
-    def from_configuration_file(cls,
-                                filepath: str = None,
-                                provider_process=None,
-                                **overrides) -> 'NodeConfiguration':
-
-        """Initialize a NodeConfiguration from a JSON file."""
+    def get_configuration_payload(cls, filepath: str = None, **overrides) -> dict:
 
         from nucypher.config.storages import NodeStorage
         node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
@@ -421,10 +416,23 @@ class NodeConfiguration(ABC):
         # Filter out Nones from overrides to detect, well, overrides
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
+        payload = {**payload, **overrides}
+        return payload
+
+    @classmethod
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                provider_process=None,
+                                **overrides) -> 'NodeConfiguration':
+
+        """Initialize a NodeConfiguration from a JSON file."""
+
+        payload = cls.get_configuration_payload(**overrides)
+
         # Instantiate from merged params
         node_configuration = cls(config_file_location=filepath,
                                  provider_process=provider_process,
-                                 **{**payload, **overrides})
+                                 **payload)
 
         return node_configuration
 
@@ -579,9 +587,12 @@ class NodeConfiguration(ABC):
         #
         # Blockchain
         #
-        if not self.federated_only:
-            if self.provider_process:
-                self.provider_process.initialize_blockchain()
+        # TODO
+        #
+        # if not self.federated_only:
+        #     if self.provider_process:
+        #
+        #         self.provider_process.initialize_blockchain()
 
         #
         # Node Storage

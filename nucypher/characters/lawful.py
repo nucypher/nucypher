@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import json
 import random
 from base64 import b64encode
@@ -71,11 +72,26 @@ class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
-                 is_me=True,
-                 federated_only=False,
+                 m: int,
+                 n: int,
+                 rate: int,
+                 duration: int,
+                 first_period_rate: float,
+                 is_me: bool = True,
+                 federated_only: bool = False,
                  network_middleware=None,
                  controller=True,
                  *args, **kwargs) -> None:
+
+        #
+        # Fallback Policy Values
+        #
+
+        self.m = m
+        self.n = n
+        self.rate = rate
+        self.duration = duration
+        self.first_period_rate = first_period_rate
 
         _policy_agent = kwargs.pop("policy_agent", None)
         checksum_address = kwargs.pop("checksum_public_address", None)
@@ -176,31 +192,41 @@ class Alice(Character, PolicyAuthor):
     def grant(self,
               bob: "Bob",
               label: bytes,
-              m=None, n=None,
-              expiration=None,
-              value=None,
-              handpicked_ursulas=None,
-              timeout=10,
-              discover_on_this_thread=False):
+              m: int = None,
+              n: int = None,
+              expiration = None,
+              value: int = None,
+              rate: int = None,
+              first_period_value: int = 0,  # TODO: Need sane default
+              handpicked_ursulas: set = None,
+              timeout=10):
+
+        #
+        # Cryptoeconomic Defaults for Policies
+        #
 
         if not m:
-            # TODO: get m from config  #176
-            raise NotImplementedError
+            m = self.m
 
         if not n:
-            # TODO: get n from config  #176
-            raise NotImplementedError
+            n = self.n
 
         if not expiration:
-            # TODO: check default duration in config  #176
-            raise NotImplementedError
+            expiration = maya.now() + datetime.timedelta(days=self.duration)
 
-        if not value:
-            default_deposit = None  # TODO: Check default value in config.  #176
-            if not default_deposit:
-                value = self.network_middleware.get_competitive_rate()
-                if value == NotImplemented:
-                    value = constants.NON_PAYMENT(b"0000000")  # TODO: represent as signed int?
+        # Calculate Policy Value
+        if not value and not rate:
+            value = int(self.n * (first_period_value + self.rate * self.duration))
+
+        elif rate:
+            value = int(self.n * (first_period_value + rate * self.duration))
+
+        else:
+            raise ValueError("Cannot determine policy value")
+
+        #
+        # Policy Creation
+        #
 
         if handpicked_ursulas is None:
             handpicked_ursulas = set()
