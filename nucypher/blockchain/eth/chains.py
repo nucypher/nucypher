@@ -201,9 +201,8 @@ class Blockchain:
             cls._instance = cls(interface=interface, provider_process=provider_process)
 
             # Sync blockchain
-            if not cls._instance.is_dev_blockchain:
-                if full_sync:
-                    cls._instance.sync()
+            if full_sync:
+                cls._instance.sync()
 
         else:
 
