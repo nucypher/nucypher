@@ -59,7 +59,7 @@ class BlockchainInterface:
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
-    __default_timeout = 120  # seconds
+    __default_timeout = 180  # seconds
     __default_transaction_gas = 500_000  # TODO #842: determine sensible limit and validate transactions
 
     process = None  # TODO
@@ -523,7 +523,7 @@ class BlockchainInterface:
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
         return is_valid_sig and (sig_pubkey == pubkey)
 
-    def unlock_account(self, address, password, duration=None):
+    def unlock_account(self, address, password, duration=60*30):
         # TODO: Parity
         # TODO: Duration
 
@@ -531,7 +531,7 @@ class BlockchainInterface:
             return True  # Test accounts are unlocked by default.
 
         elif self.client_version == 'geth':
-            return self.w3.geth.personal.unlockAccount(address, password)
+            return self.w3.geth.personal.unlockAccount(address, password, duration)
 
         else:
             raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
@@ -594,7 +594,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         # Wait for receipt
         self.log.info(f"Waiting for deployment receipt for {contract_name}")
-        receipt = self.w3.eth.waitForTransactionReceipt(txhash)
+        receipt = self.w3.eth.waitForTransactionReceipt(txhash, timeout=240)
 
         #
         # Verify deployment success
