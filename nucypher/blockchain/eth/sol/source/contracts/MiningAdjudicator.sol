@@ -18,9 +18,13 @@ contract MiningAdjudicator is Upgradeable {
 
     event CFragEvaluated(
         bytes32 indexed evaluationHash,
-        address indexed miner,
         address indexed investigator,
         bool correctness
+    );
+    event IncorrectCFragVerdict(
+        bytes32 indexed evaluationHash,
+        address indexed violator,
+        address indexed miner
     );
 
     // used only for upgrading
@@ -78,7 +82,6 @@ contract MiningAdjudicator is Upgradeable {
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
     * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
-    // TODO add way to slash owner of UserEscrow contract
     function evaluateCFrag(
         bytes memory _capsuleBytes,
         bytes memory _cFragBytes,
@@ -91,16 +94,23 @@ contract MiningAdjudicator is Upgradeable {
     )
         public
     {
+        // Check that CFrag is not evaluated yet
+        bytes32 evaluationHash = SignatureVerifier.hash(
+            abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
+        require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
+        evaluatedCFrags[evaluationHash] = true;
+
+        // Verify correctness of re-encryption
+        bool cFragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
+        emit CFragEvaluated(evaluationHash, msg.sender, cFragIsCorrect);
+        if (cFragIsCorrect) {
+            return;
+        }
 
         require(ReEncryptionValidator.checkSerializedCoordinates(_minerPublicKey),
                 "Miner's public key is invalid");
         require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
                 "Requester's public key is invalid");
-
-        // Check that CFrag is not evaluated yet
-        bytes32 evaluationHash = SignatureVerifier.hash(
-            abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
-        require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
 
         UmbralDeserializer.PreComputedData memory precomp = _preComputedData.toPreComputedData();
 
@@ -141,22 +151,19 @@ contract MiningAdjudicator is Upgradeable {
                 "Specification signature is invalid"
         );
 
-        // Extract miner's address and check that is real miner
+        // Extract violator's address
         // TODO: This will depend on the outcome of #962
-        address miner = SignatureVerifier.recover(
+        address violator = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
+        address miner = escrow.getMinerByWorker(violator);
+        require(miner != address(0), "Violator must be related to a miner");
+
         // Check that miner can be slashed
         uint256 minerValue = escrow.getAllTokens(miner);
-        require(minerValue > 0);
-
-        // Verify correctness of re-encryption
-        bool cfragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
-        evaluatedCFrags[evaluationHash] = true;
-        emit CFragEvaluated(evaluationHash, miner, msg.sender, cfragIsCorrect);
-        if (!cfragIsCorrect) {
-            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
-            escrow.slashMiner(miner, penalty, msg.sender, reward);
-        }
+        require(minerValue > 0, "Miner has no tokens");
+        (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
+        escrow.slashMiner(miner, penalty, msg.sender, reward);
+        emit IncorrectCFragVerdict(evaluationHash, violator, miner);
     }
 
     /**
