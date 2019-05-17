@@ -31,6 +31,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer,
