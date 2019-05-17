@@ -1,4 +1,5 @@
 import datetime
+from base64 import b64encode, b64decode
 
 import click
 import maya
@@ -155,7 +156,7 @@ def alice(click_config,
         create_policy_request = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_verifying_key': bob_verifying_key,
-            'label': label,
+            'label': b64encode(label.encode()),
             'm': m,
             'n': n,
         }
@@ -169,7 +170,7 @@ def alice(click_config,
         grant_request = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_verifying_key': bob_verifying_key,
-            'label': label,
+            'label': b64encode(label.encode()).decode(),
             'm': m,
             'n': n,
             'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
