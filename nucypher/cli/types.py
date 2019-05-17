@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from ipaddress import ip_address
 
 import click
-from eth_utils import is_checksum_address
+from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
@@ -28,9 +28,10 @@ class ChecksumAddress(click.ParamType):
     name = 'checksum_public_address'
 
     def convert(self, value, param, ctx):
-        if is_checksum_address(value):
-            return value
-        self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
+        # if is_checksum_address(value):
+        #     return value
+        return to_checksum_address(value=value)
+        # self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
 
 
 class IPv4Address(click.ParamType):
