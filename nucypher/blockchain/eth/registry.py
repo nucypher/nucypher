@@ -47,7 +47,7 @@ class EthereumContractRegistry:
 
     __PUBLICATION_USER = "nucypher"
     __PUBLICATION_REPO = "nucypher/ethereum-contract-registry"
-    __PUBLICATION_FILENAME = "test-registry.json"  # TODO: Versioning
+    __PUBLICATION_FILENAME = "contract_registry.json"  # TODO: Versioning
 
     class RegistryError(Exception):
         pass
@@ -71,7 +71,7 @@ class EthereumContractRegistry:
     @classmethod
     def download_latest_publication(cls,
                                     filepath: str = None,
-                                    branch: str = 'development'
+                                    branch: str = 'goerli'
                                     ) -> str:
         """
         Get the latest published contract registry from github and save it on the local file system.
@@ -95,13 +95,13 @@ class EthereumContractRegistry:
     @classmethod
     def from_latest_publication(cls,
                                 filepath: str = None,
-                                branch: str = 'development'
+                                branch: str = 'goerli'
                                 ) -> 'EthereumContractRegistry':
         filepath = cls.download_latest_publication(filepath=filepath, branch=branch)
         instance = cls(registry_filepath=filepath)
         return instance
 
-    def publish(self, branch: str = 'development') -> dict:
+    def publish(self, branch: str = 'goerli') -> dict:
         # TODO: NuCypher Org GPG Signed Commits?
 
         #
