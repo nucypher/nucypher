@@ -211,7 +211,7 @@ class BlockchainInterface:
 
         if self.is_connected:
             node_info = self.w3.clientVersion.split(os.sep)
-            node_technology, node_version, platform, go_version = node_info
+            node_technology = node_info[0]
         else:
             return str(NO_BLOCKCHAIN_CONNECTION)
 
@@ -236,11 +236,11 @@ class BlockchainInterface:
             node_info = self.w3.clientVersion.split('/')
 
             try:
-                self._node_technology, self._node_version, self._platform, self._backend = node_info
+                self._node_technology = node_info[0]
 
             # Gracefully degrade
             except ValueError:
-                self._node_technology, self._node_version, self._platform = node_info
+                self._node_technology = node_info[0]
                 self._backend = NotImplemented
                 # Raises ValueError if the ethereum client does not support the nodeInfo endpoint
 
@@ -298,7 +298,7 @@ class BlockchainInterface:
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
-                elif uri_breakdown.netloc == 'geth':
+                elif uri_breakdown.netloc in ('geth', 'parity-ethereum'):
 
                     # geth --dev
                     geth_process = NuCypherGethDevProcess()
@@ -532,6 +532,9 @@ class BlockchainInterface:
 
         elif self.client_version == 'geth':
             return self.w3.geth.personal.unlockAccount(address, password, duration)
+
+        elif self.client_version == 'parity-ethereum':
+            return self.w3.parity.personal.unlockAccount(address, password, None)
 
         else:
             raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
