@@ -109,11 +109,9 @@ derive_policy_pubkey
 
 This endpoint controls the ``Alice.get_policy_pubkey_from_label`` method.
 
-- URL: ``/derive_policy_pubkey``
-- HTTP Method: ``PUT``
-- Required arguments:
-   - ``label`` -- encoded as base64
-- Returns: a hex-encoded ``policy_encrypting_pubkey``
+- URL: ``/derive_policy_pubkey/<label>``
+- HTTP Method: ``POST``
+- Returns: a hex-encoded ``policy_encrypting_key``
 
 grant
 ~~~~~
