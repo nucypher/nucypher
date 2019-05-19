@@ -363,48 +363,81 @@ def test_staking(testerchain, token, escrow_contract):
     assert 3 == escrow.functions.getSubStakesLength(ursula2).call()
     assert current_period == escrow.functions.getLastPeriodOfSubStake(ursula2, 1).call()
 
-    # Divide stake again
-    tx = escrow.functions.divideStake(1, 200, 2).transact({'from': ursula2})
+    # Can't divide stake again because current period is the last periods for this sub stake
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.divideStake(1, 200, 2).transact({'from': ursula2})
+        testerchain.wait_for_receipt(tx)
+    # But can lock
+    tx = escrow.functions.lock(200, 2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
     assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 200 == escrow.functions.getLockedTokens(ursula2, 2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
 
-    events = divides_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
-    assert ursula2 == event_args['staker']
-    assert 300 == event_args['oldValue']
-    assert current_period == event_args['lastPeriod']
-    assert 200 == event_args['newValue']
-    assert 2 == event_args['periods']
-
     # Check number of stakes and last stake parameters
     assert 4 == escrow.functions.getSubStakesLength(ursula2).call()
     assert current_period + 1 == escrow.functions.getLastPeriodOfSubStake(ursula2, 2).call()
 
     # Divide stake again
-    tx = escrow.functions.divideStake(2, 100, 2).transact({'from': ursula2})
+    tx = escrow.functions.divideStake(2, 100, 1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
     assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 300 == escrow.functions.getLockedTokens(ursula2, 2).call()
-    assert 100 == escrow.functions.getLockedTokens(ursula2, 3).call()
-    assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
 
     events = divides_log.get_all_entries()
-    assert 3 == len(events)
-    event_args = events[2]['args']
+    assert 2 == len(events)
+    event_args = events[1]['args']
     assert ursula2 == event_args['staker']
     assert 200 == event_args['oldValue']
     assert current_period + 1 == event_args['lastPeriod']
     assert 100 == event_args['newValue']
-    assert 2 == event_args['periods']
+    assert 1 == event_args['periods']
 
-    # Just wait and confirm activity
+    # Prolong some sub stake
+    tx = escrow.functions.prolongStake(3, 1).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    assert 500 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 300 == escrow.functions.getLockedTokens(ursula2, 2).call()
+    assert 200 == escrow.functions.getLockedTokens(ursula2, 3).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
+
+    events = lock_log.get_all_entries()
+    assert 11 == len(events)
+    event_args = events[10]['args']
+    assert ursula2 == event_args['staker']
+    assert 200 == event_args['value']
+    assert current_period + 3 == event_args['firstPeriod']
+    assert 1 == event_args['periods']
+
+    # Prolong sub stake that will end in the next period
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.prolongStake(2, 1).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    assert 500 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 400 == escrow.functions.getLockedTokens(ursula2, 2).call()
+    assert 200 == escrow.functions.getLockedTokens(ursula2, 3).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
+
+    events = lock_log.get_all_entries()
+    assert 12 == len(events)
+    event_args = events[11]['args']
+    assert ursula2 == event_args['staker']
+    assert 100 == event_args['value']
+    assert current_period + 2 == event_args['firstPeriod']
+    assert 1 == event_args['periods']
+
+    # Can't prolong sub stake that will end in the current period
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.prolongStake(1, 1).transact({'from': ursula2})
+        testerchain.wait_for_receipt(tx)
+
+    # Just wait and confirm activity
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -413,44 +446,26 @@ def test_staking(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Can't divide old stake because it's already unlocked
-    current_period = escrow.functions.getCurrentPeriod().call()
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.divideStake(0, 200, 10).transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
-
-    assert 5 == escrow.functions.getSubStakesLength(ursula2).call()
-    assert current_period == escrow.functions.getLastPeriodOfSubStake(ursula2, 3).call()
-    locked_next_period = escrow.functions.lockedPerPeriod(current_period + 1).call()
-    tx = escrow.functions.divideStake(3, 100, 1).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert locked_next_period + 100 == escrow.functions.lockedPerPeriod(current_period + 1).call()
-
-    events = divides_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
-    assert ursula2 == event_args['staker']
-    assert 200 == event_args['oldValue']
-    assert current_period == event_args['lastPeriod']
-    assert 100 == event_args['newValue']
-    assert 1 == event_args['periods']
+    # And can't prolong old stake
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.prolongStake(0, 10).transact({'from': ursula2})
+        testerchain.wait_for_receipt(tx)
 
     events = activity_log.get_all_entries()
-    assert 14 == len(events)
+    assert 13 == len(events)
     event_args = events[11]['args']
     assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['period']
-    assert 300 == event_args['value']
+    assert 400 == event_args['value']
     event_args = events[12]['args']
     assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
-    assert 100 == event_args['value']
-    event_args = events[13]['args']
-    assert ursula2 == event_args['staker']
-    assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
-    assert 100 == event_args['value']
+    assert 200 == event_args['value']
 
     assert 5 == len(deposit_log.get_all_entries())
-    assert 11 == len(lock_log.get_all_entries())
     assert 1 == len(withdraw_log.get_all_entries())
 
 

@@ -641,13 +641,7 @@ contract StakingEscrow is Issuer {
     * @param _newValue New sub stake value
     * @param _periods Amount of periods for extending sub stake
     **/
-    function divideStake(
-        uint256 _index,
-        uint256 _newValue,
-        uint16 _periods
-    )
-        public onlyStaker
-    {
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_newValue >= minAllowableLockedTokens &&
             _periods > 0 &&
@@ -656,20 +650,36 @@ contract StakingEscrow is Issuer {
         uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        require(lastPeriod >= currentPeriod);
+        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
 
         uint256 oldValue = subStake.lockedValue;
         subStake.lockedValue = oldValue.sub(_newValue);
         require(subStake.lockedValue >= minAllowableLockedTokens);
         saveSubStake(info, subStake.firstPeriod, 0, subStake.periods.add16(_periods), _newValue);
-        // if the next period is confirmed and
-        // old sub stake is finishing in the current period then update confirmation
-        if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
-            lockedPerPeriod[startPeriod] = lockedPerPeriod[startPeriod].add(_newValue);
-            emit ActivityConfirmed(msg.sender, startPeriod, _newValue);
-        }
         emit Divided(msg.sender, oldValue, lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, subStake.firstPeriod, subStake.periods + _periods);
+    }
+
+    /**
+    * @notice Prolong active sub stake
+    * @param _index Index of the sub stake
+    * @param _periods Amount of periods for extending sub stake
+    **/
+    function prolongStake(uint256 _index, uint16 _periods) public onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(_periods > 0, "Incorrect parameters");
+        SubStakeInfo storage subStake = info.subStakes[_index];
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 startPeriod = getStartPeriod(info, currentPeriod);
+        uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
+        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
+
+        subStake.periods = subStake.periods.add16(_periods);
+        // if the sub stake ends in the next confirmed period then reset the `lastPeriod` field
+        if (lastPeriod == startPeriod) {
+            subStake.lastPeriod = 0;
+        }
+        emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
     }
 
     /**
