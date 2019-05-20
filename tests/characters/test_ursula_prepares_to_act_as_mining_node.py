@@ -17,9 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
+from eth_utils import to_checksum_address
+
+from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.unlawful import Vladimir
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
+from nucypher.crypto.utils import recover_pubkey_from_signature, canonical_address_from_umbral_key
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
@@ -54,14 +59,30 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
+    ursula_pubkey_bytes = bytes(first_ursula.stamp)
     signature_as_bytes = first_ursula.identity_evidence
     signature = EthSignature(signature_bytes=signature_as_bytes)
-    proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(bytes(first_ursula.stamp))
+    proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(ursula_pubkey_bytes)
     proper_address_for_first_ursula = proper_public_key_for_first_ursula.to_checksum_address()
     assert proper_address_for_first_ursula == first_ursula.checksum_public_address
 
     # This method is a shortcut for the above.
     assert first_ursula._stamp_has_valid_wallet_signature
+
+    # Low-level verification of the same thing
+    signature = signature_as_bytes[:-1]
+    v_value = signature_as_bytes[-1]
+
+    # Note that the signature in identity_evidence uses keccack as digest function
+    digest = keccak_digest(ursula_pubkey_bytes)
+    signing_pubkey_bytes = recover_pubkey_from_signature(message=digest,
+                                                         signature=signature,
+                                                         v_value_to_try=v_value,
+                                                         is_prehashed=True)
+    signing_pubkey = UmbralPublicKey.from_bytes(signing_pubkey_bytes)
+
+    proper_address_for_first_ursula = to_checksum_address(canonical_address_from_umbral_key(signing_pubkey))
+    assert proper_address_for_first_ursula == first_ursula.checksum_public_address
 
 
 def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
