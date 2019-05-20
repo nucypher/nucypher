@@ -24,6 +24,7 @@ from constant_sorrow import constants
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -83,8 +84,25 @@ def keccak_digest(*messages: bytes) -> bytes:
     """
     hash = sha3.keccak_256()
     for message in messages:
-        hash.update(message)
+        hash.update(bytes(message))
     return hash.digest()
+
+
+def sha256_digest(*messages: bytes) -> bytes:
+    """
+    Accepts an iterable containing bytes and digests it returning a
+    SHA256 digest of 32 bytes
+
+    :param bytes: Data to hash
+
+    :rtype: bytes
+    :return: bytestring of digested data
+    """
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    for message in messages:
+        hash_ctx.update(bytes(message))
+    digest = hash_ctx.finalize()
+    return digest
 
 
 def ecdsa_sign(message: bytes,
