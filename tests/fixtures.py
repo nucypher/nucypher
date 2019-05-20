@@ -511,7 +511,11 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     alice_address = canonical_address_from_umbral_key(signing_pubkey)
     blockhash = bytes(32)
 
-    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
+    specification = b''.join((bytes(capsule),
+                              bytes(ursula_pubkey),
+                              ursula.identity_evidence,
+                              alice_address,
+                              blockhash))
 
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer(specification))

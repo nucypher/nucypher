@@ -294,10 +294,6 @@ def make_rest_app(
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
-
-        # TODO: How to pass Ursula's identity evidence to Bob? #962
-        # 'Identity evidence' is a signature of her stamp with the checksum address
-
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
 
@@ -314,7 +310,7 @@ def make_rest_app(
 
         work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
                                                  rest_payload=request.data,
-                                                 ursula_pubkey_bytes=bytes(this_node.stamp),
+                                                 ursula=this_node,
                                                  alice_address=alices_address)
 
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
