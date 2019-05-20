@@ -133,6 +133,7 @@ contract MiningAdjudicator is Upgradeable {
                 abi.encodePacked(_capsuleBytes,
                                  precomp.lostBytes[4],
                                  miner_xcoord,
+                                 _minerPublicKeySignature,
                                  precomp.alicesKeyAsAddress,
                                  bytes32(0)),
                 abi.encodePacked(_taskSignature, precomp.lostBytes[3]),
@@ -144,7 +145,9 @@ contract MiningAdjudicator is Upgradeable {
         // Extract miner's address and check that is real miner
         // TODO: This will depend on the outcome of #962
         address miner = SignatureVerifier.recover(
-            SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
+            SignatureVerifier.hash(abi.encodePacked(precomp.lostBytes[4], miner_xcoord),
+                                   SignatureVerifier.HashAlgorithm.KECCAK256),
+            _minerPublicKeySignature);
         // Check that miner can be slashed
         (uint256 minerValue,,,,,) = escrow.minerInfo(miner);
         require(minerValue > 0);
