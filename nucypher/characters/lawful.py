@@ -555,20 +555,23 @@ class Bob(Character):
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for node_id, arrangement_id in treasure_map_to_use:
-            ursula = self.known_nodes[node_id]
+        for ursula_checksum_address, arrangement_id in treasure_map_to_use:
+            ursula = self.known_nodes[ursula_checksum_address]
+            assert ursula.checksum_public_address == ursula_checksum_address
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
+                if not capsule in self._saved_work_orders[ursula_checksum_address]:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(
-                    arrangement_id, capsules_to_include, ursula, self)
-                generated_work_orders[node_id] = work_order
+                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                                        capsules=capsules_to_include,
+                                                        ursula=ursula,
+                                                        bob=self)
+                generated_work_orders[ursula_checksum_address] = work_order
                 # TODO: Fix this. It's always taking the last capsule
-                self._saved_work_orders[node_id][capsule] = work_order
+                self._saved_work_orders[ursula_checksum_address][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
@@ -590,6 +593,9 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
+
+        # Get an UmbralPublicKey, no matter if you passed bytes, a SignatureStamp or an UmbralPublicKey
+        alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
         capsule.set_correctness_keys(

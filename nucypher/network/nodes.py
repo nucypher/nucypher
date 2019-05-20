@@ -595,8 +595,9 @@ class Learner:
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughNodes("After {} seconds and {} rounds, didn't find {} nodes".format(
-                        timeout, rounds_undertaken, number_of_nodes_to_know))
+                    raise self.NotEnoughNodes(f"After {timeout} seconds and {rounds_undertaken} rounds, "
+                                              f"didn't find {number_of_nodes_to_know} nodes, "
+                                              f"just {len(self.__known_nodes)}.")
             else:
                 time.sleep(.1)
 
