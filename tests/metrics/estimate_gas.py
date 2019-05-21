@@ -28,8 +28,6 @@ from mock import Mock
 from os.path import abspath, dirname
 
 from eth_utils import to_canonical_address
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from zope.interface import provider
 
@@ -38,8 +36,8 @@ from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.utils import get_coordinates_as_bytes
 from nucypher.policy.models import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
@@ -129,26 +127,17 @@ def mock_ursula_with_stamp():
     return ursula
 
 
-def sha256_hash(data):
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(data)
-    digest = hash_ctx.finalize()
-    return digest
-
-
 def generate_args_for_slashing(testerchain, ursula, account, corrupt_cfrag: bool = True):
-    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=corrupt_cfrag)
-
     # Sign Umbral public key using eth-key
-    miner_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
+    miner_umbral_public_key_hash = keccak_digest(ursula.stamp)
     provider = testerchain.interface.provider
     address = to_canonical_address(account)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+    ursula.identity_evidence = signed_miner_umbral_public_key
 
-    args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
-    return args
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=corrupt_cfrag)
+    return evidence.evaluation_arguments()
 
 
 def estimate_gas(analyzer: AnalyzeGas = None) -> None:

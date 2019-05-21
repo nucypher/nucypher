@@ -124,7 +124,7 @@ def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, moc
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp)
+    ursula = Mock(stamp=ursula_stamp, identity_evidence=b'')
 
     # Bob prepares supporting Evidence
     evidence = mock_ursula_reencrypts(ursula)
@@ -142,7 +142,7 @@ def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencry
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp)
+    ursula = Mock(stamp=ursula_stamp, identity_evidence=b'')
 
     ###############################
     # Test: Ursula produces correct proof:

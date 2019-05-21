@@ -20,8 +20,6 @@ import os
 from mock import Mock
 
 import pytest
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
@@ -30,8 +28,8 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.eth.token import NU
+from nucypher.crypto.api import keccak_digest, sha256_digest
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.utils import get_coordinates_as_bytes
 
 
 VALUE_FIELD = 0
@@ -141,28 +139,21 @@ def mock_ursula_with_stamp():
     return ursula
 
 
-def sha256_hash(data):
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(data)
-    digest = hash_ctx.finalize()
-    return digest
-
-
 # TODO organize support functions
 def generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula, account):
-    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
-
     # Sign Umbral public key using eth-key
-    miner_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
+    miner_umbral_public_key_hash = keccak_digest(ursula.stamp)
     provider = testerchain.interface.provider
     address = to_canonical_address(account)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+    ursula.identity_evidence = signed_miner_umbral_public_key
+
+    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
 
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
 
-    data_hash = sha256_hash(bytes(evidence.task.capsule) + bytes(evidence.task.cfrag))
+    data_hash = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
     return data_hash, args
 
 
@@ -251,7 +242,9 @@ def test_all(testerchain,
 
     # We'll need this later for slashing these Ursulas
     ursula1_with_stamp = mock_ursula_with_stamp()
+    ursula1_with_stamp.identity_evidence = ursula1
     ursula2_with_stamp = mock_ursula_with_stamp()
+    ursula2_with_stamp.identity_evidence = ursula2
 
     # Give clients some ether
     tx = testerchain.interface.w3.eth.sendTransaction(
