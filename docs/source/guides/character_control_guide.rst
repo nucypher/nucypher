@@ -104,12 +104,12 @@ Character Control Endpoints
 Alice
 -----
 
-derive_policy_pubkey
+derive_policy_encrypting_key
 ~~~~~~~~~~~~~~~~~~~~
 
 This endpoint controls the ``Alice.get_policy_pubkey_from_label`` method.
 
-- URL: ``/derive_policy_pubkey/<label>``
+- URL: ``/derive_policy_encrypting_key/<\label\>``
 - HTTP Method: ``POST``
 - Returns: a hex-encoded ``policy_encrypting_key``
 
