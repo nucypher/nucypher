@@ -40,13 +40,13 @@ spec:
           ports:
             - name: "urs-dash"
               containerPort: 9151
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: ursula-geth-storage
             mountPath: /root/.local/share/
           resources:
             requests:
-              memory: "1.8Gi"
+              memory: "1Gi"
           command: ["bash", "/code/deploy/k8s/scripts/run_ursula.sh"]
           workingDir: /code
           env:
@@ -56,6 +56,8 @@ spec:
               value: "file:///root/.local/share/geth/geth.ipc"
             - name: NUCYPHER_NETWORK
               value: testnet
+            - name: NUCYPHER_USE_POA_MIDDLEWARE
+              value: "yes"
             - name: NUCYPHER_KEYRING_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -80,8 +82,8 @@ spec:
                   key: aws-access-key-id
                   optional: true
         - name: geth
-          image: nucypher/nucypher-geth-v0.1.0-alpha.22:latest
-          imagePullPolicy: Always
+          image: nucypher-geth:latest
+          imagePullPolicy: IfNotPresent
           resources:
             requests:
               memory: ".5Gi"
@@ -91,7 +93,7 @@ spec:
           args: [
             "--goerli",
             "--syncmode",
-            "light",
+            "fast",
             "--verbosity",
             "5",
             "--datadir",

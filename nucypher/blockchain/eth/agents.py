@@ -91,6 +91,10 @@ class EthereumContractAgent(ABC):
     def contract_name(self) -> str:
         return self.registry_contract_name
 
+    def get_eth_balance(self, address: str) -> int:
+        balance = self.blockchain.interface.w3.eth.getBalance(address)
+        return self.blockchain.interface.w3.fromWei(balance, 'ether')
+
 
 class NucypherTokenAgent(EthereumContractAgent):
 
