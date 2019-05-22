@@ -120,9 +120,9 @@ def bob(click_config,
         BOB.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
 
     if action == "run":
-        click_config.emitter(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
+        click_config.emit(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
         bob_encrypting_key = bytes(BOB.public_keys(DecryptingPower)).hex()
-        click_config.emitter(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
+        click_config.emit(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
         controller = BOB.make_web_controller()
         BOB.log.info('Starting HTTP Character Web Controller')
         return controller.start(http_port=http_port, dry_run=dry_run)
