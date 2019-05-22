@@ -64,7 +64,7 @@ The character control API uses JSON for all its endpoints. A request may look li
         'label': 'dGVzdA==',
         'm': 2,
         'n': 3,
-        'expiration_time': '2019-02-14T22:23:10.771093Z',
+        'expiration': '2019-02-14T22:23:10.771093Z',
     }
 
 Take a look at ``bob_encrypting_key``. Take note that it's a hex-encoded string.
@@ -75,7 +75,7 @@ Whenever the Python API expects the ``bytes`` type, the character control API wi
 
 Integers, in our case ``m`` and ``n`` can be passed as is without encoding.
 
-A datetime, like ``expiration_time``, must be passed in as an ISO-8601 formatted datetime string.
+A datetime, like ``expiration``, must be passed in as an ISO-8601 formatted datetime string.
 
 If you are missing a required argument in your request, you will be returned a 400 status code.
 
@@ -104,16 +104,14 @@ Character Control Endpoints
 Alice
 -----
 
-derive_policy_pubkey
+derive_policy_encrypting_key
 ~~~~~~~~~~~~~~~~~~~~
 
 This endpoint controls the ``Alice.get_policy_pubkey_from_label`` method.
 
-- URL: ``/derive_policy_pubkey``
-- HTTP Method: ``PUT``
-- Required arguments:
-   - ``label`` -- encoded as base64
-- Returns: a hex-encoded ``policy_encrypting_pubkey``
+- URL: ``/derive_policy_encrypting_key/<\label\>``
+- HTTP Method: ``POST``
+- Returns: a hex-encoded ``policy_encrypting_key``
 
 grant
 ~~~~~
@@ -127,7 +125,7 @@ This endpoint controls the ``Alice.grant`` method.
     - ``label`` -- encoded as base64
     - ``m`` -- an integer
     - ``n`` -- an integer
-    - ``expiration_time`` -- an ISO-8601 formatted datetime string
+    - ``expiration`` -- an ISO-8601 formatted datetime string
 - Returns:
     - ``treasure_map`` -- encoded as base64
     - ``policy_encrypting_pubkey`` -- encoded as hex
