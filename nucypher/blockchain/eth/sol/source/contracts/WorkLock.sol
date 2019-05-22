@@ -24,48 +24,60 @@ contract WorkLock {
     MinersEscrow public escrow;
     uint256 public startBidDate;
     uint256 public endBidDate;
-    uint256 public minAllowableLockedTokens;
-    uint256 public maxAllowableLockedTokens;
-    uint256 public allClaimedTokens;
     // ETH -> NU
     uint256 public depositRate;
     // Work (reward in NU) -> ETH
     uint256 public refundRate;
+    uint256 public minAllowableLockedTokens;
+    uint256 public maxAllowableLockedTokens;
+    uint256 public allClaimedTokens;
     uint16 public lockedPeriods;
-    mapping(address => WorkInfo) workInfo;
+    // TODO add some getters
+    mapping(address => WorkInfo) public workInfo;
 
+    // TODO docs
     constructor(
         NuCypherToken _token,
         MinersEscrow _escrow,
         uint256 _startBidDate,
-        uint256 _endBidDate
-    ) public {
+        uint256 _endBidDate,
+        uint256 _depositRate,
+        uint256 _refundRate,
+        uint16 _lockedPeriods
+    )
+        public
+    {
         require(_token.totalSupply() > 0 &&
             _escrow.secondsPerPeriod() > 0 &&
             _endBidDate > _startBidDate &&
-            _endBidDate > block.timestamp);
+            _endBidDate > block.timestamp &&
+            _depositRate > 0 &&
+            _refundRate > 0 &&
+            _lockedPeriods >= _escrow.minLockedPeriods());
         token = _token;
         escrow = _escrow;
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
         minAllowableLockedTokens = _escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = _escrow.maxAllowableLockedTokens();
+        depositRate = _depositRate;
+        refundRate = _refundRate;
+        lockedPeriods = _lockedPeriods;
     }
 
     /**
     * @notice Bid for tokens by transferring ETH
     **/
-    function bid() public payable {
+    function bid() public payable returns (uint256 newClaimedTokens) {
         require(block.timestamp >= startBidDate && block.timestamp <= endBidDate,
             "Bid is open during a certain period");
         WorkInfo storage info = workInfo[msg.sender];
-        // exclude rounding in allClaimedTokens calculation by using only tokens value without ETH
-        uint256 alreadyClaimedTokens = info.depositedETH.mul(depositRate);
         info.depositedETH = info.depositedETH.add(msg.value);
         uint256 claimedTokens = info.depositedETH.mul(depositRate);
         require(claimedTokens >= minAllowableLockedTokens && claimedTokens <= maxAllowableLockedTokens,
             "Claimed tokens must be within the allowed limits");
-        allClaimedTokens = allClaimedTokens.add(claimedTokens.sub(alreadyClaimedTokens));
+        newClaimedTokens = msg.value.mul(depositRate);
+        allClaimedTokens = allClaimedTokens.add(newClaimedTokens);
         require(allClaimedTokens <= token.balanceOf(address(this)),
             "Not enough tokens in the contract");
     }
@@ -87,20 +99,22 @@ contract WorkLock {
     /**
     * @notice Refund ETH for the work done
     **/
-    function refund() public {
+    function refund() public returns (uint256 refundETH) {
         WorkInfo storage info = workInfo[msg.sender];
         require(info.claimed, "Tokens are not claimed");
         require(info.depositedETH > 0, "Nothing deposited");
         uint256 currentWork = escrow.getWorkDone(msg.sender);
         uint256 workDone = currentWork.sub(info.workDone);
         require(workDone > 0, "No work has been done.");
-        uint256 refundETH = workDone.div(refundRate);
+        refundETH = workDone.div(refundRate);
         if (refundETH > info.depositedETH) {
             refundETH = info.depositedETH;
+        }
+        if (refundETH == info.depositedETH) {
             escrow.setWorkMeasurement(msg.sender, false);
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
-        info.workDone = currentWork;
+        info.workDone = info.workDone.add(refundETH.mul(refundRate));
         msg.sender.transfer(refundETH);
     }
 
