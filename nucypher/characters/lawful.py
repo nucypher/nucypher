@@ -556,8 +556,8 @@ class Bob(Character):
                     capsules))
 
         for ursula_checksum_address, arrangement_id in treasure_map_to_use:
+            # FIXME: What if Bob hasn't learned about this Ursula? #999
             ursula = self.known_nodes[ursula_checksum_address]
-            assert ursula.checksum_public_address == ursula_checksum_address
 
             capsules_to_include = []
             for capsule in capsules:
