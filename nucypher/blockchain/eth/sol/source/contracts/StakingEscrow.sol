@@ -56,6 +56,7 @@ contract StakingEscrow is Issuer {
     event ReStakeSet(address indexed staker, bool reStake);
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
+    event WorkMeasurementSet(address indexed miner, bool measureWork);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -388,10 +389,10 @@ contract StakingEscrow is Issuer {
     **/
     function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
         require(msg.sender == address(workLock));
-        MinerInfo storage info = stakerInfo[_staker];
+        StakerInfo storage info = stakerInfo[_staker];
         info.measureWork = _measureWork;
+        emit WorkMeasurementSet(_staker, _measureWork);
         return info.workDone;
-        // TODO event
     }
 
     /** @notice Set worker

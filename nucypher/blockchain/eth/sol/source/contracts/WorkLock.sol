@@ -12,7 +12,9 @@ import "contracts/MinersEscrow.sol";
 contract WorkLock {
     using SafeMath for uint256;
 
-    // TODO events
+    event Bid(address indexed miner, uint256 depositedETH, uint256 claimedTokens);
+    event Claimed(address indexed miner, uint256 claimedTokens);
+    event Refund(address indexed miner, uint256 refundETH, uint256 workDone);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -32,10 +34,17 @@ contract WorkLock {
     uint256 public maxAllowableLockedTokens;
     uint256 public allClaimedTokens;
     uint16 public lockedPeriods;
-    // TODO add some getters
     mapping(address => WorkInfo) public workInfo;
 
-    // TODO docs
+    /**
+    * @param _token Token contract
+    * @param _escrow Escrow contract
+    * @param _startBidDate Timestamp when bidding starts
+    * @param _endBidDate Timestamp when bidding will end
+    * @param _depositRate ETH -> NU rate
+    * @param _refundRate Work -> ETH rate
+    * @param _lockedPeriods Number of periods during which claimed tokens will be locked
+    **/
     constructor(
         NuCypherToken _token,
         MinersEscrow _escrow,
@@ -80,6 +89,7 @@ contract WorkLock {
         allClaimedTokens = allClaimedTokens.add(newClaimedTokens);
         require(allClaimedTokens <= token.balanceOf(address(this)),
             "Not enough tokens in the contract");
+        emit Bid(msg.sender, msg.value, newClaimedTokens);
     }
 
     /**
@@ -94,6 +104,7 @@ contract WorkLock {
         info.workDone = escrow.setWorkMeasurement(msg.sender, true);
         token.approve(address(escrow), claimedTokens);
         escrow.deposit(msg.sender, claimedTokens, lockedPeriods);
+        emit Claimed(msg.sender, claimedTokens);
     }
 
     /**
@@ -114,8 +125,18 @@ contract WorkLock {
             escrow.setWorkMeasurement(msg.sender, false);
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
-        info.workDone = info.workDone.add(refundETH.mul(refundRate));
+        workDone = refundETH.mul(refundRate);
+        info.workDone = info.workDone.add(workDone);
+        emit Refund(msg.sender, refundETH, workDone);
         msg.sender.transfer(refundETH);
+    }
+
+    /**
+    * @notice Get remaining work to full refund
+    **/
+    function getRemainingWork(address _miner) public view returns (uint256) {
+        WorkInfo storage info = workInfo[_miner];
+        return info.depositedETH.mul(refundRate);
     }
 
 }

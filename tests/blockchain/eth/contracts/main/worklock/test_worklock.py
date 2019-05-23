@@ -58,6 +58,10 @@ def test_worklock(testerchain, token_economics):
     assert worklock.functions.depositRate().call() == deposit_rate
     assert worklock.functions.refundRate().call() == refund_rate
 
+    bidding_log = worklock.events.Bid.createFilter(fromBlock='latest')
+    claim_log = worklock.events.Claimed.createFilter(fromBlock='latest')
+    refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
+
     # Transfer tokens to WorkLock
     worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
     tx = token.functions.transfer(worklock.address, worklock_supply).transact({'from': creator})
@@ -107,6 +111,13 @@ def test_worklock(testerchain, token_economics):
     assert worklock.functions.workInfo(ursula1).call()[0] == minimum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == minimum_deposit_eth
 
+    events = bidding_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert event_args['miner'] == ursula1
+    assert event_args['depositedETH'] == minimum_deposit_eth
+    assert event_args['claimedTokens'] == token_economics.minimum_allowed_locked
+
     # Second Ursula does first bid
     assert worklock.functions.workInfo(ursula2).call()[0] == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': maximum_deposit_eth, 'gas_price': 0})
@@ -115,6 +126,13 @@ def test_worklock(testerchain, token_economics):
            token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula2).call()[0] == maximum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
+
+    events = bidding_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert event_args['miner'] == ursula2
+    assert event_args['depositedETH'] == maximum_deposit_eth
+    assert event_args['claimedTokens'] == token_economics.maximum_allowed_locked
 
     # Can't bid again with too high ETH
     with pytest.raises((TransactionFailed, ValueError)):
@@ -132,6 +150,13 @@ def test_worklock(testerchain, token_economics):
            2 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula1).call()[0] == 2 * minimum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + 2 * minimum_deposit_eth
+
+    events = bidding_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert event_args['miner'] == ursula1
+    assert event_args['depositedETH'] == minimum_deposit_eth
+    assert event_args['claimedTokens'] == token_economics.minimum_allowed_locked
 
     # Can't bid again: not enough tokens in worklock
     with pytest.raises((TransactionFailed, ValueError)):
@@ -167,6 +192,7 @@ def test_worklock(testerchain, token_economics):
     assert periods == 0
     tx = worklock.functions.claim().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getRemainingWork(ursula1).call() == 2 * minimum_deposit_eth * refund_rate
     value, measure_work, work_done, periods = escrow.functions.minerInfo(ursula1).call()
     assert value == 2 * token_economics.minimum_allowed_locked
     assert measure_work
@@ -174,6 +200,12 @@ def test_worklock(testerchain, token_economics):
     assert token.functions.balanceOf(worklock.address).call() == \
            worklock_supply - 2 * token_economics.minimum_allowed_locked
     assert token.functions.balanceOf(escrow.address).call() == 2 * token_economics.minimum_allowed_locked
+
+    events = claim_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert event_args['miner'] == ursula1
+    assert event_args['claimedTokens'] == 2 * token_economics.minimum_allowed_locked
 
     # Can't claim more than once
     with pytest.raises((TransactionFailed, ValueError)):
@@ -185,6 +217,31 @@ def test_worklock(testerchain, token_economics):
         tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
+    # Second Ursula claims tokens
+    value, measure_work, _work_done, periods = escrow.functions.minerInfo(ursula2).call()
+    assert value == 0
+    assert not measure_work
+    assert periods == 0
+    tx = escrow.functions.setWorkDone(ursula2, refund_rate * minimum_deposit_eth).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = worklock.functions.claim().transact({'from': ursula2, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getRemainingWork(ursula2).call() == maximum_deposit_eth * refund_rate
+    value, measure_work, work_done, periods = escrow.functions.minerInfo(ursula2).call()
+    assert value == token_economics.maximum_allowed_locked
+    assert measure_work
+    assert periods == 2 * token_economics.minimum_locked_periods
+    assert token.functions.balanceOf(worklock.address).call() == \
+           worklock_supply - 2 * token_economics.minimum_allowed_locked - token_economics.maximum_allowed_locked
+    assert token.functions.balanceOf(escrow.address).call() == \
+           2 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+
+    events = claim_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert event_args['miner'] == ursula2
+    assert event_args['claimedTokens'] == token_economics.maximum_allowed_locked
+
     # "Do" some work and partial refund
     ursula1_balance = testerchain.interface.w3.eth.getBalance(ursula1)
     work_done = refund_rate * minimum_deposit_eth + refund_rate // 2
@@ -193,10 +250,18 @@ def test_worklock(testerchain, token_economics):
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(ursula1).call()[0] == minimum_deposit_eth
+    assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate
     assert testerchain.interface.w3.eth.getBalance(ursula1) == ursula1_balance + minimum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
     _value, measure_work, _work_done, _periods = escrow.functions.minerInfo(ursula1).call()
     assert measure_work
+
+    events = refund_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert event_args['miner'] == ursula1
+    assert event_args['refundETH'] == minimum_deposit_eth
+    assert event_args['workDone'] == minimum_deposit_eth * refund_rate
 
     # "Do" more work and full refund
     ursula1_balance = testerchain.interface.w3.eth.getBalance(ursula1)
@@ -206,12 +271,22 @@ def test_worklock(testerchain, token_economics):
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(ursula1).call()[0] == 0
+    assert worklock.functions.getRemainingWork(ursula1).call() == 0
     assert testerchain.interface.w3.eth.getBalance(ursula1) == ursula1_balance + minimum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == maximum_deposit_eth
     _value, measure_work, _work_done, _periods = escrow.functions.minerInfo(ursula1).call()
     assert not measure_work
 
+    events = refund_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert event_args['miner'] == ursula1
+    assert event_args['refundETH'] == minimum_deposit_eth
+    assert event_args['workDone'] == minimum_deposit_eth * refund_rate
+
     # Can't refund more tokens
+    tx = escrow.functions.setWorkDone(ursula1, 2 * work_done).transact()
+    testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)

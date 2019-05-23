@@ -706,6 +706,7 @@ def test_worker(testerchain, token, escrow_contract):
 def test_measure_work(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, ursula, *everyone_else = testerchain.interface.w3.eth.accounts
+    work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
     tx = token.functions.transfer(escrow.address, int(NU(10 ** 9, 'NuNit'))).transact({'from': creator})
@@ -742,6 +743,13 @@ def test_measure_work(testerchain, token, escrow_contract):
     stake = escrow.functions.getAllTokens(ursula).call()
     tx = worklock.functions.setWorkMeasurement(ursula, True).transact()
     testerchain.wait_for_receipt(tx)
+
+    events = work_measurement_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula == event_args['miner']
+    assert event_args['measureWork']
+
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=2)
@@ -768,6 +776,13 @@ def test_measure_work(testerchain, token, escrow_contract):
     work_done = escrow.functions.getWorkDone(ursula).call()
     tx = worklock.functions.setWorkMeasurement(ursula, False).transact()
     testerchain.wait_for_receipt(tx)
+
+    events = work_measurement_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert ursula == event_args['miner']
+    assert not event_args['measureWork']
+
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=2)
