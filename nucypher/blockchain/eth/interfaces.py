@@ -48,6 +48,7 @@ from web3.providers.eth_tester.main import EthereumTesterProvider
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.clients import Web3Client
 import pprint
 
 
@@ -155,6 +156,7 @@ class BlockchainInterface:
         #
 
         self.w3 = NO_BLOCKCHAIN_CONNECTION
+        self.client = None
         self.__provider = provider or NO_BLOCKCHAIN_CONNECTION
         self.provider_uri = NO_BLOCKCHAIN_CONNECTION
         self.timeout = timeout if timeout is not None else self.__default_timeout
@@ -169,12 +171,6 @@ class BlockchainInterface:
             self.attach_provider(provider)
         else:
             self.log.warn("No provider supplied for new blockchain interface; Using defaults")
-
-        # Ethereum client metadata
-        self._node_technology = NO_BLOCKCHAIN_CONNECTION
-        self._node_version = NO_BLOCKCHAIN_CONNECTION
-        self._platform = NO_BLOCKCHAIN_CONNECTION
-        self._backend = NO_BLOCKCHAIN_CONNECTION
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -210,7 +206,8 @@ class BlockchainInterface:
             return "Unknown"
 
         if self.is_connected:
-            node_info = self.w3.clientVersion.split(os.sep)
+            node_info = self.w3.clientVersion.split('/')
+            # ex: 'EthereumJS TestRPC', 'v2.2.1', 'ethereum-js', '5.2'
             node_technology = node_info[0]
         else:
             return str(NO_BLOCKCHAIN_CONNECTION)
@@ -226,27 +223,13 @@ class BlockchainInterface:
         # Connect
         web3_instance = Web3(provider=self.__provider)  # Instantiate Web3 object with provider
         self.w3 = web3_instance
+        self.client = Web3Client(self.w3)
 
         # Check connection
-        if not self.is_connected:
-            raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
-
         if self.is_connected:
-            self.log.info('ATTACHED WEB3 PROVIDER {}'.format(self.provider_uri))
-            node_info = self.w3.clientVersion.split('/')
+            return True
 
-            try:
-                self._node_technology = node_info[0]
-
-            # Gracefully degrade
-            except ValueError:
-                self._node_technology = node_info[0]
-                self._backend = NotImplemented
-                # Raises ValueError if the ethereum client does not support the nodeInfo endpoint
-
-            return self.is_connected
-        else:
-            raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
+        raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
 
     @property
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
@@ -257,12 +240,26 @@ class BlockchainInterface:
         """
         https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
         """
-        return self.w3.isConnected()
+        return self.client.is_connected
 
     @property
-    def node_version(self) -> str:
+    def _node_technology(self):
+        if self.client:
+            return self.client.node_technology
+        return NO_BLOCKCHAIN_CONNECTION
+
+    @property
+    def _backend(self):
+        if self.client:
+            return self.client.backend
+        return NO_BLOCKCHAIN_CONNECTION      # Ethereum client metadata
+
+    @property
+    def _node_version(self) -> str:
         """Return node version information"""
-        return self.w3.node_version.node
+        if self.client:
+            return self.client.node_version
+        return NO_BLOCKCHAIN_CONNECTION
 
     def attach_provider(self,
                         provider: Web3Providers = None,
@@ -445,7 +442,6 @@ class BlockchainInterface:
         and assimilate it with it's proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
-
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
@@ -524,20 +520,11 @@ class BlockchainInterface:
         return is_valid_sig and (sig_pubkey == pubkey)
 
     def unlock_account(self, address, password, duration=60*30):
-        # TODO: Parity
-        # TODO: Duration
 
         if 'tester' in self.provider_uri:
-            return True  # Test accounts are unlocked by default.
+            return True
 
-        elif self.client_version == 'geth':
-            return self.w3.geth.personal.unlockAccount(address, password, duration)
-
-        elif self.client_version == 'parity-ethereum':
-            return self.w3.parity.personal.unlockAccount(address, password, None)
-
-        else:
-            raise self.InterfaceError(f'{self.client_version} is not a supported ETH node backend.')
+        return self.client.unlock_account(address, password)
 
 
 class BlockchainDeployerInterface(BlockchainInterface):
