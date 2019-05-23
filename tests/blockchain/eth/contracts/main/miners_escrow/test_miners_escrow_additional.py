@@ -445,6 +445,8 @@ def test_worker(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, *everyone_else = testerchain.interface.w3.eth.accounts
 
+    worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
+
     # Initialize escrow contract
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -503,6 +505,13 @@ def test_worker(testerchain, token, escrow_contract):
     tx = intermediary1.functions.confirmActivity().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
 
+    events = worker_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert intermediary1.address == event_args['miner']
+    assert worker1 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
     # Only worker can confirm activity
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.setWorker(ursula3).transact({'from': ursula1})
@@ -536,6 +545,13 @@ def test_worker(testerchain, token, escrow_contract):
     assert intermediary1.address == escrow.functions.getMinerByWorker(worker2).call()
     assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(worker1).call()
 
+    events = worker_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert intermediary1.address == event_args['miner']
+    assert worker2 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
     # Now the previous worker can no longer confirm
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.confirmActivity().transact({'from': worker1})
@@ -550,6 +566,13 @@ def test_worker(testerchain, token, escrow_contract):
     assert worker1 == escrow.functions.getWorkerByMiner(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.getMinerByWorker(worker1).call()
 
+    events = worker_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert intermediary2.address == event_args['miner']
+    assert worker1 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
     # The first worker still can't be a miner
     with pytest.raises((TransactionFailed, ValueError)):
         tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
@@ -563,6 +586,13 @@ def test_worker(testerchain, token, escrow_contract):
     assert ursula2 == escrow.functions.getWorkerByMiner(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.getMinerByWorker(ursula2).call()
     assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(worker1).call()
+
+    events = worker_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert intermediary2.address == event_args['miner']
+    assert ursula2 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
     # The first worker is free and can deposit tokens and become a miner
     tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
