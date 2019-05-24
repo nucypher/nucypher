@@ -151,7 +151,7 @@ def worklock(testerchain, token, escrow):
         _endBidDate=end_bid_date,
         _depositRate=deposit_rate,
         _refundRate=refund_rate,
-        _lockedPeriods=9
+        _lockedPeriods=6
     )
 
     tx = escrow.functions.setWorkLock(contract.address).transact({'from': creator})
@@ -362,6 +362,15 @@ def test_all(testerchain,
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.getAllTokens(ursula2).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2, 6).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 7).call()
+    assert 0 == escrow.functions.getWorkDone(ursula2).call()
+
+    # Ursula prolongs lock duration
+    tx = escrow.functions.prolongStake(0, 3).transact({'from': ursula2, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 9).call()
@@ -594,6 +603,12 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
+
+    # Check work measurement
+    work_done = escrow.functions.getWorkDone(ursula2).call()
+    assert 0 < work_done
+    assert 0 == escrow.functions.getWorkDone(user_escrow_1.address).call()
+    assert 0 == escrow.functions.getWorkDone(ursula1).call()
 
     testerchain.time_travel(hours=1)
     tx = policy_manager.functions.revokeArrangement(policy_id_3, user_escrow_1.address) \
@@ -1044,16 +1059,18 @@ def test_all(testerchain,
     assert ursula4_balance < token.functions.balanceOf(ursula4).call()
 
     # Partial refund for Ursula
-    work_done = escrow.functions.getWorkDone(ursula2).call()
+    new_work_done = escrow.functions.getWorkDone(ursula2).call()
+    assert work_done < new_work_done
     remaining_work = worklock.functions.getRemainingWork(ursula2).call()
     assert 0 < remaining_work
-    assert 0 < work_done
+    assert deposited_eth == worklock.functions.workInfo(ursula2).call()[0]
     ursula2_balance = testerchain.interface.w3.eth.getBalance(ursula2)
     tx = worklock.functions.refund().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    refund = work_done // refund_rate
+    refund = new_work_done // refund_rate
+    assert deposited_eth - refund == worklock.functions.workInfo(ursula2).call()[0]
     assert refund + ursula2_balance == testerchain.interface.w3.eth.getBalance(ursula2)
-    assert remaining_work - work_done == worklock.functions.getRemainingWork(ursula2).call()
+    assert remaining_work == worklock.functions.getRemainingWork(ursula2).call()
     assert deposited_eth - refund == testerchain.interface.w3.eth.getBalance(worklock.address)
     assert 0 == escrow.functions.getWorkDone(ursula1).call()
     assert 0 == escrow.functions.getWorkDone(user_escrow_1.address).call()

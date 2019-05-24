@@ -177,16 +177,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     print("********* Estimating Gas *********")
 
     #
-    # Pre deposit tokens
-    #
-    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
-    testerchain.wait_for_receipt(tx)
-    log.info("Pre-deposit tokens for 5 owners = " + str(staker_functions.preDeposit(everyone_else[0:5],
-                                                                                   [MIN_ALLOWED_LOCKED] * 5,
-                                                                                   [MIN_LOCKED_PERIODS] * 5)
-                                                        .estimateGas({'from': origin})))
-
-    #
     # Give Ursula and Alice some coins
     #
     log.info("Transfer tokens = " + str(
