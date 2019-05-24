@@ -522,7 +522,7 @@ class BlockchainInterface:
     def unlock_account(self, address, password, duration=60*30):
 
         if 'tester' in self.provider_uri:
-            return True
+            return True  # Test accounts are unlocked by default.
 
         return self.client.unlock_account(address, password)
 
