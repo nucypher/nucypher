@@ -910,8 +910,13 @@ class Teacher:
         if signature_bytes is NOT_SIGNED:
             return False
 
+        # Hack around shitty ethereum signatures
+        signature_array = bytearray(signature_bytes)
+        signature_array[-1] = signature_array[-1] % 27
         signature = EthSignature(signature_bytes)
-        proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
+
+        message_prefix = b'Ethereum Signed Message:\n'
+        proper_pubkey = signature.recover_public_key_from_msg(message_prefix + bytes(self.stamp))
         proper_address = proper_pubkey.to_checksum_address()
         return proper_address == self.checksum_public_address
 
