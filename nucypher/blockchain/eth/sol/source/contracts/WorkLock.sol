@@ -136,7 +136,12 @@ contract WorkLock {
     **/
     function getRemainingWork(address _miner) public view returns (uint256) {
         WorkInfo storage info = workInfo[_miner];
-        return info.depositedETH.mul(refundRate);
+        uint256 workDone = escrow.getWorkDone(_miner).sub(info.workDone);
+        uint256 remainingWork = info.depositedETH.mul(refundRate);
+        if (remainingWork <= workDone) {
+            return 0;
+        }
+        return remainingWork.sub(workDone);
     }
 
 }

@@ -247,10 +247,11 @@ def test_worklock(testerchain, token_economics):
     work_done = refund_rate * minimum_deposit_eth + refund_rate // 2
     tx = escrow.functions.setWorkDone(ursula1, work_done).transact()
     testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate - refund_rate // 2
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(ursula1).call()[0] == minimum_deposit_eth
-    assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate
+    assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate - refund_rate // 2
     assert testerchain.interface.w3.eth.getBalance(ursula1) == ursula1_balance + minimum_deposit_eth
     assert testerchain.interface.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
     _value, measure_work, _work_done, _periods = escrow.functions.minerInfo(ursula1).call()
@@ -268,6 +269,7 @@ def test_worklock(testerchain, token_economics):
     work_done = refund_rate * 2 * minimum_deposit_eth
     tx = escrow.functions.setWorkDone(ursula1, work_done).transact()
     testerchain.wait_for_receipt(tx)
+    assert worklock.functions.getRemainingWork(ursula1).call() == 0
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(ursula1).call()[0] == 0
