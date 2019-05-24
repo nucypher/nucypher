@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 import time
-from abc import ABC, abstractmethod
+import maya
 
 from constant_sorrow.constants import NOT_RUNNING
 from eth_utils import to_checksum_address, is_checksum_address
@@ -17,6 +17,7 @@ from geth.chain import (
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
+from web3.exceptions import BlockNotFound
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
@@ -54,67 +55,122 @@ class Web3Client(object):
         GANACHE = 'EthereumJS TestRPC'
 
         try:
-            gclass = {
+            cls = {
                 GETH: GethClient,
                 PARITY: ParityClient,
                 GANACHE: GanacheClient,
             }[node_technology]
-            return gclass(w3, *client_data)
-
         except KeyError:
             raise NotImplementedError(node_technology)
+
+        return cls(w3, *client_data)
 
 
 class Web3ClientBase(object):
 
+    class ConnectionNotEstablished(RuntimeError):
+        pass
+
+    class SyncTimeout(RuntimeError):
+        pass
+
     def __init__(self, w3, node_technology, version, backend, **kwargs):
-        self.web3_instance = w3
+        self.w3 = w3
         self.node_technology = node_technology
         self.node_version = version
         self.backend = backend
 
+        self.log = Logger("blockchain")
+
     @property
-    @abstractmethod
     def peers(self):
         raise NotImplementedError
 
     @property
     def syncing(self):
-        return self.web3_instance.eth.syncing
+        return self.w3.eth.syncing
 
-    @abstractmethod
     def unlock_account(self, address, password):
         raise NotImplementedError
 
     def is_connected(self):
-        return self.web3_instance.isConnected()
+        return self.w3.isConnected()
+
+    @property
+    def chainId(self):
+        return self.w3.net.chainId
+
+    def sync(self, timeout: int = 600):
+
+        # Record start time for timeout calculation
+        now = maya.now()
+        start_time = now
+
+        def check_for_timeout(timeout=timeout):
+            last_update = maya.now()
+            duration = (last_update - start_time).seconds
+            if duration > timeout:
+                raise self.SyncTimeout
+
+        # Check for ethereum peers
+        self.log.info(f"Waiting for ethereum peers...")
+        while not self.peers:
+            time.sleep(0)
+            check_for_timeout(timeout=30)
+
+        needs_sync = False
+        for peer in self.peers:
+            peer_block_header = peer['protocols']['eth']['head']
+            try:
+                self.w3.eth.getBlock(peer_block_header)
+            except BlockNotFound:
+                needs_sync = True
+                break
+
+        # Start
+        if needs_sync:
+            peers = len(self.peers)
+            self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
+            while not self.syncing:
+                time.sleep(0)
+                check_for_timeout()
+
+            # Continue until done
+            while self.syncing:
+                current = self.syncing['currentBlock']
+                total = self.syncing['highestBlock']
+                self.log.info(f"Syncing {current}/{total}")
+                time.sleep(1)
+                check_for_timeout()
+
+            return True
 
 
 class GethClient(Web3ClientBase):
 
     @property
     def peers(self):
-        return self.web3_instance.geth.admin.peers()
+        return self.w3.geth.admin.peers()
 
     def unlock_account(self, address, password):
-        return self.web3_instance.geth.personal.unlockAccount(address, password)
+        return self.w3.geth.personal.unlockAccount(address, password)
 
 
 class ParityClient(Web3ClientBase):
 
     def peers(self) -> str:
-        return self.web3_instance.manager.request_blocking("parity_netPeers", [])
+        return self.w3.manager.request_blocking("parity_netPeers", [])
 
     def unlock_account(self, address, password):
-        return self.web3_instance.parity.unlockAccount.unlockAccount(address, password)
+        return self.w3.parity.unlockAccount.unlockAccount(address, password)
 
 
 class GanacheClient(Web3ClientBase):
 
-    def peers(self):
-        return []
-
     def unlock_account(self, address, password):
+        return True
+
+    def sync(self, *args, **kwargs):
         return True
 
 
