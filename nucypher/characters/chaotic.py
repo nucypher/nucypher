@@ -6,9 +6,10 @@ import eth_utils
 import math
 import maya
 import time
+import requests
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from nacl.hash import sha256
@@ -26,13 +27,24 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
-from nucypher.config.constants import TEMPLATES_DIR
+from nucypher.config.constants import(
+    TEMPLATES_DIR,
+    APPS_S3_PATH,
+    CORS_ORIGINS,
+    RECAPTCHA_SERVER_SECRET,
+    FELIX_REGISTER_API_KEY,
+)
 from nucypher.crypto.powers import SigningPower, BlockchainPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
-
+"""
+Chaotic characters do not follow any specific logic or rules.
+They may act in response to arbitrary user input or do not perform
+any operations integral to the cryptographic narrative.
+"""
 class Moe(Character):
+    #  TODO: inherit directly from Learner
     """
     A monitor (lizard?)
     """
@@ -129,7 +141,10 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower, BlockchainPower]
+    _default_crypto_powerups = [
+        SigningPower,
+        #BlockchainPower
+    ]
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -217,12 +232,22 @@ class Felix(Character, NucypherTokenActor):
 
     def make_web_app(self):
         from flask import request
+        from flask_cors import CORS, cross_origin
         from flask_sqlalchemy import SQLAlchemy
 
         # WSGI/Flask Service
         short_name = bytes(self.stamp).hex()[:6]
-        self.rest_app = Flask(f"faucet-{short_name}", template_folder=TEMPLATES_DIR)
+        self.rest_app = Flask(
+            f"faucet-{short_name}",
+            template_folder=TEMPLATES_DIR,
+            static_url_path=''
+        )
         self.rest_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{self.db_filepath}'
+
+        # TODO: this does not work.  Maybe a hendrix issue?  No cross-origin
+        # headers are visible on response.
+        CORS(self.rest_app, resources={r"*": {"origins": CORS_ORIGINS}})
+
         try:
             self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
         except KeyError:
@@ -260,26 +285,70 @@ class Felix(Character, NucypherTokenActor):
         # REST Routes
         #
 
+        @rest_app.route('/js/<path:path>')
+        def send_js(path):
+            print('got path:', path)
+            return send_from_directory('js', path)
+
         @rest_app.route("/", methods=['GET'])
-        @limiter.limit("100/day;20/hour;1/minute")
         def home():
-            rendering = render_template(self.TEMPLATE_NAME)
+            rendering = render_template(self.TEMPLATE_NAME, APPS_S3_PATH=APPS_S3_PATH)
             return rendering
 
         @rest_app.route("/register", methods=['POST'])
-        @limiter.limit("5 per day")
+        @cross_origin()
         def register():
             """Handle new recipient registration via POST request."""
-            try:
-                new_address = request.form['address']
-            except KeyError:
-                return Response(status=400)  # TODO
+
+            # get address from form submission or json post
+            new_address = (
+                request.form.get('address') or
+                request.get_json().get('address')
+            )
+
+
+            #  both of these are optional if you just want to accept
+            #  all requests for registration
+            if RECAPTCHA_SERVER_SECRET or FELIX_REGISTER_API_KEY:
+
+                captcha_token = request.get_json().get('captcha')
+                if captcha_token:
+                    resp = requests.post(
+                        'https://www.google.com/recaptcha/api/siteverify',
+                        data={
+                            "secret": RECAPTCHA_SERVER_SECRET,
+                            "response": captcha_token})
+                    # what comes back looks like:
+                    # {
+                    #   'success': True,
+                    #   'challenge_ts': '2019-05-16T23:50:58Z',
+                    #   'hostname': '127.0.0.1',
+                    #   'score': 0.9,
+                    #   'action': 'login'
+                    # }
+
+                    captcha_data = resp.json()
+                    if not (
+                        captcha_data.get('success') and
+                        captcha_data.get('score') > .7  # we want a C- or better
+                    ):
+                        return Response(
+                            response="non human permission denied", status=403)
+
+                else:  # no captcha token but we have a FELIX_REGISTER_API_KEY
+                    api_key = request.get_json().get('api_key')
+                    if not api_key or api_key != FELIX_REGISTER_API_KEY:
+                        return Response(
+                            response="sketchy bizniss detected", status=400)
+
+            if not new_address:
+                return Response(response="no address", status=400)  # TODO
 
             if not eth_utils.is_checksum_address(new_address):
-                return Response(status=400)  # TODO
+                return Response(response="invalid address", status=400)  # TODO
 
             if new_address in self.reserved_addresses:
-                return Response(status=400)  # TODO
+                return Response(response="reserved", status=400)  # TODO
 
             try:
                 with ThreadedSession(self.db_engine) as session:
@@ -288,7 +357,7 @@ class Felix(Character, NucypherTokenActor):
                     if existing:
                         # Address already exists; Abort
                         self.log.debug(f"{new_address} is already enrolled.")
-                        return Response(status=400)
+                        return Response(response="already enrolled", status=400)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
