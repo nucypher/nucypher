@@ -36,7 +36,7 @@ CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contract
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
-DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
+DEFAULT_CONFIG_ROOT = os.getenv('NUCYPHER_CONFIG_ROOT') or APP_DIR.user_data_dir
 USER_LOG_DIR = APP_DIR.user_log_dir
 
 
@@ -62,3 +62,15 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 
 # Web
 TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
+
+# export NUCYPHER_CORS_ORIGINS=example.com,localhost,192.168.2.5:8080
+CORS_ORIGINS = os.getenv('NUCYPHER_CORS_ORIGINS', '').split(',') or [
+    "127.0.0.1:8080",
+    "localhost:8080"
+]
+
+# https://developers.google.com/recaptcha/docs/v3
+RECAPTCHA_SERVER_SECRET = os.getenv('NUCYPHER_RECATCHA_SECRET')
+
+# given to trusted clients to allow them to bypass the captcha
+FELIX_REGISTER_API_KEY = os.getenv('NUCYPHER_FELIX_REGISTER_API_KEY')
