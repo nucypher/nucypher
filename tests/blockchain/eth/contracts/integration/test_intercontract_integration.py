@@ -373,6 +373,8 @@ def test_all(testerchain,
     # Deposit tokens for 1 owner
     tx = escrow.functions.preDeposit([ursula2], [1000], [9]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
@@ -398,6 +400,8 @@ def test_all(testerchain,
 
     # Ursula transfer some tokens to the escrow and lock them
     tx = escrow.functions.deposit(1000, 10).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
