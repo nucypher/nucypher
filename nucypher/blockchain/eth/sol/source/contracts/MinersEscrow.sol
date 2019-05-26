@@ -76,7 +76,6 @@ contract MinersEscrow is Issuer {
         uint16 confirmedPeriod2;
         bool reStake;
         uint16 lockReStakeUntilPeriod;
-        // if the miner is the worker himself, then the address is zero
         address worker;
         // period when worker was set
         uint16 workerStartPeriod;
@@ -339,11 +338,8 @@ contract MinersEscrow is Issuer {
     function getWorkerByMiner(address _miner) public view returns (address) {
         MinerInfo storage info = minerInfo[_miner];
         // specified address is not a miner
-        if (minerInfo[_miner].value == 0) {
+        if (minerInfo[_miner].subStakes.length == 0) {
             return address(0);
-        }
-        if (info.worker == address(0)) {
-            return _miner;
         }
         return info.worker;
     }
@@ -352,26 +348,16 @@ contract MinersEscrow is Issuer {
     * @notice Get miner using worker's address
     **/
     function getMinerByWorker(address _worker) public view returns (address) {
-        address miner = workerToMiner[_worker];
-        if (miner != address(0)) {
-            return miner;
-        }
-        // check if worker is miner: worker has stake and didn't set the worker value
-        MinerInfo storage info = minerInfo[_worker];
-        if (info.value != 0 && info.worker == address(0)) {
-            return _worker;
-        }
-        return address(0);
+        return workerToMiner[_worker];
     }
 
     //------------------------Main methods------------------------
     /**
     * @notice Set worker
-    * @param _worker Worker address
+    * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyMiner {
         require(_worker != address(0), "Worker's address must not be empty");
-        require(msg.sender != tx.origin, "Only user of an intermediary contract can set a worker");
 
         uint16 currentPeriod = getCurrentPeriod();
         MinerInfo storage info = minerInfo[msg.sender];
@@ -380,7 +366,8 @@ contract MinersEscrow is Issuer {
         require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
             "Not enough time has passed since the previous setting worker");
         require(workerToMiner[_worker] == address(0), "Specified worker is already in use");
-        require(minerInfo[_worker].value == 0, "Specified worker is an another miner");
+        require(minerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
+            "Specified worker is an another miner");
 
         // remove relation between the old worker and the miner
         if (info.worker != address(0)) {
@@ -651,12 +638,21 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Confirm activity for the next period and mine for the previous period
     **/
-    function confirmActivity() external onlyMiner {
-        require(getWorkerByMiner(msg.sender) == tx.origin, "Only worker can confirm activity");
+    function confirmActivity() external {
+        address miner = msg.sender;
+        // miner is sender -> miner is an intermediary contract
+        if (minerInfo[miner].value > 0) {
+            require(getWorkerByMiner(miner) == tx.origin, "Only worker can confirm activity");
+        } else {
+            // miner is not a contract -> worker is sender
+            miner = getMinerByWorker(msg.sender);
+            require(minerInfo[miner].value > 0, "Miner must have a stake to confirm activity");
+            require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
+        }
 
-        uint16 lastActivePeriod = getLastActivePeriod(msg.sender);
-        mint(msg.sender);
-        MinerInfo storage info = minerInfo[msg.sender];
+        uint16 lastActivePeriod = getLastActivePeriod(miner);
+        mint(miner);
+        MinerInfo storage info = minerInfo[miner];
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(1);
 
@@ -690,7 +686,7 @@ contract MinersEscrow is Issuer {
         if (lastActivePeriod < currentPeriod) {
             info.pastDowntime.push(Downtime(lastActivePeriod + 1, currentPeriod));
         }
-        emit ActivityConfirmed(msg.sender, nextPeriod, lockedTokens);
+        emit ActivityConfirmed(miner, nextPeriod, lockedTokens);
     }
 
     /**
