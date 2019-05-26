@@ -21,16 +21,16 @@ cryptography==2.6.1
 cytoolz==0.9.0.1 ; implementation_name == 'cpython'
 dateparser==0.7.1
 docutils==0.14
-eth-abi==2.0.0b8
-eth-account==0.3.0
-eth-bloom==1.0.3
-eth-hash[pycryptodome,pysha3]==0.2.0
-eth-keyfile==0.5.1
-eth-keys==0.2.1
-eth-rlp==0.1.2
-eth-tester==0.1.0b37
-eth-typing==2.1.0
-eth-utils==1.4.1
+eth-abi
+eth-account
+eth-bloom
+eth-hash[pycryptodome,pysha3]
+eth-keyfile
+eth-keys
+eth-rlp
+eth-tester
+eth-typing
+eth-utils<2.0.0,>=1.4.0
 flask-limiter==1.0.1
 flask-sqlalchemy==2.3.2
 flask==1.0.2
@@ -56,7 +56,7 @@ pathtools==0.1.2
 pendulum==2.0.4
 protobuf==3.7.1
 py-ecc==1.6.0
-py-evm==0.2.0a39
+py-evm==0.2.0a42
 py-geth==2.1.0
 pyasn1-modules==0.2.4
 pyasn1==0.4.5
@@ -91,7 +91,7 @@ tzlocal==2.0.0b1
 umbral==0.1.3a0
 urllib3==1.24.1 ; python_version >= '3.4'
 watchdog==0.9.0
-web3[tester]==5.0.0a9
+web3[tester]<6>=5
 websockets==7.0
 werkzeug==0.15.2
 zope.interface==4.6.0
