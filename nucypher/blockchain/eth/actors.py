@@ -651,6 +651,12 @@ class Miner(NucypherTokenActor):
     #
 
     @only_me
+    def set_worker(self, worker_address: str) -> str:
+        txhash = self.miner_agent.set_worker(node_address=self.checksum_public_address, worker_address=worker_address)
+        self._transaction_cache.append((datetime.utcnow(), txhash))
+        return txhash
+
+    @only_me
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
         txhash = self.miner_agent.confirm_activity(node_address=self.checksum_address)

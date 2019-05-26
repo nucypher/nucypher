@@ -72,9 +72,13 @@ def test_mining(testerchain, token, escrow_contract):
     # Ursula and Ursula(2) transfer some tokens to the escrow and lock them
     tx = escrow.functions.deposit(1000, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula1).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(500, 2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -331,6 +335,8 @@ def test_slashing(testerchain, token, escrow_contract):
     tx = token.functions.approve(escrow.address, 10000).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
@@ -625,6 +631,8 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Two deposits in consecutive periods
     tx = escrow.functions.deposit(100, 4).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
