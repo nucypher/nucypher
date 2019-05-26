@@ -451,6 +451,8 @@ def ursula(click_config,
             click.confirm("Publish staged stake to the blockchain?", abort=True)
 
         stake = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
+        # TODO temporary fix to not break backward compatibility
+        URSULA.set_worker(worker_address=URSULA.checksum_public_address)
         painting.paint_staking_confirmation(ursula=URSULA, transactions=stake.transactions)
         return
 
