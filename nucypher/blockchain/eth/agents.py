@@ -184,6 +184,11 @@ class MinerAgent(EthereumContractAgent):
         period = self.contract.functions.getLastActivePeriod(address).call()
         return int(period)
 
+    def set_worker(self, node_address: str, worker_address: str) -> str:
+        txhash = self.contract.functions.setWorker(worker_address).transact({'from': node_address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
     def confirm_activity(self, node_address: str) -> str:
         """Miner rewarded for every confirmed period"""
 
@@ -443,8 +448,8 @@ class UserEscrowAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def set_worker(self, worker: str) -> str:
-        txhash = self.__proxy_contract.functions.setWorker(worker).transact({'from': self.__beneficiary})
+    def set_worker(self, worker_address: str) -> str:
+        txhash = self.__proxy_contract.functions.setWorker(worker_address).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 

@@ -243,6 +243,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     sub_stake = 1000
     tx = escrow.functions.deposit(sub_stake, 10).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -350,6 +352,8 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(stake, sub_stake_duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
@@ -443,7 +447,8 @@ def test_re_stake(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_worker(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator, ursula1, ursula2, ursula3, worker1, worker2, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
+        testerchain.interface.w3.eth.accounts
 
     worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
 
@@ -454,6 +459,7 @@ def test_worker(testerchain, token, escrow_contract):
     # Deploy intermediary contracts
     intermediary1, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
     intermediary2, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary3, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
 
     # Prepare miners: two with intermediary contract and one just a miner
     sub_stake = 1000
@@ -463,16 +469,16 @@ def test_worker(testerchain, token, escrow_contract):
     tx = intermediary1.functions.deposit(sub_stake, duration).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary1.address).call()
-    assert intermediary1.address == escrow.functions.getWorkerByMiner(intermediary1.address).call()
-    assert intermediary1.address == escrow.functions.getMinerByWorker(intermediary1.address).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerByMiner(intermediary1.address).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(intermediary1.address).call()
 
     tx = token.functions.transfer(intermediary2.address, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     tx = intermediary2.functions.deposit(sub_stake, duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary2.address).call()
-    assert intermediary2.address == escrow.functions.getWorkerByMiner(intermediary2.address).call()
-    assert intermediary2.address == escrow.functions.getMinerByWorker(intermediary2.address).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerByMiner(intermediary2.address).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(intermediary2.address).call()
 
     tx = token.functions.transfer(ursula3, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
@@ -480,10 +486,10 @@ def test_worker(testerchain, token, escrow_contract):
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(ursula3).call()
-    assert ursula3 == escrow.functions.getWorkerByMiner(ursula3).call()
-    assert ursula3 == escrow.functions.getMinerByWorker(ursula3).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerByMiner(ursula3).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(ursula3).call()
 
-    # Ursula can't confirm activity because intermediary contract is worker itself by default
+    # Ursula can't confirm activity because there is no worker by default
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
@@ -601,10 +607,8 @@ def test_worker(testerchain, token, escrow_contract):
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
-    assert worker1 == escrow.functions.getMinerByWorker(worker1).call()
-    assert worker1 == escrow.functions.getMinerByWorker(worker1).call()
-    tx = escrow.functions.confirmActivity().transact({'from': worker1})
-    testerchain.wait_for_receipt(tx)
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getMinerByWorker(worker1).call()
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerByMiner(worker1).call()
 
     # Ursula can't use the first worker again because worker is a miner now
     testerchain.time_travel(hours=1)
@@ -612,9 +616,53 @@ def test_worker(testerchain, token, escrow_contract):
         tx = intermediary1.functions.setWorker(worker1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Ursula without intermediary contract can't set worker but can confirm activity
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setWorker(ursula3).transact({'from': ursula3})
-        testerchain.wait_for_receipt(tx)
+    # Ursula without intermediary contract can set itself as worker
+    tx = escrow.functions.setWorker(ursula3).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    assert ursula3 == escrow.functions.getMinerByWorker(ursula3).call()
+    assert ursula3 == escrow.functions.getWorkerByMiner(ursula3).call()
+
+    events = worker_log.get_all_entries()
+    assert 5 == len(events)
+    event_args = events[4]['args']
+    assert ursula3 == event_args['miner']
+    assert ursula3 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
+    # Now Ursula can confirm activity
     tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
+
+    # Ursula set worker again
+    testerchain.time_travel(hours=1)
+    tx = escrow.functions.setWorker(worker3).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+    assert ursula3 == escrow.functions.getMinerByWorker(worker3).call()
+    assert worker3 == escrow.functions.getWorkerByMiner(ursula3).call()
+
+    events = worker_log.get_all_entries()
+    assert 6 == len(events)
+    event_args = events[5]['args']
+    assert ursula3 == event_args['miner']
+    assert worker3 == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
+    tx = escrow.functions.confirmActivity().transact({'from': worker3})
+    testerchain.wait_for_receipt(tx)
+
+    # Ursula try to set contract as worker
+    testerchain.time_travel(hours=1)
+    tx = escrow.functions.setWorker(intermediary3.address).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    events = worker_log.get_all_entries()
+    assert 7 == len(events)
+    event_args = events[6]['args']
+    assert ursula3 == event_args['miner']
+    assert intermediary3.address == event_args['worker']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+
+    # But can't confirm activity using an intermediary contract
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = intermediary3.functions.confirmActivity().transact({'from': ursula3})
+        testerchain.wait_for_receipt(tx)

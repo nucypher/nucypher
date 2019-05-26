@@ -102,6 +102,7 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents, token_e
 
     miner.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
+    miner.set_worker(worker_address=miner.checksum_public_address)
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):

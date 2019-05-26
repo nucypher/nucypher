@@ -102,6 +102,8 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)
+            # TODO change to real worker
+            ursula.set_worker(worker_address=ursula.checksum_public_address)
             ursula.confirm_activity()
 
         ursulas.append(ursula)
