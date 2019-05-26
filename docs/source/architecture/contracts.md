@@ -7,6 +7,7 @@
 * `StakingEscrow` Holds Ursula's stake, stores information about Ursula's activity, and assigns a reward for participating in the NuCypher network. (The `Issuer` contract is part of the `StakingEscrow`)
 * `PolicyManager` Holds a policy's fee and distributes fee by periods
 * `Adjudicator` Manages [the slashing protocol](slashing)
+* `WorkLock` Manages token distribution
 * `Upgradeable` Base contract for [upgrading](upgradeable_proxy_contracts)
 * `Dispatcher` Proxy to other contracts and provides upgrading of the `StakingEscrow`, `PolicyManager` and `Adjudicator` contracts
 * `UserEscrow` Locks tokens for predetermined time. Tokens will be unlocked after specified time and all tokens can be used as stake in the `StakingEscrow` contract
@@ -17,14 +18,15 @@
 2. Deploy `StakingEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
 4. Deploy `Adjudicator` with a dispatcher
-5. Transfer reward tokens to the `StakingEscrow` contract. These tokens are future mining rewards and initial allocations
-6. Run the `initialize()` method to initialize the `StakingEscrow` contract
-7. Set the address of the `PolicyManager` contract  in the `StakingEscrow` by using the `setPolicyManager(address)`
-8. Pre-deposit tokens to the `StakingEscrow` if necessary:
-	* Approve the transfer tokens for the `StakingEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `StakingEscrow` and the amount of tokens for a staker or group of stakers;
-	* Deposit tokens to the `StakingEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of the stakers, the amount of tokens for each staker, and the number of periods during which tokens will be locked for each staker
-9. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
-10. Pre-deposit tokens to the `UserEscrow` and, if necessary:
+5. Deploy `WorkLock` contract
+6. Transfer reward tokens to the `StakingEscrow` contract. These tokens are future mining rewards and initial allocations
+7. Run the `initialize()` method to initialize the `StakingEscrow` contract
+8. Set the address of the `PolicyManager` contract  in the `StakingEscrow` by using the `setPolicyManager(address)`
+9. Set the address of the `Adjudicator` contract  in the `StakingEscrow` by using the `setAdjudicator(address)`
+10. Set the address of the `WorkLock` contract  in the `StakingEscrow` by using the `setWorkLock(address)`
+11. Transfer tokens for distribution to the `WorkLock` contract
+12. Deploy `UserEscrowProxy` with `UserEscrowLibraryLinker` targeting it
+13. Pre-deposit tokens to the `UserEscrow`:
 	* Create new instance of the `UserEscrow` contract 
 	* Transfer ownership of the instance of the `UserEscrow` contract to the user
 	* Approve the transfer of tokens for the `UserEscrow`
