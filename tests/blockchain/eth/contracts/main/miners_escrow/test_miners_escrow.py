@@ -108,6 +108,8 @@ def test_staking(testerchain, token, escrow_contract):
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.deposit(1000, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula1).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
     assert 1000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
@@ -132,6 +134,8 @@ def test_staking(testerchain, token, escrow_contract):
 
     # Ursula(2) stakes tokens also
     tx = escrow.functions.deposit(500, 2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 1500 == token.functions.balanceOf(escrow.address).call()
     assert 9500 == token.functions.balanceOf(ursula2).call()
@@ -468,6 +472,8 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
 
     # Lock one sub stake from current period and others from next one
     tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 1 == escrow.functions.getSubStakesLength(ursula).call()
 
