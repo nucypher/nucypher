@@ -65,6 +65,8 @@ def test_sampling(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
         tx = escrow.functions.deposit(balance, index + 2).transact({'from': miner})
         testerchain.wait_for_receipt(tx)
+        tx = escrow.functions.setWorker(miner).transact({'from': miner})
+        testerchain.wait_for_receipt(tx)
         tx = escrow.functions.confirmActivity().transact({'from': miner})
         testerchain.wait_for_receipt(tx)
         all_locked_tokens += balance

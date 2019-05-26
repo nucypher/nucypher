@@ -134,6 +134,7 @@ def test_confirm_activity(three_agents):
     agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    _txhash = agent.set_worker(node_address=someone, worker_address=someone)
     txhash = agent.confirm_activity(node_address=someone)
     testerchain = agent.blockchain
     receipt = testerchain.wait_for_receipt(txhash)
