@@ -46,6 +46,24 @@ class TrustedDevice(ABC):
         pass
 
     @abstractmethod
+    def reset(self):
+        """
+        Abstract method for resetting the device to a state that's ready to
+        be configured for staking. This may or may not wipe the device,
+        therefore, appropriate care should be taken.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def configure(self):
+        """
+        Abstract method for configuring the device to work with the NuCypher
+        network. It should be assumed that this is configuring a dedicated
+        device intended for staking _only_.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def sign_message(self, message: bytes, address_index: int = 0):
         """
         Abstract method for signing any arbitrary message via a device's API.
