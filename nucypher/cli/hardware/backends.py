@@ -18,8 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from trezorlib import client as trezor_client
 from trezorlib import ethereum as trezor_eth
-from trezorlib.client import get_default_client
 from trezorlib.tools import parse_path
 from trezorlib.transport import TransportException
 
@@ -38,7 +38,7 @@ class TrustedDevice(ABC):
 
     # We intentionally keep the address index off the path so that the
     # subclass interfaces can handle which address index to use.
-    DEFAULT_BIP44_PATH = "m/44'/60'/0'/0/"
+    DEFAULT_BIP44_PATH = "m/44'/60'/0'/0"
 
     Signature = namedtuple('Signature', ['signature', 'address'])
 
@@ -68,9 +68,8 @@ class Trezor(TrustedDevice):
     """
 
     def __init__(self):
-        # TODO: Should we import the trezor specific libs here or at the top?
         try:
-            self.client = get_default_client()
+            self.client = trezor_client.get_default_client()
             self.__bip44_path = parse_path(self.DEFAULT_BIP44_PATH)
         except TransportException:
             raise RuntimeError("Could not find a TREZOR device to connect to. Have you unlocked it?")
