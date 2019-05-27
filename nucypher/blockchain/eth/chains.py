@@ -20,7 +20,6 @@ import geth
 import maya
 from geth.chain import write_genesis_file, initialize_chain
 from twisted.logger import Logger
-from web3.exceptions import BlockNotFound
 from web3.middleware import geth_poa_middleware
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
@@ -40,17 +39,15 @@ class Blockchain:
     _instance = NO_BLOCKCHAIN_AVAILABLE
     __default_interface_class = BlockchainInterface
 
-    class ConnectionNotEstablished(RuntimeError):
-        pass
-
-    class SyncTimeout(RuntimeError):
-        pass
-
-    def __init__(self,
-                 provider_process=None,
-                 interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None):
+    def __init__(
+            self,
+            provider_process=None,
+            interface: Union[
+                BlockchainInterface, BlockchainDeployerInterface] = None,
+            dev: bool = False):
 
         self.log = Logger("blockchain")
+        self.dev = dev
 
         self.__provider_process = provider_process
 
@@ -78,13 +75,19 @@ class Blockchain:
     def peers(self):
         if self._instance is NO_BLOCKCHAIN_AVAILABLE:
             raise self.ConnectionNotEstablished
-        return self.interface.w3.geth.admin.peers()
+        return self.interface.client.peers()
+
+    @property
+    def chain_id(self):
+        if self.interface.client.is_local:
+            return "DEV CHAIN"
+        return self.interface.client.chainId
 
     @property
     def syncing(self):
         if self._instance is NO_BLOCKCHAIN_AVAILABLE:
             raise self.ConnectionNotEstablished
-        return self.interface.w3.eth.syncing
+        return self.interface.client.syncing
 
     def sync(self, timeout: int = 600):
         """
@@ -92,48 +95,7 @@ class Blockchain:
         and knowledge of all blocks known by bootnodes.
         """
 
-        # Record start time for timeout calculation
-        now = maya.now()
-        start_time = now
-
-        def check_for_timeout(timeout=timeout):
-            last_update = maya.now()
-            duration = (last_update - start_time).seconds
-            if duration > timeout:
-                raise self.SyncTimeout
-
-        # Check for ethereum peers
-        self.log.info(f"Waiting for ethereum peers...")
-        while not self.peers:
-            time.sleep(0)
-            check_for_timeout(timeout=30)
-
-        needs_sync = False
-        for peer in self.peers:
-            peer_block_header = peer['protocols']['eth']['head']
-            try:
-                self.interface.w3.eth.getBlock(peer_block_header)
-            except BlockNotFound:
-                needs_sync = True
-                break
-
-        # Start
-        if needs_sync:
-            peers = len(self.peers)
-            self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
-            while not self.syncing:
-                time.sleep(0)
-                check_for_timeout()
-
-            # Continue until done
-            while self.syncing:
-                current = self.syncing['currentBlock']
-                total = self.syncing['highestBlock']
-                self.log.info(f"Syncing {current}/{total}")
-                time.sleep(1)
-                check_for_timeout()
-
-            return True
+        return self.interface.client.sync(timeout=timeout)
 
     @classmethod
     def connect(cls,
@@ -146,20 +108,11 @@ class Blockchain:
                 force: bool = True,
                 fetch_registry: bool = True,
                 full_sync: bool = True,
+                dev: bool = False,
                 ) -> 'Blockchain':
 
         log = Logger('blockchain-init')
-
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            if not registry and fetch_registry:
-                from nucypher.config.node import NodeConfiguration
-
-                try:
-                    registry = EthereumContractRegistry.from_latest_publication()  # from GitHub
-                except NodeConfiguration.NoConfigurationRoot:
-                    registry = EthereumContractRegistry()
-            else:
-                registry = registry or EthereumContractRegistry()
 
             # Spawn child process
             if provider_process:
@@ -169,11 +122,16 @@ class Blockchain:
 
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
-            interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
+            interface = InterfaceClass(
+                provider_uri=provider_uri,
+                compiler=compiler,
+                registry=registry,
+                fetch_registry=fetch_registry,
+            )
 
             if poa is True:
                 log.debug('Injecting POA middleware at layer 0')
-                interface.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                interface.middleware_onion.inject(geth_poa_middleware, layer=0)
 
             cls._instance = cls(interface=interface, provider_process=provider_process)
 
