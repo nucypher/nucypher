@@ -34,7 +34,8 @@ from constant_sorrow.constants import (
     NO_COMPILATION_PERFORMED,
     MANUAL_PROVIDERS_SET,
     NO_DEPLOYER_CONFIGURED,
-    UNKNOWN_TX_STATUS
+    UNKNOWN_TX_STATUS,
+    NO_REGISTRY,
 )
 from eth_keys.datatypes import PublicKey, Signature
 from eth_tester import EthereumTester
@@ -55,7 +56,7 @@ import pprint
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
 
-class BlockchainInterface:
+class BlockchainInterface(object):
     """
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
@@ -80,9 +81,9 @@ class BlockchainInterface:
     def __init__(self,
                  provider_uri: str = None,
                  provider=None,
-                 auto_connect: bool = True,
                  timeout: int = None,
                  registry: EthereumContractRegistry = None,
+                 fetch_registry: bool = True,
                  compiler: SolidityCompiler = None) -> None:
 
         """
@@ -151,79 +152,79 @@ class BlockchainInterface:
 
         self.log = Logger("blockchain-interface")
 
-        #
-        # Providers
-        #
-
-        self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = None
+        self.client = NO_BLOCKCHAIN_CONNECTION
         self.__provider = provider or NO_BLOCKCHAIN_CONNECTION
         self.provider_uri = NO_BLOCKCHAIN_CONNECTION
         self.timeout = timeout if timeout is not None else self.__default_timeout
+        self.registry = NO_REGISTRY
 
-        if provider_uri and provider:
-            raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
-        elif provider_uri:
-            self.provider_uri = provider_uri
-            self.attach_provider(provider_uri=provider_uri)
-        elif provider:
-            self.provider_uri = MANUAL_PROVIDERS_SET
-            self.attach_provider(provider)
-        else:
-            self.log.warn("No provider supplied for new blockchain interface; Using defaults")
+        self._attach_provider(
+            provider=provider,
+            provider_uri=provider_uri)
 
-        # if a SolidityCompiler class instance was passed, compile from solidity source code
-        recompile = True if compiler is not None else False
-        self.__recompile = recompile
-        self.__sol_compiler = compiler
+        self._connect()
 
-        # Setup the registry and base contract factory cache
-        registry = registry if registry is not None else EthereumContractRegistry()
-        self.registry = registry
-        self.log.info("Using contract registry {}".format(self.registry.filepath))
+        self._configure_registry(
+            injected_registry=registry,
+            fetch_registry=fetch_registry
+        )
 
-        if self.__recompile is True:
-            # Execute the compilation if we're recompiling
-            # Otherwise read compiled contract data from the registry
-            interfaces = self.__sol_compiler.compile()
-            __raw_contract_cache = interfaces
-        else:
-            __raw_contract_cache = NO_COMPILATION_PERFORMED
-        self.__raw_contract_cache = __raw_contract_cache
-
-        # Auto-connect
-        self.autoconnect = auto_connect
-        if self.autoconnect is True:
-            self.connect()
+        self._setup_solidity(compiler=compiler)
 
     def __repr__(self):
-        r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
+        r = '{name}({uri})'.format(
+            name=self.__class__.__name__, uri=self.provider_uri)
         return r
+
+    def __getattr__(self, name):
+        """
+
+        MAGIC...
+
+        allows the interface class to defer to methods of its client
+        or its client.w3
+
+        for example:
+            methods/properties of w3 can be called through eg. interface.toWei()
+            if a particular eth provider needs a different method,
+            override that method for that provider's client
+        """
+
+        # does BlockchainInterface have this attr/method?
+        if name not in self.__dict__:
+
+            # do we have a client?
+            if self.client is not NO_BLOCKCHAIN_CONNECTION:
+
+                # does the client have this property/method?
+                # most likely it is because of an implementation difference
+                # between parity/geth/etc.
+                if hasattr(self.client, name):
+                    return getattr(self.client, name)
+
+                # ok, does w3 have it?
+                if hasattr(self.client.w3, name):
+                    return getattr(self.client.w3, name)
+
+        # return the default getattr behavior (could be an AttributeError)
+        return object.__getattribute__(self, name)
 
     @property
     def client_version(self) -> str:
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
             return "Unknown"
 
-        if self.is_connected:
-            node_info = self.w3.clientVersion.split('/')
-            # ex: 'EthereumJS TestRPC', 'v2.2.1', 'ethereum-js', '5.2'
-            node_technology = node_info[0]
-        else:
-            return str(NO_BLOCKCHAIN_CONNECTION)
+        return self.client.node_version
 
-        return node_technology.lower()
-
-    def connect(self):
+    def _connect(self):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
-            raise self.NoProvider("There are no configured blockchain providers")
+            raise self.NoProvider(
+                "There are no configured blockchain providers")
 
-        # Connect
-        web3_instance = Web3(provider=self.__provider)  # Instantiate Web3 object with provider
-        self.w3 = web3_instance
-        self.client = Web3Client(self.w3)
+        # Connect if not connected
+        self.client = Web3Client.from_w3(Web3(provider=self.__provider))
 
         # Check connection
         if self.is_connected:
@@ -248,25 +249,53 @@ class BlockchainInterface:
             return self.client.node_technology
         return NO_BLOCKCHAIN_CONNECTION
 
-    @property
-    def _backend(self):
-        if self.client:
-            return self.client.backend
-        return NO_BLOCKCHAIN_CONNECTION      # Ethereum client metadata
+    def _configure_registry(
+        self,
+        injected_registry: EthereumContractRegistry = None,
+        fetch_registry: bool = True,
+    ):
 
-    @property
-    def _node_version(self) -> str:
-        """Return node version information"""
-        if self.client:
-            return self.client.node_version
-        return NO_BLOCKCHAIN_CONNECTION
+        if injected_registry:
+            self.registry = injected_registry
+        else:
+            self.registry = EthereumContractRegistry._get_registry_class(
+                local=self.client.is_local
+            )()
 
-    def attach_provider(self,
-                        provider: Web3Providers = None,
-                        provider_uri: str = None) -> None:
+        if fetch_registry:
+            from nucypher.config.node import NodeConfiguration
+            try:
+                self.registry = self.registry.from_latest_publication()
+            except NodeConfiguration.NoConfigurationRoot:
+                pass
+
+    def _setup_solidity(self, compiler: SolidityCompiler=None):
+
+        # if a SolidityCompiler class instance was passed, compile from solidity source code
+        recompile = True if compiler is not None else False
+        self.__recompile = recompile
+        self.__sol_compiler = compiler
+
+        self.log.info(
+            "Using contract registry {}".format(self.registry.filepath))
+
+        if self.__recompile is True:
+            # Execute the compilation if we're recompiling
+            # Otherwise read compiled contract data from the registry
+            interfaces = self.__sol_compiler.compile()
+            __raw_contract_cache = interfaces
+        else:
+            __raw_contract_cache = NO_COMPILATION_PERFORMED
+        self.__raw_contract_cache = __raw_contract_cache
+
+    def _attach_provider(self,
+            provider: Web3Providers = None,
+            provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
+
+        self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
 
         if not provider_uri and not provider:
             raise self.NoProvider("No URI or provider instances supplied.")
@@ -374,7 +403,7 @@ class BlockchainInterface:
                 raise self.InterfaceError(message)
             raise
         else:
-            contract = self.w3.eth.contract(abi=interface['abi'],
+            contract = self.client.w3.eth.contract(abi=interface['abi'],
                                             bytecode=interface['bin'],
                                             ContractFactoryClass=Contract)
             return contract
@@ -389,7 +418,7 @@ class BlockchainInterface:
         """
 
         # Wrap the contract
-        wrapped_contract = self.w3.eth.contract(abi=target_contract.abi,
+        wrapped_contract = self.client.w3.eth.contract(abi=target_contract.abi,
                                                 address=wrapper_contract.address,
                                                 ContractFactoryClass=factory)
         return wrapped_contract
@@ -413,7 +442,7 @@ class BlockchainInterface:
 
         dispatchers = list()
         for name, addr, abi in records:
-            proxy_contract = self.w3.eth.contract(abi=abi,
+            proxy_contract = self.client.w3.eth.contract(abi=abi,
                                                   address=addr,
                                                   ContractFactoryClass=factory)
 
@@ -454,7 +483,7 @@ class BlockchainInterface:
 
             results = list()
             for proxy_name, proxy_addr, proxy_abi in proxy_records:
-                proxy_contract = self.w3.eth.contract(abi=proxy_abi,
+                proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
                                                       address=proxy_addr,
                                                       ContractFactoryClass=factory)
 
@@ -487,7 +516,7 @@ class BlockchainInterface:
             _target_contract_name, selected_address, selected_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-        unified_contract = self.w3.eth.contract(abi=selected_abi,
+        unified_contract = self.client.w3.eth.contract(abi=selected_abi,
                                                 address=selected_address,
                                                 ContractFactoryClass=factory)
 
@@ -508,7 +537,7 @@ class BlockchainInterface:
             return signed_message
 
         else:
-            return self.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs?
+            return self.client.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs?
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
         """
@@ -519,12 +548,6 @@ class BlockchainInterface:
         sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
         return is_valid_sig and (sig_pubkey == pubkey)
 
-    def unlock_account(self, address, password, duration=60*30):
-
-        if 'tester' in self.provider_uri:
-            return True  # Test accounts are unlocked by default.
-
-        return self.client.unlock_account(address, password)
 
 
 class BlockchainDeployerInterface(BlockchainInterface):
@@ -565,7 +588,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.client.w3.eth.gasPrice}
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 
@@ -579,12 +602,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Transmit the deployment tx #
         #
 
-        txhash = self.w3.eth.sendTransaction(transaction=transaction)
+        txhash = self.client.w3.eth.sendTransaction(transaction=transaction)
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
         self.log.info(f"Waiting for deployment receipt for {contract_name}")
-        receipt = self.w3.eth.waitForTransactionReceipt(txhash, timeout=240)
+        receipt = self.client.w3.eth.waitForTransactionReceipt(txhash, timeout=240)
 
         #
         # Verify deployment success
@@ -601,7 +624,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
             # Secondary check TODO: Is this a sensible check?
-            tx = self.w3.eth.getTransaction(txhash)
+            tx = self.client.w3.eth.getTransaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
                 raise self.DeploymentFailed(f"Deployment transaction consumed 100% of transaction gas."
                                             f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
@@ -614,7 +637,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Instantiate & Enroll contract
         #
 
-        contract = self.w3.eth.contract(address=address, abi=contract_factory.abi)
+        contract = self.client.w3.eth.contract(address=address, abi=contract_factory.abi)
 
         if enroll is True:
             self.registry.enroll(contract_name=contract_name,

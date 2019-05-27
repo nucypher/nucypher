@@ -112,19 +112,7 @@ class Blockchain:
                 ) -> 'Blockchain':
 
         log = Logger('blockchain-init')
-
-        RegistryClass = EthereumContractRegistry._get_registry_class(dev=dev)
-
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            if not registry and fetch_registry:
-                from nucypher.config.node import NodeConfiguration
-
-                try:
-                    registry = RegistryClass.from_latest_publication()  # from GitHub
-                except NodeConfiguration.NoConfigurationRoot:
-                    registry = RegistryClass()
-            else:
-                registry = registry or RegistryClass()
 
             # Spawn child process
             if provider_process:
@@ -134,11 +122,16 @@ class Blockchain:
 
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
-            interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
+            interface = InterfaceClass(
+                provider_uri=provider_uri,
+                compiler=compiler,
+                registry=registry,
+                fetch_registry=fetch_registry,
+            )
 
             if poa is True:
                 log.debug('Injecting POA middleware at layer 0')
-                interface.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                interface.middleware_onion.inject(geth_poa_middleware, layer=0)
 
             cls._instance = cls(interface=interface, provider_process=provider_process)
 

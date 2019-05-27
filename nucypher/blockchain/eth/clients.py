@@ -40,7 +40,10 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
 
 class Web3Client(object):
 
-    def __new__(self, w3: Web3, *args):
+    is_local = False
+
+    @classmethod
+    def from_w3(cls, w3: Web3, *args):
         #
         # *Client version format*
         # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
@@ -53,20 +56,19 @@ class Web3Client(object):
         GETH = 'Geth'
         PARITY = 'Parity'
         GANACHE = 'EthereumJS TestRPC'
+        ETHEREUM_TESTER = 'EthereumTester'
 
         try:
-            cls = {
+            subcls = {
                 GETH: GethClient,
                 PARITY: ParityClient,
                 GANACHE: GanacheClient,
+                ETHEREUM_TESTER: EthTestClient,
             }[node_technology]
         except KeyError:
             raise NotImplementedError(node_technology)
 
-        return cls(w3, *client_data)
-
-
-class Web3ClientBase(object):
+        return subcls(w3, *client_data)
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -93,8 +95,18 @@ class Web3ClientBase(object):
     def unlock_account(self, address, password):
         raise NotImplementedError
 
+    def unlockAccount(self, address, password):
+        return self.unlock_account(address, password)
+
     def is_connected(self):
         return self.w3.isConnected()
+
+    @property
+    def accounts(self):
+        return self.w3.eth.accounts
+
+    def getBalance(self, address):
+        return self.w3.eth.getBalance(address)
 
     @property
     def chainId(self):
@@ -146,7 +158,7 @@ class Web3ClientBase(object):
             return True
 
 
-class GethClient(Web3ClientBase):
+class GethClient(Web3Client):
 
     @property
     def peers(self):
@@ -156,22 +168,43 @@ class GethClient(Web3ClientBase):
         return self.w3.geth.personal.unlockAccount(address, password)
 
 
-class ParityClient(Web3ClientBase):
+class ParityClient(Web3Client):
 
-    def peers(self) -> str:
+    @property
+    def peers(self) -> list:
         return self.w3.manager.request_blocking("parity_netPeers", [])
 
     def unlock_account(self, address, password):
         return self.w3.parity.unlockAccount.unlockAccount(address, password)
 
 
-class GanacheClient(Web3ClientBase):
+class GanacheClient(Web3Client):
+
+    is_local = True
 
     def unlock_account(self, address, password):
         return True
 
     def sync(self, *args, **kwargs):
         return True
+
+
+class EthTestClient(Web3Client):
+
+    is_local = True
+
+    def unlock_account(self, address, password):
+        return True
+
+    def sync(self, *args, **kwargs):
+        return True
+
+    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
+        self.w3 = w3
+        self.node_technology = node_technology
+        self.node_version = version
+        self.backend = backend
+        self.log = Logger("blockchain")
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
