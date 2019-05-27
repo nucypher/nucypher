@@ -91,6 +91,19 @@ def test_trezor_call_handler_decorator_errors(mock_trezorlib):
     assert 'success' == result
 
 
+def test_trezor_wipe(mock_trezorlib):
+    trezor_backend = Trezor()
+
+    assert 'Device wiped' == trezor_backend._reset()
+
+
+def test_trezor_configure(mock_trezorlib):
+    trezor_backend = Trezor()
+
+    with pytest.raises(NotImplementedError):
+        trezor_backend.configure()
+
+
 def test_trezor_sign_and_verify(mock_trezorlib):
     trezor_backend = Trezor()
 
@@ -104,3 +117,10 @@ def test_trezor_sign_and_verify(mock_trezorlib):
     with pytest.raises(InvalidSignature):
         trezor_backend.verify_message(test_sig.signature, b'bad message',
                                       test_sig.address)
+
+
+def test_trezor_sign_eth_transaction(mock_trezorlib):
+    trezor_backend = Trezor()
+
+    with pytest.raises(NotImplementedError):
+        trezor_backend.sign_eth_transaction()
