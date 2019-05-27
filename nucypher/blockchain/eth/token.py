@@ -286,9 +286,6 @@ class Stake:
              'Stake duration of ({duration}) is too short; must be at least {minimum} periods.'
              .format(minimum=self.economics.minimum_locked_periods, duration=self.duration)),
 
-            (self.economics.maximum_locked_periods >= self.duration,
-             'Stake duration of ({duration}) is too long; must be no more than {maximum} periods.'
-             .format(maximum=self.economics.maximum_locked_periods, duration=self.duration)),
         )
 
         if raise_on_fail is True:

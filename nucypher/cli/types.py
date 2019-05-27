@@ -49,7 +49,7 @@ class IPv4Address(click.ParamType):
 token_economics = TokenEconomics()
 
 # Staking
-STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, max=token_economics.maximum_locked_periods, clamp=False)
+STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, clamp=False)
 STAKE_EXTENSION = click.IntRange(min=1, max=token_economics.maximum_allowed_locked, clamp=False)
 STAKE_VALUE = click.IntRange(min=NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                              max=NU(token_economics.maximum_allowed_locked, 'NuNit').to_tokens(), clamp=False)
