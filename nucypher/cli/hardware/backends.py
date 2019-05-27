@@ -49,7 +49,7 @@ class TrustedDevice(ABC):
         pass
 
     @abstractmethod
-    def __handle_device_call(device_func):
+    def _handle_device_call(device_func):
         """
         Abstract method useful as a decorator for device API calls to handle
         any side effects that occur during execution (exceptions, etc).
@@ -57,7 +57,7 @@ class TrustedDevice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __reset(self):
+    def _reset(self):
         """
         Abstract method for resetting the device to a state that's ready to
         be configured for staking. This may or may not wipe the device,
@@ -111,21 +111,21 @@ class Trezor(TrustedDevice):
         except TransportException:
             raise RuntimeError("Could not find a TREZOR device to connect to. Have you unlocked it?")
 
-    def __handle_device_call(device_func):
+    def _handle_device_call(device_func):
         @wraps(device_func)
         def wrapped_call(inst, *args, **kwargs):
             try:
                 result = device_func(inst, *args, **kwargs)
             except USBErrorNoDevice:
-                raise inst.DeviceError("The client cannot communicate to the TREZOR USB device. Is it connected?")
+                raise inst.DeviceError("The client cannot communicate to the TREZOR USB device. Was it disconnected?")
             except USBErrorBusy:
                 raise inst.DeviceError("The TREZOR USB device is busy.")
             else:
                 return result
         return wrapped_call
 
-    @__handle_device_call
-    def __reset(self):
+    @_handle_device_call
+    def _reset(self):
         """
         Erases the TREZOR device by calling the wipe device function in
         preparation to configure it for staking.
@@ -134,7 +134,11 @@ class Trezor(TrustedDevice):
         """
         trezor_device.wipe(self.client)
 
-    @__handle_device_call
+    @_handle_device_call
+    def configure(self):
+        raise NotImplementedError
+
+    @_handle_device_call
     def sign_message(self, message: bytes, address_index: int = 0):
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
@@ -150,7 +154,7 @@ class Trezor(TrustedDevice):
         sig = trezor_eth.sign_message(self.client, bip44_path, message)
         return self.Signature(sig.signature, sig.address)
 
-    @__handle_device_call
+    @_handle_device_call
     def verify_message(self, signature: bytes, message: bytes, address: str):
         """
         Verifies that a signature and message pair are from a specified
@@ -168,3 +172,7 @@ class Trezor(TrustedDevice):
         if not is_valid:
             raise InvalidSignature("Signature verification failed.")
         return True
+
+    @_handle_device_call
+    def sign_eth_transaction(self):
+        raise NotImplementedError
