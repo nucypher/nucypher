@@ -34,3 +34,18 @@ class TrustedDevice(ABC):
     @abstractmethod
     def verify_message(self):
         pass
+
+
+class Trezor(TrustedDevice):
+    """
+    An implementation of a Trezor device for staking on the NuCypher network.
+    """
+
+    def __init__(self):
+        pass
+
+    def sign_message(self):
+        raise NotImplementedError
+
+    def verify_message(self):
+        raise NotImplementedError
