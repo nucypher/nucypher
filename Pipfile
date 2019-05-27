@@ -36,8 +36,8 @@ flask-limiter = "*"
 
 [dev-packages]
 # Pytest
-pytest = "<4"
-pytest-xdist = "<1.28"
+pytest = "*"
+pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
 pytest-cov = "*"
