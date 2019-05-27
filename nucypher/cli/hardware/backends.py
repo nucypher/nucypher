@@ -61,6 +61,14 @@ class TrustedDevice(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def sign_eth_transaction(self):
+        """
+        Abstract method for signing an Ethereum transaction via a device's
+        API.
+        """
+        raise NotImplementedError
+
 
 class Trezor(TrustedDevice):
     """
