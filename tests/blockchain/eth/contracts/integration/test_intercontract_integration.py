@@ -361,7 +361,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
-    assert 1000 == escrow.functions.getAllTokens(ursula2).call()
+    assert 1000 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 6).call()
@@ -369,12 +369,12 @@ def test_all(testerchain,
     assert 0 == escrow.functions.getWorkDone(ursula2).call()
 
     # Ursula prolongs lock duration
-    tx = escrow.functions.prolongStake(0, 3).transact({'from': ursula2, 'gas_price': 0})
+    tx = escrow.functions.prolongStake(0, 4).transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
-    assert 1000 == escrow.functions.getLockedTokens(ursula2, 9).call()
-    assert 0 == escrow.functions.getLockedTokens(ursula2, 10).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2, 10).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 11).call()
     assert 0 == escrow.functions.getWorkDone(ursula2).call()
 
     # Can't claim more than once
