@@ -136,7 +136,8 @@ def deploy(click_config,
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
 
-    if not no_password:  # (~ dev mode; Assume accounts are already unlocked)
+    if not no_password and not blockchain.interface.is_local:
+        # (~ dev mode; Assume accounts are already unlocked)
         password = click.prompt("Enter ETH node password", hide_input=True)
         blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
 
