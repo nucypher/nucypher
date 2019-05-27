@@ -22,7 +22,8 @@ from twisted.internet import threads
 from nucypher.characters.base import Learner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
+    MOCK_URSULA_STARTING_PORT, TEMPORARY_DOMAIN
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -97,3 +98,13 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     d.addCallback(run_ursula)
 
     yield d
+
+
+def test_ursula_cannot_init_with_dev_flag(click_runner):
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--federated-only',
+                 '--dev')
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
+    assert result.exit_code == 2
+    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
