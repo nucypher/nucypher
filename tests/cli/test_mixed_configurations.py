@@ -97,7 +97,7 @@ def test_coexisting_configurations(click_runner,
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--provider-uri', TEST_PROVIDER_URI,
-                       '--checksum-address', alice,
+                       '--pay-with', alice,
                        '--registry-filepath', mock_primary_registry_filepath,
                        '--config-root', custom_filepath)
 
@@ -192,7 +192,6 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
     assert f'"{ursula_file_location}" does not exist.' in result.output
 
 
-@pytest.mark.skip(reason="Cannot re-create corruption conditions")  # TODO
 def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
 
