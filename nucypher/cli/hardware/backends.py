@@ -132,7 +132,7 @@ class Trezor(TrustedDevice):
 
         WARNING: This will delete ALL data on the TREZOR.
         """
-        trezor_device.wipe(self.client)
+        return trezor_device.wipe(self.client)
 
     @_handle_device_call
     def configure(self):
