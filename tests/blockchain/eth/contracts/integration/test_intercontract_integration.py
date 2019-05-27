@@ -60,7 +60,7 @@ def escrow(testerchain, token):
         _miningCoefficient=8*10**7,
         _lockedPeriodsCoefficient=4,
         _rewardedPeriods=4,
-        _minLockedPeriods=2,
+        _minLockedPeriods=6,
         _minAllowableLockedTokens=100,
         _maxAllowableLockedTokens=2000,
         _minWorkerPeriods=2
@@ -682,7 +682,7 @@ def test_all(testerchain,
         _miningCoefficient=8 * 10 ** 7,
         _lockedPeriodsCoefficient=4,
         _rewardedPeriods=4,
-        _minLockedPeriods=2,
+        _minLockedPeriods=6,
         _minAllowableLockedTokens=100,
         _maxAllowableLockedTokens=2000,
         _minWorkerPeriods=2
@@ -992,7 +992,12 @@ def test_all(testerchain,
     assert 0 == escrow.functions.lockedPerPeriod(current_period + 1).call()
     assert alice2_balance + penalty / reward_coefficient == token.functions.balanceOf(alice2).call()
 
-    # Unlock and withdraw all tokens in StakingEscrow
+    # Can't prolong stake by too low duration
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.prolongStake(0, 1).transact({'from': ursula2, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Unlock and withdraw all tokens
     for index in range(9):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)

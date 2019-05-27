@@ -642,6 +642,8 @@ contract StakingEscrow is Issuer {
         if (lastPeriod == startPeriod) {
             subStake.lastPeriod = 0;
         }
+        require(lastPeriod.add16(_periods).sub16(currentPeriod) >= minLockedPeriods,
+            "The extended sub stake must not be less than the minimum value");
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
     }
 

@@ -72,7 +72,7 @@ def test_staking(testerchain, token, escrow_contract):
 
     # Ursula can't deposit tokens before Escrow initialization
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(1, 1).transact({'from': ursula1})
+        tx = escrow.functions.deposit(500, 2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
@@ -434,7 +434,7 @@ def test_staking(testerchain, token, escrow_contract):
 
     # Can't prolong sub stake that will end in the current period
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.prolongStake(1, 1).transact({'from': ursula2})
+        tx = escrow.functions.prolongStake(1, 2).transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
 
     # Just wait and confirm activity
