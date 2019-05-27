@@ -7,6 +7,7 @@ RUN apt-get update -y && apt-get upgrade -y && apt-get install gcc libffi-dev wg
 
 # make an install directory
 RUN mkdir /install
+WORKDIR /install
 
 # copy only the exact files needed for install into the container
 COPY ./nucypher/__about__.py /install/nucypher/
