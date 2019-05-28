@@ -33,7 +33,7 @@ def token(testerchain):
 def escrow(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = testerchain.interface.deploy_contract('MinersEscrowForUserEscrowMock', token.address)
+    contract, _ = testerchain.interface.deploy_contract('StakingEscrowForUserEscrowMock', token.address)
 
     # Give some coins to the escrow
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
