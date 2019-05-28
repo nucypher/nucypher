@@ -138,7 +138,7 @@ contract PolicyManagerForStakingEscrowMock {
 /**
 * @notice Contract for testing staking escrow contract
 **/
-contract MiningAdjudicatorForStakingEscrowMock {
+contract AdjudicatorForStakingEscrowMock {
 
     StakingEscrow public escrow;
 
