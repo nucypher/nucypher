@@ -28,7 +28,7 @@ contract Issuer is Upgradeable {
     uint256 public totalSupply;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
-    * for miners which get reward in the same period. There are two values -
+    * for stakers which get reward in the same period. There are two values -
     * supply for previous period (used in formula) and supply for current period which accumulates value
     * before end of period. There is no order between them because of storage savings.
     * So each time should check values of both variables.
@@ -69,7 +69,7 @@ contract Issuer is Upgradeable {
     }
 
     /**
-    * @dev Checks miner initialization
+    * @dev Checks contract initialization
     **/
     modifier isInitialized()
     {
