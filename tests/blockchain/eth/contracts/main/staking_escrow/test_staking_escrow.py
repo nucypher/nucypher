@@ -121,13 +121,13 @@ def test_staking(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert 1000 == event_args['value']
     assert 2 == event_args['periods']
     events = lock_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert 1000 == event_args['value']
     assert current_period + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
@@ -145,13 +145,13 @@ def test_staking(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 500 == event_args['value']
     assert 2 == event_args['periods']
     events = lock_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 500 == event_args['value']
     assert current_period + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
@@ -167,12 +167,12 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 1000 == event_args['value']
     events = activity_log.get_all_entries()
     event_args = events[1]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -199,7 +199,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 1000 == event_args['value']
 
@@ -217,7 +217,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -245,7 +245,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period == event_args['period']
     assert 500 == event_args['value']
 
@@ -257,7 +257,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert 100 == event_args['value']
 
     # But Ursula can't withdraw all without unlocking other stakes
@@ -280,7 +280,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[5]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -290,7 +290,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 7 == len(events)
     event_args = events[6]['args']
-    assert ursula1 == event_args['miner']
+    assert ursula1 == event_args['staker']
     assert current_period + 1 == event_args['period']
     assert 100 == event_args['value']
 
@@ -342,14 +342,14 @@ def test_staking(testerchain, token, escrow_contract):
     events = lock_log.get_all_entries()
     assert 8 == len(events)
     event_args = events[7]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 200 == event_args['value']
     assert current_period == event_args['firstPeriod']
     assert 2 == event_args['periods']
     events = divides_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 500 == event_args['oldValue']
     assert current_period + 1 == event_args['lastPeriod']
     assert 200 == event_args['newValue']
@@ -374,7 +374,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 300 == event_args['oldValue']
     assert current_period == event_args['lastPeriod']
     assert 200 == event_args['newValue']
@@ -396,7 +396,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 200 == event_args['oldValue']
     assert current_period + 1 == event_args['lastPeriod']
     assert 100 == event_args['newValue']
@@ -428,7 +428,7 @@ def test_staking(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert 200 == event_args['oldValue']
     assert current_period == event_args['lastPeriod']
     assert 100 == event_args['newValue']
@@ -437,15 +437,15 @@ def test_staking(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 14 == len(events)
     event_args = events[11]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['period']
     assert 300 == event_args['value']
     event_args = events[12]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
     event_args = events[13]['args']
-    assert ursula2 == event_args['miner']
+    assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
 
