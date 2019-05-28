@@ -7,7 +7,7 @@ import "contracts/NuCypherToken.sol";
 /**
 * @notice Contract for using in UserEscrow tests
 **/
-contract MinersEscrowForUserEscrowMock {
+contract StakingEscrowForUserEscrowMock {
 
     NuCypherToken token;
     uint32 public secondsPerPeriod = 1;
