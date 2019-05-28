@@ -104,9 +104,9 @@ def test_escrow(testerchain, token, user_escrow):
 
 # TODO test state of the proxy contract
 @pytest.mark.slow
-def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy):
+def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy):
     """
-    Test miner functions in the user escrow
+    Test staker functions in the user escrow
     """
     creator = testerchain.interface.w3.eth.accounts[0]
     user = testerchain.interface.w3.eth.accounts[1]
@@ -125,19 +125,19 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     events = deposits.get_all_entries()
     assert 1 == len(events)
 
-    # Only user can deposit tokens to the miner escrow
+    # Only user can deposit tokens to the staker escrow
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.depositAsMiner(1000, 5).transact({'from': creator})
+        tx = user_escrow_proxy.functions.depositAsStaker(1000, 5).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     # Can't deposit more than amount in the user escrow
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.depositAsMiner(10000, 5).transact({'from': user})
+        tx = user_escrow_proxy.functions.depositAsStaker(10000, 5).transact({'from': user})
         testerchain.wait_for_receipt(tx)
 
-    miner_deposits = user_escrow_proxy.events.DepositedAsMiner.createFilter(fromBlock='latest')
+    staker_deposits = user_escrow_proxy.events.DepositedAsStaker.createFilter(fromBlock='latest')
 
-    # Deposit some tokens to the miners escrow
-    tx = user_escrow_proxy.functions.depositAsMiner(1500, 5).transact({'from': user})
+    # Deposit some tokens to the staking escrow
+    tx = user_escrow_proxy.functions.depositAsStaker(1500, 5).transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert user_escrow.address == escrow.functions.node().call()
     assert 1500 == escrow.functions.value().call()
@@ -146,7 +146,7 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     assert 11500 == token.functions.balanceOf(escrow.address).call()
     assert 500 == token.functions.balanceOf(user_escrow.address).call()
 
-    events = miner_deposits.get_all_entries()
+    events = staker_deposits.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert user == event_args['sender']
@@ -172,7 +172,7 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
         tx = proxy.functions.mint().transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = proxy.functions.withdrawAsMiner(100).transact({'from': user})
+        tx = proxy.functions.withdrawAsStaker(100).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = proxy.functions.setReStake(True).transact({'from': user})
@@ -188,13 +188,13 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     divides = user_escrow_proxy.events.Divided.createFilter(fromBlock='latest')
     confirms = user_escrow_proxy.events.ActivityConfirmed.createFilter(fromBlock='latest')
     mints = user_escrow_proxy.events.Mined.createFilter(fromBlock='latest')
-    miner_withdraws = user_escrow_proxy.events.WithdrawnAsMiner.createFilter(fromBlock='latest')
+    staker_withdraws = user_escrow_proxy.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
     withdraws = user_escrow.events.TokensWithdrawn.createFilter(fromBlock='latest')
     re_stakes = user_escrow_proxy.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_locks = user_escrow_proxy.events.ReStakeLocked.createFilter(fromBlock='latest')
     worker_logs = user_escrow_proxy.events.WorkerSet.createFilter(fromBlock='latest')
 
-    # Use miners methods through the user escrow
+    # Use stakers methods through the user escrow
     tx = user_escrow_proxy.functions.lock(100, 1).transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 1500 == escrow.functions.value().call()
@@ -211,12 +211,12 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     tx = user_escrow_proxy.functions.mint().transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 2500 == escrow.functions.value().call()
-    tx = user_escrow_proxy.functions.withdrawAsMiner(1500).transact({'from': user})
+    tx = user_escrow_proxy.functions.withdrawAsStaker(1500).transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.value().call()
     assert 10000 == token.functions.balanceOf(escrow.address).call()
     assert 2000 == token.functions.balanceOf(user_escrow.address).call()
-    tx = user_escrow_proxy.functions.withdrawAsMiner(1000).transact({'from': user})
+    tx = user_escrow_proxy.functions.withdrawAsStaker(1000).transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.value().call()
     assert 9000 == token.functions.balanceOf(escrow.address).call()
@@ -260,7 +260,7 @@ def test_miner(testerchain, token, escrow, user_escrow, user_escrow_proxy, proxy
     event_args = events[0]['args']
     assert user == event_args['sender']
 
-    events = miner_withdraws.get_all_entries()
+    events = staker_withdraws.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
     assert user == event_args['sender']
@@ -327,7 +327,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
         {'from': testerchain.interface.w3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
-    miner_reward = user_escrow_proxy.events.PolicyRewardWithdrawn.createFilter(fromBlock='latest')
+    staker_reward = user_escrow_proxy.events.PolicyRewardWithdrawn.createFilter(fromBlock='latest')
     rewards = user_escrow.events.ETHWithdrawn.createFilter(fromBlock='latest')
 
     # Only user can withdraw reward
@@ -345,7 +345,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
     assert 0 == testerchain.interface.w3.eth.getBalance(user_escrow.address)
 
-    events = miner_reward.get_all_entries()
+    events = staker_reward.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert user == event_args['sender']

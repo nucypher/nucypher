@@ -25,14 +25,14 @@ from nucypher.blockchain.eth.deployers import DispatcherDeployer
 
 @pytest.fixture()
 def escrow(testerchain):
-    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    escrow, _ = testerchain.interface.deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 
 
 @pytest.fixture(params=[False, True])
 def adjudicator_contract(testerchain, escrow, request, slashing_economics):
     contract, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator',
+        'Adjudicator',
         escrow.address,
         *slashing_economics.deployment_parameters)
 

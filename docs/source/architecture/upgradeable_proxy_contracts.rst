@@ -2,7 +2,6 @@ Nucypher's Approaches to Upgradeable Contracts
 ==============================================
 
 Smart contracts in Ethereum are immutable...
-Even if a contract can be deleted, it still exists in the blockchain after ``selfdestruct``, and only the storage is cleared.
 In order to fix bugs and provide upgrade logic it is possible to change the contract (address) and save the original contract's storage values.
 
 
