@@ -348,8 +348,8 @@ def test_upgrading(testerchain):
         testerchain.interface.deploy_contract('PolicyManager', creator)
 
     # Deploy contracts
-    escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
-    escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
+    escrow1, _ = testerchain.interface.deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow2, _ = testerchain.interface.deploy_contract('StakingEscrowForPolicyMock', 1)
     address1 = escrow1.address
     address2 = escrow2.address
     contract_library_v1, _ = testerchain.interface.deploy_contract('PolicyManager', address1)
