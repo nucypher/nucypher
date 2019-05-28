@@ -15,27 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-from urllib.parse import urlparse
-
-from eth_keys.datatypes import PublicKey, Signature
-from eth_utils import to_canonical_address
-from twisted.logger import Logger
-from typing import Tuple, Union, List
-from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract
-from web3.providers.eth_tester.main import EthereumTesterProvider
 import os
+from typing import List
 from typing import Tuple, Union
 from urllib.parse import urlparse
 
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
-    MANUAL_PROVIDERS_SET,
     NO_DEPLOYER_CONFIGURED,
     UNKNOWN_TX_STATUS,
-    NO_REGISTRY,
 )
 from eth_keys.datatypes import PublicKey, Signature
 from eth_tester import EthereumTester
@@ -47,11 +36,9 @@ from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.clients import Web3Client
-import pprint
-
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -156,24 +143,18 @@ class BlockchainInterface(object):
         self.__provider = provider or NO_BLOCKCHAIN_CONNECTION
         self.provider_uri = NO_BLOCKCHAIN_CONNECTION
         self.timeout = timeout if timeout is not None else self.__default_timeout
-        self.registry = NO_REGISTRY
+        self.registry = registry
 
-        self._attach_provider(
-            provider=provider,
-            provider_uri=provider_uri)
+        # Connect to Provider
+        self._connect(provider=provider, provider_uri=provider_uri)
 
-        self._connect()
-
-        self._configure_registry(
-            injected_registry=registry,
-            fetch_registry=fetch_registry
-        )
-
+        # Establish contact with NuCypher contracts
+        if not registry:
+            self._configure_registry(fetch_registry=fetch_registry)
         self._setup_solidity(compiler=compiler)
 
     def __repr__(self):
-        r = '{name}({uri})'.format(
-            name=self.__class__.__name__, uri=self.provider_uri)
+        r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
     def __getattr__(self, name):
@@ -216,8 +197,10 @@ class BlockchainInterface(object):
 
         return self.client.node_version
 
-    def _connect(self):
+    def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
         self.log.info("Connecting to {}".format(self.provider_uri))
+
+        self._attach_provider(provider=provider, provider_uri=provider_uri)
 
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider(
@@ -249,25 +232,12 @@ class BlockchainInterface(object):
             return self.client.node_technology
         return NO_BLOCKCHAIN_CONNECTION
 
-    def _configure_registry(
-        self,
-        injected_registry: EthereumContractRegistry = None,
-        fetch_registry: bool = True,
-    ):
-
-        if injected_registry:
-            self.registry = injected_registry
-        else:
-            self.registry = EthereumContractRegistry._get_registry_class(
-                local=self.client.is_local
-            )()
+    def _configure_registry(self, fetch_registry: bool = True):
 
         if fetch_registry:
-            from nucypher.config.node import NodeConfiguration
-            try:
-                self.registry = self.registry.from_latest_publication()
-            except NodeConfiguration.NoConfigurationRoot:
-                pass
+            self.registry = EthereumContractRegistry.from_latest_publication()
+        else:
+            self.registry = EthereumContractRegistry._get_registry_class(local=self.client.is_local)()
 
     def _setup_solidity(self, compiler: SolidityCompiler=None):
 
@@ -276,8 +246,7 @@ class BlockchainInterface(object):
         self.__recompile = recompile
         self.__sol_compiler = compiler
 
-        self.log.info(
-            "Using contract registry {}".format(self.registry.filepath))
+        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
         if self.__recompile is True:
             # Execute the compilation if we're recompiling
@@ -288,9 +257,7 @@ class BlockchainInterface(object):
             __raw_contract_cache = NO_COMPILATION_PERFORMED
         self.__raw_contract_cache = __raw_contract_cache
 
-    def _attach_provider(self,
-            provider: Web3Providers = None,
-            provider_uri: str = None) -> None:
+    def _attach_provider(self, provider: Web3Providers = None, provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """

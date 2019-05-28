@@ -92,7 +92,7 @@ def test_nucypher_deploy_contracts(click_runner,
                '--provider-uri', TEST_PROVIDER_URI,
                '--poa']
 
-    user_input = '0\n' + 'Y\n' * 2 + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -135,10 +135,6 @@ def test_nucypher_deploy_contracts(click_runner,
 
 
 def test_upgrade_contracts(click_runner):
-    contracts_to_upgrade = ('MinersEscrow',  # Initial upgrades (version 2)
-                            'PolicyManager',
-                            'MiningAdjudicator',
-                            'UserEscrowProxy')
 
     #
     # Setup
