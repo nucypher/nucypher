@@ -43,7 +43,7 @@ def test_issuer(testerchain, token):
     issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
-    # Give Miner tokens for reward and initialize contract
+    # Give staker tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
     tx = token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -103,7 +103,7 @@ def test_inflation_rate(testerchain, token):
     # Creator deploys the contract
     issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1)
 
-    # Give Miner tokens for reward and initialize contract
+    # Give staker tokens for reward and initialize contract
     tx = token.functions.transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = issuer.functions.initialize().transact({'from': creator})

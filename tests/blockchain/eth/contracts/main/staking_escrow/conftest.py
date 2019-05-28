@@ -39,7 +39,7 @@ def escrow_contract(testerchain, token, request):
         # Creator deploys the escrow
         _mining_coefficient = 2 * 10 ** 7
         contract, _ = testerchain.interface.deploy_contract(
-            contract_name='MinersEscrow',
+            contract_name='StakingEscrow',
             _token=token.address,
             _hoursPerPeriod=1,
             _miningCoefficient=4 * _mining_coefficient,
@@ -60,7 +60,7 @@ def escrow_contract(testerchain, token, request):
                 ContractFactoryClass=Contract)
 
         policy_manager, _ = testerchain.interface.deploy_contract(
-            'PolicyManagerForMinersEscrowMock', token.address, contract.address
+            'PolicyManagerForStakingEscrowMock', token.address, contract.address
         )
         tx = contract.functions.setPolicyManager(policy_manager.address).transact()
         testerchain.wait_for_receipt(tx)
