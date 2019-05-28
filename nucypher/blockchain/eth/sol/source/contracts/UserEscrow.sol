@@ -45,7 +45,7 @@ contract UserEscrowLibraryLinker is Ownable {
 
 /**
 * @notice Contract holds tokens for vesting.
-* Also tokens can be used as a stake in the miners escrow contract
+* Also tokens can be used as a stake in the staking escrow contract
 *
 **/
 contract UserEscrow is Ownable {

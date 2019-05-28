@@ -1,14 +1,14 @@
 pragma solidity ^0.5.3;
 
 
-import "contracts/MinersEscrow.sol";
+import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 
 
 /**
 * @notice Upgrade to this contract must lead to fail
 **/
-contract MinersEscrowBad is MinersEscrow {
+contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
@@ -22,7 +22,7 @@ contract MinersEscrowBad is MinersEscrow {
         uint16 _minWorkerPeriods
     )
         public
-        MinersEscrow(
+        StakingEscrow(
             _token,
             _hoursPerPeriod,
             _miningCoefficient,
@@ -44,9 +44,9 @@ contract MinersEscrowBad is MinersEscrow {
 
 
 /**
-* @notice Contract for testing upgrading the MinersEscrow contract
+* @notice Contract for testing upgrading the StakingEscrow contract
 **/
-contract MinersEscrowV2Mock is MinersEscrow {
+contract StakingEscrowV2Mock is StakingEscrow {
 
     uint256 public valueToCheck;
 
@@ -63,7 +63,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
         uint256 _valueToCheck
     )
         public
-        MinersEscrow(
+        StakingEscrow(
             _token,
             _hoursPerPeriod,
             _miningCoefficient,
@@ -88,7 +88,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
     }
 
     function finishUpgrade(address _target) public onlyWhileUpgrading {
-        MinersEscrowV2Mock escrow = MinersEscrowV2Mock(_target);
+        StakingEscrowV2Mock escrow = StakingEscrowV2Mock(_target);
         valueToCheck = escrow.valueToCheck();
         emit UpgradeFinished(_target, msg.sender);
     }
@@ -96,14 +96,14 @@ contract MinersEscrowV2Mock is MinersEscrow {
 
 
 /**
-* @notice Contract for testing miners escrow contract
+* @notice Contract for testing staking escrow contract
 **/
-contract PolicyManagerForMinersEscrowMock {
+contract PolicyManagerForStakingEscrowMock {
 
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
     mapping (address => uint16[]) public nodes;
 
-    constructor(address, MinersEscrow _escrow) public {
+    constructor(address, StakingEscrow _escrow) public {
         escrow = _escrow;
     }
 
@@ -136,25 +136,25 @@ contract PolicyManagerForMinersEscrowMock {
 
 
 /**
-* @notice Contract for testing miners escrow contract
+* @notice Contract for testing staking escrow contract
 **/
-contract MiningAdjudicatorForMinersEscrowMock {
+contract MiningAdjudicatorForStakingEscrowMock {
 
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
 
-    constructor(MinersEscrow _escrow) public {
+    constructor(StakingEscrow _escrow) public {
         escrow = _escrow;
     }
 
-    function slashMiner(
-        address _miner,
+    function slashStaker(
+        address _staker,
         uint256 _penalty,
         address _investigator,
         uint256 _reward
     )
         public
     {
-        escrow.slashMiner(_miner, _penalty, _investigator, _reward);
+        escrow.slashStaker(_staker, _penalty, _investigator, _reward);
     }
 }
 
@@ -164,9 +164,9 @@ contract MiningAdjudicatorForMinersEscrowMock {
 contract Intermediary {
 
     NuCypherToken token;
-    MinersEscrow escrow;
+    StakingEscrow escrow;
 
-    constructor(NuCypherToken _token, MinersEscrow _escrow) public {
+    constructor(NuCypherToken _token, StakingEscrow _escrow) public {
         token = _token;
         escrow = _escrow;
     }
