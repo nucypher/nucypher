@@ -1,47 +1,47 @@
 pragma solidity ^0.5.3;
 
 
-import "contracts/MiningAdjudicator.sol";
-import "contracts/MinersEscrow.sol";
+import "contracts/Adjudicator.sol";
+import "contracts/StakingEscrow.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @notice Contract for testing the MiningAdjudicator contract
+* @notice Contract for testing the Adjudicator contract
 **/
-contract MinersEscrowForMiningAdjudicatorMock {
+contract StakingEscrowForAdjudicatorMock {
 
     uint32 public secondsPerPeriod = 1;
-    mapping (address => uint256) public minerInfo;
+    mapping (address => uint256) public stakerInfo;
     mapping (address => uint256) public rewardInfo;
-    mapping (address => address) public workerToMiner;
+    mapping (address => address) public workerToStaker;
 
-    function setMinerInfo(address _miner, uint256 _amount, address _worker) public {
-        minerInfo[_miner] = _amount;
+    function setStakerInfo(address _staker, uint256 _amount, address _worker) public {
+        stakerInfo[_staker] = _amount;
         if (_worker == address(0)) {
-            _worker = _miner;
+            _worker = _staker;
         }
-        workerToMiner[_worker] = _miner;
+        workerToStaker[_worker] = _staker;
     }
 
-    function getAllTokens(address _miner) public view returns (uint256) {
-        return minerInfo[_miner];
+    function getAllTokens(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker];
     }
 
-    function getMinerByWorker(address _worker) public view returns (address) {
-        return workerToMiner[_worker];
+    function getStakerByWorker(address _worker) public view returns (address) {
+        return workerToStaker[_worker];
     }
 
-    function slashMiner(
-        address _miner,
+    function slashStaker(
+        address _staker,
         uint256 _penalty,
         address _investigator,
         uint256 _reward
     )
         public
     {
-        minerInfo[_miner] -= _penalty;
+        stakerInfo[_staker] -= _penalty;
         rewardInfo[_investigator] += _reward;
     }
 
@@ -51,9 +51,9 @@ contract MinersEscrowForMiningAdjudicatorMock {
 /**
 * @notice Upgrade to this contract must lead to fail
 **/
-contract MiningAdjudicatorBad is Upgradeable {
+contract AdjudicatorBad is Upgradeable {
 
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
     uint256 public basePenalty;
     uint256 public penaltyHistoryCoefficient;
@@ -66,14 +66,14 @@ contract MiningAdjudicatorBad is Upgradeable {
 
 
 /**
-* @notice Contract for testing upgrading the MiningAdjudicator contract
+* @notice Contract for testing upgrading the Adjudicator contract
 **/
-contract MiningAdjudicatorV2Mock is MiningAdjudicator {
+contract AdjudicatorV2Mock is Adjudicator {
 
     uint256 public valueToCheck;
 
     constructor(
-        MinersEscrow _escrow,
+        StakingEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _percentagePenalty,
@@ -81,7 +81,7 @@ contract MiningAdjudicatorV2Mock is MiningAdjudicator {
         uint256 _rewardCoefficient
     )
         public
-        MiningAdjudicator(
+        Adjudicator(
             _escrow,
             _hashAlgorithm,
             _basePenalty,
