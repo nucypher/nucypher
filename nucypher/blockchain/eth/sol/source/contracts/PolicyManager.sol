@@ -5,7 +5,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "contracts/lib/AdditionalMath.sol";
-import "contracts/MinersEscrow.sol";
+import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/proxy/Upgradeable.sol";
 
@@ -82,7 +82,7 @@ contract PolicyManager is Upgradeable {
     bytes16 constant RESERVED_POLICY_ID = bytes16(0);
     address constant RESERVED_NODE = address(0);
 
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
     uint32 public secondsPerPeriod;
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
@@ -91,15 +91,15 @@ contract PolicyManager is Upgradeable {
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     **/
-    constructor(MinersEscrow _escrow) public {
-        // if the input address is not the MinerEscrow than calling `secondsPerPeriod` will throw error
+    constructor(StakingEscrow _escrow) public {
+        // if the input address is not the StakingEscrow than calling `secondsPerPeriod` will throw error
         secondsPerPeriod = _escrow.secondsPerPeriod();
         require(secondsPerPeriod > 0);
         escrow = _escrow;
     }
 
     /**
-    * @dev Checks that sender is the MinersEscrow contract
+    * @dev Checks that sender is the StakingEscrow contract
     **/
     modifier onlyEscrowContract()
     {
