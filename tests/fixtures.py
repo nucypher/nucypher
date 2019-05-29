@@ -380,7 +380,7 @@ def testerchain(solidity_compiler):
 
 
 @pytest.fixture(scope='module')
-def three_agents(testerchain):
+def agency(testerchain):
     """
     Musketeers, if you will.
     Launch the big three contracts on provided chain,
@@ -417,8 +417,8 @@ def clear_out_agency():
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, _staker_agent, _policy_agent = three_agents
+def blockchain_ursulas(agency, ursula_decentralized_test_config):
+    token_agent, _staker_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
@@ -470,7 +470,7 @@ def policy_value(token_economics, policy_rate):
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, three_agents, token_economics):
+def funded_blockchain(testerchain, agency, token_economics):
 
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.interface.w3.eth.accounts

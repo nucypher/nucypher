@@ -32,11 +32,11 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.mark.slow()
-def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, three_agents):
+def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
-    token_agent, staker_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = agency
     for address in staker_agent.swarm():
         for propagating_ursula in blockchain_ursulas[:1]:  # Last Ursula is not staking
             if address == propagating_ursula.checksum_address:
