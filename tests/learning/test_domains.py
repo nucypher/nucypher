@@ -9,9 +9,9 @@ def test_learner_learns_about_domains_separately(ursula_federated_test_config, c
                                       quantity=3,
                                       know_each_other=True)
 
-        global_learners = lonely_ursula_maker(domains={b"nucypher1.test_suite"})
-        first_domain_learners = lonely_ursula_maker(domains={b"nucypher1.test_suite"})
-        second_domain_learners = lonely_ursula_maker(domains={b"nucypher2.test_suite"})
+        global_learners = lonely_ursula_maker(domains={"nucypher1.test_suite"})
+        first_domain_learners = lonely_ursula_maker(domains={"nucypher1.test_suite"})
+        second_domain_learners = lonely_ursula_maker(domains={"nucypher2.test_suite"})
 
         big_learner = global_learners.pop()
 
@@ -28,8 +28,8 @@ def test_learner_learns_about_domains_separately(ursula_federated_test_config, c
         # All domain 1 nodes
         assert len(big_learner.known_nodes) == 5
 
-        new_first_domain_learner = lonely_ursula_maker(domains={b"nucypher1.test_suite"}).pop()
-        new_second_domain_learner = lonely_ursula_maker(domains={b"nucypher2.test_suite"})
+        new_first_domain_learner = lonely_ursula_maker(domains={"nucypher1.test_suite"}).pop()
+        new_second_domain_learner = lonely_ursula_maker(domains={"nucypher2.test_suite"})
 
         new_first_domain_learner._current_teacher_node = big_learner
         new_first_domain_learner.learn_from_teacher_node()
