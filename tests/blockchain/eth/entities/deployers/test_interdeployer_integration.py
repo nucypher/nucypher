@@ -19,9 +19,9 @@ import os
 import pytest
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakerAgent, Agency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrow, Agency
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                ContractDeployer, DispatcherDeployer)
 
@@ -57,26 +57,26 @@ def test_deploy_ethereum_contracts(testerchain):
     # Staker Escrow
     #
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    staker_escrow_deployer = StakerEscrowDeployer(
+    staking_escrow_deployer = StakingEscrowDeployer(
         blockchain=testerchain,
         deployer_address=origin)
-    assert staker_escrow_deployer.deployer_address == origin
+    assert staking_escrow_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
-        assert staker_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not staker_escrow_deployer.is_deployed
+        assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not staking_escrow_deployer.is_deployed
 
-    staker_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
-    assert staker_escrow_deployer.is_deployed
-    assert len(staker_escrow_deployer.contract_address) == 42
+    staking_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
+    assert staking_escrow_deployer.is_deployed
+    assert len(staking_escrow_deployer.contract_address) == 42
 
-    staker_agent = StakerAgent(blockchain=testerchain)
-    assert len(staker_agent.contract_address) == 42
-    assert staker_agent.contract_address == staker_escrow_deployer.contract_address
+    staking_agent = StakingEscrow(blockchain=testerchain)
+    assert len(staking_agent.contract_address) == 42
+    assert staking_agent.contract_address == staking_escrow_deployer.contract_address
 
-    another_staker_agent = staker_escrow_deployer.make_agent()
-    assert len(another_staker_agent.contract_address) == 42
-    assert another_staker_agent.contract_address == staker_escrow_deployer.contract_address == staker_agent.contract_address
+    another_staking_agent = staking_escrow_deployer.make_agent()
+    assert len(another_staking_agent.contract_address) == 42
+    assert another_staking_agent.contract_address == staking_escrow_deployer.contract_address == staking_agent.contract_address
 
 
     #
