@@ -43,7 +43,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
 
-class BlockchainInterface(object):
+class BlockchainInterface:
     """
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
@@ -52,6 +52,7 @@ class BlockchainInterface(object):
     __default_transaction_gas = 500_000  # TODO #842: determine sensible limit and validate transactions
 
     process = None  # TODO
+    Web3 = Web3
 
     class InterfaceError(Exception):
         pass
@@ -197,6 +198,7 @@ class BlockchainInterface(object):
 
         return self.client.node_version
 
+
     def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
@@ -207,7 +209,7 @@ class BlockchainInterface(object):
                 "There are no configured blockchain providers")
 
         # Connect if not connected
-        self.client = Web3Client.from_w3(Web3(provider=self.__provider))
+        self.client = Web3Client.from_w3(self.Web3(provider=self.__provider))
 
         # Check connection
         if self.is_connected:
@@ -276,20 +278,20 @@ class BlockchainInterface(object):
 
             if uri_breakdown.scheme == 'tester':
                 providers = {
-                    'pyevm': self.__get_tester_pyevm,
-                    'geth': self.__get_test_geth_parity_provider,
-                    'parity-ethereum': self.__get_test_geth_parity_provider,
+                    'pyevm': self._get_tester_pyevm,
+                    'geth': self._get_test_geth_parity_provider,
+                    'parity-ethereum': self._get_test_geth_parity_provider,
                 }
                 lookup_attr = uri_breakdown.netloc
             else:
                 providers = {
-                    'auto': self.__get_auto_provider,
-                    'infura': self.__get_infura_provider,
-                    'ipc': self.__get_IPC_provider,
-                    'file': self.__get_IPC_provider,
-                    'ws': self.__get_websocket_provider,
-                    'http': self.__get_HTTP_provider,
-                    'https': self.__get_HTTP_provider,
+                    'auto': self._get_auto_provider,
+                    'infura': self._get_infura_provider,
+                    'ipc': self._get_IPC_provider,
+                    'file': self._get_IPC_provider,
+                    'ws': self._get_websocket_provider,
+                    'http': self._get_HTTP_provider,
+                    'https': self._get_HTTP_provider,
                 }
                 lookup_attr = uri_breakdown.scheme
             try:
@@ -300,17 +302,17 @@ class BlockchainInterface(object):
                     " provider URI".format(provider_uri)
                 )
 
-    def __get_IPC_provider(self):
+    def _get_IPC_provider(self):
         uri_breakdown = urlparse(self.provider_uri)
         return IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
 
-    def __get_HTTP_provider(self):
+    def _get_HTTP_provider(self):
         return HTTPProvider(endpoint_uri=self.provider_uri)
 
-    def __get_websocket_provider(self):
+    def _get_websocket_provider(self):
         return WebsocketProvider(endpoint_uri=self.provider_uri)
 
-    def __get_infura_provider(self):
+    def _get_infura_provider(self):
         # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
         infura_envvar = 'WEB3_INFURA_API_SECRET'
         if infura_envvar not in os.environ:
@@ -321,7 +323,7 @@ class BlockchainInterface(object):
             raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
         return w3.provider
 
-    def __get_auto_provider(self):
+    def _get_auto_provider(self):
 
         from web3.auto import w3
         # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
@@ -330,7 +332,7 @@ class BlockchainInterface(object):
             raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
         return w3.provider
 
-    def __get_tester_pyevm(self):
+    def _get_tester_pyevm(self):
         # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
         from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
 
@@ -345,7 +347,7 @@ class BlockchainInterface(object):
 
         return provider
 
-    def __get_test_geth_parity_provider(self):
+    def _get_test_geth_parity_provider(self):
         # geth --dev
         geth_process = NuCypherGethDevProcess()
         geth_process.start()
@@ -357,7 +359,7 @@ class BlockchainInterface(object):
 
         return provider
 
-    def __get_tester_ganache(self, endpoint_uri=None):
+    def _get_tester_ganache(self, endpoint_uri=None):
 
         endpoint_uri = endpoint_uri or 'http://localhost:7545'
         return HTTPProvider(endpoint_uri=endpoint_uri)
