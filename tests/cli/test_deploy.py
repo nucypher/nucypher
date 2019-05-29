@@ -8,7 +8,7 @@ import pytest
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    StakerAgent,
+    StakingEscrow,
     UserEscrowAgent,
     PolicyAgent,
     AdjudicatorAgent,
@@ -126,8 +126,8 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    staker_agent = StakerAgent()
-    assert staker_agent.get_current_period()
+    staking_agent = StakingEscrow()
+    assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated
     assert PolicyAgent()
