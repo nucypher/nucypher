@@ -159,6 +159,27 @@ def test_exact_economics():
         assert e.erc20_initial_supply == expected_initial_supply
         assert e.erc20_reward_supply == expected_reward_supply
 
+        # Additional checks on supply
+        assert e.token_supply_function(at_period=0) == expected_initial_supply
+        assert e.cumulative_rewards_at_period(0) == 0
+
+        # Last NuNit is mined after 184 years (or 67000 periods).
+        # That's the year 2203, if token is launched in 2019.
+        # 23rd century schizoid man!
+        assert expected_total_supply == e.token_supply_function(at_period=67000)
+
+        # After 1 year:
+        assert 1845111188584347879497984668 == e.token_supply_function(at_period=365)
+        assert 845111188584347879497984668 == e.cumulative_rewards_at_period(365)
+        assert e.erc20_initial_supply + e.cumulative_rewards_at_period(365) == e.token_supply_function(at_period=365)
+
+        # Checking that the supply function is monotonic
+        todays_supply = e.token_supply_function(at_period=0)
+        for t in range(67000):
+            tomorrows_supply = e.token_supply_function(at_period=t+1)
+            assert tomorrows_supply >= todays_supply
+            todays_supply = tomorrows_supply
+
 
 def test_economic_parameter_aliases():
 
