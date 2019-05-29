@@ -817,7 +817,7 @@ class Learner:
 
             except node.NotStaking:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has no active stakes in the current period ({self.miner_agent.get_current_period()}')
+                              f'{node} has no active stakes in the current period ({self.staker_agent.get_current_period()}')
 
             except node.InvalidWalletSignature:
                 self.log.warn(f'Verification Failed - '
@@ -989,7 +989,7 @@ class Teacher:
 
         TODO: #1033 - Verify Staker <-> Worker relationship on-chain
         """
-        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_address)
+        locked_tokens = self.staker_agent.get_locked_tokens(staker_address=self.checksum_address)
         return locked_tokens > 0
 
     def validate_stamp(self, verify_staking: bool = True) -> None:

@@ -432,7 +432,7 @@ def ursula(click_config,
             click.echo(message)
         if not duration:
             duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=STAKE_DURATION)
-        start_period = URSULA.miner_agent.get_current_period()
+        start_period = URSULA.staker_agent.get_current_period()
         end_period = start_period + duration
 
         # Review
@@ -460,7 +460,7 @@ def ursula(click_config,
         if not URSULA.stakes:
             click.secho("There are no active stakes for {}".format(URSULA.checksum_address))
             return
-        URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_address)
+        URSULA.staker_agent.confirm_activity(node_address=URSULA.checksum_address)
         return
 
     elif action == 'collect-reward':
