@@ -16,8 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 
-from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer
+from nucypher.blockchain.eth.agents import StakerAgent
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakerEscrowDeployer
 
 
 def test_token_deployer_and_agent(testerchain):
@@ -29,7 +29,7 @@ def test_token_deployer_and_agent(testerchain):
     token_deployer.deploy()
 
     secret_hash = os.urandom(32)
-    deployer = MinerEscrowDeployer(blockchain=testerchain,
+    deployer = StakerEscrowDeployer(blockchain=testerchain,
                                    deployer_address=origin)
 
     deployment_txhashes = deployer.deploy(secret_hash=secret_hash)
@@ -39,17 +39,17 @@ def test_token_deployer_and_agent(testerchain):
         assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
     # Create a token instance
-    miner_agent = deployer.make_agent()
-    miner_escrow_contract = miner_agent.contract
+    staker_agent = deployer.make_agent()
+    staker_escrow_contract = staker_agent.contract
 
-    expected_token_supply = miner_escrow_contract.functions.totalSupply().call()
-    assert expected_token_supply == miner_agent.contract.functions.totalSupply().call()
+    expected_token_supply = staker_escrow_contract.functions.totalSupply().call()
+    assert expected_token_supply == staker_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
-    same_miner_agent = MinerAgent()
+    same_staker_agent = StakerAgent()
 
     # Compare the contract address for equality
-    assert miner_agent.contract_address == same_miner_agent.contract_address
-    assert miner_agent == same_miner_agent  # __eq__
+    assert staker_agent.contract_address == same_staker_agent.contract_address
+    assert staker_agent == same_staker_agent  # __eq__
 
     testerchain.interface.registry.clear()
