@@ -26,8 +26,8 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 
 @pytest.fixture(scope='function')
 @pytest.mark.usefixtures('blockchain_ursulas')
-def policy_meta(testerchain, three_agents, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def policy_meta(testerchain, agency, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     _policy_id = os.urandom(16)
@@ -44,8 +44,8 @@ def policy_meta(testerchain, three_agents, token_economics):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, three_agents, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_create_policy(testerchain, agency, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     policy_id = os.urandom(16)
@@ -64,8 +64,8 @@ def test_create_policy(testerchain, three_agents, token_economics):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_fetch_policy_arrangements(three_agents, policy_meta):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_fetch_policy_arrangements(agency, policy_meta):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     arrangements = list(agent.fetch_policy_arrangements(policy_id=policy_meta.policy_id))
@@ -77,8 +77,8 @@ def test_fetch_policy_arrangements(three_agents, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_revoke_arrangement(three_agents, policy_meta):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_revoke_arrangement(agency, policy_meta):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     txhash = agent.revoke_arrangement(policy_id=policy_meta.policy_id,
@@ -92,8 +92,8 @@ def test_revoke_arrangement(three_agents, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_revoke_policy(three_agents, policy_meta):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_revoke_policy(agency, policy_meta):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     txhash = agent.revoke_policy(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
@@ -104,8 +104,8 @@ def test_revoke_policy(three_agents, policy_meta):
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_calculate_refund(testerchain, three_agents, policy_meta):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_calculate_refund(testerchain, agency, policy_meta):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     ursula = policy_meta.addresses[-1]
@@ -118,8 +118,8 @@ def test_calculate_refund(testerchain, three_agents, policy_meta):
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_refund(testerchain, three_agents, policy_meta):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_collect_refund(testerchain, agency, policy_meta):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     testerchain.time_travel(hours=9)
@@ -132,8 +132,8 @@ def test_collect_refund(testerchain, three_agents, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, three_agents, policy_meta, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = policy_agent
 
     ursula = policy_meta.addresses[-1]

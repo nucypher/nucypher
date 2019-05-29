@@ -116,7 +116,7 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain, three_agents):
+def test_character_blockchain_power(testerchain, agency):
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
     sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[

@@ -35,10 +35,9 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
+def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
     # Monkey patch Policy Creation
-    _token_agent, _staker_agent, _policy_agent = three_agents
     blockchain_alice.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
     blockchain_alice.policy_agent.contract.functions.createPolicy = MockPolicyCreation
     MockPolicyCreation._ether_address = blockchain_alice.checksum_public_address
