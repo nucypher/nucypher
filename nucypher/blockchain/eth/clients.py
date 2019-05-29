@@ -47,14 +47,15 @@ class Web3Client(object):
         #
         # *Client version format*
         # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
-        # Parity Example: "Parity//v1.5.0-unstable-9db3f38-20170103/x86_64-linux-gnu/rustc1.14.0"
+        # Parity Example: "Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1"
         # Ganache Example: "EthereumJS TestRPC/v2.1.5/ethereum-js"
         #
         client_data = w3.clientVersion.split('/')
         node_technology = client_data[0]
 
         GETH = 'Geth'
-        PARITY = 'Parity'
+        PARITY = 'Parity' # seeing both of these for parity.
+        ALT_PARITY = 'Parity-Ethereum'
         GANACHE = 'EthereumJS TestRPC'
         ETHEREUM_TESTER = 'EthereumTester'
 
@@ -62,12 +63,12 @@ class Web3Client(object):
             subcls = {
                 GETH: GethClient,
                 PARITY: ParityClient,
+                ALT_PARITY: ParityClient,
                 GANACHE: GanacheClient,
                 ETHEREUM_TESTER: EthTestClient,
             }[node_technology]
         except KeyError:
             raise NotImplementedError(node_technology)
-
         return subcls(w3, *client_data)
 
     class ConnectionNotEstablished(RuntimeError):
@@ -76,7 +77,7 @@ class Web3Client(object):
     class SyncTimeout(RuntimeError):
         pass
 
-    def __init__(self, w3, node_technology, version, backend, **kwargs):
+    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
         self.w3 = w3
         self.node_technology = node_technology
         self.node_version = version
