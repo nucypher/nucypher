@@ -52,7 +52,7 @@ def test_rapid_deployment(token_economics):
 
     # The Big Three (+ Dispatchers)
     # Deploy User Escrow, too (+ Linker)
-    deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+    deployer.deploy_network_contracts(staker_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
                                       policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
                                       adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
                                       user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)

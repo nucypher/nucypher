@@ -239,9 +239,9 @@ def deploy(click_config,
         # DEPLOY < -------
         #
 
-        txhashes, deployers = deployer.deploy_network_contracts(miner_secret=secrets.miner_secret,
+        txhashes, deployers = deployer.deploy_network_contracts(staker_secret=secrets.staker_secret,
                                                                 policy_secret=secrets.policy_secret,
-                                                                adjudicator_secret=secrets.mining_adjudicator_secret,
+                                                                adjudicator_secret=secrets.adjudicator_secret,
                                                                 user_escrow_proxy_secret=secrets.escrow_proxy_secret)
 
         # Success

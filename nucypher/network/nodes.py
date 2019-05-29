@@ -940,7 +940,7 @@ class Teacher:
 
         TODO: #1033 - Verify Staker <-> Worker relationship on-chain
         """
-        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
+        locked_tokens = self.staker_agent.get_locked_tokens(miner_address=self.checksum_public_address)
         if not locked_tokens:
             raise self.InvalidNode(f"{self.checksum_public_address} has no active stakes.")
 
