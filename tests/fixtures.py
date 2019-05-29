@@ -34,7 +34,7 @@ from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
@@ -395,9 +395,9 @@ def agency(testerchain):
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    staker_escrow_deployer = StakerEscrowDeployer(deployer_address=origin)
-    staker_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
-    staker_agent = staker_escrow_deployer.make_agent()  # 2 Staker Escrow
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin)
+    staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staking Escrow
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
@@ -406,12 +406,12 @@ def agency(testerchain):
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    return token_agent, staker_agent, policy_agent
+    return token_agent, staking_agent, policy_agent
 
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(agency, ursula_decentralized_test_config):
-    token_agent, _staker_agent, _policy_agent = agency
+    token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
