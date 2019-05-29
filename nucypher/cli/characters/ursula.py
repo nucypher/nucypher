@@ -401,8 +401,9 @@ def ursula(click_config,
         # List Only
         if list_:
             if not URSULA.stakes:
-                click.echo(f"There are no existing stakes for {URSULA.checksum_public_address}")
-            painting.paint_stakes(stakes=URSULA.stakes)
+                click.echo(f"There are no active stakes for {URSULA.checksum_public_address}")
+            else:
+                painting.paint_stakes(stakes=URSULA.stakes)
             return
 
         # Divide Only
@@ -410,8 +411,8 @@ def ursula(click_config,
             """Divide an existing stake by specifying the new target value and end period"""
 
             # Validate
-            if len(URSULA.stakes) == 0:
-                click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
+            if not URSULA.stakes:
+                click.echo(f"There are no active stakes for {URSULA.checksum_public_address}")
                 return
 
             # Selection
