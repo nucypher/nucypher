@@ -219,7 +219,7 @@ class TesterBlockchain(Blockchain):
         origin = testerchain.interface.w3.eth.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
-        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+        _txhashes, agents = deployer.deploy_network_contracts(staker_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
                                                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
                                                               adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
                                                               user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)

@@ -37,12 +37,12 @@ def token(testerchain):
 def escrow_contract(testerchain, token, request):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
-        _mining_coefficient = 2 * 10 ** 7
+        _staking_coefficient = 2 * 10 ** 7
         contract, _ = testerchain.interface.deploy_contract(
             contract_name='StakingEscrow',
             _token=token.address,
             _hoursPerPeriod=1,
-            _miningCoefficient=4 * _mining_coefficient,
+            _miningCoefficient=4 * _staking_coefficient,
             _lockedPeriodsCoefficient=4,
             _rewardedPeriods=4,
             _minLockedPeriods=2,

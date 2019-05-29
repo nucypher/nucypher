@@ -133,71 +133,71 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
         return txhash
 
 
-class MinerAgent(EthereumContractAgent, metaclass=Agency):
+class StakerAgent(EthereumContractAgent, metaclass=Agency):
 
-    registry_contract_name = "MinersEscrow"
+    registry_contract_name = "StakingEscrow"
     _proxy_name = "Dispatcher"
 
-    class NotEnoughMiners(Exception):
+    class NotEnoughStakers(Exception):
         pass
 
     #
-    # Miner Network Status
+    # Staker Network Status
     #
 
-    def get_miner_population(self) -> int:
-        """Returns the number of miners on the blockchain"""
-        return self.contract.functions.getMinersLength().call()
+    def get_staker_population(self) -> int:
+        """Returns the number of stakers on the blockchain"""
+        return self.contract.functions.getStakersLength().call()
 
     def get_current_period(self) -> int:
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
 
     #
-    # MinersEscrow Contract API
+    # StakingEscrow Contract API
     #
 
-    def get_locked_tokens(self, miner_address: str, periods: int = 0) -> int:
+    def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
-        Returns the amount of tokens this miner has locked
+        Returns the amount of tokens this staker has locked
         for a given duration in periods measured from the current period forwards.
         """
         if periods < 0:
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
-        return self.contract.functions.getLockedTokens(miner_address, periods).call()
+        return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
     def owned_tokens(self, address: str) -> int:
-        return self.contract.functions.minerInfo(address).call()[0]
+        return self.contract.functions.stakerInfo(address).call()[0]
 
-    def get_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int]:
-        first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
-        last_period = self.contract.functions.getLastPeriodOfSubStake(miner_address, stake_index).call()
+    def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
+        first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
+        last_period = self.contract.functions.getLastPeriodOfSubStake(staker_address, stake_index).call()
         return first_period, last_period, locked_value
 
-    def get_raw_substake_info(self, miner_address: str, stake_index: int) -> Tuple[int, int, int, int]:
-        result = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
+    def get_raw_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int, int]:
+        result = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         first_period, last_period, periods, locked = result
         return first_period, last_period, periods, locked
 
-    def get_all_stakes(self, miner_address: str):
-        stakes_length = self.contract.functions.getSubStakesLength(miner_address).call()
+    def get_all_stakes(self, staker_address: str):
+        stakes_length = self.contract.functions.getSubStakesLength(staker_address).call()
         if stakes_length == 0:
             return iter(())  # Empty iterable, There are no stakes
         for stake_index in range(stakes_length):
-            yield self.get_substake_info(miner_address=miner_address, stake_index=stake_index)
+            yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
-        """Send tokes to the escrow from the miner's address"""
+        """Send tokens to the escrow from the staker's address"""
         # TODO #413: Causes tx to fail without high amount of gas
         deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
         _receipt = self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
-    def divide_stake(self, miner_address: str, stake_index: int, target_value: int, periods: int):
+    def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int):
         tx = self.contract.functions.divideStake(stake_index,   # uint256 _index,
                                                  target_value,  # uint256 _newValue,
                                                  periods        # uint256 _periods
-                                                 ).transact({'from': miner_address})
+                                                 ).transact({'from': staker_address})
         self.blockchain.wait_for_receipt(tx)
         return tx
 
@@ -211,7 +211,7 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
         return txhash
 
     def confirm_activity(self, node_address: str) -> str:
-        """Miner rewarded for every confirmed period"""
+        """Staker rewarded for every confirmed period"""
 
         txhash = self.contract.functions.confirmActivity().transact({'from': node_address})
         self.blockchain.wait_for_receipt(txhash)
@@ -219,7 +219,7 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
 
     def mint(self, node_address) -> Tuple[str, str]:
         """
-        Computes reward tokens for the miner's account;
+        Computes reward tokens for the staker's account;
         This is only used to calculate the reward for the final period of a stake,
         when you intend to withdraw 100% of tokens.
         """
@@ -230,7 +230,7 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
 
     @validate_checksum_address
     def calculate_staking_reward(self, checksum_address: str) -> int:
-        token_amount = self.contract.functions.minerInfo(checksum_address).call()[0]
+        token_amount = self.contract.functions.stakerInfo(checksum_address).call()[0]
         staked_amount = max(self.contract.functions.getLockedTokens(checksum_address).call(),
                             self.contract.functions.getLockedTokens(checksum_address, 1).call())
         reward_amount = token_amount - staked_amount
@@ -251,15 +251,15 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
 
     def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
-        Returns an iterator of all miner addresses via cumulative sum, on-network.
+        Returns an iterator of all staker addresses via cumulative sum, on-network.
 
-        Miner addresses are returned in the order in which they registered with the MinersEscrow contract's ledger
+        Staker addresses are returned in the order in which they registered with the StakingEscrow contract's ledger
 
         """
 
-        for index in range(self.get_miner_population()):
-            miner_address = self.contract.functions.miners(index).call()
-            yield miner_address
+        for index in range(self.get_staker_population()):
+            staker_address = self.contract.functions.stakers(index).call()
+            yield staker_address
 
     def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.7, attempts: int = 5) -> List[str]:
         """
@@ -269,16 +269,16 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
         """
 
-        miners_population = self.get_miner_population()
-        if quantity > miners_population:
-            raise self.NotEnoughMiners(f'{miners_population} miners are available, need {quantity} (for wiggle room)')
+        stakers_population = self.get_staker_population()
+        if quantity > stakers_population:
+            raise self.NotEnoughStakers('{} stakers are available, need {} (for wiggle room)'.format(stakers_population, quantity))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
         if n_tokens == 0:
-            raise self.NotEnoughMiners('There are no locked tokens for duration {}.'.format(duration))
+            raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
@@ -293,7 +293,7 @@ class MinerAgent(EthereumContractAgent, metaclass=Agency):
             if len(addresses) >= quantity:
                 return system_random.sample(addresses, quantity)
 
-        raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
+        raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
 
 class PolicyAgent(EthereumContractAgent, metaclass=Agency):
@@ -328,9 +328,9 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def collect_policy_reward(self, collector_address: str, miner_address: str):
+    def collect_policy_reward(self, collector_address: str, staker_address: str):
         """Collect rewarded ETH"""
-        payload = {'from': miner_address}  # TODO - #842
+        payload = {'from': staker_address}  # TODO - #842
         policy_reward_txhash = self.contract.functions.withdraw(collector_address).transact(payload)
         self.blockchain.wait_for_receipt(policy_reward_txhash)
         return policy_reward_txhash
@@ -461,13 +461,13 @@ class UserEscrowAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def deposit_as_miner(self, value: int, periods: int) -> str:
-        txhash = self.__proxy_contract.functions.depositAsMiner(value, periods).transact({'from': self.__beneficiary})
+    def deposit_as_staker(self, value: int, periods: int) -> str:
+        txhash = self.__proxy_contract.functions.depositAsStaker(value, periods).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def withdraw_as_miner(self, value: int) -> str:
-        txhash = self.__proxy_contract.functions.withdrawAsMiner(value).transact({'from': self.__beneficiary})
+    def withdraw_as_staker(self, value: int) -> str:
+        txhash = self.__proxy_contract.functions.withdrawAsStaker(value).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -497,21 +497,21 @@ class UserEscrowAgent(EthereumContractAgent):
         return txhash
 
 
-class MiningAdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
+class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
     """TODO Issue #931"""
 
-    registry_contract_name = "MiningAdjudicator"
+    registry_contract_name = "Adjudicator"
     _proxy_name = "Dispatcher"
 
     def evaluate_cfrag(self,
                        capsule_bytes: bytes,
                        capsule_signature_by_requester: bytes,
-                       capsule_signature_by_requester_and_miner: bytes,
+                       capsule_signature_by_requester_and_staker: bytes,
                        cfrag_bytes: bytes,
-                       cfrag_signature_by_miner: bytes,
+                       cfrag_signature_by_staker: bytes,
                        requester_public_key: bytes,
-                       miner_public_key: bytes,
-                       miner_public_key_signature: bytes,
+                       staker_public_key: bytes,
+                       staker_public_key_signature: bytes,
                        precomputed_data: bytes):
         """
 
@@ -520,23 +520,23 @@ class MiningAdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
         function evaluateCFrag(
             bytes memory _capsuleBytes,
             bytes memory _capsuleSignatureByRequester,
-            bytes memory _capsuleSignatureByRequesterAndMiner,
+            bytes memory _capsuleSignatureByRequesterAndStaker,
             bytes memory _cFragBytes,
-            bytes memory _cFragSignatureByMiner,
+            bytes memory _cFragSignatureByStaker,
             bytes memory _requesterPublicKey,
-            bytes memory _minerPublicKey,
-            bytes memory _minerPublicKeySignature,
+            bytes memory _stakerPublicKey,
+            bytes memory _stakerPublicKeySignature,
             bytes memory _preComputedData
         )
 
         :param capsule:
         :param capsule_signature_by_requester:
-        :param capsule_signature_by_requester_and_miner:
+        :param capsule_signature_by_requester_and_staker:
         :param cfrag:
-        :param cfrag_signature_by_miner:
+        :param cfrag_signature_by_staker:
         :param requester_public_key:
-        :param miner_public_key:
-        :param miner_piblc_key_signature:
+        :param staker_public_key:
+        :param staker_piblc_key_signature:
         :param precomputed_data:
         :return:
         """

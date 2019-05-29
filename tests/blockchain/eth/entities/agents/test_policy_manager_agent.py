@@ -27,11 +27,11 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 @pytest.fixture(scope='function')
 @pytest.mark.usefixtures('blockchain_ursulas')
 def policy_meta(testerchain, three_agents, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     _policy_id = os.urandom(16)
-    node_addresses = list(miner_agent.sample(quantity=3, duration=1))
+    node_addresses = list(staker_agent.sample(quantity=3, duration=1))
     _txhash = agent.create_policy(policy_id=_policy_id,
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
@@ -45,11 +45,11 @@ def policy_meta(testerchain, three_agents, token_economics):
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_create_policy(testerchain, three_agents, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     policy_id = os.urandom(16)
-    node_addresses = list(miner_agent.sample(quantity=3, duration=1))
+    node_addresses = list(staker_agent.sample(quantity=3, duration=1))
     txhash = agent.create_policy(policy_id=policy_id,
                                  author_address=testerchain.alice_account,
                                  value=token_economics.minimum_allowed_locked,
@@ -65,7 +65,7 @@ def test_create_policy(testerchain, three_agents, token_economics):
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_fetch_policy_arrangements(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     arrangements = list(agent.fetch_policy_arrangements(policy_id=policy_meta.policy_id))
@@ -78,7 +78,7 @@ def test_fetch_policy_arrangements(three_agents, policy_meta):
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_arrangement(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     txhash = agent.revoke_arrangement(policy_id=policy_meta.policy_id,
@@ -93,7 +93,7 @@ def test_revoke_arrangement(three_agents, policy_meta):
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_policy(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     txhash = agent.revoke_policy(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
@@ -105,12 +105,12 @@ def test_revoke_policy(three_agents, policy_meta):
 
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_calculate_refund(testerchain, three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     ursula = policy_meta.addresses[-1]
     testerchain.time_travel(hours=9)
-    _txhash = miner_agent.confirm_activity(node_address=ursula)
+    _txhash = staker_agent.confirm_activity(node_address=ursula)
     txhash = agent.calculate_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     testerchain = agent.blockchain
     receipt = testerchain.wait_for_receipt(txhash)
@@ -119,7 +119,7 @@ def test_calculate_refund(testerchain, three_agents, policy_meta):
 
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_refund(testerchain, three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     testerchain.time_travel(hours=9)
@@ -133,17 +133,17 @@ def test_collect_refund(testerchain, three_agents, policy_meta):
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_policy_reward(testerchain, three_agents, policy_meta, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = three_agents
     agent = policy_agent
 
     ursula = policy_meta.addresses[-1]
     old_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(ursula)
 
     for _ in range(token_economics.minimum_locked_periods):
-        _txhash = miner_agent.confirm_activity(node_address=ursula)
+        _txhash = staker_agent.confirm_activity(node_address=ursula)
         testerchain.time_travel(periods=1)
 
-    txhash = agent.collect_policy_reward(collector_address=ursula, miner_address=ursula)
+    txhash = agent.collect_policy_reward(collector_address=ursula, staker_address=ursula)
     receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address

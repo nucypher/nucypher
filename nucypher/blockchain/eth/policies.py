@@ -24,9 +24,9 @@ from constant_sorrow.constants import UNKNOWN_ARRANGEMENTS, NON_PAYMENT
 from typing import List
 from typing import Set
 
-from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.agents import StakerAgent, PolicyAgent
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -62,7 +62,7 @@ class BlockchainArrangement(Arrangement):
         self.author = alice                     # type: PolicyAuthor
         self.policy_agent = alice.policy_agent  # type: PolicyAgent
 
-        self.miner = ursula                     # type: Miner
+        self.staker = ursula                     # type: Staker
 
         # Arrangement value, rate, and duration
         lock_periods = calculate_period_duration(future_time=expiration)
@@ -82,7 +82,7 @@ class BlockchainArrangement(Arrangement):
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(client={}, node={})"
-        r = r.format(class_name, self.author, self.miner)
+        r = r.format(class_name, self.author, self.staker)
         return r
 
     def revoke(self) -> str:
@@ -144,13 +144,13 @@ class BlockchainPolicy(Policy):
 
         # Read from Blockchain
         blockchain_record = self.author.policy_agent.read().policies(arrangement_id)
-        author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
+        author_address, staker_address, rate, start_block, end_block, downtime_index = blockchain_record
 
         duration = end_block - start_block
 
-        miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent, is_me=False)
+        staker = Staker(address=staker_address, staker_agent=self.author.policy_agent.staker_agent, is_me=False)
         arrangement = BlockchainArrangement(alice=self.author,
-                                            ursula=miner,
+                                            ursula=staker,
                                             value=rate*duration,   # TODO Check the math/types here
                                             lock_periods=duration,
                                             expiration=end_block)
@@ -202,7 +202,7 @@ class BlockchainPolicy(Policy):
 
     def make_arrangements(self, network_middleware: RestMiddleware, *args, **kwargs) -> None:
         """
-        Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
+        Create and consider n Arrangements from sampled stakers, a list of Ursulas, or a combination of both.
         """
 
         # Prepare for selection
@@ -224,7 +224,7 @@ class BlockchainPolicy(Policy):
             try:
                 sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=self.lock_periods)
 
-            except MinerAgent.NotEnoughMiners as e:
+            except StakerAgent.NotEnoughStakers as e:
                 error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
                 raise self.NotEnoughBlockchainUrsulas(error)
 

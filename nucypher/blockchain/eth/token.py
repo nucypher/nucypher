@@ -127,7 +127,7 @@ class NU:
 
 class Stake:
     """
-    A quantity of tokens and staking duration for one stake for one miner.
+    A quantity of tokens and staking duration for one stake for one staker.
     """
 
     class StakingError(Exception):
@@ -136,15 +136,15 @@ class Stake:
     __ID_LENGTH = 16
 
     def __init__(self,
-                 miner,
+                 staker,
                  value: NU,
                  start_period: int,
                  end_period: int,
                  index: int,
                  validate_now: bool = True):
 
-        self.miner = miner
-        owner_address = miner.checksum_address
+        self.staker = staker
+        owner_address = staker.checksum_address
         self.log = Logger(f'stake-{owner_address}-{index}')
 
         # Stake Metadata
@@ -159,14 +159,14 @@ class Stake:
         self.end_datetime = datetime_at_period(period=end_period)
         self.duration_delta = self.end_datetime - self.start_datetime
 
-        self.blockchain = miner.blockchain
+        self.blockchain = staker.blockchain
 
         # Agency
-        self.miner_agent = miner.miner_agent
-        self.token_agent = miner.token_agent
+        self.staker_agent = staker.staker_agent
+        self.token_agent = staker.token_agent
 
         # Economics
-        self.economics = miner.economics
+        self.economics = staker.economics
         self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), 'NuNit')
         self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), 'NuNit')
 
@@ -189,7 +189,7 @@ class Stake:
 
     @property
     def is_expired(self) -> bool:
-        current_period = self.miner_agent.get_current_period()
+        current_period = self.staker_agent.get_current_period()
         return bool(current_period >= self.end_period)
 
     @property
@@ -198,7 +198,7 @@ class Stake:
 
     @classmethod
     def from_stake_info(cls,
-                        miner,
+                        staker,
                         index: int,
                         stake_info: Tuple[int, int, int]
                         ) -> 'Stake':
@@ -206,7 +206,7 @@ class Stake:
         """Reads staking values as they exist on the blockchain"""
         start_period, end_period, value = stake_info
 
-        instance = cls(miner=miner,
+        instance = cls(staker=staker,
                        index=index,
                        start_period=start_period,
                        end_period=end_period,
@@ -300,7 +300,7 @@ class Stake:
         """Update this stakes attributes with on-chain values."""
 
         # Read from blockchain
-        stake_info = self.miner_agent.get_substake_info(miner_address=self.owner_address,
+        stake_info = self.staker_agent.get_substake_info(staker_address=self.owner_address,
                                                         stake_index=self.index)  # < -- Read from blockchain
 
         first_period, last_period, locked_value = stake_info
@@ -313,16 +313,16 @@ class Stake:
         self.value = NU.from_nunits(locked_value)
 
     @classmethod
-    def __deposit(cls, miner, amount: int, lock_periods: int) -> Tuple[str, str]:
+    def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
 
-        approve_txhash = miner.token_agent.approve_transfer(amount=amount,
-                                                            target_address=miner.miner_agent.contract_address,
-                                                            sender_address=miner.checksum_address)
+        approve_txhash = staker.token_agent.approve_transfer(amount=amount,
+                                                            target_address=staker.staker_agent.contract_address,
+                                                            sender_address=staker.checksum_address)
 
-        deposit_txhash = miner.miner_agent.deposit_tokens(amount=amount,
+        deposit_txhash = staker.staker_agent.deposit_tokens(amount=amount,
                                                           lock_periods=lock_periods,
-                                                          sender_address=miner.checksum_address)
+                                                          sender_address=staker.checksum_address)
 
         return approve_txhash, deposit_txhash
 
@@ -331,7 +331,7 @@ class Stake:
         Modifies the unlocking schedule and value of already locked tokens.
 
         This actor requires that is_me is True, and that the expiration datetime is after the existing
-        locking schedule of this miner, or an exception will be raised.
+        locking schedule of this staker, or an exception will be raised.
        """
 
         # Read on-chain stake
@@ -351,7 +351,7 @@ class Stake:
 
         # Modified Original Stake
         remaining_stake_value = self.value - target_value
-        modified_stake = Stake(miner=self.miner,
+        modified_stake = Stake(staker=self.staker,
                                index=self.index,
                                start_period=self.start_period,
                                end_period=self.end_period,
@@ -359,7 +359,7 @@ class Stake:
 
         # New Derived Stake
         end_period = self.end_period + additional_periods
-        new_stake = Stake(miner=self.miner,
+        new_stake = Stake(staker=self.staker,
                           start_period=self.start_period,
                           end_period=end_period,
                           value=target_value,
@@ -378,7 +378,7 @@ class Stake:
         #
 
         # Transmit the stake division transaction
-        tx = self.miner_agent.divide_stake(miner_address=self.owner_address,
+        tx = self.staker_agent.divide_stake(staker_address=self.owner_address,
                                            stake_index=self.index,
                                            target_value=int(target_value),
                                            periods=additional_periods)
@@ -388,16 +388,16 @@ class Stake:
         return modified_stake, new_stake
 
     @classmethod
-    def initialize_stake(cls, miner, amount: NU, lock_periods: int = None) -> 'Stake':
+    def initialize_stake(cls, staker, amount: NU, lock_periods: int = None) -> 'Stake':
 
         # Value
         amount = NU(int(amount), 'NuNit')
 
         # Duration
-        current_period = miner.miner_agent.get_current_period()
+        current_period = staker.staker_agent.get_current_period()
         end_period = current_period + lock_periods
 
-        stake = Stake(miner=miner,
+        stake = Stake(staker=staker,
                       start_period=current_period+1,
                       end_period=end_period,
                       value=amount,
@@ -410,15 +410,15 @@ class Stake:
         # Transmit
         approve_txhash, initial_deposit_txhash = stake.__deposit(amount=int(amount),
                                                                  lock_periods=lock_periods,
-                                                                 miner=miner)
+                                                                 staker=staker)
 
         # Store the staking transactions on the instance
         staking_transactions = dict(approve=approve_txhash, deposit=initial_deposit_txhash)
         stake.transactions = staking_transactions
 
         # Log and return Stake instance
-        log = Logger(f'stake-{miner.checksum_address}-creation')
-        log.info("{} Initialized new stake: {} tokens for {} periods".format(miner.checksum_address,
+        log = Logger(f'stake-{staker.checksum_address}-creation')
+        log.info("{} Initialized new stake: {} tokens for {} periods".format(staker.checksum_address,
                                                                              amount,
                                                                              lock_periods))
         return stake
