@@ -34,7 +34,7 @@ from nucypher.blockchain.eth.agents import Agency
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
@@ -393,20 +393,20 @@ def agency(testerchain):
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.deploy()
 
-    staker_escrow_deployer = StakerEscrowDeployer(deployer_address=origin)
-    staker_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin)
+    staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     token_agent = token_deployer.make_agent()  # 1: Token
-    staker_agent = staker_escrow_deployer.make_agent()  # 2 Miner Escrow
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Miner Escrow
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    yield token_agent, staker_agent, policy_agent
+    yield token_agent, staking_agent, policy_agent
     Agency.clear()
 
 
@@ -418,7 +418,7 @@ def clear_out_agency():
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(agency, ursula_decentralized_test_config):
-    token_agent, _staker_agent, _policy_agent = agency
+    token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
