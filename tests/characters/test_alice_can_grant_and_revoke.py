@@ -36,7 +36,7 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
+def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
     # Setup the policy details
     n = 3
