@@ -43,7 +43,7 @@ from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Staker
-from nucypher.blockchain.eth.agents import StakerAgent
+from nucypher.blockchain.eth.agents import StakingEscrow
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
@@ -693,7 +693,7 @@ class Ursula(Teacher, Character, Staker):
     # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakerAgent.NotEnoughStakers):
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrow.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.

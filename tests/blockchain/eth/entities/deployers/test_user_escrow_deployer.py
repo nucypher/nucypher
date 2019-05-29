@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 
 @pytest.fixture(scope='function')
 def user_escrow_proxy(agency):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
