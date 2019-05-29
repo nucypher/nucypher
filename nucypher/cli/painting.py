@@ -121,7 +121,7 @@ def paint_node_status(ursula, start_time):
         total_staked = f'Total Staked ........ {ursula.current_stake} NU-wei'
         stats.append(total_staked)
 
-        current_period = f'Current Period ...... {ursula.miner_agent.get_current_period()}'
+        current_period = f'Current Period ...... {ursula.staker_agent.get_current_period()}'
         stats.append(current_period)
 
     click.echo('\n' + '\n'.join(stats) + '\n')
@@ -183,15 +183,15 @@ Provider URI ............. {provider_uri}
 Registry Path ............ {registry_filepath}
 
 NucypherToken ............ {token}
-MinerEscrow .............. {escrow}
+StakerEscrow .............. {escrow}
 PolicyManager ............ {manager}
 
     """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
                registry_filepath=ursula_config.blockchain.interface.registry.filepath,
                token=ursula_config.token_agent.contract_address,
-               escrow=ursula_config.miner_agent.contract_address,
+               escrow=ursula_config.staker_agent.contract_address,
                manager=ursula_config.policy_agent.contract_address,
-               period=ursula_config.miner_agent.get_current_period())
+               period=ursula_config.staker_agent.get_current_period())
     click.secho(contract_payload)
 
     network_payload = """
@@ -201,9 +201,9 @@ Current Period ........... {period}
 Gas Price ................ {gas_price}
 Active Staking Ursulas ... {ursulas}
 
-    """.format(period=ursula_config.miner_agent.get_current_period(),
+    """.format(period=ursula_config.staker_agent.get_current_period(),
                gas_price=ursula_config.blockchain.interface.w3.eth.gasPrice,
-               ursulas=ursula_config.miner_agent.get_miner_population())
+               ursulas=ursula_config.staker_agent.get_staker_population())
     click.secho(network_payload)
 
 
@@ -232,7 +232,7 @@ def paint_staged_stake(ursula,
 
 
 def paint_staking_confirmation(ursula, transactions):
-    click.secho(f'\nEscrow Address ... {ursula.miner_agent.contract_address}', fg='blue')
+    click.secho(f'\nEscrow Address ... {ursula.staker_agent.contract_address}', fg='blue')
     for tx_name, txhash in transactions.items():
         click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
     click.secho(f'''

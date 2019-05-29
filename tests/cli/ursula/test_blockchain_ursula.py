@@ -6,8 +6,8 @@ import datetime
 import maya
 import pytest
 
-from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.agents import StakerAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -122,8 +122,8 @@ def test_init_ursula_stake(click_runner,
         config_data = json.loads(config_file.read())
 
     # Verify the stake is on-chain
-    miner_agent = MinerAgent()
-    stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_address']))
+    staker_agent = StakerAgent()
+    stakes = list(staker_agent.get_all_stakes(staker_address=config_data['checksum_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
@@ -201,21 +201,21 @@ def test_collect_rewards_integration(click_runner,
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
-    miner = Miner(is_me=True,
-                  checksum_address=staking_participant.checksum_address,
-                  blockchain=blockchain)
+    staker = Staker(is_me=True,
+                    checksum_address=staking_participant.checksum_address,
+                    blockchain=blockchain)
 
-    # The miner is staking.
-    assert miner.stakes
-    assert miner.is_staking
-    pre_stake_token_balance = miner.token_balance
+    # The staker is staking.
+    assert staker.stakes
+    assert staker.is_staking
+    pre_stake_token_balance = staker.token_balance
 
     # Confirm for half the first stake duration
     for _ in range(half_stake_time):
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
 
     # Alice creates a policy and grants Bob access
     blockchain_alice.selection_buffer = 1
@@ -260,7 +260,7 @@ def test_collect_rewards_integration(click_runner,
 
         # Ursula Staying online and the clock advancing
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
         current_period += 1
 
     # Finish the passage of time for the first Stake
@@ -268,7 +268,7 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
 
     #
     # WHERES THE MONEY URSULA?? - Collecting Rewards
@@ -304,9 +304,9 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
 
     # Staking Reward
-    calculated_reward = miner.miner_agent.calculate_staking_reward(checksum_address=miner.checksum_address)
+    calculated_reward = staker.staker_agent.calculate_staking_reward(checksum_address=staker.checksum_address)
     assert calculated_reward
-    assert miner.token_balance > pre_stake_token_balance
+    assert staker.token_balance > pre_stake_token_balance
