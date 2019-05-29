@@ -20,9 +20,9 @@ from nucypher.blockchain.eth.agents import StakerAgent
 
 
 @pytest.mark.slow()
-def test_deposit_tokens(testerchain, three_agents, token_economics):
+def test_deposit_tokens(testerchain, agency, token_economics):
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_agent, staker_agent, policy_agent = three_agents
+    token_agent, staker_agent, policy_agent = agency
 
     agent = staker_agent
     locked_tokens = token_economics.minimum_allowed_locked * 5
@@ -56,15 +56,15 @@ def test_deposit_tokens(testerchain, three_agents, token_economics):
 
 
 @pytest.mark.slow()
-def test_get_staker_population(three_agents, blockchain_ursulas):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_get_staker_population(agency, blockchain_ursulas):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     assert agent.get_staker_population() == len(blockchain_ursulas)
 
 
 @pytest.mark.slow()
-def test_get_swarm(three_agents, blockchain_ursulas):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_get_swarm(agency, blockchain_ursulas):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     swarm = agent.swarm()
     swarm_addresses = list(swarm)
@@ -81,8 +81,8 @@ def test_get_swarm(three_agents, blockchain_ursulas):
 
 
 @pytest.mark.slow()
-def test_locked_tokens(three_agents, blockchain_ursulas, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_locked_tokens(agency, blockchain_ursulas, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     ursula = blockchain_ursulas[2]
     locked_amount = agent.get_locked_tokens(staker_address=ursula.checksum_address)
@@ -90,8 +90,8 @@ def test_locked_tokens(three_agents, blockchain_ursulas, token_economics):
 
 
 @pytest.mark.slow()
-def test_get_all_stakes(three_agents, blockchain_ursulas, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_get_all_stakes(agency, blockchain_ursulas, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     ursula = blockchain_ursulas[2]
     all_stakes = list(agent.get_all_stakes(staker_address=ursula.checksum_address))
@@ -105,8 +105,8 @@ def test_get_all_stakes(three_agents, blockchain_ursulas, token_economics):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures("blockchain_ursulas")
-def test_sample_stakers(three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_sample_stakers(agency):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     stakers_population = agent.get_staker_population()
 
@@ -118,8 +118,8 @@ def test_sample_stakers(three_agents):
     assert len(set(stakers)) == 3  # ...unique addresses
 
 
-def test_get_current_period(three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_get_current_period(agency):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     testerchain = agent.blockchain
     start_period = agent.get_current_period()
@@ -129,8 +129,8 @@ def test_get_current_period(three_agents):
 
 
 @pytest.mark.slow()
-def test_confirm_activity(three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_confirm_activity(agency):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
@@ -142,8 +142,9 @@ def test_confirm_activity(three_agents):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_divide_stake(three_agents, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+@pytest.mark.skip('To be implemented')
+def test_divide_stake(agency, token_economics):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
@@ -180,8 +181,8 @@ def test_divide_stake(three_agents, token_economics):
 
 
 @pytest.mark.slow()
-def test_collect_staking_reward(three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_collect_staking_reward(agency):
+    token_agent, staker_agent, policy_agent = agency
     agent = staker_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts

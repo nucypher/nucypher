@@ -99,10 +99,10 @@ def test_NU(token_economics):
         _nan = NU(float('NaN'), 'NU')
 
 
-def test_stake(testerchain, three_agents):
+def test_stake(testerchain, agency):
 
     class FakeUrsula:
-        token_agent, staker_agent, _policy_agent = three_agents
+        token_agent, staker_agent, _policy_agent = agency
 
         burner_wallet = Web3().eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
         checksum_address = burner_wallet.address
