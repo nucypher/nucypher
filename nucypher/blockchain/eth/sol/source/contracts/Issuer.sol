@@ -5,7 +5,7 @@ import "contracts/NuCypherToken.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "contracts/proxy/Upgradeable.sol";
-import "./lib/AdditionalMath.sol";
+import "contracts/lib/AdditionalMath.sol";
 
 
 /**

@@ -138,6 +138,7 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents, allocat
     # Move the tokens to the MinerEscrow
     txhash = agent.deposit_as_miner(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
     assert txhash  # TODO
+    _txhash = agent.set_worker(worker_address=agent.beneficiary)
 
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     assert agent.unvested_tokens == allocation_value
@@ -146,8 +147,7 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents, allocat
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
-    testerchain.time_travel(periods=1)
-    for _ in range(token_economics.minimum_locked_periods-1):
+    for _ in range(token_economics.minimum_locked_periods):
         agent.confirm_activity()
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
@@ -159,6 +159,9 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents, allocat
     assert txhash  # TODO
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
+    # Release worker
+    _txhash = agent.set_worker(worker_address=testerchain.etherbase_account)
+
     txhash = agent.withdraw_as_miner(value=miner_agent.owned_tokens(address=agent.contract_address))
     assert txhash
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
@@ -169,6 +172,7 @@ def test_collect_policy_reward(testerchain, agent, three_agents, token_economics
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
 
     _txhash = agent.deposit_as_miner(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    _txhash = agent.set_worker(worker_address=agent.beneficiary)
     testerchain.time_travel(periods=1)
 
     _txhash = policy_agent.create_policy(policy_id=os.urandom(16),

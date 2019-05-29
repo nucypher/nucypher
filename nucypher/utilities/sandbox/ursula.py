@@ -102,6 +102,9 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.initialize_stake(amount=amount, lock_periods=periods)
+            # TODO temporary fix to not break backward compatibility
+            ursula.set_worker(worker_address=ursula.checksum_public_address)
+            ursula.confirm_activity()
 
         ursulas.append(ursula)
         # Store this Ursula in our global cache.

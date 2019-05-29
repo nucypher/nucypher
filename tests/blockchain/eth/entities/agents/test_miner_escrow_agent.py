@@ -131,6 +131,7 @@ def test_confirm_activity(three_agents):
     agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    _txhash = agent.set_worker(node_address=someone, worker_address=someone)
     txhash = agent.confirm_activity(node_address=someone)
     testerchain = agent.blockchain
     receipt = testerchain.wait_for_receipt(txhash)
@@ -186,7 +187,10 @@ def test_collect_staking_reward(three_agents):
 
     # Confirm Activity
     _txhash = agent.confirm_activity(node_address=someone)
-    testerchain.time_travel(periods=1)
+    testerchain.time_travel(periods=2)
+
+    # Mint
+    _txhash = agent.mint(node_address=someone)
 
     old_balance = token_agent.get_balance(address=someone)
 

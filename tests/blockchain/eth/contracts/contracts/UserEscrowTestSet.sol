@@ -19,6 +19,7 @@ contract MinersEscrowForUserEscrowMock {
     uint256 public index;
     bool public reStake;
     uint16 public lockReStakeUntilPeriod;
+    address public worker;
 
     constructor(NuCypherToken _token) public {
         token = _token;
@@ -66,6 +67,10 @@ contract MinersEscrowForUserEscrowMock {
 
     function lockReStake(uint16 _lockReStakeUntilPeriod) public {
         lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
+    }
+
+    function setWorker(address _worker) public {
+        worker = _worker;
     }
 }
 

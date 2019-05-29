@@ -47,6 +47,7 @@ contract MinersEscrow is Issuer {
     event Slashed(address indexed miner, uint256 penalty, address indexed investigator, uint256 reward);
     event ReStakeSet(address indexed miner, bool reStake);
     event ReStakeLocked(address indexed miner, uint16 lockUntilPeriod);
+    event WorkerSet(address indexed miner, address indexed worker, uint16 indexed startPeriod);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -65,7 +66,7 @@ contract MinersEscrow is Issuer {
         /*
         * Stores periods that are confirmed but not yet mined.
         * In order to optimize storage, only two values are used instead of an array.
-        * lock() and confirmActivity() methods invoke the mint() method so there can only be two confirmed
+        * confirmActivity() method invokes mint() method so there can only be two confirmed
         * periods that are not yet mined: the current and the next periods.
         * Periods are not stored in order due to storage savings;
         * So, each time values of both variables need to be checked.
@@ -75,6 +76,9 @@ contract MinersEscrow is Issuer {
         uint16 confirmedPeriod2;
         bool reStake;
         uint16 lockReStakeUntilPeriod;
+        address worker;
+        // period when worker was set
+        uint16 workerStartPeriod;
         // downtime
         uint16 lastActivePeriod;
         Downtime[] pastDowntime;
@@ -97,9 +101,11 @@ contract MinersEscrow is Issuer {
 
     mapping (address => MinerInfo) public minerInfo;
     address[] public miners;
+    mapping (address => address) public workerToMiner;
 
     mapping (uint16 => uint256) public lockedPerPeriod;
     uint16 public minLockedPeriods;
+    uint16 public minWorkerPeriods;
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
@@ -115,6 +121,7 @@ contract MinersEscrow is Issuer {
     * @param _rewardedPeriods Max periods that will be additionally rewarded
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
+    * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
     **/
     constructor(
         NuCypherToken _token,
@@ -124,7 +131,8 @@ contract MinersEscrow is Issuer {
         uint16 _rewardedPeriods,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens
+        uint256 _maxAllowableLockedTokens,
+        uint16 _minWorkerPeriods
     )
         public
         Issuer(
@@ -140,6 +148,7 @@ contract MinersEscrow is Issuer {
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
+        minWorkerPeriods = _minWorkerPeriods;
     }
 
     /**
@@ -173,6 +182,13 @@ contract MinersEscrow is Issuer {
     }
 
     //------------------------Main getters------------------------
+    /**
+    * @notice Get all tokens belonging to the miner
+    **/
+    function getAllTokens(address _miner) public view returns (uint256) {
+        return minerInfo[_miner].value;
+    }
+
     /**
     * @notice Get the start period. Use in the calculation of the last period of the sub stake
     * @param _info Miner structure
@@ -316,7 +332,53 @@ contract MinersEscrow is Issuer {
         return getCurrentPeriod() < minerInfo[_miner].lockReStakeUntilPeriod;
     }
 
+    /**
+    * @notice Get worker using miner's address
+    **/
+    function getWorkerByMiner(address _miner) public view returns (address) {
+        MinerInfo storage info = minerInfo[_miner];
+        // specified address is not a miner
+        if (minerInfo[_miner].subStakes.length == 0) {
+            return address(0);
+        }
+        return info.worker;
+    }
+
+    /**
+    * @notice Get miner using worker's address
+    **/
+    function getMinerByWorker(address _worker) public view returns (address) {
+        return workerToMiner[_worker];
+    }
+
     //------------------------Main methods------------------------
+    /**
+    * @notice Set worker
+    * @param _worker Worker address. Must be a real address, not a contract
+    **/
+    function setWorker(address _worker) public onlyMiner {
+        require(_worker != address(0), "Worker's address must not be empty");
+
+        uint16 currentPeriod = getCurrentPeriod();
+        MinerInfo storage info = minerInfo[msg.sender];
+
+        require(_worker != info.worker, "Specified worker is already set for this miner");
+        require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
+            "Not enough time has passed since the previous setting worker");
+        require(workerToMiner[_worker] == address(0), "Specified worker is already in use");
+        require(minerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
+            "Specified worker is an another miner");
+
+        // remove relation between the old worker and the miner
+        if (info.worker != address(0)) {
+            workerToMiner[info.worker] = address(0);
+        }
+        info.worker = _worker;
+        info.workerStartPeriod = currentPeriod;
+        workerToMiner[_worker] = msg.sender;
+        emit WorkerSet(msg.sender, _worker, currentPeriod);
+    }
+
     /**
     * @notice Set `reStake` parameter. If true then all mining reward will be added to locked stake
     * Only if this parameter is not locked
@@ -367,6 +429,8 @@ contract MinersEscrow is Issuer {
                 value >= minAllowableLockedTokens &&
                 value <= maxAllowableLockedTokens &&
                 periods >= minLockedPeriods);
+            require(workerToMiner[miner] == address(0) || workerToMiner[miner] == info.worker,
+                "A miner can't be a worker for another miner");
             miners.push(miner);
             policyManager.register(miner, currentPeriod);
             info.value = value;
@@ -426,6 +490,8 @@ contract MinersEscrow is Issuer {
     function deposit(address _miner, uint256 _value, uint16 _periods) internal isInitialized {
         require(_value != 0);
         MinerInfo storage info = minerInfo[_miner];
+        require(workerToMiner[_miner] == address(0) || workerToMiner[_miner] == info.worker,
+            "A miner can't be a worker for another miner");
         // initial stake of the miner
         if (info.subStakes.length == 0) {
             miners.push(_miner);
@@ -456,8 +522,6 @@ contract MinersEscrow is Issuer {
         require(_value <= token.balanceOf(address(this)) &&
             _value >= minAllowableLockedTokens &&
             _periods >= minLockedPeriods);
-        uint16 lastActivePeriod = getLastActivePeriod(_miner);
-        mint(_miner);
 
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(1);
@@ -469,10 +533,12 @@ contract MinersEscrow is Issuer {
         if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
             saveSubStake(info, nextPeriod, 0, _periods, _value);
         } else {
+            // next period is confirmed
             saveSubStake(info, nextPeriod, 0, _periods - 1, _value);
+            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_value);
+            emit ActivityConfirmed(_miner, nextPeriod, _value);
         }
 
-        confirmActivity(_miner, _value + lockedTokens, _value, lastActivePeriod);
         emit Locked(_miner, _value, nextPeriod, _periods);
     }
 
@@ -541,9 +607,10 @@ contract MinersEscrow is Issuer {
         require(subStake.lockedValue >= minAllowableLockedTokens);
         saveSubStake(info, subStake.firstPeriod, 0, subStake.periods.add16(_periods), _newValue);
         // if the next period is confirmed and
-        // old sub stake is finishing in the current period then rerun confirmActivity
+        // old sub stake is finishing in the current period then update confirmation
         if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
-            confirmActivity(msg.sender, _newValue, _newValue, 0);
+            lockedPerPeriod[startPeriod] = lockedPerPeriod[startPeriod].add(_newValue);
+            emit ActivityConfirmed(msg.sender, startPeriod, _newValue);
         }
         emit Divided(msg.sender, oldValue, lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, subStake.firstPeriod, subStake.periods + _periods);
@@ -569,36 +636,36 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Confirm activity for the next period
-    * @param _miner Miner
-    * @param _lockedValue Locked tokens in the next period
-    * @param _additional Additional locked tokens in the next period.
-    * Used only if the period has already been confirmed
-    * @param _lastActivePeriod Last active period
+    * @notice Confirm activity for the next period and mine for the previous period
     **/
-    function confirmActivity(
-        address _miner,
-        uint256 _lockedValue,
-        uint256 _additional,
-        uint16 _lastActivePeriod
-    ) internal {
-        require(_lockedValue > 0);
-        MinerInfo storage info = minerInfo[_miner];
+    function confirmActivity() external {
+        address miner = msg.sender;
+        // miner is sender -> miner is an intermediary contract
+        if (minerInfo[miner].value > 0) {
+            require(getWorkerByMiner(miner) == tx.origin, "Only worker can confirm activity");
+        } else {
+            // miner is not a contract -> worker is sender
+            miner = getMinerByWorker(msg.sender);
+            require(minerInfo[miner].value > 0, "Miner must have a stake to confirm activity");
+            require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
+        }
+
+        uint16 lastActivePeriod = getLastActivePeriod(miner);
+        mint(miner);
+        MinerInfo storage info = minerInfo[miner];
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(1);
 
-        // update lockedValue if the period has already been confirmed
-        if (info.confirmedPeriod1 == nextPeriod) {
-            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_additional);
-            emit ActivityConfirmed(_miner, nextPeriod, _additional);
-            return;
-        } else if (info.confirmedPeriod2 == nextPeriod) {
-            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_additional);
-            emit ActivityConfirmed(_miner, nextPeriod, _additional);
+        // the period has already been confirmed
+        if (info.confirmedPeriod1 == nextPeriod ||
+            info.confirmedPeriod2 == nextPeriod) {
             return;
         }
 
-        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_lockedValue);
+        uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
+        require(lockedTokens > 0);
+        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(lockedTokens);
+
         if (info.confirmedPeriod1 == EMPTY_CONFIRMED_PERIOD) {
             info.confirmedPeriod1 = nextPeriod;
         } else {
@@ -616,42 +683,26 @@ contract MinersEscrow is Issuer {
         }
 
         // miner was inactive for several periods
-        if (_lastActivePeriod < currentPeriod) {
-            info.pastDowntime.push(Downtime(_lastActivePeriod + 1, currentPeriod));
+        if (lastActivePeriod < currentPeriod) {
+            info.pastDowntime.push(Downtime(lastActivePeriod + 1, currentPeriod));
         }
-        emit ActivityConfirmed(_miner, nextPeriod, _lockedValue);
-    }
-
-    /**
-    * @notice Confirm activity for the next period and mine for the previous period
-    **/
-    function confirmActivity() external onlyMiner {
-        uint16 lastActivePeriod = getLastActivePeriod(msg.sender);
-        mint(msg.sender);
-        MinerInfo storage info = minerInfo[msg.sender];
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 nextPeriod = currentPeriod.add16(1);
-
-        // the period has already been confirmed
-        if (info.confirmedPeriod1 == nextPeriod ||
-            info.confirmedPeriod2 == nextPeriod) {
-            return;
-        }
-
-        uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
-        confirmActivity(msg.sender, lockedTokens, 0, lastActivePeriod);
+        emit ActivityConfirmed(miner, nextPeriod, lockedTokens);
     }
 
     /**
     * @notice Mint tokens for previous periods if miner locked their tokens and confirmed activity
     **/
     function mint() external onlyMiner {
-        // save last active period to the storage if only one period is confirmed
-        // because after this minting confirmed periods can be empty and can't calculate period from them
+        // save last active period to the storage if both periods will be empty after minting
+        // because we won't be able to calculate last active period
         // see getLastActivePeriod(address)
         MinerInfo storage info = minerInfo[msg.sender];
-        if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
-            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
+        uint16 previousPeriod = getCurrentPeriod().sub16(1);
+        if (info.confirmedPeriod1 <= previousPeriod &&
+            info.confirmedPeriod2 <= previousPeriod &&
+            (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD))
+        {
             info.lastActivePeriod = AdditionalMath.max16(info.confirmedPeriod1, info.confirmedPeriod2);
         }
         mint(msg.sender);
@@ -1167,13 +1218,15 @@ contract MinersEscrow is Issuer {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public {
         super.verifyState(_testTarget);
-        require(uint16(delegateGet(_testTarget, "minLockedPeriods()")) == minLockedPeriods);
+        require(uint16(delegateGet(_testTarget, "minWorkerPeriods()")) == minWorkerPeriods);
         require(delegateGet(_testTarget, "minAllowableLockedTokens()") == minAllowableLockedTokens);
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
         require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
+        require(address(delegateGet(_testTarget, "workerToMiner(address)", bytes32(0))) ==
+            workerToMiner[address(0)]);
 
         require(delegateGet(_testTarget, "getMinersLength()") == miners.length);
         if (miners.length == 0) {
@@ -1189,7 +1242,9 @@ contract MinersEscrow is Issuer {
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
             infoToCheck.reStake == info.reStake &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
-            infoToCheck.lastActivePeriod == info.lastActivePeriod);
+            infoToCheck.lastActivePeriod == info.lastActivePeriod &&
+            infoToCheck.worker == info.worker &&
+            infoToCheck.workerStartPeriod == info.workerStartPeriod);
 
         require(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner) ==
             info.pastDowntime.length);
@@ -1209,6 +1264,11 @@ contract MinersEscrow is Issuer {
                 subStakeInfoToCheck.periods == subStakeInfo.periods &&
                 subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
         }
+
+        if (info.worker != address(0)) {
+            require(address(delegateGet(_testTarget, "workerToMiner(address)", bytes32(uint256(info.worker)))) ==
+                workerToMiner[info.worker]);
+        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
@@ -1218,8 +1278,12 @@ contract MinersEscrow is Issuer {
         minLockedPeriods = escrow.minLockedPeriods();
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
+        minWorkerPeriods = escrow.minWorkerPeriods();
 
         // Create fake period
         lockedPerPeriod[RESERVED_PERIOD] = 111;
+
+        // Create fake worker
+        workerToMiner[address(0)] = address(this);
     }
 }
