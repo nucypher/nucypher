@@ -162,7 +162,7 @@ class Stake:
         self.blockchain = staker.blockchain
 
         # Agency
-        self.staker_agent = staker.staker_agent
+        self.staking_agent = staker.staking_agent
         self.token_agent = staker.token_agent
 
         # Economics
@@ -189,7 +189,7 @@ class Stake:
 
     @property
     def is_expired(self) -> bool:
-        current_period = self.staker_agent.get_current_period()
+        current_period = self.staking_agent.get_current_period()
         return bool(current_period >= self.end_period)
 
     @property
@@ -300,7 +300,7 @@ class Stake:
         """Update this stakes attributes with on-chain values."""
 
         # Read from blockchain
-        stake_info = self.staker_agent.get_substake_info(staker_address=self.owner_address,
+        stake_info = self.staking_agent.get_substake_info(staker_address=self.owner_address,
                                                         stake_index=self.index)  # < -- Read from blockchain
 
         first_period, last_period, locked_value = stake_info
@@ -317,10 +317,10 @@ class Stake:
         """Public facing method for token locking."""
 
         approve_txhash = staker.token_agent.approve_transfer(amount=amount,
-                                                            target_address=staker.staker_agent.contract_address,
+                                                            target_address=staker.staking_agent.contract_address,
                                                             sender_address=staker.checksum_address)
 
-        deposit_txhash = staker.staker_agent.deposit_tokens(amount=amount,
+        deposit_txhash = staker.staking_agent.deposit_tokens(amount=amount,
                                                           lock_periods=lock_periods,
                                                           sender_address=staker.checksum_address)
 
@@ -378,7 +378,7 @@ class Stake:
         #
 
         # Transmit the stake division transaction
-        tx = self.staker_agent.divide_stake(staker_address=self.owner_address,
+        tx = self.staking_agent.divide_stake(staker_address=self.owner_address,
                                            stake_index=self.index,
                                            target_value=int(target_value),
                                            periods=additional_periods)
@@ -394,7 +394,7 @@ class Stake:
         amount = NU(int(amount), 'NuNit')
 
         # Duration
-        current_period = staker.staker_agent.get_current_period()
+        current_period = staker.staking_agent.get_current_period()
         end_period = current_period + lock_periods
 
         stake = Stake(staker=staker,

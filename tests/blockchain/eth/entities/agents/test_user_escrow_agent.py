@@ -83,14 +83,14 @@ def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
 
 
 def test_user_escrow_agent_represents_beneficiary(agent, agency):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
 
     # Name
     assert agent.registry_contract_name == UserEscrowAgent.registry_contract_name
 
-    # Not Equal to StakerAgent
-    assert agent != staker_agent, "UserEscrow Agent is connected to the StakerEscrow's contract"
-    assert agent.contract_address != staker_agent.contract_address, "UserEscrow and StakerEscrow agents represent the same contract"
+    # Not Equal to StakingEscrow
+    assert agent != staking_agent, "UserEscrow Agent is connected to the StakingEscrow's contract"
+    assert agent.contract_address != staking_agent.contract_address, "UserEscrow and StakingEscrow agents represent the same contract"
 
     # Proxy Target Accuracy
     assert agent.principal_contract.address == agent.proxy_contract.address
@@ -108,7 +108,7 @@ def test_read_beneficiary(testerchain, agent):
 
 
 def test_read_allocation(agent, agency, allocation_value):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
     balance = token_agent.get_balance(address=agent.principal_contract.address)
     assert balance == allocation_value
     allocation = agent.unvested_tokens
@@ -128,24 +128,24 @@ def test_read_timestamp(agent):
 @pytest.mark.slow()
 @pytest.mark.usesfixtures("agency")
 def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
 
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == 0
     assert agent.unvested_tokens == allocation_value
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
-    # Move the tokens to the StakerEscrow
+    # Move the tokens to the StakingEscrow
     txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
     assert txhash  # TODO
     _txhash = agent.set_worker(worker_address=agent.beneficiary)
 
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     assert agent.unvested_tokens == allocation_value
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == token_economics.minimum_allowed_locked
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == token_economics.minimum_allowed_locked
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
     for _ in range(token_economics.minimum_locked_periods):
         agent.confirm_activity()
@@ -153,7 +153,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     testerchain.time_travel(periods=1)
     agent.mint()
 
-    assert staker_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     txhash = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
     assert txhash  # TODO
@@ -162,7 +162,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     # Release worker
     _txhash = agent.set_worker(worker_address=testerchain.etherbase_account)
 
-    txhash = agent.withdraw_as_staker(value=staker_agent.owned_tokens(address=agent.contract_address))
+    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(address=agent.contract_address))
     assert txhash
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
@@ -193,7 +193,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
 
 def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens

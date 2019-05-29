@@ -16,8 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 
-from nucypher.blockchain.eth.agents import StakerAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakerEscrowDeployer
+from nucypher.blockchain.eth.agents import StakingEscrow
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer
 
 
 def test_token_deployer_and_agent(testerchain):
@@ -29,9 +29,8 @@ def test_token_deployer_and_agent(testerchain):
     token_deployer.deploy()
 
     secret_hash = os.urandom(32)
-    deployer = StakerEscrowDeployer(blockchain=testerchain,
+    deployer = StakingEscrowDeployer(blockchain=testerchain,
                                    deployer_address=origin)
-
     deployment_txhashes = deployer.deploy(secret_hash=secret_hash)
 
     for title, txhash in deployment_txhashes.items():
@@ -39,17 +38,17 @@ def test_token_deployer_and_agent(testerchain):
         assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
     # Create a token instance
-    staker_agent = deployer.make_agent()
-    staker_escrow_contract = staker_agent.contract
+    staking_agent = deployer.make_agent()
+    staking_escrow_contract = staking_agent.contract
 
-    expected_token_supply = staker_escrow_contract.functions.totalSupply().call()
-    assert expected_token_supply == staker_agent.contract.functions.totalSupply().call()
+    expected_token_supply = staking_escrow_contract.functions.totalSupply().call()
+    assert expected_token_supply == staking_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
-    same_staker_agent = StakerAgent()
+    same_staking_agent = StakingEscrow()
 
     # Compare the contract address for equality
-    assert staker_agent.contract_address == same_staker_agent.contract_address
-    assert staker_agent == same_staker_agent  # __eq__
+    assert staking_agent.contract_address == same_staking_agent.contract_address
+    assert staking_agent == same_staking_agent  # __eq__
 
     testerchain.interface.registry.clear()
