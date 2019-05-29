@@ -42,8 +42,8 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import PolicyAuthor, Staker
+from nucypher.blockchain.eth.agents import StakerAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
@@ -759,7 +759,7 @@ class Bob(Character):
         return controller
 
 
-class Ursula(Teacher, Character, Miner):
+class Ursula(Teacher, Character, Staker):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -768,7 +768,7 @@ class Ursula(Teacher, Character, Miner):
     # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    class NotEnoughUrsulas(Learner.NotEnoughTeachers, MinerAgent.NotEnoughMiners):
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakerAgent.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.
@@ -838,7 +838,7 @@ class Ursula(Teacher, Character, Miner):
             # Staking Ursula
             #
             if not federated_only:
-                Miner.__init__(self, is_me=is_me, checksum_address=checksum_address)
+                Staker.__init__(self, is_me=is_me, checksum_address=checksum_address)
 
                 # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)

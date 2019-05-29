@@ -4,7 +4,7 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
-from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli import deploy
@@ -108,10 +108,10 @@ def test_run_felix(click_runner,
 
     # Record starting ether balance
     recipient = testerchain.interface.w3.eth.accounts[-1]
-    miner = Miner(checksum_address=recipient,
-                  blockchain=testerchain,
-                  is_me=True)
-    original_eth_balance = miner.eth_balance
+    staker = Staker(checksum_address=recipient,
+                    blockchain=testerchain,
+                    is_me=True)
+    original_eth_balance = staker.eth_balance
 
     # Run the callbacks
     d = threads.deferToThread(run_felix)
@@ -122,14 +122,14 @@ def test_run_felix(click_runner,
 
     def confirm_airdrop(_results):
         recipient = testerchain.interface.w3.eth.accounts[-1]
-        miner = Miner(checksum_address=recipient,
-                      blockchain=testerchain,
-                      is_me=True)
+        staker = Staker(checksum_address=recipient,
+                        blockchain=testerchain,
+                        is_me=True)
 
-        assert miner.token_balance == NU(15000, 'NU')
+        assert staker.token_balance == NU(15000, 'NU')
 
         new_eth_balance = original_eth_balance + testerchain.interface.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
-        assert miner.eth_balance == new_eth_balance
+        assert staker.eth_balance == new_eth_balance
 
     staged_airdrops = Felix._AIRDROP_QUEUE
     next_airdrop = staged_airdrops[0]

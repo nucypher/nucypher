@@ -8,10 +8,10 @@ import pytest
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    MinerAgent,
+    StakerAgent,
     UserEscrowAgent,
     PolicyAgent,
-    MiningAdjudicatorAgent,
+    AdjudicatorAgent,
     Agency)
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
@@ -126,12 +126,12 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    miner_agent = MinerAgent()
-    assert miner_agent.get_current_period()
+    staker_agent = StakerAgent()
+    assert staker_agent.get_current_period()
 
     # and at least the others can be instantiated
     assert PolicyAgent()
-    assert MiningAdjudicatorAgent()
+    assert AdjudicatorAgent()
 
 
 def test_upgrade_contracts(click_runner):
@@ -177,21 +177,21 @@ def test_upgrade_contracts(click_runner):
     # Stage Upgrades
     #
 
-    contracts_to_upgrade = ('MinersEscrow',       # v1 -> v2
+    contracts_to_upgrade = ('StakingEscrow',       # v1 -> v2
                             'PolicyManager',      # v1 -> v2
-                            'MiningAdjudicator',  # v1 -> v2
+                            'Adjudicator',  # v1 -> v2
                             'UserEscrowProxy',    # v1 -> v2
 
-                            'MinersEscrow',       # v2 -> v3
-                            'MinersEscrow',       # v3 -> v4
+                            'StakingEscrow',       # v2 -> v3
+                            'StakingEscrow',       # v3 -> v4
 
-                            'MiningAdjudicator',  # v2 -> v3
+                            'Adjudicator',  # v2 -> v3
                             'PolicyManager',      # v2 -> v3
                             'UserEscrowProxy',    # v2 -> v3
 
                             'UserEscrowProxy',    # v3 -> v4
                             'PolicyManager',      # v3 -> v4
-                            'MiningAdjudicator',  # v3 -> v4
+                            'Adjudicator',  # v3 -> v4
 
                             )  # NOTE: Keep all versions the same in this test (all version 4, for example)
 
@@ -275,9 +275,9 @@ def test_rollback(click_runner):
     rollback_secret = generate_insecure_secret()
     user_input = '0\n' + yes + old_secret + rollback_secret + rollback_secret
 
-    contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
+    contracts_to_rollback = ('StakingEscrow',       # v4 -> v3
                              'PolicyManager',      # v4 -> v3
-                             'MiningAdjudicator',  # v4 -> v3
+                             'Adjudicator',  # v4 -> v3
                              )
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
