@@ -37,7 +37,7 @@ from twisted.logger import Logger
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    StakerAgent,
+    StakingEscrow,
     PolicyAgent,
     AdjudicatorAgent,
     EthereumContractAgent
@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
-    StakerEscrowDeployer,
+    StakingEscrowDeployer,
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
@@ -118,7 +118,7 @@ class Deployer(NucypherTokenActor):
     # Registry of deployer classes
     deployers = (
         NucypherTokenDeployer,
-        StakerEscrowDeployer,
+        StakingEscrowDeployer,
         PolicyManagerDeployer,
         AdjudicatorDeployer,
         UserEscrowProxyDeployer,
@@ -141,7 +141,7 @@ class Deployer(NucypherTokenActor):
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-            self.staker_agent = StakerAgent(blockchain=blockchain)
+            self.staking_agent = StakingEscrow(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
             self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
@@ -149,7 +149,7 @@ class Deployer(NucypherTokenActor):
 
         self.deployers = {
             NucypherTokenDeployer.contract_name: self.deploy_token_contract,
-            StakerEscrowDeployer.contract_name: self.deploy_staker_contract,
+            StakingEscrowDeployer.contract_name: self.deploy_staker_contract,
             PolicyManagerDeployer.contract_name: self.deploy_policy_contract,
             UserEscrowProxyDeployer.contract_name: self.deploy_escrow_proxy,
             AdjudicatorDeployer.contract_name: self.deploy_adjudicator_contract,
@@ -193,12 +193,12 @@ class Deployer(NucypherTokenActor):
 
     def deploy_staker_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
-        staker_escrow_deployer = StakerEscrowDeployer(blockchain=self.blockchain,
+        staking_escrow_deployer = StakingEscrowDeployer(blockchain=self.blockchain,
                                                     deployer_address=self.deployer_address,
                                                     secret_hash=secret)
 
-        txhashes = staker_escrow_deployer.deploy()
-        self.staker_agent = staker_escrow_deployer.make_agent()
+        txhashes = staking_escrow_deployer.deploy()
+        self.staking_agent = staking_escrow_deployer.make_agent()
         return txhashes
 
     def deploy_policy_contract(self, secret: bytes) -> dict:
@@ -255,14 +255,14 @@ class Deployer(NucypherTokenActor):
 
         txhashes = {
             NucypherTokenDeployer.contract_name: token_txhashes,
-            StakerEscrowDeployer.contract_name: staker_txhashes,
+            StakingEscrowDeployer.contract_name: staker_txhashes,
             PolicyManagerDeployer.contract_name: policy_txhashes,
             AdjudicatorDeployer.contract_name: adjudicator_txhashes
         }
 
         agents = {
             NucypherTokenDeployer.contract_name: self.token_agent,
-            StakerEscrowDeployer.contract_name: self.staker_agent,
+            StakingEscrowDeployer.contract_name: self.staking_agent,
             PolicyManagerDeployer.contract_name: self.policy_agent,
             AdjudicatorDeployer.contract_name: self.adjudicator_agent
         }
@@ -370,7 +370,7 @@ class Staker(NucypherTokenActor):
         else:
             self.token_agent = STRANGER_MINER
 
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
 
         #
         # Stakes
@@ -406,20 +406,20 @@ class Staker(NucypherTokenActor):
 
         # record start time and periods
         self.__start_time = maya.now()
-        self.__uptime_period = self.staker_agent.get_current_period()
+        self.__uptime_period = self.staking_agent.get_current_period()
         self.__terminal_period = terminal_period
         self.__current_period = self.__uptime_period
         self.start_staking_loop()
 
     @property
     def last_active_period(self) -> int:
-        period = self.staker_agent.get_last_active_period(address=self.checksum_public_address)
+        period = self.staking_agent.get_last_active_period(address=self.checksum_public_address)
         return period
 
     @only_me
     def _confirm_period(self):
 
-        onchain_period = self.staker_agent.get_current_period()  # < -- Read from contract
+        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
 
         # Check if the period has changed on-chain
@@ -482,7 +482,7 @@ class Staker(NucypherTokenActor):
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this staker has locked for a given duration in periods."""
-        raw_value = self.staker_agent.get_locked_tokens(staker_address=self.checksum_public_address, periods=periods)
+        raw_value = self.staking_agent.get_locked_tokens(staker_address=self.checksum_public_address, periods=periods)
         value = NU.from_nunits(raw_value)
         return value
 
@@ -589,7 +589,7 @@ class Staker(NucypherTokenActor):
         onchain_stakes, terminal_period = list(), 0
 
         # Read from blockchain
-        stakes_reader = self.staker_agent.get_all_stakes(staker_address=self.checksum_public_address)
+        stakes_reader = self.staking_agent.get_all_stakes(staker_address=self.checksum_public_address)
 
         for onchain_index, stake_info in enumerate(stakes_reader):
 
@@ -637,26 +637,26 @@ class Staker(NucypherTokenActor):
 
     @only_me
     def set_worker(self, worker_address: str) -> str:
-        txhash = self.staker_agent.set_worker(node_address=self.checksum_public_address, worker_address=worker_address)
+        txhash = self.staking_agent.set_worker(node_address=self.checksum_public_address, worker_address=worker_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def confirm_activity(self) -> str:
         """Staker rewarded for every confirmed period"""
-        txhash = self.staker_agent.confirm_activity(node_address=self.checksum_public_address)
+        txhash = self.staking_agent.confirm_activity(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the staker's account"""
-        mint_txhash = self.staker_agent.mint(node_address=self.checksum_public_address)
+        mint_txhash = self.staking_agent.mint(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
         return mint_txhash
 
     def calculate_reward(self) -> int:
-        staking_reward = self.staker_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
+        staking_reward = self.staking_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
         return staking_reward
 
     @only_me
@@ -672,7 +672,7 @@ class Staker(NucypherTokenActor):
     @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        collection_txhash = self.staker_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
+        collection_txhash = self.staking_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
 
@@ -690,7 +690,7 @@ class PolicyAuthor(NucypherTokenActor):
 
         # From defaults
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
 
     def recruit(self, quantity: int, **options) -> List[str]:
@@ -702,7 +702,7 @@ class PolicyAuthor(NucypherTokenActor):
 
         """
 
-        staker_addresses = self.staker_agent.sample(quantity=quantity, **options)
+        staker_addresses = self.staking_agent.sample(quantity=quantity, **options)
         return staker_addresses
 
     def create_policy(self, *args, **kwargs):

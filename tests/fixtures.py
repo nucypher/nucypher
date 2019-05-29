@@ -33,7 +33,7 @@ from umbral.signing import Signer
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -390,11 +390,11 @@ def agency(testerchain):
     token_agent = token_deployer.make_agent()  # 1: Token
 
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    staker_escrow_deployer = StakerEscrowDeployer(
+    staking_escrow_deployer = StakingEscrowDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
 
-    staker_escrow_deployer.deploy()
+    staking_escrow_deployer.deploy()
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -403,16 +403,16 @@ def agency(testerchain):
 
     policy_manager_deployer.deploy()
 
-    staker_agent = staker_escrow_deployer.make_agent()  # 2 Staker Escrow
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
-    return token_agent, staker_agent, policy_agent
+    return token_agent, staking_agent, policy_agent
 
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(agency, ursula_decentralized_test_config):
-    token_agent, _staker_agent, _policy_agent = agency
+    token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,

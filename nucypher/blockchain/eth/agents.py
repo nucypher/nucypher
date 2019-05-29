@@ -113,7 +113,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return txhash
 
 
-class StakerAgent(EthereumContractAgent):
+class StakingEscrow(EthereumContractAgent):
 
     registry_contract_name = "StakingEscrow"
     _proxy_name = "Dispatcher"

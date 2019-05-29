@@ -40,7 +40,7 @@ from cryptography.x509 import Certificate
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import PolicyAgent, StakerAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrow, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
@@ -251,7 +251,7 @@ class NodeConfiguration(ABC):
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.token_agent = NO_BLOCKCHAIN_CONNECTION
-        self.staker_agent = NO_BLOCKCHAIN_CONNECTION
+        self.staking_agent = NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = NO_BLOCKCHAIN_CONNECTION
 
         #
@@ -315,7 +315,7 @@ class NodeConfiguration(ABC):
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.log.debug("Established connection to nucypher contracts")
 

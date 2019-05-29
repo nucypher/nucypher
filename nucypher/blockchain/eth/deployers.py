@@ -24,7 +24,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
-    StakerAgent,
+    StakingEscrow,
     NucypherTokenAgent,
     PolicyAgent,
     UserEscrowAgent,
@@ -199,12 +199,12 @@ class DispatcherDeployer(ContractDeployer):
         return {'txhash': txhash}
 
 
-class StakerEscrowDeployer(ContractDeployer):
+class StakingEscrowDeployer(ContractDeployer):
     """
-    Deploys the StakerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
+    Deploys the StakingEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
-    agency = StakerAgent
+    agency = StakingEscrow
     contract_name = agency.registry_contract_name
     __upgradeable = True
     __proxy_deployer = DispatcherDeployer
@@ -234,10 +234,10 @@ class StakerEscrowDeployer(ContractDeployer):
         Deployment can only ever be executed exactly once!
 
         Emits the following blockchain network transactions:
-            - StakerEscrow contract deployment
-            - StakerEscrow dispatcher deployment
-            - Transfer reward tokens origin -> StakerEscrow contract
-            - StakerEscrow contract initialization
+            - StakingEscrow contract deployment
+            - StakingEscrow dispatcher deployment
+            - Transfer reward tokens origin -> StakingEscrow contract
+            - StakingEscrow contract initialization
 
         Returns transaction hashes in a dict.
         """
@@ -304,7 +304,7 @@ class StakerEscrowDeployer(ContractDeployer):
 
 class PolicyManagerDeployer(ContractDeployer):
     """
-    Depends on StakerAgent and NucypherTokenAgent
+    Depends on StakingEscrow and NucypherTokenAgent
     """
 
     agency = PolicyAgent
@@ -319,7 +319,7 @@ class PolicyManagerDeployer(ContractDeployer):
     def __init__(self, secret_hash, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.secret_hash = secret_hash
 
     def deploy(self) -> Dict[str, str]:
@@ -327,7 +327,7 @@ class PolicyManagerDeployer(ContractDeployer):
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
-            self.contract_name, self.staker_agent.contract_address)
+            self.contract_name, self.staking_agent.contract_address)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=policy_manager_contract,
@@ -346,8 +346,8 @@ class PolicyManagerDeployer(ContractDeployer):
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped_policy_manager_contract
 
-        # Configure the StakerEscrow by setting the PolicyManager
-        policy_setter_txhash = self.staker_agent.contract.functions.setPolicyManager(policy_manager_contract.address) \
+        # Configure the StakingEscrow by setting the PolicyManager
+        policy_setter_txhash = self.staking_agent.contract.functions.setPolicyManager(policy_manager_contract.address) \
             .transact({'from': self.deployer_address})
 
         self.blockchain.wait_for_receipt(policy_setter_txhash)
@@ -387,7 +387,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
     def __init__(self, secret_hash: bytes, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
 
@@ -401,7 +401,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
         # Proxy
         proxy_args = (self.contract_name,
                       self.token_agent.contract_address,
-                      self.staker_agent.contract_address,
+                      self.staking_agent.contract_address,
                       self.policy_agent.contract_address)
         user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.interface.deploy_contract(*proxy_args)
         self._contract = user_escrow_proxy_contract
@@ -434,7 +434,7 @@ class UserEscrowDeployer(ContractDeployer):
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
@@ -534,7 +534,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staker_agent = StakerAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
         self.secret_hash = secret_hash
         if not economics:
             economics = SlashingEconomics()
@@ -545,7 +545,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
         adjudicator_contract, deploy_txhash = self.blockchain.interface \
                                                          .deploy_contract(self.contract_name,
-                                                                          self.staker_agent.contract_address,
+                                                                          self.staking_agent.contract_address,
                                                                           *self.__economics.deployment_parameters)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,

@@ -122,15 +122,15 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
         super().__init__(*args, **kwargs)
 
         # Deployment Environment Variables
-        self.staker_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
+        self.staking_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
         self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
         self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
         self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
 
     def collect_deployment_secrets(self) -> Secrets:
 
-        if not self.staker_escrow_deployment_secret:
-            self.staker_escrow_deployment_secret = click.prompt('Enter StakerEscrow Deployment Secret',
+        if not self.staking_escrow_deployment_secret:
+            self.staking_escrow_deployment_secret = click.prompt('Enter StakingEscrow Deployment Secret',
                                                                hide_input=True,
                                                                confirmation_prompt=True)
 
@@ -149,7 +149,7 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
                                                                      hide_input=True,
                                                                      confirmation_prompt=True)
 
-        secrets = self.Secrets(staker_secret=self.staker_escrow_deployment_secret,                    # type: str
+        secrets = self.Secrets(staker_secret=self.staking_escrow_deployment_secret,                    # type: str
                                policy_secret=self.policy_manager_deployment_secret,                 # type: str
                                escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,        # type: str
                                adjudicator_secret=self.adjudicator_deployment_secret  # type: str
