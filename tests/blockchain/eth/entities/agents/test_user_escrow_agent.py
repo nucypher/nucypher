@@ -35,7 +35,7 @@ def allocation_value(token_economics):
     return allocation
 
 
-@pytest.mark.usefixtures("three_agents")
+@pytest.mark.usefixtures("agency")
 @pytest.fixture(scope='module')
 def proxy_deployer(testerchain) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
@@ -48,7 +48,7 @@ def proxy_deployer(testerchain) -> UserEscrowAgent:
     yield proxy_deployer
 
 
-@pytest.mark.usefixtures(["three_agents", "proxy_deployer"])
+@pytest.mark.usefixtures(["agency", "proxy_deployer"])
 @pytest.fixture(scope='function')
 def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
@@ -82,8 +82,8 @@ def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
     TEST_ALLOCATION_REGISTRY.clear()
 
 
-def test_user_escrow_agent_represents_beneficiary(agent, three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_user_escrow_agent_represents_beneficiary(agent, agency):
+    token_agent, staker_agent, policy_agent = agency
 
     # Name
     assert agent.registry_contract_name == UserEscrowAgent.registry_contract_name
@@ -107,8 +107,8 @@ def test_read_beneficiary(testerchain, agent):
     assert is_checksum_address(benficiary)
 
 
-def test_read_allocation(agent, three_agents, allocation_value):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_read_allocation(agent, agency, allocation_value):
+    token_agent, staker_agent, policy_agent = agency
     balance = token_agent.get_balance(address=agent.principal_contract.address)
     assert balance == allocation_value
     allocation = agent.unvested_tokens
@@ -116,7 +116,7 @@ def test_read_allocation(agent, three_agents, allocation_value):
     assert allocation == allocation_value
 
 
-@pytest.mark.usesfixtures("three_agents")
+@pytest.mark.usesfixtures("agency")
 def test_read_timestamp(agent):
     timestamp = agent.end_timestamp
     end_locktime = maya.MayaDT(timestamp)
@@ -126,9 +126,9 @@ def test_read_timestamp(agent):
 
 
 @pytest.mark.slow()
-@pytest.mark.usesfixtures("three_agents")
-def test_deposit_and_withdraw_as_staker(testerchain, agent, three_agents, allocation_value, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+@pytest.mark.usesfixtures("agency")
+def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics):
+    token_agent, staker_agent, policy_agent = agency
 
     assert staker_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
     assert staker_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == 0
@@ -167,8 +167,8 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, three_agents, alloca
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
 
-def test_collect_policy_reward(testerchain, agent, three_agents, token_economics):
-    _token_agent, __proxy_contract, policy_agent = three_agents
+def test_collect_policy_reward(testerchain, agent, agency, token_economics):
+    _token_agent, __proxy_contract, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
 
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
@@ -192,8 +192,8 @@ def test_collect_policy_reward(testerchain, agent, three_agents, token_economics
     assert testerchain.interface.w3.eth.getBalance(account=agent.beneficiary) > old_balance
 
 
-def test_withdraw_tokens(testerchain, agent, three_agents, allocation_value):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
+    token_agent, staker_agent, policy_agent = agency
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
