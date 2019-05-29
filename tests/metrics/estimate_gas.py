@@ -37,7 +37,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakerAgent, PolicyAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrow, PolicyAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.utils import get_coordinates_as_bytes
 from nucypher.policy.models import Policy
@@ -180,13 +180,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Contracts
     token_agent = NucypherTokenAgent(blockchain=testerchain)
-    staker_agent = StakerAgent(blockchain=testerchain)
+    staking_agent = StakingEscrow(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
     adjudicator_agent = AdjudicatorAgent()
 
     # Contract Callers
     token_functions = token_agent.contract.functions
-    staker_functions = staker_agent.contract.functions
+    staker_functions = staking_agent.contract.functions
     policy_functions = policy_agent.contract.functions
     adjudicator_functions = adjudicator_agent.contract.functions
 
@@ -196,7 +196,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Pre deposit tokens
     #
-    tx = token_functions.approve(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
     log.info("Pre-deposit tokens for 5 owners = " + str(staker_functions.preDeposit(everyone_else[0:5],
                                                                                    [MIN_ALLOWED_LOCKED] * 5,
@@ -220,12 +220,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     log.info("Approving transfer = "
              + str(
-        token_functions.approve(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
-    tx = token_functions.approve(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
+        token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula3})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -573,25 +573,25 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     log.info("First approveAndCall = " +
-             str(token_functions.approveAndCall(staker_agent.contract_address,
+             str(token_functions.approveAndCall(staking_agent.contract_address,
                                                 MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula1})))
-    tx = token_functions.approveAndCall(staker_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second approveAndCall = " +
-             str(token_functions.approveAndCall(staker_agent.contract_address, MIN_ALLOWED_LOCKED * 2,
+             str(token_functions.approveAndCall(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula2})))
-    tx = token_functions.approveAndCall(staker_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third approveAndCall = " +
-             str(token_functions.approveAndCall(staker_agent.contract_address,
+             str(token_functions.approveAndCall(staking_agent.contract_address,
                                                 MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula3})))
-    tx = token_functions.approveAndCall(staker_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
@@ -655,7 +655,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     # Deploy adjudicator to estimate slashing method in StakingEscrow contract
     adjudicator, _ = testerchain.interface.deploy_contract(
-        'Adjudicator', staker_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
+        'Adjudicator', staking_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
     )
     tx = staker_functions.setAdjudicator(adjudicator.address).transact()
     testerchain.wait_for_receipt(tx)

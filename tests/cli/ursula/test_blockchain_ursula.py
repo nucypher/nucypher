@@ -7,7 +7,7 @@ import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakerAgent
+from nucypher.blockchain.eth.agents import StakingEscrow
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -122,8 +122,8 @@ def test_init_ursula_stake(click_runner,
         config_data = json.loads(config_file.read())
 
     # Verify the stake is on-chain
-    staker_agent = StakerAgent()
-    stakes = list(staker_agent.get_all_stakes(staker_address=config_data['checksum_address']))
+    staking_agent = StakingEscrow()
+    stakes = list(staking_agent.get_all_stakes(staker_address=config_data['checksum_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
@@ -307,6 +307,6 @@ def test_collect_rewards_integration(click_runner,
         staker.confirm_activity()
 
     # Staking Reward
-    calculated_reward = staker.staker_agent.calculate_staking_reward(checksum_address=staker.checksum_address)
+    calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.checksum_address)
     assert calculated_reward
     assert staker.token_balance > pre_stake_token_balance

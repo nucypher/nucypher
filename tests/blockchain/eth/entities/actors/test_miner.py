@@ -28,7 +28,7 @@ from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUN
 
 @pytest.fixture(scope='module')
 def staker(testerchain, agency):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
     token_airdrop(token_agent, origin=testerchain.etherbase_account, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
     staker = Staker(checksum_address=everybody_else[0], is_me=True)
@@ -37,7 +37,7 @@ def staker(testerchain, agency):
 
 @pytest.mark.slow()
 def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
@@ -47,14 +47,14 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
     # Verify that the escrow is "approved" to receive tokens
     allowance = token_agent.contract.functions.allowance(
         staker.checksum_address,
-        staker_agent.contract_address).call()
+        staking_agent.contract_address).call()
     assert 0 == allowance
 
     # Staking starts after one period
-    locked_tokens = staker_agent.contract.functions.getLockedTokens(staker.checksum_address).call()
+    locked_tokens = staking_agent.contract.functions.getLockedTokens(staker.checksum_address).call()
     assert 0 == locked_tokens
 
-    locked_tokens = staker_agent.contract.functions.getLockedTokens(staker.checksum_address, 1).call()
+    locked_tokens = staking_agent.contract.functions.getLockedTokens(staker.checksum_address, 1).call()
     assert token_economics.minimum_allowed_locked == locked_tokens
 
 
@@ -68,7 +68,7 @@ def test_staker_divides_stake(staker, token_economics):
     staker.initialize_stake(amount=stake_value, lock_periods=int(token_economics.minimum_locked_periods))
     staker.divide_stake(target_value=new_stake_value, stake_index=stake_index+1, additional_periods=2)
 
-    current_period = staker.staker_agent.get_current_period()
+    current_period = staker.staking_agent.get_current_period()
     expected_old_stake = (current_period + 1, current_period + 30, stake_value - new_stake_value)
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
 
@@ -95,7 +95,7 @@ def test_staker_divides_stake(staker, token_economics):
 @pytest.mark.slow()
 @pytest.mark.usefixtures("blockchain_ursulas")
 def test_staker_collects_staking_reward(testerchain, staker, agency, token_economics):
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
 
     # Capture the current token balance of the staker
     initial_balance = staker.token_balance
@@ -103,7 +103,7 @@ def test_staker_collects_staking_reward(testerchain, staker, agency, token_econo
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
-    staker.set_worker(worker_address=staker.checksum_public_address)
+    staker.set_worker(worker_address=staker.checksum_address)
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
