@@ -33,7 +33,7 @@ def test_mining(testerchain, token, escrow_contract):
     ursula1 = testerchain.interface.w3.eth.accounts[1]
     ursula2 = testerchain.interface.w3.eth.accounts[2]
 
-    mining_log = escrow.events.Mined.createFilter(fromBlock='latest')
+    staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
@@ -137,7 +137,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert current_period + 1 == escrow.functions.getLastActivePeriod(ursula1).call()
     assert current_period - 1 == escrow.functions.getLastActivePeriod(ursula2).call()
 
-    events = mining_log.get_all_entries()
+    events = staking_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
     assert ursula1 == event_args['staker']
@@ -160,7 +160,7 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert 1046 == escrow.functions.getAllTokens(ursula1).call()
-    events = mining_log.get_all_entries()
+    events = staking_log.get_all_entries()
     assert 2 == len(events)
 
     # Ursula can't confirm next period because stake is unlocked in current period
@@ -190,7 +190,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert 1152 == escrow.functions.getAllTokens(ursula1).call()
     assert 525 == escrow.functions.getAllTokens(ursula2).call()
 
-    events = mining_log.get_all_entries()
+    events = staking_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
     assert ursula1 == event_args['staker']
@@ -209,7 +209,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert 1152 == escrow.functions.getAllTokens(ursula1).call()
     assert 575 == escrow.functions.getAllTokens(ursula2).call()
 
-    events = mining_log.get_all_entries()
+    events = staking_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
     assert ursula2 == event_args['staker']
@@ -270,7 +270,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert 4 == policy_manager.functions.getPeriodsLength(ursula2).call()
     assert current_period - 4 == policy_manager.functions.getPeriod(ursula2, 3).call()
 
-    events = mining_log.get_all_entries()
+    events = staking_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
     assert ursula2 == event_args['staker']

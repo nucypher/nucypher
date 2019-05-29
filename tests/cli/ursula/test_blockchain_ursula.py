@@ -6,8 +6,8 @@ import datetime
 import maya
 import pytest
 
-from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.agents import StakerAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -123,8 +123,8 @@ def test_init_ursula_stake(click_runner,
         config_data = json.loads(config_file.read())
 
     # Verify the stake is on-chain
-    miner_agent = MinerAgent()
-    stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
+    staker_agent = StakerAgent()
+    stakes = list(staker_agent.get_all_stakes(staker_address=config_data['checksum_public_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
@@ -207,17 +207,17 @@ def test_collect_rewards_integration(click_runner,
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
-    miner = Miner(checksum_address=staking_participant.checksum_public_address,
+    staker = Staker(checksum_address=staking_participant.checksum_public_address,
                   blockchain=blockchain, is_me=True)
 
-    pre_stake_eth_balance = miner.eth_balance
+    pre_stake_eth_balance = staker.eth_balance
 
     # Finish the passage of time... once and for all
     for _ in range(half_stake_time):
         current_period += 1
         logger.debug(f"period {current_period}")
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
 
     # Alice creates a policy and grants Bob access
     M, N = 1, 1
@@ -254,7 +254,7 @@ def test_collect_rewards_integration(click_runner,
 
         # Ursula Staying online and the clock advancing
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
         current_period += 1
 
     # Finish the passage of time... once and for all
@@ -262,7 +262,7 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
         logger.debug(f"period {current_period}")
         blockchain.time_travel(periods=1)
-        miner.confirm_activity()
+        staker.confirm_activity()
 
     #
     # WHERES THE MONEY URSULA?? - Collecting Rewards
@@ -296,4 +296,4 @@ def test_collect_rewards_integration(click_runner,
 
     expected_reward = policy_rate * 30
     assert collected_reward == expected_reward
-    assert miner.eth_balance == pre_stake_eth_balance
+    assert staker.eth_balance == pre_stake_eth_balance
