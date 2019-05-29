@@ -62,7 +62,7 @@ def bob(click_config,
         """Create a brand-new persistent Bob"""
 
         if dev:
-            click_config.emit(message="WARNING: Using temporary storage area", color='yellow')
+            raise click.BadArgumentUsage("Cannot create a persistent development character")
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar

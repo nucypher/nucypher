@@ -75,7 +75,7 @@ def alice(click_config,
             raise click.BadArgumentUsage('--network is required to initialize a new configuration.')
 
         if dev:
-            click_config.emitter(message="WARNING: Using temporary storage area", color='yellow')
+            raise click.BadArgumentUsage("Cannot create a persistent development character")
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar

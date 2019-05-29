@@ -88,3 +88,13 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     user_input = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input)
     assert result.exit_code == 0
+
+
+def test_alice_cannot_init_with_dev_flag(click_runner):
+    init_args = ('alice', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--federated-only',
+                 '--dev')
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
+    assert result.exit_code == 2
+    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
