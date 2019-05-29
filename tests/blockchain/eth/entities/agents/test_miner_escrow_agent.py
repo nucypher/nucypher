@@ -16,15 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
 
-from nucypher.blockchain.eth.agents import StakerAgent
+from nucypher.blockchain.eth.agents import StakingEscrow
 
 
 @pytest.mark.slow()
 def test_deposit_tokens(testerchain, agency, token_economics):
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_agent, staker_agent, policy_agent = agency
+    token_agent, staking_agent, policy_agent = agency
 
-    agent = staker_agent
+    agent = staking_agent
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
@@ -57,15 +57,15 @@ def test_deposit_tokens(testerchain, agency, token_economics):
 
 @pytest.mark.slow()
 def test_get_staker_population(agency, blockchain_ursulas):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     assert agent.get_staker_population() == len(blockchain_ursulas)
 
 
 @pytest.mark.slow()
 def test_get_swarm(agency, blockchain_ursulas):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     swarm = agent.swarm()
     swarm_addresses = list(swarm)
     assert len(swarm_addresses) == len(blockchain_ursulas)
@@ -82,8 +82,8 @@ def test_get_swarm(agency, blockchain_ursulas):
 
 @pytest.mark.slow()
 def test_locked_tokens(agency, blockchain_ursulas, token_economics):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     ursula = blockchain_ursulas[2]
     locked_amount = agent.get_locked_tokens(staker_address=ursula.checksum_address)
     assert token_economics.maximum_allowed_locked >= locked_amount >= token_economics.minimum_allowed_locked
@@ -91,8 +91,8 @@ def test_locked_tokens(agency, blockchain_ursulas, token_economics):
 
 @pytest.mark.slow()
 def test_get_all_stakes(agency, blockchain_ursulas, token_economics):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     ursula = blockchain_ursulas[2]
     all_stakes = list(agent.get_all_stakes(staker_address=ursula.checksum_address))
     assert len(all_stakes) == 1
@@ -106,11 +106,11 @@ def test_get_all_stakes(agency, blockchain_ursulas, token_economics):
 @pytest.mark.slow()
 @pytest.mark.usefixtures("blockchain_ursulas")
 def test_sample_stakers(agency):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     stakers_population = agent.get_staker_population()
 
-    with pytest.raises(StakerAgent.NotEnoughStakers):
+    with pytest.raises(StakingEscrow.NotEnoughStakers):
         agent.sample(quantity=stakers_population + 1, duration=1)  # One more than we have deployed
 
     stakers = agent.sample(quantity=3, duration=5)
@@ -119,8 +119,8 @@ def test_sample_stakers(agency):
 
 
 def test_get_current_period(agency):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     testerchain = agent.blockchain
     start_period = agent.get_current_period()
     testerchain.time_travel(periods=1)
@@ -130,8 +130,8 @@ def test_get_current_period(agency):
 
 @pytest.mark.slow()
 def test_confirm_activity(agency):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     _txhash = agent.set_worker(node_address=someone, worker_address=someone)
@@ -144,8 +144,8 @@ def test_confirm_activity(agency):
 
 @pytest.mark.skip('To be implemented')
 def test_divide_stake(agency, token_economics):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
@@ -182,8 +182,8 @@ def test_divide_stake(agency, token_economics):
 
 @pytest.mark.slow()
 def test_collect_staking_reward(agency):
-    token_agent, staker_agent, policy_agent = agency
-    agent = staker_agent
+    token_agent, staking_agent, policy_agent = agency
+    agent = staking_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
