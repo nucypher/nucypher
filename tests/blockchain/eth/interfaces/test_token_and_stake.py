@@ -102,11 +102,11 @@ def test_NU(token_economics):
 def test_stake(testerchain, agency):
 
     class FakeUrsula:
-        token_agent, staker_agent, _policy_agent = agency
+        token_agent, staking_agent, _policy_agent = agency
 
         burner_wallet = Web3().eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
         checksum_address = burner_wallet.address
-        staker_agent = staker_agent
+        staking_agent = staking_agent
         token_agent = token_agent
         blockchain = testerchain
         economics = TokenEconomics()
@@ -131,7 +131,7 @@ def test_stake_integration(blockchain_ursulas):
     assert stakes
 
     stake = stakes[0]
-    blockchain_stakes = staking_ursula.staker_agent.get_all_stakes(staker_address=staking_ursula.checksum_address)
+    blockchain_stakes = staking_ursula.staking_agent.get_all_stakes(staker_address=staking_ursula.checksum_address)
 
     stake_info = (stake.start_period, stake.end_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]
