@@ -274,87 +274,93 @@ class BlockchainInterface(object):
         if provider_uri and not provider:
             uri_breakdown = urlparse(provider_uri)
 
-            #
-            # Web3 Providers
-            #
-
-            # Test Endpoints
-
             if uri_breakdown.scheme == 'tester':
-
-                if uri_breakdown.netloc == 'pyevm':
-                    # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
-                    from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
-
-                    # Initialize
-                    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
-                    pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
-                    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
-
-                    # Test provider entry-point
-                    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-                    provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
-                elif uri_breakdown.netloc in ('geth', 'parity-ethereum'):
-
-                    # geth --dev
-                    geth_process = NuCypherGethDevProcess()
-                    geth_process.start()
-                    geth_process.wait_for_ipc(timeout=30)
-                    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=self.timeout)
-                    BlockchainInterface.process = geth_process
-
-                elif uri_breakdown.netloc == 'ganache':
-                    provider = HTTPProvider(endpoint_uri='http://localhost:7545')  # Default Ganache "TestRPC" Endpoint
-
-                else:
-                    raise ValueError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
-
-            # Shortcuts
-
-            # - Auto-Detect -
-            elif uri_breakdown.scheme == 'auto':
-                from web3.auto import w3
-                # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
-                connected = w3.isConnected()
-                if not connected:
-                    raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
-                provider = w3.provider
-
-            # - Infura -
-            elif uri_breakdown.scheme == 'infura':
-                # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
-                infura_envvar = 'WEB3_INFURA_API_SECRET'
-                if infura_envvar not in os.environ:
-                    raise self.InterfaceError(f'{infura_envvar} must be set in order to use an Infura Web3 provider.')
-                from web3.auto.infura import w3
-                connected = w3.isConnected()
-                if not connected:
-                    raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
-                provider = w3.provider
-
-            # Built-In
-
-            # - IPC -
-            elif uri_breakdown.scheme in ('ipc', 'file'):
-                # https://web3py.readthedocs.io/en/latest/providers.html#ipcprovider
-                provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
-
-            # - Websocket -
-            elif uri_breakdown.scheme == 'ws':
-                # https://web3py.readthedocs.io/en/latest/providers.html#websocketprovider
-                provider = WebsocketProvider(endpoint_uri=provider_uri)
-
-            # - HTTP -
-            elif uri_breakdown.scheme in ('http', 'https'):
-                # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
-                provider = HTTPProvider(endpoint_uri=provider_uri)
-
+                providers = {
+                    'pyevm': self.__get_tester_pyevm,
+                    'geth': self.__get_test_geth_parity_provider,
+                    'parity-ethereum': self.__get_test_geth_parity_provider,
+                }
+                lookup_attr = uri_breakdown.netloc
             else:
-                raise self.InterfaceError(f"'{uri_breakdown.scheme}' is not a supported Web3 provider "
-                                          f"protocol scheme or shortcut.")
+                providers = {
+                    'auto': self.__get_auto_provider,
+                    'infura': self.__get_infura_provider,
+                    'ipc': self.__get_IPC_provider,
+                    'file': self.__get_IPC_provider,
+                    'ws': self.__get_websocket_provider,
+                    'http': self.__get_HTTP_provider,
+                    'https': self.__get_HTTP_provider,
+                }
+                lookup_attr = uri_breakdown.scheme
+            try:
+                self.__provider = providers[lookup_attr]()
+            except KeyError:
+                raise ValueError(
+                    "{} is an invalid or unsupported blockchain"
+                    " provider URI".format(provider_uri)
+                )
 
-            self.__provider = provider
+    def __get_IPC_provider(self):
+        uri_breakdown = urlparse(self.provider_uri)
+        return IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
+
+    def __get_HTTP_provider(self):
+        return HTTPProvider(endpoint_uri=self.provider_uri)
+
+    def __get_websocket_provider(self):
+        return WebsocketProvider(endpoint_uri=self.provider_uri)
+
+    def __get_infura_provider(self):
+        # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
+        infura_envvar = 'WEB3_INFURA_API_SECRET'
+        if infura_envvar not in os.environ:
+            raise self.InterfaceError(f'{infura_envvar} must be set in order to use an Infura Web3 provider.')
+        from web3.auto.infura import w3
+        connected = w3.isConnected()
+        if not connected:
+            raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
+        return w3.provider
+
+    def __get_auto_provider(self):
+
+        from web3.auto import w3
+        # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
+        connected = w3.isConnected()
+        if not connected:
+            raise self.InterfaceError('Cannot auto-detect node.  Provide a full URI instead.')
+        return w3.provider
+
+    def __get_tester_pyevm(self):
+        # https://web3py.readthedocs.io/en/latest/providers.html#httpprovider
+        from nucypher.utilities.sandbox.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+
+        # Initialize
+        genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
+        pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
+        pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+
+        # Test provider entry-point
+        eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+        provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
+        return provider
+
+    def __get_test_geth_parity_provider(self):
+        # geth --dev
+        geth_process = NuCypherGethDevProcess()
+        geth_process.start()
+        geth_process.wait_for_ipc(timeout=30)
+        provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=self.timeout)
+
+        #  TODO: this seems strange to modify a class attr here?
+        BlockchainInterface.process = geth_process
+
+        return provider
+
+    def __get_tester_ganache(self, endpoint_uri=None):
+
+        endpoint_uri = endpoint_uri or 'http://localhost:7545'
+        return HTTPProvider(endpoint_uri=endpoint_uri)
 
     @classmethod
     def disconnect(cls):
