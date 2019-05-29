@@ -31,8 +31,8 @@ def configuration_file_location(custom_filepath):
 
 
 @pytest.fixture(scope="module")
-def charlie_blockchain_test_config(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def charlie_blockchain_test_config(blockchain_ursulas, agency):
+    token_agent, staking_agent, policy_agent = agency
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = BobConfiguration(dev_mode=True,
