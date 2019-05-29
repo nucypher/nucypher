@@ -27,8 +27,8 @@ from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUN
 
 
 @pytest.fixture(scope='module')
-def staker(testerchain, three_agents):
-    token_agent, staker_agent, policy_agent = three_agents
+def staker(testerchain, agency):
+    token_agent, staker_agent, policy_agent = agency
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
     token_airdrop(token_agent, origin=testerchain.etherbase_account, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
     staker = Staker(checksum_address=everybody_else[0], is_me=True)
@@ -36,8 +36,8 @@ def staker(testerchain, three_agents):
 
 
 @pytest.mark.slow()
-def test_staker_locking_tokens(testerchain, three_agents, staker, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
+    token_agent, staker_agent, policy_agent = agency
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
@@ -59,7 +59,7 @@ def test_staker_locking_tokens(testerchain, three_agents, staker, token_economic
 
 
 @pytest.mark.slow()
-@pytest.mark.usefixtures("three_agents")
+@pytest.mark.usefixtures("agency")
 def test_staker_divides_stake(staker, token_economics):
     stake_value = NU(token_economics.minimum_allowed_locked*5, 'NuNit')
     new_stake_value = NU(token_economics.minimum_allowed_locked*2, 'NuNit')
@@ -94,8 +94,8 @@ def test_staker_divides_stake(staker, token_economics):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures("blockchain_ursulas")
-def test_staker_collects_staking_reward(testerchain, staker, three_agents, token_economics):
-    token_agent, staker_agent, policy_agent = three_agents
+def test_staker_collects_staking_reward(testerchain, staker, agency, token_economics):
+    token_agent, staker_agent, policy_agent = agency
 
     # Capture the current token balance of the staker
     initial_balance = staker.token_balance
