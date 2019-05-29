@@ -72,7 +72,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--poa',
-                 '--network', str(TEMPORARY_DOMAIN, encoding='utf-8'),
+                 '--network', TEMPORARY_DOMAIN,
                  '--checksum-address', staking_participant.checksum_public_address,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
@@ -100,7 +100,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
         assert config_data['checksum_public_address'] == staking_participant.checksum_public_address
-        assert str(TEMPORARY_DOMAIN, encoding='utf-8') in config_data['domains']
+        assert TEMPORARY_DOMAIN in config_data['domains']
 
 
 def test_init_ursula_stake(click_runner,

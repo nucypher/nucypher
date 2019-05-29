@@ -105,7 +105,7 @@ def felix(click_config,
         return  # <-- do not remove (conditional flow control)
 
     # Domains -> bytes | or default
-    domains = [bytes(network, encoding='utf-8')] if network else None
+    domains = [network] if network else None
 
     # Load Felix from Configuration File with overrides
     try:
