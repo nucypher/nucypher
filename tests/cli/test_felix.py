@@ -4,7 +4,7 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
-from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli import deploy
@@ -113,11 +113,11 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
 
     def confirm_airdrop(_results):
         recipient = testerchain.interface.w3.eth.accounts[-1]
-        miner = Miner(checksum_address=recipient,
+        staker = Staker(checksum_address=recipient,
                       blockchain=testerchain,
                       is_me=True)
 
-        assert miner.token_balance == NU(15000, 'NU')
+        assert staker.token_balance == NU(15000, 'NU')
 
     staged_airdrops = Felix._AIRDROP_QUEUE
     next_airdrop = staged_airdrops[0]

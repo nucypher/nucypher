@@ -37,19 +37,19 @@ from twisted.logger import Logger
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    MinerAgent,
+    StakerAgent,
     PolicyAgent,
-    MiningAdjudicatorAgent,
+    AdjudicatorAgent,
     EthereumContractAgent
 )
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
-    MinerEscrowDeployer,
+    StakerEscrowDeployer,
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
-    MiningAdjudicatorDeployer
+    AdjudicatorDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -61,7 +61,7 @@ def only_me(func):
     """Decorator to enforce invocation of permissioned actor methods"""
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
-            raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
+            raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
     return wrapped
 
@@ -118,9 +118,9 @@ class Deployer(NucypherTokenActor):
     # Registry of deployer classes
     deployers = (
         NucypherTokenDeployer,
-        MinerEscrowDeployer,
+        StakerEscrowDeployer,
         PolicyManagerDeployer,
-        MiningAdjudicatorDeployer,
+        AdjudicatorDeployer,
         UserEscrowProxyDeployer,
     )
 
@@ -141,18 +141,18 @@ class Deployer(NucypherTokenActor):
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-            self.miner_agent = MinerAgent(blockchain=blockchain)
+            self.staker_agent = StakerAgent(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
-            self.adjudicator_agent = MiningAdjudicatorAgent(blockchain=blockchain)
+            self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
 
         self.deployers = {
             NucypherTokenDeployer.contract_name: self.deploy_token_contract,
-            MinerEscrowDeployer.contract_name: self.deploy_miner_contract,
+            StakerEscrowDeployer.contract_name: self.deploy_staker_contract,
             PolicyManagerDeployer.contract_name: self.deploy_policy_contract,
             UserEscrowProxyDeployer.contract_name: self.deploy_escrow_proxy,
-            MiningAdjudicatorDeployer.contract_name: self.deploy_mining_adjudicator_contract,
+            AdjudicatorDeployer.contract_name: self.deploy_adjudicator_contract,
         }
 
         self.log = Logger("Deployment-Actor")
@@ -191,14 +191,14 @@ class Deployer(NucypherTokenActor):
         self.token_agent = token_deployer.make_agent()
         return txhashes
 
-    def deploy_miner_contract(self, secret: bytes) -> dict:
+    def deploy_staker_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
-        miner_escrow_deployer = MinerEscrowDeployer(blockchain=self.blockchain,
+        staker_escrow_deployer = StakerEscrowDeployer(blockchain=self.blockchain,
                                                     deployer_address=self.deployer_address,
                                                     secret_hash=secret)
 
-        txhashes = miner_escrow_deployer.deploy()
-        self.miner_agent = miner_escrow_deployer.make_agent()
+        txhashes = staker_escrow_deployer.deploy()
+        self.staker_agent = staker_escrow_deployer.make_agent()
         return txhashes
 
     def deploy_policy_contract(self, secret: bytes) -> dict:
@@ -211,14 +211,14 @@ class Deployer(NucypherTokenActor):
         self.policy_agent = policy_manager_deployer.make_agent()
         return txhashes
 
-    def deploy_mining_adjudicator_contract(self, secret: bytes) -> dict:
+    def deploy_adjudicator_contract(self, secret: bytes) -> dict:
         secret = self.blockchain.interface.w3.keccak(secret)
-        mining_adjudicator_deployer = MiningAdjudicatorDeployer(blockchain=self.blockchain,
+        adjudicator_deployer = AdjudicatorDeployer(blockchain=self.blockchain,
                                                                 deployer_address=self.deployer_address,
                                                                 secret_hash=secret)
 
-        txhashes = mining_adjudicator_deployer.deploy()
-        self.adjudicator_agent = mining_adjudicator_deployer.make_agent()
+        txhashes = adjudicator_deployer.deploy()
+        self.adjudicator_agent = adjudicator_deployer.make_agent()
         return txhashes
 
     def deploy_escrow_proxy(self, secret: bytes) -> dict:
@@ -241,7 +241,7 @@ class Deployer(NucypherTokenActor):
         return user_escrow_deployer
 
     def deploy_network_contracts(self,
-                                 miner_secret: bytes,
+                                 staker_secret: bytes,
                                  policy_secret: bytes,
                                  adjudicator_secret: bytes
                                  ) -> Tuple[dict, dict]:
@@ -249,22 +249,22 @@ class Deployer(NucypherTokenActor):
         Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
         """
         token_txhashes = self.deploy_token_contract()
-        miner_txhashes = self.deploy_miner_contract(secret=miner_secret)
+        staker_txhashes = self.deploy_staker_contract(secret=staker_secret)
         policy_txhashes = self.deploy_policy_contract(secret=policy_secret)
-        adjudicator_txhashes = self.deploy_mining_adjudicator_contract(secret=adjudicator_secret)
+        adjudicator_txhashes = self.deploy_adjudicator_contract(secret=adjudicator_secret)
 
         txhashes = {
             NucypherTokenDeployer.contract_name: token_txhashes,
-            MinerEscrowDeployer.contract_name: miner_txhashes,
+            StakerEscrowDeployer.contract_name: staker_txhashes,
             PolicyManagerDeployer.contract_name: policy_txhashes,
-            MiningAdjudicatorDeployer.contract_name: adjudicator_txhashes
+            AdjudicatorDeployer.contract_name: adjudicator_txhashes
         }
 
         agents = {
             NucypherTokenDeployer.contract_name: self.token_agent,
-            MinerEscrowDeployer.contract_name: self.miner_agent,
+            StakerEscrowDeployer.contract_name: self.staker_agent,
             PolicyManagerDeployer.contract_name: self.policy_agent,
-            MiningAdjudicatorDeployer.contract_name: self.adjudicator_agent
+            AdjudicatorDeployer.contract_name: self.adjudicator_agent
         }
 
         return txhashes, agents
@@ -331,14 +331,14 @@ class Deployer(NucypherTokenActor):
         return txhashes
 
 
-class Miner(NucypherTokenActor):
+class Staker(NucypherTokenActor):
     """
     Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
     __current_period_sample_rate = 60*60  # seconds
 
-    class MinerError(NucypherTokenActor.ActorError):
+    class StakerError(NucypherTokenActor.ActorError):
         pass
 
     def __init__(self,
@@ -348,7 +348,7 @@ class Miner(NucypherTokenActor):
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.log = Logger("miner")
+        self.log = Logger("staker")
         self.is_me = is_me
 
         if not economics:
@@ -370,7 +370,7 @@ class Miner(NucypherTokenActor):
         else:
             self.token_agent = STRANGER_MINER
 
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
 
         #
         # Stakes
@@ -406,20 +406,20 @@ class Miner(NucypherTokenActor):
 
         # record start time and periods
         self.__start_time = maya.now()
-        self.__uptime_period = self.miner_agent.get_current_period()
+        self.__uptime_period = self.staker_agent.get_current_period()
         self.__terminal_period = terminal_period
         self.__current_period = self.__uptime_period
         self.start_staking_loop()
 
     @property
     def last_active_period(self) -> int:
-        period = self.miner_agent.get_last_active_period(address=self.checksum_public_address)
+        period = self.staker_agent.get_last_active_period(address=self.checksum_public_address)
         return period
 
     @only_me
     def _confirm_period(self):
 
-        onchain_period = self.miner_agent.get_current_period()  # < -- Read from contract
+        onchain_period = self.staker_agent.get_current_period()  # < -- Read from contract
         self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
 
         # Check if the period has changed on-chain
@@ -477,12 +477,12 @@ class Miner(NucypherTokenActor):
 
     @property
     def is_staking(self) -> bool:
-        """Checks if this Miner currently has active stakes / locked tokens."""
+        """Checks if this Staker currently has active stakes / locked tokens."""
         return bool(self.locked_tokens > NU.ZERO())
 
     def locked_tokens(self, periods: int = 0) -> NU:
-        """Returns the amount of tokens this miner has locked for a given duration in periods."""
-        raw_value = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address, periods=periods)
+        """Returns the amount of tokens this staker has locked for a given duration in periods."""
+        raw_value = self.staker_agent.get_locked_tokens(staker_address=self.checksum_public_address, periods=periods)
         value = NU.from_nunits(raw_value)
         return value
 
@@ -561,7 +561,7 @@ class Miner(NucypherTokenActor):
         if entire_balance:
             amount = self.token_balance
         if not self.token_balance >= amount:
-            raise self.MinerError(f"Insufficient token balance ({self.token_agent}) for new stake initialization of {amount}")
+            raise self.StakerError(f"Insufficient token balance ({self.token_agent}) for new stake initialization of {amount}")
 
         # Ensure the new stake will not exceed the staking limit
         if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
@@ -572,7 +572,7 @@ class Miner(NucypherTokenActor):
         #
 
         # Write to blockchain
-        new_stake = Stake.initialize_stake(miner=self, amount=amount, lock_periods=lock_periods)
+        new_stake = Stake.initialize_stake(staker=self, amount=amount, lock_periods=lock_periods)
         self.__read_stakes()  # Update local staking cache
         return new_stake
 
@@ -589,7 +589,7 @@ class Miner(NucypherTokenActor):
         onchain_stakes, terminal_period = list(), 0
 
         # Read from blockchain
-        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
+        stakes_reader = self.staker_agent.get_all_stakes(staker_address=self.checksum_public_address)
 
         for onchain_index, stake_info in enumerate(stakes_reader):
 
@@ -599,7 +599,7 @@ class Miner(NucypherTokenActor):
 
             else:
                 # On-chain stake detected
-                onchain_stake = Stake.from_stake_info(miner=self,
+                onchain_stake = Stake.from_stake_info(staker=self,
                                                       stake_info=stake_info,
                                                       index=onchain_index)
 
@@ -637,26 +637,26 @@ class Miner(NucypherTokenActor):
 
     @only_me
     def set_worker(self, worker_address: str) -> str:
-        txhash = self.miner_agent.set_worker(node_address=self.checksum_public_address, worker_address=worker_address)
+        txhash = self.staker_agent.set_worker(node_address=self.checksum_public_address, worker_address=worker_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def confirm_activity(self) -> str:
-        """Miner rewarded for every confirmed period"""
-        txhash = self.miner_agent.confirm_activity(node_address=self.checksum_public_address)
+        """Staker rewarded for every confirmed period"""
+        txhash = self.staker_agent.confirm_activity(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def mint(self) -> Tuple[str, str]:
-        """Computes and transfers tokens to the miner's account"""
-        mint_txhash = self.miner_agent.mint(node_address=self.checksum_public_address)
+        """Computes and transfers tokens to the staker's account"""
+        mint_txhash = self.staker_agent.mint(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
         return mint_txhash
 
     def calculate_reward(self) -> int:
-        staking_reward = self.miner_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
+        staking_reward = self.staker_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
         return staking_reward
 
     @only_me
@@ -665,14 +665,14 @@ class Miner(NucypherTokenActor):
         policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
 
         withdraw_address = collector_address or self.checksum_public_address
-        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address, miner_address=self.checksum_public_address)
+        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address, staker_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
         return policy_reward_txhash
 
     @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        collection_txhash = self.miner_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
+        collection_txhash = self.staker_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
 
@@ -690,20 +690,20 @@ class PolicyAuthor(NucypherTokenActor):
 
         # From defaults
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """
-        Uses sampling logic to gather miners from the blockchain and
+        Uses sampling logic to gather stakers from the blockchain and
         caches the resulting node ethereum addresses.
 
         :param quantity: Number of ursulas to sample from the blockchain.
 
         """
 
-        miner_addresses = self.miner_agent.sample(quantity=quantity, **options)
-        return miner_addresses
+        staker_addresses = self.staker_agent.sample(quantity=quantity, **options)
+        return staker_addresses
 
     def create_policy(self, *args, **kwargs):
         """

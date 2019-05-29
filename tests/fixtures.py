@@ -33,7 +33,7 @@ from umbral.signing import Signer
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               MinerEscrowDeployer,
+                                               StakerEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
@@ -389,12 +389,12 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
+    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    staker_escrow_deployer = StakerEscrowDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+        secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
 
-    miner_escrow_deployer.deploy()
+    staker_escrow_deployer.deploy()
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -403,16 +403,16 @@ def three_agents(testerchain):
 
     policy_manager_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
+    staker_agent = staker_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
-    return token_agent, miner_agent, policy_agent
+    return token_agent, staker_agent, policy_agent
 
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, _miner_agent, _policy_agent = three_agents
+    token_agent, _staker_agent, _policy_agent = three_agents
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,

@@ -115,22 +115,22 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    __secrets = ('miner_secret', 'policy_secret', 'escrow_proxy_secret', 'mining_adjudicator_secret')
+    __secrets = ('staker_secret', 'policy_secret', 'escrow_proxy_secret', 'adjudicator_secret')
     Secrets = collections.namedtuple('Secrets', __secrets)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Deployment Environment Variables
-        self.miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
+        self.staker_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET")
         self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
         self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
-        self.mining_adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
+        self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
 
     def collect_deployment_secrets(self) -> Secrets:
 
-        if not self.miner_escrow_deployment_secret:
-            self.miner_escrow_deployment_secret = click.prompt('Enter MinerEscrow Deployment Secret',
+        if not self.staker_escrow_deployment_secret:
+            self.staker_escrow_deployment_secret = click.prompt('Enter StakerEscrow Deployment Secret',
                                                                hide_input=True,
                                                                confirmation_prompt=True)
 
@@ -144,15 +144,15 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
                                                                     hide_input=True,
                                                                     confirmation_prompt=True)
 
-        if not self.mining_adjudicator_deployment_secret:
-            self.mining_adjudicator_deployment_secret = click.prompt('Enter MiningAdjudicator Deployment Secret',
+        if not self.adjudicator_deployment_secret:
+            self.adjudicator_deployment_secret = click.prompt('Enter Adjudicator Deployment Secret',
                                                                      hide_input=True,
                                                                      confirmation_prompt=True)
 
-        secrets = self.Secrets(miner_secret=self.miner_escrow_deployment_secret,                    # type: str
+        secrets = self.Secrets(staker_secret=self.staker_escrow_deployment_secret,                    # type: str
                                policy_secret=self.policy_manager_deployment_secret,                 # type: str
                                escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,        # type: str
-                               mining_adjudicator_secret=self.mining_adjudicator_deployment_secret  # type: str
+                               adjudicator_secret=self.adjudicator_deployment_secret  # type: str
                                )
         return secrets
 

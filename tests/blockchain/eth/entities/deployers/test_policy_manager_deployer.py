@@ -21,7 +21,7 @@ import os
 from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
-    MinerEscrowDeployer,
+    StakerEscrowDeployer,
     PolicyManagerDeployer,
     DispatcherDeployer
 )
@@ -36,14 +36,14 @@ def test_policy_manager_deployer(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
+    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    staker_escrow_deployer = StakerEscrowDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+        secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
 
-    miner_escrow_deployer.deploy()
+    staker_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
+    staker_agent = staker_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(deployer_address=origin,

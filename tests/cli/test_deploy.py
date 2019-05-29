@@ -4,10 +4,10 @@ import os
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    MinerAgent,
+    StakerAgent,
     UserEscrowAgent,
     PolicyAgent,
-    MiningAdjudicatorAgent
+    AdjudicatorAgent
 )
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
@@ -63,12 +63,12 @@ def test_nucypher_deploy_contracts(testerchain, click_runner, mock_primary_regis
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    miner_agent = MinerAgent()
-    assert miner_agent.get_current_period()
+    staker_agent = StakerAgent()
+    assert staker_agent.get_current_period()
 
     # and at least the others can be instantiated
     assert PolicyAgent()
-    assert MiningAdjudicatorAgent()
+    assert AdjudicatorAgent()
     testerchain.sever_connection()
 
 

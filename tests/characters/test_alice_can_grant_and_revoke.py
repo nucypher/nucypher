@@ -39,7 +39,7 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
     # Monkey patch Policy Creation
-    _token_agent, _miner_agent, policy_agent = three_agents
+    _token_agent, _staker_agent, policy_agent = three_agents
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
     policy_agent.contract.functions.createPolicy = MockPolicyCreation
 

@@ -24,11 +24,11 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
-    MinerAgent,
+    StakerAgent,
     NucypherTokenAgent,
     PolicyAgent,
     UserEscrowAgent,
-    MiningAdjudicatorAgent)
+    AdjudicatorAgent)
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -199,12 +199,12 @@ class DispatcherDeployer(ContractDeployer):
         return {'txhash': txhash}
 
 
-class MinerEscrowDeployer(ContractDeployer):
+class StakerEscrowDeployer(ContractDeployer):
     """
-    Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
+    Deploys the StakerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
-    agency = MinerAgent
+    agency = StakerAgent
     contract_name = agency.registry_contract_name
     __upgradeable = True
     __proxy_deployer = DispatcherDeployer
@@ -228,16 +228,16 @@ class MinerEscrowDeployer(ContractDeployer):
 
     def deploy(self) -> dict:
         """
-        Deploy and publish the MinersEscrow contract
+        Deploy and publish the StakingEscrow contract
         to the blockchain network specified in self.blockchain.network.
 
         Deployment can only ever be executed exactly once!
 
         Emits the following blockchain network transactions:
-            - MinerEscrow contract deployment
-            - MinerEscrow dispatcher deployment
-            - Transfer reward tokens origin -> MinerEscrow contract
-            - MinerEscrow contract initialization
+            - StakerEscrow contract deployment
+            - StakerEscrow dispatcher deployment
+            - Transfer reward tokens origin -> StakerEscrow contract
+            - StakerEscrow contract initialization
 
         Returns transaction hashes in a dict.
         """
@@ -273,7 +273,7 @@ class MinerEscrowDeployer(ContractDeployer):
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
 
-        # 3 - Transfer tokens to the miner escrow #
+        # 3 - Transfer tokens to the staker escrow #
         reward_txhash = self.token_agent.contract.functions.transfer(
             the_escrow_contract.address,
             self.__economics.erc20_reward_supply
@@ -281,7 +281,7 @@ class MinerEscrowDeployer(ContractDeployer):
 
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
-        # 4 - Initialize the Miner Escrow contract
+        # 4 - Initialize the Staker Escrow contract
         init_txhash = the_escrow_contract.functions.initialize().transact(origin_args)
         _init_receipt = self.blockchain.wait_for_receipt(init_txhash)
 
@@ -304,7 +304,7 @@ class MinerEscrowDeployer(ContractDeployer):
 
 class PolicyManagerDeployer(ContractDeployer):
     """
-    Depends on MinerAgent and NucypherTokenAgent
+    Depends on StakerAgent and NucypherTokenAgent
     """
 
     agency = PolicyAgent
@@ -319,7 +319,7 @@ class PolicyManagerDeployer(ContractDeployer):
     def __init__(self, secret_hash, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
 
     def deploy(self) -> Dict[str, str]:
@@ -327,7 +327,7 @@ class PolicyManagerDeployer(ContractDeployer):
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
-            self.contract_name, self.miner_agent.contract_address)
+            self.contract_name, self.staker_agent.contract_address)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=policy_manager_contract,
@@ -346,8 +346,8 @@ class PolicyManagerDeployer(ContractDeployer):
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped_policy_manager_contract
 
-        # Configure the MinerEscrow by setting the PolicyManager
-        policy_setter_txhash = self.miner_agent.contract.functions.setPolicyManager(policy_manager_contract.address) \
+        # Configure the StakerEscrow by setting the PolicyManager
+        policy_setter_txhash = self.staker_agent.contract.functions.setPolicyManager(policy_manager_contract.address) \
             .transact({'from': self.deployer_address})
 
         self.blockchain.wait_for_receipt(policy_setter_txhash)
@@ -387,7 +387,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
     def __init__(self, secret_hash: bytes, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
 
@@ -401,7 +401,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
         # Proxy
         proxy_args = (self.contract_name,
                       self.token_agent.contract_address,
-                      self.miner_agent.contract_address,
+                      self.staker_agent.contract_address,
                       self.policy_agent.contract_address)
         user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.interface.deploy_contract(*proxy_args)
         self._contract = user_escrow_proxy_contract
@@ -434,7 +434,7 @@ class UserEscrowDeployer(ContractDeployer):
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
@@ -520,9 +520,9 @@ class UserEscrowDeployer(ContractDeployer):
         return deployment_transactions
 
 
-class MiningAdjudicatorDeployer(ContractDeployer):
+class AdjudicatorDeployer(ContractDeployer):
 
-    agency = MiningAdjudicatorAgent
+    agency = AdjudicatorAgent
     contract_name = agency.registry_contract_name
     __upgradeable = True
     __proxy_deployer = DispatcherDeployer
@@ -534,7 +534,7 @@ class MiningAdjudicatorDeployer(ContractDeployer):
 
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.staker_agent = StakerAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
         if not economics:
             economics = SlashingEconomics()
@@ -543,13 +543,13 @@ class MiningAdjudicatorDeployer(ContractDeployer):
     def deploy(self) -> Dict[str, str]:
         self.check_deployment_readiness()
 
-        mining_adjudicator_contract, deploy_txhash = self.blockchain.interface \
+        adjudicator_contract, deploy_txhash = self.blockchain.interface \
                                                          .deploy_contract(self.contract_name,
-                                                                          self.miner_agent.contract_address,
+                                                                          self.staker_agent.contract_address,
                                                                           *self.__economics.deployment_parameters)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
-                                               target_contract=mining_adjudicator_contract,
+                                               target_contract=adjudicator_contract,
                                                deployer_address=self.deployer_address,
                                                secret_hash=self.secret_hash)
 
@@ -560,17 +560,17 @@ class MiningAdjudicatorDeployer(ContractDeployer):
         self.__proxy_contract = proxy_contract
 
         # Wrap the escrow contract
-        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=mining_adjudicator_contract)
+        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=adjudicator_contract)
 
         # Switch the contract for the wrapped one
-        mining_adjudicator_contract = wrapped
+        adjudicator_contract = wrapped
 
         # Gather the transaction hashes
         deployment_transactions = {'deployment': deploy_txhash,
                                    'dispatcher_deployment': proxy_deploy_txhashes['txhash']}
 
         self.deployment_transactions = deployment_transactions
-        self._contract = mining_adjudicator_contract
+        self._contract = adjudicator_contract
 
         return deployment_transactions
 

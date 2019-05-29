@@ -100,9 +100,9 @@ def deploy(click_config,
             deployer.blockchain.interface.registry._destroy()
 
         try:
-            txhashes, agents = deployer.deploy_network_contracts(miner_secret=bytes(secrets.miner_secret, encoding='utf-8'),
+            txhashes, agents = deployer.deploy_network_contracts(staker_secret=bytes(secrets.staker_secret, encoding='utf-8'),
                                                                  policy_secret=bytes(secrets.policy_secret, encoding='utf-8'),
-                                                                 adjudicator_secret=bytes(secrets.mining_adjudicator_secret, encoding='utf-8'))
+                                                                 adjudicator_secret=bytes(secrets.adjudicator_secret, encoding='utf-8'))
         except BlockchainInterface.InterfaceError:
             raise  # TODO: Handle registry management here (contract may already exist)
         else:
