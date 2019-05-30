@@ -111,7 +111,7 @@ def deploy(click_config,
                                     compile=not no_compile,
                                     deployer=True,
                                     fetch_registry=False,
-                                    full_sync=sync)
+                                    sync=sync)
 
 
     #

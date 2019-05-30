@@ -43,7 +43,7 @@ class Web3Client(object):
     is_local = False
 
     @classmethod
-    def from_w3(cls, w3: Web3, *args):
+    def from_w3(cls, w3: Web3):
         #
         # *Client version format*
         # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
@@ -65,7 +65,7 @@ class Web3Client(object):
                 PARITY: ParityClient,
                 ALT_PARITY: ParityClient,
                 GANACHE: GanacheClient,
-                ETHEREUM_TESTER: EthTestClient,
+                ETHEREUM_TESTER: EthereumTesterClient,
             }[node_technology]
         except KeyError:
             raise NotImplementedError(node_technology)
@@ -110,7 +110,7 @@ class Web3Client(object):
         return self.w3.eth.getBalance(address)
 
     @property
-    def chainId(self):
+    def chain_id(self):
         return self.w3.net.chainId
 
     def sync(self, timeout: int = 600):
@@ -119,17 +119,17 @@ class Web3Client(object):
         now = maya.now()
         start_time = now
 
-        def check_for_timeout(timeout=timeout):
+        def check_for_timeout(t):
             last_update = maya.now()
             duration = (last_update - start_time).seconds
-            if duration > timeout:
+            if duration > t:
                 raise self.SyncTimeout
 
         # Check for ethereum peers
         self.log.info(f"Waiting for ethereum peers...")
         while not self.peers:
             time.sleep(0)
-            check_for_timeout(timeout=30)
+            check_for_timeout(t=30)
 
         needs_sync = False
         for peer in self.peers:
@@ -146,7 +146,7 @@ class Web3Client(object):
             self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
             while not self.syncing:
                 time.sleep(0)
-                check_for_timeout()
+                check_for_timeout(t=timeout)
 
             # Continue until done
             while self.syncing:
@@ -229,7 +229,6 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
         self.log = Logger('nucypher-geth')
 
-    @property
     def provider_uri(self, scheme: str = None) -> str:
         if not scheme:
             scheme = self.IPC_PROTOCOL
@@ -268,6 +267,11 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
         self.geth_kwargs.update({'dev': True})
 
         self.command = [*self.command, '--dev']
+
+    def start(self, timeout: int = 30, extra_delay: int = 1):
+        self.log.info("STARTING GETH DEV NOW")
+        self.wait_for_ipc(timeout=timeout)
+        time.sleep(extra_delay)
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):
