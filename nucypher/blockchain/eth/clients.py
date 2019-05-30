@@ -2,13 +2,12 @@ import json
 import os
 import shutil
 import time
+from typing import Union
 
 import maya
-from constant_sorrow.constants import NOT_RUNNING
+from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_account import Account
-from eth_account._utils.signing import to_standard_signature_bytes
-from eth_account.messages import defunct_hash_message, encode_defunct
-from eth_keys.datatypes import PublicKey, Signature
+from eth_account.messages import encode_defunct
 from eth_utils import to_canonical_address
 from eth_utils import to_checksum_address, is_checksum_address
 from geth import LoggingMixin
@@ -23,13 +22,8 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
 from web3.exceptions import BlockNotFound
-from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
-
-NUCYPHER_CHAIN_IDS = {
-    'devnet': 112358,
-}
 
 
 class Web3ClientError(Exception):
@@ -44,61 +38,89 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
-CHAIN_INDEX = {
-    0: "Olympic, Ethereum public pre-release PoW testnet",
-    1: "MAINNET!!!! \\( ﾟヮﾟ)/",
-    2: "Morden Classic, the public Ethereum Classic PoW testnet",
-    3: "Ropsten, the public cross-client Ethereum PoW testnet",
-    4: "Rinkeby, the public Geth-only PoA testnet",
-    5: "Goerli, the public cross-client PoA testnet",
-    6: "Kotti Classic, the public cross-client PoA testnet for Classic",
-    8: "Ubiq, the public Gubiq main network with flux difficulty chain ID 8",
-    42: "Kovan, the public Parity-only PoA testnet",
-    60: "GoChain, the GoChain networks mainnet",
-    77: "Sokol, the public POA Network testnet",
-    99: "Core, the public POA Network main network",
-    100: "xDai, the public MakerDAO/POA Network main network",
-    31337: "GoChain testnet, the GoChain networks public testnet",
-    401697: "Tobalaba, the public Energy Web Foundation testnet",
-    7762959: "Musicoin, the music blockchain",
-    61717561: "Aquachain, ASIC resistant chain",
-    112358: "Nucypher testnet",
-}
+PUBLIC_CHAINS = {0: "Olympic",
+                 1: "Mainnet",
+                 2: "Morden",
+                 3: "Ropsten",
+                 4: "Rinkeby",
+                 5: "Goerli",
+                 6: "Kotti",
+                 8: "Ubiq",
+                 42: "Kovan",
+                 60: "GoChain",
+                 77: "Sokol",
+                 99: "Core",
+                 100: "xDai",
+                 31337: "GoChain",
+                 401697: "Tobalaba",
+                 7762959: "Musicoin",
+                 61717561: "Aquachain"}
+
+LOCAL_CHAINS = {1337: "GethDev",
+                5777: "Ganache/TestRPC"}
 
 
 class Web3Client(object):
 
     is_local = False
 
-    @classmethod
-    def from_w3(cls, w3: Web3):
-        #
-        # *Client version format*
-        # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
-        # Parity Example: "Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1"
-        # Ganache Example: "EthereumJS TestRPC/v2.1.5/ethereum-js"
-        #
-        client_data = w3.clientVersion.split('/')
-        node_technology = client_data[0]
+    GETH = 'Geth'
+    PARITY = 'Parity'
+    ALT_PARITY = 'Parity-Ethereum'
+    GANACHE = 'EthereumJS TestRPC'
+    ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
 
-        GETH = 'Geth'
-        PARITY = 'Parity' # seeing both of these for parity.
-        ALT_PARITY = 'Parity-Ethereum'
-        GANACHE = 'EthereumJS TestRPC'
-        ETHEREUM_TESTER = 'EthereumTester'
+    def __init__(self,
+                 w3,
+                 node_technology: str,
+                 version: str,
+                 backend: str):
+
+        self.w3 = w3
+        self.node_technology = node_technology
+        self.node_version = version
+        self.backend = backend
+        self.log = Logger(self.__class__.__name__)
+
+    @classmethod
+    def from_w3(cls, w3: Web3) -> 'Web3Client':
+        """
+
+        Client version strings
+        ======================
+
+        Geth    -> 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
+        Parity  -> 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
+        Ganache -> 'EthereumJS TestRPC/v2.1.5/ethereum-js'
+        PyEVM   -> 'EthereumTester/0.1.0b39/linux/python3.6.7'
+        """
+        clients = {
+
+            # Geth
+            cls.GETH: GethClient,
+
+            # Parity
+            cls.PARITY: ParityClient,
+            cls.ALT_PARITY: ParityClient,
+
+            # Test Clients
+            cls.GANACHE: GanacheClient,
+            cls.ETHEREUM_TESTER: EthereumTesterClient,
+        }
 
         try:
-            subcls = {
-                GETH: GethClient,
-                PARITY: ParityClient,
-                ALT_PARITY: ParityClient,
-                GANACHE: GanacheClient,
-                ETHEREUM_TESTER: EthTestClient,
-            }[node_technology]
-        except KeyError:
-            raise NotImplementedError(node_technology)
+            client_data = w3.clientVersion.split('/')
+            node_technology = client_data[0]
+            ClientSubclass = clients[node_technology]
 
-        return subcls(w3, *client_data)
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
+
+        except KeyError:
+            raise NotImplementedError(f'{w3.clientVersion} is not a support ethereum client')
+
+        instance = ClientSubclass(w3, *client_data)
+        return instance
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -106,35 +128,22 @@ class Web3Client(object):
     class SyncTimeout(RuntimeError):
         pass
 
-    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
-        self.w3 = w3
-        self.node_technology = node_technology
-        self.node_version = version
-        self.backend = backend
-
-        self.log = Logger("blockchain")
-
     @property
     def peers(self):
         raise NotImplementedError
 
     @property
-    def chain_name(self):
+    def chain_name(self) -> str:
         if not self.is_local:
-            return CHAIN_INDEX[self.w3.net.version]
-        return {
-            1337: "geth --dev",
-            5777: "default ganache chain",
-        }.get(self.w3.net.version, "UNKNOWN DEV CHAIN")
+            return PUBLIC_CHAINS[self.w3.net.version]
+        name = LOCAL_CHAINS.get(self.w3.net.version, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+        return name
 
     @property
-    def syncing(self):
+    def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
-    def unlock_account(self, address, password):
-        raise NotImplementedError
-
-    def unlockAccount(self, address, password):
+    def unlock_account(self, address, password) -> bool:
         if not self.is_local:
             return self.unlock_account(address, password)
 
@@ -145,7 +154,7 @@ class Web3Client(object):
     def accounts(self):
         return self.w3.eth.accounts
 
-    def getBalance(self, address):
+    def get_balance(self, address):
         return self.w3.eth.getBalance(address)
 
     @property
@@ -208,21 +217,12 @@ class Web3Client(object):
         """
         return self.w3.eth.sign(account, data=message)
 
-    def verify_signature(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
-        """
-        Verifies a hex string signature and message hash are from the provided
-        public key.
-        """
-        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
-        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
-        return is_valid_sig and (sig_pubkey == pubkey)
-
 
 class GethClient(Web3Client):
 
     @property
     def is_local(self):
-        return int(self.w3.net.version) not in CHAIN_INDEX
+        return int(self.w3.net.version) not in PUBLIC_CHAINS
 
     @property
     def peers(self):
@@ -248,8 +248,15 @@ class GethClient(Web3Client):
 
 class ParityClient(Web3Client):
 
+    def __init__(self, w3, node_technology: str, version: str, platform: str, backend: str):
+        super().__init__(w3, node_technology, version, backend)
+        self.platform = platform
+
     @property
     def peers(self) -> list:
+        """
+        TODO: Look for web3.py support for Parity Peers endpoint
+        """
         return self.w3.manager.request_blocking("parity_netPeers", [])
 
     def unlock_account(self, address, password):
@@ -271,12 +278,9 @@ class EthereumTesterClient(Web3Client):
 
     is_local = True
 
-    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
-        self.w3 = w3
-        self.node_technology = node_technology
-        self.node_version = version
-        self.backend = backend
-        self.log = Logger(self.__class__.__name__)
+    def __init__(self, w3, node_technology: str, version: str, platform: str, backend: str):
+        super().__init__(w3, node_technology, version, backend)
+        self.platform = platform
 
     def unlock_account(self, address, password):
         return True
@@ -285,19 +289,24 @@ class EthereumTesterClient(Web3Client):
         return True
 
     def sign_message(self, account: str, message: bytes) -> str:
+        # Get signing key of test account
         address = to_canonical_address(account)
-        sig_key = self.w3.ethereum_tester.backend._key_lookup[address]
-        signed_message = sig_key.sign_msg(message)
-        return signed_message
+        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]
+
+        # Sign, EIP-191 (Geth) Style
+        signable_message = encode_defunct(primitive=message)
+        signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
+        return signature_and_stuff['signature']
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
+
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
+    CHAIN_ID = NotImplemented  # 1
+    _CHAIN_NAME = 'mainnet'
     LOG_PATH = os.path.join(USER_LOG_DIR, 'nucypher-geth.log')
-
-    _CHAIN_NAME = NotImplemented
 
     def __init__(self,
                  geth_kwargs: dict,
@@ -365,7 +374,7 @@ class NuCypherGethDevnetProcess(NuCypherGethProcess):
 
     P2P_PORT = 30303
     _CHAIN_NAME = 'devnet'
-    __CHAIN_ID = NUCYPHER_CHAIN_IDS[_CHAIN_NAME]
+    __CHAIN_ID = 112358
 
     def __init__(self,
                  config_root: str = None,

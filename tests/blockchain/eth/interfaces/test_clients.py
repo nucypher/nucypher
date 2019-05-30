@@ -1,11 +1,10 @@
 import os
 
-import pytest
-
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.clients import (
-    GethClient, ParityClient, GanacheClient, EthereumTesterClient, NuCypherGethDevProcess)
+    GethClient, ParityClient, GanacheClient, NuCypherGethDevProcess)
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
 class MockGethProvider:
