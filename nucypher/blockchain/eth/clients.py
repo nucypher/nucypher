@@ -232,22 +232,6 @@ class GethClient(Web3Client):
         return self.w3.geth.personal.unlockAccount(address, password)
 
 
-    @staticmethod
-    def verify_signature(account: str, message: bytes, signature: bytes) -> bool:
-        """
-        EIP-191 Compatible signature verification for usage with w3.eth.sign.
-
-        :param account:
-        :param message:
-        :param signature:
-        :return:
-        """
-        signable_message = encode_defunct(primitive=message)
-        recovery = Account.recover_message(signable_message=signable_message, signature=signature)
-        recovered_address = to_checksum_address(recovery)
-        return recovered_address == account
-
-
 class ParityClient(Web3Client):
 
     def __init__(self, w3, node_technology: str, version: str, platform: str, backend: str):

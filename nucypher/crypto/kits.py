@@ -41,10 +41,15 @@ class CryptoKit:
 
 class MessageKit(CryptoKit):
 
-    def __init__(self, capsule, sender_pubkey_sig=None, ciphertext=None, signature=constants.NOT_SIGNED) -> None:
+    def __init__(self,
+                 capsule,
+                 sender_verifying_key=None,
+                 ciphertext=None,
+                 signature=constants.NOT_SIGNED) -> None:
+
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.sender_pubkey_sig = sender_pubkey_sig
+        self.sender_verifying_key = sender_verifying_key
         self._signature = signature
 
     def to_bytes(self, include_alice_pubkey=True):
@@ -53,8 +58,8 @@ class MessageKit(CryptoKit):
 
         # Then, before the ciphertext, we see if we're including alice's public key.
         # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.sender_pubkey_sig:
-            as_bytes += bytes(self.sender_pubkey_sig)
+        if include_alice_pubkey and self.sender_verifying_key:
+            as_bytes += bytes(self.sender_verifying_key)
 
         as_bytes += self.ciphertext
         return as_bytes
@@ -68,6 +73,7 @@ class MessageKit(CryptoKit):
 
 
 class UmbralMessageKit(MessageKit):
+
     return_remainder_when_splitting = True
     splitter = capsule_splitter + key_splitter
 
@@ -77,8 +83,8 @@ class UmbralMessageKit(MessageKit):
 
     @classmethod
     def from_bytes(cls, some_bytes):
-        capsule, sender_pubkey_sig, ciphertext = cls.split_bytes(some_bytes)
-        return cls(capsule=capsule, sender_pubkey_sig=sender_pubkey_sig, ciphertext=ciphertext)
+        capsule, sender_verifying_key, ciphertext = cls.split_bytes(some_bytes)
+        return cls(capsule=capsule, sender_verifying_key=sender_verifying_key, ciphertext=ciphertext)
 
 
 class RevocationKit:

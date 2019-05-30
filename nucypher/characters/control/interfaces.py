@@ -137,7 +137,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         data_source = Enrico.from_public_keys(
-            verifying_key=message_kit.sender_pubkey_sig,
+            verifying_key=message_kit.sender_verifying_key,
             policy_encrypting_key=policy_encrypting_key,
             label=label
         )
@@ -187,7 +187,7 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_verifying_key)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_pubkey_sig,
+        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 
