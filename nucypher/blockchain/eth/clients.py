@@ -38,6 +38,28 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
+CHAIN_INDEX = {
+    0: "Olympic, Ethereum public pre-release PoW testnet",
+    1: "MAINNET!!!! \\( ﾟヮﾟ)/",
+    2: "Morden Classic, the public Ethereum Classic PoW testnet",
+    3: "Ropsten, the public cross-client Ethereum PoW testnet",
+    4: "Rinkeby, the public Geth-only PoA testnet",
+    5: "Goerli, the public cross-client PoA testnet",
+    6: "Kotti Classic, the public cross-client PoA testnet for Classic",
+    8: "Ubiq, the public Gubiq main network with flux difficulty chain ID 8",
+    42: "Kovan, the public Parity-only PoA testnet",
+    60: "GoChain, the GoChain networks mainnet",
+    77: "Sokol, the public POA Network testnet",
+    99: "Core, the public POA Network main network",
+    100: "xDai, the public MakerDAO/POA Network main network",
+    31337: "GoChain testnet, the GoChain networks public testnet",
+    401697: "Tobalaba, the public Energy Web Foundation testnet",
+    7762959: "Musicoin, the music blockchain",
+    61717561: "Aquachain, ASIC resistant chain",
+    112358: "Nucypher testnet",
+}
+
+
 class Web3Client(object):
 
     is_local = False
@@ -65,10 +87,11 @@ class Web3Client(object):
                 PARITY: ParityClient,
                 ALT_PARITY: ParityClient,
                 GANACHE: GanacheClient,
-                ETHEREUM_TESTER: EthereumTesterClient,
+                ETHEREUM_TESTER: EthTestClient,
             }[node_technology]
         except KeyError:
             raise NotImplementedError(node_technology)
+
         return subcls(w3, *client_data)
 
     class ConnectionNotEstablished(RuntimeError):
@@ -90,6 +113,15 @@ class Web3Client(object):
         raise NotImplementedError
 
     @property
+    def chain_name(self):
+        if not self.is_local:
+            return CHAIN_INDEX[self.w3.net.version]
+        return {
+            1337: "geth --dev",
+            5777: "default ganache chain",
+        }.get(self.w3.net.version, "UNKNOWN DEV CHAIN")
+
+    @property
     def syncing(self):
         return self.w3.eth.syncing
 
@@ -97,7 +129,8 @@ class Web3Client(object):
         raise NotImplementedError
 
     def unlockAccount(self, address, password):
-        return self.unlock_account(address, password)
+        if not self.is_local:
+            return self.unlock_account(address, password)
 
     def is_connected(self):
         return self.w3.isConnected()
@@ -111,9 +144,12 @@ class Web3Client(object):
 
     @property
     def chain_id(self):
-        return self.w3.net.chainId
+        return self.w3.net.version
 
     def sync(self, timeout: int = 600):
+
+        if self.is_local:
+            return
 
         # Record start time for timeout calculation
         now = maya.now()
@@ -160,6 +196,10 @@ class Web3Client(object):
 
 
 class GethClient(Web3Client):
+
+    @property
+    def is_local(self):
+        return int(self.w3.net.version) not in CHAIN_INDEX
 
     @property
     def peers(self):

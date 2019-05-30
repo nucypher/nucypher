@@ -74,13 +74,14 @@ class Blockchain:
     def peers(self):
         if self._instance is NO_BLOCKCHAIN_AVAILABLE:
             raise self.ConnectionNotEstablished
-        return self.interface.client.peers()
+        return self.interface.peers()
 
     @property
     def chain_id(self):
-        if self.interface.client.is_local:
-            return "DEV CHAIN"
-        return self.interface.client.chain_id
+        return self.interface.chain_id
+
+    def chain_name(self):
+        return self.interface.chain_name
 
     @property
     def syncing(self):
