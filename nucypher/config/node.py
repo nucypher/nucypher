@@ -416,8 +416,7 @@ class NodeConfiguration(ABC):
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
-        # Deserialize domains to UTF-8 bytestrings
-        domains = set(domain.encode() for domain in payload['domains'])
+        domains = set(payload['domains'])
         payload.update(dict(node_storage=node_storage, domains=domains))
 
         # Filter out Nones from overrides to detect, well, overrides
@@ -444,11 +443,8 @@ class NodeConfiguration(ABC):
         payload = self.static_payload
         del payload['is_me']
 
-        # Serialize domains
-        domains = list(str(domain) for domain in self.domains)
-
         # Save node connection data
-        payload.update(dict(node_storage=self.node_storage.payload(), domains=domains))
+        payload.update(dict(node_storage=self.node_storage.payload(), domains=list(self.domains)))
 
         with open(filepath, 'w') as config_file:
             config_file.write(json.dumps(payload, indent=4))

@@ -224,7 +224,7 @@ def ursula(click_config,
     else:
 
         # Domains -> bytes | or default
-        domains = set(bytes(network, encoding='utf-8')) if network else None
+        domains = {network} if network else None
 
         # Load Ursula from Configuration File
         try:
@@ -330,7 +330,7 @@ def ursula(click_config,
 
             # Ursula Deploy Warnings
             click_config.emit(
-                message="Connecting to {}".format(','.join(str(d, encoding='utf-8') for d in ursula_config.domains)),
+                message="Connecting to {}".format(','.join(ursula_config.domains)),
                 color='green',
                 bold=True)
 
