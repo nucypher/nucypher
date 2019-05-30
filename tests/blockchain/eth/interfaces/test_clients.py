@@ -1,7 +1,11 @@
+import os
+
 import pytest
+
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.clients import (
-    GethClient, ParityClient, GanacheClient, EthTestClient)
+    GethClient, ParityClient, GanacheClient, EthereumTesterClient, NuCypherGethDevProcess)
 
 
 class MockGethProvider:
@@ -22,7 +26,7 @@ class ChainIdReporter:
     chainId = 5
 
 
-class MockWeb3():
+class MockWeb3:
 
     net = ChainIdReporter
 
@@ -32,7 +36,6 @@ class MockWeb3():
     @property
     def clientVersion(self):
         return self.provider.clientVersion
-
 
 
 class BlockChainInterfaceTestBase(BlockchainInterface):
@@ -72,7 +75,7 @@ def test_geth_web3_client():
     assert interface.backend == 'darwin'
     assert interface.node_version == 'v1.4.11-stable-fed692f6'
     assert interface.is_local is False
-    assert interface.chainId == 5
+    assert interface.chain_id == 5
 
 
 def test_parity_web3_client():

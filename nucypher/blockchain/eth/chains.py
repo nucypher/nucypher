@@ -42,8 +42,7 @@ class Blockchain:
     def __init__(
             self,
             provider_process=None,
-            interface: Union[
-                BlockchainInterface, BlockchainDeployerInterface] = None,
+            interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None,
             dev: bool = False):
 
         self.log = Logger("blockchain")
@@ -81,7 +80,7 @@ class Blockchain:
     def chain_id(self):
         if self.interface.client.is_local:
             return "DEV CHAIN"
-        return self.interface.client.chainId
+        return self.interface.client.chain_id
 
     @property
     def syncing(self):
@@ -107,7 +106,7 @@ class Blockchain:
                 poa: bool = False,
                 force: bool = True,
                 fetch_registry: bool = True,
-                full_sync: bool = True,
+                sync: bool = True,
                 dev: bool = False,
                 ) -> 'Blockchain':
 
@@ -117,6 +116,7 @@ class Blockchain:
             # Spawn child process
             if provider_process:
                 provider_process.start()
+                provider_uri = provider_process.provider_uri(scheme='file')
             else:
                 log.info(f"Using external Web3 Provider '{provider_uri}'")
 
@@ -133,10 +133,10 @@ class Blockchain:
                 log.debug('Injecting POA middleware at layer 0')
                 interface.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-            cls._instance = cls(interface=interface, provider_process=provider_process)
+            cls._instance = cls(interface=interface, provider_process=provider_process, dev=dev)
 
             # Sync blockchain
-            if full_sync:
+            if sync:
                 cls._instance.sync()
 
         else:
