@@ -60,7 +60,7 @@ Alice can refund ETH for any inactive periods without revoking the policy by usi
 ### Ursula Locks Tokens
 
 In order to become a participant of the network, a staker stakes tokens in the `StakingEscrow` contract.
-The staker allows the (mining) contract to perform a transaction using the `NuCypherToken.approve(address, uint256)` method
+The staker allows the (staking) contract to perform a transaction using the `NuCypherToken.approve(address, uint256)` method
 (ERC20 contracts allow access delegation to another address).
 
 After that, the staker transfers some quantity of tokens (`StakingEscrow.deposit(uint256, uint16)`), locking them at the same time.
