@@ -107,33 +107,26 @@ class BlockchainPower(CryptoPowerUp):
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
-    def sign_message(self, message: bytes):
+    def sign_message(self, message: bytes) -> bytes:
         """
         Signs the message with the private key of the BlockchainPower.
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
+        signature = self.blockchain.interface.client.sign_message(self.account, message)
+        return signature
 
-        signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return bytes(signature)
-
-    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
+    def verify_message(self, address: str, message: bytes, signature: bytes) -> bool:
         """
-        Verifies that the message was signed by the keypair.
+        Verifies that the message was signed by the private key of the address provided.
         """
-        # Check that address and pubkey match
-        eth_pubkey = PublicKey(pubkey)
-        signature = EthSignature(signature_bytes=signature_bytes)
-        if not eth_pubkey.to_checksum_address() == address:
-            raise ValueError("Pubkey address ({}) doesn't match the provided address ({})".format(eth_pubkey.to_checksum_address, address))
-
-        hashed_message = keccak(message)
-
-        if not self.blockchain.interface.call_backend_verify(
-                eth_pubkey, signature, hashed_message):
-            raise PowerUpError("Signature is not valid for this message or pubkey.")
-        else:
+        signature_is_valid = self.blockchain.interface.client.verify_message(address=address,
+                                                                             message=message,
+                                                                             signature=signature)
+        if signature_is_valid:
             return True
+        else:
+            raise PowerUpError("Signature is not valid for this message or pubkey.")
 
     def __del__(self):
         """
