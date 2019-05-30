@@ -30,6 +30,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from eth_utils import to_checksum_address
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature
@@ -98,9 +101,24 @@ def ecdsa_sign(message: bytes,
 
     :return: signature
     """
-    cryptography_priv_key = privkey.to_cryptography_privkey()
-    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(SHA256))
+    signing_key = privkey.to_cryptography_privkey()
+    signature_der_bytes = signing_key.sign(message, ec.ECDSA(SHA256))
     return signature_der_bytes
+
+
+def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+    """
+    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    """
+    signable_message = encode_defunct(primitive=message)
+    recovery = Account.recover_message(signable_message=signable_message, signature=signature)
+    recovered_address = to_checksum_address(recovery)
+
+    signature_is_valid = recovered_address == to_checksum_address(address)
+    if signature_is_valid:
+        return True
+    else:
+        raise InvalidSignature
 
 
 def ecdsa_verify(message: bytes,
@@ -177,7 +195,7 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
             signature = signer(ciphertext)
         message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule,
-                                       sender_pubkey_sig=signer.as_umbral_pubkey(),
+                                       sender_verifying_key=signer.as_umbral_pubkey(),
                                        signature=signature)
     else:
         # Don't sign.

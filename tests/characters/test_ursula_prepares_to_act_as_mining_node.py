@@ -16,19 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from eth_account._utils.signing import to_standard_signature_bytes
 from eth_keys.datatypes import Signature as EthSignature
 
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
+from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
-
-
-@pytest.mark.skip("To be implemented.")
-def test_federated_ursula_substantiates_stamp():
-    assert False
 
 
 def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
@@ -56,10 +54,10 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
     signature_as_bytes = first_ursula._evidence_of_decentralized_identity
-    signature = EthSignature(signature_bytes=signature_as_bytes)
-    proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(bytes(first_ursula.stamp))
-    proper_address_for_first_ursula = proper_public_key_for_first_ursula.to_checksum_address()
-    assert proper_address_for_first_ursula == first_ursula.checksum_public_address
+    signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
+    assert verify_eip_191(address=first_ursula.checksum_public_address,
+                          message=bytes(first_ursula.stamp),
+                          signature=signature_as_bytes)
 
     # This method is a shortcut for the above.
     assert first_ursula._stamp_has_valid_wallet_signature

@@ -105,7 +105,7 @@ def test_EIP_191_client_signatures():
     etherbase = blockchain.interface.accounts[0]
     stamp = b'STAMP-' + os.urandom(64)
     signature = blockchain.interface.client.sign_message(account=etherbase, message=stamp)
-    is_valid = blockchain.interface.client.verify_signature(account=etherbase,
+    is_valid = blockchain.interface.client.verify_signature(address=etherbase,
                                                             signature=signature,
                                                             message=stamp)
     assert is_valid
