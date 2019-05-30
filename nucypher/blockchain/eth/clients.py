@@ -231,7 +231,9 @@ class GethClient(Web3Client):
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 
-    def verify_signature(self, account, message, signature) -> bool:
+
+    @staticmethod
+    def verify_signature(account: str, message: bytes, signature: bytes) -> bool:
         """
         EIP-191 Compatible signature verification for usage with w3.eth.sign.
 
