@@ -207,7 +207,7 @@ class BlockchainInterface:
                 "There are no configured blockchain providers")
 
         # Connect if not connected
-        self.client = Web3Client.from_w3(self.Web3(provider=self.__provider))
+        self.client = Web3Client.from_w3(w3=self.Web3(provider=self.__provider))
 
         # Check connection
         if self.is_connected:

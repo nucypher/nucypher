@@ -39,6 +39,8 @@ from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
+
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
