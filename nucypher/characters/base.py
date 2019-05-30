@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import contextlib
 from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
@@ -355,34 +355,42 @@ class Character(Learner):
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
+        :param: label: A Label used for verifying the results of PRE
 
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
-        sender_pubkey_sig = stranger.stamp.as_umbral_pubkey()
-        with suppress(AttributeError):
-            if message_kit.sender_pubkey_sig:
-                if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
-                    raise ValueError(
-                        "This MessageKit doesn't appear to have come from {}".format(stranger))
+
+        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
+        # If the higher-order object MessageKit is passed, we can perform an additional
+        # eager sanity check before performing decryption
+        with contextlib.suppress(AttributeError):
+            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
+            if message_kit.sender_verifying_key:
+                if not message_kit.sender_verifying_key == sender_verifying_key:
+                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
 
         signature_from_kit = None
-
         if decrypt:
 
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
-                                                     label=label)
+            cleartext_with_sig_header = self.decrypt(message_kit=message_kit, label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+
             if sig_header == SIGNATURE_IS_ON_CIPHERTEXT:
-                # THe ciphertext is what is signed - note that for later.
+                # The ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
                 if not signature:
                     raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
+
             elif sig_header == SIGNATURE_TO_FOLLOW:
                 # The signature follows in this cleartext - split it off.
-                signature_from_kit, cleartext = signature_splitter(cleartext,
-                                                                   return_remainder=True)
+                signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
                 message = cleartext
+
+            else:
+                raise ValueError(f"The signature header of a MessageKit must be one of "
+                                 f"the following: {str(SIGNATURE_IS_ON_CIPHERTEXT)}, {str(SIGNATURE_TO_FOLLOW)}.  Got '{sig_header}'")
+
         else:
             # Not decrypting - the message is the object passed in as a message kit.  Cast it.
             message = bytes(message_kit)
@@ -396,7 +404,7 @@ class Character(Learner):
         signature_to_use = signature or signature_from_kit
 
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_pubkey_sig)
+            is_valid = signature_to_use.verify(message, sender_verifying_key)
             if not is_valid:
                 raise stranger.InvalidSignature(
                     "Signature for message isn't valid: {}".format(signature_to_use))

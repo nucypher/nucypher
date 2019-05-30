@@ -17,11 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
+from eth_keys.exceptions import BadSignature
 from eth_utils import keccak
 from typing import List, Tuple, Optional
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -115,18 +117,6 @@ class BlockchainPower(CryptoPowerUp):
             raise PowerUpError("Account is not unlocked.")
         signature = self.blockchain.interface.client.sign_message(self.account, message)
         return signature
-
-    def verify_message(self, address: str, message: bytes, signature: bytes) -> bool:
-        """
-        Verifies that the message was signed by the private key of the address provided.
-        """
-        signature_is_valid = self.blockchain.interface.client.verify_message(address=address,
-                                                                             message=message,
-                                                                             signature=signature)
-        if signature_is_valid:
-            return True
-        else:
-            raise PowerUpError("Signature is not valid for this message or pubkey.")
 
     def __del__(self):
         """

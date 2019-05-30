@@ -456,7 +456,7 @@ class TreasureMap:
 
     @property
     def _verifying_key(self):
-        return self.message_kit.sender_pubkey_sig
+        return self.message_kit.sender_verifying_key
 
     @property
     def m(self):

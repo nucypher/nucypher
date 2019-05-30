@@ -230,7 +230,7 @@ def make_rest_app(
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
-        alices_verifying_key = policy_message_kit.sender_pubkey_sig
+        alices_verifying_key = policy_message_kit.sender_verifying_key
         alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
         try:

@@ -21,11 +21,13 @@ from constant_sorrow import constants
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
+from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
                                     BlockchainPower,
                                     PowerUpError)
+
 from nucypher.crypto.signing import InvalidSignature
 
 """
@@ -132,20 +134,14 @@ def test_character_blockchain_power(testerchain):
     data_to_sign = b'What does Ursula look like?!?'
     sig = power.sign_message(data_to_sign)
 
-    is_verified = power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign, sig)
+    is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
     assert is_verified is True
 
-    # Test a bad message:
-    with pytest.raises(PowerUpError):
-        power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
-
     # Test a bad address/pubkey pair
-    with pytest.raises(ValueError):
-        power.verify_message(
-            testerchain.interface.w3.eth.accounts[1],
-            sig_pubkey.to_bytes(),
-            data_to_sign,
-            sig)
+    with pytest.raises(InvalidSignature):
+        verify_eip_191(address=testerchain.interface.w3.eth.accounts[1],
+                       message=data_to_sign,
+                       signature=sig)
 
     # Test a signature without unlocking the account
     power.is_unlocked = False

@@ -43,7 +43,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO
 from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.api import keccak_digest, verify_eip_191
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -911,15 +911,12 @@ class Teacher:
         signature_bytes = self._evidence_of_decentralized_identity
         if signature_bytes is NOT_SIGNED:
             return False
-        signature_is_valid = Web3Client.verify_signature(message=bytes(self.stamp),
-                                                         signature=signature_bytes,
-                                                         account=self.checksum_public_address)
+        signature_is_valid = verify_eip_191(message=bytes(self.stamp),
+                                            signature=signature_bytes,
+                                            address=self.checksum_public_address)
         return signature_is_valid
 
     def stamp_is_valid(self):
-        """
-        :return:
-        """
         signature = self._evidence_of_decentralized_identity
         if self._stamp_has_valid_wallet_signature():
             self.verified_stamp = True
