@@ -26,7 +26,6 @@ from constant_sorrow.constants import (
     NO_DEPLOYER_CONFIGURED,
     UNKNOWN_TX_STATUS,
 )
-from eth_keys.datatypes import PublicKey, Signature
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from eth_utils import to_canonical_address
@@ -197,7 +196,6 @@ class BlockchainInterface:
             return "Unknown"
 
         return self.client.node_version
-
 
     def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
         self.log.info("Connecting to {}".format(self.provider_uri))
@@ -500,33 +498,6 @@ class BlockchainInterface:
                                                 ContractFactoryClass=factory)
 
         return unified_contract
-
-    def call_backend_sign(self, account: str, message: bytes) -> str:
-        """
-        Calls the appropriate signing function for the specified account on the
-        backend. If the backend is based on eth-tester, then it uses the
-        eth-tester signing interface to do so.
-        """
-
-        if isinstance(self.provider, EthereumTesterProvider):
-            # Tests only
-            address = to_canonical_address(account)
-            sig_key = self.provider.ethereum_tester.backend._key_lookup[address]
-            signed_message = sig_key.sign_msg(message)
-            return signed_message
-
-        else:
-            return self.client.w3.eth.sign(account, data=message)  # TODO: Use node signing APIs?
-
-    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
-        """
-        Verifies a hex string signature and message hash are from the provided
-        public key.
-        """
-        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
-        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
-        return is_valid_sig and (sig_pubkey == pubkey)
-
 
 
 class BlockchainDeployerInterface(BlockchainInterface):

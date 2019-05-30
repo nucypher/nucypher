@@ -94,3 +94,19 @@ def test_ganache_web3_client():
     assert isinstance(interface.client, GanacheClient)
     assert interface.node_version == 'v2.1.5'
     assert interface.is_local
+
+
+def test_client_signature():
+
+    # Start a geth process
+    geth = NuCypherGethDevProcess()
+    blockchain = Blockchain.connect(provider_process=geth, sync=False)
+
+    # Sign a message (RPC) and verify it.
+    etherbase = blockchain.interface.accounts[0]
+    stamp = b'STAMP-' + os.urandom(64)
+    signature = blockchain.interface.client.sign_message(account=etherbase, message=stamp)
+    is_valid = blockchain.interface.client.verify_signature(account=etherbase,
+                                                            signature=signature,
+                                                            message=stamp)
+    assert is_valid

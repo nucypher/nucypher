@@ -2,9 +2,14 @@ import json
 import os
 import shutil
 import time
-import maya
 
+import maya
 from constant_sorrow.constants import NOT_RUNNING
+from eth_account import Account
+from eth_account._utils.signing import to_standard_signature_bytes
+from eth_account.messages import defunct_hash_message, encode_defunct
+from eth_keys.datatypes import PublicKey, Signature
+from eth_utils import to_canonical_address
 from eth_utils import to_checksum_address, is_checksum_address
 from geth import LoggingMixin
 from geth.accounts import get_accounts, create_new_account
@@ -18,6 +23,7 @@ from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
 from web3.exceptions import BlockNotFound
+from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
@@ -190,9 +196,26 @@ class Web3Client(object):
                 total = self.syncing['highestBlock']
                 self.log.info(f"Syncing {current}/{total}")
                 time.sleep(1)
-                check_for_timeout()
+                check_for_timeout(t=timeout)
 
             return True
+
+    def sign_message(self, account: str, message: bytes) -> str:
+        """
+        Calls the appropriate signing function for the specified account on the
+        backend. If the backend is based on eth-tester, then it uses the
+        eth-tester signing interface to do so.
+        """
+        return self.w3.eth.sign(account, data=message)
+
+    def verify_signature(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes) -> bool:
+        """
+        Verifies a hex string signature and message hash are from the provided
+        public key.
+        """
+        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
+        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
+        return is_valid_sig and (sig_pubkey == pubkey)
 
 
 class GethClient(Web3Client):
@@ -207,6 +230,20 @@ class GethClient(Web3Client):
 
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
+
+    def verify_signature(self, account, message, signature) -> bool:
+        """
+        EIP-191 Compatible signature verification for usage with w3.eth.sign.
+
+        :param account:
+        :param message:
+        :param signature:
+        :return:
+        """
+        signable_message = encode_defunct(primitive=message)
+        recovery = Account.recover_message(signable_message=signable_message, signature=signature)
+        recovered_address = to_checksum_address(recovery)
+        return recovered_address == account
 
 
 class ParityClient(Web3Client):
@@ -230,9 +267,16 @@ class GanacheClient(Web3Client):
         return True
 
 
-class EthTestClient(Web3Client):
+class EthereumTesterClient(Web3Client):
 
     is_local = True
+
+    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
+        self.w3 = w3
+        self.node_technology = node_technology
+        self.node_version = version
+        self.backend = backend
+        self.log = Logger(self.__class__.__name__)
 
     def unlock_account(self, address, password):
         return True
@@ -240,12 +284,11 @@ class EthTestClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
-    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
-        self.w3 = w3
-        self.node_technology = node_technology
-        self.node_version = version
-        self.backend = backend
-        self.log = Logger("blockchain")
+    def sign_message(self, account: str, message: bytes) -> str:
+        address = to_canonical_address(account)
+        sig_key = self.w3.ethereum_tester.backend._key_lookup[address]
+        signed_message = sig_key.sign_msg(message)
+        return signed_message
 
 
 class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
