@@ -907,15 +907,14 @@ class Teacher:
     # Stamp
     #
 
-    def _stamp_has_valid_wallet_signature(self):
+    def _stamp_has_valid_wallet_signature(self) -> bool:
         signature_bytes = self._evidence_of_decentralized_identity
         if signature_bytes is NOT_SIGNED:
             return False
-
-        signature = EthSignature(signature_bytes)
-        proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
-        proper_address = proper_pubkey.to_checksum_address()
-        return proper_address == self.checksum_public_address
+        signature_is_valid = Web3Client.verify_signature(message=bytes(self.stamp),
+                                                         signature=signature_bytes,
+                                                         account=self.checksum_public_address)
+        return signature_is_valid
 
     def stamp_is_valid(self):
         """

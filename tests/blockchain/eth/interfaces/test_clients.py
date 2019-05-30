@@ -95,7 +95,7 @@ def test_ganache_web3_client():
     assert interface.is_local
 
 
-def test_client_signature():
+def test_EIP_191_client_signatures():
 
     # Start a geth process
     geth = NuCypherGethDevProcess()
