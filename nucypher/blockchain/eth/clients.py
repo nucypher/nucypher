@@ -74,11 +74,13 @@ class Web3Client(object):
                  w3,
                  node_technology: str,
                  version: str,
+                 platform: str,
                  backend: str):
 
         self.w3 = w3
         self.node_technology = node_technology
         self.node_version = version
+        self.platform = platform
         self.backend = backend
         self.log = Logger(self.__class__.__name__)
 
@@ -117,9 +119,16 @@ class Web3Client(object):
             raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
 
         except KeyError:
-            raise NotImplementedError(f'{w3.clientVersion} is not a support ethereum client')
+            raise NotImplementedError(f'{w3.clientVersion} is not a supported ethereum client')
 
-        instance = ClientSubclass(w3, *client_data)
+        client_kwargs = {
+            'node_technology': node_technology,
+            'version': client_data[1],
+            'backend': client_data[-1],
+            'platform': client_data[2] if len(client_data) == 4 else None  # Plaftorm is optional
+        }
+
+        instance = ClientSubclass(w3, **client_kwargs)
         return instance
 
     class ConnectionNotEstablished(RuntimeError):
@@ -234,10 +243,6 @@ class GethClient(Web3Client):
 
 class ParityClient(Web3Client):
 
-    def __init__(self, w3, node_technology: str, version: str, platform: str, backend: str):
-        super().__init__(w3, node_technology, version, backend)
-        self.platform = platform
-
     @property
     def peers(self) -> list:
         """
@@ -263,10 +268,6 @@ class GanacheClient(Web3Client):
 class EthereumTesterClient(Web3Client):
 
     is_local = True
-
-    def __init__(self, w3, node_technology: str, version: str, platform: str, backend: str):
-        super().__init__(w3, node_technology, version, backend)
-        self.platform = platform
 
     def unlock_account(self, address, password):
         return True

@@ -2,9 +2,8 @@ import os
 
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import (
-    GethClient, ParityClient, GanacheClient, NuCypherGethDevProcess)
+    GethClient, ParityClient, GanacheClient, NuCypherGethDevProcess, PUBLIC_CHAINS)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
 class MockGethProvider:
@@ -22,7 +21,7 @@ class MockGanacheProvider:
 
 
 class ChainIdReporter:
-    chainId = 5
+    version = 5
 
 
 class MockWeb3:
@@ -53,6 +52,10 @@ class GethClientTestInterface(BlockChainInterfaceTestBase):
     def _get_IPC_provider(self):
         return MockGethProvider()
 
+    @property
+    def is_local(self):
+        return int(self.w3.net.version) not in PUBLIC_CHAINS
+
 
 class ParityClientTestInterface(BlockChainInterfaceTestBase):
 
@@ -71,8 +74,11 @@ def test_geth_web3_client():
         provider_uri='file:///ipc.geth'
     )
     assert isinstance(interface.client, GethClient)
-    assert interface.backend == 'darwin'
+    assert interface.node_technology == 'Geth'
     assert interface.node_version == 'v1.4.11-stable-fed692f6'
+    assert interface.platform == 'darwin'
+    assert interface.backend == 'go1.7'
+
     assert interface.is_local is False
     assert interface.chain_id == 5
 
@@ -82,8 +88,10 @@ def test_parity_web3_client():
         provider_uri='file:///ipc.parity'
     )
     assert isinstance(interface.client, ParityClient)
-    assert interface.backend == 'x86_64-linux-gnu'
+    assert interface.node_technology == 'Parity-Ethereum'
     assert interface.node_version == 'v2.5.1-beta-e0141f8-20190510'
+    assert interface.platform == 'x86_64-linux-gnu'
+    assert interface.backend == 'rustc1.34.1'
 
 
 def test_ganache_web3_client():
@@ -91,7 +99,10 @@ def test_ganache_web3_client():
         provider_uri='http:///ganache:8445'
     )
     assert isinstance(interface.client, GanacheClient)
+    assert interface.node_technology == 'EthereumJS TestRPC'
     assert interface.node_version == 'v2.1.5'
+    assert interface.platform is None
+    assert interface.backend == 'ethereum-js'
     assert interface.is_local
 
 
