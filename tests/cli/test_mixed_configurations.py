@@ -51,7 +51,7 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(deploy.deploy,
                                  deploy_args,
-                                 input=f'0\nY\n{INSECURE_DEVELOPMENT_PASSWORD}\nDEPLOY',
+                                 input=f'0\nY\nDEPLOY',
                                  catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
