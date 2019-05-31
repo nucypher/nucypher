@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
-from contextlib import suppress
 from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Union, List
@@ -28,16 +27,18 @@ from constant_sorrow.constants import (
     NO_DECRYPTION_PERFORMED,
     NO_NICKNAME,
     NO_SIGNING_POWER,
-    NO_WSGI_APP,
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT,
     STRANGER,
+    FEDERATED_ONLY
 )
+from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.api import encrypt_and_sign
@@ -104,9 +105,6 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-        if not domains:
-            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
-
         self.federated_only = federated_only  # type: bool
 
         #
@@ -124,12 +122,23 @@ class Character(Learner):
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
         self._checksum_address = checksum_public_address
+
+        # Fleet and Blockchain Connection (Everyone)
+        if not domains:
+            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
+
+        # Needed for on-chain verification
+        if not self.federated_only:
+            self.blockchain = blockchain or Blockchain.connect()
+            self.miner_agent = MinerAgent(blockchain=blockchain)
+        else:
+            self.blockchain = FEDERATED_ONLY
+            self.miner_agent = FEDERATED_ONLY
+
         #
         # Self-Character
         #
         if is_me is True:
-            if not self.federated_only:
-                self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
             self.treasure_maps = {}  # type: dict
