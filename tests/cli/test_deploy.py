@@ -169,8 +169,8 @@ def test_upgrade_contracts(click_runner):
             new_secret = INSECURE_SECRETS[next_version]
         except KeyError:
             continue
-        #             addr-----------client password-------confirm----secret----new deploy secret (2x for confirmation)
-        user_input = '0\n' + yes + INSECURE_DEVELOPMENT_PASSWORD + yes + old_secret + (new_secret * 2)
+        #             addr-----secret----new deploy secret (2x for confirmation)
+        user_input = '0\n' + yes + old_secret + (new_secret * 2)
         upgrade_inputs[next_version] = user_input
 
     #
@@ -273,7 +273,7 @@ def test_rollback(click_runner):
     # Stage Rollbacks
     old_secret = INSECURE_SECRETS[PLANNED_UPGRADES]
     rollback_secret = generate_insecure_secret()
-    user_input = '0\n' + yes + INSECURE_DEVELOPMENT_PASSWORD + yes + old_secret + rollback_secret + rollback_secret
+    user_input = '0\n' + yes + old_secret + rollback_secret + rollback_secret
 
     contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
                              'PolicyManager',      # v4 -> v3
@@ -385,10 +385,10 @@ def test_destroy_registry(click_runner, mock_primary_registry_filepath):
                        '--provider-uri', TEST_PROVIDER_URI,
                        '--poa')
 
+    # TODO: #1036 - Providers and unlocking are not needed for this command
     account_index = '0\n'
     yes = 'Y\n'
-    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    user_input = account_index + yes + node_password + yes + yes
+    user_input = account_index + yes + yes
 
     result = click_runner.invoke(deploy, destroy_command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
