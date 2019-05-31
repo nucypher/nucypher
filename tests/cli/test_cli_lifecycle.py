@@ -65,7 +65,6 @@ class MockSideChannel:
         return policy
 
 
-# @pytest.mark.slow
 @pt.inlineCallbacks
 def test_cli_lifecycle(click_runner,
                        random_policy_label,

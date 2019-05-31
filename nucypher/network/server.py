@@ -339,11 +339,11 @@ def make_rest_app(
     def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
-        treasure_map_bytes = keccak_digest(binascii.unhexlify(treasure_map_id))
+        treasure_map_index = bytes.fromhex(treasure_map_id)
 
         try:
 
-            treasure_map = this_node.treasure_maps[treasure_map_bytes]
+            treasure_map = this_node.treasure_maps[treasure_map_index]
             response = Response(bytes(treasure_map), headers=headers)
             log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
 
@@ -369,8 +369,10 @@ def make_rest_app(
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node.stamp, treasure_map_id))
+
             # TODO 341 - what if we already have this TreasureMap?
-            this_node.treasure_maps[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
+            treasure_map_index = bytes.fromhex(treasure_map_id)
+            this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
             # TODO: Make this a proper 500 or whatever.

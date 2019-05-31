@@ -20,7 +20,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
@@ -504,8 +504,9 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, verifying_key, label):
-        return keccak_digest(bytes(verifying_key) + self.stamp + label)
+    def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
+        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)
+        return _hrac
 
     def construct_hrac_and_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)

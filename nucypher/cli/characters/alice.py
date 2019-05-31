@@ -170,7 +170,7 @@ def alice(click_config,
         grant_request = {
             'bob_encrypting_key': bob_encrypting_key,
             'bob_verifying_key': bob_verifying_key,
-            'label': b64encode(label.encode()).decode(),
+            'label': label,
             'm': m,
             'n': n,
             'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
