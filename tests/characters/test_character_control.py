@@ -17,7 +17,7 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
     request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
-        'label': b64encode(bytes(b'test')).decode(),
+        'label': 'test',
         'm': 2,
         'n': 3,
     }

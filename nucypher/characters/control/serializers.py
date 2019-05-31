@@ -7,7 +7,6 @@ from typing import Callable
 import maya
 
 import nucypher
-from nucypher.characters.control.specifications import CharacterSpecification
 
 
 class CharacterControlSerializer(ABC):
@@ -84,7 +83,7 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
     def load_create_policy_input(request: dict):
         parsed_input = dict(bob_encrypting_key=bytes.fromhex(request['bob_encrypting_key']),
                             bob_verifying_key=bytes.fromhex(request['bob_verifying_key']),
-                            label=b64decode(request['label']),
+                            label=request['label'].encode(),
                             m=request['m'],
                             n=request['n'])
         return parsed_input

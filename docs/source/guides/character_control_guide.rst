@@ -122,7 +122,7 @@ This endpoint controls the ``Alice.grant`` method.
 - HTTP Method: ``PUT``
 - Required arguments:
     - ``bob_encrypting_key`` -- encoded as hex
-    - ``label`` -- encoded as base64
+    - ``label`` -- a unicode string
     - ``m`` -- an integer
     - ``n`` -- an integer
     - ``expiration`` -- an ISO-8601 formatted datetime string
@@ -147,7 +147,7 @@ This endpoint controls the ``Bob.retrieve`` method.
     - ``policy_encrypting_pubkey`` -- encoded as hex
     - ``alice_signing_pubkey`` -- encoded as hex
     - ``datasource_signing_pubkey`` -- encoded as hex
-    - ``label`` -- encoded as base64
+    - ``label`` -- a unicode string
     - ``message_kit`` -- encoded as base64
 - Returns: a JSON-array of base64-encoded decrypted plaintexts as ``plaintext``
 
