@@ -4,6 +4,7 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import (
     GethClient, ParityClient, GanacheClient, NuCypherGethDevProcess, PUBLIC_CHAINS)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.crypto.api import verify_eip_191
 
 
 class MockGethProvider:
@@ -106,7 +107,7 @@ def test_ganache_web3_client():
     assert interface.is_local
 
 
-def test_EIP_191_client_signatures():
+def test_geth_EIP_191_client_signature_integration():
 
     # Start a geth process
     geth = NuCypherGethDevProcess()
@@ -116,7 +117,7 @@ def test_EIP_191_client_signatures():
     etherbase = blockchain.interface.accounts[0]
     stamp = b'STAMP-' + os.urandom(64)
     signature = blockchain.interface.client.sign_message(account=etherbase, message=stamp)
-    is_valid = blockchain.interface.client.verify_signature(address=etherbase,
-                                                            signature=signature,
-                                                            message=stamp)
+    is_valid = verify_eip_191(address=etherbase,
+                              signature=signature,
+                              message=stamp)
     assert is_valid
