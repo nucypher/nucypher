@@ -26,6 +26,7 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nicknames import nickname_from_seed
+from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
@@ -46,17 +47,17 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
 
 
 @pytest.mark.slow()
-@pytest.mark.skip("What do we want this test to do now?")
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
+
     # Imagine alice knows of nobody.
-    blockchain_alice.known_nodes = {}
+    blockchain_alice._Learner__known_nodes = FleetStateTracker()
 
-    new_nodes = blockchain_alice.learn_from_teacher_node()
+    blockchain_alice.remember_node(blockchain_ursulas[0])
+    blockchain_alice.learn_from_teacher_node()
+    assert len(blockchain_alice.known_nodes) == len(blockchain_ursulas[:-1])  # TODO: #1035
 
-    assert len(new_nodes) == len(blockchain_ursulas)
-
-    for ursula in blockchain_ursulas:
-        assert ursula.stamp.as_umbral_pubkey() in new_nodes
+    for ursula in blockchain_ursulas[:-1]:  # TODO: #1035
+        assert ursula in blockchain_alice.known_nodes
 
 
 def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
@@ -66,19 +67,18 @@ def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
     alice = idle_federated_policy.alice
     bob = idle_federated_policy.bob
 
-    assert idle_federated_policy.hrac() == keccak_digest(
-        bytes(alice.stamp) + bytes(bob.stamp) + idle_federated_policy.label)
+    assert idle_federated_policy.hrac() == keccak_digest(bytes(alice.stamp)
+                                                         + bytes(bob.stamp)
+                                                         + idle_federated_policy.label)
 
 
 def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
-
     enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
-
-    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
-        keccak_digest(unhexlify(enacted_federated_policy.treasure_map.public_id()))]
+    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
+    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[treasure_map_index]
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
 
 
@@ -87,8 +87,9 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
-        keccak_digest(unhexlify(enacted_federated_policy.treasure_map.public_id()))]
+
+    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
+    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[treasure_map_index]
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob

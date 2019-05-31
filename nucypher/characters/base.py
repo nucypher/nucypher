@@ -62,13 +62,13 @@ class Character(Learner):
     A base-class for any character in our cryptography protocol narrative.
     """
 
-    _display_name_template = "({})⇀{}↽ ({})"
+    _display_name_template = "({})⇀{}↽ ({})"  # Used in __repr__ and in cls.from_bytes
     _default_crypto_powerups = None
     _stamp = None
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-    from nucypher.crypto.signing import InvalidSignature
+    from nucypher.crypto.signing import InvalidSignature  # TODO: Restore nucypher Signing exceptions
 
     def __init__(self,
                  domains: Set = None,

@@ -359,9 +359,7 @@ def make_rest_app(
         from nucypher.policy.models import TreasureMap
 
         try:
-            treasure_map = TreasureMap.from_bytes(
-                bytes_representation=request.data,
-                verify=True)
+            treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)
         except TreasureMap.InvalidSignature:
             do_store = False
         else:
