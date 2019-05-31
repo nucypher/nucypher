@@ -369,14 +369,23 @@ class Character(Learner):
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
 
+        #
+        # Optional Sanity Check
+        #
+
         # In the spirit of duck-typing, we want to accept a message kit object, or bytes
         # If the higher-order object MessageKit is passed, we can perform an additional
-        # eager sanity check before performing decryption
+        # eager sanity check before performing decryption.
+
         with contextlib.suppress(AttributeError):
             sender_verifying_key = stranger.stamp.as_umbral_pubkey()
             if message_kit.sender_verifying_key:
                 if not message_kit.sender_verifying_key == sender_verifying_key:
                     raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
+
+        #
+        # Decrypt
+        #
 
         signature_from_kit = None
         if decrypt:
@@ -396,14 +405,14 @@ class Character(Learner):
                 signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
                 message = cleartext
 
-            else:
-                raise ValueError(f"The signature header of a MessageKit must be one of "
-                                 f"the following: {str(SIGNATURE_IS_ON_CIPHERTEXT)}, {str(SIGNATURE_TO_FOLLOW)}.  Got '{sig_header}'")
-
         else:
             # Not decrypting - the message is the object passed in as a message kit.  Cast it.
             message = bytes(message_kit)
             cleartext = NO_DECRYPTION_PERFORMED
+
+        #
+        # Verify Signature
+        #
 
         if signature and signature_from_kit:
             if signature != signature_from_kit:
@@ -411,14 +420,12 @@ class Character(Learner):
                     "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
 
         signature_to_use = signature or signature_from_kit
-
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_verifying_key)
+            is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
             if not is_valid:
-                raise stranger.InvalidSignature(
-                    "Signature for message isn't valid: {}".format(signature_to_use))
+                raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
         else:
-            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+            raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
         return cleartext
 

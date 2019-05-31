@@ -18,6 +18,8 @@ import eth_utils
 import pytest
 
 from constant_sorrow import constants
+from cryptography.exceptions import InvalidSignature
+
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api

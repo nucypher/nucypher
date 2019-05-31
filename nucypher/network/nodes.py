@@ -325,11 +325,10 @@ class Learner:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         known_nodes = known_nodes or tuple()
-        self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
+        self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(
-                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(node)
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -422,8 +421,7 @@ class Learner:
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,
-                             # TODO: 466 - move federated-only up to Learner?
+                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
                              )
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
@@ -703,8 +701,14 @@ class Learner:
             announce_nodes = None
 
         unresponsive_nodes = set()
+
+        #
+        # Request
+        #
+
         try:
             # TODO: Streamline path generation
+            # FIXME: unused name "certificate filepath"
             certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
 
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
@@ -715,10 +719,10 @@ class Learner:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
             return
+
         finally:
             self.cycle_teacher_node()
 
-        #
         # Before we parse the response, let's handle some edge cases.
         if response.status_code == 204:
             # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
@@ -731,6 +735,10 @@ class Learner:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
+        #
+        # Deserialize
+        #
+
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
         except BytestringSplittingError as e:
@@ -742,12 +750,12 @@ class Learner:
         except current_teacher.InvalidSignature:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
-        # End edge case handling.
-        #
 
+        # End edge case handling.
         fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
             node_payload,
             return_remainder=True)
+
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.
         checksum = fleet_state_checksum_bytes.hex()
@@ -756,19 +764,15 @@ class Learner:
         from nucypher.characters.lawful import Ursula
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             current_teacher.update_snapshot(checksum=checksum,
-                                            updated=maya.MayaDT(
-                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                            number_of_known_nodes=len(self.known_nodes)
-                                            )
+                                            updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                            number_of_known_nodes=len(self.known_nodes))
             return FLEET_STATES_MATCH
 
         node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
 
         current_teacher.update_snapshot(checksum=checksum,
-                                        updated=maya.MayaDT(
-                                            int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(node_list)
-                                        )
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                        number_of_known_nodes=len(node_list))
 
         new_nodes = []
         for node in node_list:
@@ -783,6 +787,10 @@ class Learner:
                     # This node is already known.  We can safely continue to the next.
                     continue
 
+            #
+            # Verify Node
+            #
+
             certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
 
             try:
@@ -794,17 +802,22 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
-            # This block is a mess of eagerness.  This can all be done better lazily.
+
             except NodeSeemsToBeDown as e:
                 self.log.info(f"Can't connect to {node} to verify it right now.")
+
             except node.InvalidNode:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 self.log.warn(node.invalid_metadata_message.format(node))
+
             except node.SuspiciousActivity:
-                message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}".format(current_teacher.checksum_public_address, teacher_uri)
+                # FIXME: NameError
+                message = f"Suspicious Activity: Discovered node with bad signature: {current_teacher.checksum_public_address}." \
+                          f"Propagated by: {teacher_uri}"
                 self.log.warn(message)
+
             else:
+                # Success
                 new = self.remember_node(node, record_fleet_state=False)
                 if new:
                     new_nodes.append(node)
@@ -907,7 +920,8 @@ class Teacher:
     # Stamp
     #
 
-    def _stamp_has_valid_wallet_signature(self) -> bool:
+    def _stamp_has_valid_wallet_signature(self):
+        """Offline Signature Verification"""
         signature_bytes = self._evidence_of_decentralized_identity
         if signature_bytes is NOT_SIGNED:
             return False
@@ -916,11 +930,24 @@ class Teacher:
                                             address=self.checksum_public_address)
         return signature_is_valid
 
-    def stamp_is_valid(self):
+    def _is_valid_worker(self):
+        """
+        This method assumes the stamp's signature is valid and accurate.
+        As a follow-up, validate the Staker and Worker on-chain.
+
+        TODO: #1033 - Verify Staker <-> Worker relationship on-chain
+        """
+        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
+        if not locked_tokens:
+            raise self.InvalidNode(f"{self.checksum_public_address} has no active stakes.")
+
+    def stamp_is_valid(self) -> bool:
+        """Offline-only check of valid stamp signature"""
         signature = self._evidence_of_decentralized_identity
         if self._stamp_has_valid_wallet_signature():
             self.verified_stamp = True
             return True
+
         elif self.federated_only and signature is NOT_SIGNED:
             message = "This node can't be verified in this manner, " \
                       "but is OK to use in federated mode if you" \
@@ -934,15 +961,28 @@ class Teacher:
         if not ursula_id == digest_factory(self.canonical_public_address):
             raise self.InvalidNode
 
-    def validate_metadata(self, accept_federated_only=False):
+    def validate_metadata(self,
+                          accept_federated_only: bool = False,
+                          verify_staking: bool = True):
+
+        # Verify the interface signature
         if not self.verified_interface:
             self.interface_is_valid()
-        if not self.verified_stamp:
-            try:
-                self.stamp_is_valid()
-            except self.WrongMode:
-                if not accept_federated_only:
-                    raise
+
+        # Verify the identity evidence
+        if self.verified_stamp:
+            return
+
+        # Offline check of valid stamp signature by worker
+        try:
+            self.stamp_is_valid()
+        except self.WrongMode:
+            if not accept_federated_only:
+                raise
+
+        # Check for on-chain staking
+        if verify_staking and not self.federated_only:
+            self._is_valid_worker()
 
     def verify_node(self,
                     network_middleware,
@@ -961,7 +1001,8 @@ class Teacher:
             if self._verified_node:
                 return True
 
-        self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
+        # This is both the stamp signature and interface check.
+        self.validate_metadata(accept_federated_only)
 
         if not certificate_filepath:
 
@@ -1005,7 +1046,7 @@ class Teacher:
     # Interface
     #
 
-    def interface_is_valid(self):
+    def interface_is_valid(self) -> bool:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
