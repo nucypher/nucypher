@@ -17,30 +17,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import random
+import time
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
-
 from typing import Set, Tuple
 
 import maya
 import requests
-import time
+from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import (
+    NO_KNOWN_NODES,
+    NOT_SIGNED,
+    NEVER_SEEN,
+    NO_STORAGE_AVAILIBLE,
+    FLEET_STATES_MATCH,
+    CERTIFICATE_NOT_SAVED
+)
 from cryptography.x509 import Certificate
-from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
-from bytestring_splitter import BytestringSplitter
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
-
-from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191
@@ -994,20 +997,28 @@ class Teacher:
         """
         Three things happening here:
 
-        * Verify that the stamp matches the address (raises InvalidNode is it's not valid, or WrongMode if it's a federated mode and being verified as a decentralized node)
+        * Verify that the stamp matches the address (raises InvalidNode is it's not valid,
+          or WrongMode if it's a federated mode and being verified as a decentralized node)
+
         * Verify the interface signature (raises InvalidNode if not valid)
-        * Connect to the node, make sure that it's up, and that the signature and address we checked are the same ones this node is using now. (raises InvalidNode if not valid; also emits a specific warning depending on which check failed).
+
+        * Connect to the node, make sure that it's up, and that the signature and address we
+          checked are the same ones this node is using now. (raises InvalidNode if not valid;
+          also emits a specific warning depending on which check failed).
+
         """
+
+        # Only perform this check once per object
         if not force:
             if self._verified_node:
                 return True
 
-        # This is both the stamp signature and interface check.
+        # This is both the stamp's client signature and interface metadata check.
         self.validate_metadata(accept_federated_only)
 
         if not certificate_filepath:
 
-            if not self.certificate_filepath:
+            if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
                 raise TypeError("We haven't saved a certificate for this node yet.")
             else:
                 certificate_filepath = self.certificate_filepath
@@ -1020,7 +1031,7 @@ class Teacher:
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
 
         node_details = self.internal_splitter(node_bytes)
-        # TODO check timestamp here.  589
+        # TODO: #589 - check timestamp here.
 
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
@@ -1028,7 +1039,7 @@ class Teacher:
         evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
-            # TODO: Optional reporting.  355
+            # TODO: #355 - Optional reporting.
             if not addresses_match:
                 self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
             if not verifying_keys_match:
@@ -1039,7 +1050,7 @@ class Teacher:
 
     def substantiate_stamp(self, password: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=password)  # TODO: 349
+        blockchain_power.unlock_account(password=password)  # TODO: #349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 
