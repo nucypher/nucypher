@@ -32,6 +32,7 @@ from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer,
@@ -438,12 +439,13 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
         for ursula_to_learn_about in _ursulas:
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
+    # TODO: #1035 - Move non-staking Ursulas to a new fixture
     # This one is not going to stake
     _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                                      ether_addresses=[the_last_ursula],
                                                      stake=False)
 
-    # _ursulas.extend(_non_staking_ursula)
+    _ursulas.extend(_non_staking_ursula)
     yield _ursulas
 
 
@@ -546,3 +548,14 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
 @pytest.fixture(scope='session')
 def mock_ursula_reencrypts():
     return _mock_ursula_reencrypts
+
+
+@pytest.fixture(scope='session')
+def geth_dev_node():
+    geth = NuCypherGethDevProcess()
+    try:
+        yield geth
+    finally:
+        if geth.is_running:
+            geth.stop()
+            assert not geth.is_running
