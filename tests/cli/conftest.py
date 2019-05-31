@@ -48,9 +48,8 @@ def click_runner():
 def deploy_user_input():
     account_index = '0\n'
     yes = 'Y\n'
-    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
     deployment_secret = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    user_input = account_index + yes + node_password + (deployment_secret * 8) + 'DEPLOY'
+    user_input = account_index + yes + (deployment_secret * 8) + 'DEPLOY'
     return user_input
 
 
