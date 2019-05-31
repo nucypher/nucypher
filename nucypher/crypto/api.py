@@ -22,7 +22,7 @@ from typing import Tuple
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature  # TODO: Use nucypher exceptions
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
@@ -106,7 +106,7 @@ def ecdsa_sign(message: bytes,
     return signature_der_bytes
 
 
-def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+def verify_eip_191(address: object, message: object, signature: object) -> object:
     """
     EIP-191 Compatible signature verification for usage with w3.eth.sign.
     """
