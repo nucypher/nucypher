@@ -350,8 +350,8 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
     def start(self, timeout: int = 30, extra_delay: int = 1):
         self.log.info("STARTING GETH DEV NOW")
         BaseGethProcess.start(self)  # <--- START GETH
+        time.sleep(extra_delay)  # give it a second
         self.wait_for_ipc(timeout=timeout)
-        time.sleep(extra_delay)
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):

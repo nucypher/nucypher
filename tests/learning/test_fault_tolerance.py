@@ -48,11 +48,11 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
                                   ursula_config=ursula_federated_test_config,
                                   quantity=2,
                                   know_each_other=True)
+
     learner = lonely_ursula_maker().pop()
     teacher, new_node = lonely_ursula_maker()
 
     new_node.TEACHER_VERSION = learner.LEARNER_VERSION + 1
-
     learner._current_teacher_node = teacher
 
     warnings = []
@@ -62,26 +62,26 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
             warnings.append(event)
 
     globalLogPublisher.addObserver(warning_trapper)
-
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 1
-    #TODO: Why no assert? Is this in progress?
-    warnings[0]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
-                                                                        learner.LEARNER_VERSION)
+    assert warnings[0]['log_format'] == learner.unknown_version_message.format(new_node,
+                                                                               new_node.TEACHER_VERSION,
+                                                                               learner.LEARNER_VERSION)
 
     # Now let's go a little further: make the version totally unrecognizable.
-    crazy_bytes_representation = int(learner.LEARNER_VERSION + 1).to_bytes(2,
-                                                                           byteorder="big") + b"totally unintelligible nonsense"
+    crazy_bytes_representation = int(learner.LEARNER_VERSION + 1).to_bytes(2, byteorder="big") \
+                                 + b"totally unintelligible nonsense"
+
     Response = namedtuple("MockResponse", ("content", "status_code"))
     response = Response(content=crazy_bytes_representation, status_code=200)
     learner.network_middleware.get_nodes_via_rest = lambda *args, **kwargs: response
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 2
-    # TODO: Why no assert? Is this in progress?
-    warnings[1]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
-                                                                        learner.LEARNER_VERSION)
+    assert warnings[1]['log_format'] == learner.unknown_version_message.format(new_node,
+                                                                               new_node.TEACHER_VERSION,
+                                                                               learner.LEARNER_VERSION)
 
     globalLogPublisher.removeObserver(warning_trapper)
 

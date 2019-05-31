@@ -107,11 +107,10 @@ def test_ganache_web3_client():
     assert interface.is_local
 
 
-def test_geth_EIP_191_client_signature_integration():
+def test_geth_EIP_191_client_signature_integration(geth_dev_node):
 
     # Start a geth process
-    geth = NuCypherGethDevProcess()
-    blockchain = Blockchain.connect(provider_process=geth, sync=False)
+    blockchain = Blockchain.connect(provider_process=geth_dev_node, sync=False)
 
     # Sign a message (RPC) and verify it.
     etherbase = blockchain.interface.accounts[0]
