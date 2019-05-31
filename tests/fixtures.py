@@ -430,13 +430,20 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
                                           ether_addresses=all_but_the_last_ursula,
                                           stake=True)
 
+    # Stake starts next period (or else signature validation will fail)
+    blockchain.time_travel(periods=1)
+
+    # Bootstrap the network
+    for ursula_to_teach in _ursulas:
+        for ursula_to_learn_about in _ursulas:
+            ursula_to_teach.remember_node(ursula_to_learn_about)
+
     # This one is not going to stake
     _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                                      ether_addresses=[the_last_ursula],
                                                      stake=False)
 
-    _ursulas.extend(_non_staking_ursula)
-    blockchain.time_travel(periods=1)
+    # _ursulas.extend(_non_staking_ursula)
     yield _ursulas
 
 

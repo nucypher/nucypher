@@ -121,6 +121,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     vladimir.substantiate_stamp(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # With this slightly more sophisticated attack, his metadata does appear valid.
+    vladimir._is_valid_worker = lambda: True  # mock staking verification TODO: Split into two tests
     vladimir.validate_metadata()
 
     # However, the actual handshake proves him wrong.
