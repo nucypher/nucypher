@@ -490,7 +490,8 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
-        return keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
+        _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
+        return _id
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
