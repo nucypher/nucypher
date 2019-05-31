@@ -205,6 +205,11 @@ class Alice(Character, PolicyAuthor):
         if handpicked_ursulas is None:
             handpicked_ursulas = set()
 
+        else:
+            # This might be the first time alice learns about the handpicked Ursulas.
+            for handpicked_ursula in handpicked_ursulas:
+                self.remember_node(node=handpicked_ursula)
+
         policy = self.create_policy(bob,
                                     label,
                                     m, n,
@@ -218,7 +223,7 @@ class Alice(Character, PolicyAuthor):
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        # TODO: 289
+        # TODO: #289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < n:
@@ -292,16 +297,13 @@ class Alice(Character, PolicyAuthor):
         I/O signatures match Bob's retrieve interface.
         """
 
-        cleartexts = []
-        cleartexts.append(
-            self.verify_from(
-                data_source,
-                message_kit,
-                signature=message_kit.signature,
-                decrypt=True,
-                label=label
-            )
-        )
+        cleartexts = [self.verify_from(
+            data_source,
+            message_kit,
+            signature=message_kit.signature,
+            decrypt=True,
+            label=label
+        )]
         return cleartexts
 
     def make_web_controller(drone_alice, crash_on_error: bool = False):

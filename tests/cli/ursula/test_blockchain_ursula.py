@@ -229,7 +229,9 @@ def test_collect_rewards_integration(click_runner,
                                                expiration=expiration,
                                                handpicked_ursulas={staking_participant})
 
-    # Bob joins the policy
+    # Bob learns about the new staker and joins the policy
+    blockchain_bob.start_learning_loop()
+    blockchain_bob.remember_node(node=staking_participant)
     blockchain_bob.join_policy(random_policy_label, bytes(blockchain_alice.stamp))
 
     # Enrico Encrypts (of course)
