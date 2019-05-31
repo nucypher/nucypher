@@ -739,6 +739,7 @@ class Learner:
         # Deserialize
         #
 
+        # TODO: Causes protocol versioning checks to fail in-test when using an unsigned Response
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
         except BytestringSplittingError as e:

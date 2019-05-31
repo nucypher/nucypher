@@ -1004,7 +1004,8 @@ class Ursula(Teacher, Character, Miner):
         if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_address == potential_seed_node.checksum_public_address:
-                template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
+                template = "This seed node has a different wallet address: {} (expected {}). " \
+                           " Are you sure this is a seednode?"
                 raise potential_seed_node.SuspiciousActivity(
                     template.format(potential_seed_node.checksum_public_address,
                                     checksum_address))
@@ -1051,6 +1052,7 @@ class Ursula(Teacher, Character, Miner):
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
                    ) -> 'Ursula':
+
         if version is INCLUDED_IN_BYTESTRING:
             version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
         else:
@@ -1058,16 +1060,18 @@ class Ursula(Teacher, Character, Miner):
 
         # Check version and raise IsFromTheFuture if this node is... you guessed it...
         if version > cls.LEARNER_VERSION:
-            # TODO: Some auto-updater logic?
+
+            # Try to handle failure, even during failure, graceful degradation
+            # TODO: #154 - Some auto-updater logic?
+
             try:
                 canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
                 checksum_address = to_checksum_address(canonical_address)
                 nickname, _ = nickname_from_seed(checksum_address)
-                display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
+                display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-
             raise cls.IsFromTheFuture(message)
 
         # Version stuff checked out.  Moving on.

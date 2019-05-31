@@ -62,6 +62,7 @@ class Character(Learner):
     A base-class for any character in our cryptography protocol narrative.
     """
 
+    _display_name_template = "({})⇀{}↽ ({})"
     _default_crypto_powerups = None
     _stamp = None
     _crashed = False
@@ -226,7 +227,7 @@ class Character(Learner):
         return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
-        r = "({})⇀{}↽ ({})"
+        r = self._display_name_template
         try:
             r = r.format(self.__class__.__name__, self.nickname, self.checksum_public_address)
         except NoSigningPower:  # TODO: ....yeah?
