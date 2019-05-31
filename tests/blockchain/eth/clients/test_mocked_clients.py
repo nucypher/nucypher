@@ -1,10 +1,10 @@
-import os
-
-from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.clients import (
-    GethClient, ParityClient, GanacheClient, NuCypherGethDevProcess, PUBLIC_CHAINS)
+    GethClient,
+    ParityClient,
+    GanacheClient,
+    PUBLIC_CHAINS
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.crypto.api import verify_eip_191
 
 
 class MockGethProvider:
@@ -22,7 +22,10 @@ class MockGanacheProvider:
 
 
 class ChainIdReporter:
+
+    # Support older and newer versions of web3 py in-test
     version = 5
+    chainID = 5
 
 
 class MockWeb3:
@@ -96,27 +99,10 @@ def test_parity_web3_client():
 
 
 def test_ganache_web3_client():
-    interface = GanacheClientTestInterface(
-        provider_uri='http:///ganache:8445'
-    )
+    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445')
     assert isinstance(interface.client, GanacheClient)
     assert interface.node_technology == 'EthereumJS TestRPC'
     assert interface.node_version == 'v2.1.5'
     assert interface.platform is None
     assert interface.backend == 'ethereum-js'
     assert interface.is_local
-
-
-def test_geth_EIP_191_client_signature_integration(geth_dev_node):
-
-    # Start a geth process
-    blockchain = Blockchain.connect(provider_process=geth_dev_node, sync=False)
-
-    # Sign a message (RPC) and verify it.
-    etherbase = blockchain.interface.accounts[0]
-    stamp = b'STAMP-' + os.urandom(64)
-    signature = blockchain.interface.client.sign_message(account=etherbase, message=stamp)
-    is_valid = verify_eip_191(address=etherbase,
-                              signature=signature,
-                              message=stamp)
-    assert is_valid
