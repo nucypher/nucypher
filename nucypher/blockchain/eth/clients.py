@@ -2,11 +2,12 @@ import json
 import os
 import shutil
 import time
+import maya
 
 from constant_sorrow.constants import NOT_RUNNING
 from eth_utils import to_checksum_address, is_checksum_address
 from geth import LoggingMixin
-from geth.accounts import ensure_account_exists, get_accounts, create_new_account
+from geth.accounts import get_accounts, create_new_account
 from geth.chain import (
     get_chain_data_dir,
     initialize_chain,
@@ -15,16 +16,239 @@ from geth.chain import (
 )
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
+from web3 import Web3
+from web3.exceptions import BlockNotFound
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, DEPLOY_DIR, USER_LOG_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
 NUCYPHER_CHAIN_IDS = {
     'devnet': 112358,
 }
 
 
-class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
+class Web3ClientError(Exception):
+    pass
 
+
+class Web3ClientConnectionFailed(Web3ClientError):
+    pass
+
+
+class Web3ClientUnexpectedVersionString(Web3ClientError):
+    pass
+
+
+CHAIN_INDEX = {
+    0: "Olympic, Ethereum public pre-release PoW testnet",
+    1: "MAINNET!!!! \\( ﾟヮﾟ)/",
+    2: "Morden Classic, the public Ethereum Classic PoW testnet",
+    3: "Ropsten, the public cross-client Ethereum PoW testnet",
+    4: "Rinkeby, the public Geth-only PoA testnet",
+    5: "Goerli, the public cross-client PoA testnet",
+    6: "Kotti Classic, the public cross-client PoA testnet for Classic",
+    8: "Ubiq, the public Gubiq main network with flux difficulty chain ID 8",
+    42: "Kovan, the public Parity-only PoA testnet",
+    60: "GoChain, the GoChain networks mainnet",
+    77: "Sokol, the public POA Network testnet",
+    99: "Core, the public POA Network main network",
+    100: "xDai, the public MakerDAO/POA Network main network",
+    31337: "GoChain testnet, the GoChain networks public testnet",
+    401697: "Tobalaba, the public Energy Web Foundation testnet",
+    7762959: "Musicoin, the music blockchain",
+    61717561: "Aquachain, ASIC resistant chain",
+    112358: "Nucypher testnet",
+}
+
+
+class Web3Client(object):
+
+    is_local = False
+
+    @classmethod
+    def from_w3(cls, w3: Web3):
+        #
+        # *Client version format*
+        # Geth Example: "'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'"
+        # Parity Example: "Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1"
+        # Ganache Example: "EthereumJS TestRPC/v2.1.5/ethereum-js"
+        #
+        client_data = w3.clientVersion.split('/')
+        node_technology = client_data[0]
+
+        GETH = 'Geth'
+        PARITY = 'Parity' # seeing both of these for parity.
+        ALT_PARITY = 'Parity-Ethereum'
+        GANACHE = 'EthereumJS TestRPC'
+        ETHEREUM_TESTER = 'EthereumTester'
+
+        try:
+            subcls = {
+                GETH: GethClient,
+                PARITY: ParityClient,
+                ALT_PARITY: ParityClient,
+                GANACHE: GanacheClient,
+                ETHEREUM_TESTER: EthTestClient,
+            }[node_technology]
+        except KeyError:
+            raise NotImplementedError(node_technology)
+
+        return subcls(w3, *client_data)
+
+    class ConnectionNotEstablished(RuntimeError):
+        pass
+
+    class SyncTimeout(RuntimeError):
+        pass
+
+    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
+        self.w3 = w3
+        self.node_technology = node_technology
+        self.node_version = version
+        self.backend = backend
+
+        self.log = Logger("blockchain")
+
+    @property
+    def peers(self):
+        raise NotImplementedError
+
+    @property
+    def chain_name(self):
+        if not self.is_local:
+            return CHAIN_INDEX[self.w3.net.version]
+        return {
+            1337: "geth --dev",
+            5777: "default ganache chain",
+        }.get(self.w3.net.version, "UNKNOWN DEV CHAIN")
+
+    @property
+    def syncing(self):
+        return self.w3.eth.syncing
+
+    def unlock_account(self, address, password):
+        raise NotImplementedError
+
+    def unlockAccount(self, address, password):
+        if not self.is_local:
+            return self.unlock_account(address, password)
+
+    def is_connected(self):
+        return self.w3.isConnected()
+
+    @property
+    def accounts(self):
+        return self.w3.eth.accounts
+
+    def getBalance(self, address):
+        return self.w3.eth.getBalance(address)
+
+    @property
+    def chain_id(self):
+        return self.w3.net.version
+
+    def sync(self, timeout: int = 600):
+
+        if self.is_local:
+            return
+
+        # Record start time for timeout calculation
+        now = maya.now()
+        start_time = now
+
+        def check_for_timeout(t):
+            last_update = maya.now()
+            duration = (last_update - start_time).seconds
+            if duration > t:
+                raise self.SyncTimeout
+
+        # Check for ethereum peers
+        self.log.info(f"Waiting for ethereum peers...")
+        while not self.peers:
+            time.sleep(0)
+            check_for_timeout(t=30)
+
+        needs_sync = False
+        for peer in self.peers:
+            peer_block_header = peer['protocols']['eth']['head']
+            try:
+                self.w3.eth.getBlock(peer_block_header)
+            except BlockNotFound:
+                needs_sync = True
+                break
+
+        # Start
+        if needs_sync:
+            peers = len(self.peers)
+            self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
+            while not self.syncing:
+                time.sleep(0)
+                check_for_timeout(t=timeout)
+
+            # Continue until done
+            while self.syncing:
+                current = self.syncing['currentBlock']
+                total = self.syncing['highestBlock']
+                self.log.info(f"Syncing {current}/{total}")
+                time.sleep(1)
+                check_for_timeout()
+
+            return True
+
+
+class GethClient(Web3Client):
+
+    @property
+    def is_local(self):
+        return int(self.w3.net.version) not in CHAIN_INDEX
+
+    @property
+    def peers(self):
+        return self.w3.geth.admin.peers()
+
+    def unlock_account(self, address, password):
+        return self.w3.geth.personal.unlockAccount(address, password)
+
+
+class ParityClient(Web3Client):
+
+    @property
+    def peers(self) -> list:
+        return self.w3.manager.request_blocking("parity_netPeers", [])
+
+    def unlock_account(self, address, password):
+        return self.w3.parity.unlockAccount.unlockAccount(address, password)
+
+
+class GanacheClient(Web3Client):
+
+    is_local = True
+
+    def unlock_account(self, address, password):
+        return True
+
+    def sync(self, *args, **kwargs):
+        return True
+
+
+class EthTestClient(Web3Client):
+
+    is_local = True
+
+    def unlock_account(self, address, password):
+        return True
+
+    def sync(self, *args, **kwargs):
+        return True
+
+    def __init__(self, w3, node_technology, version, backend, *args, **kwargs):
+        self.w3 = w3
+        self.node_technology = node_technology
+        self.node_version = version
+        self.backend = backend
+        self.log = Logger("blockchain")
+
+
+class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
@@ -45,7 +269,6 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
         self.log = Logger('nucypher-geth')
 
-    @property
     def provider_uri(self, scheme: str = None) -> str:
         if not scheme:
             scheme = self.IPC_PROTOCOL
@@ -84,6 +307,11 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
         self.geth_kwargs.update({'dev': True})
 
         self.command = [*self.command, '--dev']
+
+    def start(self, timeout: int = 30, extra_delay: int = 1):
+        self.log.info("STARTING GETH DEV NOW")
+        self.wait_for_ipc(timeout=timeout)
+        time.sleep(extra_delay)
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):

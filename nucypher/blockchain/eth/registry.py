@@ -69,6 +69,15 @@ class EthereumContractRegistry:
         self.__filepath = registry_filepath or self._default_registry_filepath
 
     @classmethod
+    def _get_registry_class(cls, local=False):
+        """
+        If "local" is True, it means we are running a local blockchain and we
+        have deployed the Nucypher contracts on that blockchain, therefore
+        we do not want to download a registry from github.
+        """
+        return LocalEthereumContractRegistry if local else cls
+
+    @classmethod
     def download_latest_publication(cls,
                                     filepath: str = None,
                                     branch: str = 'goerli'
@@ -193,10 +202,9 @@ class EthereumContractRegistry:
         this function first to get the current state to append to the dict or
         modify it because _write_registry_file overwrites the file.
         """
-
         try:
-            with open(self.__filepath, 'r') as registry_file:
-                self.log.debug("Reading from registrar: filepath {}".format(self.__filepath))
+            with open(self.filepath, 'r') as registry_file:
+                self.log.debug("Reading from registrar: filepath {}".format(self.filepath))
                 registry_file.seek(0)
                 file_data = registry_file.read()
                 if file_data:
@@ -208,7 +216,7 @@ class EthereumContractRegistry:
                     registry_data = list() if self._multi_contract else dict()
 
         except FileNotFoundError:
-            raise self.NoRegistry("No registry at filepath: {}".format(self.__filepath))
+            raise self.NoRegistry("No registry at filepath: {}".format(self.filepath))
 
         except JSONDecodeError:
             raise
@@ -263,6 +271,19 @@ class EthereumContractRegistry:
             raise self.IllegalRegistry(m.format(contract_address))
 
         return contracts if contract_name else contracts[0]
+
+
+class LocalEthereumContractRegistry(EthereumContractRegistry):
+
+    _default_registry_filepath = os.path.join(
+        DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json'
+    )
+
+    __filepath = _default_registry_filepath
+
+    @classmethod
+    def download_latest_publication(cls, *args, **kwargs):
+        return cls._default_registry_filepath
 
 
 class TemporaryEthereumContractRegistry(EthereumContractRegistry):

@@ -323,7 +323,7 @@ class NodeConfiguration(ABC):
                                              poa=self.poa,
                                              fetch_registry=True,
                                              provider_process=self.provider_process,
-                                             full_sync=full_sync)
+                                             sync=full_sync)
 
         # Read Ethereum Node Keyring
         self.accounts = self.blockchain.interface.w3.eth.accounts
