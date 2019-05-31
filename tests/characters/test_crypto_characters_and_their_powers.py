@@ -30,8 +30,6 @@ from nucypher.crypto.powers import (CryptoPower,
                                     BlockchainPower,
                                     PowerUpError)
 
-from nucypher.crypto.signing import InvalidSignature
-
 """
 Chapter 1: SIGNING
 """
@@ -118,7 +116,7 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain):
+def test_character_blockchain_power(testerchain, three_agents):
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
     sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[
@@ -254,7 +252,7 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
     assert not_signature == constants.NOT_SIGNED
 
     # ...and thus, the message is not verified.
-    with pytest.raises(Character.InvalidSignature):
+    with pytest.raises(InvalidSignature):
         federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
 
 

@@ -36,10 +36,11 @@ def test_blockchain_ursula_is_not_valid_with_unsigned_identity_evidence(blockcha
     assert len(warnings) == 1
     assert warnings[0]['log_format'] == unsigned.invalid_metadata_message.format(unsigned)
 
-    # minus 2 for self and, of course, unsigned.
-    assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 3
-    assert blockchain_teacher in lonely_blockchain_learner.known_nodes
     assert unsigned not in lonely_blockchain_learner.known_nodes
+
+    # minus 2 for self and, of course, unsigned.
+    assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2
+    assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
 
 def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):

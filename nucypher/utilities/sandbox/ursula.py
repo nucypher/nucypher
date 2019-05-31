@@ -108,13 +108,6 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
         port = ursula.rest_information()[0].port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
-    if know_each_other:
-
-        for ursula_to_teach in ursulas:
-            # Add other Ursulas as known nodes.
-            for ursula_to_learn_about in ursulas:
-                ursula_to_teach.remember_node(ursula_to_learn_about)
-
     return ursulas
 
 
