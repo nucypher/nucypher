@@ -261,7 +261,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     # This is sidechannel policy metadata. It should be given to Bob by the
     # application developer at some point.
     policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
-    alice_pubkey_sig_hex = alice_response_data['result']['alice_verifying_key']
+    alice_verifying_key_hex = alice_response_data['result']['alice_verifying_key']
 
     # Encrypt some data via Enrico control
     # Alice will also be Enrico via Enrico.from_alice
@@ -288,7 +288,7 @@ def test_character_control_lifecycle(alice_control_test_client,
     bob_request_data = {
         'label': random_label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
-        'alice_verifying_key': alice_pubkey_sig_hex,
+        'alice_verifying_key': alice_verifying_key_hex,
         'message_kit': encoded_message_kit,
     }
 

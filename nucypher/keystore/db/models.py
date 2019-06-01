@@ -54,24 +54,25 @@ class PolicyArrangement(Base):
     id = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
     kfrag = Column(LargeBinary, unique=True, nullable=True)
-    alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
-    alice_pubkey_sig = relationship(Key, backref="policies", lazy='joined')
-    # alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
-    # bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    alice_verifying_key_id = Column(Integer, ForeignKey('keys.id'))
+    alice_verifying_key = relationship(Key, backref="policies", lazy='joined')
+
     # TODO: Maybe this will be two signatures - one for the offer, one for the KFrag.
     alice_signature = Column(LargeBinary, unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, expiration, id,
-                 kfrag=None, alice_pubkey_sig=None,
-                 # alice_pubkey_enc_id, bob_pubkey_sig_id,
-                 alice_signature=None) -> None:
+    def __init__(self,
+                 expiration,
+                 id,
+                 kfrag=None,
+                 alice_verifying_key=None,
+                 alice_signature=None
+                 ) -> None:
+
         self.expiration = expiration
         self.id = id
         self.kfrag = kfrag
-        self.alice_pubkey_sig = alice_pubkey_sig
-        # self.alice_pubkey_enc_id = alice_pubkey_enc_id
-        # self.bob_pubkey_sig_id = bob_pubkey_sig_id
+        self.alice_verifying_key = alice_verifying_key
         self.alice_signature = alice_signature
 
     def __repr__(self):
@@ -82,13 +83,13 @@ class Workorder(Base):
     __tablename__ = 'workorders'
 
     id = Column(Integer, primary_key=True)
-    bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    bob_verifying_key_id = Column(Integer, ForeignKey('keys.id'))
     bob_signature = Column(LargeBinary, unique=True)
     arrangement_id = Column(LargeBinary, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, bob_pubkey_sig_id, bob_signature, arrangement_id) -> None:
-        self.bob_pubkey_sig_id = bob_pubkey_sig_id
+    def __init__(self, bob_verifying_key_id, bob_signature, arrangement_id) -> None:
+        self.bob_verifying_key_id = bob_verifying_key_id
         self.bob_signature = bob_signature
         self.arrangement_id = arrangement_id
 

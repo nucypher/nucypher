@@ -209,7 +209,7 @@ def make_rest_app(
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
-                alice_pubkey_sig=arrangement.alice.stamp,
+                alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )
         # TODO: Make the rest of this logic actually work - do something here
@@ -269,7 +269,7 @@ def make_rest_app(
                 policy_arrangement = datastore.get_policy_arrangement(
                     id_as_hex.encode(), session=session)
                 alice_pubkey = UmbralPublicKey.from_bytes(
-                    policy_arrangement.alice_pubkey_sig.key_data)
+                    policy_arrangement.alice_verifying_key.key_data)
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
@@ -298,7 +298,7 @@ def make_rest_app(
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
-        verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
+        verifying_key_bytes = policy_arrangement.alice_verifying_key.key_data
 
         # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)

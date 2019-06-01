@@ -75,7 +75,7 @@ label = label.encode()
 
 # Alicia can create the public key associated to the policy label,
 # even before creating any associated policy.
-policy_pubkey = alicia.get_policy_pubkey_from_label(label)
+policy_pubkey = alicia.get_policy_encrypting_key_from_label(label)
 
 print("The policy public key for "
       "label '{}' is {}".format(label.decode("utf-8"), policy_pubkey.to_bytes().hex()))

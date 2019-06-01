@@ -58,7 +58,7 @@ ALICE = Alice(network_middleware=RestMiddleware(),
 # From this moment on, any Data Source that knows the public key
 # can encrypt data originally intended for Alice, but that can be shared with
 # any Bob that Alice grants access.
-policy_pubkey = ALICE.get_policy_pubkey_from_label(label)
+policy_pubkey = ALICE.get_policy_encrypting_key_from_label(label)
 
 BOB = Bob(known_nodes=[ursula],
           network_middleware=RestMiddleware(),

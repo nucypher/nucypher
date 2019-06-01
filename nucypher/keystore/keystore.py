@@ -99,7 +99,7 @@ class KeyStore(object):
         session.commit()
 
     def add_policy_arrangement(self, expiration, id, kfrag=None,
-                               alice_pubkey_sig=None,
+                               alice_verifying_key=None,
                                alice_signature=None,
                                session=None) -> PolicyArrangement:
         """
@@ -109,13 +109,13 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_pubkey_sig)).first()
+        alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_verifying_key)).first()
         if not alice_key_instance:
-            alice_key_instance = Key.from_umbral_key(alice_pubkey_sig, is_signing=True)
+            alice_key_instance = Key.from_umbral_key(alice_verifying_key, is_signing=True)
 
         new_policy_arrangement = PolicyArrangement(
-            expiration, id, kfrag, alice_pubkey_sig=alice_key_instance,
-            alice_signature=None, # bob_pubkey_sig.id
+            expiration, id, kfrag, alice_verifying_key=alice_key_instance,
+            alice_signature=None, # bob_verifying_key.id
         )
 
         session.add(new_policy_arrangement)
@@ -154,19 +154,19 @@ class KeyStore(object):
         if policy_arrangement is None:
             raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
 
-        if policy_arrangement.alice_pubkey_sig.key_data != alice.stamp:
+        if policy_arrangement.alice_verifying_key.key_data != alice.stamp:
             raise alice.SuspiciousActivity
 
         policy_arrangement.kfrag = bytes(kfrag)
         session.commit()
 
-    def add_workorder(self, bob_pubkey_sig, bob_signature, arrangement_id, session=None) -> Workorder:
+    def add_workorder(self, bob_verifying_key, bob_signature, arrangement_id, session=None) -> Workorder:
         """
         Adds a Workorder to the keystore.
         """
         session = session or self._session_on_init_thread
-        bob_pubkey_sig = self.add_key(bob_pubkey_sig)
-        new_workorder = Workorder(bob_pubkey_sig.id, bob_signature, arrangement_id)
+        bob_verifying_key = self.add_key(bob_verifying_key)
+        new_workorder = Workorder(bob_verifying_key.id, bob_signature, arrangement_id)
 
         session.add(new_workorder)
         session.commit()
