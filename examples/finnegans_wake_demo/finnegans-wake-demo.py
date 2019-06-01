@@ -16,6 +16,8 @@ from nucypher.utilities.logging import SimpleObserver
 ######################
 
 # Execute the download script (download_finnegans_wake.sh) to retrieve the book
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+
 BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
 
 # Change this value to to perform more or less total re-encryptions
@@ -31,7 +33,7 @@ globalLogPublisher.addObserver(SimpleObserver())
 # (will fail with bad connection) #####
 #######################################
 
-SEEDNODE_URI = "https://localhost:11501"
+SEEDNODE_URI = "https://localhost:11500"
 
 ##############################################
 # Ursula, the Untrusted Re-Encryption Proxy  #
@@ -50,6 +52,7 @@ label = b"secret/files/and/stuff"
 ######################################
 
 ALICE = Alice(network_middleware=RestMiddleware(),
+              domains={TEMPORARY_DOMAIN},
               known_nodes=[ursula],
               learn_on_same_thread=True,
               federated_only=True)
@@ -61,6 +64,7 @@ ALICE = Alice(network_middleware=RestMiddleware(),
 policy_pubkey = ALICE.get_policy_encrypting_key_from_label(label)
 
 BOB = Bob(known_nodes=[ursula],
+          domains={TEMPORARY_DOMAIN},
           network_middleware=RestMiddleware(),
           federated_only=True,
           start_learning_now=True,

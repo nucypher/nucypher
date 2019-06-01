@@ -19,6 +19,8 @@ from nucypher.utilities.logging import SimpleObserver
 
 
 # Twisted Logger
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+
 globalLogPublisher.addObserver(SimpleObserver())
 
 TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
@@ -50,6 +52,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
 alice_config = AliceConfiguration(
     config_root=os.path.join(TEMP_ALICE_DIR),
     is_me=True,
+    domains={TEMPORARY_DOMAIN},
     known_nodes={ursula},
     start_learning_now=False,
     federated_only=True,
