@@ -30,7 +30,7 @@ from nucypher.utilities.sandbox.constants import select_test_port
 click_runner = CliRunner()
 
 DEMO_NODE_PORT = select_test_port()
-DEMO_FLEET_STARTING_PORT = 11501
+DEMO_FLEET_STARTING_PORT = 11500
 
 args = ['--debug',
         'ursula', 'run',
