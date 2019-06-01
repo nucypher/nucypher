@@ -259,7 +259,7 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
 def test_alice_can_decrypt(federated_alice):
     label = b"boring test label"
 
-    policy_pubkey = federated_alice.get_policy_pubkey_from_label(label)
+    policy_pubkey = federated_alice.get_policy_encrypting_key_from_label(label)
 
     enrico = Enrico(policy_encrypting_key=policy_pubkey)
 

@@ -249,7 +249,7 @@ class Alice(Character, PolicyAuthor):
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
 
-    def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:
+    def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
@@ -586,10 +586,10 @@ class Bob(Character):
             work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
-    def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
+    def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
+        treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
@@ -1213,7 +1213,7 @@ class Enrico(Character):
         :param label: The label with which to derive the key.
         :return:
         """
-        policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
+        policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
 
