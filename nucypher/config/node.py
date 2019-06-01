@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import binascii
 import json
 import os
 import secrets
@@ -25,7 +26,6 @@ from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 from typing import List, Set
 
-import binascii
 import eth_utils
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
@@ -43,7 +43,6 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring

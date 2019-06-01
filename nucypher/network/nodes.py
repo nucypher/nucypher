@@ -267,7 +267,7 @@ class Learner:
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetStateTracker
 
-    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
+    invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
@@ -389,8 +389,8 @@ class Learner:
             self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
-    def read_nodes_from_storage(self) -> set:
-        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
+    def read_nodes_from_storage(self) -> None:
+        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
         for node in stored_nodes:
             self.remember_node(node)
 
@@ -815,9 +815,8 @@ class Learner:
                 self.log.warn(node.invalid_metadata_message.format(node))
 
             except node.SuspiciousActivity:
-                # FIXME: NameError
-                message = f"Suspicious Activity: Discovered node with bad signature: {current_teacher.checksum_public_address}." \
-                          f"Propagated by: {teacher_uri}"
+                message = f"Suspicious Activity: Discovered node with bad signature: {node}." \
+                          f"Propagated by: {current_teacher}"
                 self.log.warn(message)
 
             else:
@@ -865,10 +864,10 @@ class Teacher:
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
         self._timestamp = timestamp
-        self.last_seen = NEVER_SEEN("Haven't connected to this node yet.")
+        self.last_seen = NEVER_SEEN("No Connection to Node")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
-        self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
+        self._identity_evidence = constant_or_bytes(identity_evidence)
 
         if substantiate_immediately:
             self.substantiate_stamp(password=password)  # TODO: Derive from keyring
@@ -926,7 +925,7 @@ class Teacher:
 
     def _stamp_has_valid_wallet_signature(self):
         """Offline Signature Verification"""
-        signature_bytes = self._evidence_of_decentralized_identity
+        signature_bytes = self._identity_evidence
         if signature_bytes is NOT_SIGNED:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
@@ -945,20 +944,37 @@ class Teacher:
         if not locked_tokens:
             raise self.InvalidNode(f"{self.checksum_public_address} has no active stakes.")
 
-    def stamp_is_valid(self) -> bool:
+    def stamp_is_valid(self, verify_staking: bool = True) -> bool:
         """Offline-only check of valid stamp signature"""
-        signature = self._evidence_of_decentralized_identity
-        if self._stamp_has_valid_wallet_signature():
-            self.verified_stamp = True
-            return True
 
-        elif self.federated_only and signature is NOT_SIGNED:
-            message = "This node can't be verified in this manner, " \
-                      "but is OK to use in federated mode if you" \
-                      " have reason to believe it is trustworthy."
-            raise self.WrongMode(message)
+        #
+        # Federated
+        #
+
+        if self.federated_only:
+            if self._identity_evidence is not NOT_SIGNED:
+                message = "This node cannot be verified in this manner, " \
+                          "but is OK to use in federated mode if you "    \
+                          "have reason to believe it is trustworthy."
+                raise self.WrongMode(message)
+
+        #
+        # Decentralized
+        #
+
         else:
-            raise self.InvalidNode
+
+            if self._identity_evidence is NOT_SIGNED:
+                raise self.InvalidNode
+
+            # Off-chain signature verification
+            if self._stamp_has_valid_wallet_signature():
+                self.verified_stamp = True
+                return True
+
+            # On-chain staking check
+            if verify_staking:
+                self._is_valid_worker()
 
     def verify_id(self, ursula_id, digest_factory=bytes):
         self.verify()
@@ -979,14 +995,10 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.stamp_is_valid()
+            self.stamp_is_valid(verify_staking=verify_staking)
         except self.WrongMode:
             if not accept_federated_only:
                 raise
-
-        # Check for on-chain staking
-        if verify_staking and not self.federated_only:
-            self._is_valid_worker()
 
     def verify_node(self,
                     network_middleware,
@@ -1014,7 +1026,7 @@ class Teacher:
                 return True
 
         # This is both the stamp's client signature and interface metadata check.
-        self.validate_metadata(accept_federated_only)
+        self.validate_metadata(accept_federated_only=accept_federated_only)
 
         if not certificate_filepath:
 
@@ -1036,7 +1048,7 @@ class Teacher:
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
         addresses_match = node_details['public_address'] == self.canonical_public_address
-        evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
+        evidence_matches = node_details['identity_evidence'] == self._identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: #355 - Optional reporting.
@@ -1052,7 +1064,7 @@ class Teacher:
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
         blockchain_power.unlock_account(password=password)  # TODO: #349
         signature = blockchain_power.sign_message(bytes(self.stamp))
-        self._evidence_of_decentralized_identity = signature
+        self._identity_evidence = signature
 
     #
     # Interface

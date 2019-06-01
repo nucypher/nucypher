@@ -21,7 +21,6 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner,
                    testerchain,
-                   federated_ursulas,  # TODO: Make these blockchain Ursulas
                    deploy_user_input,
                    mock_primary_registry_filepath):
 

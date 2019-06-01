@@ -18,10 +18,11 @@ import base64
 import contextlib
 import json
 import os
-import shutil
 import stat
 from json import JSONDecodeError
+from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
+from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -37,19 +38,20 @@ from eth_utils import to_checksum_address, is_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
-from typing import ClassVar, Tuple, Callable, Union, Dict, List
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from constant_sorrow.constants import KEYRING_LOCKED
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
-from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower, \
+from nucypher.crypto.powers import (
+    SigningPower,
+    DecryptingPower,
+    KeyPairBasedPower,
+    DerivedKeyBasedPower,
     BlockchainPower
+)
 from nucypher.network.server import TLSHostingPower
-from nucypher.blockchain.eth.chains import Blockchain
-
-
 
 FILE_ENCODING = 'utf-8'
 
