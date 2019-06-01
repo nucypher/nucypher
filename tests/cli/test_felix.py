@@ -19,7 +19,11 @@ from nucypher.utilities.sandbox.constants import (
 
 
 @pytest_twisted.inlineCallbacks
-def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_registry_filepath):
+def test_run_felix(click_runner,
+                   testerchain,
+                   federated_ursulas,
+                   deploy_user_input,
+                   mock_primary_registry_filepath):
 
     clock = Clock()
     Felix._CLOCK = clock
@@ -41,8 +45,7 @@ def test_run_felix(click_runner, testerchain, federated_ursulas, mock_primary_re
                    '--provider-uri', TEST_PROVIDER_URI,
                    '--poa')
 
-    user_input = '0\n' + 'Y\n'*2 + f'{INSECURE_DEVELOPMENT_PASSWORD}\n'*8 + 'DEPLOY'  # TODO: Use Env Vars
-    result = click_runner.invoke(deploy.deploy, deploy_args, input=user_input, catch_exceptions=False, env=envvars)
+    result = click_runner.invoke(deploy.deploy, deploy_args, input=deploy_user_input, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # Felix creates a system configuration
