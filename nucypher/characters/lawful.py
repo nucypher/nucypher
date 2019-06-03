@@ -880,7 +880,7 @@ class Ursula(Teacher, Character, Miner):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
-        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+        identity_evidence = VariableLengthBytestring(self._identity_evidence)
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))

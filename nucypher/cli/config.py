@@ -21,7 +21,6 @@ import collections
 import os
 
 import click
-import requests
 from constant_sorrow.constants import NO_PASSWORD, NO_BLOCKCHAIN_CONNECTION
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger

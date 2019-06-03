@@ -22,7 +22,7 @@ from typing import Tuple
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature  # TODO: Use nucypher exceptions
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
