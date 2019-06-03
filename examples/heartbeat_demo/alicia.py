@@ -8,8 +8,6 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
 
 
@@ -25,7 +23,6 @@ globalLogPublisher.addObserver(SimpleObserver())
 
 TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 
-# We expect the url of the seednode as the first argument.
 SEEDNODE_URL = 'localhost:11500'
 
 POLICY_FILENAME = "policy-metadata.json"
