@@ -79,7 +79,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
     learner.network_middleware.get_nodes_via_rest = lambda *args, **kwargs: response
     learner.learn_from_teacher_node()
 
-    # TODO: Fails because the above mocked Response is unsigned, and the API now enforces interface signatures
+    # TODO: #1039 - Fails because the above mocked Response is unsigned, and the API now enforces interface signatures
     # assert len(warnings) == 2
     # assert warnings[1]['log_format'] == learner.unknown_version_message.format(new_node,
     #                                                                            new_node.TEACHER_VERSION,

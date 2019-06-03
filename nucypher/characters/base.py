@@ -365,7 +365,7 @@ class Character(Learner):
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param: label: A Label used for verifying the results of PRE
+        :param label: A label used for decrypting messages encrypted under its associated policy encrypting key
 
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
