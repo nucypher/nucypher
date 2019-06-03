@@ -9,9 +9,9 @@ from nucypher.crypto.api import verify_eip_191
 # NOTE: This module is skipped on CI
 #
 
-# TODO: # 1037 This marker is not working.
-@pytest.mark.skipif(os.environ.get('CIRCLECI'), reason='Do not run geth nodes on CircleCI')
 def test_geth_EIP_191_client_signature_integration(geth_dev_node):
+    if 'CIRCLECI' in os.environ:
+        pytest.skip("Do not run Geth nodes in CI")
 
     # Start a geth process
     blockchain = Blockchain.connect(provider_process=geth_dev_node, sync=False)
