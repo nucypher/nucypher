@@ -9,15 +9,13 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
-
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 ######################
 # Boring setup stuff #
 ######################
 
 # Execute the download script (download_finnegans_wake.sh) to retrieve the book
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
-
 BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
 
 # Change this value to to perform more or less total re-encryptions
@@ -33,7 +31,7 @@ globalLogPublisher.addObserver(SimpleObserver())
 # (will fail with bad connection) #####
 #######################################
 
-SEEDNODE_URI = "https://localhost:11500"
+SEEDNODE_URI = "localhost:11500"
 
 ##############################################
 # Ursula, the Untrusted Re-Encryption Proxy  #
