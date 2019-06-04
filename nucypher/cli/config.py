@@ -148,10 +148,10 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
     def collect_deployment_secrets(self) -> Secrets:
 
         # Deployment Environment Variables
-        self.staking_escrow_deployment_secret = os.environ.get("NUCYPHER_MINERS_ESCROW_SECRET")
+        self.staking_escrow_deployment_secret = os.environ.get("NUCYPHER_STAKING_ESCROW_SECRET")
         self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
         self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
-        self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
+        self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_ADJUDICATOR_SECRET")
 
 
         if not self.staking_escrow_deployment_secret:

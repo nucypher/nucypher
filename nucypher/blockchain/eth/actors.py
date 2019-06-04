@@ -30,7 +30,7 @@ from constant_sorrow.constants import (
     UNKNOWN_STAKES,
     NOT_STAKING,
     NO_STAKES,
-    STRANGER_MINER
+    STRANGER_STAKER
 )
 from eth_tester.exceptions import TransactionFailed
 from twisted.internet import task, reactor
@@ -382,7 +382,7 @@ class Staker(NucypherTokenActor):
             self._staking_task = task.LoopingCall(self.heartbeat)
 
         else:
-            self.token_agent = STRANGER_MINER
+            self.token_agent = STRANGER_STAKER
 
         self.staking_agent = StakingEscrow(blockchain=self.blockchain)
 
