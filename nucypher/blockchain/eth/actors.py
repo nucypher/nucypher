@@ -82,12 +82,12 @@ class NucypherTokenActor:
         :param checksum_address:  If not passed, we assume this is an unknown actor
         """
         try:
-            parent_address = self.checksum_public_address  # type: str
+            parent_address = self.checksum_address  # type: str
             if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            self.checksum_public_address = checksum_address  # type: str
+            self.checksum_address = checksum_address  # type: str
 
         if blockchain is None:
             blockchain = Blockchain.connect()  # Attempt to connect
@@ -99,19 +99,19 @@ class NucypherTokenActor:
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
-        r = r.format(class_name, self.checksum_public_address)
+        r = r.format(class_name, self.checksum_address)
         return r
 
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.blockchain.interface.get_balance(self.checksum_public_address)
+        balance = self.blockchain.interface.get_balance(self.checksum_address)
         return self.blockchain.interface.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
         """Return this actors's current token balance"""
-        balance = int(self.token_agent.get_balance(address=self.checksum_public_address))
+        balance = int(self.token_agent.get_balance(address=self.checksum_address))
         nu_balance = NU(balance, 'NuNit')
         return nu_balance
 
@@ -143,7 +143,7 @@ class Deployer(NucypherTokenActor):
         self.blockchain = blockchain
         self.__deployer_address = NO_DEPLOYER_ADDRESS
         self.deployer_address = deployer_address
-        self.checksum_public_address = self.deployer_address
+        self.checksum_address = self.deployer_address
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
@@ -428,7 +428,7 @@ class Miner(NucypherTokenActor):
 
     @property
     def last_active_period(self) -> int:
-        period = self.miner_agent.get_last_active_period(address=self.checksum_public_address)
+        period = self.miner_agent.get_last_active_period(address=self.checksum_address)
         return period
 
     @only_me
@@ -497,7 +497,7 @@ class Miner(NucypherTokenActor):
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this miner has locked for a given duration in periods."""
-        raw_value = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address, periods=periods)
+        raw_value = self.miner_agent.get_locked_tokens(miner_address=self.checksum_address, periods=periods)
         value = NU.from_nunits(raw_value)
         return value
 
@@ -604,7 +604,7 @@ class Miner(NucypherTokenActor):
         onchain_stakes, terminal_period = list(), 0
 
         # Read from blockchain
-        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
+        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_address)
 
         for onchain_index, stake_info in enumerate(stakes_reader):
 
@@ -653,19 +653,19 @@ class Miner(NucypherTokenActor):
     @only_me
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
-        txhash = self.miner_agent.confirm_activity(node_address=self.checksum_public_address)
+        txhash = self.miner_agent.confirm_activity(node_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
-        mint_txhash = self.miner_agent.mint(node_address=self.checksum_public_address)
+        mint_txhash = self.miner_agent.mint(node_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
         return mint_txhash
 
     def calculate_reward(self) -> int:
-        staking_reward = self.miner_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
+        staking_reward = self.miner_agent.calculate_staking_reward(checksum_address=self.checksum_address)
         return staking_reward
 
     @only_me
@@ -673,15 +673,16 @@ class Miner(NucypherTokenActor):
         """Collect rewarded ETH"""
         policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
 
-        withdraw_address = collector_address or self.checksum_public_address
-        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address, miner_address=self.checksum_public_address)
+        withdraw_address = collector_address or self.checksum_address
+        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address,
+                                                                  miner_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
         return policy_reward_txhash
 
     @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        collection_txhash = self.miner_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
+        collection_txhash = self.miner_agent.collect_staking_reward(checksum_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
 

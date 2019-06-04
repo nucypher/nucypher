@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.token import NU
 
 
 class ChecksumAddress(click.ParamType):
-    name = 'checksum_public_address'
+    name = 'checksum_address'
 
     def convert(self, value, param, ctx):
         return to_checksum_address(value=value)  # TODO: More robust validation here?

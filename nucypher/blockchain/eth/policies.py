@@ -218,7 +218,7 @@ class BlockchainPolicy(Policy):
             found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
             # Get the difference (spares)
-            spare_addresses = selected_addresses - set(u.checksum_public_address for u in found_ursulas)
+            spare_addresses = selected_addresses - set(u.checksum_address for u in found_ursulas)
 
             # Assemble the final selection
             candidates.update(found_ursulas)

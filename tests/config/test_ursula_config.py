@@ -20,7 +20,7 @@ def test_ursula_development_configuration(federated_only=True):
 
     # Ensure we do in fact have an Ursula here
     assert isinstance(ursula_one, Ursula)
-    assert len(ursula_one.checksum_public_address) == 42
+    assert len(ursula_one.checksum_address) == 42
     assert ursula_one.federated_only is federated_only
 
     # A Temporary Ursula

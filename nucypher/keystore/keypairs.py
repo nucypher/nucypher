@@ -145,7 +145,7 @@ class HostingKeypair(Keypair):
 
     def __init__(self,
                  host: str,
-                 checksum_public_address: str = None,
+                 checksum_address: str = None,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
                  curve=None,
                  certificate=None,
@@ -169,13 +169,13 @@ class HostingKeypair(Keypair):
             super().__init__(public_key=certificate.public_key())
 
         elif generate_certificate:
-            if not host and checksum_public_address:
+            if not host and checksum_address:
                 message = "If you don't supply a TLS certificate, one will be generated for you." \
                           "But for that, you need to pass a host and checksum address."
                 raise TypeError(message)
 
             certificate, private_key = generate_self_signed_certificate(host=host,
-                                                                        checksum_address=checksum_public_address,
+                                                                        checksum_address=checksum_address,
                                                                         private_key=private_key,
                                                                         curve=self.curve)
             super().__init__(private_key=private_key)

@@ -799,7 +799,7 @@ class Ursula(Teacher, Character, Miner):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_public_address: str = None,
+                 checksum_address: str = None,
 
                  # Character
                  password: str = None,
@@ -825,7 +825,7 @@ class Ursula(Teacher, Character, Miner):
         self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
-                           checksum_public_address=checksum_public_address,
+                           checksum_address=checksum_address,
                            start_learning_now=start_learning_now,
                            federated_only=federated_only,
                            crypto_power=crypto_power,
@@ -844,10 +844,10 @@ class Ursula(Teacher, Character, Miner):
             # Staking Ursula
             #
             if not federated_only:
-                Miner.__init__(self, is_me=is_me, checksum_address=checksum_public_address)
+                Miner.__init__(self, is_me=is_me, checksum_address=checksum_address)
 
-                # Access staking node via node's transacting keys  TODO: Better handling of ephemeral staking self ursula?
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
+                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
@@ -877,7 +877,7 @@ class Ursula(Teacher, Character, Miner):
                 # TLSHostingPower (Ephemeral Self-Ursula)
                 #
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
-                                                     checksum_public_address=self.checksum_public_address)
+                                                     checksum_address=self.checksum_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
@@ -1010,7 +1010,7 @@ class Ursula(Teacher, Character, Miner):
         node from bytes; instead it's just enough to connect to and verify a node.
         """
 
-        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_public_address,
+        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
                                             seed_uri='{}:{}'.format(seednode_metadata.rest_host,
                                                                     seednode_metadata.rest_port),
                                             *args, **kwargs)
@@ -1087,11 +1087,11 @@ class Ursula(Teacher, Character, Miner):
 
         if checksum_address:
             # Ensure this is the specific node we expected
-            if not checksum_address == potential_seed_node.checksum_public_address:
+            if not checksum_address == potential_seed_node.checksum_address:
                 template = "This seed node has a different wallet address: {} (expected {}). " \
                            " Are you sure this is a seednode?"
                 raise potential_seed_node.SuspiciousActivity(
-                    template.format(potential_seed_node.checksum_public_address,
+                    template.format(potential_seed_node.checksum_address,
                                     checksum_address))
 
         # Check the node's stake (optional)
@@ -1166,7 +1166,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['rest_port'] = interface_info.port
 
         node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
-        node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
+        node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
 
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)

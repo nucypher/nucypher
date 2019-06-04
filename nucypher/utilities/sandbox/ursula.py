@@ -88,7 +88,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     ursulas = list()
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
 
-        ursula = ursula_config.produce(checksum_public_address=checksum_address,
+        ursula = ursula_config.produce(checksum_address=checksum_address,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
                                        **ursula_overrides)

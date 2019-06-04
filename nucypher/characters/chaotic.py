@@ -60,16 +60,16 @@ class Moe(Character):
         new_node_or_none = super().remember_node(*args, **kwargs)
         if new_node_or_none:
             hey_joe.send(
-                {new_node_or_none.checksum_public_address: Moe.MonitoringTracker.abridged_node_details(new_node_or_none)},
+                {new_node_or_none.checksum_address: Moe.MonitoringTracker.abridged_node_details(new_node_or_none)},
                 "nodes")
         return new_node_or_none
 
     def learn_from_teacher_node(self, *args, **kwargs):
         teacher = self.current_teacher_node(cycle=False)
         new_nodes = super().learn_from_teacher_node(*args, **kwargs)
-        hey_joe.send({teacher.checksum_public_address: Moe.MonitoringTracker.abridged_node_details(teacher)}, "nodes")
+        hey_joe.send({teacher.checksum_address: Moe.MonitoringTracker.abridged_node_details(teacher)}, "nodes")
         new_teacher = self.current_teacher_node(cycle=False)
-        hey_joe.send({"current_teacher": new_teacher.checksum_public_address}, "teachers")
+        hey_joe.send({"current_teacher": new_teacher.checksum_address}, "teachers")
         return new_nodes
 
     def start(self, ws_port: int, http_port: int, dry_run: bool = False):
@@ -168,7 +168,7 @@ class Felix(Character, NucypherTokenActor):
 
         # Character
         super().__init__(*args, **kwargs)
-        self.log = Logger(f"felix-{self.checksum_public_address[-6::]}")
+        self.log = Logger(f"felix-{self.checksum_address[-6::]}")
 
         # Network
         self.rest_port = rest_port
@@ -183,7 +183,7 @@ class Felix(Character, NucypherTokenActor):
 
         # Blockchain
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.reserved_addresses = [self.checksum_public_address, Blockchain.NULL_ADDRESS]
+        self.reserved_addresses = [self.checksum_address, Blockchain.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
         existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
@@ -208,11 +208,11 @@ class Felix(Character, NucypherTokenActor):
         self.distribute_ether = distribute_ether
 
         # Banner
-        self.log.info(FELIX_BANNER.format(self.checksum_public_address))
+        self.log.info(FELIX_BANNER.format(self.checksum_address))
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = f'{class_name}(checksum_address={self.checksum_public_address}, db_filepath={self.db_filepath})'
+        r = f'{class_name}(checksum_address={self.checksum_address}, db_filepath={self.db_filepath})'
         return r
 
     def make_web_app(self):
@@ -337,7 +337,7 @@ class Felix(Character, NucypherTokenActor):
         self.log.info(NU_BANNER)
         self.log.info("Starting NU Token Distribution | START")
         if self.token_balance is NU.ZERO():
-            raise self.ActorError(f"Felix address {self.checksum_public_address} has 0 NU tokens.")
+            raise self.ActorError(f"Felix address {self.checksum_address} has 0 NU tokens.")
         self._distribution_task.start(interval=self.DISTRIBUTION_INTERVAL, now=now)
         return True
 
@@ -372,12 +372,12 @@ class Felix(Character, NucypherTokenActor):
         self.__disbursement += 1
         txhash = self.token_agent.transfer(amount=disbursement,
                                            target_address=recipient_address,
-                                           sender_address=self.checksum_public_address)
+                                           sender_address=self.checksum_address)
 
         if self.distribute_ether:
             ether = self.ETHER_AIRDROP_AMOUNT
             transaction = {'to': recipient_address,
-                           'from': self.checksum_public_address,
+                           'from': self.checksum_address,
                            'value': ether,
                            'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
             ether_txhash = self.blockchain.interface.w3.eth.sendTransaction(transaction)

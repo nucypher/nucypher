@@ -84,7 +84,7 @@ def felix(click_config,
                                                            rest_port=discovery_port,
                                                            db_filepath=db_filepath,
                                                            domains={network} if network else None,
-                                                           checksum_public_address=checksum_address,
+                                                           checksum_address=checksum_address,
                                                            download_registry=not no_registry,
                                                            registry_filepath=registry_filepath,
                                                            provider_uri=provider_uri,
@@ -176,7 +176,7 @@ def felix(click_config,
         token_balance = FELIX.token_balance
         eth_balance = FELIX.eth_balance
         click.secho(f"""
-Address .... {FELIX.checksum_public_address}
+Address .... {FELIX.checksum_address}
 NU ......... {str(token_balance)}
 ETH ........ {str(eth_balance)}
         """)

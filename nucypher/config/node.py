@@ -113,7 +113,7 @@ class NodeConfiguration(ABC):
 
                  # Identity
                  is_me: bool = True,
-                 checksum_public_address: str = None,
+                 checksum_address: str = None,
                  crypto_power: CryptoPower = None,
 
                  # Keyring
@@ -211,11 +211,11 @@ class NodeConfiguration(ABC):
         # Identity
         #
         self.is_me = is_me
-        self.checksum_public_address = checksum_public_address
+        self.checksum_address = checksum_address
 
         if self.is_me is True or dev_mode is True:
             # Self
-            if self.checksum_public_address and dev_mode is False:
+            if self.checksum_address and dev_mode is False:
                 self.attach_keyring()
             self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
 
@@ -240,7 +240,7 @@ class NodeConfiguration(ABC):
         self.__fleet_state = FleetStateTracker()
         known_nodes = known_nodes or set()
         if known_nodes:
-            self.known_nodes._nodes.update({node.checksum_public_address: node for node in known_nodes})
+            self.known_nodes._nodes.update({node.checksum_address: node for node in known_nodes})
             self.known_nodes.record_fleet_state()  # TODO: Does this call need to be here?
 
         #
@@ -343,7 +343,7 @@ class NodeConfiguration(ABC):
 
     def read_known_nodes(self):
         known_nodes = self.node_storage.all(federated_only=self.federated_only)
-        known_nodes = {node.checksum_public_address: node for node in known_nodes}
+        known_nodes = {node.checksum_address: node for node in known_nodes}
         self.known_nodes._nodes.update(known_nodes)
         self.known_nodes.record_fleet_state()
         return self.known_nodes
@@ -394,7 +394,7 @@ class NodeConfiguration(ABC):
 
         # Sanity check
         try:
-            checksum_address = payload['checksum_public_address']
+            checksum_address = payload['checksum_address']
         except KeyError:
             raise cls.ConfigurationError(f"No checksum address specified in configuration file {filepath}")
         else:
@@ -444,7 +444,7 @@ class NodeConfiguration(ABC):
 
         if os.path.isfile(filepath):
             # Avoid overriding an existing default configuration
-            filename = f'{self._NAME.lower()}-{self.checksum_public_address[:6]}{self.__CONFIG_FILE_EXT}'
+            filename = f'{self._NAME.lower()}-{self.checksum_address[:6]}{self.__CONFIG_FILE_EXT}'
             filepath = os.path.join(self.config_root, filename)
 
         payload = self.static_payload
@@ -484,7 +484,7 @@ class NodeConfiguration(ABC):
             # Identity
             is_me=self.is_me,
             federated_only=self.federated_only,
-            checksum_public_address=self.checksum_public_address,
+            checksum_address=self.checksum_address,
             keyring_dir=self.keyring_dir,
 
             # Behavior
@@ -507,7 +507,7 @@ class NodeConfiguration(ABC):
 
         if self.reload_metadata:
             known_nodes = self.node_storage.all(federated_only=self.federated_only)
-            known_nodes = {node.checksum_public_address: node for node in known_nodes}
+            known_nodes = {node.checksum_address: node for node in known_nodes}
             self.known_nodes._nodes.update(known_nodes)
         self.known_nodes.record_fleet_state()
 
@@ -634,15 +634,15 @@ class NodeConfiguration(ABC):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != (checksum_address or self.checksum_public_address):
+            if self.keyring.checksum_address != (checksum_address or self.checksum_address):
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
 
-        if (checksum_address or self.checksum_public_address) is None:
+        if (checksum_address or self.checksum_address) is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
 
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,  # type: str
-                                       account=checksum_address or self.checksum_public_address,  # type: str
+                                       account=checksum_address or self.checksum_address,  # type: str
                                        *args, **kwargs)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
@@ -652,7 +652,7 @@ class NodeConfiguration(ABC):
         #
 
         # Note: It is assumed the blockchain is not yet available.
-        if not self.federated_only and not self.checksum_public_address:
+        if not self.federated_only and not self.checksum_address:
 
             # "Casual Geth"
             if self.provider_process:
@@ -674,8 +674,8 @@ class NodeConfiguration(ABC):
             checksum_address = to_checksum_address(checksum_address)
 
         # Use explicit address
-        elif self.checksum_public_address:
-            checksum_address = self.checksum_public_address
+        elif self.checksum_address:
+            checksum_address = self.checksum_address
 
         # Generate a federated checksum address
         else:
@@ -687,9 +687,9 @@ class NodeConfiguration(ABC):
                                                 **generation_kwargs)
         # Operating mode switch
         if self.federated_only:
-            self.checksum_public_address = self.keyring.federated_address
+            self.checksum_address = self.keyring.federated_address
         else:
-            self.checksum_public_address = self.keyring.account
+            self.checksum_address = self.keyring.account
 
         return self.keyring
 

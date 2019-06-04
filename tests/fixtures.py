@@ -170,7 +170,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
                                 provider_uri=TEST_PROVIDER_URI,
-                                checksum_public_address=testerchain.alice_account,
+                                checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas[:-1],  # TODO: 1035
                                 abort_on_learning_error=True,
@@ -198,7 +198,7 @@ def bob_federated_test_config():
 def bob_blockchain_test_config(blockchain_ursulas, testerchain):
     config = BobConfiguration(dev_mode=True,
                               provider_uri=TEST_PROVIDER_URI,
-                              checksum_public_address=testerchain.bob_account,
+                              checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas[:-1],  # TODO: #1035
                               start_learning_now=False,

@@ -37,7 +37,7 @@ def charlie_blockchain_test_config(blockchain_ursulas, three_agents):
 
     config = BobConfiguration(dev_mode=True,
                               provider_uri=TEST_PROVIDER_URI,
-                              checksum_public_address=bob_address,
+                              checksum_address=bob_address,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -73,7 +73,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
     init_args = ('ursula', 'init',
                  '--poa',
                  '--network', TEMPORARY_DOMAIN,
-                 '--checksum-address', staking_participant.checksum_public_address,
+                 '--checksum-address', staking_participant.checksum_address,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
@@ -99,7 +99,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
-        assert config_data['checksum_public_address'] == staking_participant.checksum_public_address
+        assert config_data['checksum_address'] == staking_participant.checksum_address
         assert TEMPORARY_DOMAIN in config_data['domains']
 
 
@@ -124,7 +124,7 @@ def test_init_ursula_stake(click_runner,
 
     # Verify the stake is on-chain
     miner_agent = MinerAgent()
-    stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_public_address']))
+    stakes = list(miner_agent.get_all_stakes(miner_address=config_data['checksum_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
@@ -207,7 +207,7 @@ def test_collect_rewards_integration(click_runner,
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
-    miner = Miner(checksum_address=staking_participant.checksum_public_address,
+    miner = Miner(checksum_address=staking_participant.checksum_address,
                   blockchain=blockchain, is_me=True)
 
     pre_stake_eth_balance = miner.eth_balance

@@ -92,7 +92,7 @@ def alice(click_config,
 
         new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
                                                        config_root=config_root,
-                                                       checksum_public_address=pay_with,
+                                                       checksum_address=pay_with,
                                                        rest_host="localhost",
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
@@ -123,7 +123,7 @@ def alice(click_config,
                 domains={network} if network else None,
                 network_middleware=click_config.middleware,
                 rest_port=discovery_port,
-                checksum_public_address=pay_with,
+                checksum_address=pay_with,
                 provider_process=ETH_NODE,
                 provider_uri=provider_uri)
         except FileNotFoundError:
