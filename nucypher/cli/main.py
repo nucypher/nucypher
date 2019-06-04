@@ -25,6 +25,8 @@ from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmi
 from nucypher.cli import status
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
+from nucypher.cli.device.actions import DEVICE_ACTIONS
+from nucypher.cli.hardware.backends import Trezor
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry
@@ -107,6 +109,28 @@ def nucypher_cli(click_config,
         click_config.emit(message="Verbose mode is enabled", color='blue')
 
 
+@click.command()
+@click.argument('action')
+@click.option('--trezor', help="Use your TREZOR wallet with NuCypher", is_flag=True, default=False)
+def device(action, trezor):
+    try:
+        action_func = DEVICE_ACTIONS[action]
+    except KeyError:
+        raise click.BadArgumentUsage(f"{action} is not a valid command.")
+    print(f"test - {action_func}")
+
+    device_backend = None
+    if trezor and device_backend is None:
+        device_backend = Trezor()
+    elif device_backend is not None:
+        raise RuntimeError("You cannot specify multiple devices at one time.")
+    else:
+        raise RuntimeError("No device specified to use with NuCypher.")
+
+    # Perform the command
+    action_func(device_backend)
+
+
 #
 # Character CLI Entry Points (Fan Out Input)
 #
@@ -135,6 +159,7 @@ Inversely, commenting out an entry point here will disable it.
 ENTRY_POINTS = (
 
     # Utility Sub-Commands
+    device,         # Manage NuCypher with a hardware device
     status.status,  # Network Status
 
     # Characters
