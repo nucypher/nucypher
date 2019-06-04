@@ -30,7 +30,8 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, Agency
+from nucypher.blockchain.eth.agents import Agency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, Singleton
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
@@ -228,7 +229,7 @@ def idle_federated_policy(federated_alice, federated_bob):
                                            label=random_label,
                                            m=m,
                                            n=n,
-                                           federated=True)
+                                           expiration=maya.now() + datetime.timedelta(days=5))
     return policy
 
 
@@ -390,26 +391,23 @@ def three_agents(testerchain):
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-
     token_deployer.deploy()
-
-    token_agent = token_deployer.make_agent()  # 1: Token
 
     miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
     miner_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
+    token_agent = token_deployer.make_agent()  # 1: Token
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
-
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     adjudicator_deployer = MiningAdjudicatorDeployer(deployer_address=origin)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    return token_agent, miner_agent, policy_agent
+    yield token_agent, miner_agent, policy_agent
+    Singleton._instances = {}
 
 
 @pytest.fixture(scope="module", autouse=True)

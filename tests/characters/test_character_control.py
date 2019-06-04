@@ -20,6 +20,7 @@ def test_alice_character_control_create_policy(alice_control_test_client, federa
         'label': 'test',
         'm': 2,
         'n': 3,
+        'expiration': (maya.now() + datetime.timedelta(days=5)).iso8601()
     }
 
     response = alice_control_test_client.put('/create_policy', data=json.dumps(request_data))
