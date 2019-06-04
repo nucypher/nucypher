@@ -125,7 +125,7 @@ class NucypherClickConfig:
         # Ethereum Client  # TODO : Integrate with Powers API
         if not character_configuration.federated_only:
             self.emit(message='Decrypting Ethereum Node Keyring...', color='yellow')
-            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_address,
                                                                         password=password)
 
     @classmethod

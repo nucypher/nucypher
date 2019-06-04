@@ -179,7 +179,7 @@ By agreeing to stake {str(value)}:
 - Staked tokens will be locked, and unavailable for transactions for the stake duration.
 
 - You are obligated to maintain a networked and available Ursula node with the 
-  ETH address {ursula.checksum_public_address} for the duration 
+  ETH address {ursula.checksum_address} for the duration 
   of the stake(s) ({duration} periods)
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption

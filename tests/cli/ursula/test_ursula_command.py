@@ -76,7 +76,7 @@ def test_ursula_command_status(protocol, ursula):
     with capture_output() as (out, err):
         protocol.paintStatus()
     result = out.getvalue()
-    assert ursula.checksum_public_address in result
+    assert ursula.checksum_address in result
     assert '...' in result
     assert 'Known Nodes' in result
 
@@ -87,4 +87,4 @@ def test_ursula_command_known_nodes(protocol, ursula):
         protocol.paintKnownNodes()
     result = out.getvalue()
     assert 'Known Nodes' in result
-    assert ursula.checksum_public_address not in result
+    assert ursula.checksum_address not in result

@@ -123,7 +123,7 @@ def test_character_blockchain_power(testerchain, three_agents):
         eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
-    signer = Character(is_me=True, checksum_public_address=eth_address)
+    signer = Character(is_me=True, checksum_address=eth_address)
     signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
 
     # Due to testing backend, the account is already unlocked.

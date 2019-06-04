@@ -215,7 +215,7 @@ def deploy(click_config,
         click.secho(f"Block ............... {w3.eth.blockNumber}")
         click.secho(f"Gas Price ........... {w3.eth.gasPrice}")
 
-        click.secho(f"Deployer Address .... {deployer.checksum_public_address}")
+        click.secho(f"Deployer Address .... {deployer.checksum_address}")
         click.secho(f"ETH ................. {deployer.eth_balance}")
         click.secho(f"CHAIN ID............. {deployer.blockchain.interface.chain_id}")
         click.secho(f"CHAIN................ {deployer.blockchain.interface.chain_name}")

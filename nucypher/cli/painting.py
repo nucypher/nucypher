@@ -165,10 +165,10 @@ def paint_known_nodes(ursula) -> None:
     for node in known_nodes:
         row_template = "{} | {}"
         node_type = 'known'
-        if node.checksum_public_address == ursula.checksum_public_address:
+        if node.checksum_address == ursula.checksum_address:
             node_type = 'self'
             row_template += ' ({})'.format(node_type)
-        elif node.checksum_public_address in seednode_addresses:
+        elif node.checksum_address in seednode_addresses:
             node_type = 'seednode'
             row_template += ' ({})'.format(node_type)
         click.secho(row_template.format(node.rest_url().ljust(20), node), fg=color_index[node_type])

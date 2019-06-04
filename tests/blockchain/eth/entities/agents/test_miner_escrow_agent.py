@@ -82,7 +82,7 @@ def test_locked_tokens(three_agents, blockchain_ursulas, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
     ursula = blockchain_ursulas[2]
-    locked_amount = agent.get_locked_tokens(miner_address=ursula.checksum_public_address)
+    locked_amount = agent.get_locked_tokens(miner_address=ursula.checksum_address)
     assert token_economics.maximum_allowed_locked >= locked_amount >= token_economics.minimum_allowed_locked
 
 
@@ -91,7 +91,7 @@ def test_get_all_stakes(three_agents, blockchain_ursulas, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
     ursula = blockchain_ursulas[2]
-    all_stakes = list(agent.get_all_stakes(miner_address=ursula.checksum_public_address))
+    all_stakes = list(agent.get_all_stakes(miner_address=ursula.checksum_address))
     assert len(all_stakes) == 1
     stake_info = all_stakes[0]
     assert len(stake_info) == 3

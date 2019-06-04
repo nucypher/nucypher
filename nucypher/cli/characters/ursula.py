@@ -182,7 +182,7 @@ def ursula(click_config,
                                                      db_filepath=db_filepath,
                                                      domains={network} if network else None,
                                                      federated_only=federated_only,
-                                                     checksum_public_address=checksum_address,
+                                                     checksum_address=checksum_address,
                                                      download_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
@@ -215,7 +215,7 @@ def ursula(click_config,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
-                                            checksum_public_address=checksum_address,
+                                            checksum_address=checksum_address,
                                             federated_only=federated_only,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
@@ -401,7 +401,7 @@ def ursula(click_config,
         # List Only
         if list_:
             if not URSULA.stakes:
-                click.echo(f"There are no active stakes for {URSULA.checksum_public_address}")
+                click.echo(f"There are no active stakes for {URSULA.checksum_address}")
             else:
                 painting.paint_stakes(stakes=URSULA.stakes)
             return
@@ -412,7 +412,7 @@ def ursula(click_config,
 
             # Validate
             if not URSULA.stakes:
-                click.echo(f"There are no active stakes for {URSULA.checksum_public_address}")
+                click.echo(f"There are no active stakes for {URSULA.checksum_address}")
                 return
 
             # Selection
@@ -463,7 +463,7 @@ def ursula(click_config,
         # Validate balance
         balance = URSULA.token_balance
         if balance == 0:
-            click.secho(f"{ursula.checksum_public_address} has 0 NU.")
+            click.secho(f"{ursula.checksum_address} has 0 NU.")
             raise click.Abort
         if not quiet:
             click.echo(f"Current balance: {balance}")
@@ -506,15 +506,15 @@ def ursula(click_config,
 
     elif action == 'confirm-activity':
         if not URSULA.stakes:
-            click.secho("There are no active stakes for {}".format(URSULA.checksum_public_address))
+            click.secho("There are no active stakes for {}".format(URSULA.checksum_address))
             return
-        URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_public_address)
+        URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_address)
         return
 
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
         if not force:
-            click.confirm(f"Send {URSULA.calculate_reward()} to {URSULA.checksum_public_address}?")
+            click.confirm(f"Send {URSULA.calculate_reward()} to {URSULA.checksum_address}?")
 
         URSULA.collect_policy_reward(collector_address=withdraw_address or checksum_address)
         URSULA.collect_staking_reward()

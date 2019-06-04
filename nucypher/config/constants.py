@@ -41,7 +41,7 @@ USER_LOG_DIR = APP_DIR.user_log_dir
 
 
 # Static Seednodes (Not from seeder contract)
-SeednodeMetadata = namedtuple('seednode', ['checksum_public_address', 'rest_host', 'rest_port'])
+SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
 
 

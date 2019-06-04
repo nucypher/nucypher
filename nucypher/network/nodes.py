@@ -199,7 +199,7 @@ class FleetStateTracker:
 
     def sorted(self):
         nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
 
     def shuffled(self):
         nodes_we_know_about = list(self._nodes.values())
@@ -239,7 +239,7 @@ class FleetStateTracker:
                 "icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
                 "rest_url": node.rest_url(),
                 "nickname": node.nickname,
-                "checksum_address": node.checksum_public_address,
+                "checksum_address": node.checksum_address,
                 "timestamp": node.timestamp.iso8601(),
                 "last_seen": last_seen,
                 "fleet_state_icon": node.fleet_state_icon,
@@ -365,7 +365,7 @@ class Learner:
         for seednode_metadata in self._seed_nodes:
 
             self.log.debug(
-                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_public_address,
+                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
 
@@ -402,7 +402,7 @@ class Learner:
 
         # First, determine if this is an outdated representation of an already known node.
         with suppress(KeyError):
-            already_known_node = self.known_nodes[node.checksum_public_address]
+            already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
                 self.log.debug("Skipping already known node {}".format(already_known_node))
                 # This node is already known.  We can safely return.
@@ -434,15 +434,15 @@ class Learner:
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
             return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
 
-        listeners = self._learning_listeners.pop(node.checksum_public_address, tuple())
-        address = node.checksum_public_address
+        listeners = self._learning_listeners.pop(node.checksum_address, tuple())
+        address = node.checksum_address
 
         self.known_nodes[address] = node
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
 
-        self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_public_address, len(listeners)))
+        self.log.info("Remembering {} ({}), popping {} listeners.".format(node.nickname, node.checksum_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
@@ -509,8 +509,8 @@ class Learner:
         """
         self._crashed = failure
         failure.raiseException()
-        # TODO: We don't actually have checksum_public_address at this level - maybe only Characters can crash gracefully :-)
-        self.log.critical("{} crashed with {}".format(self.checksum_public_address, failure))
+        # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)
+        self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
 
     def select_teacher_nodes(self):
         nodes_we_know_about = self.known_nodes.shuffled()
@@ -783,7 +783,7 @@ class Learner:
 
             # First, determine if this is an outdated representation of an already known node.
             with suppress(KeyError):
-                already_known_node = self.known_nodes[node.checksum_public_address]
+                already_known_node = self.known_nodes[node.checksum_address]
                 if not node.timestamp > already_known_node.timestamp:
                     self.log.debug("Skipping already known node {}".format(already_known_node))
                     # This node is already known.  We can safely continue to the next.
@@ -799,7 +799,7 @@ class Learner:
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
-                    self.log.debug("Verified node: {}".format(node.checksum_public_address))
+                    self.log.debug("Verified node: {}".format(node.checksum_address))
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
@@ -941,15 +941,15 @@ class Teacher:
 
     def seed_node_metadata(self, as_teacher_uri=False):
         if as_teacher_uri:
-            teacher_uri = f'{self.checksum_public_address}@{self.rest_server.rest_interface.host}:{self.rest_server.rest_interface.port}'
+            teacher_uri = f'{self.checksum_address}@{self.rest_server.rest_interface.host}:{self.rest_server.rest_interface.port}'
             return teacher_uri
-        return SeednodeMetadata(self.checksum_public_address,  # type: str
+        return SeednodeMetadata(self.checksum_address,  # type: str
                                 self.rest_server.rest_interface.host,  # type: str
                                 self.rest_server.rest_interface.port)  # type: int
 
     def sorted_nodes(self):
         nodes_to_consider = list(self.known_nodes.values()) + [self]
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
 
     def update_snapshot(self, checksum, updated, number_of_known_nodes):
         """
@@ -980,7 +980,7 @@ class Teacher:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
                                             signature=self.__decentralized_identity_evidence,
-                                            address=self.checksum_public_address)
+                                            address=self.checksum_address)
         return signature_is_valid
 
     def _is_valid_worker(self) -> bool:
@@ -990,7 +990,7 @@ class Teacher:
 
         TODO: #1033 - Verify Staker <-> Worker relationship on-chain
         """
-        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
+        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_address)
         return locked_tokens > 0
 
     def validate_stamp(self, verify_staking: bool = True) -> None:
@@ -1188,5 +1188,5 @@ class Teacher:
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],
             second_symbol=self.nickname_metadata[1][1],
-            address_first6=self.checksum_public_address[2:8]
+            address_first6=self.checksum_address[2:8]
         )

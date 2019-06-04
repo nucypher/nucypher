@@ -73,7 +73,7 @@ def bob(click_config,
 
         new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
-                                                   checksum_public_address=pay_with,
+                                                   checksum_address=pay_with,
                                                    rest_host="localhost",
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
@@ -93,7 +93,7 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
-                                      checksum_public_address=pay_with,
+                                      checksum_address=pay_with,
                                       network_middleware=click_config.middleware)
     else:
 
@@ -101,7 +101,7 @@ def bob(click_config,
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
                 domains={network} if network else None,
-                checksum_public_address=pay_with,
+                checksum_address=pay_with,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)

@@ -75,7 +75,7 @@ class Character(Learner):
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
-                 checksum_public_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
+                 checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
                  crypto_power: CryptoPower = None,
@@ -122,7 +122,7 @@ class Character(Learner):
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
-        self._checksum_address = checksum_public_address
+        self._checksum_address = checksum_address
 
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
@@ -176,10 +176,10 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
-            if not checksum_public_address:
-                raise ValueError("No checksum_public_address provided while running in a non-federated mode.")
+            if not checksum_address:
+                raise ValueError("No checksum_address provided while running in a non-federated mode.")
             else:
-                self._checksum_address = checksum_public_address  # TODO: Check that this matches BlockchainPower
+                self._checksum_address = checksum_address  # TODO: Check that this matches BlockchainPower
         #
         # Federated
         #
@@ -188,17 +188,17 @@ class Character(Learner):
                 self._set_checksum_address()  # type: str
             except NoSigningPower:
                 self._checksum_address = NO_BLOCKCHAIN_CONNECTION
-            if checksum_public_address:
+            if checksum_address:
                 # We'll take a checksum address, as long as it matches their singing key
-                if not checksum_public_address == self.checksum_public_address:
+                if not checksum_address == self.checksum_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise self.SuspiciousActivity(error.format(checksum_public_address))
+                    raise self.SuspiciousActivity(error.format(checksum_address))
 
         #
         # Nicknames
         #
         try:
-            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
+            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
         except SigningPower.not_found_error:
             if self.federated_only:
                 self.nickname = self.nickname_metadata = NO_NICKNAME
@@ -229,7 +229,7 @@ class Character(Learner):
     def __repr__(self):
         r = self._display_name_template
         try:
-            r = r.format(self.__class__.__name__, self.nickname, self.checksum_public_address)
+            r = r.format(self.__class__.__name__, self.nickname, self.checksum_address)
         except NoSigningPower:  # TODO: ....yeah?
             r = r.format(self.__class__.__name__, self.nickname)
         return r
@@ -253,14 +253,14 @@ class Character(Learner):
 
     @property
     def canonical_public_address(self):
-        return to_canonical_address(self.checksum_public_address)
+        return to_canonical_address(self.checksum_address)
 
     @canonical_public_address.setter
     def canonical_public_address(self, address_bytes):
         self._checksum_address = to_checksum_address(address_bytes)
 
     @property
-    def checksum_public_address(self):
+    def checksum_address(self):
         if self._checksum_address is NO_BLOCKCHAIN_CONNECTION:
             self._set_checksum_address()
         return self._checksum_address
@@ -289,7 +289,7 @@ class Character(Learner):
         Alternatively, you can pass directly a verifying public key
         (for SigningPower) and/or an encrypting public key (for DecryptionPower).
 
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_public_address in here.
+        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """
 
         crypto_power = CryptoPower()
