@@ -78,7 +78,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
                                    verifying_key=bob_verifying_key,
                                    federated_only=federated_only)
-        new_policy = self.character.create_policy(bob, label, m, n, federated=federated_only)
+        new_policy = self.character.create_policy(bob=bob, label=label, m=m, n=n)
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
 
