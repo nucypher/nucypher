@@ -53,7 +53,7 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
-    signature_as_bytes = first_ursula._identity_evidence
+    signature_as_bytes = first_ursula.decentralized_identity_evidence
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
     assert verify_eip_191(address=first_ursula.checksum_public_address,
                           message=bytes(first_ursula.stamp),
@@ -88,6 +88,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
 
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
+    vladimir._is_valid_worker = lambda: True
     vladimir.validate_stamp()
 
     # Now, even though his public signing key matches Ursulas...
@@ -109,19 +110,15 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     using his own signing key, which he claims is Ursula's.
     """
     his_target = list(blockchain_ursulas)[4]
-
-    fraudulent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)  # TODO: Why is this unused?
-
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
-    vladimir.__interface_signature = signature
-
+    vladimir._Teacher__interface_signature = signature
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # With this slightly more sophisticated attack, his metadata does appear valid.
-    vladimir._is_valid_worker = lambda: True  # mock staking verification TODO: Split into two tests
+    vladimir._is_valid_worker = lambda: True  # bypass staking verification TODO: Split into two tests
     vladimir.validate_metadata()
 
     # However, the actual handshake proves him wrong.

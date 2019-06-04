@@ -804,11 +804,27 @@ class Learner:
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
 
+            #
+            # Report Failure
+            #
+
             except NodeSeemsToBeDown as e:
-                self.log.info(f"Can't connect to {node} to verify it right now.")
+                self.log.info(f"Verification Failed - "
+                              f"Cannot establish connection to {node}.")
+
+            except node.StampNotSigned:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} stamp is unsigned.')
+
+            except node.NotStaking:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} has no active stakes in the current period ({self.miner_agent.get_current_period()}')
+
+            except node.InvalidWalletSignature:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} has an invalid wallet signature for {node.checksum_public_address}')
 
             except node.InvalidNode:
-                # TODO: Account for possibility that stamp, rather than interface, was bad.
                 self.log.warn(node.invalid_metadata_message.format(node))
 
             except node.SuspiciousActivity:
@@ -816,19 +832,25 @@ class Learner:
                           f"Propagated by: {current_teacher}"
                 self.log.warn(message)
 
+            #
+            # Success
+            #
+
             else:
-                # Success
                 new = self.remember_node(node, record_fleet_state=False)
                 if new:
                     new_nodes.append(node)
 
-        self._adjust_learning(new_nodes)
+        #
+        # Continue
+        #
 
+        self._adjust_learning(new_nodes)
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
                                                         len(node_list),
-                                                        len(new_nodes)), )
+                                                        len(new_nodes)))
         if new_nodes:
             self.known_nodes.record_fleet_state()
             for node in new_nodes:
@@ -837,10 +859,8 @@ class Learner:
 
 
 class Teacher:
+
     TEACHER_VERSION = LEARNING_LOOP_VERSION
-    verified_stamp = False
-    verified_interface = False
-    _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("teacher")
     __DEFAULT_MIN_SEED_STAKE = 0
@@ -851,28 +871,59 @@ class Teacher:
                  certificate_filepath: str,
                  interface_signature=NOT_SIGNED.bool_value(False),
                  timestamp=NOT_SIGNED,
-                 identity_evidence=NOT_SIGNED,
+                 decentralized_identity_evidence=NOT_SIGNED,
                  substantiate_immediately=False,
                  password=None,
                  ) -> None:
 
+        #
+        # Fleet
+        #
+
         self.serving_domains = domains
-        self.certificate = certificate
-        self.certificate_filepath = certificate_filepath
-        self._interface_signature_object = interface_signature
-        self._timestamp = timestamp
-        self.last_seen = NEVER_SEEN("No Connection to Node")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
-        self._identity_evidence = constant_or_bytes(identity_evidence)
+        self.last_seen = NEVER_SEEN("No Connection to Node")
+
+        self.fleet_state_icon = UNKNOWN_FLEET_STATE
+        self.fleet_state_nickname = UNKNOWN_FLEET_STATE
+        self.fleet_state_nickname_metadata = UNKNOWN_FLEET_STATE
+
+        #
+        # Identity
+        #
+
+        self._timestamp = timestamp
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
+        self.__interface_signature = interface_signature
+        self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
+
+        # Assume unverified
+        self.verified_stamp = False
+        self.verified_worker = False
+        self.verified_interface = False
+        self._verified_node = False
 
         if substantiate_immediately:
-            self.substantiate_stamp(password=password)  # TODO: Derive from keyring
+            self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
         """
         Raised when a node has an invalid characteristic - stamp, interface, or address.
         """
+
+    class InvalidStamp(InvalidNode):
+        pass
+
+    class StampNotSigned(InvalidStamp):
+        pass
+
+    class InvalidWalletSignature(InvalidStamp):
+        pass
+
+    class NotStaking(InvalidStamp):
+        pass
 
     class WrongMode(TypeError):
         """
@@ -970,22 +1021,21 @@ class Teacher:
 
         else:
 
-            if self._identity_evidence is NOT_SIGNED:
-                raise self.InvalidNode
+            if self.__decentralized_identity_evidence is NOT_SIGNED:
+                raise self.StampNotSigned
 
             # Off-chain signature verification
-            if self._stamp_has_valid_wallet_signature():
-                self.verified_stamp = True
-                return True
+            if not self._stamp_has_valid_wallet_signature():
+                raise self.InvalidWalletSignature
 
             # On-chain staking check
             if verify_staking:
-                self._is_valid_worker()
+                if self._is_valid_worker():  # <-- Blockchain CALL
+                    self.verified_worker = True
+                else:
+                    raise self.NotStaking
 
-    def verify_id(self, ursula_id, digest_factory=bytes):
-        self.verify()
-        if not ursula_id == digest_factory(self.canonical_public_address):
-            raise self.InvalidNode
+            self.verified_stamp = True
 
     def validate_metadata(self,
                           accept_federated_only: bool = False,

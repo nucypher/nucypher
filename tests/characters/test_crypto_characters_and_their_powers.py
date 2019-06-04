@@ -138,10 +138,10 @@ def test_character_blockchain_power(testerchain, three_agents):
     assert is_verified is True
 
     # Test a bad address/pubkey pair
-    with pytest.raises(InvalidSignature):
-        verify_eip_191(address=testerchain.interface.w3.eth.accounts[1],
-                       message=data_to_sign,
-                       signature=sig)
+    is_verified = verify_eip_191(address=testerchain.interface.w3.eth.accounts[1],
+                                 message=data_to_sign,
+                                 signature=sig)
+    assert is_verified is False
 
     # Test a signature without unlocking the account
     power.is_unlocked = False
