@@ -26,6 +26,8 @@ from nucypher.cli import status
 from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
+from nucypher.cli.device.actions import DEVICE_ACTIONS
+from nucypher.cli.hardware.backends import Trezor
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry
@@ -103,10 +105,32 @@ def nucypher_cli(click_config,
 
 @click.command()
 @click.option('--logs', help="Also destroy logs", is_flag=True)
-@click.option('--force', help="Don't ask for confirmation and Ignore Errors", is_flag=True)
+@click.option('--force', help="Don't ask for confirmation and Ignore Errors", is_flag=False)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 def remove(logs, force, config_root):
     destroy_configuration_root(config_root=config_root, force=force, logs=logs)
+
+
+@click.command()
+@click.argument('action')
+@click.option('--trezor', help="Use your TREZOR wallet with NuCypher", is_flag=True, default=False)
+def device(action, trezor):
+    try:
+        action_func = DEVICE_ACTIONS[action]
+    except KeyError:
+        raise click.BadArgumentUsage(f"{action} is not a valid command.")
+    print(f"test - {action_func}")
+
+    device_backend = None
+    if trezor and device_backend is None:
+        device_backend = Trezor()
+    elif device_backend is not None:
+        raise RuntimeError("You cannot specify multiple devices at one time.")
+    else:
+        raise RuntimeError("No device specified to use with NuCypher.")
+
+    # Perform the command
+    action_func(device_backend)
 
 
 #
@@ -138,6 +162,7 @@ ENTRY_POINTS = (
 
     # Utility Sub-Commands
     remove,         # Remove NuCypher Files
+    device,         # Manage NuCypher with a hardware device
     status.status,  # Network Status
 
     # Characters
