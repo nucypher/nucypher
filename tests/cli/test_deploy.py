@@ -11,8 +11,8 @@ from nucypher.blockchain.eth.agents import (
     MinerAgent,
     UserEscrowAgent,
     PolicyAgent,
-    MiningAdjudicatorAgent
-)
+    MiningAdjudicatorAgent,
+    Agency)
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
@@ -321,6 +321,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               token_economics):
 
     TesterBlockchain.sever_connection()
+    Agency.clear()
 
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
         os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
