@@ -3,9 +3,10 @@
 rm -rf ~/.local/share/nucypher
 
 # Set Upgrade Secrets
-export NUCYPHER_MINER_ESCROW_SECRET='debuggerdebugger'
+export NUCYPHER_STAKING_ESCROW_SECRET='debuggerdebugger'
 export NUCYPHER_POLICY_MANAGER_SECRET='debuggerdebugger'
 export NUCYPHER_USER_ESCROW_PROXY_SECRET='debuggerdebugger'
+export NUCYPHER_ADJUDICATOR_SECRET='debuggerdebugger'
 
 # Deploy Main Contracts
 nucypher-deploy contracts --provider-uri ipc:///tmp/geth.ipc --poa
