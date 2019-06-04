@@ -55,7 +55,7 @@ class Blockchain:
             interface = self.__default_interface_class()
         self.__interface = interface
 
-        # Singleton
+        # Agency
         if self._instance is NO_BLOCKCHAIN_AVAILABLE:
             Blockchain._instance = self
         else:

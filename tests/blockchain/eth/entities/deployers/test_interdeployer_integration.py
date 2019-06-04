@@ -19,7 +19,7 @@ import os
 import pytest
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, Agency
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer,

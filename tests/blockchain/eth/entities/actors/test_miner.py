@@ -20,6 +20,7 @@ import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.agents import Agency
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
@@ -36,6 +37,7 @@ def miner(testerchain, three_agents):
 
 @pytest.mark.slow()
 def test_miner_locking_tokens(testerchain, three_agents, miner, token_economics):
+
     token_agent, miner_agent, policy_agent = three_agents
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < miner.token_balance, "Insufficient miner balance"

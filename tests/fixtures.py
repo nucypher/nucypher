@@ -23,15 +23,14 @@ import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
-from web3 import Web3
-
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, Agency
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
@@ -64,7 +63,6 @@ from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
                                                make_federated_ursulas,
                                                start_pytest_ursula_services)
-
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
@@ -412,6 +410,12 @@ def three_agents(testerchain):
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     return token_agent, miner_agent, policy_agent
+
+
+@pytest.fixture(scope="module", autouse=True)
+def clear_out_agency():
+    yield
+    Agency.clear()
 
 
 @pytest.fixture(scope="module")

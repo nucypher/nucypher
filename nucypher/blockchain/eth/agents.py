@@ -29,7 +29,24 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
-class EthereumContractAgent(ABC):
+class Agency(type):
+    __agents = dict()
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls.__agents:
+            cls.__agents[cls] = super().__call__(*args, **kwargs)
+        return cls.__agents[cls]
+
+    @classmethod
+    def clear(mcs):
+        mcs.__agents = dict()
+
+    @property
+    def agents(cls):
+        return cls.__agents
+
+
+class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
@@ -38,7 +55,7 @@ class EthereumContractAgent(ABC):
     _forward_address = True
     _proxy_name = None
 
-    DEFAULT_TRANSACTION_GAS = 500000  # TODO: #842
+    DEFAULT_TRANSACTION_GAS = 500_000  # TODO: #842
 
     class ContractNotDeployed(Exception):
         pass
@@ -92,11 +109,11 @@ class EthereumContractAgent(ABC):
         return self.registry_contract_name
 
 
-class NucypherTokenAgent(EthereumContractAgent):
+class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "NuCypherToken"
 
-    def get_balance(self, address: str=None) -> int:
+    def get_balance(self, address: str = None) -> int:
         """Get the balance of a token address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
@@ -115,7 +132,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return txhash
 
 
-class MinerAgent(EthereumContractAgent):
+class MinerAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "MinersEscrow"
     _proxy_name = "Dispatcher"
@@ -271,7 +288,7 @@ class MinerAgent(EthereumContractAgent):
         raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyAgent(EthereumContractAgent):
+class PolicyAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "PolicyManager"
     _proxy_name = "Dispatcher"
@@ -466,7 +483,7 @@ class UserEscrowAgent(EthereumContractAgent):
         return txhash
 
 
-class MiningAdjudicatorAgent(EthereumContractAgent):
+class MiningAdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
     """TODO Issue #931"""
 
     registry_contract_name = "MiningAdjudicator"
