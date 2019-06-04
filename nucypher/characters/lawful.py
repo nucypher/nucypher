@@ -717,7 +717,7 @@ class Ursula(Teacher, Character, Miner):
                  timestamp=None,
 
                  # Blockchain
-                 identity_evidence: bytes = constants.NOT_SIGNED,
+                 decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_public_address: str = None,
 
                  # Character
@@ -765,12 +765,12 @@ class Ursula(Teacher, Character, Miner):
             if not federated_only:
                 Miner.__init__(self, is_me=is_me, checksum_address=checksum_public_address)
 
-                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
+                # Access staking node via node's transacting keys  TODO: Better handling of ephemeral staking self ursula?
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
-                self.substantiate_stamp(password=password)  # TODO: Derive from keyring
+                self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -841,7 +841,7 @@ class Ursula(Teacher, Character, Miner):
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
                          timestamp=timestamp,
-                         identity_evidence=identity_evidence,
+                         decentralized_identity_evidence=decentralized_identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
                          # FIXME: When is_me and not federated_only, the stamp is substantiated twice
                          # See line 728 above.
@@ -880,7 +880,7 @@ class Ursula(Teacher, Character, Miner):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
-        identity_evidence = VariableLengthBytestring(self._identity_evidence)
+        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
@@ -891,7 +891,7 @@ class Ursula(Teacher, Character, Miner):
                                  bytes(VariableLengthBytestring.bundle(domains)),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
-                                 bytes(identity_evidence),
+                                 bytes(decentralized_identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
@@ -1041,7 +1041,7 @@ class Ursula(Teacher, Character, Miner):
             domains=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            identity_evidence=VariableLengthBytestring,
+            decentralized_identity_evidence=VariableLengthBytestring,
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),

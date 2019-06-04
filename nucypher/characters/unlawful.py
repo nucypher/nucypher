@@ -61,7 +61,7 @@ class Vladimir(Ursula):
                        checksum_public_address = cls.fraud_address,
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
-                       interface_signature=target_ursula._interface_signature_object,
+                       interface_signature=target_ursula.__interface_signature,
                        ######### 
                        )
 
