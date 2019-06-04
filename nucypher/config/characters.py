@@ -109,71 +109,36 @@ class AliceConfiguration(NodeConfiguration):
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_REST_PORT = 8151
 
+    # TODO: Best (Sane) Defaults
     DEFAULT_M = 2
     DEFAULT_N = 3
-    DEFAULT_RATE = int(1e14)  # wei  # TODO: Best Sane Default
-    DEFAULT_FIRST_PERIOD_RATE = DEFAULT_RATE * 0.25  # TODO:
-    DEFAULT_EXPIRATION = datetime.timedelta(days=3)  # TODO:
+    DEFAULT_RATE = int(1e14)  # wei
+    DEFAULT_FIRST_PERIOD_RATE = 0.25  # of rate
+    DEFAULT_DURATION = 3  # periods
 
     def __init__(self,
                  m: int = None,
                  n: int = None,
                  rate: int = None,
                  first_period_rate: float = None,
+                 policy_duration = None,
                  *args, **kwargs):
+
         super().__init__(*args, **kwargs)
-        self.m = m
-        self.n = n
-        self.rate = rate
-        self.first_period_rate = first_period_rate
+        self.m = m or self.DEFAULT_M
+        self.n = n or self.DEFAULT_N
+        self.rate = rate or self.DEFAULT_RATE
+        self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
+        self.policy_duration = policy_duration or self.DEFAULT_DURATION
 
-    @classmethod
-    def from_configuration_file(cls,
-                                filepath: str = None,
-                                provider_process=None,
-                                **overrides) -> 'NodeConfiguration':
-
-        """Initialize a NodeConfiguration from a JSON file."""
-
-        payload = cls.get_configuration_payload(filepath=filepath, **overrides)
-
-        # Instantiate from merged params
-        node_configuration = cls(config_file_location=filepath,
-                                 provider_process=provider_process,
-                                 **payload)
-
-        return node_configuration
-
-    def to_configuration_file(self, filepath: str = None) -> str:
-        """Write the static_payload to a JSON file."""
-        if not filepath:
-            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'  # FIXME: Support multiple Alice configs
-            filepath = os.path.join(self.config_root, filename)
-
-        if os.path.isfile(filepath):
-            # Avoid overriding an existing default configuration
-            filename = f'{self._NAME.lower()}-{self.checksum_public_address[:6]}{self.__CONFIG_FILE_EXT}'
-            filepath = os.path.join(self.config_root, filename)
-
-        payload = self.static_payload
-        del payload['is_me']
-
-        # Serialize domains
-        domains = list(str(domain) for domain in self.domains)
-
-        # Save node connection data
-        payload.update(dict(
-            node_storage=self.node_storage.payload(),
-            domains=domains,
-            m=self.m,
-            n=self.n,
-            rate=self.rate,
-            first_period_rate=self.first_period_rate
-        ))
-
-        with open(filepath, 'w') as config_file:
-            config_file.write(json.dumps(payload, indent=4))
-        return filepath
+    @property
+    def static_payload(self) -> dict:
+        payload = dict(m=self.m,
+                       n=self.n,
+                       rate=self.rate,
+                       first_period_rate=self.first_period_rate,
+                       duration=self.policy_duration)
+        return {**super().static_payload, **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
