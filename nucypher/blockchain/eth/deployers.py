@@ -761,18 +761,18 @@ class AdjudicatorDeployer(ContractDeployer):
                                                deployer_address=self.deployer_address,
                                                bare=True)
 
-        mining_adjudicator_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
-                                                                                               self.staking_agent.contract_address,
-                                                                                               *self.__economics.deployment_parameters)
+        adjudicator_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
+                                                                                        self.staking_agent.contract_address,
+                                                                                        *self.__economics.deployment_parameters)
 
-        upgrade_tx_hash = proxy_deployer.retarget(new_target=mining_adjudicator_contract.address,
+        upgrade_tx_hash = proxy_deployer.retarget(new_target=adjudicator_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
                                                   new_secret_hash=new_secret_hash)
         _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Wrap the escrow contract
         wrapped_adjudicator_contract = self.blockchain.interface._wrap_contract(proxy_deployer.contract,
-                                                                                target_contract=mining_adjudicator_contract)
+                                                                                target_contract=adjudicator_contract)
 
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped_adjudicator_contract
