@@ -52,7 +52,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
     testerchain.time_travel(periods=1)
     balance = token_agent.get_balance(address=someone)
     assert balance == locked_tokens
-    assert agent.get_locked_tokens(miner_address=someone) == locked_tokens
+    assert agent.get_locked_tokens(staker_address=someone) == locked_tokens
 
 
 @pytest.mark.slow()

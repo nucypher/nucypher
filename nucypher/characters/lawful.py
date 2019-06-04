@@ -229,7 +229,7 @@ class Alice(Character, PolicyAuthor):
                 duration = calculate_period_duration(future_time=expiration)
             else:
                 duration = duration or self.duration
-                expiration = datetime_at_period(self.miner_agent.get_current_period() + duration)
+                expiration = datetime_at_period(self.staking_agent.get_current_period() + duration)
 
             if not value and not rate:
                 value = int(self.rate * duration)
