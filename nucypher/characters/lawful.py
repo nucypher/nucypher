@@ -251,8 +251,6 @@ class Alice(Character, PolicyAuthor):
 
         else:
             value = first_period_value = duration = FEDERATED_POLICY
-            if not expiration:
-                raise self.ActorError("Expiration datetime is required to create a federated policy.")
 
         payload = dict(m=m, n=n,
                        duration=duration,

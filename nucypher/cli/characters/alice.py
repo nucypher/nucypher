@@ -4,7 +4,7 @@ import click
 import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess, NuCypherGethDevProcess
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
