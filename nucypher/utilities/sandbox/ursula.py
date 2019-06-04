@@ -69,7 +69,6 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                ether_addresses: Union[list, int],
                                stake: bool = False,
-                               know_each_other: bool = True,
                                economics: TokenEconomics = None,
                                **ursula_overrides) -> List[Ursula]:
 
