@@ -689,18 +689,23 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address: str, *args, **kwargs) -> None:
+    def __init__(self, checksum_address: str, policy_agent = None, *args, **kwargs) -> None:
         """
-        :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
-        agent and blockchain connection will be created from default values.
+        :param policy_agent: A policy agent with the blockchain attached;
+                             If not passed, A default policy agent and blockchain connection will
+                             be created from default values.
 
         """
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
-        # From defaults
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        if not policy_agent:
+            # From defaults
+            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+            self.miner_agent = MinerAgent(blockchain=self.blockchain)
+            self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        else:
+            # Injected
+            self.policy_agent = policy_agent
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """

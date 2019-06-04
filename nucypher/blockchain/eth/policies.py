@@ -104,17 +104,19 @@ class BlockchainPolicy(Policy):
     def __init__(self,
                  alice: PolicyAuthor,
                  value: int,
+                 duration: int,
                  expiration: maya.MayaDT,
+                 initial_reward: int,
                  handpicked_ursulas: set = None,
-                 initial_reward: int = 0,  # TODO: move somewhere else?
                  *args, **kwargs):
 
         self.initial_reward = initial_reward
-        self.lock_periods = int(calculate_period_duration(expiration))
-        self.handpicked_ursulas = handpicked_ursulas or UNKNOWN_ARRANGEMENTS
+        self.lock_periods = duration
         self.expiration = expiration
+        self.handpicked_ursulas = handpicked_ursulas or UNKNOWN_ARRANGEMENTS
         self.value = value
         self.author = alice
+        self.selection_buffer = 1.5
 
         # Initial State
         self.publish_transaction = None
@@ -148,7 +150,7 @@ class BlockchainPolicy(Policy):
 
         start_time = maya.now()                            # marker for timeout calculation
 
-        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
+        found_ursulas, unknown_addresses = set(), deque()
         while len(found_ursulas) < target_quantity:        # until there are enough Ursulas
 
             delta = maya.now() - start_time                # check for a timeout
@@ -197,7 +199,7 @@ class BlockchainPolicy(Policy):
         selected_addresses = set()
 
         # Calculate the target sample quantity
-        ADDITIONAL_URSULAS = 1.5  # TODO: Make constant somewhere else
+        ADDITIONAL_URSULAS = self.selection_buffer
         target_sample_quantity = self.n - len(handpicked_ursulas)
         actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
 
@@ -255,20 +257,17 @@ class BlockchainPolicy(Policy):
 
     def publish(self, **kwargs) -> str:
 
-        if self.value is NON_PAYMENT:
-            self.value = 0
-
-        payload = {'from': self.author.checksum_public_address,
+        payload = {'from': self.author.checksum_address,
                    'value': self.value,
+                   'gas': 500_000,  # TODO: Gas management
                    'gasPrice': self.author.blockchain.interface.w3.eth.gasPrice}
 
-        prearranged_ursulas = list(a.ursula.checksum_public_address for a in self._accepted_arrangements)
-
-        txhash = self.author.policy_agent.contract.functions.createPolicy(self.hrac()[:16],
-                                                                          self.lock_periods,
-                                                                          self.initial_reward,
-                                                                          prearranged_ursulas,
-                                                                          ).transact(payload)
+        prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
+        policy_args = (self.hrac()[:16],     # bytes16 _policyID
+                       self.lock_periods,    # uint16 _numberOfPeriods
+                       self.initial_reward,  # uint256 _firstPartialReward
+                       prearranged_ursulas)  # address[] memory _nodes
+        txhash = self.author.policy_agent.contract.functions.createPolicy(*policy_args).transact(payload)
 
         # Capture Response
         self.alice.policy_agent.blockchain.wait_for_receipt(txhash)

@@ -17,11 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
-from abc import ABC
+from typing import Generator, List, Tuple, Union
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from twisted.logger import Logger
-from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.chains import Blockchain

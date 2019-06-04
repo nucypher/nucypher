@@ -60,8 +60,14 @@ class Arrangement:
     splitter = key_splitter + BytestringSplitter((bytes, ID_LENGTH),
                                                  (bytes, 27))
 
-    def __init__(self, alice, expiration, ursula=None, arrangement_id=None,
-                 kfrag=UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
+    def __init__(self,
+                 alice,
+                 expiration,
+                 ursula=None,
+                 arrangement_id=None,
+                 kfrag=UNKNOWN_KFRAG,
+                 value=None,
+                 alices_signature=None) -> None:
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -73,7 +79,7 @@ class Arrangement:
         self.expiration = expiration
         self.alice = alice
         self.uuid = uuid.uuid4()
-        self.value = None
+        self.value = value
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -87,7 +93,7 @@ class Arrangement:
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
-        # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
+        # TODO #148 - Still unclear how to arrive at the correct number of bytes to represent a deposit.
         alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
@@ -231,10 +237,9 @@ class Policy:
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
-        # TODO
-        # if len(self._accepted_arrangements) < self.n:
-        #     raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
-        #                                           "Call make_arrangements to make more.")
+        if len(self._accepted_arrangements) < self.n:
+            raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
+                                                  "Call make_arrangements to make more.")
 
         for kfrag in self.kfrags:
             for arrangement in self._accepted_arrangements:
@@ -482,7 +487,7 @@ class TreasureMap:
     def add_arrangement(self, arrangement):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[arrangement.ursula.checksum_public_address] = arrangement.id
+        self.destinations[arrangement.ursula.checksum_address] = arrangement.id
 
     def public_id(self):
         """
