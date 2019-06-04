@@ -14,9 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
 import json
 import random
+import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
@@ -25,11 +25,10 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
-import time
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -45,6 +44,8 @@ from umbral.signing import Signature
 import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
@@ -62,7 +63,6 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
@@ -72,38 +72,48 @@ class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
-                 m: int,
-                 n: int,
-                 rate: int,
-                 duration: int,
-                 first_period_rate: float,
+                 checksum_address: str = None,
+                 m: int = None,
+                 n: int = None,
+                 rate: int = None,
+                 duration: int = None,
+                 first_period_rate: float = None,
+                 timeout: int = 10,
                  is_me: bool = True,
                  federated_only: bool = False,
                  network_middleware=None,
                  controller=True,
+                 policy_agent=None,
                  *args, **kwargs) -> None:
 
         #
         # Fallback Policy Values
         #
 
-        self.m = m
-        self.n = n
-        self.rate = rate
-        self.duration = duration
-        self.first_period_rate = first_period_rate
+        self.timeout = timeout
 
-        _policy_agent = kwargs.pop("policy_agent", None)
-        checksum_address = kwargs.pop("checksum_public_address", None)
+        if is_me:
+            self.m = m
+            self.n = n
+            self.rate = rate
+            self.duration = duration
+            self.first_period_rate = first_period_rate
+        else:
+            self.m = STRANGER_ALICE
+            self.n = STRANGER_ALICE
+            self.rate = STRANGER_ALICE
+            self.duration = STRANGER_ALICE
+            self.first_period_rate = STRANGER_ALICE
+
         Character.__init__(self,
                            is_me=is_me,
                            federated_only=federated_only,
-                           checksum_public_address=checksum_address,
+                           checksum_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
-        if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, checksum_address=checksum_address)
+        if is_me and not federated_only:  # TODO: #289
+            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -112,6 +122,7 @@ class Alice(Character, PolicyAuthor):
         self.log.info(self.banner)
 
         self.active_policies = dict()
+        self.revocation_kits = dict()
 
     def add_active_policy(self, active_policy):
         """
@@ -123,7 +134,12 @@ class Alice(Character, PolicyAuthor):
             raise KeyError("Policy already exists in active_policies.")
         self.active_policies[active_policy.id] = active_policy
 
-    def generate_kfrags(self, bob: 'Bob', label: bytes, m: int, n: int) -> List:
+    def generate_kfrags(self,
+                        bob: 'Bob',
+                        label: bytes,
+                        m: int = None,
+                        n: int = None
+                        ) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -135,51 +151,52 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        self.revocation_kits = dict()
-        bob_pubkey_enc = bob.public_keys(DecryptingPower)
+        params = self.generate_m_of_n(m=m, n=n)
+        bob_encrypting_key = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
-        return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
+        return delegating_power.generate_kfrags(bob_pubkey_enc=bob_encrypting_key,
+                                                signer=self.stamp,
+                                                label=label,
+                                                m=params['m'],
+                                                n=params['n'])
 
     def create_policy(self,
                       bob: "Bob",
                       label: bytes,
-                      m: int,
-                      n: int,
-                      federated: bool = False,
-                      expiration: maya.MayaDT = None,
-                      value: int = None,
-                      handpicked_ursulas: set = None):
+                      handpicked_ursulas: set = None,
+                      **policy_params):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
         """
 
-        # Validate early
-        if not federated and not (expiration and value):
-            raise ValueError("expiration and value are required arguments when creating a blockchain policy")
+        params = self.generate_policy_parameters(**policy_params)
 
         # Generate KFrags
-        public_key, kfrags = self.generate_kfrags(bob, label, m, n)
+        public_key, kfrags = self.generate_kfrags(bob=bob,
+                                                  label=label,
+                                                  m=params['m'],
+                                                  n=params['n'])
 
         # Federated Payload
         payload = dict(label=label,
                        bob=bob,
                        kfrags=kfrags,
                        public_key=public_key,
-                       m=m)
+                       m=params['m'])
 
-        if self.federated_only is True or federated is True:
-            # Use known nodes.
-
+        # Use known nodes
+        if self.federated_only:
             from nucypher.policy.models import FederatedPolicy
             known_nodes = self.known_nodes.shuffled()
             policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
 
+        # Sample from blockchain via PolicyManager
         else:
-            # Sample from blockchain via PolicyManager
-
-            blockchain_payload = dict(expiration=expiration,
-                                      value=value,
+            blockchain_payload = dict(duration=params['duration'],
+                                      expiration=params['expiration'],
+                                      value=params['value'],
+                                      initial_reward=params['first_period_value'],
                                       handpicked_ursulas=handpicked_ursulas)
 
             payload.update(blockchain_payload)
@@ -189,40 +206,72 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
+    def generate_m_of_n(self, m: int = None, n: int = None):
+        m = m or self.m
+        n = n or self.n
+        payload = dict(m=m, n=n)
+        return payload
+
+    def generate_policy_parameters(self,
+                                   m: int = None,
+                                   n: int = None,
+                                   duration: int = None,
+                                   expiration: maya.MayaDT = None,
+                                   value: int = None,
+                                   rate: int = None,
+                                   first_period_value: int = None,
+                                   first_period_rate: float = None) -> dict:
+        """
+        Construct policy creation from parameters or overrides.
+        """
+
+        m_of_n = self.generate_m_of_n(m=m, n=n)
+        m, n = m_of_n['m'], m_of_n['n']
+
+        # Calculate Policy Rate and Value
+        if not self.federated_only:
+
+            # Calculate duration periods and expiration datetime
+            if expiration:
+                duration = calculate_period_duration(future_time=expiration)
+            else:
+                duration = duration or self.duration
+                expiration = datetime_at_period(self.miner_agent.get_current_period() + duration)
+
+            if not value and not rate:
+                value = int(self.rate * duration)
+                rate = self.rate
+            elif rate:
+                value = int(rate * duration)
+            elif value:
+                rate = value // duration
+
+            first_period_rate = first_period_rate or self.first_period_rate
+            first_period_value = first_period_value or int(rate * first_period_rate)
+
+        else:
+            value = first_period_value = duration = FEDERATED_POLICY
+            if not expiration:
+                raise self.ActorError("Expiration datetime is required to create a federated policy.")
+
+        payload = dict(m=m, n=n,
+                       duration=duration,
+                       expiration=expiration,
+                       first_period_value=first_period_value,
+                       value=value,
+                       rate=rate)
+        return payload
+
     def grant(self,
               bob: "Bob",
               label: bytes,
-              m: int = None,
-              n: int = None,
-              expiration = None,
-              value: int = None,
-              rate: int = None,
-              first_period_value: int = 0,  # TODO: Need sane default
               handpicked_ursulas: set = None,
-              timeout=10):
+              discover_on_this_thread: bool = True,
+              timeout: int = None,
+              **policy_params):
 
-        #
-        # Cryptoeconomic Defaults for Policies
-        #
-
-        if not m:
-            m = self.m
-
-        if not n:
-            n = self.n
-
-        if not expiration:
-            expiration = maya.now() + datetime.timedelta(days=self.duration)
-
-        # Calculate Policy Value
-        if not value and not rate:
-            value = int(self.n * (first_period_value + self.rate * self.duration))
-
-        elif rate:
-            value = int(self.n * (first_period_value + rate * self.duration))
-
-        else:
-            raise ValueError("Cannot determine policy value")
+        timeout = timeout or self.timeout
+        params = self.generate_policy_parameters(**policy_params)
 
         #
         # Policy Creation
@@ -236,12 +285,13 @@ class Alice(Character, PolicyAuthor):
             for handpicked_ursula in handpicked_ursulas:
                 self.remember_node(node=handpicked_ursula)
 
-        policy = self.create_policy(bob,
-                                    label,
-                                    m, n,
-                                    federated=self.federated_only,
-                                    expiration=expiration,
-                                    value=value,
+        policy = self.create_policy(bob=bob,
+                                    label=label,
+                                    m=params['m'],
+                                    n=params['n'],
+                                    duration=params['duration'],
+                                    expiration=params['expiration'],
+                                    value=params['value'],
                                     handpicked_ursulas=handpicked_ursulas)
 
         #
@@ -252,23 +302,25 @@ class Alice(Character, PolicyAuthor):
         # TODO: #289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
-        if self.federated_only and len(self.known_nodes) < n:
-            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=discover_on_this_thread, timeout=timeout)
+        if self.federated_only and len(self.known_nodes) < params['n']:
+            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=params['n'],
+                                                                   learn_on_this_thread=discover_on_this_thread,
+                                                                   timeout=timeout)
             if not good_to_go:
                 raise ValueError(
                     "To make a Policy in federated mode, you need to know about "
                     "all the Ursulas you need (in this case, {}); there's no other way to "
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
-                    "or run the learning loop on a network with enough Ursulas.".format(self.n))
+                    "or run the learning loop on a network with enough Ursulas.".format(params['n']))
 
-            if len(handpicked_ursulas) < n:
-                number_of_ursulas_needed = n - len(handpicked_ursulas)
+            if len(handpicked_ursulas) < params['n']:
+                number_of_ursulas_needed = params['n'] - len(handpicked_ursulas)
                 new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
 
         policy.make_arrangements(network_middleware=self.network_middleware,
-                                 value=value,
-                                 expiration=expiration,
+                                 value=params['value'],
+                                 expiration=params['expiration'],
                                  handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
@@ -294,8 +346,8 @@ class Alice(Character, PolicyAuthor):
                 policy.revocation_kit.revokable_addresses,
                 allow_missing=(policy.n - revocation_threshold))
 
-        except self.NotEnoughTeachers as e:
-            raise e
+        except self.NotEnoughTeachers:
+            raise  #TODO
 
         else:
             failed_revocations = dict()
@@ -308,14 +360,17 @@ class Alice(Character, PolicyAuthor):
                     failed_revocations[node_id] = (revocation, NotFound)
                 except UnexpectedResponse:
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
+                else:
+                    if response.status_code != 200:
+                        raise self.ActorError(f"Failed to revoke {policy.id} with status code {response.status_code}")
+
         return failed_revocations
 
-    def decrypt_message_kit(
-        self,
-        message_kit: UmbralMessageKit,
-        data_source: Character,
-        label: bytes
-    ) -> List[bytes]:
+    def decrypt_message_kit(self,
+                            message_kit: UmbralMessageKit,
+                            data_source: Character,
+                            label: bytes
+                            ) -> List[bytes]:
 
         """
         Decrypt this Alice's own encrypted data.
@@ -608,7 +663,7 @@ class Bob(Character):
         cfrags = self.network_middleware.reencrypt(work_order)
         for task in work_order.tasks:
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
+            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_address]
             work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
