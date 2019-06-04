@@ -427,7 +427,7 @@ class NodeConfiguration(ABC):
 
         """Initialize a NodeConfiguration from a JSON file."""
 
-        payload = cls.get_configuration_payload(**overrides)
+        payload = cls.get_configuration_payload(filepath=filepath, **overrides)
 
         # Instantiate from merged params
         node_configuration = cls(config_file_location=filepath,
@@ -439,8 +439,7 @@ class NodeConfiguration(ABC):
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
         if not filepath:
-            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'  # FIXME
-            filepath = os.path.join(self.config_root, filename)
+            filepath = os.path.join(self.config_root, self.CONFIG_FILENAME)
 
         if os.path.isfile(filepath):
             # Avoid overriding an existing default configuration

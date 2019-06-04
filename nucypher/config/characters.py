@@ -113,7 +113,7 @@ class AliceConfiguration(NodeConfiguration):
     DEFAULT_M = 2
     DEFAULT_N = 3
     DEFAULT_RATE = int(1e14)  # wei
-    DEFAULT_FIRST_PERIOD_RATE = 0.25  # of rate
+    DEFAULT_FIRST_PERIOD_RATE = 0.25  # % of calculated rate per period
     DEFAULT_DURATION = 3  # periods
 
     def __init__(self,
@@ -121,7 +121,7 @@ class AliceConfiguration(NodeConfiguration):
                  n: int = None,
                  rate: int = None,
                  first_period_rate: float = None,
-                 policy_duration = None,
+                 duration: int = None,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -129,7 +129,7 @@ class AliceConfiguration(NodeConfiguration):
         self.n = n or self.DEFAULT_N
         self.rate = rate or self.DEFAULT_RATE
         self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
-        self.policy_duration = policy_duration or self.DEFAULT_DURATION
+        self.duration = duration or self.DEFAULT_DURATION
 
     @property
     def static_payload(self) -> dict:
@@ -137,7 +137,7 @@ class AliceConfiguration(NodeConfiguration):
                        n=self.n,
                        rate=self.rate,
                        first_period_rate=self.first_period_rate,
-                       duration=self.policy_duration)
+                       duration=self.duration)
         return {**super().static_payload, **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
