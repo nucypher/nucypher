@@ -903,37 +903,31 @@ class Teacher:
         self.verified_stamp = False
         self.verified_worker = False
         self.verified_interface = False
-        self._verified_node = False
+        self.verified_node = False
 
         if substantiate_immediately:
             self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
-        """
-        Raised when a node has an invalid characteristic - stamp, interface, or address.
-        """
+        """Raised when a node has an invalid characteristic - stamp, interface, or address."""
 
     class InvalidStamp(InvalidNode):
-        pass
+        """Base exception class for invalid character stamps"""
 
     class StampNotSigned(InvalidStamp):
-        pass
+        """Raised when a node does not have a stamp signature when one is required for verification"""
 
     class InvalidWalletSignature(InvalidStamp):
-        pass
+        """Raised when a stamp fails signature verification or recovers an unexpected wallet address"""
 
     class NotStaking(InvalidStamp):
-        pass
+        """Raised when a node fails verification because it is not currently staking"""
 
     class WrongMode(TypeError):
-        """
-        Raised when a Character tries to use another Character as decentralized when the latter is federated_only.
-        """
+        """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
 
     class IsFromTheFuture(TypeError):
-        """
-        Raised when deserializing a Character from a future version.
-        """
+        """Raised when deserializing a Character from a future version."""
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
@@ -997,28 +991,18 @@ class Teacher:
         TODO: #1033 - Verify Staker <-> Worker relationship on-chain
         """
         locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
-        return bool(locked_tokens)
+        return locked_tokens > 0
 
     def validate_stamp(self, verify_staking: bool = True) -> None:
 
-        #
         # Federated
-        #
-
         if self.federated_only:
-            if self.__decentralized_identity_evidence is not NOT_SIGNED:
-                message = "This node cannot be verified in this manner, " \
-                          "but is OK to use in federated mode if you "    \
-                          "have reason to believe it is trustworthy."
-                raise self.WrongMode(message)
-            else:
-                # TODO: Verify the stamp "correctness" by serialization?
-                self.verified_stamp = True
+            message = "This node cannot be verified in this manner, " \
+                      "but is OK to use in federated mode if you "    \
+                      "have reason to believe it is trustworthy."
+            raise self.WrongMode(message)
 
-        #
         # Decentralized
-        #
-
         else:
 
             if self.__decentralized_identity_evidence is NOT_SIGNED:
@@ -1077,7 +1061,7 @@ class Teacher:
         """
 
         # Only perform this check once per object
-        if not force and self._verified_node:
+        if not force and self.verified_node:
             return True
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
@@ -1115,7 +1099,7 @@ class Teacher:
 
         else:
             # Success
-            self._verified_node = True
+            self.verified_node = True
 
     @property
     def decentralized_identity_evidence(self):
@@ -1131,7 +1115,7 @@ class Teacher:
     # Interface
     #
 
-    def validate_interface(self):
+    def validate_interface(self) -> bool:
         """
         Checks that the interface info is valid for this node's canonical address.
         """

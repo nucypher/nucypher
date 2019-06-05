@@ -115,10 +115,7 @@ def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
     recovered_address = to_checksum_address(recovery)
 
     signature_is_valid = recovered_address == to_checksum_address(address)
-    if signature_is_valid:
-        return True
-    else:
-        return False
+    return signature_is_valid
 
 
 def verify_ecdsa(message: bytes,
