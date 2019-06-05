@@ -163,6 +163,7 @@ class BobConfiguration(NodeConfiguration):
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
+                                     wallet=False,
                                      **generation_kwargs)
 
 
