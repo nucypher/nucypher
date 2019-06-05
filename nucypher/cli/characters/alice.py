@@ -1,4 +1,5 @@
 import datetime
+import json
 
 import click
 import maya
@@ -104,6 +105,15 @@ def alice(click_config,
         return painting.paint_new_installation_help(new_configuration=new_alice_config,
                                                     config_root=config_root,
                                                     config_file=config_file)
+
+    elif action == "view":
+        """Paint an existing configuration to the console"""
+        configuration_file_location = config_file or AliceConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+        response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
+        for k, v in response.items():
+            click.secho(f'{k} .... {v}')
+        return
+
     #
     # Get Alice Configuration
     #
@@ -155,12 +165,6 @@ def alice(click_config,
         ALICE.log.info('Starting HTTP Character Web Controller')
         return controller.start(http_port=http_port, dry_run=dry_run)
 
-    elif action == "view":
-        """Paint an existing configuration to the console"""
-        configuration_file_location = config_file or alice_config.config_file_location
-        response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return ALICE.controller.emitter(response=response)
-
     elif action == "public-keys":
         response = ALICE.controller.public_keys()
         return response
@@ -181,6 +185,9 @@ def alice(click_config,
         return ALICE.controller.create_policy(request=create_policy_request)
 
     elif action == "derive-policy-pubkey":
+        if not label:
+            raise click.BadOptionUsage(option_name='label',
+                                       message="--label is required for deriving a policy encrypting key.")
         return ALICE.controller.derive_policy_encrypting_key(label=label)
 
     elif action == "grant":
