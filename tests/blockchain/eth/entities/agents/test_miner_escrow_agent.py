@@ -25,19 +25,22 @@ def test_deposit_tokens(testerchain, three_agents, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
 
     agent = miner_agent
+    locked_tokens = token_economics.minimum_allowed_locked * 5
 
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked * 2,      # Transfer
+    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
+                                           target_address=agent.contract_address,
+                                           sender_address=someone)
+
+    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked * 10,      # Transfer
                                    target_address=someone,
                                    sender_address=origin)
 
-    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,  # Approve
-                                           target_address=agent.contract_address,
-                                           sender_address=someone)
 
     #
     # Deposit
     #
-    txhash = agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
+
+    txhash = agent.deposit_tokens(amount=locked_tokens,
                                   lock_periods=token_economics.minimum_locked_periods,
                                   sender_address=someone)
 
@@ -47,9 +50,9 @@ def test_deposit_tokens(testerchain, three_agents, token_economics):
     assert receipt['logs'][2]['address'] == agent.contract_address
 
     testerchain.time_travel(periods=1)
-    assert agent.get_locked_tokens(miner_address=someone) == token_economics.minimum_allowed_locked
     balance = token_agent.get_balance(address=someone)
-    assert balance == token_economics.minimum_allowed_locked
+    assert balance == locked_tokens
+    assert agent.get_locked_tokens(miner_address=someone) == locked_tokens
 
 
 @pytest.mark.slow()
@@ -143,7 +146,6 @@ def test_divide_stake(three_agents, token_economics):
     agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_agent = agent.token_agent
 
     stakes = list(agent.get_all_stakes(miner_address=someone))
     assert len(stakes) == 1
@@ -173,7 +175,7 @@ def test_divide_stake(three_agents, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     stakes = list(agent.get_all_stakes(miner_address=someone))
-    assert len(stakes) == 2
+    assert len(stakes) == 3
 
 
 @pytest.mark.slow()
