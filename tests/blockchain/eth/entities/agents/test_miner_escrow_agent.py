@@ -138,7 +138,6 @@ def test_confirm_activity(three_agents):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-@pytest.mark.skip('To be implemented')
 def test_divide_stake(three_agents, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent

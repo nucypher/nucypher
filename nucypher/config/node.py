@@ -67,7 +67,7 @@ class NodeConfiguration(ABC):
     DEFAULT_OPERATING_MODE = 'decentralized'
 
     # Domains
-    DEFAULT_DOMAIN = b'goerli'
+    DEFAULT_DOMAIN = 'goerli'
 
     # Serializers
     NODE_SERIALIZER = binascii.hexlify
@@ -582,16 +582,6 @@ class NodeConfiguration(ABC):
 
         # Generate Installation Subdirectories
         self._cache_runtime_filepaths()
-
-        #
-        # Blockchain
-        #
-        # TODO
-        #
-        # if not self.federated_only:
-        #     if self.provider_process:
-        #
-        #         self.provider_process.initialize_blockchain()
 
         #
         # Node Storage

@@ -16,8 +16,7 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT,
-              default=6151)  # TODO
+@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=6151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=11151)  # TODO
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)

@@ -77,9 +77,9 @@ class NucypherClickConfig:
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
 
-    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False):
+    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
         try:
-            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
+            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
             character_configuration.connect_to_contracts()
 
         except EthereumContractRegistry.NoRegistry:

@@ -4,7 +4,6 @@ import click
 import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess, NuCypherGethDevProcess
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
@@ -26,10 +25,11 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexideicmal string", type=click.STRING)
-@click.option('--bob-verifying-key', help="Bob's verifying key as a hexideicmal string", type=click.STRING)
+@click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadeicmal string", type=click.STRING)
+@click.option('--bob-verifying-key', help="Bob's verifying key as a hexadeicmal string", type=click.STRING)
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
@@ -52,6 +52,7 @@ def alice(click_config,
           config_file,
           provider_uri,
           geth,
+          poa,
           no_registry,
           registry_filepath,
           dev,
@@ -75,11 +76,10 @@ def alice(click_config,
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(ALICE_BANNER)
 
-    # Stage integrated ethereum node process
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
-        ETH_NODE = NuCypherGethGoerliProcess()  # TODO: Only devnet for now
-        provider_uri = ETH_NODE.provider_uri
+        ETH_NODE = actions.get_provider_process()
+        provider_uri = ETH_NODE.provider_uri(scheme='file')
 
     if action == 'init':
         """Create a brand-new persistent Alice"""
@@ -159,7 +159,7 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or alice_config.config_file_location
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return ALICE.controller.emitter(response=response)         # TODO: Uses character control instead
+        return ALICE.controller.emitter(response=response)
 
     elif action == "public-keys":
         response = ALICE.controller.public_keys()
@@ -190,7 +190,7 @@ def alice(click_config,
             'label': label,
             'm': m,
             'n': n,
-            'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+            'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
         }
 
         if not ALICE.federated_only:
