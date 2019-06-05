@@ -32,10 +32,12 @@ from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               DispatcherDeployer)
+                                               DispatcherDeployer,
+                                               MiningAdjudicatorDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -54,7 +56,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   MOCK_POLICY_DEFAULT_M,
                                                   MOCK_URSULA_STARTING_PORT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  TEST_PROVIDER_URI,
+                                                  TEMPORARY_DOMAIN,
+                                                  TEST_PROVIDER_URI
                                                   )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
@@ -64,6 +67,7 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
 
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
 #
@@ -92,7 +96,7 @@ def temp_config_root(temp_dir_path):
     """
     default_node_config = NodeConfiguration(dev_mode=True,
                                             config_root=temp_dir_path,
-                                            import_seed_registry=False)
+                                            download_registry=False)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
@@ -142,7 +146,7 @@ def ursula_decentralized_test_config():
                                         abort_on_learning_error=True,
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
-                                        import_seed_registry=False,
+                                        download_registry=False,
                                         save_metadata=False,
                                         reload_metadata=False)
     yield ursula_config
@@ -170,9 +174,9 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain):
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_public_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
-                                known_nodes=blockchain_ursulas,
+                                known_nodes=blockchain_ursulas[:-1],  # TODO: 1035
                                 abort_on_learning_error=True,
-                                import_seed_registry=False,
+                                download_registry=False,
                                 save_metadata=False,
                                 reload_metadata=False)
     yield config
@@ -198,11 +202,11 @@ def bob_blockchain_test_config(blockchain_ursulas, testerchain):
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_public_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas,
+                              known_nodes=blockchain_ursulas[:-1],  # TODO: #1035
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
-                              import_seed_registry=False,
+                              download_registry=False,
                               save_metadata=False,
                               reload_metadata=False)
     yield config
@@ -363,12 +367,16 @@ def testerchain(solidity_compiler):
                                                      provider_uri=TEST_PROVIDER_URI)
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface, airdrop=True)
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   eth_airdrop=True,
+                                   free_transactions=True,
+                                   poa=True)
 
     # Set the deployer address from a freshly created test account
     deployer_interface.deployer_address = testerchain.etherbase_account
 
     yield testerchain
+    deployer_interface.disconnect()
     testerchain.sever_connection()
 
 
@@ -389,23 +397,19 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()  # 1: Token
 
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
+    miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
+    miner_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
-    miner_escrow_deployer.deploy()
-
-    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    policy_manager_deployer = PolicyManagerDeployer(
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
-
-    policy_manager_deployer.deploy()
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
+    policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
+
+    adjudicator_deployer = MiningAdjudicatorDeployer(deployer_address=origin)
+    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     return token_agent, miner_agent, policy_agent
 
@@ -427,13 +431,21 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
                                           ether_addresses=all_but_the_last_ursula,
                                           stake=True)
 
+    # Stake starts next period (or else signature validation will fail)
+    blockchain.time_travel(periods=1)
+
+    # Bootstrap the network
+    for ursula_to_teach in _ursulas:
+        for ursula_to_learn_about in _ursulas:
+            ursula_to_teach.remember_node(ursula_to_learn_about)
+
+    # TODO: #1035 - Move non-staking Ursulas to a new fixture
     # This one is not going to stake
     _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                                      ether_addresses=[the_last_ursula],
                                                      stake=False)
 
     _ursulas.extend(_non_staking_ursula)
-    blockchain.time_travel(periods=1)
     yield _ursulas
 
 
@@ -476,12 +488,13 @@ def funded_blockchain(testerchain, three_agents, token_economics):
 
 @pytest.fixture(scope='module')
 def staking_participant(funded_blockchain, blockchain_ursulas):
+
     # Start up the local fleet
     for teacher in blockchain_ursulas:
         start_pytest_ursula_services(ursula=teacher)
 
     teachers = list(blockchain_ursulas)
-    staking_participant = teachers[-1]
+    staking_participant = teachers[-1]  # TODO: # 1035
     return staking_participant
 
 
@@ -536,3 +549,14 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
 @pytest.fixture(scope='session')
 def mock_ursula_reencrypts():
     return _mock_ursula_reencrypts
+
+
+@pytest.fixture(scope='session')
+def geth_dev_node():
+    geth = NuCypherGethDevProcess()
+    try:
+        yield geth
+    finally:
+        if geth.is_running:
+            geth.stop()
+            assert not geth.is_running

@@ -98,7 +98,7 @@ def nucypher_cli(click_config,
 
     # Global Warnings
     if click_config.verbose:
-        click_config.emit("Verbose mode is enabled", color='blue')
+        click_config.emit(message="Verbose mode is enabled", color='blue')
 
 
 @click.command()

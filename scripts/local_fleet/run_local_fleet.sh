@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
 echo "Starting Local Development Fleet..."
 
 # Boring Setup Stuff
@@ -17,7 +18,7 @@ export NUCYPHER_FILE_LOGS=0
 # Run Node #1 (Lonely Ursula)
 echo "Starting Lonely Ursula..."
 python3 "${0%/*}"/../local_fleet/run_lonely_ursula.py > /tmp/ursulas-logs/ursula-11500.txt 2>&1 &
-sleep 1
+sleep 2
 
 # Connect Node #2 to Lonely Ursula
 echo "Starting Ursula #2..."
@@ -27,4 +28,3 @@ sleep 1
 # Connect Node #3 to the local Fleet
 echo "Starting Ursula #3..."
 nucypher --debug ursula run --dev --federated-only --teacher-uri localhost:11500 --rest-port 11502 > /tmp/ursulas-logs/ursula-11502.txt 2>&1 &
-sleep 1

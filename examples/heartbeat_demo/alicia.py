@@ -8,8 +8,6 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
 
 
@@ -19,11 +17,12 @@ from nucypher.utilities.logging import SimpleObserver
 
 
 # Twisted Logger
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+
 globalLogPublisher.addObserver(SimpleObserver())
 
 TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 
-# We expect the url of the seednode as the first argument.
 SEEDNODE_URL = 'localhost:11500'
 
 POLICY_FILENAME = "policy-metadata.json"
@@ -50,6 +49,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
 alice_config = AliceConfiguration(
     config_root=os.path.join(TEMP_ALICE_DIR),
     is_me=True,
+    domains={TEMPORARY_DOMAIN},
     known_nodes={ursula},
     start_learning_now=False,
     federated_only=True,
@@ -75,7 +75,7 @@ label = label.encode()
 
 # Alicia can create the public key associated to the policy label,
 # even before creating any associated policy.
-policy_pubkey = alicia.get_policy_pubkey_from_label(label)
+policy_pubkey = alicia.get_policy_encrypting_key_from_label(label)
 
 print("The policy public key for "
       "label '{}' is {}".format(label.decode("utf-8"), policy_pubkey.to_bytes().hex()))

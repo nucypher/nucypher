@@ -14,12 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import base64
 import json
 import os
+import pprint
 import tempfile
 from json import JSONDecodeError
+
+import requests
 from twisted.logger import Logger
 
 import shutil
@@ -43,6 +45,10 @@ class EthereumContractRegistry:
 
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
+    __PUBLICATION_USER = "nucypher"
+    __PUBLICATION_REPO = "nucypher/ethereum-contract-registry"
+    __PUBLICATION_FILENAME = "contract_registry.json"  # TODO: Versioning
+
     class RegistryError(Exception):
         pass
 
@@ -61,6 +67,100 @@ class EthereumContractRegistry:
     def __init__(self, registry_filepath: str = None) -> None:
         self.log = Logger("registry")
         self.__filepath = registry_filepath or self._default_registry_filepath
+
+    @classmethod
+    def _get_registry_class(cls, local=False):
+        """
+        If "local" is True, it means we are running a local blockchain and we
+        have deployed the Nucypher contracts on that blockchain, therefore
+        we do not want to download a registry from github.
+        """
+        return LocalEthereumContractRegistry if local else cls
+
+    @classmethod
+    def download_latest_publication(cls,
+                                    filepath: str = None,
+                                    branch: str = 'goerli'
+                                    ) -> str:
+        """
+        Get the latest published contract registry from github and save it on the local file system.
+        """
+        from nucypher.config.node import NodeConfiguration
+
+        github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.__PUBLICATION_FILENAME}'
+        response = requests.get(github_endpoint)
+        if response.status_code != 200:
+            raise cls.RegistryError(f"Failed to fetch registry from {github_endpoint} with status code {response.status_code} ")
+
+        filepath = filepath or cls._default_registry_filepath
+        # TODO : Use envvar for config root and registry path
+        try:
+            with open(filepath, 'wb') as registry_file:  # TODO: Skip re-write if already up to date
+                registry_file.write(response.content)
+        except FileNotFoundError:
+            raise NodeConfiguration.NoConfigurationRoot
+        return filepath
+
+    @classmethod
+    def from_latest_publication(cls,
+                                filepath: str = None,
+                                branch: str = 'goerli'
+                                ) -> 'EthereumContractRegistry':
+        filepath = cls.download_latest_publication(filepath=filepath, branch=branch)
+        instance = cls(registry_filepath=filepath)
+        return instance
+
+    def publish(self, branch: str = 'goerli') -> dict:
+        # TODO: NuCypher Org GPG Signed Commits?
+
+        #
+        # Build Request
+        #
+
+        try:
+            github_token = os.environ['GITHUB_API_TOKEN']
+        except KeyError:
+            raise self.RegistryError("Please set the 'GITHUB_API_TOKEN' environment variable and try again.")
+
+        base_url = "api.github.com/repos"
+        headers = {"Authorization": f"token {github_token}"}
+        github_endpoint = f"https://{base_url}/{self.__PUBLICATION_REPO}/contents/{self.__PUBLICATION_FILENAME}"
+
+        # Encode registry
+        with open(self.filepath, "rb") as registry_file:
+            base64_registry = base64.b64encode(registry_file.read())
+
+        #
+        # Transmit
+        #
+
+        # [GET] -> latest commit
+        response = requests.get(url=github_endpoint, params={'ref': branch}, headers=headers)
+        if response.status_code != 200:
+            message = f"Failed to fetch registry from {github_endpoint} with status code {response.status_code}."
+            raise self.RegistryError(message)
+        response_data = response.json()
+        latest_sha = response_data['sha']
+
+        # Compare local vs. remote file contents
+        existing_content = base64_registry.decode('utf-8').strip('\n')
+        latest_content = response_data['content'].strip('\n')  # GH adds newlines for whatever reason
+        if existing_content != latest_content:
+
+            # Update needed... Encode Upload Request
+            message = json.dumps({"message": "[automated]",  # TODO: Better commit message including versioning
+                                  "branch": branch,
+                                  "content": base64_registry.decode("utf-8"),
+                                  "sha": latest_sha})
+
+            # [PUT] -> Update Registry and Commit
+            headers.update({"Content-Type": "application/json"})
+            response = requests.put(url=github_endpoint, data=message, headers=headers)  # TODO: Error handling
+            response_data = response.json()
+            return response_data
+
+        else:
+            raise self.RegistryError(f"Already up to date with {latest_sha}")
 
     @property
     def filepath(self):
@@ -102,19 +202,21 @@ class EthereumContractRegistry:
         this function first to get the current state to append to the dict or
         modify it because _write_registry_file overwrites the file.
         """
-
         try:
-            with open(self.__filepath, 'r') as registry_file:
-                self.log.debug("Reading from registrar: filepath {}".format(self.__filepath))
+            with open(self.filepath, 'r') as registry_file:
+                self.log.debug("Reading from registrar: filepath {}".format(self.filepath))
                 registry_file.seek(0)
                 file_data = registry_file.read()
                 if file_data:
-                    registry_data = json.loads(file_data)
+                    try:
+                        registry_data = json.loads(file_data)
+                    except JSONDecodeError:
+                        raise self.RegistryError(f"Registry contains invalid JSON at '{self.__filepath}'")
                 else:
                     registry_data = list() if self._multi_contract else dict()
 
         except FileNotFoundError:
-            raise self.NoRegistry("No registry at filepath: {}".format(self.__filepath))
+            raise self.NoRegistry("No registry at filepath: {}".format(self.filepath))
 
         except JSONDecodeError:
             raise
@@ -169,6 +271,19 @@ class EthereumContractRegistry:
             raise self.IllegalRegistry(m.format(contract_address))
 
         return contracts if contract_name else contracts[0]
+
+
+class LocalEthereumContractRegistry(EthereumContractRegistry):
+
+    _default_registry_filepath = os.path.join(
+        DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json'
+    )
+
+    __filepath = _default_registry_filepath
+
+    @classmethod
+    def download_latest_publication(cls, *args, **kwargs):
+        return cls._default_registry_filepath
 
 
 class TemporaryEthereumContractRegistry(EthereumContractRegistry):

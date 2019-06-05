@@ -16,7 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 from datetime import datetime
+from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
 
@@ -49,12 +51,13 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
-    MiningAdjudicatorDeployer
-)
+    MiningAdjudicatorDeployer,
+    ContractDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 def only_me(func):
@@ -87,10 +90,10 @@ class NucypherTokenActor:
             self.checksum_public_address = checksum_address  # type: str
 
         if blockchain is None:
-            blockchain = Blockchain.connect()
+            blockchain = Blockchain.connect()  # Attempt to connect
         self.blockchain = blockchain
 
-        self.token_agent = NucypherTokenAgent()
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):
@@ -100,10 +103,10 @@ class NucypherTokenActor:
         return r
 
     @property
-    def eth_balance(self) -> int:
+    def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
-        return self.blockchain.interface.w3.fromWei(balance, 'ether')
+        balance = self.blockchain.interface.get_balance(self.checksum_public_address)
+        return self.blockchain.interface.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
@@ -128,6 +131,9 @@ class Deployer(NucypherTokenActor):
 
     __interface_class = BlockchainDeployerInterface
 
+    class UnknownContract(ValueError):
+        pass
+
     def __init__(self,
                  blockchain: Blockchain,
                  deployer_address: str = None,
@@ -136,8 +142,8 @@ class Deployer(NucypherTokenActor):
 
         self.blockchain = blockchain
         self.__deployer_address = NO_DEPLOYER_ADDRESS
-        if deployer_address:
-            self.deployer_address = deployer_address
+        self.deployer_address = deployer_address
+        self.checksum_public_address = self.deployer_address
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
@@ -146,14 +152,7 @@ class Deployer(NucypherTokenActor):
             self.adjudicator_agent = MiningAdjudicatorAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
-
-        self.deployers = {
-            NucypherTokenDeployer.contract_name: self.deploy_token_contract,
-            MinerEscrowDeployer.contract_name: self.deploy_miner_contract,
-            PolicyManagerDeployer.contract_name: self.deploy_policy_contract,
-            UserEscrowProxyDeployer.contract_name: self.deploy_escrow_proxy,
-            MiningAdjudicatorDeployer.contract_name: self.deploy_mining_adjudicator_contract,
-        }
+        self.deployers = {d.contract_name: d for d in self.deployers}
 
         self.log = Logger("Deployment-Actor")
 
@@ -185,89 +184,88 @@ class Deployer(NucypherTokenActor):
             raise self.ActorError(message)
         return super().token_balance
 
-    def deploy_token_contract(self) -> dict:
-        token_deployer = NucypherTokenDeployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        txhashes = token_deployer.deploy()
-        self.token_agent = token_deployer.make_agent()
+    def __get_deployer(self, contract_name: str):
+        try:
+            Deployer = self.deployers[contract_name]
+        except KeyError:
+            raise self.UnknownContract(contract_name)
+        return Deployer
+
+    def deploy_contract(self,
+                        contract_name: str,
+                        gas_limit: int = None,
+                        plaintext_secret: str = None,
+                        ) -> Tuple[dict, ContractDeployer]:
+
+        Deployer = self.__get_deployer(contract_name=contract_name)
+        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        if Deployer._upgradeable:
+            if not plaintext_secret:
+                raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
+            secret_hash = self.blockchain.interface.keccak(bytes(plaintext_secret, encoding='utf-8'))
+            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        else:
+            txhashes = deployer.deploy(gas_limit=gas_limit)
+        return txhashes, deployer
+
+    def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
+        Deployer = self.__get_deployer(contract_name=contract_name)
+        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                    new_secret_hash=new_secret_hash)
         return txhashes
 
-    def deploy_miner_contract(self, secret: bytes) -> dict:
-        secret = self.blockchain.interface.w3.keccak(secret)
-        miner_escrow_deployer = MinerEscrowDeployer(blockchain=self.blockchain,
-                                                    deployer_address=self.deployer_address,
-                                                    secret_hash=secret)
+    def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
+        Deployer = self.__get_deployer(contract_name=contract_name)
+        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                   new_secret_hash=new_secret_hash)
+        return txhash
 
-        txhashes = miner_escrow_deployer.deploy()
-        self.miner_agent = miner_escrow_deployer.make_agent()
-        return txhashes
-
-    def deploy_policy_contract(self, secret: bytes) -> dict:
-        secret = self.blockchain.interface.w3.keccak(secret)
-        policy_manager_deployer = PolicyManagerDeployer(blockchain=self.blockchain,
-                                                        deployer_address=self.deployer_address,
-                                                        secret_hash=secret)
-
-        txhashes = policy_manager_deployer.deploy()
-        self.policy_agent = policy_manager_deployer.make_agent()
-        return txhashes
-
-    def deploy_mining_adjudicator_contract(self, secret: bytes) -> dict:
-        secret = self.blockchain.interface.w3.keccak(secret)
-        mining_adjudicator_deployer = MiningAdjudicatorDeployer(blockchain=self.blockchain,
-                                                                deployer_address=self.deployer_address,
-                                                                secret_hash=secret)
-
-        txhashes = mining_adjudicator_deployer.deploy()
-        self.adjudicator_agent = mining_adjudicator_deployer.make_agent()
-        return txhashes
-
-    def deploy_escrow_proxy(self, secret: bytes) -> dict:
-        secret = self.blockchain.interface.w3.keccak(secret)
-        escrow_proxy_deployer = UserEscrowProxyDeployer(blockchain=self.blockchain,
-                                                        deployer_address=self.deployer_address,
-                                                        secret_hash=secret)
-
-        txhashes = escrow_proxy_deployer.deploy()
-        return txhashes
-
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry) -> UserEscrowDeployer:
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
         user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)
-
         user_escrow_deployer.deploy()
         principal_address = user_escrow_deployer.contract.address
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
     def deploy_network_contracts(self,
-                                 miner_secret: bytes,
-                                 policy_secret: bytes,
-                                 adjudicator_secret: bytes
+                                 miner_secret: str,
+                                 policy_secret: str,
+                                 adjudicator_secret: str,
+                                 user_escrow_proxy_secret: str,
                                  ) -> Tuple[dict, dict]:
         """
         Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
         """
-        token_txhashes = self.deploy_token_contract()
-        miner_txhashes = self.deploy_miner_contract(secret=miner_secret)
-        policy_txhashes = self.deploy_policy_contract(secret=policy_secret)
-        adjudicator_txhashes = self.deploy_mining_adjudicator_contract(secret=adjudicator_secret)
+
+        token_txs, token_deployer = self.deploy_contract(contract_name='NuCypherToken')
+        miner_txs, miner_deployer = self.deploy_contract(contract_name='MinersEscrow', plaintext_secret=miner_secret)
+        policy_txs, policy_deployer = self.deploy_contract(contract_name='PolicyManager', plaintext_secret=policy_secret)
+        adjudicator_txs, adjudicator_deployer = self.deploy_contract(contract_name='MiningAdjudicator', plaintext_secret=adjudicator_secret)
+        user_escrow_proxy_txs, user_escrow_proxy_deployer = self.deploy_contract(contract_name='UserEscrowProxy', plaintext_secret=user_escrow_proxy_secret)
+
+        deployers = (token_deployer,
+                     miner_deployer,
+                     policy_deployer,
+                     adjudicator_deployer,
+                     user_escrow_proxy_deployer,
+                     )
 
         txhashes = {
-            NucypherTokenDeployer.contract_name: token_txhashes,
-            MinerEscrowDeployer.contract_name: miner_txhashes,
-            PolicyManagerDeployer.contract_name: policy_txhashes,
-            MiningAdjudicatorDeployer.contract_name: adjudicator_txhashes
+            NucypherTokenDeployer.contract_name: token_txs,
+            MinerEscrowDeployer.contract_name: miner_txs,
+            PolicyManagerDeployer.contract_name: policy_txs,
+            MiningAdjudicatorDeployer.contract_name: adjudicator_txs,
+            UserEscrowProxyDeployer.contract_name: user_escrow_proxy_txs,
         }
 
-        agents = {
-            NucypherTokenDeployer.contract_name: self.token_agent,
-            MinerEscrowDeployer.contract_name: self.miner_agent,
-            PolicyManagerDeployer.contract_name: self.policy_agent,
-            MiningAdjudicatorDeployer.contract_name: self.adjudicator_agent
-        }
-
-        return txhashes, agents
+        deployers = {deployer.contract_name: deployer for deployer in deployers}
+        return txhashes, deployers
 
     def deploy_beneficiary_contracts(self,
                                      allocations: List[Dict[str, Union[str, int]]],
@@ -329,6 +327,23 @@ class Deployer(NucypherTokenActor):
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
         txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
         return txhashes
+
+    def save_deployment_receipts(self, transactions: dict) -> str:
+        filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
+        # TODO: Do not assume default config root
+        os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
+        with open(filepath, 'w') as file:
+            data = dict()
+            for contract_name, transactions in transactions.items():
+                contract_records = dict()
+                for tx_name, txhash in transactions.items():
+                    receipt = {item: str(result) for item, result in self.blockchain.wait_for_receipt(txhash).items()}
+                    contract_records.update({tx_name: receipt for tx_name in transactions})
+                data[contract_name] = contract_records
+            data = json.dumps(data, indent=4)
+            file.write(data)
+        return filepath
 
 
 class Miner(NucypherTokenActor):

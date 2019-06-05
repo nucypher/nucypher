@@ -17,6 +17,7 @@ from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
 from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 globalLogPublisher.addObserver(SimpleObserver())
 
@@ -51,6 +52,7 @@ print("Creating the Doctor ...")
 
 doctor = Bob(
     is_me=True,
+    domains={TEMPORARY_DOMAIN},
     federated_only=True,
     crypto_power_ups=power_ups,
     start_learning_now=True,

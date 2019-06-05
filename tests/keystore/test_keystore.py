@@ -43,7 +43,7 @@ def test_policy_arrangement_sqlite_keystore(test_keystore):
 
     # Test add PolicyArrangement
     new_arrangement = test_keystore.add_policy_arrangement(
-            datetime.utcnow(), b'test', arrangement_id, alice_pubkey_sig=alice_keypair_sig.pubkey,
+            datetime.utcnow(), b'test', arrangement_id, alice_verifying_key=alice_keypair_sig.pubkey,
             alice_signature=b'test'
     )
 

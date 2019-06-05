@@ -16,9 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import json
 import os
-from typing import Callable, Tuple
+from typing import Tuple
 
 from flask import Flask, Response
 from flask import request
@@ -30,23 +29,18 @@ from umbral.kfrags import KFrag
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import (FLEET_STATES_MATCH,
-                                       GLOBAL_DOMAIN,
-                                       NO_KNOWN_NODES)
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
-
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature, SignatureStamp
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
-from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -161,9 +155,8 @@ def make_rest_app(
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
         for node in nodes:
-            if GLOBAL_DOMAIN not in serving_domains:
-                if not set(serving_domains).intersection(set(node.serving_domains)):
-                    continue  # This node is not serving any of our domains.
+            if not set(serving_domains).intersection(set(node.serving_domains)):
+                continue  # This node is not serving any of our domains.
 
             if node in this_node.known_nodes:
                 if node.timestamp <= this_node.known_nodes[node.checksum_public_address].timestamp:
@@ -216,7 +209,7 @@ def make_rest_app(
             new_policy_arrangement = datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
-                alice_pubkey_sig=arrangement.alice.stamp,
+                alice_verifying_key=arrangement.alice.stamp,
                 session=session,
             )
         # TODO: Make the rest of this logic actually work - do something here
@@ -237,7 +230,7 @@ def make_rest_app(
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
-        alices_verifying_key = policy_message_kit.sender_pubkey_sig
+        alices_verifying_key = policy_message_kit.sender_verifying_key
         alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
         try:
@@ -276,7 +269,7 @@ def make_rest_app(
                 policy_arrangement = datastore.get_policy_arrangement(
                     id_as_hex.encode(), session=session)
                 alice_pubkey = UmbralPublicKey.from_bytes(
-                    policy_arrangement.alice_pubkey_sig.key_data)
+                    policy_arrangement.alice_verifying_key.key_data)
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
@@ -305,7 +298,7 @@ def make_rest_app(
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
-        verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
+        verifying_key_bytes = policy_arrangement.alice_verifying_key.key_data
 
         # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)
@@ -346,11 +339,11 @@ def make_rest_app(
     def provide_treasure_map(treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
-        treasure_map_bytes = keccak_digest(binascii.unhexlify(treasure_map_id))
+        treasure_map_index = bytes.fromhex(treasure_map_id)
 
         try:
 
-            treasure_map = this_node.treasure_maps[treasure_map_bytes]
+            treasure_map = this_node.treasure_maps[treasure_map_index]
             response = Response(bytes(treasure_map), headers=headers)
             log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
 
@@ -366,9 +359,7 @@ def make_rest_app(
         from nucypher.policy.models import TreasureMap
 
         try:
-            treasure_map = TreasureMap.from_bytes(
-                bytes_representation=request.data,
-                verify=True)
+            treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)
         except TreasureMap.InvalidSignature:
             do_store = False
         else:
@@ -376,8 +367,10 @@ def make_rest_app(
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node.stamp, treasure_map_id))
+
             # TODO 341 - what if we already have this TreasureMap?
-            this_node.treasure_maps[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
+            treasure_map_index = bytes.fromhex(treasure_map_id)
+            this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
             # TODO: Make this a proper 500 or whatever.

@@ -1,0 +1,117 @@
+- name: "Start Felix"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_felix' }}"
+  user: ubuntu
+  gather_facts: false
+
+  pre_tasks:
+    - name: "Install Python2.7 for Ansible Control"
+      raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
+    - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
+
+    - include_vars:
+        file: "{{ networks_filepath }}"
+        name: networks
+
+  tasks:
+    - name: "Register Ethereum PPA"
+      become: yes
+      become_flags: "-H -S"
+      apt_repository:
+        repo: 'ppa:ethereum/ethereum'
+        state: present
+
+    - name: "Install System Dependencies"
+      become: yes
+      become_flags: "-H -S"
+      apt:
+        name: "{{ packages }}"
+        update_cache: yes
+        state: latest
+      vars:
+        packages:
+          - python-pip
+          - python3
+          - python3-pip
+          - python3-dev
+          - python3-setuptools
+          - libffi-dev
+          - software-properties-common
+          - ethereum
+          - npm
+
+    - git:
+        repo: "{{ git_repo }}"
+        dest: ./code
+        version: "{{ git_version }}"
+
+    - pip:
+        chdir: ./code
+        name: '.'
+        editable: true
+        virtualenv: '/home/ubuntu/venv'
+        virtualenv_python: python3.6
+        virtualenv_site_packages: true
+      environment:
+        LC_ALL: en_US.UTF-8
+        LANG: en_US.UTF-8
+
+    - name: "Check if 'felix.config' Exists"
+      become: yes
+      become_flags: "-H -S"
+      stat:
+        path: "~/.local/share/nucypher/felix.config"
+      register: config_stat_result
+
+    - name: "Initialize Felix Configuration"
+      become: yes
+      become_flags: "-H -S"
+      shell: "{{ nucypher_exec }} felix init --geth --network {{ network }}"
+      environment:
+        NUCYPHER_KEYRING_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        LC_ALL: en_US.UTF-8
+        LANG: en_US.UTF-8
+      vars:
+        nucypher_exec: "/home/ubuntu/venv/bin/nucypher"
+        network: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+      when: config_stat_result.stat.exists == False
+
+    - name: "Check if 'felix.db' Exists"
+      become: yes
+      become_flags: "-H -S"
+      stat:
+        path: "~/.local/share/nucypher/felix.db"
+      register: db_stat_result
+
+    - name: "Initialize Felix Database"
+      become: yes
+      become_flags: "-H -S"
+      shell: "{{ nucypher_exec }} felix createdb --geth --network {{ network }}"
+      environment:
+        NUCYPHER_KEYRING_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        NUCYPHER_FELIX_DB_SECRET: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
+        LC_ALL: en_US.UTF-8
+        LANG: en_US.UTF-8
+      vars:
+        nucypher_exec: "/home/ubuntu/venv/bin/nucypher"
+        network: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+      when: db_stat_result.stat.exists == False
+
+    - name: "Open Felix HTTP Port"
+      become: yes
+      become_flags: "-H -S"
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ felix_http_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
+      vars:
+        felix_http_port: 6151
+
+    - name: "Render Felix's Node Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../../services/felix_faucet.j2
+        dest: /etc/systemd/system/felix_faucet.service
+        mode: 0755
+      vars:
+        keyring_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        db_secret: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
+        virtualenv_path: '/home/ubuntu/venv'
+        nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"

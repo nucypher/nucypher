@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import random
 from abc import ABC
 
@@ -102,7 +104,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})  # TODO #413: gas needed for use with geth.
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address, 'gas': 500_000})  # TODO #413: gas needed for use with geth.
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -244,7 +246,7 @@ class MinerAgent(EthereumContractAgent):
 
         miners_population = self.get_miner_population()
         if quantity > miners_population:
-            raise self.NotEnoughMiners('{} miners are available'.format(miners_population))
+            raise self.NotEnoughMiners('{} miners are available, need {} (for wiggle room)'.format(miners_population, quantity))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas

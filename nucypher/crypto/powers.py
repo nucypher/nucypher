@@ -17,11 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
+from eth_keys.exceptions import BadSignature
 from eth_utils import keccak
 from typing import List, Tuple, Optional
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -98,50 +100,29 @@ class BlockchainPower(CryptoPowerUp):
         self.account = account
         self.is_unlocked = False
 
-    def unlock_account(self, password: str, duration: int = None):
+    def unlock_account(self, password: str):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-
-        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password, duration=duration)
-
+        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password)
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
-    def sign_message(self, message: bytes):
+    def sign_message(self, message: bytes) -> bytes:
         """
         Signs the message with the private key of the BlockchainPower.
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-
-        signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return bytes(signature)
-
-    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
-        """
-        Verifies that the message was signed by the keypair.
-        """
-        # Check that address and pubkey match
-        eth_pubkey = PublicKey(pubkey)
-        signature = EthSignature(signature_bytes=signature_bytes)
-        if not eth_pubkey.to_checksum_address() == address:
-            raise ValueError("Pubkey address ({}) doesn't match the provided address ({})".format(eth_pubkey.to_checksum_address, address))
-
-        hashed_message = keccak(message)
-
-        if not self.blockchain.interface.call_backend_verify(
-                eth_pubkey, signature, hashed_message):
-            raise PowerUpError("Signature is not valid for this message or pubkey.")
-        else:
-            return True
+        signature = self.blockchain.interface.client.sign_message(self.account, message)
+        return signature
 
     def __del__(self):
         """
         Deletes the blockchain power and locks the account.
         """
-        # self.blockchain.interface.w3.personal.lockAccount(self.account) # TODO: Implement client support
+        self.blockchain.interface.client.lockAccount(self.account)
 
 
 class KeyPairBasedPower(CryptoPowerUp):

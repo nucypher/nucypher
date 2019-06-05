@@ -17,7 +17,8 @@ from nucypher.utilities.sandbox.constants import (
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    mock_primary_registry_filepath,
-                                   testerchain):
+                                   testerchain,
+                                   deploy_user_input):
 
     # Parse node addresses
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
@@ -25,7 +26,7 @@ def test_coexisting_configurations(click_runner,
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
 
                # Upgradeable Contracts
-               'NUCYPHER_MINER_ESCROW_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
+               'NUCYPHER_MINERS_ESCROW_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_POLICY_MANAGER_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_MINING_ADJUDICATOR_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_USER_ESCROW_PROXY_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
@@ -45,11 +46,13 @@ def test_coexisting_configurations(click_runner,
     deploy_args = ('contracts',
                    '--registry-outfile', mock_primary_registry_filepath,
                    '--provider-uri', TEST_PROVIDER_URI,
-                   '--deployer-address', deployer,
                    '--config-root', custom_filepath,
                    '--poa')
 
-    result = click_runner.invoke(deploy.deploy, deploy_args, input='Y', catch_exceptions=False, env=envvars)
+    result = click_runner.invoke(deploy.deploy,
+                                 deploy_args,
+                                 input=f'0\nY\nDEPLOY',  # TODO: Centralized location for intractive inputs
+                                 catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # No keys have been generated...
@@ -94,7 +97,7 @@ def test_coexisting_configurations(click_runner,
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--provider-uri', TEST_PROVIDER_URI,
-                       '--checksum-address', alice,
+                       '--pay-with', alice,
                        '--registry-filepath', mock_primary_registry_filepath,
                        '--config-root', custom_filepath)
 
@@ -193,6 +196,7 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
 
     init_args = ('ursula', 'init',
+                 '--provider-uri', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath)

@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from ipaddress import ip_address
 
 import click
-from eth_utils import is_checksum_address
+from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
@@ -28,9 +28,7 @@ class ChecksumAddress(click.ParamType):
     name = 'checksum_public_address'
 
     def convert(self, value, param, ctx):
-        if is_checksum_address(value):
-            return value
-        self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
+        return to_checksum_address(value=value)  # TODO: More robust validation here?
 
 
 class IPv4Address(click.ParamType):
@@ -48,7 +46,7 @@ class IPv4Address(click.ParamType):
 token_economics = TokenEconomics()
 
 # Staking
-STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, max=token_economics.maximum_locked_periods, clamp=False)
+STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, clamp=False)
 STAKE_EXTENSION = click.IntRange(min=1, max=token_economics.maximum_allowed_locked, clamp=False)
 STAKE_VALUE = click.IntRange(min=NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                              max=NU(token_economics.maximum_allowed_locked, 'NuNit').to_tokens(), clamp=False)

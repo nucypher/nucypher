@@ -1,14 +1,37 @@
-import os
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+
 
 import click
+import os
+import requests
 import shutil
+
 from twisted.logger import Logger
 from typing import List
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
+from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.teachers import TEACHER_NODES
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including:
@@ -33,22 +56,44 @@ LOG = Logger('cli.actions')
 console_emitter = NucypherClickConfig.emit
 
 
+class UnknownIPAddress(RuntimeError):
+    pass
+
+
 def load_seednodes(min_stake: int,
                    federated_only: bool,
+                   network_domains: set,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None
                    ) -> List[Ursula]:
 
-    teacher_nodes = list()
+    # Set domains
+    if network_domains is None:
+        from nucypher.config.node import NodeConfiguration
+        network_domains = {NodeConfiguration.DEFAULT_DOMAIN, }
+
+    teacher_nodes = list()  # Ursula
     if teacher_uris is None:
-        # Default teacher nodes can be placed here
-        return teacher_nodes
-    for uri in teacher_uris:
-        teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
-                                               min_stake=min_stake,
-                                               federated_only=federated_only,
-                                               network_middleware=network_middleware)
-        teacher_nodes.append(teacher_node)
+        teacher_uris = list()
+
+    for domain in network_domains:
+        try:
+            teacher_uris = TEACHER_NODES[domain]
+        except KeyError:
+            # TODO: If this is a unknown domain, require the caller to pass a teacher URI explicitly?
+            if not teacher_uris:
+                console_emitter(message=f"No default teacher nodes exist for the specified network: {domain}")
+
+        for uri in teacher_uris:
+            teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
+                                                   min_stake=min_stake,
+                                                   federated_only=federated_only,
+                                                   network_middleware=network_middleware)
+            teacher_nodes.append(teacher_node)
+
+    if not teacher_nodes:
+        console_emitter(message=f'WARNING - No Bootnodes Available')
+
     return teacher_nodes
 
 
@@ -71,24 +116,48 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
     return config_root
 
 
+def get_external_ip_from_centralized_source():
+    ip_request = requests.get('https://ifconfig.me/')
+    if ip_request.status_code == 200:
+        return ip_request.text
+    raise UnknownIPAddress(f"There was an error determining the IP address automatically. (status code {ip_request.status_code})")
+
+
+def determine_external_ip_address(force: bool = False) -> str:
+    try:
+        rest_host = get_external_ip_from_centralized_source()
+    except UnknownIPAddress:
+        if force:
+            raise
+    else:
+        # Interactive
+        if not force:
+            if not click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"):
+                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:", type=IPV4_ADDRESS)
+        else:
+            console_emitter(message=f"WARNING: --force is set, using auto-detected IP '{rest_host}'", color='yellow')
+
+        return rest_host
+
+
 def destroy_configuration(character_config, force: bool = False) -> None:
 
-        if not force:
-            click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
-                                                       root=character_config.config_root), abort=True)
+    if not force:
+        click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
+                                                   root=character_config.config_root), abort=True)
 
-        try:
-            character_config.destroy()
+    try:
+        character_config.destroy()
 
-        except FileNotFoundError:
-            message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
-            console_emitter(message=message, color='red')
-            character_config.log.debug(message)
-            raise click.Abort()
-        else:
-            message = "Deleted configuration files at {}".format(character_config.config_root)
-            console_emitter(message=message, color='green')
-            character_config.log.debug(message)
+    except FileNotFoundError:
+        message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
+        console_emitter(message=message, color='red')
+        character_config.log.debug(message)
+        raise click.Abort()
+    else:
+        message = "Deleted configuration files at {}".format(character_config.config_root)
+        console_emitter(message=message, color='green')
+        character_config.log.debug(message)
 
 
 def forget(configuration):

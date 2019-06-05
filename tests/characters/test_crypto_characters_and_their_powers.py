@@ -18,15 +18,17 @@ import eth_utils
 import pytest
 
 from constant_sorrow import constants
+from cryptography.exceptions import InvalidSignature
+
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto import api
+from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
                                     BlockchainPower,
                                     PowerUpError)
-from nucypher.crypto.signing import InvalidSignature
 
 """
 Chapter 1: SIGNING
@@ -69,7 +71,7 @@ def test_actor_with_signing_power_can_sign():
 
     # ...or to get the signer's public key for verification purposes.
     # (note: we use the private _der_encoded_bytes here to test directly against the API, instead of Character)
-    verification = api.ecdsa_verify(message, signature._der_encoded_bytes(),
+    verification = api.verify_ecdsa(message, signature._der_encoded_bytes(),
                                     stamp_of_the_signer.as_umbral_pubkey())
 
     assert verification is True
@@ -114,7 +116,7 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain):
+def test_character_blockchain_power(testerchain, three_agents):
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
     sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[
@@ -132,20 +134,14 @@ def test_character_blockchain_power(testerchain):
     data_to_sign = b'What does Ursula look like?!?'
     sig = power.sign_message(data_to_sign)
 
-    is_verified = power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign, sig)
+    is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
     assert is_verified is True
 
-    # Test a bad message:
-    with pytest.raises(PowerUpError):
-        power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
-
     # Test a bad address/pubkey pair
-    with pytest.raises(ValueError):
-        power.verify_message(
-            testerchain.interface.w3.eth.accounts[1],
-            sig_pubkey.to_bytes(),
-            data_to_sign,
-            sig)
+    is_verified = verify_eip_191(address=testerchain.interface.w3.eth.accounts[1],
+                                 message=data_to_sign,
+                                 signature=sig)
+    assert is_verified is False
 
     # Test a signature without unlocking the account
     power.is_unlocked = False
@@ -256,14 +252,14 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
     assert not_signature == constants.NOT_SIGNED
 
     # ...and thus, the message is not verified.
-    with pytest.raises(Character.InvalidSignature):
+    with pytest.raises(InvalidSignature):
         federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
 
 
 def test_alice_can_decrypt(federated_alice):
     label = b"boring test label"
 
-    policy_pubkey = federated_alice.get_policy_pubkey_from_label(label)
+    policy_pubkey = federated_alice.get_policy_encrypting_key_from_label(label)
 
     enrico = Enrico(policy_encrypting_key=policy_pubkey)
 

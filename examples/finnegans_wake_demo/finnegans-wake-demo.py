@@ -9,7 +9,7 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
-
+from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 ######################
 # Boring setup stuff #
@@ -31,7 +31,7 @@ globalLogPublisher.addObserver(SimpleObserver())
 # (will fail with bad connection) #####
 #######################################
 
-SEEDNODE_URI = "https://localhost:11501"
+SEEDNODE_URI = "localhost:11500"
 
 ##############################################
 # Ursula, the Untrusted Re-Encryption Proxy  #
@@ -50,6 +50,7 @@ label = b"secret/files/and/stuff"
 ######################################
 
 ALICE = Alice(network_middleware=RestMiddleware(),
+              domains={TEMPORARY_DOMAIN},
               known_nodes=[ursula],
               learn_on_same_thread=True,
               federated_only=True)
@@ -58,9 +59,10 @@ ALICE = Alice(network_middleware=RestMiddleware(),
 # From this moment on, any Data Source that knows the public key
 # can encrypt data originally intended for Alice, but that can be shared with
 # any Bob that Alice grants access.
-policy_pubkey = ALICE.get_policy_pubkey_from_label(label)
+policy_pubkey = ALICE.get_policy_encrypting_key_from_label(label)
 
 BOB = Bob(known_nodes=[ursula],
+          domains={TEMPORARY_DOMAIN},
           network_middleware=RestMiddleware(),
           federated_only=True,
           start_learning_now=True,

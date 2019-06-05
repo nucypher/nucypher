@@ -34,14 +34,14 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
-@pytest.mark.skip(reason="to be implemented")  # TODO
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
     # Monkey patch Policy Creation
-    _token_agent, _miner_agent, policy_agent = three_agents
-    policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
-    policy_agent.contract.functions.createPolicy = MockPolicyCreation
+    _token_agent, _miner_agent, _policy_agent = three_agents
+    blockchain_alice.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
+    blockchain_alice.policy_agent.contract.functions.createPolicy = MockPolicyCreation
+    MockPolicyCreation._ether_address = blockchain_alice.checksum_public_address
 
     # Setup the policy details
     n = 3
@@ -214,7 +214,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Even before creating the policies, we can know what will be its public key.
     # This can be used by Enrico (i.e., a Data Source) to encrypt messages
     # before Alice grants access to Bobs.
-    policy_pubkey = alice.get_policy_pubkey_from_label(label)
+    policy_pubkey = alice.get_policy_encrypting_key_from_label(label)
 
     # Now, let's create a policy for some Bob.
     m, n = 3, 4

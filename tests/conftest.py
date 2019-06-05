@@ -86,10 +86,22 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
+
+    #
+    # Handle slow tests marker
+    #
+
     if not config.getoption("--runslow"):  # --runslow given in cli: do not skip slow tests
         skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
+
+    #
+    # Handle Log Level
+    #
+
     log_level_name = config.getoption("--log-level", "info", skip=True)
+
     GlobalConsoleLogger.set_log_level(log_level_name)

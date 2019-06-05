@@ -1,0 +1,44 @@
+- name: "Start Felix"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_felix' }}"
+  user: ubuntu
+  gather_facts: false
+
+  pre_tasks:
+    - name: "Install Python2.7 for Ansible Control"
+      raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
+    - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
+
+    - include_vars:
+        file: "{{ networks_filepath }}"
+        name: networks
+
+  tasks:
+
+    - git:
+        repo: "{{ git_repo }}"
+        dest: ./code
+        version: "{{ git_version }}"
+
+    - name: "Open Felix HTTP Port"
+      become: yes
+      become_flags: "-H -S"
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ felix_http_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
+      vars:
+        felix_http_port: 80
+
+    - name: "Open Felix HTTP Port"
+      become: yes
+      become_flags: "-H -S"
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ felix_http_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
+      vars:
+        felix_http_port: 6151
+
+    - name: "Enable and Start Distribution"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "felix_faucet"

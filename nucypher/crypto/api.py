@@ -30,6 +30,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from eth_utils import to_checksum_address
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature
@@ -81,31 +84,43 @@ def keccak_digest(*messages: bytes) -> bytes:
     :rtype: bytes
     :return: bytestring of digested data
     """
-    hash = sha3.keccak_256()
+    _hash = sha3.keccak_256()
     for message in messages:
-        hash.update(message)
-    return hash.digest()
+        _hash.update(message)
+    return _hash.digest()
 
 
 def ecdsa_sign(message: bytes,
-               privkey: UmbralPrivateKey
+               private_key: UmbralPrivateKey
                ) -> bytes:
     """
     Accepts a hashed message and signs it with the private key given.
 
     :param message: Message to hash and sign
-    :param privkey: Private key to sign with
+    :param private_key: Private key to sign with
 
     :return: signature
     """
-    cryptography_priv_key = privkey.to_cryptography_privkey()
-    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(SHA256))
+    signing_key = private_key.to_cryptography_privkey()
+    signature_der_bytes = signing_key.sign(message, ec.ECDSA(SHA256))
     return signature_der_bytes
 
 
-def ecdsa_verify(message: bytes,
+def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+    """
+    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    """
+    signable_message = encode_defunct(primitive=message)
+    recovery = Account.recover_message(signable_message=signable_message, signature=signature)
+    recovered_address = to_checksum_address(recovery)
+
+    signature_is_valid = recovered_address == to_checksum_address(address)
+    return signature_is_valid
+
+
+def verify_ecdsa(message: bytes,
                  signature: bytes,
-                 pubkey: UmbralPublicKey
+                 public_key: UmbralPublicKey
                  ) -> bool:
     """
     Accepts a message and signature and verifies it with the
@@ -113,11 +128,11 @@ def ecdsa_verify(message: bytes,
 
     :param message: Message to verify
     :param signature: Signature to verify
-    :param pubkey: UmbralPublicKey to verify signature with
+    :param public_key: UmbralPublicKey to verify signature with
 
     :return: True if valid, False if invalid.
     """
-    cryptography_pub_key = pubkey.to_cryptography_pubkey()
+    cryptography_pub_key = public_key.to_cryptography_pubkey()
 
     try:
         cryptography_pub_key.verify(
@@ -152,7 +167,6 @@ def generate_self_signed_certificate(host: str,
     cert = cert.serial_number(x509.random_serial_number())
     cert = cert.not_valid_before(now)
     cert = cert.not_valid_after(now + datetime.timedelta(days=days_valid))
-    # TODO: What are we going to do about domain name here? 179
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.IPAddress(IPv4Address(host))]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
@@ -177,7 +191,7 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
             signature = signer(ciphertext)
         message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule,
-                                       sender_pubkey_sig=signer.as_umbral_pubkey(),
+                                       sender_verifying_key=signer.as_umbral_pubkey(),
                                        signature=signature)
     else:
         # Don't sign.

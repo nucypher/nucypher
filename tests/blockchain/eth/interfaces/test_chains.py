@@ -33,7 +33,7 @@ def another_testerchain(solidity_compiler):
                                                      provider_uri='tester://pyevm')
     testerchain = TesterBlockchain(interface=deployer_interface,
                                    test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
-                                   airdrop=True)
+                                   eth_airdrop=True)
     deployer_interface.deployer_address = testerchain.etherbase_account
     yield testerchain
     testerchain.sever_connection()

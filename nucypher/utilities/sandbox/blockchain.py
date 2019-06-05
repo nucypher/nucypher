@@ -17,10 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from functools import partial
 from typing import List, Tuple, Dict
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE, TEST_PROVIDER_ON_MAIN_PROCESS
 from twisted.logger import Logger
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
@@ -29,7 +28,6 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -38,8 +36,10 @@ from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT
-)
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -76,13 +76,19 @@ class TesterBlockchain(Blockchain):
     _FIRST_URSULA = 5
     _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
-    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
+    def __init__(self,
+                 test_accounts=None,
+                 poa=True,
+                 eth_airdrop=False,
+                 free_transactions=False,
+                 *args, **kwargs):
+
         if test_accounts is None:
             test_accounts = self._default_test_accounts
 
-        super().__init__(*args, **kwargs)
+        super().__init__(provider_process=TEST_PROVIDER_ON_MAIN_PROCESS, *args, **kwargs)
         self.log = Logger("test-blockchain")
-        self.attach_middleware(w3=self.interface.w3, poa=poa)
+        self.attach_middleware(w3=self.interface.w3, poa=poa, free_transactions=free_transactions)
 
         # Generate additional ethereum accounts for testing
         population = test_accounts
@@ -92,14 +98,14 @@ class TesterBlockchain(Blockchain):
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
-        if airdrop is True:  # ETH for everyone!
+        if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     @staticmethod
     def free_gas_price_strategy(w3, transaction_params=None):
         return 0
 
-    def attach_middleware(self, w3, poa: bool = True, free_transactions: bool = True):
+    def attach_middleware(self, w3, poa: bool = True, free_transactions: bool = False):
 
         # For use with Proof-Of-Authority test-blockchains
         if poa:
@@ -111,17 +117,38 @@ class TesterBlockchain(Blockchain):
             w3.eth.setGasPriceStrategy(self.free_gas_price_strategy)
 
     @classmethod
-    def sever_connection(cls) -> None:
-        cls._instance = NO_BLOCKCHAIN_AVAILABLE
+    def sever_connection(self) -> None:
+        Blockchain._instance = NO_BLOCKCHAIN_AVAILABLE
 
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
         """
         Generate additional unlocked accounts transferring a balance to each account on creation.
+
+        Not for use in production - For testing only.
         """
         addresses = list()
         for _ in range(quantity):
             privkey = '0x' + os.urandom(32).hex()
-            address = self.interface.provider.ethereum_tester.add_account(privkey)
+
+            # Detect provider platform - TODO: move this to interface?
+            client_version = self.interface.w3.clientVersion
+
+            if 'Geth' in client_version:
+                geth = self.interface.w3.geth
+                address = geth.personal.importRawKey(privkey, INSECURE_DEVELOPMENT_PASSWORD)
+                assert geth.personal.unlockAccount(address, INSECURE_DEVELOPMENT_PASSWORD)
+
+            elif "Parity" in client_version:
+                raise NotImplementedError("Parity providers are not implemented.")  # TODO: Implement Parity Support
+
+            elif "TestRPC" in client_version:
+                pass  # TODO: Mmm - nothing?
+
+            else:
+                # TODO: Do not fallback on tester
+                address = self.interface.provider.ethereum_tester.add_account(privkey)
+
+            # OK - keep this insecure account
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
@@ -136,7 +163,11 @@ class TesterBlockchain(Blockchain):
         tx_hashes = list()
         for address in addresses:
 
-            tx = {'to': address, 'from': coinbase, 'value': amount}
+            tx = {'to': address,
+                  'from': coinbase,
+                  'value': amount,
+                  }
+
             txhash = self.interface.w3.eth.sendTransaction(tx)
 
             _receipt = self.wait_for_receipt(txhash)
@@ -175,6 +206,9 @@ class TesterBlockchain(Blockchain):
         self.interface.w3.eth.web3.testing.mine(1)
         self.log.info("Time traveled to {}".format(end_timestamp))
 
+    def sync(self, timeout: int = 0):
+        return True
+
     @classmethod
     def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
         interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI,
@@ -191,10 +225,10 @@ class TesterBlockchain(Blockchain):
         origin = testerchain.interface.w3.eth.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
-        random_deployment_secret = partial(os.urandom, DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
-                                                              policy_secret=random_deployment_secret(),
-                                                              adjudicator_secret=random_deployment_secret())
+        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+                                                              policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                                              adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                                              user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
         return testerchain, agents
 
     @property

@@ -65,7 +65,6 @@ class MockSideChannel:
         return policy
 
 
-# @pytest.mark.slow
 @pt.inlineCallbacks
 def test_cli_lifecycle(click_runner,
                        random_policy_label,
@@ -242,11 +241,12 @@ def test_cli_lifecycle(click_runner,
         grant_args = ('--mock-networking',
                       '--json-ipc',
                       'alice', 'grant',
+                      '--network', TEMPORARY_DOMAIN,
                       '--federated-only',
                       '--teacher-uri', teacher_uri,
                       '--config-file', alice_configuration_file_location,
-                      '--m', 2,
-                      '--n', 3,
+                      '--m', 1,  # TODO: Use more than 1 of 1
+                      '--n', 1,
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
                       '--bob-verifying-key', bob_verifying_key)

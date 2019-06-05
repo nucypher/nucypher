@@ -20,7 +20,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
@@ -48,7 +48,6 @@ from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER,
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
     WebController
-from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -181,7 +180,8 @@ class Alice(Character, PolicyAuthor):
               expiration=None,
               value=None,
               handpicked_ursulas=None,
-              timeout=10):
+              timeout=10,
+              discover_on_this_thread=False):
 
         if not m:
             # TODO: get m from config  #176
@@ -205,6 +205,11 @@ class Alice(Character, PolicyAuthor):
         if handpicked_ursulas is None:
             handpicked_ursulas = set()
 
+        else:
+            # This might be the first time alice learns about the handpicked Ursulas.
+            for handpicked_ursula in handpicked_ursulas:
+                self.remember_node(node=handpicked_ursula)
+
         policy = self.create_policy(bob,
                                     label,
                                     m, n,
@@ -218,11 +223,11 @@ class Alice(Character, PolicyAuthor):
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        # TODO: 289
+        # TODO: #289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < n:
-            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True, timeout=timeout)
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=discover_on_this_thread, timeout=timeout)
             if not good_to_go:
                 raise ValueError(
                     "To make a Policy in federated mode, you need to know about "
@@ -244,7 +249,7 @@ class Alice(Character, PolicyAuthor):
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
 
-    def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:
+    def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
@@ -292,16 +297,13 @@ class Alice(Character, PolicyAuthor):
         I/O signatures match Bob's retrieve interface.
         """
 
-        cleartexts = []
-        cleartexts.append(
-            self.verify_from(
-                data_source,
-                message_kit,
-                signature=message_kit.signature,
-                decrypt=True,
-                label=label
-            )
-        )
+        cleartexts = [self.verify_from(
+            data_source,
+            message_kit,
+            signature=message_kit.signature,
+            decrypt=True,
+            label=label
+        )]
         return cleartexts
 
     def make_web_controller(drone_alice, crash_on_error: bool = False):
@@ -504,8 +506,9 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, verifying_key, label):
-        return keccak_digest(bytes(verifying_key) + self.stamp + label)
+    def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
+        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)
+        return _hrac
 
     def construct_hrac_and_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)
@@ -583,10 +586,10 @@ class Bob(Character):
             work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
-    def join_policy(self, label, alice_pubkey_sig, node_list=None, block=False):
+    def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
+        treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
@@ -705,7 +708,7 @@ class Ursula(Teacher, Character, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domains: Set = (GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
+                 domains: Set = None,  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,
@@ -714,7 +717,7 @@ class Ursula(Teacher, Character, Miner):
                  timestamp=None,
 
                  # Blockchain
-                 identity_evidence: bytes = constants.NOT_SIGNED,
+                 decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_public_address: str = None,
 
                  # Character
@@ -732,6 +735,12 @@ class Ursula(Teacher, Character, Miner):
         #
         # Character
         #
+
+        if domains is None:
+            # TODO: Clean up imports
+            from nucypher.config.node import NodeConfiguration
+            domains = (NodeConfiguration.DEFAULT_DOMAIN,)
+
         self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
@@ -756,12 +765,12 @@ class Ursula(Teacher, Character, Miner):
             if not federated_only:
                 Miner.__init__(self, is_me=is_me, checksum_address=checksum_public_address)
 
-                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
+                # Access staking node via node's transacting keys  TODO: Better handling of ephemeral staking self ursula?
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
-                self.substantiate_stamp(password=password)  # TODO: Derive from keyring
+                self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -826,12 +835,13 @@ class Ursula(Teacher, Character, Miner):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
+                         password=password,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
                          timestamp=timestamp,
-                         identity_evidence=identity_evidence,
+                         decentralized_identity_evidence=decentralized_identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
                          # FIXME: When is_me and not federated_only, the stamp is substantiated twice
                          # See line 728 above.
@@ -870,18 +880,18 @@ class Ursula(Teacher, Character, Miner):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
-        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        domains = {bytes(domain) for domain in self.serving_domains}
+        domains = {domain.encode('utf-8') for domain in self.serving_domains}
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
                                  bytes(VariableLengthBytestring.bundle(domains)),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
-                                 bytes(identity_evidence),
+                                 bytes(decentralized_identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
@@ -997,7 +1007,8 @@ class Ursula(Teacher, Character, Miner):
         if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_address == potential_seed_node.checksum_public_address:
-                template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
+                template = "This seed node has a different wallet address: {} (expected {}). " \
+                           " Are you sure this is a seednode?"
                 raise potential_seed_node.SuspiciousActivity(
                     template.format(potential_seed_node.checksum_public_address,
                                     checksum_address))
@@ -1030,7 +1041,7 @@ class Ursula(Teacher, Character, Miner):
             domains=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            identity_evidence=VariableLengthBytestring,
+            decentralized_identity_evidence=VariableLengthBytestring,
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
@@ -1044,6 +1055,7 @@ class Ursula(Teacher, Character, Miner):
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
                    ) -> 'Ursula':
+
         if version is INCLUDED_IN_BYTESTRING:
             version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
         else:
@@ -1051,16 +1063,18 @@ class Ursula(Teacher, Character, Miner):
 
         # Check version and raise IsFromTheFuture if this node is... you guessed it...
         if version > cls.LEARNER_VERSION:
-            # TODO: Some auto-updater logic?
+
+            # Try to handle failure, even during failure, graceful degradation
+            # TODO: #154 - Some auto-updater logic?
+
             try:
                 canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
                 checksum_address = to_checksum_address(canonical_address)
                 nickname, _ = nickname_from_seed(checksum_address)
-                display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
+                display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-
             raise cls.IsFromTheFuture(message)
 
         # Version stuff checked out.  Moving on.
@@ -1074,7 +1088,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
 
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
-        node_info['domains'] = set(constant_or_bytes(d) for d in domains_vbytes)
+        node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
         ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
         return ursula
@@ -1199,7 +1213,7 @@ class Enrico(Character):
         :param label: The label with which to derive the key.
         :return:
         """
-        policy_pubkey_enc = alice.get_policy_pubkey_from_label(label)
+        policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
         return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
                    policy_encrypting_key=policy_pubkey_enc)
 

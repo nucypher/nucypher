@@ -51,11 +51,19 @@ def select_test_port() -> int:
         return port
 
 
-MOCK_POLICY_DEFAULT_M = 3
+#
+# Ursula
+#
 
 MOCK_URSULA_STARTING_PORT = select_test_port()
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
+
+NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
+
+NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + 10
+
+NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 
 
 #
@@ -64,29 +72,31 @@ MOCK_KNOWN_URSULAS_CACHE = dict()
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
-NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS = 10
+MAX_TEST_SEEDER_ENTRIES = 20
 
-NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + 10
-
-NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = NU(1_000_000, 'NU')
 
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
-MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(32)
+NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
 
-POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(32)
 
-MINING_ADJUDICATOR_DEPLOYMENT_SECRET = os.urandom(32)
-
-USER_ESCROW_PROXY_DEPLOYMENT_SECRET = os.urandom(32)
+#
+# Insecure Secrets
+#
 
 INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(ascii_uppercase + digits) for _ in range(16))
 
-MAX_TEST_SEEDER_ENTRIES = 20
+MINERS_ESCROW_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
 
-ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
+POLICY_MANAGER_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
+
+USER_ESCROW_PROXY_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
+
+MINING_ADJUDICATOR_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(16))
+
 
 #
 # Temporary Directories and Files
@@ -106,7 +116,7 @@ MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(ti
 
 MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
 
-TEMPORARY_DOMAIN = b':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
+TEMPORARY_DOMAIN = ':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
 
 GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth --dev`
 
@@ -119,10 +129,18 @@ TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 # Node Configuration
 #
 
+MOCK_POLICY_DEFAULT_M = 3
+
 MOCK_IP_ADDRESS = '0.0.0.0'
 
 MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
-PYEVM_GAS_LIMIT = 8_000_000  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
+#
+# Gas
+#
+
+TEST_GAS_LIMIT = 8_000_000
+
+PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?

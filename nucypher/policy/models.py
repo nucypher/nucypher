@@ -88,9 +88,9 @@ class Arrangement:
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
+        alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys(verifying_key=alice_pubkey_sig)
+        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
@@ -456,7 +456,7 @@ class TreasureMap:
 
     @property
     def _verifying_key(self):
-        return self.message_kit.sender_pubkey_sig
+        return self.message_kit.sender_verifying_key
 
     @property
     def m(self):
@@ -490,7 +490,8 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
-        return keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
+        _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
+        return _id
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
@@ -642,13 +643,13 @@ class WorkOrder:
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
 
-        signature, bob_pubkey_sig, (tasks_bytes, blockhash) = payload_elements
+        signature, bob_verifying_key, (tasks_bytes, blockhash) = payload_elements
 
         # TODO: check freshness of blockhash?
 
         # Check receipt
         receipt_bytes = b"wo:" + ursula_pubkey_bytes + msgpack.dumps(tasks_bytes)
-        if not signature.verify(receipt_bytes, bob_pubkey_sig):
+        if not signature.verify(receipt_bytes, bob_verifying_key):
             raise InvalidSignature()
 
         tasks = []
@@ -658,10 +659,10 @@ class WorkOrder:
 
             # Each task signature has to match the original specification
             specification = task.get_specification(ursula_pubkey_bytes, alice_address, blockhash)
-            if not task.signature.verify(specification, bob_pubkey_sig):
+            if not task.signature.verify(specification, bob_verifying_key):
                 raise InvalidSignature()
 
-        bob = Bob.from_public_keys(verifying_key=bob_pubkey_sig)
+        bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
                    arrangement_id=arrangement_id,
                    tasks=tasks,

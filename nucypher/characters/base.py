@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from contextlib import suppress
+import contextlib
 from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Union, List
@@ -28,18 +27,20 @@ from constant_sorrow.constants import (
     NO_DECRYPTION_PERFORMED,
     NO_NICKNAME,
     NO_SIGNING_POWER,
-    NO_WSGI_APP,
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT,
     STRANGER,
+    FEDERATED_ONLY
 )
+from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -61,15 +62,16 @@ class Character(Learner):
     A base-class for any character in our cryptography protocol narrative.
     """
 
+    _display_name_template = "({})⇀{}↽ ({})"  # Used in __repr__ and in cls.from_bytes
     _default_crypto_powerups = None
     _stamp = None
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-    from nucypher.crypto.signing import InvalidSignature
+    from nucypher.crypto.signing import InvalidSignature  # TODO: Restore nucypher Signing exceptions
 
     def __init__(self,
-                 domains: Set = (GLOBAL_DOMAIN,),
+                 domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
@@ -104,7 +106,6 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-
         self.federated_only = federated_only  # type: bool
 
         #
@@ -122,12 +123,23 @@ class Character(Learner):
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
         self._checksum_address = checksum_public_address
+
+        # Fleet and Blockchain Connection (Everyone)
+        if not domains:
+            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
+
+        # Needed for on-chain verification
+        if not self.federated_only:
+            self.blockchain = blockchain or Blockchain.connect()
+            self.miner_agent = MinerAgent(blockchain=blockchain)
+        else:
+            self.blockchain = FEDERATED_ONLY
+            self.miner_agent = FEDERATED_ONLY
+
         #
         # Self-Character
         #
         if is_me is True:
-            if not self.federated_only:
-                self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
             self.treasure_maps = {}  # type: dict
@@ -215,7 +227,7 @@ class Character(Learner):
         return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
-        r = "({})⇀{}↽ ({})"
+        r = self._display_name_template
         try:
             r = r.format(self.__class__.__name__, self.nickname, self.checksum_public_address)
         except NoSigningPower:  # TODO: ....yeah?
@@ -353,38 +365,55 @@ class Character(Learner):
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
+        :param label: A label used for decrypting messages encrypted under its associated policy encrypting key
 
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
-        sender_pubkey_sig = stranger.stamp.as_umbral_pubkey()
-        with suppress(AttributeError):
-            if message_kit.sender_pubkey_sig:
-                if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
-                    raise ValueError(
-                        "This MessageKit doesn't appear to have come from {}".format(stranger))
+
+        #
+        # Optional Sanity Check
+        #
+
+        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
+        # If the higher-order object MessageKit is passed, we can perform an additional
+        # eager sanity check before performing decryption.
+
+        with contextlib.suppress(AttributeError):
+            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
+            if message_kit.sender_verifying_key:
+                if not message_kit.sender_verifying_key == sender_verifying_key:
+                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
+
+        #
+        # Decrypt
+        #
 
         signature_from_kit = None
-
         if decrypt:
 
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
-                                                     label=label)
+            cleartext_with_sig_header = self.decrypt(message_kit=message_kit, label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+
             if sig_header == SIGNATURE_IS_ON_CIPHERTEXT:
-                # THe ciphertext is what is signed - note that for later.
+                # The ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
                 if not signature:
                     raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
+
             elif sig_header == SIGNATURE_TO_FOLLOW:
                 # The signature follows in this cleartext - split it off.
-                signature_from_kit, cleartext = signature_splitter(cleartext,
-                                                                   return_remainder=True)
+                signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
                 message = cleartext
+
         else:
             # Not decrypting - the message is the object passed in as a message kit.  Cast it.
             message = bytes(message_kit)
             cleartext = NO_DECRYPTION_PERFORMED
+
+        #
+        # Verify Signature
+        #
 
         if signature and signature_from_kit:
             if signature != signature_from_kit:
@@ -392,14 +421,12 @@ class Character(Learner):
                     "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
 
         signature_to_use = signature or signature_from_kit
-
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_pubkey_sig)
+            is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
             if not is_valid:
-                raise stranger.InvalidSignature(
-                    "Signature for message isn't valid: {}".format(signature_to_use))
+                raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
         else:
-            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+            raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
         return cleartext
 

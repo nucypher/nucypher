@@ -48,52 +48,6 @@
         name: pm2
         global: yes
 
-    - name: "Render Genesis Configuration"
-      become: yes
-      become_flags: "-H -S"
-      template:
-        src: ./files/genesis.j2
-        dest: /home/ubuntu/genesis.json
-        mode: 0755
-
-    - name: "Create Custom Blockchain Data Directory"
-      file:
-        path: /home/ubuntu/chaindata
-        state: directory
-        mode: 0755
-
-    - name: "Learn About Existing Accounts"
-      shell: geth account list --datadir {{datadir}}
-      register: geth_accounts
-      vars:
-        datadir: "/home/ubuntu/chaindata"
-
-    - name: "Generate Geth Password"
-      shell: head -c 32 /dev/urandom | sha256sum | awk '{print $1}'
-      register: geth_password
-
-    - name: "Generate Password File"
-      become: yes
-      become_flags: "-H -S"
-      shell: "echo {{ geth_password }} > ./password.txt"
-      when: "'Account' not in geth_accounts.stdout"
-
-    - name: "Create Geth Account"
-      become: yes
-      become_flags: "-H -S"
-      shell: geth account new --datadir /home/ubuntu/chaindata --password ./password.txt
-      register: new_geth_account
-      when: "'Account' not in geth_accounts.stdout"
-
-    - name: "Initialize New Blockchain - Awh"
-      become: yes
-      become_flags: "-H -S"
-      shell: geth --datadir {{datadir}} --networkid {{networkid}} init {{genesis_file}}
-      vars:
-        networkid: "112358"
-        datadir: "/home/ubuntu/chaindata"
-        genesis_file: "/home/ubuntu/genesis.json"
-
     - name: "Render Geth Node Service"
       become: yes
       become_flags: "-H -S"
@@ -102,11 +56,11 @@
         dest: /etc/systemd/system/geth_miner.service
         mode: 0755
       vars:
-        etherbase: "0"
         datadir: "/home/ubuntu/chaindata"
         networkid: "112358"
+        rpchost: "localhost"
         syncmode: "full"
-        nickname: "testnet-miner-{{ inventory_hostname }}"
+        nickname: "NuCypher-Testnet-{{ hostvars[inventory_hostname].ec2_tag_Name }}"
         eth_netstats_secret: "{{ lookup('env', 'ETH_NETSTATS_SECRET') }}"
         eth_netstats_ip: "{{ hostvars[groups['tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_eth_netstats'][0]].ansible_host }}"
         eth_netstats_port: "3000"

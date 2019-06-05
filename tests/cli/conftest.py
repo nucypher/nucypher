@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import os
+import shutil
 
 import pytest
-import shutil
 from click.testing import CliRunner
 
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -30,15 +30,27 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ALLOCATION_INFILE,
     MOCK_REGISTRY_FILEPATH,
-    ONE_YEAR_IN_SECONDS
-)
-from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2
+    ONE_YEAR_IN_SECONDS,
+    MINERS_ESCROW_DEPLOYMENT_SECRET,
+    POLICY_MANAGER_DEPLOYMENT_SECRET,
+    MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
 def click_runner():
     runner = CliRunner()
     yield runner
+
+
+@pytest.fixture(scope='session')
+def deploy_user_input():
+    account_index = '0\n'
+    yes = 'Y\n'
+    deployment_secret = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    user_input = account_index + yes + (deployment_secret * 8) + 'DEPLOY'
+    return user_input
 
 
 @pytest.fixture(scope='module')
@@ -52,11 +64,15 @@ def nominal_federated_configuration_fields():
 
 @pytest.fixture(scope='module')
 def mock_allocation_infile(testerchain, token_economics):
-    accounts = testerchain.interface.w3.eth.accounts[5::]
-    allocation_data = [{'address': addr, 'amount': token_economics.maximum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS} for addr in accounts]
+    accounts = testerchain.unassigned_accounts
+    allocation_data = [{'address': addr,
+                        'amount': token_economics.minimum_allowed_locked,
+                        'duration': ONE_YEAR_IN_SECONDS}
+                       for addr in accounts]
+
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
+
     registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_INFILE)
     yield registry
     os.remove(MOCK_ALLOCATION_INFILE)
@@ -91,6 +107,41 @@ def custom_filepath_2():
     finally:
         with contextlib.suppress(FileNotFoundError):
             shutil.rmtree(_custom_filepath, ignore_errors=True)
+
+
+@pytest.fixture(scope='session')
+def deployed_blockchain(token_economics):
+
+    # Interface
+    compiler = SolidityCompiler()
+    registry = InMemoryEthereumContractRegistry()
+    allocation_registry = InMemoryAllocationRegistry()
+    interface = BlockchainDeployerInterface(compiler=compiler,
+                                            registry=registry,
+                                            provider_uri=TEST_PROVIDER_URI)
+
+    # Blockchain
+    blockchain = TesterBlockchain(interface=interface, eth_airdrop=True, test_accounts=5, poa=True)
+    deployer_address = blockchain.etherbase_account
+
+    # Deployer
+    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+
+    # The Big Three (+ Dispatchers)
+    deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+                                      policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                      user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+
+    # Start with some hard-coded cases...
+    all_yall = blockchain.unassigned_accounts
+    allocation_data = [{'address': all_yall[1],
+                        'amount': token_economics.maximum_allowed_locked,
+                        'duration': ONE_YEAR_IN_SECONDS}]
+
+    deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
+
+    yield blockchain, deployer_address, registry
 
 
 @pytest.fixture(scope='module')

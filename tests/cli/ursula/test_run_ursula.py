@@ -15,15 +15,22 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest_twisted as pt
 import time
+
+import pytest
+import pytest_twisted as pt
 from twisted.internet import threads
 
 from nucypher.characters.base import Learner
+from nucypher.cli import actions
+from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
-    MOCK_URSULA_STARTING_PORT, TEMPORARY_DOMAIN
+from nucypher.utilities.sandbox.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_URSULA_STARTING_PORT,
+    TEMPORARY_DOMAIN
+)
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -108,3 +115,59 @@ def test_ursula_cannot_init_with_dev_flag(click_runner):
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 2
     assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
+
+
+def test_ursula_rest_host_determination(click_runner):
+
+    # Patch the get_external_ip call
+    original_call = actions.get_external_ip_from_centralized_source
+    try:
+        actions.get_external_ip_from_centralized_source = lambda: '192.0.2.0'
+
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN
+                )
+
+        user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                     input=user_input)
+
+        assert result.exit_code == 0
+        assert '(192.0.2.0)' in result.output
+
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN,
+                '--force'
+                )
+
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False,
+                                     input=user_input)
+
+        assert result.exit_code == 0
+        assert '192.0.2.0' in result.output
+
+        # Patch get_external_ip call to error output
+        def amazing_ip_oracle():
+            raise UnknownIPAddress
+        actions.get_external_ip_from_centralized_source = amazing_ip_oracle
+
+        args = ('ursula', 'init',
+                '--federated-only',
+                '--network', TEMPORARY_DOMAIN,
+                '--force'
+                )
+
+        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}\n'
+
+        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=user_input)
+        assert result.exit_code == 1
+        assert isinstance(result.exception, UnknownIPAddress)
+
+    finally:
+        # Unpatch call
+        actions.get_external_ip_from_centralized_source = original_call

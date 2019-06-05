@@ -17,31 +17,37 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import random
+import time
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
-
 from typing import Set, Tuple
 
 import maya
 import requests
-import time
+from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import (
+    NO_KNOWN_NODES,
+    NOT_SIGNED,
+    NEVER_SEEN,
+    NO_STORAGE_AVAILIBLE,
+    FLEET_STATES_MATCH,
+    CERTIFICATE_NOT_SAVED,
+    UNKNOWN_FLEET_STATE
+)
 from cryptography.x509 import Certificate
-from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
-from bytestring_splitter import BytestringSplitter
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
-from nucypher.config.constants import SeednodeMetadata, GLOBAL_DOMAIN
+from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.api import keccak_digest, verify_eip_191, verify_ecdsa
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -262,7 +268,7 @@ class Learner:
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetStateTracker
 
-    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
+    invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
@@ -323,11 +329,10 @@ class Learner:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         known_nodes = known_nodes or tuple()
-        self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
+        self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(
-                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(node)
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -385,8 +390,8 @@ class Learner:
             self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
-    def read_nodes_from_storage(self) -> set:
-        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
+    def read_nodes_from_storage(self) -> None:
+        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
         for node in stored_nodes:
             self.remember_node(node)
 
@@ -420,8 +425,7 @@ class Learner:
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,
-                             # TODO: 466 - move federated-only up to Learner?
+                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
                              )
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
@@ -701,10 +705,13 @@ class Learner:
             announce_nodes = None
 
         unresponsive_nodes = set()
+
+        #
+        # Request
+        #
+
         try:
-            # TODO: Streamline path generation
-            certificate_filepath = self.node_storage.generate_certificate_filepath(
-                checksum_address=current_teacher.checksum_public_address)
+
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -713,10 +720,10 @@ class Learner:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
             return
+
         finally:
             self.cycle_teacher_node()
 
-        #
         # Before we parse the response, let's handle some edge cases.
         if response.status_code == 204:
             # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
@@ -729,6 +736,11 @@ class Learner:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
+        #
+        # Deserialize
+        #
+
+        # TODO #1039 - Causes protocol versioning checks to fail in-test when using an unsigned Response
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
         except BytestringSplittingError as e:
@@ -740,12 +752,12 @@ class Learner:
         except current_teacher.InvalidSignature:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
-        # End edge case handling.
-        #
 
+        # End edge case handling.
         fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
             node_payload,
             return_remainder=True)
+
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.
         checksum = fleet_state_checksum_bytes.hex()
@@ -754,25 +766,20 @@ class Learner:
         from nucypher.characters.lawful import Ursula
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             current_teacher.update_snapshot(checksum=checksum,
-                                            updated=maya.MayaDT(
-                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                            number_of_known_nodes=len(self.known_nodes)
-                                            )
+                                            updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                            number_of_known_nodes=len(self.known_nodes))
             return FLEET_STATES_MATCH
 
         node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
 
         current_teacher.update_snapshot(checksum=checksum,
-                                        updated=maya.MayaDT(
-                                            int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(node_list)
-                                        )
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
+                                        number_of_known_nodes=len(node_list))
 
         new_nodes = []
         for node in node_list:
-            if GLOBAL_DOMAIN not in self.learning_domains:
-                if not set(self.learning_domains).intersection(set(node.serving_domains)):
-                    continue  # This node is not serving any of our domains.
+            if not set(self.learning_domains).intersection(set(node.serving_domains)):
+                continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
             with suppress(KeyError):
@@ -782,8 +789,11 @@ class Learner:
                     # This node is already known.  We can safely continue to the next.
                     continue
 
-            certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+            #
+            # Verify Node
+            #
 
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
             try:
                 if eager:
                     node.verify_node(self.network_middleware,
@@ -793,28 +803,54 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
-            # This block is a mess of eagerness.  This can all be done better lazily.
+
+            #
+            # Report Failure
+            #
+
             except NodeSeemsToBeDown as e:
-                self.log.info(f"Can't connect to {node} to verify it right now.")
+                self.log.info(f"Verification Failed - "
+                              f"Cannot establish connection to {node}.")
+
+            except node.StampNotSigned:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} stamp is unsigned.')
+
+            except node.NotStaking:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} has no active stakes in the current period ({self.miner_agent.get_current_period()}')
+
+            except node.InvalidWalletSignature:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} has an invalid wallet signature for {node.checksum_public_address}')
+
             except node.InvalidNode:
-                # TODO: Account for possibility that stamp, rather than interface, was bad.
                 self.log.warn(node.invalid_metadata_message.format(node))
+
             except node.SuspiciousActivity:
-                message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}".format(current_teacher.checksum_public_address, teacher_uri)
+                message = f"Suspicious Activity: Discovered node with bad signature: {node}." \
+                          f"Propagated by: {current_teacher}"
                 self.log.warn(message)
+
+            #
+            # Success
+            #
+
             else:
                 new = self.remember_node(node, record_fleet_state=False)
                 if new:
                     new_nodes.append(node)
 
-        self._adjust_learning(new_nodes)
+        #
+        # Continue
+        #
 
+        self._adjust_learning(new_nodes)
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
                                                         len(node_list),
-                                                        len(new_nodes)), )
+                                                        len(new_nodes)))
         if new_nodes:
             self.known_nodes.record_fleet_state()
             for node in new_nodes:
@@ -823,10 +859,8 @@ class Learner:
 
 
 class Teacher:
+
     TEACHER_VERSION = LEARNING_LOOP_VERSION
-    verified_stamp = False
-    verified_interface = False
-    _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("teacher")
     __DEFAULT_MIN_SEED_STAKE = 0
@@ -837,38 +871,63 @@ class Teacher:
                  certificate_filepath: str,
                  interface_signature=NOT_SIGNED.bool_value(False),
                  timestamp=NOT_SIGNED,
-                 identity_evidence=NOT_SIGNED,
+                 decentralized_identity_evidence=NOT_SIGNED,
                  substantiate_immediately=False,
-                 passphrase=None,
+                 password=None,
                  ) -> None:
 
+        #
+        # Fleet
+        #
+
         self.serving_domains = domains
-        self.certificate = certificate
-        self.certificate_filepath = certificate_filepath
-        self._interface_signature_object = interface_signature
-        self._timestamp = timestamp
-        self.last_seen = NEVER_SEEN("Haven't connected to this node yet.")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
-        self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
+        self.last_seen = NEVER_SEEN("No Connection to Node")
+
+        self.fleet_state_icon = UNKNOWN_FLEET_STATE
+        self.fleet_state_nickname = UNKNOWN_FLEET_STATE
+        self.fleet_state_nickname_metadata = UNKNOWN_FLEET_STATE
+
+        #
+        # Identity
+        #
+
+        self._timestamp = timestamp
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
+        self.__interface_signature = interface_signature
+        self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
+
+        # Assume unverified
+        self.verified_stamp = False
+        self.verified_worker = False
+        self.verified_interface = False
+        self.verified_node = False
 
         if substantiate_immediately:
-            self.substantiate_stamp(password=passphrase)  # TODO: Derive from keyring
+            self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
-        """
-        Raised when a node has an invalid characteristic - stamp, interface, or address.
-        """
+        """Raised when a node has an invalid characteristic - stamp, interface, or address."""
+
+    class InvalidStamp(InvalidNode):
+        """Base exception class for invalid character stamps"""
+
+    class StampNotSigned(InvalidStamp):
+        """Raised when a node does not have a stamp signature when one is required for verification"""
+
+    class InvalidWalletSignature(InvalidStamp):
+        """Raised when a stamp fails signature verification or recovers an unexpected wallet address"""
+
+    class NotStaking(InvalidStamp):
+        """Raised when a node fails verification because it is not currently staking"""
 
     class WrongMode(TypeError):
-        """
-        Raised when a Character tries to use another Character as decentralized when the latter is federated_only.
-        """
+        """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
 
     class IsFromTheFuture(TypeError):
-        """
-        Raised when deserializing a Character from a future version.
-        """
+        """Raised when deserializing a Character from a future version."""
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
@@ -893,8 +952,17 @@ class Teacher:
         return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
 
     def update_snapshot(self, checksum, updated, number_of_known_nodes):
-        # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
-        # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
+        """
+        TODO: We update the simple snapshot here, but of course if we're dealing
+              with an instance that is also a Learner, it has
+              its own notion of its FleetState, so we probably
+              need a reckoning of sorts here to manage that.  In time.
+
+        :param checksum:
+        :param updated:
+        :param number_of_known_nodes:
+        :return:
+        """
         self.fleet_state_nickname, self.fleet_state_nickname_metadata = nickname_from_seed(checksum, number_of_pairs=1)
         self.fleet_state_checksum = checksum
         self.fleet_state_updated = updated
@@ -906,46 +974,71 @@ class Teacher:
     # Stamp
     #
 
-    def _stamp_has_valid_wallet_signature(self):
-        signature_bytes = self._evidence_of_decentralized_identity
-        if signature_bytes is NOT_SIGNED:
+    def _stamp_has_valid_wallet_signature(self) -> bool:
+        """Off-chain Signature Verification of ethereum client signature of stamp"""
+        if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
+        signature_is_valid = verify_eip_191(message=bytes(self.stamp),
+                                            signature=self.__decentralized_identity_evidence,
+                                            address=self.checksum_public_address)
+        return signature_is_valid
 
-        signature = EthSignature(signature_bytes)
-        proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
-        proper_address = proper_pubkey.to_checksum_address()
-        return proper_address == self.checksum_public_address
+    def _is_valid_worker(self) -> bool:
+        """
+        This method assumes the stamp's signature is valid and accurate.
+        As a follow-up, validate the Staker and Worker on-chain.
 
-    def stamp_is_valid(self):
+        TODO: #1033 - Verify Staker <-> Worker relationship on-chain
         """
-        :return:
-        """
-        signature = self._evidence_of_decentralized_identity
-        if self._stamp_has_valid_wallet_signature():
-            self.verified_stamp = True
-            return True
-        elif self.federated_only and signature is NOT_SIGNED:
-            message = "This node can't be verified in this manner, " \
-                      "but is OK to use in federated mode if you" \
-                      " have reason to believe it is trustworthy."
+        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
+        return locked_tokens > 0
+
+    def validate_stamp(self, verify_staking: bool = True) -> None:
+
+        # Federated
+        if self.federated_only:
+            message = "This node cannot be verified in this manner, " \
+                      "but is OK to use in federated mode if you "    \
+                      "have reason to believe it is trustworthy."
             raise self.WrongMode(message)
+
+        # Decentralized
         else:
-            raise self.InvalidNode
 
-    def verify_id(self, ursula_id, digest_factory=bytes):
-        self.verify()
-        if not ursula_id == digest_factory(self.canonical_public_address):
-            raise self.InvalidNode
+            if self.__decentralized_identity_evidence is NOT_SIGNED:
+                raise self.StampNotSigned
 
-    def validate_metadata(self, accept_federated_only=False):
+            # Off-chain signature verification
+            if not self._stamp_has_valid_wallet_signature():
+                raise self.InvalidWalletSignature
+
+            # On-chain staking check
+            if verify_staking:
+                if self._is_valid_worker():  # <-- Blockchain CALL
+                    self.verified_worker = True
+                else:
+                    raise self.NotStaking
+
+            self.verified_stamp = True
+
+    def validate_metadata(self,
+                          accept_federated_only: bool = False,
+                          verify_staking: bool = True):
+
+        # Verify the interface signature
         if not self.verified_interface:
-            self.interface_is_valid()
-        if not self.verified_stamp:
-            try:
-                self.stamp_is_valid()
-            except self.WrongMode:
-                if not accept_federated_only:
-                    raise
+            self.validate_interface()
+
+        # Verify the identity evidence
+        if self.verified_stamp:
+            return
+
+        # Offline check of valid stamp signature by worker
+        try:
+            self.validate_stamp(verify_staking=verify_staking)
+        except self.WrongMode:
+            if not accept_federated_only:
+                raise
 
     def verify_node(self,
                     network_middleware,
@@ -956,59 +1049,73 @@ class Teacher:
         """
         Three things happening here:
 
-        * Verify that the stamp matches the address (raises InvalidNode is it's not valid, or WrongMode if it's a federated mode and being verified as a decentralized node)
+        * Verify that the stamp matches the address (raises InvalidNode is it's not valid,
+          or WrongMode if it's a federated mode and being verified as a decentralized node)
+
         * Verify the interface signature (raises InvalidNode if not valid)
-        * Connect to the node, make sure that it's up, and that the signature and address we checked are the same ones this node is using now. (raises InvalidNode if not valid; also emits a specific warning depending on which check failed).
+
+        * Connect to the node, make sure that it's up, and that the signature and address we
+          checked are the same ones this node is using now. (raises InvalidNode if not valid;
+          also emits a specific warning depending on which check failed).
+
         """
-        if not force:
-            if self._verified_node:
-                return True
 
-        self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
+        # Only perform this check once per object
+        if not force and self.verified_node:
+            return True
 
+        # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
+        self.validate_metadata(accept_federated_only=accept_federated_only)
+
+        # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
-
-            if not self.certificate_filepath:
+            if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
                 raise TypeError("We haven't saved a certificate for this node yet.")
             else:
                 certificate_filepath = self.certificate_filepath
 
-        # The node's metadata is valid; let's be sure the interface is in order.
         response_data = network_middleware.node_information(host=self.rest_information()[0].host,
                                                             port=self.rest_information()[0].port,
                                                             certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
-
         node_details = self.internal_splitter(node_bytes)
-        # TODO check timestamp here.  589
+        # TODO: #589 - check timestamp here.
 
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
         addresses_match = node_details['public_address'] == self.canonical_public_address
-        evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
+        evidence_matches = node_details['decentralized_identity_evidence'] == self.__decentralized_identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
-            # TODO: Optional reporting.  355
+            # Failure
             if not addresses_match:
                 self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
             if not verifying_keys_match:
                 self.log.warn("Verifying key swapped out.  It appears that someone is impersonating this node.")
-            raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
-        else:
-            self._verified_node = True
 
-    def substantiate_stamp(self, password: str):
+            # TODO: #355 - Optional reporting.
+            raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
+
+        else:
+            # Success
+            self.verified_node = True
+
+    @property
+    def decentralized_identity_evidence(self):
+        return self.__decentralized_identity_evidence
+
+    def substantiate_stamp(self, client_password: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=password)  # TODO: 349
+        blockchain_power.unlock_account(password=client_password)  # TODO: #349
         signature = blockchain_power.sign_message(bytes(self.stamp))
-        self._evidence_of_decentralized_identity = signature
+        self.__decentralized_identity_evidence = signature
 
     #
     # Interface
     #
 
-    def interface_is_valid(self):
+    def validate_interface(self) -> bool:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
@@ -1028,16 +1135,16 @@ class Teacher:
     def _sign_and_date_interface_info(self):
         message = self._signable_interface_info_message()
         self._timestamp = maya.now()
-        self._interface_signature_object = self.stamp(self.timestamp_bytes() + message)
+        self.__interface_signature = self.stamp(self.timestamp_bytes() + message)
 
     @property
     def _interface_signature(self):
-        if not self._interface_signature_object:
+        if not self.__interface_signature:
             try:
                 self._sign_and_date_interface_info()
             except NoSigningPower:
                 raise NoSigningPower("This Ursula is a stranger and cannot be used to verify.")
-        return self._interface_signature_object
+        return self.__interface_signature
 
     @property
     def timestamp(self):

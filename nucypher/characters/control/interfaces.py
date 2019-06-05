@@ -83,7 +83,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         return response_data
 
     def derive_policy_encrypting_key(self, label: bytes) -> dict:
-        policy_encrypting_key = self.character.get_policy_pubkey_from_label(label)
+        policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data
 
@@ -133,11 +133,11 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         from nucypher.characters.lawful import Enrico
 
-        policy_encrypting_key = self.character.get_policy_pubkey_from_label(label)
+        policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         data_source = Enrico.from_public_keys(
-            verifying_key=message_kit.sender_pubkey_sig,
+            verifying_key=message_kit.sender_verifying_key,
             policy_encrypting_key=policy_encrypting_key,
             label=label
         )
@@ -169,7 +169,7 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.bob.join_policy(label=label, alice_pubkey_sig=alice_verifying_key)
+        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
         response = dict()  # {'policy_encrypting_key': ''}  # FIXME
         return response
 
@@ -184,17 +184,17 @@ class BobInterface(CharacterPublicInterface, BobSpecification):
         from nucypher.characters.lawful import Enrico
 
         policy_encrypting_key = UmbralPublicKey.from_bytes(policy_encrypting_key)
-        alice_pubkey_sig = UmbralPublicKey.from_bytes(alice_verifying_key)
+        alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key)
         message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_pubkey_sig,
+        data_source = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                               policy_encrypting_key=policy_encrypting_key,
                                               label=label)
 
-        self.bob.join_policy(label=label, alice_pubkey_sig=alice_pubkey_sig)
+        self.bob.join_policy(label=label, alice_verifying_key=alice_verifying_key)
         plaintexts = self.bob.retrieve(message_kit=message_kit,
                                        data_source=data_source,
-                                       alice_verifying_key=alice_pubkey_sig,
+                                       alice_verifying_key=alice_verifying_key,
                                        label=label)
 
         response_data = {'cleartexts': plaintexts}

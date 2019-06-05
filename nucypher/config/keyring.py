@@ -18,10 +18,11 @@ import base64
 import contextlib
 import json
 import os
-import shutil
 import stat
 from json import JSONDecodeError
+from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
+from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -37,14 +38,19 @@ from eth_utils import to_checksum_address, is_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
-from typing import ClassVar, Tuple, Callable, Union, Dict, List
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from constant_sorrow.constants import KEYRING_LOCKED
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
-from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
+from nucypher.crypto.powers import (
+    SigningPower,
+    DecryptingPower,
+    KeyPairBasedPower,
+    DerivedKeyBasedPower,
+    BlockchainPower
+)
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
@@ -64,6 +70,10 @@ __PUBLIC_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o6
 __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = BLAKE2B
+
+
+class PrivateKeyExistsError(RuntimeError):
+    pass
 
 
 def unlock_required(func):
@@ -123,6 +133,8 @@ def _write_private_keyfile(keypath: str,
     ---------------------------------------------------------------------
     """
 
+    if os.path.isfile(keypath):
+        raise PrivateKeyExistsError(f"Private keyfile {keypath} already exists.")
     try:
         keyfile_descriptor = os.open(keypath, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
     finally:
@@ -494,6 +506,9 @@ class NucypherKeyring:
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 
+        elif power_class is BlockchainPower:
+            new_cryptopower = power_class(blockchain=Blockchain.connect(), account=self.checksum_address)
+
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
             raise ValueError(failure_message)
@@ -530,7 +545,7 @@ class NucypherKeyring:
         if curve is None:
             curve = cls.__DEFAULT_TLS_CURVE
 
-        if checksum_address is not None and not is_checksum_address(checksum_address):
+        if checksum_address and not is_checksum_address(checksum_address):
             raise ValueError(f"{checksum_address} is not a valid ethereum checksum address")
 
         _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
@@ -595,6 +610,7 @@ class NucypherKeyring:
             rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
                                                   key_data=encrypting_key_metadata,
                                                   serializer=cls._private_key_serializer)
+
             sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
                                                  key_data=signing_key_metadata,
                                                  serializer=cls._private_key_serializer)

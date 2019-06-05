@@ -4,18 +4,20 @@ from nucypher.characters.banners import BOB_BANNER
 from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.cli import actions, painting
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE
+from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import BobConfiguration
-from nucypher.config.constants import GLOBAL_DOMAIN
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import DecryptingPower
 
 
 @click.command()
 @click.argument('action')
+@click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT, default=6151)  # TODO
+@click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT,
+              default=6151)  # TODO
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=11151)  # TODO
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
@@ -27,7 +29,8 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-@click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string", type=click.STRING)
+@click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string",
+              type=click.STRING)
 @click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
@@ -42,6 +45,7 @@ def bob(click_config,
         network,
         config_root,
         config_file,
+        pay_with,
         provider_uri,
         registry_filepath,
         dev,
@@ -64,15 +68,16 @@ def bob(click_config,
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
-        if not config_root:                         # Flag
+        if not config_root:  # Flag
             config_root = click_config.config_file  # Envvar
 
         new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
-                                                   config_root=config_root or click_config,
+                                                   config_root=config_root or DEFAULT_CONFIG_ROOT,
+                                                   checksum_public_address=pay_with,
                                                    rest_host="localhost",
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
-                                                   no_registry=click_config.no_registry,
+                                                   download_registry=click_config.no_registry,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
@@ -88,13 +93,15 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
+                                      checksum_public_address=pay_with,
                                       network_middleware=click_config.middleware)
     else:
 
         try:
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
-                domains={network or GLOBAL_DOMAIN},
+                domains={network} if network else None,
+                checksum_public_address=pay_with,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)
@@ -103,14 +110,17 @@ def bob(click_config,
                                                              config_file=config_file)
 
     # Teacher Ursula
-    teacher_uris = [teacher_uri] if teacher_uri else list()
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                            min_stake=min_stake,
-                                           federated_only=federated_only,
+                                           federated_only=bob_config.federated_only,
+                                           network_domains=bob_config.domains,
                                            network_middleware=click_config.middleware)
 
+    if not bob_config.federated_only:
+        click_config.connect_to_blockchain(character_configuration=bob_config)
     if not dev:
-        click_config.unlock_keyring(character_configuration=bob_config)
+        click_config.unlock_keyring(character_configuration=bob_config,
+                                    password=click_config.get_password(confirm=False))
 
     # Produce
     BOB = bob_config(known_nodes=teacher_nodes, network_middleware=click_config.middleware)

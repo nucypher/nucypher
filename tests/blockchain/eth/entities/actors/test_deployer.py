@@ -15,8 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
 import random
 import string
 
@@ -28,11 +26,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT, ONE_YEAR_IN_SECONDS, \
-    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET, \
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET
-
-NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
+from nucypher.utilities.sandbox.constants import (
+    ONE_YEAR_IN_SECONDS,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
+    MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    POLICY_MANAGER_DEPLOYMENT_SECRET,
+    MINERS_ESCROW_DEPLOYMENT_SECRET,
+    NUMBER_OF_ALLOCATIONS_IN_TESTS
+)
 
 
 @pytest.mark.slow()
@@ -44,20 +45,17 @@ def test_rapid_deployment(token_economics):
                                             registry=registry,
                                             provider_uri='tester://pyevm')
 
-    blockchain = TesterBlockchain(interface=interface, airdrop=False, test_accounts=4)
+    blockchain = TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # The Big Three (+ Dispatchers)
+    # Deploy User Escrow, too (+ Linker)
     deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
                                       policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET)
-
-    # Deploy User Escrow, too (+ Linker)
-    deployer.deploy_escrow_proxy(secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
-
-    total_allocations = NUMBER_OF_ALLOCATIONS_IN_TESTS
+                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                      user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
     all_yall = blockchain.unassigned_accounts
     # Start with some hard-coded cases...
@@ -75,7 +73,7 @@ def test_rapid_deployment(token_economics):
                        ]
 
     # Pile on the rest
-    for _ in range(total_allocations - len(allocation_data)):
+    for _ in range(NUMBER_OF_ALLOCATIONS_IN_TESTS - len(allocation_data)):
         random_password = ''.join(random.SystemRandom().choice(string.ascii_uppercase+string.digits) for _ in range(16))
         acct = w3.eth.account.create(random_password)
         beneficiary_address = acct.address
