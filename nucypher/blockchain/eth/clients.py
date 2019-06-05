@@ -4,6 +4,7 @@ import shutil
 import time
 from typing import Union
 
+import click
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_account import Account
@@ -144,7 +145,7 @@ class Web3Client(object):
     @property
     def chain_name(self) -> str:
         if not self.is_local:
-            return PUBLIC_CHAINS[self.w3.net.version]
+            return PUBLIC_CHAINS[int(self.w3.net.version)]
         name = LOCAL_CHAINS.get(self.w3.net.version, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
 
@@ -170,7 +171,7 @@ class Web3Client(object):
     def chain_id(self):
         return self.w3.net.version
 
-    def sync(self, timeout: int = 600):
+    def sync(self, timeout: int = 120, quiet: bool = False):
 
         if self.is_local:
             return
@@ -186,37 +187,34 @@ class Web3Client(object):
                 raise self.SyncTimeout
 
         # Check for ethereum peers
-        self.log.info(f"Waiting for ethereum peers...")
+        self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
         while not self.peers:
             time.sleep(0)
-            check_for_timeout(t=30)
+            check_for_timeout(t=60)
 
-        needs_sync = False
-        for peer in self.peers:
-            peer_block_header = peer['protocols']['eth']['head']
-            try:
-                self.w3.eth.getBlock(peer_block_header)
-            except BlockNotFound:
-                needs_sync = True
-                break
+        if not self.w3.eth.blockNumber:
+            self.log.info(f'Waiting for {self.chain_name.capitalize()} chain synchronization to begin')
 
-        # Start
-        if needs_sync:
-            peers = len(self.peers)
-            self.log.info(f"Waiting for sync to begin ({peers} ethereum peers)")
+            # Wait for sync start
             while not self.syncing:
                 time.sleep(0)
-                check_for_timeout(t=timeout)
+                check_for_timeout(t=120)
 
             # Continue until done
-            while self.syncing:
-                current = self.syncing['currentBlock']
-                total = self.syncing['highestBlock']
-                self.log.info(f"Syncing {current}/{total}")
-                time.sleep(1)
-                check_for_timeout(t=timeout)
+            last_one = self.syncing['currentBlock']
+            remaining = int(self.syncing['highestBlock'] - last_one)
 
-            return True
+            with click.progressbar(length=remaining, label=f'Syncing {self.chain_name.capitalize()} Chaindata') as bar:
+
+                while self.syncing:
+
+                    current = self.syncing['currentBlock']
+                    delta = current - last_one
+                    last_one = current
+                    bar.update(delta)
+                    time.sleep(0)
+
+        return True
 
     def sign_message(self, account: str, message: bytes) -> str:
         """
@@ -322,7 +320,7 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
         return uri
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
-        self.log.info("STARTING GETH NOW")
+        self.log.info(f"STARTING GETH NOW | CHAIN ID {self.CHAIN_ID} | {self.IPC_PROTOCOL}://{self.ipc_path}")
         super().start()
         self.wait_for_ipc(timeout=timeout)  # on for all nodes by default
         if self.IPC_PROTOCOL in ('rpc', 'http'):
@@ -452,14 +450,12 @@ class NuCypherGethGoerliProcess(NuCypherGethProcess):
 
     P2P_PORT = 30303
     _CHAIN_NAME = 'goerli'
-    __CHAIN_ID = 5
+    CHAIN_ID = 5
 
     def __init__(self,
                  config_root: str = None,
                  overrides: dict = None,
                  *args, **kwargs):
-
-        log = Logger('nucypher-geth-georli')
 
         if overrides is None:
             overrides = dict()

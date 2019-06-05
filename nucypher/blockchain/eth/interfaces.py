@@ -461,8 +461,8 @@ class BlockchainInterface:
             results = list()
             for proxy_name, proxy_addr, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
-                                                      address=proxy_addr,
-                                                      ContractFactoryClass=factory)
+                                                             address=proxy_addr,
+                                                             ContractFactoryClass=factory)
 
                 # Read this dispatchers target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
@@ -494,8 +494,8 @@ class BlockchainInterface:
 
         # Create the contract from selected sources
         unified_contract = self.client.w3.eth.contract(abi=selected_abi,
-                                                address=selected_address,
-                                                ContractFactoryClass=factory)
+                                                       address=selected_address,
+                                                       ContractFactoryClass=factory)
 
         return unified_contract
 

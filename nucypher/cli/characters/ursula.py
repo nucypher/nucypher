@@ -62,6 +62,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--sync/--no-sync', default=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
@@ -104,7 +105,9 @@ def ursula(click_config,
            duration,
            index,
            list_,
-           divide
+           divide,
+           sync
+
            ) -> None:
     """
     Manage and run an "Ursula" PRE node.
@@ -136,12 +139,6 @@ def ursula(click_config,
     # Boring Setup Stuff
     #
 
-    # Stage integrated ethereum node process
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-    if geth:
-        ETH_NODE = NuCypherGethGoerliProcess()  # TODO: Only devnet for now
-        provider_uri = ETH_NODE.provider_uri
-
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(URSULA_BANNER.format(checksum_address or ''))
 
@@ -154,6 +151,15 @@ def ursula(click_config,
             click.secho("WARNING: Running in Development mode", fg='yellow')
         if force:
             click.secho("WARNING: Force is enabled", fg='yellow')
+
+    #
+    # Internal Ethereum Client
+    #
+
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
+    if geth:
+        ETH_NODE = actions.get_provider_process()
+        provider_uri = ETH_NODE.provider_uri(scheme='file')
 
     #
     # Unauthenticated & Un-configured Ursula Configuration
@@ -202,16 +208,10 @@ def ursula(click_config,
     # Development Configuration
     if dev:
 
-        # TODO: Spawn POA development blockchain with geth --dev
-        # dev_geth_process = NuCypherGethDevProcess()
-        # dev_geth_process.deploy()
-        # dev_geth_process.start()
-        # ETH_NODE = dev_geth_process
-        # provider_uri = ETH_NODE.provider_uri
-
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
+                                            download_registry=False,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
@@ -266,7 +266,8 @@ def ursula(click_config,
 
     if not ursula_config.federated_only:
         click_config.connect_to_blockchain(character_configuration=ursula_config,
-                                           recompile_contracts=recompile_solidity)
+                                           recompile_contracts=recompile_solidity,
+                                           full_sync=sync)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
@@ -300,11 +301,9 @@ def ursula(click_config,
 
     # Add ETH Bootnode or Peer
     if enode:
-        if geth:
-            ursula_config.blockchain.interface.w3.geth.admin.addPeer(enode)
-            click.secho(f"Added ethereum peer {enode}")
-        else:
-            raise NotImplementedError  # TODO: other backends
+        ursula_config.blockchain.interface.client.add_peer(enode)
+        click.secho(f"Added ethereum peer {enode}")
+
 
     #
     # Produce
@@ -463,7 +462,7 @@ def ursula(click_config,
         # Validate balance
         balance = URSULA.token_balance
         if balance == 0:
-            click.secho(f"{ursula.checksum_address} has 0 NU.")
+            click.secho(f"{URSULA.checksum_address} has 0 NU.")
             raise click.Abort
         if not quiet:
             click.echo(f"Current balance: {balance}")

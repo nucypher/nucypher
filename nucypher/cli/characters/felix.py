@@ -30,9 +30,9 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
-@click.option('--no-password', help="Assume eth node accounts are already unlocked", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @nucypher_click_config
 def felix(click_config,
           action,
@@ -53,7 +53,7 @@ def felix(click_config,
           db_filepath,
           no_registry,
           registry_filepath,
-          no_password,
+          dev,
           force):
 
     # Intro
@@ -61,11 +61,9 @@ def felix(click_config,
     if not click_config.quiet:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
 
-    # Stage integrated ethereum node process
-    # TODO: Only devnet for now
-    ETH_NODE = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+    ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
-        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
+        ETH_NODE = actions.get_provider_process(dev=dev)
         provider_uri = ETH_NODE.provider_uri
 
     if action == "init":

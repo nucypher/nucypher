@@ -25,13 +25,18 @@ import shutil
 from twisted.logger import Logger
 from typing import List
 
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.clients import NuCypherGethDevProcess, NuCypherGethGoerliProcess
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
-from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including:
@@ -202,3 +207,18 @@ def handle_missing_configuration_file(character_config_class, config_file: str =
               f'\'nucypher {character_config_class._NAME} init\''
 
     raise click.FileError(filename=config_file_location, hint=message)
+
+
+NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+
+
+def get_provider_process(start_now: bool = False):
+
+    """
+    Stage integrated ethereum node process
+    # TODO: Support domains and non-geth clients
+    """
+    process = NuCypherGethGoerliProcess()
+    if start_now:
+        process.start()
+    return process
