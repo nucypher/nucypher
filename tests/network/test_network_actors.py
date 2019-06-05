@@ -191,8 +191,8 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp(password=INSECURE_DEVELOPMENT_PASSWORD)
-    vladimir._interface_signature_object = signature
+    vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
+    vladimir._Teacher__interface_signature = signature
 
     class FakeArrangement:
         federated = False
