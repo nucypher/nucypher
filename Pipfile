@@ -27,7 +27,7 @@ eth-tester = "*"
 coincurve = "*"
 web3 = "*"
 # CLI / Configuration
-sentry-sdk = "==0.9.0"
+sentry-sdk = "==0.5.2"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
@@ -57,7 +57,8 @@ recommonmark = "*"
 sphinx_rtd_theme = "*"
 aafigure = "*"
 # CLI
-nucypher = {editable = true,path = "."}
+nucypher = {editable = true, path = "."}
+trezor = {extras = ["ethereum"], version = "*"}
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
