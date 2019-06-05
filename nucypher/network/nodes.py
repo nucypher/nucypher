@@ -320,8 +320,7 @@ class Learner:
 
         # Read
         if node_storage is None:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,
-                                                       # TODO: remove federated_only
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only, # TODO: remove federated_only
                                                        character_class=self.__class__)
 
         self.node_storage = node_storage
