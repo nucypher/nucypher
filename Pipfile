@@ -58,6 +58,7 @@ sphinx_rtd_theme = "*"
 aafigure = "*"
 # CLI
 nucypher = {editable = true,path = "."}
+trezor = {extras = ["ethereum"],version = "*"}
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
