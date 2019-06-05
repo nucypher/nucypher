@@ -501,7 +501,7 @@ class NodeConfiguration(ABC):
         return payload
 
     @property
-    def dynamic_payload(self, **overrides) -> dict:
+    def dynamic_payload(self, connect_to_blockchain: bool = True, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
 
         if self.reload_metadata:
@@ -515,7 +515,7 @@ class NodeConfiguration(ABC):
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups() or None)
 
-        if not self.federated_only:
+        if not self.federated_only and connect_to_blockchain:
             self.connect_to_blockchain(recompile_contracts=False)
             payload.update(blockchain=self.blockchain)
 
@@ -634,48 +634,47 @@ class NodeConfiguration(ABC):
                                        account=checksum_address or self.checksum_address,  # type: str
                                        *args, **kwargs)
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, wallet: bool = True, **generation_kwargs) -> NucypherKeyring:
+
+        checksum_address = None
 
         #
         # Decentralized
         #
+        if wallet:
 
-        # Note: It is assumed the blockchain is not yet available.
-        if not self.federated_only and not self.checksum_address:
+            # Note: It is assumed the blockchain is not yet available.
+            if not self.federated_only and not self.checksum_address:
 
-            # "Casual Geth"
-            if self.provider_process:
+                # "Casual Geth"
+                if self.provider_process:
 
-                if not os.path.exists(self.provider_process.data_dir):
-                    os.mkdir(self.provider_process.data_dir)
+                    if not os.path.exists(self.provider_process.data_dir):
+                        os.mkdir(self.provider_process.data_dir)
 
-                # Get or create wallet address (geth etherbase)
-                checksum_address = self.provider_process.ensure_account_exists(password=password)
+                    # Get or create wallet address (geth etherbase)
+                    checksum_address = self.provider_process.ensure_account_exists(password=password)
 
-            # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
-            else:
-                self.connect_to_blockchain()
-                if not self.blockchain.interface.w3.eth.accounts:
-                    raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # TODO: Make this a configurable default in config files
+                # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
+                else:
+                    self.connect_to_blockchain()
+                    if not self.blockchain.interface.w3.eth.accounts:
+                        raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
+                    checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # TODO: Make this a configurable default in config files
 
-            # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
-            checksum_address = to_checksum_address(checksum_address)
+                # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
+                checksum_address = to_checksum_address(checksum_address)
 
-        # Use explicit address
-        elif self.checksum_address:
-            checksum_address = self.checksum_address
-
-        # Generate a federated checksum address
-        else:
-            checksum_address = None
+            # Use explicit address
+            elif self.checksum_address:
+                checksum_address = self.checksum_address
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
         # Operating mode switch
-        if self.federated_only:
+        if self.federated_only or not wallet:
             self.checksum_address = self.keyring.federated_address
         else:
             self.checksum_address = self.keyring.account
