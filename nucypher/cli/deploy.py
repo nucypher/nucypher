@@ -128,7 +128,7 @@ def deploy(click_config,
 
     # Verify ETH Balance
     click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
-    if deployer.eth_balance is 0:
+    if deployer.eth_balance == 0:
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
 

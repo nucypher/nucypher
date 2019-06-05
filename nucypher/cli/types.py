@@ -28,10 +28,7 @@ class ChecksumAddress(click.ParamType):
     name = 'checksum_public_address'
 
     def convert(self, value, param, ctx):
-        # if is_checksum_address(value):
-        #     return value
-        return to_checksum_address(value=value)
-        # self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
+        return to_checksum_address(value=value)  # TODO: More robust validation here?
 
 
 class IPv4Address(click.ParamType):

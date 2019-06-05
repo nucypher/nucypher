@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import os
 from datetime import datetime
+from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
 
@@ -102,7 +103,7 @@ class NucypherTokenActor:
         return r
 
     @property
-    def eth_balance(self) -> int:
+    def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
         balance = self.blockchain.interface.get_balance(self.checksum_public_address)
         return self.blockchain.interface.fromWei(balance, 'ether')

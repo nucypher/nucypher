@@ -661,7 +661,6 @@ class NodeConfiguration(ABC):
 
             # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
             checksum_address = to_checksum_address(checksum_address)
-            assert is_checksum_address(checksum_address), f"INVALID ETH ADDRESS {checksum_address}"
 
         # Use explicit address
         elif self.checksum_public_address:

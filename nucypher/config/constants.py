@@ -45,16 +45,6 @@ SeednodeMetadata = namedtuple('seednode', ['checksum_public_address', 'rest_host
 SEEDNODES = tuple()
 
 
-"""
-=======
-DOMAINS
-=======
-
-If this domain is among those being learned or served, then domain checking is skipped.
-A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
-A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
-"""
-
 # Sentry
 NUCYPHER_SENTRY_PUBLIC_KEY = "d8af7c4d692e4692a455328a280d845e"
 NUCYPHER_SENTRY_USER_ID = '1310685'
