@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import shutil
 import msgpack
 import maya
@@ -25,7 +26,11 @@ globalLogPublisher.addObserver(SimpleObserver())
 # Boring setup stuff #
 ######################
 
-SEEDNODE_URL = 'localhost:11501'
+try:
+    SEEDNODE_URI = sys.argv[1]
+except IndexError:
+    SEEDNODE_URI = "localhost:11500"
+
 
 # TODO: path joins?
 TEMP_DOCTOR_DIR = "{}/doctor-files".format(os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +38,7 @@ TEMP_DOCTOR_DIR = "{}/doctor-files".format(os.path.dirname(os.path.abspath(__fil
 # Remove previous demo files and create new ones
 shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
                                          federated_only=True,
                                          minimum_stake=0)
 
