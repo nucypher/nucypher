@@ -33,7 +33,9 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
-@click.option('--value', help="M-Threshold KFrags", type=click.FLOAT)
+@click.option('--value', help="Total policy value", type=click.FLOAT)
+@click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
+@click.option('--duration', help="Policy duration in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
@@ -73,6 +75,8 @@ def alice(click_config,
           m,
           n,
           value,
+          rate,
+          duration,
           expiration,
           message_kit
 
@@ -122,7 +126,11 @@ def alice(click_config,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,
-                                                       provider_uri=provider_uri)
+                                                       provider_uri=provider_uri,
+                                                       m=m,
+                                                       n=n,
+                                                       duration=duration,
+                                                       rate=rate)
 
         painting.paint_new_installation_help(new_configuration=new_alice_config,
                                              config_root=config_root,
