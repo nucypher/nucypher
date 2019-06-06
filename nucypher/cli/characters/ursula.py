@@ -50,23 +50,24 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
+@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
-@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--sync/--no-sync', default=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--sync/--no-sync', default=True)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
@@ -128,17 +129,17 @@ def ursula(click_config,
 
     """
 
+    #
     # Validate
+    #
+
     if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
-    #
-    # Boring Setup Stuff
-    #
-
+    # Banner
     if not click_config.json_ipc and not click_config.quiet:
         click.secho(URSULA_BANNER.format(checksum_address or ''))
 
@@ -162,7 +163,7 @@ def ursula(click_config,
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
     #
-    # Unauthenticated & Un-configured Ursula Configuration
+    # Eager Actions
     #
 
     if action == "init":
@@ -174,8 +175,6 @@ def ursula(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        # Attempts to automatically get the external IP from ifconfig.me
-        # If the request fails, it falls back to the standard process.
         if not rest_host:
             rest_host = actions.determine_external_ip_address(force=force)
 
@@ -202,12 +201,10 @@ def ursula(click_config,
         return
 
     #
-    # Generate Configuration
+    # Make Ursula
     #
 
-    # Development Configuration
     if dev:
-
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
@@ -220,16 +217,10 @@ def ursula(click_config,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_filepath=db_filepath)
-    # Production Configurations
     else:
-
-        # Domains -> bytes | or default
-        domains = {network} if network else None
-
-        # Load Ursula from Configuration File
         try:
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                        domains=domains,
+                                                                        domains={network} if network else None,
                                                                         registry_filepath=registry_filepath,
                                                                         provider_process=ETH_NODE,
                                                                         provider_uri=provider_uri,
@@ -260,57 +251,20 @@ def ursula(click_config,
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=ursula_config, force=force)
 
-    #
-    # Connect to Blockchain
-    #
-
-    if not ursula_config.federated_only:
-        click_config.connect_to_blockchain(character_configuration=ursula_config,
-                                           recompile_contracts=recompile_solidity,
-                                           full_sync=sync)
-
-    click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
     #
-    # Authenticate
+    # Make Ursula
     #
 
-    if dev:
-        # Development accounts are always unlocked and use one-time random keys.
-        password = None
-    else:
-        password = click_config.get_password()
-        click_config.unlock_keyring(character_configuration=ursula_config, password=password)
-
-    #
-    # Launch Warnings
-    #
-
-    if ursula_config.federated_only:
-        click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
-
-    #
-    # Seed
-    #
-
-    teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
-                                           min_stake=min_stake,
-                                           federated_only=ursula_config.federated_only,
-                                           network_domains=ursula_config.domains,
-                                           network_middleware=click_config.middleware)
-
-    # Add ETH Bootnode or Peer
-    if enode:
-        ursula_config.blockchain.interface.client.add_peer(enode)
-        click.secho(f"Added ethereum peer {enode}")
-
-
-    #
-    # Produce
-    #
-
-    URSULA = ursula_config(password=password, known_nodes=teacher_nodes, lonely=lonely)
-    del password  # ... under the rug
+    URSULA = actions.make_cli_character(character_config=ursula_config,
+                                        click_config=click_config,
+                                        recompile_contracts=recompile_solidity,
+                                        enode=enode,
+                                        sync=sync,
+                                        min_stake=min_stake,
+                                        teacher_uri=teacher_uri,
+                                        dev=dev,
+                                        lonely=lonely)
 
     #
     # Authenticated Action Switch
@@ -322,12 +276,12 @@ def ursula(click_config,
         # GO!
         try:
 
+            # Ursula Deploy Warnings
             click_config.emit(
                 message="Starting Ursula on {}".format(URSULA.rest_interface),
                 color='green',
                 bold=True)
 
-            # Ursula Deploy Warnings
             click_config.emit(
                 message="Connecting to {}".format(','.join(ursula_config.domains)),
                 color='green',
@@ -360,7 +314,7 @@ def ursula(click_config,
                 bold=True)
             raise  # Crash :-(
 
-        # Graceful Exit / Crash
+        # Graceful Exit
         finally:
             click_config.emit(message="Stopping Ursula", color='green')
             ursula_config.cleanup()
@@ -383,9 +337,6 @@ def ursula(click_config,
             click.secho(f'NU Balance: {URSULA.token_balance}')
             click.secho(f'ETH Balance: {URSULA.eth_balance}')
             click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
-
-            # TODO: Verbose status
-            # click.secho(f'{URSULA.blockchain.interface.w3.eth.getBlock(current_block)}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)

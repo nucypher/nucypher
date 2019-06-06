@@ -17,26 +17,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import click
 import os
-import requests
 import shutil
-
-from twisted.logger import Logger
 from typing import List
 
-from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.clients import NuCypherGethDevProcess, NuCypherGethGoerliProcess
+import click
+import requests
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from twisted.logger import Logger
+
+from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.characters.control.emitters import IPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+
 
 DESTRUCTION = '''
 *Permanently and irreversibly delete all* nucypher files including:
@@ -121,14 +121,19 @@ def destroy_configuration_root(config_root=None, force=False, logs: bool = False
     return config_root
 
 
-def get_external_ip_from_centralized_source():
+def get_external_ip_from_centralized_source() -> str:
     ip_request = requests.get('https://ifconfig.me/')
     if ip_request.status_code == 200:
         return ip_request.text
-    raise UnknownIPAddress(f"There was an error determining the IP address automatically. (status code {ip_request.status_code})")
+    raise UnknownIPAddress(f"There was an error determining the IP address automatically. "
+                           f"(status code {ip_request.status_code})")
 
 
 def determine_external_ip_address(force: bool = False) -> str:
+    """
+    Attempts to automatically get the external IP from ifconfig.me
+    If the request fails, it falls back to the standard process.
+    """
     try:
         rest_host = get_external_ip_from_centralized_source()
     except UnknownIPAddress:
@@ -209,9 +214,6 @@ def handle_missing_configuration_file(character_config_class, config_file: str =
     raise click.FileError(filename=config_file_location, hint=message)
 
 
-NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-
-
 def get_provider_process(start_now: bool = False):
 
     """
@@ -222,3 +224,56 @@ def get_provider_process(start_now: bool = False):
     if start_now:
         process.start()
     return process
+
+
+def make_cli_character(character_config,
+                       click_config,
+                       dev: bool = False,
+                       teacher_uri: str = None,
+                       min_stake: int = 0,
+                       enode: str = None,
+                       sync: bool = True,
+                       recompile_contracts: bool = False,
+                       **config_args):
+
+    # Handle Blockchain
+    if not character_config.federated_only:
+        character_config.connect_to_blockchain(character_configuration=character_config,
+                                               full_sync=sync,
+                                               recompile_contracts=recompile_contracts)
+
+    # Handle Keyring
+    if not dev:
+        click_config.unlock_keyring(character_configuration=character_config,
+                                    password=click_config.get_password(confirm=False))
+
+    # Handle Teachers
+    teacher_nodes = None
+    if teacher_uri:
+        teacher_nodes = load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
+                                       min_stake=min_stake,
+                                       federated_only=character_config.federated_only,
+                                       network_domains=character_config.domains,
+                                       network_middleware=click_config.middleware)
+
+    # Produce Character
+    CHARACTER = character_config(known_nodes=teacher_nodes,
+                                 network_middleware=click_config.middleware,
+                                 **config_args)
+
+    # Switch to character control emitter
+    if click_config.json_ipc:
+        CHARACTER.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
+
+    # Federated
+    if character_config.federated_only:
+        click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
+
+    # Decentralized
+    else:
+        # Manual ethereum peer
+        if enode:
+            character_config.blockchain.interface.client.add_peer(enode)
+            click.secho(f"Added ethereum peer {enode}")
+
+    return CHARACTER
