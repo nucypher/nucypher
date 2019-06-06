@@ -41,7 +41,7 @@ from eth_utils import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrow, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
@@ -343,7 +343,7 @@ class NodeConfiguration(ABC):
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.log.debug("Established connection to nucypher contracts")
 

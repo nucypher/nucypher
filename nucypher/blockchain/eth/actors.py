@@ -39,7 +39,7 @@ from twisted.logger import Logger
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    StakingEscrow,
+    StakingEscrowAgent,
     PolicyAgent,
     AdjudicatorAgent,
     EthereumContractAgent
@@ -147,7 +147,7 @@ class Deployer(NucypherTokenActor):
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-            self.staking_agent = StakingEscrow(blockchain=blockchain)
+            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
             self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
@@ -384,7 +384,7 @@ class Staker(NucypherTokenActor):
         else:
             self.token_agent = STRANGER_STAKER
 
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
 
         #
         # Stakes
@@ -711,7 +711,7 @@ class PolicyAuthor(NucypherTokenActor):
         if not policy_agent:
             # From defaults
             self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-            self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+            self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
             self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         else:
             # Injected
