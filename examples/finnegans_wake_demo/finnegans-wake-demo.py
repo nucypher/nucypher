@@ -1,4 +1,5 @@
 import os
+import sys
 
 import datetime
 import maya
@@ -31,7 +32,14 @@ globalLogPublisher.addObserver(SimpleObserver())
 # (will fail with bad connection) #####
 #######################################
 
-SEEDNODE_URI = "localhost:11500"
+# if your ursulas are NOT running on your current host,
+# run like this: python finnegans-wake-demo.py 172.28.1.3:11500
+# otherwise the default will be fine.
+
+try:
+    SEEDNODE_URI = sys.argv[1]
+except IndexError:
+    SEEDNODE_URI = "localhost:11500"
 
 ##############################################
 # Ursula, the Untrusted Re-Encryption Proxy  #
