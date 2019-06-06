@@ -24,7 +24,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
-    StakingEscrow,
+    StakingEscrowAgent,
     NucypherTokenAgent,
     PolicyAgent,
     UserEscrowAgent,
@@ -223,7 +223,7 @@ class StakingEscrowDeployer(ContractDeployer):
     Deploys the StakingEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
-    agency = StakingEscrow
+    agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
@@ -386,7 +386,7 @@ class PolicyManagerDeployer(ContractDeployer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> Dict[str, str]:
         self.check_deployment_readiness()
@@ -517,7 +517,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
 
     def __get_state_contract(self) -> str:
@@ -608,7 +608,7 @@ class UserEscrowDeployer(ContractDeployer):
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
@@ -709,7 +709,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrow(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         if not economics:
             economics = SlashingEconomics()
         self.__economics = economics

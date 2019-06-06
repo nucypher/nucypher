@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 
-from nucypher.blockchain.eth.agents import StakingEscrow
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer
 
 
@@ -45,7 +45,7 @@ def test_token_deployer_and_agent(testerchain):
     assert expected_token_supply == staking_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
-    same_staking_agent = StakingEscrow()
+    same_staking_agent = StakingEscrowAgent()
 
     # Compare the contract address for equality
     assert staking_agent.contract_address == same_staking_agent.contract_address

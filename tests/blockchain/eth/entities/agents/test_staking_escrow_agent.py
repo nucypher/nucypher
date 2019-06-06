@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
 
-from nucypher.blockchain.eth.agents import StakingEscrow
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 
 
 @pytest.mark.slow()
@@ -110,7 +110,7 @@ def test_sample_stakers(agency):
     agent = staking_agent
     stakers_population = agent.get_staker_population()
 
-    with pytest.raises(StakingEscrow.NotEnoughStakers):
+    with pytest.raises(StakingEscrowAgent.NotEnoughStakers):
         agent.sample(quantity=stakers_population + 1, duration=1)  # One more than we have deployed
 
     stakers = agent.sample(quantity=3, duration=5)
