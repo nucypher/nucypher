@@ -739,11 +739,10 @@ class Learner:
         # Deserialize
         #
 
-        # TODO #1039 - Causes protocol versioning checks to fail in-test when using an unsigned Response
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
         except BytestringSplittingError as e:
-            self.log.warn(e.args[0])
+            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
             return
 
         try:
