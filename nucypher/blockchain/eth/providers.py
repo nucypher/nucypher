@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from web3 import WebsocketProvider, HTTPProvider, IPCProvider
+from web3.exceptions import InfuraKeyNotFound
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -29,15 +30,25 @@ def _get_websocket_provider(provider_uri):
     return WebsocketProvider(endpoint_uri=provider_uri)
 
 
-def _get_infura_provider(provider_uri):
+def _get_infura_provider(self):
     # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
-    infura_envvar = 'WEB3_INFURA_API_SECRET'
-    if infura_envvar not in os.environ:
-        raise ProviderError(f'{infura_envvar} must be set in order to use an Infura Web3 provider.')
-    from web3.auto.infura import w3
+
+    uri_breakdown = urlparse(self.provider_uri)
+    infura_envvar = 'WEB3_INFURA_PROJECT_ID'
+    os.environ[infura_envvar] = os.environ.get(infura_envvar, uri_breakdown.netloc)
+
+    try:
+        # TODO: Only testnet for now
+        from web3.auto.infura.goerli import w3
+
+    except InfuraKeyNotFound:
+        raise self.InterfaceError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider.')
+
+    # Verify Connection
     connected = w3.isConnected()
     if not connected:
-        raise ProviderError('Cannot auto-detect node.  Provide a full URI instead.')
+        raise self.InterfaceError('Failed to connect to Infura node.')
+
     return w3.provider
 
 
