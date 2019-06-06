@@ -7,7 +7,7 @@ import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrow
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -122,7 +122,7 @@ def test_init_ursula_stake(click_runner,
         config_data = json.loads(config_file.read())
 
     # Verify the stake is on-chain
-    staking_agent = StakingEscrow()
+    staking_agent = StakingEscrowAgent()
     stakes = list(staking_agent.get_all_stakes(staker_address=config_data['checksum_address']))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
