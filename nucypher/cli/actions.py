@@ -236,11 +236,15 @@ def make_cli_character(character_config,
                        recompile_contracts: bool = False,
                        **config_args):
 
+    #
+    # Pre-Init
+    #
+
     # Handle Blockchain
     if not character_config.federated_only:
-        character_config.connect_to_blockchain(character_configuration=character_config,
-                                               full_sync=sync,
-                                               recompile_contracts=recompile_contracts)
+        click_config.connect_to_blockchain(character_configuration=character_config,
+                                           full_sync=sync,
+                                           recompile_contracts=recompile_contracts)
 
     # Handle Keyring
     if not dev:
@@ -256,10 +260,18 @@ def make_cli_character(character_config,
                                        network_domains=character_config.domains,
                                        network_middleware=click_config.middleware)
 
+    #
+    # Character Init
+    #
+
     # Produce Character
     CHARACTER = character_config(known_nodes=teacher_nodes,
                                  network_middleware=click_config.middleware,
                                  **config_args)
+
+    #
+    # Post-Init
+    #
 
     # Switch to character control emitter
     if click_config.json_ipc:

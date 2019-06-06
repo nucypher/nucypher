@@ -50,7 +50,7 @@ class BlockchainArrangement(Arrangement):
 
         delta = expiration - maya.now()
         hours = (delta.total_seconds() / 60) / 60  # type: int
-        lock_periods = int(math.ceil(hours / self.ursula.economics.hours_per_period))  # type: int
+        lock_periods = int(math.ceil(hours / self.alice.economics.hours_per_period))  # type: int
 
         # The relationship exists between two addresses
         self.author = alice                     # type: PolicyAuthor

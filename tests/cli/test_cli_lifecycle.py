@@ -1,8 +1,12 @@
+import datetime
 import json
 import os
+import shutil
 from base64 import b64decode
 from collections import namedtuple
 
+import maya
+import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 
@@ -66,11 +70,14 @@ class MockSideChannel:
 
 
 @pt.inlineCallbacks
+@pytest.mark.parametrize('federated', (True, False))
 def test_cli_lifecycle(click_runner,
                        random_policy_label,
                        federated_ursulas,
+                       blockchain_ursulas,
                        custom_filepath,
-                       custom_filepath_2):
+                       custom_filepath_2,
+                       federated):
     """
     This is an end to end integration test that runs each cli call
     in it's own process using only CLI character control entry points,
@@ -85,15 +92,22 @@ def test_cli_lifecycle(click_runner,
     # A side channel exists - Perhaps a dApp
     side_channel = MockSideChannel()
 
+    shutil.rmtree(custom_filepath, ignore_errors=True)
+    shutil.rmtree(custom_filepath_2, ignore_errors=True)
+
     """
     Scene 1: Alice Installs nucypher to a custom filepath and examines her configuration
     """
 
     # Alice performs an installation for the first time
     alice_init_args = ('alice', 'init',
-                       '--federated-only',
                        '--network', TEMPORARY_DOMAIN,
                        '--config-root', alice_config_root)
+
+    if federated:
+        alice_init_args += ('--federated-only', )
+    else:
+        alice_init_args += ('--provider-uri', 'tester://pyevm')
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -117,9 +131,10 @@ def test_cli_lifecycle(click_runner,
     interest to participate in data retrieval by posting his public keys somewhere public (side-channel).
     """
     bob_init_args = ('bob', 'init',
-                     '--federated-only',
                      '--network', TEMPORARY_DOMAIN,
                      '--config-root', bob_config_root)
+    if federated:
+        bob_init_args += ('--federated-only', )
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0
@@ -199,14 +214,15 @@ def test_cli_lifecycle(click_runner,
             '--mock-networking',
             '--json-ipc',
             'alice', 'decrypt',
-            '--federated-only',
             '--config-file', alice_configuration_file_location,
             '--message-kit', message_kit,
             '--label', policy.label,
         )
 
-        decrypt_response_fail = click_runner.invoke(
-            nucypher_cli, decrypt_args[:-1], catch_exceptions=False, env=envvars)
+        if federated:
+            decrypt_args += ('--federated-only',)
+
+        decrypt_response_fail = click_runner.invoke(nucypher_cli, decrypt_args[0:7], catch_exceptions=False, env=envvars)
         assert decrypt_response_fail.exit_code == 2
 
         decrypt_response = click_runner.invoke(nucypher_cli, decrypt_args, catch_exceptions=False, env=envvars)
@@ -223,7 +239,11 @@ def test_cli_lifecycle(click_runner,
     Scene 5: Alice grants access to Bob:
     We catch up with Alice later on, but before she has learned about existing Ursulas...
     """
-    teacher = list(federated_ursulas)[0]
+    if federated:
+        teacher = list(federated_ursulas)[0]
+    else:
+        teacher = list(blockchain_ursulas)[1]
+
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
     # Some Ursula is running somewhere
@@ -242,14 +262,19 @@ def test_cli_lifecycle(click_runner,
                       '--json-ipc',
                       'alice', 'grant',
                       '--network', TEMPORARY_DOMAIN,
-                      '--federated-only',
                       '--teacher-uri', teacher_uri,
                       '--config-file', alice_configuration_file_location,
-                      '--m', 1,  # TODO: Use more than 1 of 1
-                      '--n', 1,
+                      '--m', 2,
+                      '--n', 3,
+                      '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
                       '--bob-verifying-key', bob_verifying_key)
+
+        if federated:
+            grant_args += ('--federated-only',)
+        else:
+            grant_args += ('--provider-uri', 'tester://pyevm')
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0
@@ -278,13 +303,15 @@ def test_cli_lifecycle(click_runner,
         retrieve_args = ('--mock-networking',
                          '--json-ipc',
                          'bob', 'retrieve',
-                         '--federated-only',
                          '--teacher-uri', teacher_uri,
                          '--config-file', bob_configuration_file_location,
                          '--message-kit', ciphertext_message_kit,
                          '--label', label,
                          '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)
+
+        if federated:
+            retrieve_args += ('--federated-only',)
 
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
         assert retrieve_response.exit_code == 0

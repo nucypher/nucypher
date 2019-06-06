@@ -33,7 +33,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--value', help="M-Threshold KFrags", type=click.FLOAT)
-@click.option('--expiration', help="Expiration Datetime of a policy", type=click.DateTime)
+@click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
 def alice(click_config,
