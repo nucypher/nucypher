@@ -37,7 +37,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrow, PolicyAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.utils import get_coordinates_as_bytes
 from nucypher.policy.models import Policy
@@ -180,7 +180,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Contracts
     token_agent = NucypherTokenAgent(blockchain=testerchain)
-    staking_agent = StakingEscrow(blockchain=testerchain)
+    staking_agent = StakingEscrowAgent(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
     adjudicator_agent = AdjudicatorAgent()
 
