@@ -26,7 +26,7 @@ from typing import Set
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.blockchain.eth.agents import StakingEscrow, PolicyAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyAgent
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -224,7 +224,7 @@ class BlockchainPolicy(Policy):
             try:
                 sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=self.lock_periods)
 
-            except StakingEscrow.NotEnoughStakers as e:
+            except StakingEscrowAgent.NotEnoughStakers as e:
                 error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
                 raise self.NotEnoughBlockchainUrsulas(error)
 
