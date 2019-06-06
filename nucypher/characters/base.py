@@ -38,7 +38,7 @@ from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import StakingEscrow
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.api import encrypt_and_sign
@@ -131,7 +131,7 @@ class Character(Learner):
         # Needed for on-chain verification
         if not self.federated_only:
             self.blockchain = blockchain or Blockchain.connect()
-            self.staking_agent = StakingEscrow(blockchain=blockchain)
+            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
         else:
             self.blockchain = FEDERATED_ONLY
             self.staking_agent = FEDERATED_ONLY
