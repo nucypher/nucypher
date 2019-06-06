@@ -20,6 +20,7 @@ from typing import List
 from typing import Tuple, Union
 from urllib.parse import urlparse
 
+import requests
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
@@ -207,13 +208,15 @@ class BlockchainInterface:
                 "There are no configured blockchain providers")
 
         # Connect if not connected
-        self.client = Web3Client.from_w3(w3=self.Web3(provider=self.__provider))
+        try:
+            w3 = self.Web3(provider=self.__provider)
+            self.client = Web3Client.from_w3(w3=w3)
+
+        except requests.ConnectionError:  # RPC
+            raise self.ConnectionFailed(str(self.__provider))
 
         # Check connection
-        if self.is_connected:
-            return True
-
-        raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
+        return self.is_connected
 
     @property
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
