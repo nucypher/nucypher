@@ -89,6 +89,9 @@ class NodeConfiguration(ABC):
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
+
+    DEFAULT_CONTROLLER_PORT = NotImplemented
+
     __DEFAULT_TLS_CURVE = ec.SECP384R1
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
@@ -128,6 +131,7 @@ class NodeConfiguration(ABC):
                  # REST
                  rest_host: str = None,
                  rest_port: int = None,
+                 controller_port: int = None,
 
                  # TLS
                  tls_curve: EllipticCurve = None,
@@ -160,8 +164,9 @@ class NodeConfiguration(ABC):
         self.log = Logger(self.__class__.__name__)
 
         #
-        # REST + TLS (Ursula)
+        # REST + TLS + Web
         #
+        self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         default_port = (self.DEFAULT_DEVELOPMENT_REST_PORT if dev_mode else self.DEFAULT_REST_PORT)
         self.rest_port = rest_port or default_port
@@ -317,6 +322,7 @@ class NodeConfiguration(ABC):
         """
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
+
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
                                              poa=self.poa,

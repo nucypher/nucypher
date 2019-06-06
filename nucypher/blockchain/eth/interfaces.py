@@ -199,9 +199,9 @@ class BlockchainInterface:
         return self.client.node_version
 
     def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
-        self.log.info("Connecting to {}".format(self.provider_uri))
 
         self._attach_provider(provider=provider, provider_uri=provider_uri)
+        self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider(
@@ -213,7 +213,10 @@ class BlockchainInterface:
             self.client = Web3Client.from_w3(w3=w3)
 
         except requests.ConnectionError:  # RPC
-            raise self.ConnectionFailed(str(self.__provider))
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
+
+        except FileNotFoundError:         # IPC File Protocol
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
 
         # Check connection
         return self.is_connected

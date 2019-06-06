@@ -171,8 +171,11 @@ class Web3Client(object):
     def chain_id(self):
         return self.w3.net.version
 
-    def sync(self, timeout: int = 120, quiet: bool = False):
+    def sync(self,
+             timeout: int = 120,
+             quiet: bool = False):
 
+        # Provide compatibility with local chains
         if self.is_local:
             return
 
@@ -192,27 +195,17 @@ class Web3Client(object):
             time.sleep(0)
             check_for_timeout(t=60)
 
-        if not self.w3.eth.blockNumber:
-            self.log.info(f'Waiting for {self.chain_name.capitalize()} chain synchronization to begin')
+        # Wait for sync start
+        self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
+        while not self.syncing:
+            time.sleep(0)
+            check_for_timeout(t=120)
 
-            # Wait for sync start
-            while not self.syncing:
-                time.sleep(0)
-                check_for_timeout(t=120)
+        while self.syncing:
 
-            # Continue until done
-            last_one = self.syncing['currentBlock']
-            remaining = int(self.syncing['highestBlock'] - last_one)
-
-            with click.progressbar(length=remaining, label=f'Syncing {self.chain_name.capitalize()} Chaindata') as bar:
-
-                while self.syncing:
-
-                    current = self.syncing['currentBlock']
-                    delta = current - last_one
-                    last_one = current
-                    bar.update(delta)
-                    time.sleep(0)
+            # current =
+            self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
+            time.sleep(5)
 
         return True
 
