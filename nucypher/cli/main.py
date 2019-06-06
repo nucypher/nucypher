@@ -23,6 +23,8 @@ from twisted.logger import globalLogPublisher
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli import status
+from nucypher.cli import status, stake
+from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
@@ -136,7 +138,10 @@ Inversely, commenting out an entry point here will disable it.
 ENTRY_POINTS = (
 
     # Utility Sub-Commands
+    # Utility Commands
     status.status,  # Network Status
+    stake.stake,    # Stake Management
+    # device.device,  # TODO: nucypher device  # Hardware Wallet Management
 
     # Characters
     alice.alice,    # Author of Policies
