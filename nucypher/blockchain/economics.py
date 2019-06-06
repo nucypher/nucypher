@@ -173,16 +173,19 @@ class TokenEconomics:
         if at_period < 0:
             raise ValueError("Period must be a positive integer")
 
-        # Eq. 3 of the mining paper
-        t = Decimal(at_period)
-        S_0 = self.erc20_initial_supply
-        i_0 = 1
-        I_0 = i_0 * S_0  # in 1/years
-        T_half = self.token_halving  # in years
-        T_half_in_days = T_half * 365
+        with localcontext() as ctx:
+            ctx.prec = self._precision
 
-        S_t = S_0 + I_0 * T_half * (1 - 2**(-t / T_half_in_days)) / LOG2
-        return int(S_t)
+            # Eq. 3 of the mining paper
+            t = Decimal(at_period)
+            S_0 = self.erc20_initial_supply
+            i_0 = 1
+            I_0 = i_0 * S_0  # in 1/years
+            T_half = self.token_halving  # in years
+            T_half_in_days = T_half * 365
+
+            S_t = S_0 + I_0 * T_half * (1 - 2**(-t / T_half_in_days)) / LOG2
+            return int(S_t)
 
     def cumulative_rewards_at_period(self, at_period: int) -> int:
         return self.token_supply_function(at_period) - self.erc20_initial_supply
