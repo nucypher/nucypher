@@ -320,6 +320,8 @@ def test_cli_lifecycle(click_runner,
         for cleartext in retrieve_response['result']['cleartexts']:
             assert b64decode(cleartext.encode()).decode() == PLAINTEXT
 
+        return
+
     # Run the Callbacks
     d = threads.deferToThread(enrico_encrypts)  # scene 4
     d.addCallback(_alice_decrypts)              # scene 5 (uncertainty)

@@ -16,12 +16,13 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--http-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT)
+@click.option('--controller-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--sync/--no-sync', default=True)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
@@ -50,7 +51,7 @@ def alice(click_config,
           federated_only,
           network,
           discovery_port,
-          http_port,
+          controller_port,
 
           # Filesystem
           config_root,
@@ -60,6 +61,7 @@ def alice(click_config,
           pay_with,
           provider_uri,
           geth,
+          sync,
           poa,
           no_registry,
           registry_filepath,
@@ -164,7 +166,8 @@ def alice(click_config,
                                        click_config=click_config,
                                        dev=dev,
                                        teacher_uri=teacher_uri,
-                                       min_stake=min_stake)
+                                       min_stake=min_stake,
+                                       sync=sync)
 
     #
     # Admin Actions
@@ -174,8 +177,8 @@ def alice(click_config,
         """Start Alice Web Controller"""
         ALICE.controller.emitter(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
         controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
-        ALICE.log.info('Starting HTTP Character Web Controller')
-        return controller.start(http_port=http_port, dry_run=dry_run)
+        ALICE.log.info('Starting Alice Web Controller')
+        return controller.start(http_port=controller_port or alice_config.controller_port, dry_run=dry_run)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
