@@ -20,6 +20,7 @@ import contextlib
 import json
 import os
 import shutil
+import sys
 
 import pytest
 from click.testing import CliRunner
@@ -36,6 +37,23 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH,
     ONE_YEAR_IN_SECONDS)
 from nucypher.utilities.sandbox.constants import MOCK_CUSTOM_INSTALLATION_PATH_2, INSECURE_DEVELOPMENT_PASSWORD
+
+
+# CI machines don't have libusb available, thus usb1 raises an OSError.
+# This is a hack around that so we can patch what we need to run on CI.
+try:
+    import usb1
+except OSError:
+    class mock_usb1:
+
+        class USBErrorNoDevice(Exception):
+            pass
+
+        class USBErrorBusy(Exception):
+            pass
+
+    usb1 = mock_usb1()
+    sys.modules['usb1'] = usb1
 
 
 @pytest.fixture(scope='module')
