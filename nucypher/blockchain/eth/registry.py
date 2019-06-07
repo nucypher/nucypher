@@ -41,6 +41,8 @@ class EthereumContractRegistry:
     to use this.
     """
 
+    logger = Logger('ContractRegistry')
+
     _multi_contract = True
     _contract_name = NotImplemented
 
@@ -91,6 +93,7 @@ class EthereumContractRegistry:
 
         # Setup
         github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.REGISTRY_NAME}'
+        cls.logger.debug(f"Downloading contract registry from {github_endpoint}")
         response = requests.get(github_endpoint)
 
         # Fetch
