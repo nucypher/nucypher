@@ -31,7 +31,8 @@ from constant_sorrow.constants import (
     NOT_STAKING,
     NO_STAKES,
     STRANGER_STAKER,
-    NO_STAKING_DEVICE
+    NO_STAKING_DEVICE,
+    STRANGER_WORKER
 )
 from eth_tester.exceptions import TransactionFailed
 from twisted.internet import task, reactor
@@ -381,7 +382,6 @@ class Staker(NucypherTokenActor):
             # Staking Loop
             self.__current_period = None
             self._abort_on_staking_error = True
-            self._staking_task = task.LoopingCall(self.heartbeat)
 
         else:
             self.token_agent = STRANGER_STAKER
@@ -650,6 +650,135 @@ class Staker(NucypherTokenActor):
         collection_txhash = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
+
+
+class Worker(NucypherTokenActor):
+    """
+    Ursula baseclass for blockchain operations, practically carrying a pickaxe.
+    """
+
+    __current_period_sample_rate = 60*60  # seconds
+
+    class WorkerError(NucypherTokenActor.ActorError):
+        pass
+
+    def __init__(self,
+                 is_me: bool,
+                 worker_address: str = None,
+                 start_working_loop: bool = True,
+                 economics: TokenEconomics = None,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.worker_address = worker_address
+        self.log = Logger("worker")
+        self.is_me = is_me
+
+        if not economics:
+            economics = TokenEconomics()
+        self.economics = economics
+
+        #
+        # Blockchain
+        #
+
+        if is_me:
+            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+
+            # Staking Loop
+            self.__current_period = None
+            self._abort_on_working_error = True
+            self._working_task = task.LoopingCall(self.heartbeat)
+
+        else:
+            self.token_agent = STRANGER_WORKER
+
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
+
+        #
+        # Stakes
+        #
+
+        self.__stakes = UNKNOWN_STAKES
+        self.__start_time = NOT_STAKING
+        self.__uptime_period = NOT_STAKING
+        self.__terminal_period = UNKNOWN_STAKES
+
+    def heartbeat(self):
+        """Used with LoopingCall"""
+        try:
+            self._confirm_period()
+        except Exception:
+            raise
+
+    @property
+    def last_active_period(self) -> int:
+        period = self.staking_agent.get_last_active_period(address=self.checksum_address)
+        return period
+
+    @only_me
+    def _confirm_period(self):
+
+        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
+        self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
+
+        # Check if the period has changed on-chain
+        if self.__current_period != onchain_period:
+
+            # Let's see how much time has passed
+            # TODO: Follow-up actions for downtime
+            missed_periods = onchain_period - self.last_active_period
+            if missed_periods:
+                self.log.warn(f"MISSED CONFIRMATION - {missed_periods} missed staking confirmations detected!")
+                self.__read_stakes()  # Invalidate the stake cache
+
+            # Check for stake expiration and exit
+            stake_expired = self.__current_period >= self.__terminal_period
+            if stake_expired:
+                self.log.info('STOPPED STAKING - Final stake ended.')
+                return True
+
+            # Write to Blockchain
+            self.confirm_activity()
+
+            # Update local period cache
+            self.__current_period = onchain_period
+            self.log.info("Confirmed activity for period {}".format(self.__current_period))
+
+
+    def handle_working_errors(self, *args, **kwargs):
+        failure = args[0]
+        if self._abort_on_working_error:
+            self.log.critical("Unhandled error during node staking.  Attempting graceful crash.")
+            reactor.callFromThread(self._crash_gracefully, failure=failure)
+        else:
+            self.log.warn("Unhandled error in WorkerNode: {}".format(failure.getTraceback()))
+
+    @only_me
+    def start_working_loop(self, now=True) -> None:
+        if self._working_task.running:
+            return
+        d = self._working_task.start(interval=self.__current_period_sample_rate, now=now)
+        d.addErrback(self.handle_staking_errors)
+        self.log.info(f"STARTED WORKING LOOP - Scheduled end period is currently {self.__terminal_period}")
+
+    @property
+    def current_stake(self) -> NU:
+        """
+        The total number of staked tokens, either locked or unlocked in the current period.
+        """
+
+        if self.stakes:
+            return NU(sum(int(stake.value) for stake in self.stakes), 'NuNit')
+        else:
+            return NU.ZERO()
+
+    @only_me
+    def confirm_activity(self) -> str:
+        """For each period that the worker confirms activity, the staker is rewarded"""
+        txhash = self.staking_agent.confirm_activity(worker_address=self.worker_address)
+        self._transaction_cache.append((datetime.utcnow(), txhash))
+        return txhash
 
 
 class PolicyAuthor(NucypherTokenActor):
