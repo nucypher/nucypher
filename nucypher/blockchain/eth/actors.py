@@ -349,7 +349,7 @@ class Deployer(NucypherTokenActor):
 
 class Staker(NucypherTokenActor):
     """
-    Ursula baseclass for blockchain operations, practically carrying a pickaxe.
+    Baseclass for staking-related operations in the blockchain.
     """
 
     __current_period_sample_rate = 60*60  # seconds
@@ -408,7 +408,7 @@ class Staker(NucypherTokenActor):
     #
 
     @only_me
-    def stake(self, confirm_now: bool = True) -> None:
+    def stake(self) -> None:
         """
         High-level staking looping call initialization, this function aims
         to be safely called at any time - For example, it is okay to call
@@ -416,9 +416,6 @@ class Staker(NucypherTokenActor):
         """
         # Get the last stake end period of all stakes
         terminal_period = max(stake.end_period for stake in self.stakes)
-
-        if confirm_now:
-            self.confirm_activity()
 
         # record start time and periods
         self.__start_time = maya.now()
@@ -431,42 +428,6 @@ class Staker(NucypherTokenActor):
     def last_active_period(self) -> int:
         period = self.staking_agent.get_last_active_period(address=self.checksum_address)
         return period
-
-    @only_me
-    def _confirm_period(self):
-
-        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
-        self.log.info("Checking for new period. Current period is {}".format(self.__current_period))
-
-        # Check if the period has changed on-chain
-        if self.__current_period != onchain_period:
-
-            # Let's see how much time has passed
-            # TODO: Follow-up actions for downtime
-            missed_periods = onchain_period - self.last_active_period
-            if missed_periods:
-                self.log.warn(f"MISSED CONFIRMATION - {missed_periods} missed staking confirmations detected!")
-                self.__read_stakes()  # Invalidate the stake cache
-
-            # Check for stake expiration and exit
-            stake_expired = self.__current_period >= self.__terminal_period
-            if stake_expired:
-                self.log.info('STOPPED STAKING - Final stake ended.')
-                return True
-
-            # Write to Blockchain
-            self.confirm_activity()
-
-            # Update local period cache
-            self.__current_period = onchain_period
-            self.log.info("Confirmed activity for period {}".format(self.__current_period))
-
-    def heartbeat(self):
-        """Used with LoopingCall"""
-        try:
-            self._confirm_period()
-        except Exception:
-            raise
 
     def _crash_gracefully(self, failure=None):
         """
@@ -481,7 +442,7 @@ class Staker(NucypherTokenActor):
             self.log.critical("Unhandled error during node staking.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node staking: {}".format(failure.getTraceback()))
 
     @only_me
     def start_staking_loop(self, now=True) -> None:
@@ -577,11 +538,13 @@ class Staker(NucypherTokenActor):
         if entire_balance:
             amount = self.token_balance
         if not self.token_balance >= amount:
-            raise self.StakerError(f"Insufficient token balance ({self.token_agent}) for new stake initialization of {amount}")
+            raise self.StakerError(f"Insufficient token balance ({self.token_agent}) "
+                                   f"for new stake initialization of {amount}")
 
         # Ensure the new stake will not exceed the staking limit
         if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
-            raise Stake.StakingError(f"Cannot divide stake - Maximum stake value exceeded with a target value of {amount}.")
+            raise Stake.StakingError(f"Cannot divide stake - "
+                                     f"Maximum stake value exceeded with a target value of {amount}.")
 
         #
         # Stake
@@ -653,26 +616,21 @@ class Staker(NucypherTokenActor):
 
     @only_me
     def set_worker(self, worker_address: str) -> str:
-        txhash = self.staking_agent.set_worker(node_address=self.checksum_address, worker_address=worker_address)
-        self._transaction_cache.append((datetime.utcnow(), txhash))
-        return txhash
-
-    @only_me
-    def confirm_activity(self) -> str:
-        """Staker rewarded for every confirmed period"""
-        txhash = self.staking_agent.confirm_activity(node_address=self.checksum_address)
+        # TODO: Set a Worker for this staker, not just in StakingEscrow
+        txhash = self.staking_agent.set_worker(staker_address=self.checksum_address,
+                                               worker_address=worker_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
     @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the staker's account"""
-        mint_txhash = self.staking_agent.mint(node_address=self.checksum_address)
+        mint_txhash = self.staking_agent.mint(staker_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
         return mint_txhash
 
     def calculate_reward(self) -> int:
-        staking_reward = self.staking_agent.calculate_staking_reward(checksum_address=self.checksum_address)
+        staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
         return staking_reward
 
     @only_me
@@ -689,7 +647,7 @@ class Staker(NucypherTokenActor):
     @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        collection_txhash = self.staking_agent.collect_staking_reward(checksum_address=self.checksum_address)
+        collection_txhash = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
 
