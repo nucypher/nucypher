@@ -205,42 +205,41 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         period = self.contract.functions.getLastActivePeriod(address).call()
         return int(period)
 
-    def set_worker(self, node_address: str, worker_address: str) -> str:
-        txhash = self.contract.functions.setWorker(worker_address).transact({'from': node_address})
+    def set_worker(self, staker_address: str, worker_address: str) -> str:
+        txhash = self.contract.functions.setWorker(worker_address).transact({'from': staker_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def confirm_activity(self, node_address: str) -> str:
-        """Staker rewarded for every confirmed period"""
-
-        txhash = self.contract.functions.confirmActivity().transact({'from': node_address})
+    def confirm_activity(self, worker_address: str) -> str:
+        """For each period that the worker confirms activity, the staker is rewarded"""
+        txhash = self.contract.functions.confirmActivity().transact({'from': worker_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def mint(self, node_address) -> Tuple[str, str]:
+    def mint(self, staker_address) -> Tuple[str, str]:
         """
         Computes reward tokens for the staker's account;
         This is only used to calculate the reward for the final period of a stake,
         when you intend to withdraw 100% of tokens.
         """
 
-        mint_txhash = self.contract.functions.mint().transact({'from': node_address})
+        mint_txhash = self.contract.functions.mint().transact({'from': staker_address})
         self.blockchain.wait_for_receipt(mint_txhash)
         return mint_txhash
 
     @validate_checksum_address
-    def calculate_staking_reward(self, checksum_address: str) -> int:
-        token_amount = self.contract.functions.stakerInfo(checksum_address).call()[0]
-        staked_amount = max(self.contract.functions.getLockedTokens(checksum_address).call(),
-                            self.contract.functions.getLockedTokens(checksum_address, 1).call())
+    def calculate_staking_reward(self, staker_address: str) -> int:
+        token_amount = self.contract.functions.stakerInfo(staker_address).call()[0]
+        staked_amount = max(self.contract.functions.getLockedTokens(staker_address).call(),
+                            self.contract.functions.getLockedTokens(staker_address, 1).call())
         reward_amount = token_amount - staked_amount
         return reward_amount
 
     @validate_checksum_address
-    def collect_staking_reward(self, checksum_address: str) -> str:
+    def collect_staking_reward(self, staker_address: str) -> str:
         """Withdraw tokens rewarded for staking."""
-        reward_amount = self.calculate_staking_reward(checksum_address=checksum_address)
-        payload = {'from': checksum_address, 'gas': 500_000}  # TODO: #842 Gas Management
+        reward_amount = self.calculate_staking_reward(staker_address=staker_address)
+        payload = {'from': staker_address, 'gas': 500_000}  # TODO: #842 Gas Management
         collection_txhash = self.contract.functions.withdraw(reward_amount).transact(payload)
         self.blockchain.wait_for_receipt(collection_txhash)
         return collection_txhash
@@ -263,7 +262,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
 
     def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.7, attempts: int = 5) -> List[str]:
         """
-        Select n random staking Ursulas, according to their stake distribution.
+        Select n random Stakers, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
         throw away those which do not respond.
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
