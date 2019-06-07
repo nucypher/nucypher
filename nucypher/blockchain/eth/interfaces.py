@@ -267,8 +267,7 @@ class BlockchainInterface:
 
     def _attach_provider(self,
                          provider: Web3Providers = None,
-                         provider_uri: str = None,
-                         remote: bool = False) -> None:
+                         provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
