@@ -110,7 +110,7 @@ def test_init_ursula_stake(click_runner,
                            stake_value,
                            token_economics):
 
-    stake_args = ('ursula', 'stake',
+    stake_args = ('stake', 'init',
                   '--config-file', configuration_file_location,
                   '--value', stake_value.to_tokens(),
                   '--duration', token_economics.minimum_locked_periods,
@@ -135,9 +135,9 @@ def test_list_ursula_stakes(click_runner,
                             funded_blockchain,
                             configuration_file_location,
                             stake_value):
-    stake_args = ('ursula', 'stake',
+    stake_args = ('stake', 'list',
                   '--config-file', configuration_file_location,
-                  '--list')
+                  '--poa')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -148,8 +148,7 @@ def test_list_ursula_stakes(click_runner,
 @pytest.mark.skip(reason="Wait for #1056")
 def test_ursula_divide_stakes(click_runner, configuration_file_location, token_economics):
 
-    divide_args = ('ursula', 'stake',
-                   '--divide',
+    divide_args = ('stake', 'divide',
                    '--config-file', configuration_file_location,
                    '--force',
                    '--index', 0,
@@ -162,9 +161,9 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
                                  env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     assert result.exit_code == 0
 
-    stake_args = ('ursula', 'stake',
+    stake_args = ('stake', 'list',
                   '--config-file', configuration_file_location,
-                  '--list')
+                  '--poa')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
