@@ -7,6 +7,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting
 from nucypher.cli.actions import confirm_staged_stake
+from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     STAKE_VALUE, STAKE_DURATION, STAKE_EXTENSION)
@@ -16,19 +17,23 @@ from nucypher.cli.types import (
 @click.argument('action')
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
+@click.option('--trezor', help="Use the NuCypher Trezor Staking CLI", is_flag=True, default=None)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--worker-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--duration', help="Period duration of stake", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
-def stake(action,
+@nucypher_click_config
+def stake(click_config,
+          action,
 
           # Mode
           force,
           quiet,
+          trezor,
 
           # Blockchain
           poa,
@@ -45,8 +50,8 @@ def stake(action,
           ) -> None:
 
     # Banner
-    click.clear()
     if not quiet:
+        click.clear()
         click.secho(NU_BANNER)
 
     #
@@ -58,19 +63,40 @@ def stake(action,
     STAKER = Staker(is_me=True,
                     checksum_address=staking_address,
                     blockchain=blockchain)
-    
+
+    #
+    # Eager Actions
+    #
+
     if action == 'list':
         if not STAKER.stakes:
             click.echo(f"There are no active stakes for {STAKER.checksum_public_address}")
         else:
             painting.paint_stakes(stakes=STAKER.stakes)
         return
-    
-    elif action == 'set-worker':
+
+    #
+    # Authenticate
+    #
+
+    if trezor:
+        # TODO: Implement TrezorClient and Staker
+        raise NotImplementedError
+
+    else:
+        blockchain.interface.client.unlock_account(address=staking_address,
+                                                   password=click_config.get_password())
+
+    #
+    # Authenticated Actions
+    #
+
+    if action == 'set-worker':
         STAKER.set_worker(worker_address=worker_address)
-        pass
+        return  # Exit
 
     elif action == 'init':
+        """Initialize a new stake"""
 
         # Confirm new stake init
         if not force:
@@ -85,14 +111,18 @@ def stake(action,
         if not quiet:
             click.echo(f"Current balance: {balance}")
 
-        # Gather stake value
+        #
+        # Stage Stake
+        #
+
+        # Stake Value
         if not value:
             min_locked = NU(STAKER.economics.minimum_allowed_locked, 'NuNit')
             value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=min_locked)
         else:
             value = NU(int(value), 'NU')
 
-        # Duration
+        # Stake Duration
         if not quiet:
             message = f"Minimum duration: {STAKER.economics.minimum_allowed_locked} | " \
                       f"Maximum Duration: {STAKER.economics.maximum_allowed_locked}"
@@ -104,7 +134,10 @@ def stake(action,
         start_period = STAKER.staking_agent.get_current_period()
         end_period = start_period + duration
 
+        #
         # Review
+        #
+
         if not force:
             painting.paint_staged_stake(ursula=STAKER,
                                         stake_value=value,
@@ -118,10 +151,10 @@ def stake(action,
         if not force:
             click.confirm("Publish staged stake to the blockchain?", abort=True)
 
+        # Execute
         new_stake = STAKER.initialize_stake(amount=int(value), lock_periods=duration)
         painting.paint_staking_confirmation(ursula=STAKER, transactions=new_stake.transactions)
-        
-        return
+        return  # Exit
     
     elif action == 'divide':
         """Divide an existing stake by specifying the new target value and end period"""
@@ -131,13 +164,15 @@ def stake(action,
             click.echo(f"There are no active stakes for {STAKER.checksum_public_address}")
             return
 
-        # Selection
+        # Stake Selection
         if index is None:
             painting.paint_stakes(stakes=STAKER.stakes)
             index = click.prompt("Select a stake to divide", type=click.IntRange(min=0, max=len(STAKER.stakes)-1))
-
-        # Lookup the stake
         current_stake = STAKER.stakes[index]
+
+        #
+        # Stage Stake
+        #
 
         # Value
         if not value:
@@ -159,6 +194,7 @@ def stake(action,
 
             click.confirm("Is this correct?", abort=True)
 
+        # Execute
         modified_stake, new_stake = STAKER.divide_stake(stake_index=index,
                                                         target_value=value,
                                                         additional_periods=extension)
@@ -170,12 +206,15 @@ def stake(action,
         # Show the resulting stake list
         painting.paint_stakes(stakes=STAKER.stakes)
 
-        return
+        return  # Exit
     
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
+
         if not force:
             click.confirm(f"Send {STAKER.calculate_reward()} to {STAKER.checksum_public_address}?")
         
         STAKER.collect_policy_reward(collector_address=withdraw_address)
         STAKER.collect_staking_reward()
+
+    return  # Exit
