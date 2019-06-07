@@ -184,7 +184,7 @@ def test_run_blockchain_ursula(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-
+a
 def test_collect_rewards_integration(click_runner,
                                      configuration_file_location,
                                      blockchain_alice,
