@@ -17,12 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
-from nucypher.utilities.sandbox.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, \
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT, TEST_PROVIDER_URI
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.sandbox.constants import (
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    NUMBER_OF_ETH_TEST_ACCOUNTS,
+    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
+    TEST_PROVIDER_URI
+)
 
 
 @pytest.fixture()
@@ -64,11 +69,14 @@ def test_testerchain_creation(testerchain, another_testerchain):
         bob = chain.bob_account
         assert bob == chain.interface.w3.eth.accounts[2]
 
+        stakers = [chain.staker_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
+        assert stakers == chain.stakers_accounts
+
         ursulas = [chain.ursula_account(i) for i in range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)]
         assert ursulas == chain.ursulas_accounts
 
         # Check that the remaining accounts are different from the previous ones:
-        assert set([etherbase, alice, bob] + ursulas).isdisjoint(set(chain.unassigned_accounts))
+        assert set([etherbase, alice, bob] + ursulas + stakers).isdisjoint(set(chain.unassigned_accounts))
 
         # Check that accounts are funded
         for account in chain.interface.w3.eth.accounts:
