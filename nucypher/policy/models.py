@@ -66,11 +66,10 @@ class Arrangement:
                  ursula=None,
                  arrangement_id=None,
                  kfrag=UNKNOWN_KFRAG,
-                 value=None,
-                 alices_signature=None) -> None:
+                 value: int = 0) -> None:
         """
-        :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
-            a portion will be locked for each Ursula that accepts.
+        :param value: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
+                      a portion will be locked for each Ursula that accepts.
         :param expiration: The moment which Alice wants the Arrangement to end.
 
         Other params are hopefully self-evident.
@@ -161,7 +160,7 @@ class Policy:
         self._enacted_arrangements = OrderedDict()    # type: OrderedDict
         self._published_arrangements = OrderedDict()  # type: OrderedDict
 
-        self.alices_signature = alices_signature
+        self.alices_signature = alices_signature  # TODO: This is unused / To Be Implemented?
 
     class MoreKFragsThanArrangements(TypeError):
         """
@@ -179,7 +178,7 @@ class Policy:
 
     def hrac(self) -> bytes:
         """
-        This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
+        # TODO: #180 - This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
 
         The "hashed resource authentication code".
 
@@ -197,28 +196,30 @@ class Policy:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
-                                                  self.label
-                                                  )
+                                                  self.label)
         if not self.alice.known_nodes:
-            # TODO: Optionally block.
+            # TODO: Optionally, block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         responses = dict()
         for node in self.alice.known_nodes:
-            # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
+            # TODO: # 342 - It's way overkill to push this to every node we know about.  Come up with a system.
+
             try:
                 treasure_map_id = self.treasure_map.public_id()
-                response = network_middleware.put_treasure_map_on_node(node,
-                                                                       treasure_map_id,
-                                                                       bytes(self.treasure_map)
-                                                                       )  # TODO: Certificate filepath needs to be looked up and passed here
+
+                # TODO: Certificate filepath needs to be looked up and passed here
+                response = network_middleware.put_treasure_map_on_node(node=node,
+                                                                       map_id=treasure_map_id,
+                                                                       map_payload=bytes(self.treasure_map))
             except NodeSeemsToBeDown:
                 # TODO: Introduce good failure mode here if too few nodes receive the map.
                 continue
 
             if response.status_code == 202:
+                # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
                 responses[node] = response
-                # TODO: Handle response wherein node already had a copy of this TreasureMap.  341
+
             else:
                 # TODO: Do something useful here.
                 raise RuntimeError
@@ -330,7 +331,7 @@ class Policy:
                                                         arrangement=arrangement,
                                                         network_middleware=network_middleware)
 
-            except NodeSeemsToBeDown:  # TODO: Also catch InvalidNode here?  355
+            except NodeSeemsToBeDown:  # TODO: #355 Also catch InvalidNode here?
                 # This arrangement won't be added to the accepted bucket.
                 # If too many nodes are down, it will fail in make_arrangements.
                 continue

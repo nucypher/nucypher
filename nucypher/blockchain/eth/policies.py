@@ -39,6 +39,9 @@ class BlockchainArrangement(Arrangement):
     """
     federated = False
 
+    class InvalidArrangement(Exception):
+        pass
+
     def __init__(self,
                  alice: PolicyAuthor,
                  ursula: Miner,
@@ -47,6 +50,9 @@ class BlockchainArrangement(Arrangement):
                  *args, **kwargs) -> None:
 
         super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
+
+        if not value > 0:
+            raise self.InvalidArrangement("Value must be greater than 0.")
 
         delta = expiration - maya.now()
         hours = (delta.total_seconds() / 60) / 60  # type: int
@@ -95,6 +101,9 @@ class BlockchainPolicy(Policy):
     class NoSuchPolicy(Exception):
         pass
 
+    class InvalidPolicy(Exception):
+        pass
+
     class NotEnoughBlockchainUrsulas(Policy.MoreKFragsThanArrangements):
         pass
 
@@ -117,6 +126,9 @@ class BlockchainPolicy(Policy):
         self.value = value
         self.author = alice
         self.selection_buffer = 1.5
+
+        if not self.value > 0:
+            raise self.InvalidPolicy("Value must be greater than 0.")
 
         # Initial State
         self.publish_transaction = None

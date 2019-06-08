@@ -70,14 +70,14 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                       label: bytes,
                       m: int,
                       n: int,
-                      federated_only: bool = True,  # TODO: Default for now
+                      expiration: maya.MayaDT,
+                      value: int = None,
                       ) -> dict:
-
+        
         from nucypher.characters.lawful import Bob
-
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
-                                   verifying_key=bob_verifying_key,
-                                   federated_only=federated_only)
+                                   verifying_key=bob_verifying_key)
+
         new_policy = self.character.create_policy(bob=bob, label=label, m=m, n=n)
         response_data = {'label': new_policy.label, 'policy_encrypting_key': new_policy.public_key}
         return response_data
@@ -94,23 +94,28 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
               m: int,
               n: int,
               expiration: maya.MayaDT,
-              federated_only: bool = True  # TODO: Default for now
+              value: int = None,
               ) -> dict:
+
         from nucypher.characters.lawful import Bob
-
-        # Operate
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
-                                   verifying_key=bob_verifying_key,
-                                   federated_only=federated_only)
+                                   verifying_key=bob_verifying_key)
 
-        new_policy = self.character.grant(bob, label, m=m, n=n, expiration=expiration)
+        new_policy = self.character.grant(bob=bob,
+                                          label=label,
+                                          m=m,
+                                          n=n,
+                                          value=value,
+                                          expiration=expiration)
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          'alice_verifying_key': new_policy.alice.stamp}
         return response_data
 
-    def revoke(self, label: bytes, bob_verifying_key: bytes):
+    def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
+
+        # TODO: Move deeper into characters
         policy_id = construct_policy_id(label, bob_verifying_key)
         policy = self.character.active_policies[policy_id]
 
@@ -126,15 +131,16 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
 
-    def decrypt(self, label: bytes, message_kit: bytes):
+    def decrypt(self, label: bytes, message_kit: bytes) -> dict:
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
 
         from nucypher.characters.lawful import Enrico
-
         policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
-        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+
+        # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = UmbralMessageKit.from_bytes(message_kit)
 
         data_source = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
@@ -148,9 +154,10 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
             label=label
         )
 
-        return {'cleartexts': plaintexts}
+        response = {'cleartexts': plaintexts}
+        return response
 
-    def public_keys(self):
+    def public_keys(self) -> dict:
         """
         Character control endpoint for getting Alice's public keys.
         """

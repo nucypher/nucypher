@@ -9,6 +9,7 @@ import maya
 import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
+from web3 import Web3
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
@@ -266,6 +267,7 @@ def test_cli_lifecycle(click_runner,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
+                      '--value', Web3.toWei(1, 'ether'),
                       '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
