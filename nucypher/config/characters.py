@@ -130,17 +130,15 @@ class AliceConfiguration(NodeConfiguration):
         self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
         self.duration = duration or self.DEFAULT_DURATION
 
-    @property
     def static_payload(self) -> dict:
         payload = dict(m=self.m,
                        n=self.n,
                        rate=self.rate,
                        first_period_rate=self.first_period_rate,
                        duration=self.duration)
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
@@ -158,11 +156,9 @@ class BobConfiguration(NodeConfiguration):
     DEFAULT_CONTROLLER_PORT = 7151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
-                                     wallet=False,
                                      **generation_kwargs)
 
 
@@ -202,7 +198,6 @@ class FelixConfiguration(NodeConfiguration):
         return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,  # TODO: #668
                                      rest=True,

@@ -51,10 +51,10 @@ class BaseConfiguration(ABC):
         default_path = os.path.join(cls.DEFAULT_CONFIG_ROOT, filename)
         return default_path
 
-    def generate_filepath(self, filepath: str = None, modifier: str = None) -> str:
+    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
         if not filepath:
             filepath = self.default_filepath()
-        if os.path.exists(filepath):
+        if os.path.exists(filepath) and not override:
             if not modifier:
                 raise FileExistsError(f"{filepath} exists and no filename modifier supplied.")
             filename = self.generate_filename(modifier=modifier)
@@ -63,7 +63,7 @@ class BaseConfiguration(ABC):
         return filepath
 
     def to_configuration_file(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
-        filepath = self.generate_filepath(filepath=filepath, modifier=modifier)
+        filepath = self.generate_filepath(filepath=filepath, modifier=modifier, override=override)
         filepath = self._write_configuration_file(filepath=filepath, override=override)
         return filepath
 
