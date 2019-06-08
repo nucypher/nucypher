@@ -51,6 +51,8 @@ from nucypher.crypto.powers import (
     DerivedKeyBasedPower,
     BlockchainPower
 )
+
+from constant_sorrow.constants import FEDERATED_ADDRESS
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
