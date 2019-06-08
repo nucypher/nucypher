@@ -28,6 +28,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
 
 
 def test_alice_control_starts_mocked(click_runner, mocker):
+
     class MockKeyring:
         is_unlocked = False
 

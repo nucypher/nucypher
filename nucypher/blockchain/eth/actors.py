@@ -30,7 +30,8 @@ from constant_sorrow.constants import (
     UNKNOWN_STAKES,
     NOT_STAKING,
     NO_STAKES,
-    STRANGER_STAKER
+    STRANGER_STAKER,
+    NO_STAKING_DEVICE
 )
 from eth_tester.exceptions import TransactionFailed
 from twisted.internet import task, reactor
@@ -57,6 +58,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 

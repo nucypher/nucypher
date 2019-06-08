@@ -29,7 +29,6 @@ from constant_sorrow.constants import (
 )
 from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
-from eth_utils import to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
@@ -305,6 +304,9 @@ class BlockchainInterface:
                     "{} is an invalid or unsupported blockchain"
                     " provider URI".format(provider_uri)
                 )
+
+        elif provider:
+            self.__provider = provider
 
     def _get_IPC_provider(self):
         uri_breakdown = urlparse(self.provider_uri)

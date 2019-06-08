@@ -1,15 +1,54 @@
-import tempfile
+import json
+import shutil
 
 import pytest
-from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED
-from nucypher.characters.lawful import Ursula, Alice
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
+from constant_sorrow.constants import NO_KEYRING_ATTACHED
 
+from nucypher.characters.lawful import Alice
+from nucypher.characters.lawful import Ursula
+from nucypher.config.base import BaseConfiguration
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 
-@pytest.mark.parametrize("configuration,character", [(UrsulaConfiguration, Ursula), (AliceConfiguration, Alice)])
+def test_base_configuration():
+
+    class Something(BaseConfiguration):
+        _NAME = 'something'
+        DEFAULT_CONFIG_ROOT = '/tmp'
+
+        def __init__(self, item: str, *args, **kwargs):
+            self.item = item
+            super().__init__(*args, **kwargs)
+
+        def static_payload(self) -> dict:
+            payload = dict(item=self.item)
+            return payload
+
+    # Create something
+    s = Something(item='llamas')
+
+    # Dump to JSON file
+    shutil.rmtree(Something.default_filepath(), ignore_errors=True)
+    s.to_configuration_file(override=True)
+
+    try:
+        with open(s.filepath, 'r') as f:
+            contents = f.read()
+        assert contents == json.dumps(s.static_payload(), indent=4)
+
+        # Restore from JSON file
+        s2 = Something.from_configuration_file()
+        assert s == s2
+        assert s.item == 'llamas'
+
+    finally:
+        shutil.rmtree(s.filepath, ignore_errors=True)
+
+
+@pytest.mark.parametrize("configuration,character", [(UrsulaConfiguration, Ursula),
+                                                     (AliceConfiguration, Alice)])
 def test_federated_development_configurations(configuration, character):
 
     config = configuration(dev_mode=True, federated_only=True)
@@ -36,7 +75,7 @@ def test_federated_development_configurations(configuration, character):
 
     # Domains
     domains = thing_one.learning_domains
-    assert domains == {TEMPORARY_DOMAIN}
+    assert domains == [TEMPORARY_DOMAIN]
 
     # Node Storage
     assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_dir
@@ -51,18 +90,26 @@ def test_federated_development_configurations(configuration, character):
         characters.append(another_character)
 
 
-def test_federated_ursula_development_configuration():
+@pytest.mark.parametrize('configuration_class', (UrsulaConfiguration,
+                                                 AliceConfiguration,
+                                                 BobConfiguration))
+def test_create_standard_character_configuration(configuration_class):
 
-    # Configure & Produce Ursula
-    ursula_config = UrsulaConfiguration(dev_mode=True, federated_only=True)
-    ursula = ursula_config.produce()
+    class TempConfiguration(configuration_class):
+        DEFAULT_CONFIG_ROOT = '/tmp'
 
-    # Network Port
-    port = ursula.rest_information()[0].port
-    assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
+    character_config = TempConfiguration(checksum_address='0xdeadbeef')
+    character_config.to_configuration_file(override=True)
 
-    # Database
-    assert tempfile.gettempdir() in ursula.datastore.engine.url.database
+    try:
+        with open(character_config.filepath, 'r') as f:
+            contents = f.read()
+        assert contents == json.dumps(character_config.static_payload(), indent=4)
 
-    # TLS Certificate
-    assert ursula.certificate_filepath is CERTIFICATE_NOT_SAVED
+        # Restore from JSON file
+        ursula_config2 = TempConfiguration.from_configuration_file()
+        assert character_config == ursula_config2
+
+    finally:
+        shutil.rmtree(character_config.filepath, ignore_errors=True)
+
