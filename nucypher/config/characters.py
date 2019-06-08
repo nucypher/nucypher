@@ -50,14 +50,13 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    @property
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_filepath=self.db_filepath,
         )
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     @property
     def dynamic_payload(self) -> dict:
@@ -194,14 +193,13 @@ class FelixConfiguration(NodeConfiguration):
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
 
-    @property
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_filepath=self.db_filepath,
         )
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
