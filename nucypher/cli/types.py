@@ -44,6 +44,7 @@ class IPv4Address(click.ParamType):
 
 
 token_economics = TokenEconomics()
+WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 
 # Staking
 STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, clamp=False)

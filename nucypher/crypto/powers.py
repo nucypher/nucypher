@@ -122,7 +122,7 @@ class BlockchainPower(CryptoPowerUp):
         """
         Deletes the blockchain power and locks the account.
         """
-        self.blockchain.interface.client.lockAccount(self.account)
+        self.blockchain.interface.client.lock_account(self.account)
 
 
 class KeyPairBasedPower(CryptoPowerUp):

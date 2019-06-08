@@ -2,7 +2,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.banners import ALICE_BANNER
-from nucypher.cli import actions, painting
+from nucypher.cli import actions, painting, types
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
@@ -33,7 +33,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
-@click.option('--value', help="Total policy value (in Wei)", type=click.INT)
+@click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
 @click.option('--duration', help="Policy duration in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
@@ -229,8 +229,10 @@ def alice(click_config,
             'n': n,
             'expiration': expiration,
         }
+
         if not ALICE.federated_only:
             grant_request.update({'value': value})
+
         return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":

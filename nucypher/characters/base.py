@@ -272,9 +272,9 @@ class Character(Learner):
     @classmethod
     def from_public_keys(cls,
                          powers_and_material: Dict = None,
-                         federated_only=True,
                          verifying_key: Union[bytes, UmbralPublicKey] = None,
                          encrypting_key: Union[bytes, UmbralPublicKey] = None,
+                         federated_only: bool = True,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
