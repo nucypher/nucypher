@@ -194,7 +194,7 @@ class NodeConfiguration(BaseConfiguration):
         # Identity
         #
         self.is_me = True  # NodeConfigurations can only be used with Self-Characters
-        self.checksum_public_address = checksum_address
+        self.checksum_address = checksum_address
         if not dev_mode and checksum_address:
             self.attach_keyring()
 
@@ -256,7 +256,7 @@ class NodeConfiguration(BaseConfiguration):
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
         node_config.to_configuration_file(filepath=node_config.config_file_location,
-                                          modifier=node_config.checksum_public_address)
+                                          modifier=node_config.checksum_address)
         return node_config
 
     def cleanup(self) -> None:
@@ -369,8 +369,10 @@ class NodeConfiguration(BaseConfiguration):
 
         return node_configuration
 
-    def generate_filepath(self, filepath: str = None, modifier: str = None) -> str:
-        filepath = super().generate_filepath(filepath=filepath, modifier=modifier or self.checksum_public_address)
+    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
+        filepath = super().generate_filepath(filepath=filepath,
+                                             modifier=modifier or self.checksum_address,
+                                             override=override)
         self.filepath = filepath
         return filepath
 
@@ -400,7 +402,7 @@ class NodeConfiguration(BaseConfiguration):
 
             # Identity
             federated_only=self.federated_only,
-            checksum_address=self.checksum_public_address,
+            checksum_address=self.checksum_address,
             keyring_dir=self.keyring_dir,
 
             # Behavior
@@ -469,15 +471,15 @@ class NodeConfiguration(BaseConfiguration):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != (checksum_address or self.checksum_public_address):
+            if self.keyring.checksum_address != (checksum_address or self.checksum_address):
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
 
-        if (checksum_address or self.checksum_public_address) is None:
+        if (checksum_address or self.checksum_address) is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
 
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,  # type: str
-                                       account=checksum_address or self.checksum_public_address,  # type: str
+                                       account=checksum_address or self.checksum_address,  # type: str
                                        *args, **kwargs)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
@@ -549,25 +551,25 @@ class NodeConfiguration(BaseConfiguration):
                     os.mkdir(self.provider_process.data_dir)
 
                 # Get or create wallet address
-                if not self.checksum_public_address:
-                    self.checksum_public_address = self.provider_process.ensure_account_exists(password=password)
-                elif self.checksum_public_address not in self.provider_process.accounts():
-                    raise self.ConfigurationError(f'Unknown Account {self.checksum_public_address}')
+                if not self.checksum_address:
+                    self.checksum_address = self.provider_process.ensure_account_exists(password=password)
+                elif self.checksum_address not in self.provider_process.accounts():
+                    raise self.ConfigurationError(f'Unknown Account {self.checksum_address}')
 
             # Determine etherbase (web3)
-            elif not self.checksum_public_address:
+            elif not self.checksum_address:
                 self.connect_to_blockchain()
                 if not self.blockchain.interface.w3.eth.accounts:
                     raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_public_address = self.blockchain.interface.w3.eth.accounts[0]
+                self.checksum_address = self.blockchain.interface.w3.eth.accounts[0]
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
-                                                checksum_address=self.checksum_public_address,
+                                                checksum_address=self.checksum_address,
                                                 federated=self.federated_only,
                                                 **generation_kwargs)
 
-        self.checksum_public_address = self.keyring.account
+        self.checksum_address = self.keyring.account
         return self.keyring
 
     @classmethod
