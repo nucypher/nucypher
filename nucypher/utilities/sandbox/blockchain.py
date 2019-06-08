@@ -36,8 +36,9 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import (
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
+    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     STAKING_ESCROW_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
@@ -77,7 +78,9 @@ class TesterBlockchain(Blockchain):
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
-    _FIRST_URSULA = 5
+    _FIRST_STAKER = 5
+    _stakers_range = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
+    _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
     _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
     def __init__(self,
@@ -242,12 +245,22 @@ class TesterBlockchain(Blockchain):
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.interface.w3.eth.accounts[index + self._FIRST_URSULA]
 
+    def staker_account(self, index):
+        if index not in self._stakers_range:
+            raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
+        return self.interface.w3.eth.accounts[index + self._FIRST_STAKER]
+
     @property
     def ursulas_accounts(self):
-        return [self.ursula_account(i) for i in self._ursulas_range]
+        return list(self.ursula_account(i) for i in self._ursulas_range)
+
+    @property
+    def stakers_accounts(self):
+        return list(self.staker_account(i) for i in self._stakers_range)
 
     @property
     def unassigned_accounts(self):
-        assigned_accounts = set(self.ursulas_accounts + [self.etherbase_account, self.alice_account, self.bob_account])
+        special_accounts = [self.etherbase_account, self.alice_account, self.bob_account]
+        assigned_accounts = set(self.stakers_accounts + self.ursulas_accounts + special_accounts)
         accounts = set(self.interface.w3.eth.accounts)
         return list(accounts.difference(assigned_accounts))
