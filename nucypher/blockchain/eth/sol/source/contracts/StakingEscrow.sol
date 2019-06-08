@@ -639,16 +639,9 @@ contract StakingEscrow is Issuer {
     * @notice Confirm activity for the next period and mine for the previous period
     **/
     function confirmActivity() external {
-        address staker = msg.sender;
-        // sender is staker -> staker is an intermediary contract
-        if (stakerInfo[staker].value > 0) {
-            require(getWorkerByStaker(staker) == tx.origin, "Only worker can confirm activity");
-        } else {
-            // staker is not a contract -> sender is worker
-            staker = getStakerByWorker(msg.sender);
-            require(stakerInfo[staker].value > 0, "Staker must have a stake to confirm activity");
-            require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
-        }
+        address staker = getStakerByWorker(msg.sender);
+        require(stakerInfo[staker].value > 0, "Staker must have a stake to confirm activity");
+        require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
 
         uint16 lastActivePeriod = getLastActivePeriod(staker);
         mint(staker);
