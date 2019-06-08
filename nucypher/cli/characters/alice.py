@@ -159,6 +159,7 @@ def alice(click_config,
     else:
         try:
             alice_config = AliceConfiguration.from_configuration_file(
+                dev_mode=False,
                 filepath=config_file,
                 domains={network} if network else None,
                 network_middleware=click_config.middleware,
