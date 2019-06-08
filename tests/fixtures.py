@@ -124,7 +124,6 @@ def certificates_tempdir():
 def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
-                                        is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True,
@@ -138,7 +137,6 @@ def ursula_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
-                                        is_me=True,
                                         provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
@@ -155,7 +153,6 @@ def ursula_decentralized_test_config():
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(dev_mode=True,
-                                is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
@@ -169,7 +166,6 @@ def alice_federated_test_config(federated_ursulas):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
-                                is_me=True,
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),

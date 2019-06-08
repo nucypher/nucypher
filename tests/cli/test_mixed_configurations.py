@@ -14,6 +14,16 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
+def test_destroy_with_no_configurations(click_runner, custom_filepath):
+    """Provide useful error messages when attempting to destroy when there is nothing to destroy"""
+    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
+    destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
+    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
+    assert result.exit_code == 2
+    assert 'Error: Invalid value for "--config-file":'
+    assert f'"{ursula_file_location}" does not exist.' in result.output
+
+
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    mock_primary_registry_filepath,
@@ -51,7 +61,7 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(deploy.deploy,
                                  deploy_args,
-                                 input=f'0\nY\nDEPLOY',  # TODO: Centralized location for intractive inputs
+                                 input=f'0\nY\nDEPLOY',
                                  catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
@@ -77,7 +87,7 @@ def test_coexisting_configurations(click_runner,
     felix_file_location = os.path.join(custom_filepath, 'felix.config')
     alice_file_location = os.path.join(custom_filepath, 'alice.config')
     ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, f'ursula-{another_ursula[:6]}.config')
+    another_ursula_configuration_file_location = os.path.join(custom_filepath, f'ursula-{another_ursula[:6]}.json')
 
     # Felix creates a system configuration
     felix_init_args = ('felix', 'init',
@@ -131,8 +141,9 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert os.path.isfile(ursula_file_location)
+
     assert os.path.isfile(another_ursula_configuration_file_location)
+    assert os.path.isfile(ursula_file_location)
 
     assert len(os.listdir(public_keys_dir)) == 11
 
@@ -182,21 +193,13 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isfile(felix_file_location)
 
 
-def test_destroy_with_no_configurations(click_runner, custom_filepath):
-    """Provide useful error messages when attempting to destroy when there is nothing to destroy"""
-    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
-    destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
-    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
-    assert result.exit_code == 2
-    assert 'Error: Invalid value for "--config-file":'
-    assert f'"{ursula_file_location}" does not exist.' in result.output
-
-
+@pytest.mark.skip("Needs refactoring with latest decentralized CLI")
 def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
 
     init_args = ('ursula', 'init',
                  '--provider-uri', TEST_PROVIDER_URI,
+                 '--checksum-address', ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath)
