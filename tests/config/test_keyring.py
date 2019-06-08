@@ -26,7 +26,8 @@ def test_generate_alice_keyring(tmpdir):
         password=password,
         encrypting=True,
         rest=False,
-        keyring_root=tmpdir
+        keyring_root=tmpdir,
+        federated=True
     )
 
     enc_pubkey = keyring.encrypting_public_key

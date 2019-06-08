@@ -301,7 +301,7 @@ class Stake:
 
         # Read from blockchain
         stake_info = self.staking_agent.get_substake_info(staker_address=self.owner_address,
-                                                        stake_index=self.index)  # < -- Read from blockchain
+                                                          stake_index=self.index)  # < -- Read from blockchain
 
         first_period, last_period, locked_value = stake_info
         if not self.start_period == first_period:
@@ -317,12 +317,12 @@ class Stake:
         """Public facing method for token locking."""
 
         approve_txhash = staker.token_agent.approve_transfer(amount=amount,
-                                                            target_address=staker.staking_agent.contract_address,
-                                                            sender_address=staker.checksum_address)
+                                                             target_address=staker.staking_agent.contract_address,
+                                                             sender_address=staker.checksum_address)
 
         deposit_txhash = staker.staking_agent.deposit_tokens(amount=amount,
-                                                          lock_periods=lock_periods,
-                                                          sender_address=staker.checksum_address)
+                                                             lock_periods=lock_periods,
+                                                             sender_address=staker.checksum_address)
 
         return approve_txhash, deposit_txhash
 
@@ -379,9 +379,9 @@ class Stake:
 
         # Transmit the stake division transaction
         tx = self.staking_agent.divide_stake(staker_address=self.owner_address,
-                                           stake_index=self.index,
-                                           target_value=int(target_value),
-                                           periods=additional_periods)
+                                             stake_index=self.index,
+                                             target_value=int(target_value),
+                                             periods=additional_periods)
         receipt = self.blockchain.wait_for_receipt(tx)
         new_stake.receipt = receipt
 

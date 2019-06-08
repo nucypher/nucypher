@@ -5,7 +5,7 @@ Description="Run 'Ursula', A NuCypher Staking Node."
 User=ubuntu
 Type=simple
 Environment="NUCYPHER_KEYRING_PASSWORD={{ursula_password.stdout}}"
-ExecStart={{ virtualenv_path }}/bin/nucypher --debug ursula run --network {{ nucypher_network_domain }} --federated-only --teacher-uri {{ seed_node_metadata.checksum_public_address }}@https://{{ seed_node_metadata.rest_host }}:{{seed_node_metadata.rest_port}}
+ExecStart={{ virtualenv_path }}/bin/nucypher --debug ursula run --network {{ nucypher_network_domain }} --federated-only --teacher-uri {{ seed_node_metadata.checksum_address }}@https://{{ seed_node_metadata.rest_host }}:{{seed_node_metadata.rest_port}}
 
 [Install]
 WantedBy=multi-user.target
