@@ -626,3 +626,84 @@ class PolicyAuthor(NucypherTokenActor):
         from nucypher.blockchain.eth.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
         return blockchain_policy
+
+
+class StakeHolder(BaseConfiguration):
+
+    def __init__(self,
+                 blockchain: Blockchain = None,
+                 staking_agent: StakingEscrowAgent = None,
+                 trezor: bool = False,
+                 *args, **kwargs):
+
+        if not staking_agent:
+            staking_agent = StakingEscrowAgent(blockchain=blockchain)
+
+        self.staking_agent = staking_agent
+        self.blockchain = staking_agent.blockchain
+
+        self.trezor = trezor
+        self.device = NO_STAKING_DEVICE
+        self.setup_device()
+
+        self.__accounts = list()
+        self.__stakers = dict()
+
+        super().__init__(*args, **kwargs)
+
+    def static_payload(self) -> dict:
+        payload = dict(trezor=self.trezor)
+        return payload
+
+    def setup_device(self) -> None:
+        device = NO_STAKING_DEVICE
+        if self.trezor:
+            device = NotImplemented  # Trezor()
+        self.device = device
+
+    def add_account(self, address: str) -> None:
+        self.blockchain.interface.client.unlock_account(address=address)
+        self.__accounts.append(address)
+
+    def get_accounts(self):
+        if self.device is not NO_STAKING_DEVICE:
+            self.__accounts.extend(self.device.accounts)
+
+    def get_stakers(self) -> None:
+        for account in self.__accounts:
+            staker = Staker(is_me=True, checksum_address=account)
+            self.__stakers[account] = staker
+
+    def get_staker(self, address: str) -> Staker:
+        try:
+            staker = self.__stakers[address]
+        except KeyError:
+            if address not in self.__accounts:
+                raise RuntimeError(f"Unknown or locked account {address}")
+            staker = Staker(is_me=True, checksum_address=address)
+        return staker
+
+    def set_worker(self, index: int, worker_address: str):
+        stake = self.__stakers[index]
+        result = self.staking_agent.set_worker(node_address=stake.owner_address, worker_address=worker_address)
+        return result
+
+    def initialize_stake(self, address: str, amount: NU, duration: int):
+        staker = self.get_staker(address=address)
+        new_stake = Stake.initialize_stake(staker=staker, amount=amount)
+        return new_stake
+
+    def divide_stake(self, address: str, index: int):
+
+        try:
+            staker = self.__stakers[address]
+        except KeyError:
+            raise RuntimeError(f"No active stakes for {address}")
+
+        try:
+            stake = staker.stakes[index]
+        except IndexError:
+            raise
+
+        stake.divide(target_value=0)
+
