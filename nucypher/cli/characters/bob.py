@@ -149,7 +149,7 @@ def bob(click_config,
 
         # Validate
         if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            message = "'nucypher bob destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
         # Request

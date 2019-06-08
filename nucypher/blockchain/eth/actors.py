@@ -696,7 +696,7 @@ class PolicyAuthor(NucypherTokenActor):
                  *args, **kwargs) -> None:
         """
         :param policy_agent: A policy agent with the blockchain attached;
-                             If not passed, A default policy agent and blockchain connection will
+                             If not passed, a default policy agent and blockchain connection will
                              be created from default values.
 
         """

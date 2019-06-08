@@ -33,7 +33,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--m', help="M-Threshold KFrags", type=click.INT)
 @click.option('--n', help="N-Total KFrags", type=click.INT)
-@click.option('--value', help="Total policy value", type=click.FLOAT)
+@click.option('--value', help="Total policy value (in Wei)", type=click.INT)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
 @click.option('--duration', help="Policy duration in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
@@ -191,7 +191,7 @@ def alice(click_config,
     elif action == "destroy":
         """Delete all configuration files from the disk"""
         if dev:
-            message = "'nucypher ursula destroy' cannot be used in --dev mode"
+            message = "'nucypher alice destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=alice_config, force=force)
 
@@ -202,23 +202,6 @@ def alice(click_config,
     elif action == "public-keys":
         response = ALICE.controller.public_keys()
         return response
-
-    elif action == "create-policy":
-
-        # Validate
-        if not all((bob_verifying_key, bob_encrypting_key, label)):
-            raise click.BadArgumentUsage(message="--bob-verifying-key, --bob-encrypting-key, and --label are "
-                                                 "required options to create a new policy.")
-
-        # Request
-        create_policy_request = {
-            'bob_encrypting_key': bob_encrypting_key,
-            'bob_verifying_key': bob_verifying_key,
-            'label': label,
-            'm': m,
-            'n': n,
-        }
-        return ALICE.controller.create_policy(request=create_policy_request)
 
     elif action == "derive-policy-pubkey":
 

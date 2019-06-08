@@ -334,7 +334,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', 'tester://pyevm',
+               '--provider-uri', TEST_PROVIDER_URI,
                '--poa',
                '--no-sync']
 

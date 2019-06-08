@@ -664,9 +664,9 @@ class NodeConfiguration(ABC):
                 # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
                 else:
                     self.connect_to_blockchain()
-                    if not self.blockchain.interface.w3.eth.accounts:
+                    if not self.blockchain.interface.client.accounts:
                         raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                    checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # TODO: Make this a configurable default in config files
+                    checksum_address = self.blockchain.interface.client.etherbase
 
                 # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
                 checksum_address = to_checksum_address(checksum_address)

@@ -31,7 +31,7 @@ from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import Agency
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, Singleton
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
@@ -407,7 +407,7 @@ def three_agents(testerchain):
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     yield token_agent, miner_agent, policy_agent
-    Singleton._instances = {}
+    Agency.clear()
 
 
 @pytest.fixture(scope="module", autouse=True)

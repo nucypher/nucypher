@@ -145,8 +145,8 @@ class Web3Client(object):
     @property
     def chain_name(self) -> str:
         if not self.is_local:
-            return PUBLIC_CHAINS[int(self.w3.net.version)]
-        name = LOCAL_CHAINS.get(self.w3.net.version, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+            return PUBLIC_CHAINS[self.chain_id]
+        name = LOCAL_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
 
     @property
@@ -159,6 +159,10 @@ class Web3Client(object):
 
     def is_connected(self):
         return self.w3.isConnected()
+
+    @property
+    def etherbase(self):
+        return self.w3.eth.accounts[0]
 
     @property
     def accounts(self):
@@ -325,10 +329,8 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
         if not accounts:
             account = create_new_account(password=password.encode(), **self.geth_kwargs)
         else:
-            account = accounts[0]
-
+            account = accounts[0]  # etherbase by default
         checksum_address = to_checksum_address(account.decode())
-        assert is_checksum_address(checksum_address), f"GETH RETURNED INVALID ETH ADDRESS {checksum_address}"
         return checksum_address
 
 
@@ -454,7 +456,7 @@ class NuCypherGethGoerliProcess(NuCypherGethProcess):
             overrides = dict()
 
         # Validate
-        invalid_override = f"You cannot specify `network_id` for a {self.__class__.__name__}"
+        invalid_override = f"You cannot specify `data_dir` or `network_id` for a {self.__class__.__name__}"
         if 'data_dir' in overrides:
             raise ValueError(invalid_override)
         if 'network_id' in overrides:
