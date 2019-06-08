@@ -13,7 +13,7 @@ from twisted.internet import threads
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
@@ -107,7 +107,7 @@ def test_cli_lifecycle(click_runner,
     if federated:
         alice_init_args += ('--federated-only', )
     else:
-        alice_init_args += ('--provider-uri', 'tester://pyevm')
+        alice_init_args += ('--provider-uri', TEST_PROVIDER_URI)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -274,7 +274,7 @@ def test_cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider-uri', 'tester://pyevm')
+            grant_args += ('--provider-uri', TEST_PROVIDER_URI)
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0

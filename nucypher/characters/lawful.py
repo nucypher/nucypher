@@ -151,14 +151,13 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        params = self.generate_m_of_n(m=m, n=n)
         bob_encrypting_key = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc=bob_encrypting_key,
                                                 signer=self.stamp,
                                                 label=label,
-                                                m=params['m'],
-                                                n=params['n'])
+                                                m=m or self.m,
+                                                n=n or self.n)
 
     def create_policy(self,
                       bob: "Bob",
@@ -206,12 +205,6 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def generate_m_of_n(self, m: int = None, n: int = None):
-        m = m or self.m
-        n = n or self.n
-        payload = dict(m=m, n=n)
-        return payload
-
     def generate_policy_parameters(self,
                                    m: int = None,
                                    n: int = None,
@@ -225,8 +218,8 @@ class Alice(Character, PolicyAuthor):
         Construct policy creation from parameters or overrides.
         """
 
-        m_of_n = self.generate_m_of_n(m=m, n=n)
-        m, n = m_of_n['m'], m_of_n['n']
+        m = m or self.m
+        n = n or self.n
 
         # Calculate Policy Rate and Value
         if not self.federated_only:
@@ -247,7 +240,7 @@ class Alice(Character, PolicyAuthor):
                 rate = value // duration
 
             first_period_rate = first_period_rate or self.first_period_rate
-            first_period_value = first_period_value or int(rate * first_period_rate)
+            first_period_value = first_period_value or int(value * first_period_rate)
 
         else:
             value = first_period_value = duration = FEDERATED_POLICY

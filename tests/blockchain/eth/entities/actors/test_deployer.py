@@ -32,8 +32,8 @@ from nucypher.utilities.sandbox.constants import (
     MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     MINERS_ESCROW_DEPLOYMENT_SECRET,
-    NUMBER_OF_ALLOCATIONS_IN_TESTS
-)
+    NUMBER_OF_ALLOCATIONS_IN_TESTS,
+    TEST_PROVIDER_URI)
 
 
 @pytest.mark.slow()
@@ -43,7 +43,7 @@ def test_rapid_deployment(token_economics):
     allocation_registry = InMemoryAllocationRegistry()
     interface = BlockchainDeployerInterface(compiler=compiler,
                                             registry=registry,
-                                            provider_uri='tester://pyevm')
+                                            provider_uri=TEST_PROVIDER_URI)
 
     blockchain = TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
     deployer_address = blockchain.etherbase_account
