@@ -113,7 +113,6 @@ def test_init_ursula_stake(click_runner,
                   '--config-file', configuration_file_location,
                   '--value', stake_value.to_tokens(),
                   '--duration', token_economics.minimum_locked_periods,
-                  '--poa',
                   '--force')
 
     result = click_runner.invoke(nucypher_cli, stake_args, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
@@ -136,8 +135,7 @@ def test_list_ursula_stakes(click_runner,
                             stake_value):
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
-                  '--list',
-                  '--poa')
+                  '--list')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -150,7 +148,6 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
     divide_args = ('ursula', 'stake',
                    '--divide',
                    '--config-file', configuration_file_location,
-                   '--poa',
                    '--force',
                    '--index', 0,
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
@@ -164,8 +161,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
 
     stake_args = ('ursula', 'stake',
                   '--config-file', configuration_file_location,
-                  '--list',
-                  '--poa')
+                  '--list')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -178,7 +174,6 @@ def test_run_blockchain_ursula(click_runner,
                                staking_participant):
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
-                 '--poa',
                  '--dry-run',
                  '--config-file', configuration_file_location)
 
@@ -195,7 +190,6 @@ def test_collect_rewards_integration(click_runner,
                                      blockchain_alice,
                                      blockchain_bob,
                                      random_policy_label,
-                                     blockchain_ursulas,
                                      staking_participant,
                                      token_economics,
                                      policy_value,
@@ -207,19 +201,25 @@ def test_collect_rewards_integration(click_runner,
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
-    miner = Miner(checksum_address=staking_participant.checksum_address,
-                  blockchain=blockchain, is_me=True)
+    miner = Miner(is_me=True,
+                  checksum_address=staking_participant.checksum_address,
+                  blockchain=blockchain)
 
-    pre_stake_eth_balance = miner.eth_balance
+    # The miner is staking.
+    assert miner.stakes
+    assert miner.is_staking
+    pre_stake_token_balance = miner.token_balance
 
-    # Finish the passage of time... once and for all
+    # Confirm for half the first stake duration
     for _ in range(half_stake_time):
         current_period += 1
-        logger.debug(f"period {current_period}")
+        logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         blockchain.time_travel(periods=1)
         miner.confirm_activity()
 
     # Alice creates a policy and grants Bob access
+    blockchain_alice.selection_buffer = 1
+
     M, N = 1, 1
     expiration = maya.now() + datetime.timedelta(days=3)
     blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
@@ -228,6 +228,10 @@ def test_collect_rewards_integration(click_runner,
                                                value=policy_value,
                                                expiration=expiration,
                                                handpicked_ursulas={staking_participant})
+
+    # Ensure that the handpicked Ursula was selected for the policy
+    arrangement = list(blockchain_policy._accepted_arrangements)[0]
+    assert arrangement.ursula == staking_participant
 
     # Bob learns about the new staker and joins the policy
     blockchain_bob.start_learning_loop()
@@ -241,11 +245,13 @@ def test_collect_rewards_integration(click_runner,
     verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
     for index in range(half_stake_time - 5):
-        logger.debug(f"period {current_period}")
+        logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+
+        # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
         ciphertext, signature = enrico.encrypt_message(message=random_data)
 
-        # Retrieve
+        # Decrypt
         cleartexts = blockchain_bob.retrieve(message_kit=ciphertext,
                                              data_source=enrico,
                                              alice_verifying_key=verifying_key,
@@ -257,10 +263,10 @@ def test_collect_rewards_integration(click_runner,
         miner.confirm_activity()
         current_period += 1
 
-    # Finish the passage of time... once and for all
-    for _ in range(5):
+    # Finish the passage of time for the first Stake
+    for _ in range(5):  # plus the extended periods from stake division
         current_period += 1
-        logger.debug(f"period {current_period}")
+        logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         blockchain.time_travel(periods=1)
         miner.confirm_activity()
 
@@ -270,19 +276,15 @@ def test_collect_rewards_integration(click_runner,
 
     # The address the client wants Ursula to send rewards to
     burner_wallet = blockchain.interface.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
-    # The rewards wallet is initially empty
+
+    # The rewards wallet is initially empty, because it is freshly created
     assert blockchain.interface.w3.eth.getBalance(burner_wallet.address) == 0
 
     # Snag a random teacher from the fleet
-    random_teacher = list(blockchain_ursulas).pop()
-
     collection_args = ('--mock-networking',
                        'ursula', 'collect-reward',
-                       '--rest-host', MOCK_IP_ADDRESS,
-                       '--teacher-uri', random_teacher.rest_interface,
                        '--config-file', configuration_file_location,
                        '--withdraw-address', burner_wallet.address,
-                       '--poa',
                        '--force')
 
     result = click_runner.invoke(nucypher_cli,
@@ -291,9 +293,20 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    collected_reward = blockchain.interface.w3.eth.getBalance(burner_wallet.address)
-    assert collected_reward != 0
+    # Policy Reward
+    collected_policy_reward = blockchain.interface.w3.eth.getBalance(burner_wallet.address)
+    expected_collection = policy_rate * 30
+    assert collected_policy_reward == expected_collection
 
-    expected_reward = policy_rate * 30
-    assert collected_reward == expected_reward
-    assert miner.eth_balance == pre_stake_eth_balance
+    # Finish the passage of time... once and for all
+    # Extended periods from stake division
+    for _ in range(9):
+        current_period += 1
+        logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
+        blockchain.time_travel(periods=1)
+        miner.confirm_activity()
+
+    # Staking Reward
+    calculated_reward = miner.miner_agent.calculate_staking_reward(checksum_address=miner.checksum_address)
+    assert calculated_reward
+    assert miner.token_balance > pre_stake_token_balance

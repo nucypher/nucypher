@@ -60,7 +60,7 @@ class CharacterSpecification(ABC):
 
 class AliceSpecification(CharacterSpecification):
 
-    __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label'),  # In
+    __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
 
     __derive_policy_encrypting_key = (('label', ),                         # In
