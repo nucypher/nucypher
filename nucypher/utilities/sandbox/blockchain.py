@@ -125,38 +125,25 @@ class TesterBlockchain(Blockchain):
         Blockchain._instance = NO_BLOCKCHAIN_AVAILABLE
 
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
-        """
-        Generate additional unlocked accounts transferring a balance to each account on creation.
 
-        Not for use in production - For testing only.
-        """
+        #
+        # Sanity Check - Only PyEVM can be used.
+        #
+
+        # Detect provider platform
+        client_version = self.interface.w3.clientVersion
+
+        if 'Geth' in client_version:
+            raise RuntimeError("WARNING: Geth providers are not implemented.")
+        elif "Parity" in client_version:
+            raise RuntimeError("WARNING: Parity providers are not implemented.")
+
         addresses = list()
         for _ in range(quantity):
-            privkey = '0x' + os.urandom(32).hex()
-
-            # Detect provider platform - TODO: move this to interface?
-            client_version = self.interface.w3.clientVersion
-
-            if 'Geth' in client_version:
-                geth = self.interface.w3.geth
-                address = geth.personal.importRawKey(privkey, INSECURE_DEVELOPMENT_PASSWORD)
-                assert geth.personal.unlockAccount(address, INSECURE_DEVELOPMENT_PASSWORD)
-
-            elif "Parity" in client_version:
-                raise NotImplementedError("Parity providers are not implemented.")  # TODO: Implement Parity Support
-
-            elif "TestRPC" in client_version:
-                pass  # TODO: Mmm - nothing?
-
-            else:
-                # TODO: Do not fallback on tester
-                address = self.interface.provider.ethereum_tester.add_account(privkey)
-
-            # OK - keep this insecure account
+            address = self.interface.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
-
         return addresses
 
     def ether_airdrop(self, amount: int) -> List[str]:
