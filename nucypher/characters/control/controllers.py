@@ -237,8 +237,8 @@ class JSONRPCController(CharacterControlServer):
     def handle_procedure_call(self, control_request, *args, **kwargs) -> int:
 
         # Validate request and read request metadata
-        jsonrp2 = control_request['jsonrpc']
-        if jsonrp2 != '2.0':
+        jsonrpc2 = control_request['jsonrpc']
+        if jsonrpc2 != '2.0':
             raise self.emitter.InvalidRequest
 
         request_id = control_request['id']
@@ -259,19 +259,19 @@ class JSONRPCController(CharacterControlServer):
         # Phase 1 - Metadata
         #
 
-        required_fileds = {'jsonrpc', 'method'}
+        required_fields = {'jsonrpc', 'method'}
         optional_fields = {'id', 'params'}
-        all_fields = required_fileds | optional_fields
+        all_fields = required_fields | optional_fields
 
         try:
             input_fields = set(request.keys())
         except AttributeError:
             raise self.emitter.InvalidRequest
 
-        contains_required_fields = required_fileds.issubset(input_fields)
+        contains_required_fields = required_fields.issubset(input_fields)
 
-        uniquie_fields = all_fields - input_fields - optional_fields
-        contains_valid_fields = not bool(uniquie_fields)
+        unique_fields = all_fields - input_fields - optional_fields
+        contains_valid_fields = not bool(unique_fields)
 
         is_valid = all((contains_required_fields,
                         contains_valid_fields))

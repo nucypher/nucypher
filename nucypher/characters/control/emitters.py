@@ -152,7 +152,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         # Add delimiter
         if delimiter:
             if as_bytes:
-                delimiter = bytes(delimiter, encoding='utf=8')
+                delimiter = bytes(delimiter, encoding='utf-8')
             serialized_response = delimiter + serialized_response
 
         return serialized_response
