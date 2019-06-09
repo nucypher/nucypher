@@ -77,9 +77,9 @@ class NucypherClickConfig:
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
 
-    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False):
+    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
         try:
-            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts)
+            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
             character_configuration.connect_to_contracts()
 
         except EthereumContractRegistry.NoRegistry:
@@ -108,7 +108,8 @@ class NucypherClickConfig:
 
     def unlock_keyring(self,
                        password: str,
-                       character_configuration: NodeConfiguration):
+                       character_configuration: NodeConfiguration,
+                       unlock_wallet: bool = True):
 
         if not self.quiet:
             self.emit(message='Decrypting NuCypher keyring...', color='yellow')
@@ -123,9 +124,9 @@ class NucypherClickConfig:
             raise character_configuration.keyring.AuthenticationFailed
 
         # Ethereum Client  # TODO : Integrate with Powers API
-        if not character_configuration.federated_only:
+        if not character_configuration.federated_only and unlock_wallet:
             self.emit(message='Decrypting Ethereum Node Keyring...', color='yellow')
-            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_public_address,
+            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_address,
                                                                         password=password)
 
     @classmethod

@@ -105,7 +105,7 @@ def test_stake(testerchain, three_agents):
         token_agent, miner_agent, _policy_agent = three_agents
 
         burner_wallet = Web3().eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
-        checksum_public_address = burner_wallet.address
+        checksum_address = burner_wallet.address
         miner_agent = miner_agent
         token_agent = token_agent
         blockchain = testerchain
@@ -131,7 +131,7 @@ def test_stake_integration(blockchain_ursulas):
     assert stakes
 
     stake = stakes[0]
-    blockchain_stakes = staking_ursula.miner_agent.get_all_stakes(miner_address=staking_ursula.checksum_public_address)
+    blockchain_stakes = staking_ursula.miner_agent.get_all_stakes(miner_address=staking_ursula.checksum_address)
 
     stake_info = (stake.start_period, stake.end_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]

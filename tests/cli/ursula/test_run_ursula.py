@@ -96,7 +96,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
         assert MOCK_URSULA_STARTING_PORT not in reserved_ports
 
         # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
-        assert teacher.checksum_public_address in result.output
+        assert teacher.checksum_address in result.output
         assert f"Saved TLS certificate for {teacher.nickname}" in result.output
         assert f"Remembering {teacher.nickname}" in result.output
 

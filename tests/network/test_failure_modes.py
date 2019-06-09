@@ -27,7 +27,7 @@ def test_bob_does_not_let_a_connection_error_stop_him(enacted_federated_policy, 
     map = federated_bob.get_treasure_map(federated_alice.stamp, enacted_federated_policy.label)
 
     assert sorted(list(map.destinations.keys())) == sorted(
-        list(u.checksum_public_address for u in list(federated_ursulas)))
+        list(u.checksum_address for u in list(federated_ursulas)))
 
 
 def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_alice, federated_bob, federated_ursulas):

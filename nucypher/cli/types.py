@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.token import NU
 
 
 class ChecksumAddress(click.ParamType):
-    name = 'checksum_public_address'
+    name = 'checksum_address'
 
     def convert(self, value, param, ctx):
         return to_checksum_address(value=value)  # TODO: More robust validation here?
@@ -44,6 +44,7 @@ class IPv4Address(click.ParamType):
 
 
 token_economics = TokenEconomics()
+WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 
 # Staking
 STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, clamp=False)

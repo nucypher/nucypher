@@ -32,4 +32,4 @@ def author(testerchain, three_agents):
 def test_create_policy_author(testerchain, three_agents):
     _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
     policy_author = PolicyAuthor(checksum_address=alice)
-    assert policy_author.checksum_public_address == alice
+    assert policy_author.checksum_address == alice

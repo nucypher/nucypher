@@ -67,7 +67,7 @@ class NodeConfiguration(ABC):
     DEFAULT_OPERATING_MODE = 'decentralized'
 
     # Domains
-    DEFAULT_DOMAIN = b'goerli'
+    DEFAULT_DOMAIN = 'goerli'
 
     # Serializers
     NODE_SERIALIZER = binascii.hexlify
@@ -83,12 +83,15 @@ class NodeConfiguration(ABC):
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
-    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
+    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)
 
     # Rest + TLS
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
+
+    DEFAULT_CONTROLLER_PORT = NotImplemented
+
     __DEFAULT_TLS_CURVE = ec.SECP384R1
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
@@ -113,7 +116,7 @@ class NodeConfiguration(ABC):
 
                  # Identity
                  is_me: bool = True,
-                 checksum_public_address: str = None,
+                 checksum_address: str = None,
                  crypto_power: CryptoPower = None,
 
                  # Keyring
@@ -128,6 +131,7 @@ class NodeConfiguration(ABC):
                  # REST
                  rest_host: str = None,
                  rest_port: int = None,
+                 controller_port: int = None,
 
                  # TLS
                  tls_curve: EllipticCurve = None,
@@ -160,8 +164,9 @@ class NodeConfiguration(ABC):
         self.log = Logger(self.__class__.__name__)
 
         #
-        # REST + TLS (Ursula)
+        # REST + TLS + Web
         #
+        self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         default_port = (self.DEFAULT_DEVELOPMENT_REST_PORT if dev_mode else self.DEFAULT_REST_PORT)
         self.rest_port = rest_port or default_port
@@ -211,11 +216,11 @@ class NodeConfiguration(ABC):
         # Identity
         #
         self.is_me = is_me
-        self.checksum_public_address = checksum_public_address
+        self.checksum_address = checksum_address
 
         if self.is_me is True or dev_mode is True:
             # Self
-            if self.checksum_public_address and dev_mode is False:
+            if self.checksum_address and dev_mode is False:
                 self.attach_keyring()
             self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
 
@@ -240,7 +245,7 @@ class NodeConfiguration(ABC):
         self.__fleet_state = FleetStateTracker()
         known_nodes = known_nodes or set()
         if known_nodes:
-            self.known_nodes._nodes.update({node.checksum_public_address: node for node in known_nodes})
+            self.known_nodes._nodes.update({node.checksum_address: node for node in known_nodes})
             self.known_nodes.record_fleet_state()  # TODO: Does this call need to be here?
 
         #
@@ -317,6 +322,7 @@ class NodeConfiguration(ABC):
         """
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
+
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
                                              poa=self.poa,
@@ -343,7 +349,7 @@ class NodeConfiguration(ABC):
 
     def read_known_nodes(self):
         known_nodes = self.node_storage.all(federated_only=self.federated_only)
-        known_nodes = {node.checksum_public_address: node for node in known_nodes}
+        known_nodes = {node.checksum_address: node for node in known_nodes}
         self.known_nodes._nodes.update(known_nodes)
         self.known_nodes.record_fleet_state()
         return self.known_nodes
@@ -377,16 +383,11 @@ class NodeConfiguration(ABC):
                 raw_contents = file.read()
                 payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(raw_contents)
         except FileNotFoundError:
-            raise  # TODO: Do we need better exception handling here?
+            raise
         return payload
 
     @classmethod
-    def from_configuration_file(cls,
-                                filepath: str = None,
-                                provider_process=None,
-                                **overrides) -> 'NodeConfiguration':
-
-        """Initialize a NodeConfiguration from a JSON file."""
+    def get_configuration_payload(cls, filepath: str = None, **overrides) -> dict:
 
         from nucypher.config.storages import NodeStorage
         node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
@@ -399,7 +400,7 @@ class NodeConfiguration(ABC):
 
         # Sanity check
         try:
-            checksum_address = payload['checksum_public_address']
+            checksum_address = payload['checksum_address']
         except KeyError:
             raise cls.ConfigurationError(f"No checksum address specified in configuration file {filepath}")
         else:
@@ -421,22 +422,34 @@ class NodeConfiguration(ABC):
         # Filter out Nones from overrides to detect, well, overrides
         overrides = {k: v for k, v in overrides.items() if v is not None}
 
+        payload = {**payload, **overrides}
+        return payload
+
+    @classmethod
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                provider_process=None,
+                                **overrides) -> 'NodeConfiguration':
+
+        """Initialize a NodeConfiguration from a JSON file."""
+
+        payload = cls.get_configuration_payload(filepath=filepath, **overrides)
+
         # Instantiate from merged params
         node_configuration = cls(config_file_location=filepath,
                                  provider_process=provider_process,
-                                 **{**payload, **overrides})
+                                 **payload)
 
         return node_configuration
 
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
         if not filepath:
-            filename = f'{self._NAME.lower()}{self._NAME.lower(), }'  # FIXME
-            filepath = os.path.join(self.config_root, filename)
+            filepath = os.path.join(self.config_root, self.CONFIG_FILENAME)
 
         if os.path.isfile(filepath):
             # Avoid overriding an existing default configuration
-            filename = f'{self._NAME.lower()}-{self.checksum_public_address[:6]}{self.__CONFIG_FILE_EXT}'
+            filename = f'{self._NAME.lower()}-{self.checksum_address[:6]}{self.__CONFIG_FILE_EXT}'
             filepath = os.path.join(self.config_root, filename)
 
         payload = self.static_payload
@@ -476,7 +489,7 @@ class NodeConfiguration(ABC):
             # Identity
             is_me=self.is_me,
             federated_only=self.federated_only,
-            checksum_public_address=self.checksum_public_address,
+            checksum_address=self.checksum_address,
             keyring_dir=self.keyring_dir,
 
             # Behavior
@@ -494,12 +507,12 @@ class NodeConfiguration(ABC):
         return payload
 
     @property
-    def dynamic_payload(self, **overrides) -> dict:
+    def dynamic_payload(self, connect_to_blockchain: bool = True, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
 
         if self.reload_metadata:
             known_nodes = self.node_storage.all(federated_only=self.federated_only)
-            known_nodes = {node.checksum_public_address: node for node in known_nodes}
+            known_nodes = {node.checksum_address: node for node in known_nodes}
             self.known_nodes._nodes.update(known_nodes)
         self.known_nodes.record_fleet_state()
 
@@ -508,7 +521,7 @@ class NodeConfiguration(ABC):
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups() or None)
 
-        if not self.federated_only:
+        if not self.federated_only and connect_to_blockchain:
             self.connect_to_blockchain(recompile_contracts=False)
             payload.update(blockchain=self.blockchain)
 
@@ -577,13 +590,6 @@ class NodeConfiguration(ABC):
         self._cache_runtime_filepaths()
 
         #
-        # Blockchain
-        #
-        if not self.federated_only:
-            if self.provider_process:
-                self.provider_process.initialize_blockchain()
-
-        #
         # Node Storage
         #
 
@@ -623,62 +629,61 @@ class NodeConfiguration(ABC):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != (checksum_address or self.checksum_public_address):
+            if self.keyring.checksum_address != (checksum_address or self.checksum_address):
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
 
-        if (checksum_address or self.checksum_public_address) is None:
+        if (checksum_address or self.checksum_address) is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
 
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,  # type: str
-                                       account=checksum_address or self.checksum_public_address,  # type: str
+                                       account=checksum_address or self.checksum_address,  # type: str
                                        *args, **kwargs)
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, wallet: bool = True, **generation_kwargs) -> NucypherKeyring:
+
+        checksum_address = None
 
         #
         # Decentralized
         #
+        if wallet:
 
-        # Note: It is assumed the blockchain is not yet available.
-        if not self.federated_only and not self.checksum_public_address:
+            # Note: It is assumed the blockchain is not yet available.
+            if not self.federated_only and not self.checksum_address:
 
-            # "Casual Geth"
-            if self.provider_process:
+                # "Casual Geth"
+                if self.provider_process:
 
-                if not os.path.exists(self.provider_process.data_dir):
-                    os.mkdir(self.provider_process.data_dir)
+                    if not os.path.exists(self.provider_process.data_dir):
+                        os.mkdir(self.provider_process.data_dir)
 
-                # Get or create wallet address (geth etherbase)
-                checksum_address = self.provider_process.ensure_account_exists(password=password)
+                    # Get or create wallet address (geth etherbase)
+                    checksum_address = self.provider_process.ensure_account_exists(password=password)
 
-            # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
-            else:
-                self.connect_to_blockchain()
-                if not self.blockchain.interface.w3.eth.accounts:
-                    raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                checksum_address = self.blockchain.interface.w3.eth.accounts[0]  # TODO: Make this a configurable default in config files
+                # "Formal Geth" - Manual Web3 Provider, We assume is already running and available
+                else:
+                    self.connect_to_blockchain()
+                    if not self.blockchain.interface.client.accounts:
+                        raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
+                    checksum_address = self.blockchain.interface.client.etherbase
 
-            # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
-            checksum_address = to_checksum_address(checksum_address)
+                # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
+                checksum_address = to_checksum_address(checksum_address)
 
-        # Use explicit address
-        elif self.checksum_public_address:
-            checksum_address = self.checksum_public_address
-
-        # Generate a federated checksum address
-        else:
-            checksum_address = None
+            # Use explicit address
+            elif self.checksum_address:
+                checksum_address = self.checksum_address
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
         # Operating mode switch
-        if self.federated_only:
-            self.checksum_public_address = self.keyring.federated_address
+        if self.federated_only or not wallet:
+            self.checksum_address = self.keyring.federated_address
         else:
-            self.checksum_public_address = self.keyring.account
+            self.checksum_address = self.keyring.account
 
         return self.keyring
 

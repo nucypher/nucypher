@@ -20,6 +20,7 @@ from typing import List
 from typing import Tuple, Union
 from urllib.parse import urlparse
 
+import requests
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
@@ -198,22 +199,27 @@ class BlockchainInterface:
         return self.client.node_version
 
     def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
-        self.log.info("Connecting to {}".format(self.provider_uri))
 
         self._attach_provider(provider=provider, provider_uri=provider_uri)
+        self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider(
                 "There are no configured blockchain providers")
 
         # Connect if not connected
-        self.client = Web3Client.from_w3(w3=self.Web3(provider=self.__provider))
+        try:
+            w3 = self.Web3(provider=self.__provider)
+            self.client = Web3Client.from_w3(w3=w3)
+
+        except requests.ConnectionError:  # RPC
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
+
+        except FileNotFoundError:         # IPC File Protocol
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
 
         # Check connection
-        if self.is_connected:
-            return True
-
-        raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
+        return self.is_connected
 
     @property
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
@@ -461,8 +467,8 @@ class BlockchainInterface:
             results = list()
             for proxy_name, proxy_addr, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
-                                                      address=proxy_addr,
-                                                      ContractFactoryClass=factory)
+                                                             address=proxy_addr,
+                                                             ContractFactoryClass=factory)
 
                 # Read this dispatchers target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
@@ -494,8 +500,8 @@ class BlockchainInterface:
 
         # Create the contract from selected sources
         unified_contract = self.client.w3.eth.contract(abi=selected_abi,
-                                                address=selected_address,
-                                                ContractFactoryClass=factory)
+                                                       address=selected_address,
+                                                       ContractFactoryClass=factory)
 
         return unified_contract
 

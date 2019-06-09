@@ -40,7 +40,7 @@ class UrsulaCommandProtocol(LineReceiver):
         self.start_time = maya.now()
 
         self.__history = deque(maxlen=10)
-        self.prompt = bytes('Ursula({}) >>> '.format(self.ursula.checksum_public_address[:9]), encoding='utf-8')
+        self.prompt = bytes('Ursula({}) >>> '.format(self.ursula.checksum_address[:9]), encoding='utf-8')
 
         # Expose Ursula functional entry points
         self.__commands = {
@@ -119,7 +119,7 @@ class UrsulaCommandProtocol(LineReceiver):
     def connectionMade(self):
 
         message = 'Attached {}@{}'.format(
-                   self.ursula.checksum_public_address,
+                   self.ursula.checksum_address,
                    self.ursula.rest_url())
 
         click.secho(message, fg='green')

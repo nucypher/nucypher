@@ -24,6 +24,7 @@ import pytest
 
 from umbral.kfrags import KFrag
 
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
@@ -35,13 +36,7 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
-
-    # Monkey patch Policy Creation
-    _token_agent, _miner_agent, _policy_agent = three_agents
-    blockchain_alice.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
-    blockchain_alice.policy_agent.contract.functions.createPolicy = MockPolicyCreation
-    MockPolicyCreation._ether_address = blockchain_alice.checksum_public_address
+def test_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
     # Setup the policy details
     n = 3
@@ -49,7 +44,12 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, Granting access to Bob
-    policy = blockchain_alice.grant(blockchain_bob, label, m=2, n=n, expiration=policy_end_datetime)
+    policy = blockchain_alice.grant(bob=blockchain_bob,
+                                    label=label,
+                                    m=2,
+                                    n=n,
+                                    value=int(1e18),  # one ether
+                                    expiration=policy_end_datetime)
 
     # Check the policy ID
     policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
@@ -108,7 +108,7 @@ def test_federated_grant(federated_alice, federated_bob):
         assert kfrag == retrieved_kfrag
 
 
-def test_alice_can_decrypt(federated_alice, federated_bob):
+def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     """
     Test that alice can decrypt data encrypted by an enrico
     for her own derived policy pubkey.
@@ -120,9 +120,10 @@ def test_alice_can_decrypt(federated_alice, federated_bob):
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     policy = federated_alice.create_policy(
-        federated_bob,
-        label, m, n,
-        federated=True,
+        bob=federated_bob,
+        label=label,
+        m=m,
+        n=n,
         expiration=policy_end_datetime,
     )
 
@@ -133,9 +134,7 @@ def test_alice_can_decrypt(federated_alice, federated_bob):
     plaintext = b"this is the first thing i'm encrypting ever."
 
     # use the enrico to encrypt the message
-    message_kit, signature = enrico.encrypt_message(
-        plaintext
-    )
+    message_kit, signature = enrico.encrypt_message(plaintext)
 
     # decrypt the data
     decrypted_data = federated_alice.verify_from(
