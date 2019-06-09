@@ -136,8 +136,6 @@ class Stake:
     class StakingError(Exception):
         """Raised when a staking operation cannot be executed due to failure."""
 
-    __ID_LENGTH = 16
-
     def __init__(self,
                  checksum_address: str,
                  value: NU,
