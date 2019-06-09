@@ -493,7 +493,7 @@ class Miner(NucypherTokenActor):
     @property
     def is_staking(self) -> bool:
         """Checks if this Miner currently has active stakes / locked tokens."""
-        return bool(self.locked_tokens > NU.ZERO())
+        return bool(self.stakes)
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this miner has locked for a given duration in periods."""

@@ -465,9 +465,10 @@ def ursula(click_config,
         """Withdraw staking reward to the specified wallet address"""
         if not force:
             click.confirm(f"Send {URSULA.calculate_reward()} to {URSULA.checksum_address}?")
-
+        inflation_reward = URSULA.calculate_reward()
+        if inflation_reward:
+            URSULA.collect_staking_reward()
         URSULA.collect_policy_reward(collector_address=withdraw_address or checksum_address)
-        URSULA.collect_staking_reward()
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))

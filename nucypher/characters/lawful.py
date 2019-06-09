@@ -239,8 +239,9 @@ class Alice(Character, PolicyAuthor):
             elif value:
                 rate = value // duration
 
-            first_period_rate = first_period_rate or self.first_period_rate
-            first_period_value = first_period_value or int(value * first_period_rate)
+            # TODO: #1063 - What is the best way to calculate default first period value?
+            # first_period_rate = first_period_rate or self.first_period_rate
+            first_period_value = first_period_value or 0
 
         else:
             value = first_period_value = duration = FEDERATED_POLICY

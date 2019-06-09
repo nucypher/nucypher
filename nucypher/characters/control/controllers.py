@@ -56,9 +56,8 @@ class AliceJSONController(AliceInterface, CharacterController):
 
     @character_control_interface
     def create_policy(self, request):
-        federated_only = True  # TODO #844: const for now
         serialized_output = self.serializer.load_create_policy_input(request=request)
-        result = super().create_policy(**serialized_output, federated_only=federated_only)
+        result = super().create_policy(**serialized_output)
         response_data = self.serializer.dump_create_policy_output(response=result)
         return response_data
 

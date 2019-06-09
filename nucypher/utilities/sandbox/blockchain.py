@@ -33,14 +33,17 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+    MINERS_ESCROW_DEPLOYMENT_SECRET,
+    POLICY_MANAGER_DEPLOYMENT_SECRET,
+    MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET
+)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
