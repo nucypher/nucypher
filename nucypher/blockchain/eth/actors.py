@@ -21,22 +21,17 @@ from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
-from eth_utils import keccak
 
 import maya
 from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
     NO_DEPLOYER_ADDRESS,
-    EMPTY_STAKING_SLOT,
-    UNKNOWN_STAKES,
-    NOT_STAKING,
-    NO_STAKES,
-    STRANGER_STAKER,
     NO_STAKING_DEVICE,
-    STRANGER_WORKER,
-    WORKER_NOT_RUNNING
+    WORKER_NOT_RUNNING,
+    NO_WORKER_ASSIGNED,
 )
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomics
@@ -47,7 +42,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -57,6 +51,7 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     ContractDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
@@ -630,30 +625,73 @@ class PolicyAuthor(NucypherTokenActor):
 
 class StakeHolder(BaseConfiguration):
 
+    _NAME = 'stakeholder'
+
     def __init__(self,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  staking_agent: StakingEscrowAgent = None,
+                 master_address: str = None,
                  trezor: bool = False,
                  *args, **kwargs):
 
+        super().__init__(*args, **kwargs)
+
+        # Blockchain and Contract connection
         if not staking_agent:
             staking_agent = StakingEscrowAgent(blockchain=blockchain)
-
         self.staking_agent = staking_agent
         self.blockchain = staking_agent.blockchain
 
+        # Default State
         self.trezor = trezor
         self.device = NO_STAKING_DEVICE
-        self.setup_device()
-
+        self.master_account = master_address
         self.__accounts = list()
         self.__stakers = dict()
 
-        super().__init__(*args, **kwargs)
+        # Setup
+        self.setup_device()
+        self.__get_accounts()
+        self.sync()  # Stakes
+
+    @property
+    def accounts(self):
+        return self.__accounts
+
+    @property
+    def stakes(self) -> list:
+        payload = list()
+        for staker in self.__stakers:
+            payload.extend(staker.stakes)
+        return payload
+
+    @property
+    def stakers(self) -> List[Staker]:
+        return list(self.__stakers.keys())
+
+    def __serialize_stake_info(self) -> list:
+        payload = list()
+        for staker in self.stakers:
+            stake_info = [stake.to_stake_info() for stake in staker.stakes]
+            worker_address = staker.worker_address
+            staker_payload = {'staker': staker.checksum_public_address,
+                              'worker': worker_address or NO_WORKER_ASSIGNED,
+                              'stakes': stake_info}
+            payload.append(staker_payload)
+        return payload
 
     def static_payload(self) -> dict:
-        payload = dict(trezor=self.trezor)
+        payload = dict(trezor=self.trezor,
+                       accounts=self.__accounts,
+                       stakers=self.__serialize_stake_info())
         return payload
+
+    def sync(self) -> None:
+        for account in self.__accounts:
+            stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
+            if stakes:
+                staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
+                self.__stakers[staker] = staker.stakes
 
     def setup_device(self) -> None:
         device = NO_STAKING_DEVICE
@@ -661,18 +699,32 @@ class StakeHolder(BaseConfiguration):
             device = NotImplemented  # Trezor()
         self.device = device
 
-    def add_account(self, address: str) -> None:
-        self.blockchain.interface.client.unlock_account(address=address)
-        self.__accounts.append(address)
+    def get_balances(self, address: str) -> dict:
+        staker = self.get_staker(address=address)
+        balances = {'ETH': staker.eth_balance,
+                    'NU': staker.token_balance}
+        return balances
 
-    def get_accounts(self):
+    def __get_accounts(self) -> None:
+
+        # Device accounts
         if self.device is not NO_STAKING_DEVICE:
-            self.__accounts.extend(self.device.accounts)
+            accounts = self.device.accounts[1:]
+            self.__accounts.extend(accounts)
 
-    def get_stakers(self) -> None:
-        for account in self.__accounts:
-            staker = Staker(is_me=True, checksum_address=account)
-            self.__stakers[account] = staker
+        # We3 Provider accounts
+        else:
+            try:
+                accounts = self.blockchain.interface.accounts[1:]
+            except IndexError:
+                raise self.ConfigurationError(f"A minimum of two accounts are "
+                                              f"required to create a {self.__class__.__name__}")
+            else:
+                for account in accounts:
+                    self.__accounts.append(account)
+
+        if not self.master_account:
+            self.master_account = accounts[0]
 
     def get_staker(self, address: str) -> Staker:
         try:
@@ -690,20 +742,16 @@ class StakeHolder(BaseConfiguration):
 
     def initialize_stake(self, address: str, amount: NU, duration: int):
         staker = self.get_staker(address=address)
-        new_stake = Stake.initialize_stake(staker=staker, amount=amount)
+        new_stake = Stake.initialize_stake(staker=staker, amount=amount, lock_periods=duration)
         return new_stake
 
-    def divide_stake(self, address: str, index: int):
-
-        try:
-            staker = self.__stakers[address]
-        except KeyError:
-            raise RuntimeError(f"No active stakes for {address}")
-
+    def divide_stake(self, address: str, index: int, value: int):
+        staker = self.get_staker(address=address)
+        if not staker.is_staking:
+            raise Stake.StakingError(f"{staker.checksum_public_address} has no published stakes.")
         try:
             stake = staker.stakes[index]
         except IndexError:
             raise
-
-        stake.divide(target_value=0)
-
+        result = stake.divide(target_value=value)
+        return result
