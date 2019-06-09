@@ -338,7 +338,7 @@ class Alice(Character, PolicyAuthor):
                 allow_missing=(policy.n - revocation_threshold))
 
         except self.NotEnoughTeachers:
-            raise  #TODO
+            raise  # TODO
 
         else:
             failed_revocations = dict()
@@ -609,7 +609,8 @@ class Bob(Character):
             else:
                 continue  # TODO: Actually, handle error case here.
         else:
-            # TODO: Work out what to do in this scenario - if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
+            # TODO: Work out what to do in this scenario -
+            #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
             raise TreasureMap.NowhereToBeFound
 
         return treasure_map
@@ -642,7 +643,8 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
-                # TODO: Fix this. It's always taking the last capsule
+
+                # TODO: Fix this. It's always using the last capsule, via leaky-loop
                 self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
@@ -916,7 +918,6 @@ class Ursula(Teacher, Character, Miner):
                          decentralized_identity_evidence=decentralized_identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
                          # FIXME: When is_me and not federated_only, the stamp is substantiated twice
-                         # See line 728 above.
                          )
 
         #
@@ -986,8 +987,9 @@ class Ursula(Teacher, Character, Miner):
                       ):
         response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response_data, federated_only=federated_only, *args,
-                                                          **kwargs)
+        stranger_ursula_from_public_keys = cls.from_bytes(response_data,
+                                                          federated_only=federated_only,
+                                                          *args, **kwargs)
 
         return stranger_ursula_from_public_keys
 
@@ -1016,8 +1018,8 @@ class Ursula(Teacher, Character, Miner):
 
         hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
 
-        def __attempt(round=1, interval=10) -> Ursula:
-            if round > 3:
+        def __attempt(attempt=1, interval=10) -> Ursula:
+            if attempt > 3:
                 raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
             try:
@@ -1029,9 +1031,9 @@ class Ursula(Teacher, Character, Miner):
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
-                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
+                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
-                return __attempt(round=round + 1)
+                return __attempt(attempt=attempt + 1)
             else:
                 return teacher
 

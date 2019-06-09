@@ -44,19 +44,19 @@ class BlockchainArrangement(Arrangement):
 
     def __init__(self,
                  alice: PolicyAuthor,
-                 ursula: Miner,
+                 ursula: Ursula,
                  value: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
 
-        super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
+        super().__init__(alice=alice,
+                         ursula=ursula,
+                         expiration=expiration,
+                         value=value,
+                         *args, **kwargs)
 
         if not value > 0:
             raise self.InvalidArrangement("Value must be greater than 0.")
-
-        delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60  # type: int
-        lock_periods = int(math.ceil(hours / self.alice.economics.hours_per_period))  # type: int
 
         # The relationship exists between two addresses
         self.author = alice                     # type: PolicyAuthor
@@ -65,6 +65,8 @@ class BlockchainArrangement(Arrangement):
         self.miner = ursula                     # type: Miner
 
         # Arrangement value, rate, and duration
+        lock_periods = calculate_period_duration(future_time=expiration)
+
         rate = value // lock_periods      # type: int
         self._rate = rate                 # type: int
 
@@ -133,6 +135,7 @@ class BlockchainPolicy(Policy):
         # Initial State
         self.publish_transaction = None
         self.is_published = False
+        self.receipt = None
 
         super().__init__(alice=alice, *args, **kwargs)
 
@@ -279,10 +282,12 @@ class BlockchainPolicy(Policy):
                        self.lock_periods,    # uint16 _numberOfPeriods
                        self.initial_reward,  # uint256 _firstPartialReward
                        prearranged_ursulas)  # address[] memory _nodes
+
+        # Transact
         txhash = self.author.policy_agent.contract.functions.createPolicy(*policy_args).transact(payload)
 
         # Capture Response
-        self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
+        self.receipt = self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
         self.publish_transaction = txhash
         self.is_published = True
 

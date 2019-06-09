@@ -61,12 +61,13 @@ class Arrangement:
                                                  (bytes, 27))
 
     def __init__(self,
-                 alice,
-                 expiration,
-                 ursula=None,
-                 arrangement_id=None,
-                 kfrag=UNKNOWN_KFRAG,
-                 value: int = 0) -> None:
+                 alice: Alice,
+                 expiration: maya.MayaDT,
+                 value: int = None,
+                 ursula: Ursula = None,
+                 arrangement_id: bytes = None,
+                 kfrag: KFrag = UNKNOWN_KFRAG
+                 ) -> None:
         """
         :param value: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
                       a portion will be locked for each Ursula that accepts.
@@ -104,7 +105,7 @@ class Arrangement:
         return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
-        # TODO: Ship the expiration again?
+        # TODO #127 - Ship the expiration again?
         # Or some other way of alerting Ursula to
         # recall her previous dialogue regarding this Arrangement.
         # Update: We'll probably have her store the Arrangement by hrac.  See #127.
@@ -140,7 +141,7 @@ class Policy:
                  kfrags=(UNKNOWN_KFRAG,),
                  public_key=None,
                  m: int = None,
-                 alices_signature=NOT_SIGNED) -> None:
+                 alice_signature=NOT_SIGNED) -> None:
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
@@ -160,7 +161,7 @@ class Policy:
         self._enacted_arrangements = OrderedDict()    # type: OrderedDict
         self._published_arrangements = OrderedDict()  # type: OrderedDict
 
-        self.alices_signature = alices_signature  # TODO: This is unused / To Be Implemented?
+        self.alice_signature = alice_signature  # TODO: This is unused / To Be Implemented?
 
     class MoreKFragsThanArrangements(TypeError):
         """
