@@ -48,7 +48,7 @@ class BaseTestNodeStorageBackends:
         node_storage.store_node_metadata(node=ursula)
 
         # Read Node
-        node_from_storage = node_storage.get(checksum_address=ursula.checksum_public_address,
+        node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
                                              federated_only=True)
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
@@ -69,9 +69,9 @@ class BaseTestNodeStorageBackends:
         # Read random nodes
         for i in range(3):
             random_node = all_known_nodes.pop()
-            random_node_from_storage = node_storage.get(checksum_address=random_node.checksum_public_address,
+            random_node_from_storage = node_storage.get(checksum_address=random_node.checksum_address,
                                                         federated_only=True)
-            assert random_node.checksum_public_address == random_node_from_storage.checksum_public_address
+            assert random_node.checksum_address == random_node_from_storage.checksum_address
 
         return True
 
@@ -80,11 +80,11 @@ class BaseTestNodeStorageBackends:
         node_storage.store_node_metadata(node=ursula)
 
         # Delete Node
-        node_storage.remove(checksum_address=ursula.checksum_public_address, certificate=False)
+        node_storage.remove(checksum_address=ursula.checksum_address, certificate=False)
 
         # Read Node
         with pytest.raises(NodeStorage.UnknownNode):
-            _node_from_storage = node_storage.get(checksum_address=ursula.checksum_public_address,
+            _node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
                                                   federated_only=True)
 
         # Read all nodes from storage

@@ -14,8 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import datetime
+import json
 import os
 
 from constant_sorrow.constants import (
@@ -107,7 +107,38 @@ class AliceConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
-    DEFAULT_REST_PORT = 8151
+    DEFAULT_CONTROLLER_PORT = 8151
+
+    # TODO: Best (Sane) Defaults
+    DEFAULT_M = 2
+    DEFAULT_N = 3
+    DEFAULT_RATE = int(1e14)  # wei
+    DEFAULT_FIRST_PERIOD_RATE = 0.25  # % of calculated rate per period
+    DEFAULT_DURATION = 3  # periods
+
+    def __init__(self,
+                 m: int = None,
+                 n: int = None,
+                 rate: int = None,
+                 first_period_rate: float = None,
+                 duration: int = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.m = m or self.DEFAULT_M
+        self.n = n or self.DEFAULT_N
+        self.rate = rate or self.DEFAULT_RATE
+        self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
+        self.duration = duration or self.DEFAULT_DURATION
+
+    @property
+    def static_payload(self) -> dict:
+        payload = dict(m=self.m,
+                       n=self.n,
+                       rate=self.rate,
+                       first_period_rate=self.first_period_rate,
+                       duration=self.duration)
+        return {**super().static_payload, **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
@@ -125,13 +156,14 @@ class BobConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
-    DEFAULT_REST_PORT = 7151
+    DEFAULT_CONTROLLER_PORT = 7151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
+                                     wallet=False,
                                      **generation_kwargs)
 
 

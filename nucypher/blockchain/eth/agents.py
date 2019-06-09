@@ -17,11 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
-from abc import ABC
+from typing import Generator, List, Tuple, Union
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from twisted.logger import Logger
-from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.chains import Blockchain
@@ -29,7 +28,24 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
-class EthereumContractAgent(ABC):
+class Agency(type):
+    __agents = dict()
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls.__agents:
+            cls.__agents[cls] = super().__call__(*args, **kwargs)
+        return cls.__agents[cls]
+
+    @classmethod
+    def clear(mcs):
+        mcs.__agents = dict()
+
+    @property
+    def agents(cls):
+        return cls.__agents
+
+
+class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
@@ -38,7 +54,7 @@ class EthereumContractAgent(ABC):
     _forward_address = True
     _proxy_name = None
 
-    DEFAULT_TRANSACTION_GAS = 500000  # TODO: #842
+    DEFAULT_TRANSACTION_GAS = 500_000  # TODO: #842
 
     class ContractNotDeployed(Exception):
         pass
@@ -92,11 +108,11 @@ class EthereumContractAgent(ABC):
         return self.registry_contract_name
 
 
-class NucypherTokenAgent(EthereumContractAgent):
+class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "NuCypherToken"
 
-    def get_balance(self, address: str=None) -> int:
+    def get_balance(self, address: str = None) -> int:
         """Get the balance of a token address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
@@ -104,7 +120,9 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address, 'gas': 500_000})  # TODO #413: gas needed for use with geth.
+        # TODO #413: gas needed for use with geth.
+        payload = {'from': sender_address, 'gas': 500_000}
+        txhash = self.contract.functions.approve(target_address, amount).transact(payload)
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -115,7 +133,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return txhash
 
 
-class MinerAgent(EthereumContractAgent):
+class MinerAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "MinersEscrow"
     _proxy_name = "Dispatcher"
@@ -170,7 +188,8 @@ class MinerAgent(EthereumContractAgent):
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})  # TODO #413: Causes tx to fail without high amount of gas
+        # TODO #413: Causes tx to fail without high amount of gas
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
         _receipt = self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
@@ -216,7 +235,8 @@ class MinerAgent(EthereumContractAgent):
     def collect_staking_reward(self, checksum_address: str) -> str:
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(checksum_address=checksum_address)
-        collection_txhash = self.contract.functions.withdraw(reward_amount).transact({'from': checksum_address})
+        payload = {'from': checksum_address, 'gas': 500_000}  # TODO: #842 Gas Management
+        collection_txhash = self.contract.functions.withdraw(reward_amount).transact(payload)
         self.blockchain.wait_for_receipt(collection_txhash)
         return collection_txhash
 
@@ -236,7 +256,7 @@ class MinerAgent(EthereumContractAgent):
             miner_address = self.contract.functions.miners(index).call()
             yield miner_address
 
-    def sample(self, quantity: int, duration: int, additional_ursulas: float=1.7, attempts: int=5) -> List[str]:
+    def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.7, attempts: int = 5) -> List[str]:
         """
         Select n random staking Ursulas, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
@@ -246,7 +266,7 @@ class MinerAgent(EthereumContractAgent):
 
         miners_population = self.get_miner_population()
         if quantity > miners_population:
-            raise self.NotEnoughMiners('{} miners are available, need {} (for wiggle room)'.format(miners_population, quantity))
+            raise self.NotEnoughMiners(f'{miners_population} miners are available, need {quantity} (for wiggle room)')
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
@@ -271,7 +291,7 @@ class MinerAgent(EthereumContractAgent):
         raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyAgent(EthereumContractAgent):
+class PolicyAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "PolicyManager"
     _proxy_name = "Dispatcher"
@@ -305,7 +325,8 @@ class PolicyAgent(EthereumContractAgent):
 
     def collect_policy_reward(self, collector_address: str, miner_address: str):
         """Collect rewarded ETH"""
-        policy_reward_txhash = self.contract.functions.withdraw(collector_address).transact({'from': miner_address})
+        payload = {'from': miner_address}  # TODO - #842
+        policy_reward_txhash = self.contract.functions.withdraw(collector_address).transact(payload)
         self.blockchain.wait_for_receipt(policy_reward_txhash)
         return policy_reward_txhash
 
@@ -391,22 +412,22 @@ class UserEscrowAgent(EthereumContractAgent):
         self.__set_owner()
 
     @property
-    def owner(self):
+    def owner(self) -> str:
         owner = self.principal_contract.functions.owner().call()
         return owner
 
     @property
-    def beneficiary(self):
+    def beneficiary(self) -> str:
         return self.__beneficiary
 
     @property
-    def proxy_contract(self):
+    def proxy_contract(self) -> Contract:
         if self.__proxy_contract is NO_CONTRACT_AVAILABLE:
             raise RuntimeError("{} not available".format(self.registry_contract_name))
         return self.__proxy_contract
 
     @property
-    def principal_contract(self):
+    def principal_contract(self) -> Contract:
         """Directly reference the beneficiary's deployed contract instead of the proxy contracts's interface"""
         if self.__principal_contract is NO_CONTRACT_AVAILABLE:
             raise RuntimeError("{} not available".format(self.registry_contract_name))
@@ -466,7 +487,7 @@ class UserEscrowAgent(EthereumContractAgent):
         return txhash
 
 
-class MiningAdjudicatorAgent(EthereumContractAgent):
+class MiningAdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
     """TODO Issue #931"""
 
     registry_contract_name = "MiningAdjudicator"

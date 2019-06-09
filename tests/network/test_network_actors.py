@@ -39,7 +39,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     token_agent, miner_agent, policy_agent = three_agents
     for address in miner_agent.swarm():
         for propagating_ursula in blockchain_ursulas[:1]:  # Last Ursula is not staking
-            if address == propagating_ursula.checksum_public_address:
+            if address == propagating_ursula.checksum_address:
                 continue
             else:
                 assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}".\
@@ -211,7 +211,7 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     old_metadata = bytes(ursula)
 
     # Alice has remembered Ursula.
-    assert federated_alice.known_nodes[ursula.checksum_public_address] == ursula
+    assert federated_alice.known_nodes[ursula.checksum_address] == ursula
 
     # But now, Ursula wants to sign and date her interface info again.  This causes a new timestamp.
     ursula._sign_and_date_interface_info()
@@ -227,5 +227,5 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     # ...she can't learn about old ursula anymore.
     federated_alice.remember_node(old_ursula)
 
-    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_public_address])
+    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address])
     assert new_metadata != old_metadata

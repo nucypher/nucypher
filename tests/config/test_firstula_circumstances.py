@@ -64,12 +64,12 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
         any_other_ursula.log.info(
             "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
         any_other_ursula.start_learning_loop()
-        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_public_address]),
+        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_address]),
                                                                        timeout=2)
         assert result
 
     yield deferToThread(start_lonely_learning_loop)
     assert firstula in any_other_ursula.known_nodes
 
-    firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_public_address]
+    firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_address]
     assert certificate_as_deployed == firstula_as_learned.certificate

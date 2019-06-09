@@ -85,7 +85,8 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
                             bob_verifying_key=bytes.fromhex(request['bob_verifying_key']),
                             label=request['label'].encode(),
                             m=request['m'],
-                            n=request['n'])
+                            n=request['n'],
+                            expiration=request['expiration'])
         return parsed_input
 
     @staticmethod

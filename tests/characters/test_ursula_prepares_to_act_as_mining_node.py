@@ -55,7 +55,7 @@ def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
     signature_as_bytes = first_ursula.decentralized_identity_evidence
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
-    assert verify_eip_191(address=first_ursula.checksum_public_address,
+    assert verify_eip_191(address=first_ursula.checksum_address,
                           message=bytes(first_ursula.stamp),
                           signature=signature_as_bytes)
 

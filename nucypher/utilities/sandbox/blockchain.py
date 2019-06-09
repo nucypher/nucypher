@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 from typing import List, Tuple, Dict
 
+import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE, TEST_PROVIDER_ON_MAIN_PROCESS
 from twisted.logger import Logger
 from web3 import Web3
@@ -32,14 +33,17 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import CONTRACT_ROOT
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MINERS_ESCROW_DEPLOYMENT_SECRET, POLICY_MANAGER_DEPLOYMENT_SECRET, MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+    MINERS_ESCROW_DEPLOYMENT_SECRET,
+    POLICY_MANAGER_DEPLOYMENT_SECRET,
+    MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET
+)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -121,38 +125,25 @@ class TesterBlockchain(Blockchain):
         Blockchain._instance = NO_BLOCKCHAIN_AVAILABLE
 
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
-        """
-        Generate additional unlocked accounts transferring a balance to each account on creation.
 
-        Not for use in production - For testing only.
-        """
+        #
+        # Sanity Check - Only PyEVM can be used.
+        #
+
+        # Detect provider platform
+        client_version = self.interface.w3.clientVersion
+
+        if 'Geth' in client_version:
+            raise RuntimeError("WARNING: Geth providers are not implemented.")
+        elif "Parity" in client_version:
+            raise RuntimeError("WARNING: Parity providers are not implemented.")
+
         addresses = list()
         for _ in range(quantity):
-            privkey = '0x' + os.urandom(32).hex()
-
-            # Detect provider platform - TODO: move this to interface?
-            client_version = self.interface.w3.clientVersion
-
-            if 'Geth' in client_version:
-                geth = self.interface.w3.geth
-                address = geth.personal.importRawKey(privkey, INSECURE_DEVELOPMENT_PASSWORD)
-                assert geth.personal.unlockAccount(address, INSECURE_DEVELOPMENT_PASSWORD)
-
-            elif "Parity" in client_version:
-                raise NotImplementedError("Parity providers are not implemented.")  # TODO: Implement Parity Support
-
-            elif "TestRPC" in client_version:
-                pass  # TODO: Mmm - nothing?
-
-            else:
-                # TODO: Do not fallback on tester
-                address = self.interface.provider.ethereum_tester.add_account(privkey)
-
-            # OK - keep this insecure account
+            address = self.interface.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
-
         return addresses
 
     def ether_airdrop(self, amount: int) -> List[str]:
@@ -165,8 +156,7 @@ class TesterBlockchain(Blockchain):
 
             tx = {'to': address,
                   'from': coinbase,
-                  'value': amount,
-                  }
+                  'value': amount}
 
             txhash = self.interface.w3.eth.sendTransaction(tx)
 
@@ -204,7 +194,11 @@ class TesterBlockchain(Blockchain):
 
         self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.interface.w3.eth.web3.testing.mine(1)
-        self.log.info("Time traveled to {}".format(end_timestamp))
+
+        delta = maya.timedelta(seconds=end_timestamp-now)
+        self.log.info(f"Time traveled {delta} "
+                      f"| period {epoch_to_period(epoch=end_timestamp)} "
+                      f"| epoch {end_timestamp}")
 
     def sync(self, timeout: int = 0):
         return True

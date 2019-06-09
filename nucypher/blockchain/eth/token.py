@@ -144,7 +144,7 @@ class Stake:
                  validate_now: bool = True):
 
         self.miner = miner
-        owner_address = miner.checksum_public_address
+        owner_address = miner.checksum_address
         self.log = Logger(f'stake-{owner_address}-{index}')
 
         # Stake Metadata
@@ -318,11 +318,11 @@ class Stake:
 
         approve_txhash = miner.token_agent.approve_transfer(amount=amount,
                                                             target_address=miner.miner_agent.contract_address,
-                                                            sender_address=miner.checksum_public_address)
+                                                            sender_address=miner.checksum_address)
 
         deposit_txhash = miner.miner_agent.deposit_tokens(amount=amount,
                                                           lock_periods=lock_periods,
-                                                          sender_address=miner.checksum_public_address)
+                                                          sender_address=miner.checksum_address)
 
         return approve_txhash, deposit_txhash
 
@@ -417,8 +417,8 @@ class Stake:
         stake.transactions = staking_transactions
 
         # Log and return Stake instance
-        log = Logger(f'stake-{miner.checksum_public_address}-creation')
-        log.info("{} Initialized new stake: {} tokens for {} periods".format(miner.checksum_public_address,
+        log = Logger(f'stake-{miner.checksum_address}-creation')
+        log.info("{} Initialized new stake: {} tokens for {} periods".format(miner.checksum_address,
                                                                              amount,
                                                                              lock_periods))
         return stake

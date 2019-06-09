@@ -227,8 +227,8 @@ class ForgetfulNodeStorage(NodeStorage):
         return filepath
 
     def store_node_metadata(self, node, filepath: str = None):
-        self.__metadata[node.checksum_public_address] = node
-        return self.__metadata[node.checksum_public_address]
+        self.__metadata[node.checksum_address] = node
+        return self.__metadata[node.checksum_address]
 
     @validate_checksum_address
     def generate_certificate_filepath(self, checksum_address: str) -> str:
@@ -418,7 +418,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     def store_node_metadata(self, node, filepath: str = None) -> str:
-        address = node.checksum_public_address
+        address = node.checksum_address
         filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath

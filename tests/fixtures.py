@@ -23,14 +23,14 @@ import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
-from web3 import Web3
-
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.eth.agents import Agency
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -64,7 +64,6 @@ from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
                                                make_federated_ursulas,
                                                start_pytest_ursula_services)
-
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
@@ -172,7 +171,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
                                 provider_uri=TEST_PROVIDER_URI,
-                                checksum_public_address=testerchain.alice_account,
+                                checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas[:-1],  # TODO: 1035
                                 abort_on_learning_error=True,
@@ -200,7 +199,7 @@ def bob_federated_test_config():
 def bob_blockchain_test_config(blockchain_ursulas, testerchain):
     config = BobConfiguration(dev_mode=True,
                               provider_uri=TEST_PROVIDER_URI,
-                              checksum_public_address=testerchain.bob_account,
+                              checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas[:-1],  # TODO: #1035
                               start_learning_now=False,
@@ -230,7 +229,7 @@ def idle_federated_policy(federated_alice, federated_bob):
                                            label=random_label,
                                            m=m,
                                            n=n,
-                                           federated=True)
+                                           expiration=maya.now() + datetime.timedelta(days=5))
     return policy
 
 
@@ -392,26 +391,29 @@ def three_agents(testerchain):
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-
     token_deployer.deploy()
-
-    token_agent = token_deployer.make_agent()  # 1: Token
 
     miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
     miner_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
+    token_agent = token_deployer.make_agent()  # 1: Token
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
-
     policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
 
     adjudicator_deployer = MiningAdjudicatorDeployer(deployer_address=origin)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    return token_agent, miner_agent, policy_agent
+    yield token_agent, miner_agent, policy_agent
+    Agency.clear()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def clear_out_agency():
+    yield
+    Agency.clear()
 
 
 @pytest.fixture(scope="module")

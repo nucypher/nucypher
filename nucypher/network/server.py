@@ -159,7 +159,7 @@ def make_rest_app(
                 continue  # This node is not serving any of our domains.
 
             if node in this_node.known_nodes:
-                if node.timestamp <= this_node.known_nodes[node.checksum_public_address].timestamp:
+                if node.timestamp <= this_node.known_nodes[node.checksum_address].timestamp:
                     continue
 
             @crosstown_traffic()
