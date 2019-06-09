@@ -248,7 +248,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, 10000).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    sub_stake = 1000
+    sub_stake = 100
     tx = escrow.functions.deposit(sub_stake, 10).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
@@ -398,8 +398,8 @@ def test_re_stake(testerchain, token, escrow_contract):
 
     # To calculate amount of re-stake we can split Ursula1's reward according sub stakes ratio:
     # first sub stake is 2/3 of entire stake and second sub stake is 1/3
-    re_stake_for_first_sub_stake = ursula_reward * 2 // 3
-    re_stake_for_second_sub_stake = ursula_reward - re_stake_for_first_sub_stake
+    re_stake_for_second_sub_stake = ursula_reward // 3
+    re_stake_for_first_sub_stake = ursula_reward - re_stake_for_second_sub_stake
     # Check re-stake for Ursula1's sub stakes
     assert stake + ursula_reward == escrow.functions.getLockedTokens(ursula).call()
     assert sub_stake_1 + re_stake_for_first_sub_stake == escrow.functions.getSubStakeInfo(ursula, 0).call()[3]

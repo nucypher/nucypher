@@ -20,31 +20,56 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.token import NU
+
 SECRET_LENGTH = 32
 
 
 @pytest.fixture()
 def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', 2 * 10 ** 40)
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 40, 'NuNit')))
     return token
 
 
 @pytest.mark.slow
 def test_issuer(testerchain, token, deploy_contract):
+    mining_coefficient = 10 ** 43
+    locked_periods_coefficient = 10 ** 4
+    total_supply = token.functions.totalSupply().call()
+    current_supply = 10 ** 30
+    reserved_reward = total_supply - current_supply
+
+    def calculate_reward(locked, total_locked, locked_periods):
+        return reserved_reward * locked * (locked_periods + locked_periods_coefficient) // \
+               (total_locked * mining_coefficient)
+
     creator = testerchain.client.accounts[0]
     ursula = testerchain.client.accounts[1]
 
     # Only token contract is allowed in Issuer constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('IssuerMock', ursula, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+        deploy_contract(
+            contract_name='IssuerMock',
+            _token=ursula,
+            _hoursPerPeriod=1,
+            _miningCoefficient=mining_coefficient,
+            _lockedPeriodsCoefficient=locked_periods_coefficient,
+            _rewardedPeriods=10 ** 4
+        )
 
     # Creator deploys the issuer
-    issuer, _ = deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+    issuer, _ = deploy_contract(
+            contract_name='IssuerMock',
+            _token=token.address,
+            _hoursPerPeriod=1,
+            _miningCoefficient=mining_coefficient,
+            _lockedPeriodsCoefficient=locked_periods_coefficient,
+            _rewardedPeriods=10 ** 4
+    )
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
     # Give staker tokens for reward and initialize contract
-    reserved_reward = 2 * 10 ** 40 - 10 ** 30
     tx = token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
@@ -68,26 +93,30 @@ def test_issuer(testerchain, token, deploy_contract):
     # Check result of minting tokens
     tx = issuer.functions.testMint(0, 1000, 2000, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert 10 == token.functions.balanceOf(ursula).call()
-    assert balance - 10 == token.functions.balanceOf(issuer.address).call()
+    reward = calculate_reward(1000, 2000, 0)
+    assert reward == token.functions.balanceOf(ursula).call()
+    assert balance - reward == token.functions.balanceOf(issuer.address).call()
 
     # The result must be more because of a different proportion of lockedValue and totalLockedValue
     tx = issuer.functions.testMint(0, 500, 500, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert 30 == token.functions.balanceOf(ursula).call()
-    assert balance - 30 == token.functions.balanceOf(issuer.address).call()
+    reward += calculate_reward(500, 500, 0)
+    assert reward == token.functions.balanceOf(ursula).call()
+    assert balance - reward == token.functions.balanceOf(issuer.address).call()
 
     # The result must be more because of bigger value of allLockedPeriods
     tx = issuer.functions.testMint(0, 500, 500, 10 ** 4).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert 70 == token.functions.balanceOf(ursula).call()
-    assert balance - 70 == token.functions.balanceOf(issuer.address).call()
+    reward += calculate_reward(500, 500, 10 ** 4)
+    assert reward == token.functions.balanceOf(ursula).call()
+    assert balance - reward == token.functions.balanceOf(issuer.address).call()
 
     # The result is the same because allLockedPeriods more then specified coefficient _rewardedPeriods
     tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 4).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert 110 == token.functions.balanceOf(ursula).call()
-    assert balance - 110 == token.functions.balanceOf(issuer.address).call()
+    reward += calculate_reward(500, 500, 10 ** 4)
+    assert reward == token.functions.balanceOf(ursula).call()
+    assert balance - reward == token.functions.balanceOf(issuer.address).call()
 
 
 @pytest.mark.slow
