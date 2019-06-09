@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 from typing import List, Tuple, Dict
 
+import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE, TEST_PROVIDER_ON_MAIN_PROCESS
 from twisted.logger import Logger
 from web3 import Web3
@@ -165,8 +166,7 @@ class TesterBlockchain(Blockchain):
 
             tx = {'to': address,
                   'from': coinbase,
-                  'value': amount,
-                  }
+                  'value': amount}
 
             txhash = self.interface.w3.eth.sendTransaction(tx)
 
@@ -204,7 +204,11 @@ class TesterBlockchain(Blockchain):
 
         self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.interface.w3.eth.web3.testing.mine(1)
-        self.log.info("Time traveled to {}".format(end_timestamp))
+
+        delta = maya.timedelta(seconds=end_timestamp-now)
+        self.log.info(f"Time traveled {delta} "
+                      f"| period {epoch_to_period(epoch=end_timestamp)} "
+                      f"| epoch {end_timestamp}")
 
     def sync(self, timeout: int = 0):
         return True
