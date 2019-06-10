@@ -55,7 +55,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
@@ -86,7 +85,6 @@ def ursula(click_config,
            lonely,
            network,
            teacher_uri,
-           enode,
            min_stake,
            rest_host,
            rest_port,
@@ -256,7 +254,6 @@ def ursula(click_config,
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
                                         recompile_contracts=recompile_solidity,
-                                        enode=enode,
                                         sync=sync,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
