@@ -226,7 +226,6 @@ def make_cli_character(character_config,
                        dev: bool = False,
                        teacher_uri: str = None,
                        min_stake: int = 0,
-                       enode: str = None,
                        sync: bool = True,
                        recompile_contracts: bool = False,
                        **config_args):
@@ -275,12 +274,5 @@ def make_cli_character(character_config,
     # Federated
     if character_config.federated_only:
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
-
-    # Decentralized
-    else:
-        # Manual ethereum peer
-        if enode:
-            character_config.blockchain.interface.client.add_peer(enode)
-            click.secho(f"Added ethereum peer {enode}")
 
     return CHARACTER
