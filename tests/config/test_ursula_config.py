@@ -27,7 +27,7 @@ def test_ursula_development_configuration(federated_only=True):
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
     assert tempfile.gettempdir() in ursula_one.datastore.engine.url.database
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
-    assert UrsulaConfiguration.TEMP_CONFIGURATION_DIR_PREFIX in ursula_one.keyring_dir
+    assert UrsulaConfiguration.TEMP_CONFIGURATION_DIR_PREFIX in ursula_one.keyring_root
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
     assert ursula_one.node_storage._name == ":memory:"
 

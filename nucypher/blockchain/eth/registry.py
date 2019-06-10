@@ -20,6 +20,7 @@ import os
 import pprint
 import tempfile
 from json import JSONDecodeError
+from os.path import dirname, abspath
 
 import requests
 from twisted.logger import Logger
@@ -54,6 +55,9 @@ class EthereumContractRegistry:
     class RegistryError(Exception):
         pass
 
+    class RegistrySourceUnavailable(RegistryError):
+        pass
+
     class EmptyRegistry(RegistryError):
         pass
 
@@ -84,20 +88,27 @@ class EthereumContractRegistry:
         """
         Get the latest published contract registry from github and save it on the local file system.
         """
-        from nucypher.config.node import NodeConfiguration
+
+        # Setup
         github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.REGISTRY_NAME}'
         response = requests.get(github_endpoint)
-        if response.status_code != 200:
-            raise cls.RegistryError(f"Failed to fetch registry from {github_endpoint} with status code {response.status_code} ")
 
+        # Fetch
+        if response.status_code != 200:
+            error = f"Failed to fetch registry from {github_endpoint} with status code {response.status_code}"
+            raise cls.RegistrySourceUnavailable(error)
+
+        # Get filename
         # TODO : Use envvar for config root and registry path
         filepath = filepath or cls._default_registry_filepath
 
-        try:
-            with open(filepath, 'wb') as registry_file:  # TODO: Skip re-write if already up to date
-                registry_file.write(response.content)
-        except FileNotFoundError:
-            raise NodeConfiguration.NoConfigurationRoot
+        # Ensure parent path exists
+        os.makedirs(abspath(dirname(filepath)), exist_ok=True)
+
+        # Write registry
+        with open(filepath, 'wb') as registry_file:
+            registry_file.write(response.content)
+
         return filepath
 
     @classmethod

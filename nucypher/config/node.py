@@ -171,11 +171,12 @@ class NodeConfiguration(BaseConfiguration):
         # Mode
         #
         self.federated_only = federated_only
-        self.__dev_mode = dev_mode
 
+        self.__dev_mode = dev_mode
         if self.__dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
             self.node_storage = ForgetfulNodeStorage(federated_only=federated_only, character_class=self.__class__)
+
         else:
             self.__temp_dir = LIVE_CONFIGURATION
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
