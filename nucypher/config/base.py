@@ -53,7 +53,8 @@ class BaseConfiguration(ABC):
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
         if not filepath:
-            filepath = self.default_filepath()
+            filename = self.generate_filename()
+            filepath = os.path.join(self.config_root, filename)
         if os.path.exists(filepath) and not override:
             if not modifier:
                 raise FileExistsError(f"{filepath} exists and no filename modifier supplied.")
@@ -68,7 +69,7 @@ class BaseConfiguration(ABC):
         return filepath
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides ) -> 'BaseConfiguration':
+    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'BaseConfiguration':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
         instance = cls(filepath=filepath, **payload, **overrides)
