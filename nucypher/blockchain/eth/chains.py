@@ -123,12 +123,7 @@ class Blockchain:
 
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
-            interface = InterfaceClass(
-                provider_uri=provider_uri,
-                compiler=compiler,
-                registry=registry,
-                fetch_registry=fetch_registry,
-            )
+            interface = InterfaceClass(provider_uri=provider_uri, compiler=compiler, registry=registry)
 
             if poa is True:
                 log.debug('Injecting POA middleware at layer 0')

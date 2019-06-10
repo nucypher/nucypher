@@ -188,22 +188,16 @@ class BlockchainInterface:
     @property
     def client_version(self) -> str:
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
-            return "Unknown"
-
+            raise self.NoProvider
         return self.client.node_version
 
-    def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
-
-        # Establish contact with NuCypher contracts
-        if not self.registry:
-            self._configure_registry()
+    def _connect(self, provider: Web3Providers = None, provider_uri: str = None, fetch_registry: bool = True):
 
         self._attach_provider(provider=provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__provider is NO_BLOCKCHAIN_CONNECTION:
-            raise self.NoProvider(
-                "There are no configured blockchain providers")
+            raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect if not connected
         try:
@@ -215,6 +209,10 @@ class BlockchainInterface:
 
         except FileNotFoundError:         # IPC File Protocol
             raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
+
+        # Establish contact with NuCypher contracts
+        if not self.registry:
+            self._configure_registry(fetch_registry=fetch_registry)
 
         # Check connection
         return self.is_connected

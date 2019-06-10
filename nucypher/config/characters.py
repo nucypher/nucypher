@@ -21,6 +21,9 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
@@ -28,17 +31,35 @@ from nucypher.config.node import NodeConfiguration
 
 
 class UrsulaConfiguration(NodeConfiguration):
+
     from nucypher.characters.lawful import Ursula
+    CHARACTER_CLASS = Ursula
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    _CHARACTER_CLASS = Ursula
-    _NAME = _CHARACTER_CLASS.__name__.lower()
-
+    DEFAULT_REST_HOST = '127.0.0.1'
+    DEFAULT_REST_PORT = 9151
+    DEFAULT_DEVELOPMENT_REST_PORT = 10151
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
 
     def __init__(self,
                  dev_mode: bool = False,
                  db_filepath: str = None,
+                 rest_host: str = None,
+                 rest_port: int = None,
+                 tls_curve: EllipticCurve = None,
+                 certificate: Certificate = None,
                  *args, **kwargs) -> None:
+
+        if not rest_port:
+            if dev_mode:
+                rest_port = self.DEFAULT_DEVELOPMENT_REST_PORT
+            else:
+                rest_port = self.DEFAULT_REST_PORT
+        self.rest_port = rest_port
+        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
+        self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
@@ -52,8 +73,7 @@ class UrsulaConfiguration(NodeConfiguration):
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
-         db_filepath=self.db_filepath,
-        )
+         db_filepath=self.db_filepath)
         return {**super().static_payload(), **payload}
 
     @property
@@ -71,7 +91,7 @@ class UrsulaConfiguration(NodeConfiguration):
         """Produce a new Ursula from configuration"""
 
         merged_parameters = self.generate_parameters(**overrides)
-        ursula = self._CHARACTER_CLASS(**merged_parameters)
+        ursula = self.CHARACTER_CLASS(**merged_parameters)
 
         if self.dev_mode:
             class MockDatastoreThreadPool(object):
@@ -99,8 +119,8 @@ class UrsulaConfiguration(NodeConfiguration):
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
-    _CHARACTER_CLASS = Alice
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Alice
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 8151
 
@@ -144,8 +164,8 @@ class AliceConfiguration(NodeConfiguration):
 class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
 
-    _CHARACTER_CLASS = Bob
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Bob
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_CONTROLLER_PORT = 7151
 
@@ -160,24 +180,32 @@ class FelixConfiguration(NodeConfiguration):
     from nucypher.characters.chaotic import Felix
 
     # Character
-    _CHARACTER_CLASS = Felix
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Felix
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    # Database
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
-
-    # Network
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
+    DEFAULT_REST_HOST = '127.0.0.1'
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
 
-    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
+    def __init__(self,
+                 db_filepath: str = None,
+                 rest_host: str = None,
+                 rest_port: int = None,
+                 tls_curve: EllipticCurve = None,
+                 certificate: Certificate = None,
+                 *args, **kwargs) -> None:
 
-        # Character
-        super().__init__(*args, **kwargs)
-
-        # Felix
+        if not rest_port:
+            rest_port = self.DEFAULT_REST_PORT
+        self.rest_port = rest_port or self.DEFAULT_REST_PORT
+        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
+        self.certificate = certificate
         self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
+        super().__init__(*args, **kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(
