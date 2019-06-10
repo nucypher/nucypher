@@ -1,4 +1,5 @@
 import datetime
+import sys
 import json
 import os
 import shutil
@@ -23,7 +24,15 @@ globalLogPublisher.addObserver(SimpleObserver())
 
 TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 
-SEEDNODE_URL = 'localhost:11500'
+
+# if your ursulas are NOT running on your current host,
+# run like this: python finnegans-wake-demo.py 172.28.1.3:11500
+# otherwise the default will be fine.
+
+try:
+    SEEDNODE_URI = sys.argv[1]
+except IndexError:
+    SEEDNODE_URI = "localhost:11500"
 
 POLICY_FILENAME = "policy-metadata.json"
 
@@ -42,7 +51,7 @@ passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
 
 shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
                                          federated_only=True,
                                          minimum_stake=0)
 

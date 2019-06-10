@@ -26,12 +26,12 @@ From there you can develop, modify code, test as normal.
 
 ### other cases
 
-* run a network of three independent Ursulas
-`docker-compose -f 3-ursulas.yml up`
+* run a network of 8 independent Ursulas
+`docker-compose -f 8-federated-ursulas.yml up`
 *  get the local ports these ursulas will be exposed on
 `docker ps`
 * to stop them...
- `docker-compose -f 3-ursulas.yml stop`
+ `docker-compose -f 8-federated-ursulas.yml stop`
 
 ## Pycharm (pro version only)
 * You can configure pycharm to use the python interpreter inside docker.
