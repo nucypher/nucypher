@@ -21,16 +21,13 @@ import string
 from tempfile import TemporaryDirectory
 from typing import List, Set
 
-import binascii
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     NO_BLOCKCHAIN_CONNECTION,
     LIVE_CONFIGURATION,
-    NO_KEYRING_ATTACHED
+    NO_KEYRING_ATTACHED,
+    DEVELOPMENT_CONFIGURATION
 )
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.x509 import Certificate
 from twisted.logger import Logger
 from umbral.signing import Signature
 
@@ -38,7 +35,6 @@ from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, Nucy
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.base import BaseConfiguration
-from nucypher.config.constants import BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
@@ -51,33 +47,12 @@ class NodeConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    # Abstract
-    _CHARACTER_CLASS = NotImplemented
-
-    TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
-
-    # Mode
-    DEFAULT_OPERATING_MODE = 'decentralized'
-
-    # Domains
-    DEFAULT_DOMAIN = 'goerli'
-
-    # Serializers
-    NODE_SERIALIZER = binascii.hexlify
-    NODE_DESERIALIZER = binascii.unhexlify
-
-    # Blockchain
-    DEFAULT_PROVIDER_URI = 'http://localhost:8545'
-
-    # Rest + TLS
-    DEFAULT_REST_HOST = '127.0.0.1'
-    DEFAULT_REST_PORT = 9151
-    DEFAULT_DEVELOPMENT_REST_PORT = 10151
-
+    CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-
-    __DEFAULT_TLS_CURVE = ec.SECP384R1
-    __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
+    DEFAULT_PROVIDER_URI = 'http://localhost:8545'
+    DEFAULT_DOMAIN = 'goerli'
+    DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
+    TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
 
     def __init__(self,
 
@@ -102,16 +77,8 @@ class NodeConfiguration(BaseConfiguration):
                  abort_on_learning_error: bool = False,
                  start_learning_now: bool = True,
 
-                 # REST
-                 rest_host: str = None,
-                 rest_port: int = None,
-                 controller_port: int = None,
-
-                 # TLS
-                 tls_curve: EllipticCurve = None,
-                 certificate: Certificate = None,
-
                  # Network
+                 controller_port: int = None,
                  domains: Set[str] = None,
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
@@ -133,27 +100,20 @@ class NodeConfiguration(BaseConfiguration):
 
                  ) -> None:
 
-        # Logs
         self.log = Logger(self.__class__.__name__)
 
-        #
-        # REST + TLS + Web
-        #
+        # Identity
+        # NOTE: NodeConfigurations can only be used with Self-Characters
+        self.is_me = True
+        self.checksum_address = checksum_address
+
+        # Network
         self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
-        self.rest_host = rest_host or self.DEFAULT_REST_HOST
-        default_port = (self.DEFAULT_DEVELOPMENT_REST_PORT if dev_mode else self.DEFAULT_REST_PORT)
-        self.rest_port = rest_port or default_port
-        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
-        self.certificate = certificate
-
-        self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
-
+        self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE()
         self.interface_signature = interface_signature
-        self.crypto_power = crypto_power
 
-        #
         # Keyring
-        #
+        self.crypto_power = crypto_power
         self.keyring = keyring or NO_KEYRING_ATTACHED
         self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
 
@@ -161,57 +121,7 @@ class NodeConfiguration(BaseConfiguration):
         self.download_registry = download_registry
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
-        #
-        # Configuration
-        #
-        self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
-        self.config_root = UNINITIALIZED_CONFIGURATION
-
-        #
-        # Mode
-        #
-        self.federated_only = federated_only
-
-        self.__dev_mode = dev_mode
-        if self.__dev_mode:
-            self.__temp_dir = UNINITIALIZED_CONFIGURATION
-            self.node_storage = ForgetfulNodeStorage(federated_only=federated_only, character_class=self.__class__)
-
-        else:
-            self.__temp_dir = LIVE_CONFIGURATION
-            self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
-            self._cache_runtime_filepaths()
-            self.node_storage = node_storage or LocalFileBasedNodeStorage(federated_only=federated_only,
-                                                                          config_root=self.config_root)
-
-        #
-        # Identity
-        #
-        self.is_me = True  # NodeConfigurations can only be used with Self-Characters
-        self.checksum_address = checksum_address
-        if not dev_mode and checksum_address:
-            self.attach_keyring()
-
-        #
-        # Learner
-        #
-
-        self.domains = domains or {self.DEFAULT_DOMAIN}
-        self.learn_on_same_thread = learn_on_same_thread
-        self.abort_on_learning_error = abort_on_learning_error
-        self.start_learning_now = start_learning_now
-        self.save_metadata = save_metadata
-        self.reload_metadata = reload_metadata
-
-        self.__fleet_state = FleetStateTracker()
-        known_nodes = known_nodes or set()
-        if known_nodes:
-            self.known_nodes._nodes.update({node.checksum_address: node for node in known_nodes})
-            self.known_nodes.record_fleet_state()  # TODO: Does this call need to be here?
-
-        #
         # Blockchain
-        #
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
@@ -221,28 +131,48 @@ class NodeConfiguration(BaseConfiguration):
         self.staking_agent = NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = NO_BLOCKCHAIN_CONNECTION
 
-        #
-        # Development Mode
-        #
+        # Learner
+        self.federated_only = federated_only
+        self.domains = domains or {self.DEFAULT_DOMAIN}
+        self.learn_on_same_thread = learn_on_same_thread
+        self.abort_on_learning_error = abort_on_learning_error
+        self.start_learning_now = start_learning_now
+        self.save_metadata = save_metadata
+        self.reload_metadata = reload_metadata
+        self.__fleet_state = FleetStateTracker()
+
+        # Configuration
+        self.__dev_mode = dev_mode
+        self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
+        self.config_root = UNINITIALIZED_CONFIGURATION
 
         if dev_mode:
-
-            # Ephemeral dev settings
-            self.abort_on_learning_error = True
-            self.save_metadata = False
-            self.reload_metadata = False
-
-            # Generate one-time alphanumeric development password
-            alphabet = string.ascii_letters + string.digits
-            password = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-            # Auto-initialize
-            self.initialize(password=password)
+            self.__temp_dir = UNINITIALIZED_CONFIGURATION
+            self.__setup_node_storage()
+            self.initialize(password=DEVELOPMENT_CONFIGURATION)
+        else:
+            if checksum_address:
+                self.attach_keyring()
+            self.__temp_dir = LIVE_CONFIGURATION
+            self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
+            self._cache_runtime_filepaths()
+            self.__setup_node_storage(node_storage=node_storage)
+        self.read_known_nodes(additional_nodes=known_nodes)
 
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
-    def __call__(self, *args, **kwargs):
-        return self.produce(*args, **kwargs)
+    def __call__(self, **character_kwargs):
+        return self.produce(**character_kwargs)
+
+    def __del__(self):
+        self.cleanup()
+
+    def __setup_node_storage(self, node_storage=None) -> None:
+        if self.dev_mode:
+            node_storage = ForgetfulNodeStorage(federated_only=self.federated_only)
+        elif not node_storage:
+            node_storage = LocalFileBasedNodeStorage(federated_only=self.federated_only, config_root=self.config_root)
+        self.node_storage = node_storage
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):
@@ -255,27 +185,14 @@ class NodeConfiguration(BaseConfiguration):
     def cleanup(self) -> None:
         if self.__dev_mode:
             self.__temp_dir.cleanup()
-        if self.blockchain:
-            self.blockchain.disconnect()
 
     @property
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    @property
-    def known_nodes(self):
-        return self.__fleet_state
-
-    def connect_to_blockchain(self,
-                              recompile_contracts: bool = False,
-                              full_sync: bool = False) -> None:
-        """
-        :param recompile_contracts: Recompile all contracts on connection.
-        :return: None
-        """
+    def connect_to_blockchain(self, recompile_contracts: bool = False, full_sync: bool = False) -> None:
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
-
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
                                              poa=self.poa,
@@ -283,22 +200,24 @@ class NodeConfiguration(BaseConfiguration):
                                              provider_process=self.provider_process,
                                              sync=full_sync)
 
-        # Read Ethereum Node Keyring
-        self.accounts = self.blockchain.interface.w3.eth.accounts
-
     def connect_to_contracts(self) -> None:
-        """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.log.debug("Established connection to nucypher contracts")
 
-    def read_known_nodes(self):
+    @property
+    def known_nodes(self) -> FleetStateTracker:
+        return self.__fleet_state
+
+    def read_known_nodes(self, additional_nodes=None) -> None:
         known_nodes = self.node_storage.all(federated_only=self.federated_only)
         known_nodes = {node.checksum_address: node for node in known_nodes}
-        self.known_nodes._nodes.update(known_nodes)
-        self.known_nodes.record_fleet_state()
-        return self.known_nodes
+        self.__fleet_state._nodes.update(known_nodes)
+        if additional_nodes:
+            addresses = {node.checksum_address: node for node in additional_nodes}
+            self.__fleet_state._nodes.update(addresses)
+        self.__fleet_state.record_fleet_state()
 
     def forget_nodes(self) -> None:
         self.node_storage.clear()
@@ -319,13 +238,12 @@ class NodeConfiguration(BaseConfiguration):
     def produce(self, **overrides):
         """Initialize a new character instance and return it."""
         merged_parameters = self.generate_parameters(**overrides)
-        character = self._CHARACTER_CLASS(**merged_parameters)
+        character = self.CHARACTER_CLASS(**merged_parameters)
         return character
 
     @classmethod
     def assemble(cls, filepath: str = None, **overrides):
 
-        # Understand this to be a dynamic payload now
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Storage
@@ -338,42 +256,25 @@ class NodeConfiguration(BaseConfiguration):
         # Assemble
         payload.update(dict(node_storage=node_storage, domains=domains))
 
-        # Filter out Nones from overrides to detect, well, overrides
-        # Acts as a shim for optional CLI flags
+        # Filter out None vslues from **overrides to detect, well, overrides...
+        # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
-
         payload = {**payload, **overrides}
         return payload
 
     @classmethod
-    def from_configuration_file(cls,
-                                filepath: str = None,
-                                provider_process=None,
-                                **overrides) -> 'NodeConfiguration':
-
+    def from_configuration_file(cls, filepath: str = None, provider_process=None, **overrides) -> 'NodeConfiguration':
         """Initialize a NodeConfiguration from a JSON file."""
-
-        # Read from disk
         filepath = filepath or cls.default_filepath()
-
-        # Instantiate from assembled params
         assembled_params = cls.assemble(filepath=filepath, **overrides)
         node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
-
         return node_configuration
 
-    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
-        filepath = super().generate_filepath(filepath=filepath,
-                                             modifier=modifier or self.checksum_address,
-                                             override=override)
-        self.filepath = filepath
-        return filepath
-
-    def validate(self, config_root: str, no_registry: bool = False) -> bool:
+    def validate(self, no_registry: bool = False) -> bool:
 
         # Top-level
-        if not os.path.exists(config_root):
-            raise self.ConfigurationError('No configuration directory found at {}.'.format(config_root))
+        if not os.path.exists(self.config_root):
+            raise self.ConfigurationError(f'No configuration directory found at {self.config_root}.')
 
         # Sub-paths
         filepaths = self.runtime_filepaths
@@ -390,8 +291,6 @@ class NodeConfiguration(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
-
-        base_payload = super().static_payload()
 
         payload = dict(
 
@@ -415,37 +314,31 @@ class NodeConfiguration(BaseConfiguration):
             payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
 
         # Merge with base payload
+        base_payload = super().static_payload()
         base_payload.update(payload)
 
         return payload
 
     @property
-    def dynamic_payload(self, connect_to_blockchain: bool = True, **overrides) -> dict:
+    def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
-
-        if self.reload_metadata:
-            known_nodes = self.node_storage.all(federated_only=self.federated_only)
-            known_nodes = {node.checksum_address: node for node in known_nodes}
-            self.known_nodes._nodes.update(known_nodes)
-        self.known_nodes.record_fleet_state()
-
-        payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
+        payload = dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups() or None)
-
-        if not self.federated_only and connect_to_blockchain:
+        if not self.federated_only:
             self.connect_to_blockchain(recompile_contracts=False)
             payload.update(blockchain=self.blockchain)
-
-        if overrides:
-            self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
-            payload.update(overrides)
-
         return payload
 
+    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
+        modifier = modifier or self.checksum_address
+        filepath = super().generate_filepath(filepath=filepath, modifier=modifier, override=override)
+        self.filepath = filepath
+        return filepath
+
     @property
-    def runtime_filepaths(self):
+    def runtime_filepaths(self) -> dict:
         filepaths = dict(config_root=self.config_root,
                          keyring_root=self.keyring_root,
                          registry_filepath=self.registry_filepath)
@@ -468,76 +361,66 @@ class NodeConfiguration(BaseConfiguration):
                 setattr(self, field, filepath)
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
+        checksum_address = checksum_address or self.checksum_address
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != (checksum_address or self.checksum_address):
+            if self.keyring.checksum_address != checksum_address:
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
-
-        if (checksum_address or self.checksum_address) is None:
+        if not checksum_address:
             raise self.ConfigurationError("No account specified to unlock keyring")
-
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root,  # type: str
-                                       account=checksum_address or self.checksum_address,  # type: str
-                                       *args, **kwargs)
+        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=checksum_address, *args, **kwargs)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
         if self.is_me and not self.dev_mode:
-            for power_class in self._CHARACTER_CLASS._default_crypto_powerups:
+            for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
                 power_up = self.keyring.derive_crypto_power(power_class)
                 power_ups.append(power_up)
         return power_ups
 
     def write_config_root(self):
-        # Production Configuration
         try:
             os.mkdir(self.config_root, mode=0o755)
-
         except FileExistsError:
             if os.listdir(self.config_root):
                 message = "There are existing files located at {}".format(self.config_root)
                 self.log.debug(message)
-
         except FileNotFoundError:
             os.makedirs(self.config_root, mode=0o755)
 
     def initialize(self, password: str) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
+        if password is DEVELOPMENT_CONFIGURATION:
+            self.abort_on_learning_error = True
+            self.save_metadata = False
+            self.reload_metadata = False
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(alphabet) for _ in range(32))
+
         # Configuration Root
         if self.__dev_mode:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
-
         else:
             self.write_config_root()
-
-            # Keyring
             self.write_keyring(password=password)
 
-        # Generate Installation Subdirectories
         self._cache_runtime_filepaths()
-
-        # Node Storage
         self.node_storage.initialize()
-
-        # Registry
         if self.download_registry:
             self.registry_filepath = EthereumContractRegistry.download_latest_publication()
 
         # Validate
         if not self.__dev_mode:
-            self.validate(config_root=self.config_root,
-                          no_registry=(not self.download_registry) or self.federated_only)
+            self.validate(no_registry=(not self.download_registry) or self.federated_only)
 
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self,
-                      password: str,
-                      **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         # Note: It is assumed the blockchain is not yet available.
         if not self.federated_only:
@@ -572,17 +455,9 @@ class NodeConfiguration(BaseConfiguration):
 
     @classmethod
     def load_node_storage(cls, storage_payload: dict, federated_only: bool):
-
-        # Initialize NodeStorage subclass from file (sub-configuration)
         from nucypher.config.storages import NodeStorage
         node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
-
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = node_storage_subclasses[storage_type]
-
-        node_storage = storage_class.from_payload(payload=storage_payload,
-                                                  federated_only=federated_only,
-                                                  serializer=cls.NODE_SERIALIZER,
-                                                  deserializer=cls.NODE_DESERIALIZER)
-
+        node_storage = storage_class.from_payload(payload=storage_payload, federated_only=federated_only)
         return node_storage

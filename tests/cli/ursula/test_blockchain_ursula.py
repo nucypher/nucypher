@@ -26,7 +26,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 @pytest.fixture(scope='module')
 def configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, UrsulaConfiguration.generate_filepath())
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, UrsulaConfiguration.generate_filename())
     return _configuration_file_location
 
 

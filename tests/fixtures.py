@@ -241,8 +241,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
 
-    responses = idle_federated_policy.enact(
-        network_middleware)  # REST call happens here, as does population of TreasureMap.
+    # REST call happens here, as does population of TreasureMap.
+    responses = idle_federated_policy.enact(network_middleware)
 
     return idle_federated_policy
 
