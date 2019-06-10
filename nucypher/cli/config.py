@@ -77,23 +77,10 @@ class NucypherClickConfig:
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
 
     def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
-        try:
-            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
-            character_configuration.connect_to_contracts()
-
-        except EthereumContractRegistry.NoRegistry:
-            _registry_filepath = EthereumContractRegistry.from_latest_publication()
-
-        except Exception as e:
-            if self.debug:
-                raise
-            click.secho(str(e), fg='red', bold=True)
-            raise click.Abort()
-
-        # Success
-        else:
-            self.blockchain = character_configuration.blockchain
-            self.accounts = self.blockchain.interface.w3.eth.accounts
+        character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
+        character_configuration.connect_to_contracts()
+        self.blockchain = character_configuration.blockchain
+        self.accounts = self.blockchain.interface.w3.eth.accounts
 
     def get_password(self, confirm: bool = False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
