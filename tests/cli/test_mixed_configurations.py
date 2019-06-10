@@ -4,6 +4,7 @@ import pytest
 
 from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
+from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -84,10 +85,10 @@ def test_coexisting_configurations(click_runner,
     #
 
     # Expected config files
-    felix_file_location = os.path.join(custom_filepath, 'felix.config')
-    alice_file_location = os.path.join(custom_filepath, 'alice.config')
-    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, f'ursula-{another_ursula[:6]}.json')
+    felix_file_location = os.path.join(custom_filepath, FelixConfiguration.generate_filename())
+    alice_file_location = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
+    ursula_file_location = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+    another_ursula_configuration_file_location = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename(modifier=another_ursula))
 
     # Felix creates a system configuration
     felix_init_args = ('felix', 'init',

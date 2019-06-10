@@ -4,8 +4,7 @@ import shutil
 import pytest
 from constant_sorrow.constants import NO_KEYRING_ATTACHED
 
-from nucypher.characters.lawful import Alice
-from nucypher.characters.lawful import Ursula
+from nucypher.characters.lawful import Ursula, Alice
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -112,4 +111,3 @@ def test_create_standard_character_configuration(configuration_class):
 
     finally:
         shutil.rmtree(character_config.filepath, ignore_errors=True)
-
