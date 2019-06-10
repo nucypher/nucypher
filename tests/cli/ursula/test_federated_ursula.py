@@ -21,6 +21,7 @@ from json import JSONDecodeError
 
 import pytest
 
+from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT
@@ -79,7 +80,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
     assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Auth
@@ -88,7 +89,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
 
 def test_configuration_file_contents(custom_filepath, nominal_federated_configuration_fields):
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Check the contents of the configuration file
@@ -114,7 +115,7 @@ def test_configuration_file_contents(custom_filepath, nominal_federated_configur
 def test_password_prompt(click_runner, custom_filepath):
 
     # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     view_args = ('ursula', 'view', '--config-file', custom_config_filepath, '--federated-only')
@@ -133,10 +134,10 @@ def test_password_prompt(click_runner, custom_filepath):
 def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federated_configuration_fields):
 
     # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'view', '--config-file', os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME))
+    view_args = ('ursula', 'view', '--config-file', os.path.join(custom_filepath, UrsulaConfiguration.generate_filename()))
 
     # View the configuration
     result = click_runner.invoke(nucypher_cli, view_args,
@@ -156,7 +157,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federa
 def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
 
     # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Run Ursula
@@ -179,7 +180,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
 
 def test_empty_federated_status(click_runner, custom_filepath):
 
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     status_args = ('status', '--config-file', custom_config_filepath)
@@ -197,10 +198,10 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
 
     preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)
     preexisting_live_configuration_file = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT,
-                                                                      UrsulaConfiguration.CONFIG_FILENAME))
+                                                                      UrsulaConfiguration.generate_filename()))
 
     # Ensure the configuration file still exists
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Run the destroy command
@@ -214,7 +215,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
     assert custom_filepath in result.output, 'WARNING: Configuration path not in output. Deleting the wrong path?'
-    assert f'Deleted' in result.output, '"Destroyed" not in output'
+    assert SUCCESSFUL_DESTRUCTION in result.output, '"Destroyed" not in output'
     assert custom_filepath in result.output
     assert result.exit_code == 0, 'Destruction did not succeed'
 
@@ -228,5 +229,5 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
         assert configuration_still_exists
 
     if preexisting_live_configuration_file:
-        file_still_exists = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.CONFIG_FILENAME))
+        file_still_exists = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.generate_filename()))
         assert file_still_exists, 'WARNING: Test command deleted live non-test files'

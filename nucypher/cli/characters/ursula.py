@@ -194,10 +194,7 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        painting.paint_new_installation_help(new_configuration=ursula_config,
-                                             config_root=config_root,
-                                             config_file=config_file,
-                                             federated_only=federated_only)
+        painting.paint_new_installation_help(new_configuration=ursula_config)
         return
 
     #

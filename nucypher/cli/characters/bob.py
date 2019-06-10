@@ -88,8 +88,7 @@ def bob(click_config,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
-        return painting.paint_new_installation_help(new_configuration=new_bob_config,
-                                                    config_file=config_file)
+        return painting.paint_new_installation_help(new_configuration=new_bob_config)
 
     # TODO
     # elif action == "view":

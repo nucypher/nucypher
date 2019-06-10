@@ -69,10 +69,6 @@ class NodeConfiguration(BaseConfiguration):
     # Blockchain
     DEFAULT_PROVIDER_URI = 'http://localhost:8545'
 
-    # Registry
-    __REGISTRY_NAME = 'contract_registry.json'
-    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)
-
     # Rest + TLS
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
@@ -416,6 +412,9 @@ class NodeConfiguration(BaseConfiguration):
         # Optional values (mode)
         if not self.federated_only:
             payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+
+        # Merge with base payload
+        base_payload.update(payload)
 
         return payload
 
