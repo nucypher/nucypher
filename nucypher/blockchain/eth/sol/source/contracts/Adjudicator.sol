@@ -155,7 +155,7 @@ contract Adjudicator is Upgradeable {
         // TODO: This will depend on the outcome of #962
         address violator = SignatureVerifier.recover(
             SignatureVerifier.hash(_stakerPublicKey, hashAlgorithm), _stakerPublicKeySignature);
-        address staker = escrow.getStakerByWorker(violator);
+        address staker = escrow.getStakerFromWorker(violator);
         require(staker != address(0), "Violator must be related to a staker");
 
         // Check that staker can be slashed
