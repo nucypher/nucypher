@@ -96,9 +96,7 @@ def felix(click_config,
                 raise click.Abort
 
         # Paint Help
-        painting.paint_new_installation_help(new_configuration=new_felix_config,
-                                             config_root=config_root,
-                                             config_file=config_file)
+        painting.paint_new_installation_help(new_configuration=new_felix_config)
 
         return  # <-- do not remove (conditional flow control)
 

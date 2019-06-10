@@ -92,7 +92,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
     assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     with open(custom_config_filepath, 'r') as config_file:
