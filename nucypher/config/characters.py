@@ -27,10 +27,10 @@ from cryptography.x509 import Certificate
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 
 
-class UrsulaConfiguration(NodeConfiguration):
+class UrsulaConfiguration(CharacterConfiguration):
 
     from nucypher.characters.lawful import Ursula
     CHARACTER_CLASS = Ursula
@@ -116,7 +116,7 @@ class UrsulaConfiguration(NodeConfiguration):
         super().destroy()
 
 
-class AliceConfiguration(NodeConfiguration):
+class AliceConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Alice
 
     CHARACTER_CLASS = Alice
@@ -161,7 +161,7 @@ class AliceConfiguration(NodeConfiguration):
                                      **generation_kwargs)
 
 
-class BobConfiguration(NodeConfiguration):
+class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
 
     CHARACTER_CLASS = Bob
@@ -176,7 +176,7 @@ class BobConfiguration(NodeConfiguration):
                                      **generation_kwargs)
 
 
-class FelixConfiguration(NodeConfiguration):
+class FelixConfiguration(CharacterConfiguration):
     from nucypher.characters.chaotic import Felix
 
     # Character

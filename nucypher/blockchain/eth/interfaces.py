@@ -96,7 +96,7 @@ class BlockchainInterface:
                                          |
                         |                |             |
 
-         Key Files ------ NodeConfiguration -------- Agent ... (Contract API)
+         Key Files ------ CharacterConfiguration -------- Agent ... (Contract API)
 
                         |                |             |
                         |                |
