@@ -104,16 +104,14 @@ class AliceConfiguration(NodeConfiguration):
     _CHARACTER_CLASS = Alice
     _NAME = _CHARACTER_CLASS.__name__.lower()
 
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_CONTROLLER_PORT = 8151
 
     # TODO: Best (Sane) Defaults
     DEFAULT_M = 2
     DEFAULT_N = 3
-    DEFAULT_RATE = int(1e14)  # wei
+    DEFAULT_RATE = int(1e14)          # wei
     DEFAULT_FIRST_PERIOD_RATE = 0.25  # % of calculated rate per period
-    DEFAULT_DURATION = 3  # periods
+    DEFAULT_DURATION = 3              # periods
 
     def __init__(self,
                  m: int = None,
@@ -151,8 +149,6 @@ class BobConfiguration(NodeConfiguration):
     _CHARACTER_CLASS = Bob
     _NAME = _CHARACTER_CLASS.__name__.lower()
 
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_CONTROLLER_PORT = 7151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:

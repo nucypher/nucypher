@@ -58,7 +58,7 @@ def test_run_felix(click_runner,
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
-    configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, 'felix.config')
+    configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
 
     # Felix Creates a Database
     db_args = ('felix', 'createdb',
@@ -77,9 +77,9 @@ def test_run_felix(click_runner,
                 '--dry-run',
                 '--no-registry')
 
-        result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, env=envvars)
-        assert result.exit_code == 0
-        return result
+        run_result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, env=envvars)
+        assert run_result.exit_code == 0
+        return run_result
 
     # A (mocked) client requests Felix's services
     def request_felix_landing_page(_result):
