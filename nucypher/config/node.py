@@ -42,7 +42,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
 
 
-class NodeConfiguration(BaseConfiguration):
+class CharacterConfiguration(BaseConfiguration):
     """
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
@@ -192,7 +192,7 @@ class NodeConfiguration(BaseConfiguration):
 
     def connect_to_blockchain(self, recompile_contracts: bool = False, full_sync: bool = False) -> None:
         if self.federated_only:
-            raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
+            raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
                                              compile=recompile_contracts,
                                              poa=self.poa,
@@ -263,8 +263,8 @@ class NodeConfiguration(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, provider_process=None, **overrides) -> 'NodeConfiguration':
-        """Initialize a NodeConfiguration from a JSON file."""
+    def from_configuration_file(cls, filepath: str = None, provider_process=None, **overrides) -> 'CharacterConfiguration':
+        """Initialize a CharacterConfiguration from a JSON file."""
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
         node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
@@ -286,7 +286,7 @@ class NodeConfiguration(BaseConfiguration):
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
                     message += ' Did you mean to pass --federated-only?'                    
-                raise NodeConfiguration.InvalidConfiguration(message.format(path))
+                raise CharacterConfiguration.InvalidConfiguration(message.format(path))
         return True
 
     def static_payload(self) -> dict:

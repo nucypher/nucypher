@@ -813,8 +813,8 @@ class Ursula(Teacher, Character, Staker):
 
         if domains is None:
             # TODO: Clean up imports
-            from nucypher.config.node import NodeConfiguration
-            domains = (NodeConfiguration.DEFAULT_DOMAIN,)
+            from nucypher.config.node import CharacterConfiguration
+            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
         self._work_orders = list()
         Character.__init__(self,

@@ -76,8 +76,8 @@ def load_seednodes(min_stake: int,
 
     # Set domains
     if network_domains is None:
-        from nucypher.config.node import NodeConfiguration
-        network_domains = {NodeConfiguration.DEFAULT_DOMAIN, }
+        from nucypher.config.node import CharacterConfiguration
+        network_domains = {CharacterConfiguration.DEFAULT_DOMAIN, }
 
     teacher_nodes = list()  # Ursula
     if teacher_uris is None:
