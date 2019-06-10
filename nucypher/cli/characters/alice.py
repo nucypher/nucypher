@@ -119,7 +119,6 @@ def alice(click_config,
         new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
-                                                       rest_host="localhost",
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
                                                        download_registry=no_registry,
@@ -137,7 +136,7 @@ def alice(click_config,
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        configuration_file_location = config_file or AliceConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+        configuration_file_location = config_file or AliceConfiguration.generate_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
         click_config.emit(response)
         return  # Exit
