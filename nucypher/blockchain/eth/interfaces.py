@@ -70,7 +70,6 @@ class BlockchainInterface:
                  provider=None,
                  timeout: int = None,
                  registry: EthereumContractRegistry = None,
-                 fetch_registry: bool = True,
                  compiler: SolidityCompiler = None) -> None:
 
         """
@@ -147,10 +146,6 @@ class BlockchainInterface:
 
         # Connect to Provider
         self._connect(provider=provider, provider_uri=provider_uri)
-
-        # Establish contact with NuCypher contracts
-        if not registry:
-            self._configure_registry(fetch_registry=fetch_registry)
         self._setup_solidity(compiler=compiler)
 
     def __repr__(self):
@@ -198,6 +193,10 @@ class BlockchainInterface:
         return self.client.node_version
 
     def _connect(self, provider: Web3Providers = None, provider_uri: str = None):
+
+        # Establish contact with NuCypher contracts
+        if not self.registry:
+            self._configure_registry()
 
         self._attach_provider(provider=provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
