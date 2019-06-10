@@ -77,7 +77,7 @@ def test_federated_development_configurations(configuration, character):
     assert domains == [TEMPORARY_DOMAIN]
 
     # Node Storage
-    assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_dir
+    assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_root
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
     assert thing_one.node_storage._name == ":memory:"
 
