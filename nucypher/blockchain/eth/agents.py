@@ -20,6 +20,7 @@ import random
 from typing import Generator, List, Tuple, Union
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
 
@@ -204,6 +205,14 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     def get_last_active_period(self, address: str) -> int:
         period = self.contract.functions.getLastActivePeriod(address).call()
         return int(period)
+
+    def get_worker_from_staker(self, staker_address: str) -> str:
+        worker = self.contract.functions.getWorkerFromStaker(staker_address).call()
+        return to_checksum_address(worker)
+
+    def get_staker_from_worker(self, worker_address: str) -> str:
+        staker = self.contract.functions.getStakerFromWorker(worker_address).call()
+        return to_checksum_address(staker)
 
     def set_worker(self, staker_address: str, worker_address: str) -> str:
         txhash = self.contract.functions.setWorker(worker_address).transact({'from': staker_address})
