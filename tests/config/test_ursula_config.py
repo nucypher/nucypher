@@ -24,7 +24,7 @@ def test_ursula_development_configuration(federated_only=True):
     assert ursula_one.federated_only is federated_only
 
     # A Temporary Ursula
-    port = ursula_one.rest_information()[0].port
+    port = ursula_one.rest_interface().port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
     assert tempfile.gettempdir() in ursula_one.datastore.engine.url.database
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
