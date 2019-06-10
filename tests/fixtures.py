@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -66,7 +66,7 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
                                                start_pytest_ursula_services)
 
 TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
+CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
 #
@@ -93,9 +93,9 @@ def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
-    default_node_config = NodeConfiguration(dev_mode=True,
-                                            config_root=temp_dir_path,
-                                            download_registry=False)
+    default_node_config = CharacterConfiguration(dev_mode=True,
+                                                 config_root=temp_dir_path,
+                                                 download_registry=False)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
