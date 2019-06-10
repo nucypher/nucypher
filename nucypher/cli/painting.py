@@ -57,15 +57,14 @@ def paint_new_installation_help(new_configuration, federated_only: bool = False,
         emitter(message=how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
-    vowles = ('a', 'e', 'i', 'o', 'u')
-    character_name_starts_with_vowel = character_name[0].lower() in vowles
+    vowels = ('a', 'e', 'i', 'o', 'u')
+    character_name_starts_with_vowel = character_name[0].lower() in vowels
     adjective = 'an' if character_name_starts_with_vowel else 'a'
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
     if config_root is not None:
-        config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)
-        suggested_command += ' --config-file {}'.format(config_file_location)
+        suggested_command += f' --config-file {new_configuration.config_file_location}'
 
     return emitter(message=how_to_run_message.format(suggested_command), color='green')
 

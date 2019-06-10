@@ -114,7 +114,7 @@ def test_cli_lifecycle(click_runner,
     assert alice_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
-    alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.CONFIG_FILENAME)
+    alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.generate_filename())
     alice_view_args = ('--json-ipc',
                        'alice', 'public-keys',
                        '--config-file', alice_configuration_file_location)
@@ -141,7 +141,7 @@ def test_cli_lifecycle(click_runner,
     assert bob_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
-    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.CONFIG_FILENAME)
+    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
     bob_view_args = ('--json-ipc',
                      'bob', 'public-keys',
                      '--config-file', bob_configuration_file_location)
