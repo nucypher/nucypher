@@ -27,7 +27,9 @@ class BaseConfiguration(ABC):
                  *args, **kwargs):
 
         self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
-        self.filepath = filepath or self.default_filepath()
+        if not filepath:
+            filepath = os.path.join(self.config_root, self.generate_filename())
+        self.filepath = filepath
         super().__init__()
 
     def __eq__(self, other):
