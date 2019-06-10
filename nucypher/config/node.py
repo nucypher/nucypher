@@ -94,13 +94,12 @@ class NodeConfiguration(BaseConfiguration):
                  federated_only: bool = False,
 
                  # Identity
-                 is_me: bool = True,
                  checksum_address: str = None,
                  crypto_power: CryptoPower = None,
 
                  # Keyring
                  keyring: NucypherKeyring = None,
-                 keyring_dir: str = None,
+                 keyring_root: str = None,
 
                  # Learner
                  learn_on_same_thread: bool = False,
@@ -133,7 +132,6 @@ class NodeConfiguration(BaseConfiguration):
                  provider_process = None,
 
                  # Registry
-                 registry_source: str = None,
                  registry_filepath: str = None,
                  download_registry: bool = True
 
@@ -161,11 +159,10 @@ class NodeConfiguration(BaseConfiguration):
         # Keyring
         #
         self.keyring = keyring or NO_KEYRING_ATTACHED
-        self.keyring_dir = keyring_dir or UNINITIALIZED_CONFIGURATION
+        self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
         self.download_registry = download_registry
-        self.__registry_source = registry_source or self.REGISTRY_SOURCE
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         #
@@ -397,12 +394,14 @@ class NodeConfiguration(BaseConfiguration):
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
 
+        base_payload = super().static_payload()
+
         payload = dict(
 
             # Identity
             federated_only=self.federated_only,
             checksum_address=self.checksum_address,
-            keyring_dir=self.keyring_dir,
+            keyring_root=self.keyring_root,
 
             # Behavior
             domains=list(self.domains),  # From Set
@@ -448,7 +447,7 @@ class NodeConfiguration(BaseConfiguration):
     @property
     def runtime_filepaths(self):
         filepaths = dict(config_root=self.config_root,
-                         keyring_dir=self.keyring_dir,
+                         keyring_root=self.keyring_root,
                          registry_filepath=self.registry_filepath)
         return filepaths
 
@@ -457,8 +456,8 @@ class NodeConfiguration(BaseConfiguration):
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
                          config_file_location=os.path.join(config_root, cls.generate_filename()),
-                         keyring_dir=os.path.join(config_root, 'keyring'),
-                         registry_filepath=os.path.join(config_root, NodeConfiguration.__REGISTRY_NAME))
+                         keyring_root=os.path.join(config_root, 'keyring'),
+                         registry_filepath=os.path.join(config_root, EthereumContractRegistry.REGISTRY_NAME))
         return filepaths
 
     def _cache_runtime_filepaths(self) -> None:
@@ -477,7 +476,7 @@ class NodeConfiguration(BaseConfiguration):
         if (checksum_address or self.checksum_address) is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
 
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,  # type: str
+        self.keyring = NucypherKeyring(keyring_root=self.keyring_root,  # type: str
                                        account=checksum_address or self.checksum_address,  # type: str
                                        *args, **kwargs)
 
@@ -563,7 +562,7 @@ class NodeConfiguration(BaseConfiguration):
                 self.checksum_address = self.blockchain.interface.w3.eth.accounts[0]
 
         self.keyring = NucypherKeyring.generate(password=password,
-                                                keyring_root=self.keyring_dir,
+                                                keyring_root=self.keyring_root,
                                                 checksum_address=self.checksum_address,
                                                 federated=self.federated_only,
                                                 **generation_kwargs)
