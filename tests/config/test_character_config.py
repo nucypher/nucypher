@@ -58,7 +58,7 @@ def test_federated_ursula_development_configuration():
     ursula = ursula_config.produce()
 
     # Network Port
-    port = ursula.rest_information()[0].port
+    port = ursula.rest_interface().port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
 
     # Database
