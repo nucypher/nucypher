@@ -217,8 +217,8 @@ def deploy(click_config,
 
         click.secho(f"Deployer Address .... {deployer.checksum_address}")
         click.secho(f"ETH ................. {deployer.eth_balance}")
-        click.secho(f"CHAIN ID............. {deployer.blockchain.interface.chain_id}")
-        click.secho(f"CHAIN................ {deployer.blockchain.interface.chain_name}")
+        click.secho(f"Chain ID ............ {deployer.blockchain.interface.chain_id}")
+        click.secho(f"Chain Name .......... {deployer.blockchain.interface.chain_name}")
 
         # Ask - Last chance to gracefully abort
         if not force:
@@ -291,20 +291,6 @@ def deploy(click_config,
         receipts_filepath = deployer.save_deployment_receipts(transactions=__deployment_transactions)
         click.secho(f"Saved deployment receipts to {receipts_filepath}", fg='blue', bold=True)
 
-        #
-        # Publish Contract Registry
-        #
-
-        if not deployer.blockchain.interface.is_local:
-            if click.confirm("Publish new contract registry?"):
-                try:
-                    response = registry.publish()  # TODO: Handle non-200 response and dehydrate
-                except EthereumContractRegistry.RegistryError as e:
-                    click.secho("Registry publication failed.", fg='red', bold=True)
-                    click.secho(str(e))
-                    raise click.Abort()
-                click.secho(f"Published new contract registry.", fg='green')
-
     elif action == "allocations":
         if not allocation_infile:
             allocation_infile = click.prompt("Enter allocation data filepath")
@@ -317,16 +303,6 @@ def deploy(click_config,
         click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
         txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
         click.secho(f"OK | {txhash}")
-
-    elif action == "publish-registry":
-        registry = deployer.blockchain.interface.registry
-        click.confirm(f"Publish {registry.filepath} to GitHub (Authentication Required)?", abort=True)
-        try:
-            response = registry.publish()  # TODO: Handle non-200 response and dehydrate
-        except EthereumContractRegistry.RegistryError as e:
-            click.secho(str(e))
-            raise click.Abort()
-        click.secho(f"Published new contract registry.", fg='green')
 
     elif action == "destroy-registry":
         registry_filepath = deployer.blockchain.interface.registry.filepath
