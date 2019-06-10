@@ -238,17 +238,14 @@ class BlockchainInterface:
         return NO_BLOCKCHAIN_CONNECTION
 
     def _configure_registry(self, fetch_registry: bool = True):
-        RegistryClass = EthereumContractRegistry._get_registry_class(
-            local=self.client.is_local
-        )
+        RegistryClass = EthereumContractRegistry._get_registry_class(local=self.client.is_local)
         if fetch_registry:
             registry = RegistryClass.from_latest_publication()
         else:
             registry = RegistryClass()
-
         self.registry = registry
 
-    def _setup_solidity(self, compiler: SolidityCompiler=None):
+    def _setup_solidity(self, compiler: SolidityCompiler = None):
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
