@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from nucypher.config import constants
 
 
-class BaseConfiguration(ABC):
+class BaseConfiguration:
 
     _NAME = NotImplemented
     _CONFIG_FILE_EXTENSION = 'json'
@@ -35,9 +35,9 @@ class BaseConfiguration(ABC):
     def __eq__(self, other):
         return bool(self.static_payload() == other.static_payload())
 
-    @abstractmethod
     def static_payload(self) -> dict:
-        raise NotImplementedError
+        payload = dict(config_root=self.config_root)
+        return payload
 
     @classmethod
     def generate_filename(cls, modifier: str = None) -> str:
