@@ -42,7 +42,7 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import PolicyAuthor, Staker
+from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
@@ -759,7 +759,7 @@ class Bob(Character):
         return controller
 
 
-class Ursula(Teacher, Character, Staker):
+class Ursula(Teacher, Character, Worker):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -793,7 +793,8 @@ class Ursula(Teacher, Character, Staker):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_address: str = None,
+                 checksum_address: str = None,  # Staker address
+                 worker_address: str = None,
 
                  # Character
                  password: str = None,
@@ -835,16 +836,20 @@ class Ursula(Teacher, Character, Staker):
             self._stored_treasure_maps = dict()
 
             #
-            # Staking Ursula
+            # Ursula is a Decentralized Worker
             #
             if not federated_only:
-                Staker.__init__(self, is_me=is_me, checksum_address=checksum_address)
+                Worker.__init__(self,
+                                is_me=is_me,
+                                checksum_address=checksum_address,
+                                worker_address=worker_address)
 
-                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+                # Access to worker's ETH client via node's transacting keys
+                # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.worker_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
-                # Use blockchain power to substantiate stamp, instead of signing key
+                # Use blockchain power to substantiate stamp
                 self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
 
         #
