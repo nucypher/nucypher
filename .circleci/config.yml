@@ -417,6 +417,8 @@ jobs:
       - run:
           name: Run demo Ursula fleet, Alicia and the Doctor
           command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
+      - store_artifacts:
+          path: /tmp/ursulas-logs
 
   finnegans_wake_demo:
     working_directory: ~/nucypher
@@ -427,6 +429,8 @@ jobs:
       - run:
           name: Run demo Ursula fleet, Finnegans wake Demo code
           command: ./scripts/circle/run_finnegans_wake_demo_docker-circle.sh
+      - store_artifacts:
+          path: /tmp/ursulas-logs
 
   mypy:
     <<: *python_36_base
