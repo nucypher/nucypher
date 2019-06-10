@@ -25,7 +25,7 @@ from nucypher.characters.base import Learner
 from nucypher.cli import actions
 from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_URSULA_STARTING_PORT,
@@ -55,7 +55,7 @@ def test_run_lone_federated_default_development_ursula(click_runner):
     assert "Running" in result.output
     assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT) in result.output
 
-    reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+    reserved_ports = (CharacterConfiguration.DEFAULT_REST_PORT, CharacterConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert MOCK_URSULA_STARTING_PORT not in reserved_ports
 
 
@@ -92,7 +92,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
         assert "Running Ursula" in result.output
         assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT+101) in result.output
 
-        reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+        reserved_ports = (CharacterConfiguration.DEFAULT_REST_PORT, CharacterConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
         assert MOCK_URSULA_STARTING_PORT not in reserved_ports
 
         # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate

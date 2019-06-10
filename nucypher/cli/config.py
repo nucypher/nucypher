@@ -28,7 +28,7 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
@@ -94,7 +94,7 @@ class NucypherClickConfig:
 
     def unlock_keyring(self,
                        password: str,
-                       character_configuration: NodeConfiguration,
+                       character_configuration: CharacterConfiguration,
                        unlock_wallet: bool = True):
 
         if not self.quiet:

@@ -40,7 +40,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -126,7 +126,7 @@ class Character(Learner):
 
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
-            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
+            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
         # Needed for on-chain verification
         if not self.federated_only:
