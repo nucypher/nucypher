@@ -77,7 +77,7 @@ class Character(Learner):
                  blockchain: Blockchain = None,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
-                 keyring_dir: str = None,
+                 keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  *args, **kwargs
@@ -141,7 +141,7 @@ class Character(Learner):
         #
         if is_me is True:
 
-            self.keyring_dir = keyring_dir  # type: str
+            self.keyring_root = keyring_root  # type: str
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
@@ -169,7 +169,7 @@ class Character(Learner):
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stranger-Character.")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
-            self.keyring_dir = STRANGER
+            self.keyring_root = STRANGER
             self.network_middleware = STRANGER
 
         #
