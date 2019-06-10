@@ -29,7 +29,7 @@ contract StakingEscrowForAdjudicatorMock {
         return stakerInfo[_staker];
     }
 
-    function getStakerByWorker(address _worker) public view returns (address) {
+    function getStakerFromWorker(address _worker) public view returns (address) {
         return workerToStaker[_worker];
     }
 
