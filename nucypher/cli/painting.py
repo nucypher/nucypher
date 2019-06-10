@@ -51,7 +51,7 @@ def paint_new_installation_help(new_configuration):
         emitter(message=f'\n\'{suggested_db_command}\'', color='green')
 
     # Ursula
-    elif character_name == 'ursula' and not federated_only:
+    elif character_name == 'ursula' and not new_configuration.federated_only:
         suggested_staking_command = f'nucypher ursula stake'
         how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
         emitter(message=how_to_stake_message, color='green')
@@ -62,9 +62,6 @@ def paint_new_installation_help(new_configuration):
     adjective = 'an' if character_name_starts_with_vowel else 'a'
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
-
-    if config_root is not None:
-        suggested_command += f' --config-file {new_configuration.config_file_location}'
 
     return emitter(message=how_to_run_message.format(suggested_command), color='green')
 

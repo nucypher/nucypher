@@ -132,9 +132,7 @@ def alice(click_config,
                                                        duration=duration,
                                                        rate=rate)
 
-        painting.paint_new_installation_help(new_configuration=new_alice_config,
-                                             config_root=config_root,
-                                             config_file=config_file)
+        painting.paint_new_installation_help(new_configuration=new_alice_config)
         return  # Exit
 
     elif action == "view":
