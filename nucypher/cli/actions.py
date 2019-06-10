@@ -49,11 +49,13 @@ Delete {}?'''
 
 CHARACTER_DESTRUCTION = '''
 Delete all {name} character files including:
-    - Private and Public Keys
-    - Known Nodes
-    - Node Configuration File
+    - Private and Public Keys ({keystore})
+    - Known Nodes             ({nodestore})
+    - Node Configuration File ({config})
 
 Delete {root}?'''
+
+SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
 
 
 LOG = Logger('cli.actions')
@@ -151,23 +153,16 @@ def determine_external_ip_address(force: bool = False) -> str:
 
 
 def destroy_configuration(character_config, force: bool = False) -> None:
-
     if not force:
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
-                                                   root=character_config.config_root), abort=True)
-
-    try:
-        character_config.destroy()
-
-    except FileNotFoundError:
-        message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
-        console_emitter(message=message, color='red')
-        character_config.log.debug(message)
-        raise click.Abort()
-    else:
-        message = "Deleted configuration files at {}".format(character_config.config_root)
-        console_emitter(message=message, color='green')
-        character_config.log.debug(message)
+                                                   root=character_config.config_root,
+                                                   keystore=character_config.keyring_root,
+                                                   nodestore=character_config.node_storage.root_dir,
+                                                   config=character_config.filepath), abort=True)
+    character_config.destroy()
+    SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
+    console_emitter(message=SUCCESSFUL_DESTRUCTION, color='green')
+    character_config.log.debug(SUCCESSFUL_DESTRUCTION)
 
 
 def forget(configuration):

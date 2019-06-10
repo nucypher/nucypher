@@ -33,8 +33,6 @@ class UrsulaConfiguration(NodeConfiguration):
     _CHARACTER_CLASS = Ursula
     _NAME = _CHARACTER_CLASS.__name__.lower()
 
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
 
     def __init__(self,
@@ -161,21 +159,9 @@ class BobConfiguration(NodeConfiguration):
 class FelixConfiguration(NodeConfiguration):
     from nucypher.characters.chaotic import Felix
 
-    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
-
-        # Character
-        super().__init__(*args, **kwargs)
-
-        # Felix
-        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
-
     # Character
     _CHARACTER_CLASS = Felix
     _NAME = _CHARACTER_CLASS.__name__.lower()
-
-    # Configuration File
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
 
     # Database
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
@@ -184,6 +170,14 @@ class FelixConfiguration(NodeConfiguration):
     # Network
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
+
+    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
+
+        # Character
+        super().__init__(*args, **kwargs)
+
+        # Felix
+        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
 
     def static_payload(self) -> dict:
         payload = dict(
