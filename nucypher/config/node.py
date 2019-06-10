@@ -255,8 +255,7 @@ class NodeConfiguration(BaseConfiguration):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
-        node_config.to_configuration_file(filepath=node_config.config_file_location,
-                                          modifier=node_config.checksum_address)
+        node_config.to_configuration_file(modifier=node_config.checksum_address)
         return node_config
 
     def cleanup(self) -> None:
@@ -457,7 +456,7 @@ class NodeConfiguration(BaseConfiguration):
     def generate_runtime_filepaths(cls, config_root: str) -> dict:
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
-                         config_file_location=os.path.join(config_root, cls.CONFIG_FILENAME),
+                         config_file_location=os.path.join(config_root, cls.generate_filename()),
                          keyring_dir=os.path.join(config_root, 'keyring'),
                          registry_filepath=os.path.join(config_root, NodeConfiguration.__REGISTRY_NAME))
         return filepaths
