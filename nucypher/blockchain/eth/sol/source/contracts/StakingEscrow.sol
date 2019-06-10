@@ -335,7 +335,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get worker using staker's address
     **/
-    function getWorkerByStaker(address _staker) public view returns (address) {
+    function getWorkerFromStaker(address _staker) public view returns (address) {
         StakerInfo storage info = stakerInfo[_staker];
         // specified address is not a staker
         if (stakerInfo[_staker].subStakes.length == 0) {
@@ -347,7 +347,7 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Get staker using worker's address
     **/
-    function getStakerByWorker(address _worker) public view returns (address) {
+    function getStakerFromWorker(address _worker) public view returns (address) {
         return workerToStaker[_worker];
     }
 
@@ -639,7 +639,7 @@ contract StakingEscrow is Issuer {
     * @notice Confirm activity for the next period and mine for the previous period
     **/
     function confirmActivity() external {
-        address staker = getStakerByWorker(msg.sender);
+        address staker = getStakerFromWorker(msg.sender);
         require(stakerInfo[staker].value > 0, "Staker must have a stake to confirm activity");
         require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
 
