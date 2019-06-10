@@ -36,11 +36,11 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration, federated_only: bool = False, config_root=None, config_file=None):
+def paint_new_installation_help(new_configuration):
     character_config_class = new_configuration.__class__
     character_name = character_config_class._NAME.lower()
 
-    emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
+    emitter(message="Generated keyring {}".format(new_configuration.keyring_root), color='green')
     emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
 
     # Felix
