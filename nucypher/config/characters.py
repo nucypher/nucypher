@@ -138,13 +138,12 @@ class AliceConfiguration(CharacterConfiguration):
                  first_period_rate: float = None,
                  duration: int = None,
                  *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
         self.m = m or self.DEFAULT_M
         self.n = n or self.DEFAULT_N
         self.rate = rate or self.DEFAULT_RATE
         self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
         self.duration = duration or self.DEFAULT_DURATION
+        super().__init__(*args, **kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(m=self.m,
@@ -198,6 +197,7 @@ class FelixConfiguration(CharacterConfiguration):
                  certificate: Certificate = None,
                  *args, **kwargs) -> None:
 
+        super().__init__(*args, **kwargs)
         if not rest_port:
             rest_port = self.DEFAULT_REST_PORT
         self.rest_port = rest_port or self.DEFAULT_REST_PORT
@@ -205,7 +205,6 @@ class FelixConfiguration(CharacterConfiguration):
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
         self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
-        super().__init__(*args, **kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(
