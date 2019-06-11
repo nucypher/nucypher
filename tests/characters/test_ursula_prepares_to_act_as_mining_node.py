@@ -26,7 +26,7 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 
 def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
@@ -51,16 +51,29 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
     assert ursula_in_a_house in ursula_with_a_mouse.known_nodes
 
 
+def test_stakers_bond_to_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+
+    ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                         stakers_addresses=testerchain.stakers_accounts,
+                                         workers_addresses=testerchain.ursulas_accounts,
+                                         confirm_activity=False)
+
+    assert len(ursulas) == len(stakers)
+    for ursula in ursulas:
+        ursula.validate_worker(verify_staking=True)
+        assert ursula.verified_worker
+
+
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
     signature_as_bytes = first_ursula.decentralized_identity_evidence
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
-    assert verify_eip_191(address=first_ursula.checksum_address,
+    assert verify_eip_191(address=first_ursula.worker_address,
                           message=bytes(first_ursula.stamp),
                           signature=signature_as_bytes)
 
     # This method is a shortcut for the above.
-    assert first_ursula._stamp_has_valid_wallet_signature
+    assert first_ursula._stamp_has_valid_signature_by_worker()
 
 
 def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
@@ -68,7 +81,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
 
     # This Ursula does not yet have a verified stamp
     first_ursula.verified_stamp = False
-    first_ursula.validate_stamp()
+    first_ursula.validate_worker()
 
     # ...but now it's verified.
     assert first_ursula.verified_stamp
@@ -89,7 +102,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
     vladimir._is_valid_worker = lambda: True
-    vladimir.validate_stamp()
+    vladimir.validate_worker()
 
     # Now, even though his public signing key matches Ursulas...
     assert vladimir.stamp == his_target.stamp
