@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import os
+import random
 import tempfile
 
 import maya
@@ -30,8 +31,8 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.agents import Agency
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.agents import Agency, NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
@@ -378,7 +379,6 @@ def testerchain(solidity_compiler):
 @pytest.fixture(scope='module')
 def agency(testerchain):
     """
-    Musketeers, if you will.
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
@@ -413,37 +413,56 @@ def clear_out_agency():
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(agency, ursula_decentralized_test_config):
+def stakers(agency, token_economics):
     token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     token_airdrop(origin=blockchain.etherbase_account,
-                  addresses=blockchain.ursulas_accounts,
+                  addresses=blockchain.stakers_accounts,
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    # Leave out the last Ursula for manual stake testing
-    *all_but_the_last_ursula, the_last_ursula = blockchain.ursulas_accounts
+    stakers = list()
+    for index, account in enumerate(blockchain.stakers_accounts):
+        staker = Staker(is_me=True, start_staking_loop=False, checksum_address=account)
 
-    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          ether_addresses=all_but_the_last_ursula,
-                                          stake=True)
+        min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
+        amount = random.randint(min_stake, balance)
+
+        # for a random lock duration
+        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
+        periods = random.randint(min_locktime, max_locktime)
+
+        staker.initialize_stake(amount=amount, lock_periods=periods)
+
+        # We assume that the staker knows in advance the account of her worker
+        worker_address = blockchain.ursula_account(index)
+        staker.set_worker(worker_address=worker_address)
+
+        stakers.append(staker)
 
     # Stake starts next period (or else signature validation will fail)
     blockchain.time_travel(periods=1)
+
+    yield stakers
+
+
+@pytest.fixture(scope="module")
+def blockchain_ursulas(testerchain, agency, stakers, ursula_decentralized_test_config):
+
+    # Leave out the last Ursula for manual stake testing
+    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                          stakers_addresses=testerchain.stakers_accounts,
+                                          workers_addresses=testerchain.ursulas_accounts,
+                                          confirm_activity=True)
+
+    testerchain.time_travel(periods=1)
 
     # Bootstrap the network
     for ursula_to_teach in _ursulas:
         for ursula_to_learn_about in _ursulas:
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
-    # TODO: #1035 - Move non-staking Ursulas to a new fixture
-    # This one is not going to stake
-    _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                                     ether_addresses=[the_last_ursula],
-                                                     stake=False)
-
-    _ursulas.extend(_non_staking_ursula)
     yield _ursulas
 
 
