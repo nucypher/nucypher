@@ -378,11 +378,10 @@ class Stake:
         #
 
         # Transmit the stake division transaction
-        tx = self.staking_agent.divide_stake(staker_address=self.owner_address,
-                                             stake_index=self.index,
-                                             target_value=int(target_value),
-                                             periods=additional_periods)
-        receipt = self.blockchain.wait_for_receipt(tx)
+        receipt = self.staking_agent.divide_stake(staker_address=self.owner_address,
+                                                  stake_index=self.index,
+                                                  target_value=int(target_value),
+                                                  periods=additional_periods)
         new_stake.receipt = receipt
 
         return modified_stake, new_stake
