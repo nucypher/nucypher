@@ -139,6 +139,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.start_learning_now = start_learning_now
         self.save_metadata = save_metadata
         self.reload_metadata = reload_metadata
+        self.__known_nodes = known_nodes or set()  # handpicked
         self.__fleet_state = FleetStateTracker()
 
         # Configuration
@@ -151,28 +152,15 @@ class CharacterConfiguration(BaseConfiguration):
             self.__setup_node_storage()
             self.initialize(password=DEVELOPMENT_CONFIGURATION)
         else:
-            if checksum_address:
-                self.attach_keyring()
             self.__temp_dir = LIVE_CONFIGURATION
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
             self._cache_runtime_filepaths()
             self.__setup_node_storage(node_storage=node_storage)
-        self.read_known_nodes(additional_nodes=known_nodes)
 
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
-
-    def __del__(self):
-        self.cleanup()
-
-    def __setup_node_storage(self, node_storage=None) -> None:
-        if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(federated_only=self.federated_only)
-        elif not node_storage:
-            node_storage = LocalFileBasedNodeStorage(federated_only=self.federated_only, config_root=self.config_root)
-        self.node_storage = node_storage
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):
@@ -210,14 +198,22 @@ class CharacterConfiguration(BaseConfiguration):
     def known_nodes(self) -> FleetStateTracker:
         return self.__fleet_state
 
+    def __setup_node_storage(self, node_storage=None) -> None:
+        if self.dev_mode:
+            node_storage = ForgetfulNodeStorage(federated_only=self.federated_only)
+        elif not node_storage:
+            node_storage = LocalFileBasedNodeStorage(federated_only=self.federated_only, config_root=self.config_root)
+        self.node_storage = node_storage
+
     def read_known_nodes(self, additional_nodes=None) -> None:
         known_nodes = self.node_storage.all(federated_only=self.federated_only)
         known_nodes = {node.checksum_address: node for node in known_nodes}
-        self.__fleet_state._nodes.update(known_nodes)
         if additional_nodes:
-            addresses = {node.checksum_address: node for node in additional_nodes}
-            self.__fleet_state._nodes.update(addresses)
-        self.__fleet_state.record_fleet_state()
+            known_nodes.update({node.checksum_address: node for node in additional_nodes})
+        if self.__known_nodes:
+            known_nodes.update({node.checksum_address: node for node in self.__known_nodes})
+        self.__fleet_state._nodes.update(known_nodes)
+        self.__fleet_state.record_fleet_state(additional_nodes_to_track=self.__known_nodes)
 
     def forget_nodes(self) -> None:
         self.node_storage.clear()
@@ -235,28 +231,23 @@ class CharacterConfiguration(BaseConfiguration):
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
-    def produce(self, **overrides):
+    def produce(self, **overrides) -> CHARACTER_CLASS:
         """Initialize a new character instance and return it."""
         merged_parameters = self.generate_parameters(**overrides)
         character = self.CHARACTER_CLASS(**merged_parameters)
         return character
 
     @classmethod
-    def assemble(cls, filepath: str = None, **overrides):
+    def assemble(cls, filepath: str = None, **overrides) -> dict:
 
         payload = cls._read_configuration_file(filepath=filepath)
-
-        # Storage
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
-
-        # Domains
         domains = set(payload['domains'])
 
         # Assemble
         payload.update(dict(node_storage=node_storage, domains=domains))
-
-        # Filter out None vslues from **overrides to detect, well, overrides...
+        # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
         payload = {**payload, **overrides}
@@ -322,6 +313,7 @@ class CharacterConfiguration(BaseConfiguration):
     @property
     def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
+        self.read_known_nodes()
         payload = dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
@@ -361,14 +353,14 @@ class CharacterConfiguration(BaseConfiguration):
                 setattr(self, field, filepath)
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        checksum_address = checksum_address or self.checksum_address
+        account = checksum_address or self.checksum_address
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != checksum_address:
+            if self.keyring.checksum_address != account:
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
-        if not checksum_address:
+        if not account:
             raise self.ConfigurationError("No account specified to unlock keyring")
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=checksum_address, *args, **kwargs)
+        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
