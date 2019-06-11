@@ -56,7 +56,6 @@ power_ups = [enc_power, sig_power]
 print("Creating the Doctor ...")
 
 doctor = Bob(
-    is_me=True,
     domains={TEMPORARY_DOMAIN},
     federated_only=True,
     crypto_power_ups=power_ups,

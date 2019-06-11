@@ -7,18 +7,6 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DelegatingPower, DecryptingPower
 
 
-@pytest.mark.skip("Redacted and refactored for sensitive info leakage")
-def test_validate_password():
-    # Password too short
-    password = 'x' * 5
-    with pytest.raises(ValueError):
-        _keyring = NucypherKeyring.generate(password=password)
-
-    # Empty password is provided
-    with pytest.raises(ValueError):
-        _keyring = NucypherKeyring.generate(password="")
-
-
 def test_generate_alice_keyring(tmpdir):
     password = 'x' * 16
 

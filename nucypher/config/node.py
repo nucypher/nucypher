@@ -222,6 +222,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
+        self.attach_keyring()
         self.keyring.destroy()
         os.remove(self.config_file_location)
 
@@ -354,12 +355,12 @@ class CharacterConfiguration(BaseConfiguration):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         account = checksum_address or self.checksum_address
+        if not account:
+            raise self.ConfigurationError("No account specified to unlock keyring")
         if self.keyring is not NO_KEYRING_ATTACHED:
             if self.keyring.checksum_address != account:
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
-        if not account:
-            raise self.ConfigurationError("No account specified to unlock keyring")
         self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
@@ -383,17 +384,20 @@ class CharacterConfiguration(BaseConfiguration):
     def initialize(self, password: str) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
-        if password is DEVELOPMENT_CONFIGURATION:
-            self.abort_on_learning_error = True
-            self.save_metadata = False
-            self.reload_metadata = False
-            alphabet = string.ascii_letters + string.digits
-            password = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-        # Configuration Root
-        if self.__dev_mode:
+        # Development
+        if self.dev_mode:
+            if password is DEVELOPMENT_CONFIGURATION:
+                self.abort_on_learning_error = True
+                self.save_metadata = False
+                self.reload_metadata = False
+                alphabet = string.ascii_letters + string.digits
+                password = ''.join(secrets.choice(alphabet) for _ in range(32))
+            else:
+                raise self.ConfigurationError("Password cannot be specified for development configurations.")
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
+
+        # Persistent
         else:
             self.write_config_root()
             self.write_keyring(password=password)
