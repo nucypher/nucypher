@@ -107,7 +107,7 @@ class EthereumContractAgent:
     _forward_address = True
     _proxy_name = None
 
-    DEFAULT_TRANSACTION_GAS = 500_000  # TODO: #842
+    DEFAULT_TRANSACTION_GAS = {}
 
     class ContractNotDeployed(Exception):
         pass
@@ -170,20 +170,19 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
-    def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
+    @transaction
+    def approve_transfer(self, amount: int, target_address: str, sender_address: str):
         """Approve the transfer of token from the sender address to the target address."""
+        payload = {'from': sender_address, 'gas': 500_000}  # TODO #413: gas needed for use with geth.
+        transaction_builder = self.contract.functions.approve(target_address, amount)
+        return transaction_builder, payload
 
-        # TODO #413: gas needed for use with geth.
-        payload = {'from': sender_address, 'gas': 500_000}
-        txhash = self.contract.functions.approve(target_address, amount).transact(payload)
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
-
+    @transaction
     def transfer(self, amount: int, target_address: str, sender_address: str):
-        self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
-        txhash = self.contract.functions.transfer(target_address, amount).transact({'from': sender_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+        _approve_txhash = self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+        payload = {'from': sender_address}
+        transaction_builder = self.contract.functions.transfer(target_address, amount)
+        return transaction_builder, payload
 
 
 class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
@@ -239,20 +238,18 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         for stake_index in range(stakes_length):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
-    def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
+    @transaction
+    def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
         """Send tokens to the escrow from the staker's address"""
-        # TODO #413: Causes tx to fail without high amount of gas
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
-        _receipt = self.blockchain.wait_for_receipt(deposit_txhash)
-        return deposit_txhash
+        payload = {'from': sender_address}
+        transaction_builder = self.contract.functions.deposit(amount, lock_periods)
+        return transaction_builder, payload
 
+    @transaction
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int):
-        tx = self.contract.functions.divideStake(stake_index,   # uint256 _index,
-                                                 target_value,  # uint256 _newValue,
-                                                 periods        # uint256 _periods
-                                                 ).transact({'from': staker_address})
-        self.blockchain.wait_for_receipt(tx)
-        return tx
+        payload = {'from': staker_address}
+        transaction_builder = self.contract.functions.divideStake(stake_index, target_value, periods)
+        return transaction_builder, payload
 
     def get_last_active_period(self, address: str) -> int:
         period = self.contract.functions.getLastActivePeriod(address).call()
@@ -266,27 +263,29 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         staker = self.contract.functions.getStakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
-    def set_worker(self, staker_address: str, worker_address: str) -> str:
-        txhash = self.contract.functions.setWorker(worker_address).transact({'from': staker_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def set_worker(self, staker_address: str, worker_address: str):
+        payload = {'from': staker_address}
+        transaction_builder = self.contract.functions.setWorker(worker_address)
+        return transaction_builder, payload
 
-    def confirm_activity(self, worker_address: str) -> str:
+    @transaction
+    def confirm_activity(self, worker_address: str):
         """For each period that the worker confirms activity, the staker is rewarded"""
-        txhash = self.contract.functions.confirmActivity().transact({'from': worker_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+        payload = {'from': worker_address}
+        transaction_builder = self.contract.functions.confirmActivity()
+        return transaction_builder, payload
 
-    def mint(self, staker_address) -> Tuple[str, str]:
+    @transaction
+    def mint(self, staker_address: str):
         """
         Computes reward tokens for the staker's account;
         This is only used to calculate the reward for the final period of a stake,
         when you intend to withdraw 100% of tokens.
         """
-
-        mint_txhash = self.contract.functions.mint().transact({'from': staker_address})
-        self.blockchain.wait_for_receipt(mint_txhash)
-        return mint_txhash
+        payload = {'from': staker_address}
+        transaction_builder = self.contract.functions.mint()
+        return transaction_builder, payload
 
     @validate_checksum_address
     def calculate_staking_reward(self, staker_address: str) -> int:
@@ -296,14 +295,14 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         reward_amount = token_amount - staked_amount
         return reward_amount
 
+    @transaction
     @validate_checksum_address
-    def collect_staking_reward(self, staker_address: str) -> str:
+    def collect_staking_reward(self, staker_address: str):
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
         payload = {'from': staker_address, 'gas': 500_000}  # TODO: #842 Gas Management
-        collection_txhash = self.contract.functions.withdraw(reward_amount).transact(payload)
-        self.blockchain.wait_for_receipt(collection_txhash)
-        return collection_txhash
+        transaction_builder = self.contract.functions.withdraw(reward_amount)
+        return transaction_builder, payload
 
     #
     # Contract Utilities
@@ -361,39 +360,36 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
     registry_contract_name = "PolicyManager"
     _proxy_name = "Dispatcher"
 
+    @transaction
     def create_policy(self,
                       policy_id: str,
                       author_address: str,
                       value: int,
                       periods: int,
                       initial_reward: int,
-                      node_addresses: List[str]) -> str:
-
-        txhash = self.contract.functions.createPolicy(policy_id,
-                                                      periods,
-                                                      initial_reward,
-                                                      node_addresses).transact({'from': author_address,
-                                                                                'value': value})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+                      node_addresses: List[str]):
+        payload = {'from': author_address, 'value': value}
+        transaction_builder = self.contract.functions.createPolicy(policy_id, periods, initial_reward, node_addresses)
+        return transaction_builder, payload
 
     def fetch_policy(self, policy_id: str) -> list:
         """Fetch raw stored blockchain data regarding the policy with the given policy ID"""
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def revoke_policy(self, policy_id: bytes, author_address) -> str:
+    @transaction
+    def revoke_policy(self, policy_id: bytes, author_address: str):
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
-        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+        payload = {'from': author_address}
+        transaction_builder = self.contract.functions.revokePolicy(policy_id)
+        return transaction_builder, payload
 
+    @transaction
     def collect_policy_reward(self, collector_address: str, staker_address: str):
         """Collect rewarded ETH"""
         payload = {'from': staker_address}  # TODO - #842
-        policy_reward_txhash = self.contract.functions.withdraw(collector_address).transact(payload)
-        self.blockchain.wait_for_receipt(policy_reward_txhash)
-        return policy_reward_txhash
+        transaction_builder = self.contract.functions.withdraw(collector_address)
+        return transaction_builder, payload
 
     def fetch_policy_arrangements(self, policy_id):
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
@@ -401,20 +397,22 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
+    @transaction
     def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
-        txhash = self.contract.functions.revokeArrangement(policy_id, node_address).transact({'from': author_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+        payload = {'from': author_address}
+        transaction_builder = self.contract.functions.revokeArrangement(policy_id, node_address)
+        return transaction_builder, payload
 
-    def calculate_refund(self, policy_id: str, author_address: str) -> str:
-        txhash = self.contract.functions.calculateRefundValue(policy_id).transact({'from': author_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def calculate_refund(self, policy_id: str, author_address: str):
+        payload = {'from': author_address}
+        transaction_builder = self.contract.functions.calculateRefundValue(policy_id)
+        return transaction_builder, payload
 
-    def collect_refund(self, policy_id: str, author_address: str) -> str:
-        txhash = self.contract.functions.refund(policy_id).transact({'from': author_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    def collect_refund(self, policy_id: str, author_address: str):
+        payload = {'from': author_address}
+        transaction_builder = self.contract.functions.refund(policy_id)
+        return transaction_builder, payload
 
 
 class UserEscrowAgent(EthereumContractAgent):
@@ -506,55 +504,65 @@ class UserEscrowAgent(EthereumContractAgent):
     def end_timestamp(self) -> int:
         return self.principal_contract.functions.endLockTimestamp().call()
 
-    def lock(self, amount: int, periods: int) -> str:
-        txhash = self.__proxy_contract.functions.lock(amount, periods).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def lock(self, amount: int, periods: int):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.lock(amount, periods)
+        return transaction_builder, payload
 
-    def withdraw_tokens(self, value: int) -> str:
-        txhash = self.principal_contract.functions.withdrawTokens(value).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def withdraw_tokens(self, value: int):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.principal_contract.functions.withdrawTokens(value)
+        return transaction_builder, payload
 
-    def withdraw_eth(self) -> str:
-        txhash = self.principal_contract.functions.withdrawETH().transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def withdraw_eth(self):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.principal_contract.functions.withdrawETH()
+        return transaction_builder, payload
 
-    def deposit_as_staker(self, value: int, periods: int) -> str:
-        txhash = self.__proxy_contract.functions.depositAsStaker(value, periods).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def deposit_as_staker(self, value: int, periods: int):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.depositAsStaker(value, periods)
+        return transaction_builder, payload
 
-    def withdraw_as_staker(self, value: int) -> str:
-        txhash = self.__proxy_contract.functions.withdrawAsStaker(value).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def withdraw_as_staker(self, value: int):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.withdrawAsStaker(value)
+        return transaction_builder, payload
 
-    def set_worker(self, worker_address: str) -> str:
-        txhash = self.__proxy_contract.functions.setWorker(worker_address).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def set_worker(self, worker_address: str):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.setWorker(worker_address)
+        return transaction_builder, payload
 
-    def confirm_activity(self) -> str:
-        txhash = self.__proxy_contract.functions.confirmActivity().transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def confirm_activity(self):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.confirmActivity()
+        return transaction_builder, payload
 
-    def mint(self) -> str:
-        txhash = self.__proxy_contract.functions.mint().transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def mint(self):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.mint()
+        return transaction_builder, payload
 
-    def collect_policy_reward(self) -> str:
-        txhash = self.__proxy_contract.functions.withdrawPolicyReward().transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def collect_policy_reward(self):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.withdrawPolicyReward()
+        return transaction_builder, payload
 
-    def set_min_reward_rate(self, rate: int) -> str:
-        txhash = self.__proxy_contract.functions.setMinRewardRate(rate).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+    @transaction
+    def set_min_reward_rate(self, rate: int):
+        payload = {'from': self.__beneficiary}
+        transaction_builder = self.__proxy_contract.functions.setMinRewardRate(rate)
+        return transaction_builder, payload
 
 
 class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
@@ -563,6 +571,7 @@ class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
     registry_contract_name = "Adjudicator"
     _proxy_name = "Dispatcher"
 
+    @transaction
     def evaluate_cfrag(self,
                        capsule_bytes: bytes,
                        capsule_signature_by_requester: bytes,
