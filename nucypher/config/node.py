@@ -327,7 +327,6 @@ class CharacterConfiguration(BaseConfiguration):
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
         modifier = modifier or self.checksum_address
         filepath = super().generate_filepath(filepath=filepath, modifier=modifier, override=override)
-        self.filepath = filepath
         return filepath
 
     @property
