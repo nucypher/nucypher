@@ -49,7 +49,7 @@ def deploy_user_input():
     return user_input
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def nominal_federated_configuration_fields():
     config = UrsulaConfiguration(dev_mode=True, federated_only=True)
     config_fields = config.static_payload()
