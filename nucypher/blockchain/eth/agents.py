@@ -14,12 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import functools
 import random
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union, Callable
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from eth_tester.exceptions import TransactionFailed, ValidationError
 from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
@@ -44,6 +44,58 @@ class Agency(type):
     @property
     def agents(cls):
         return cls.__agents
+
+
+def __transact(broadcaster: Callable,
+               data: Union[dict, bytes],
+               blockchain: Blockchain,
+               confirmations: int = 1) -> dict:
+    try:
+        txhash = broadcaster(data)
+    except TransactionFailed:
+        raise
+    except ValidationError:
+        raise
+    else:
+        if confirmations == 1:
+            receipt = blockchain.wait_for_receipt(txhash)
+        else:
+            raise NotImplementedError
+        return receipt
+
+
+def transaction(agent_func, confirmations: int = 1, device=None) -> Callable:
+    def wrapped(agent, *args, **kwargs) -> dict:
+
+        transaction_builder, payload = agent_func(agent, *args, **kwargs)
+
+        # Gas
+        function_name = transaction_builder.abi['name']
+        transaction_gas_limits = agent.DEFAULT_TRANSACTION_GAS
+        try:
+            gas = transaction_gas_limits[function_name]
+        except KeyError:
+            gas = transaction_builder.estimateGas(payload)
+        payload.update(dict(gas=gas))
+
+        # HW Wallet Transaction Signer
+        if device:
+            unsigned_transaction = transaction_builder.buildTransaction(payload)
+            signed_transaction = device.sign_transaction(unsigned_transaction)
+            if not device.broadcast_now:
+                raise NotImplementedError
+            transaction_broadcaster = agent.blockchain.interface.client.w3.sendRawTransaction
+            payload = signed_transaction
+
+        # We3 Transaction Signer
+        else:
+            transaction_broadcaster = transaction_builder.transact
+
+        return __transact(broadcaster=transaction_broadcaster,
+                          data=payload,
+                          blockchain=agent.blockchain,
+                          confirmations=confirmations)
+    return wrapped
 
 
 class EthereumContractAgent:
