@@ -8,7 +8,9 @@ from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware
 from functools import partial
 
 
-def test_bob_does_not_let_a_connection_error_stop_him(enacted_federated_policy, federated_ursulas, federated_bob,
+def test_bob_does_not_let_a_connection_error_stop_him(enacted_federated_policy,
+                                                      federated_ursulas,
+                                                      federated_bob,
                                                       federated_alice):
     assert len(federated_bob.known_nodes) == 0
     ursula1 = list(federated_ursulas)[0]
@@ -44,7 +46,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     federated_alice.network_middleware.node_is_down(down_node)
 
     # Here's the command we want to run.
-    alice_grant_action = partial(federated_alice.grant, federated_bob, label, m=m, n=n, expiration=policy_end_datetime, timeout=.3)
+    alice_grant_action = partial(federated_alice.grant, federated_bob, label, m=m, n=n, expiration=policy_end_datetime, timeout=.1)
 
     # Try a first time, failing because no known nodes are up for Alice to even try to learn from.
     with pytest.raises(down_node.NotEnoughNodes):
