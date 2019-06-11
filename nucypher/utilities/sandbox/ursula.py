@@ -18,13 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import random
 
 from cryptography.x509 import Certificate
-from eth_utils import to_checksum_address
-from typing import Union, Set, List
+from typing import Set, List, Iterable
 
-from nucypher.blockchain.economics import TokenEconomics
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
@@ -67,42 +64,26 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
 
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
-                               ether_addresses: Union[list, int],
-                               stake: bool = False,
-                               economics: TokenEconomics = None,
+                               stakers_addresses: Iterable[str],
+                               workers_addresses: Iterable[str],
+                               confirm_activity: bool = False,
                                **ursula_overrides) -> List[Ursula]:
-
-    if not economics:
-        economics = TokenEconomics()
-
-    # Alternately accepts an int of the quantity of ursulas to make
-    if isinstance(ether_addresses, int):
-        ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
 
     if not MOCK_KNOWN_URSULAS_CACHE:
         starting_port = MOCK_URSULA_STARTING_PORT
     else:
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
+    stakers_and_workers = zip(stakers_addresses, workers_addresses)
     ursulas = list()
-    for port, checksum_address in enumerate(ether_addresses, start=starting_port):
+    for port, (staker_address, worker_address) in enumerate(stakers_and_workers, start=starting_port):
 
-        ursula = ursula_config.produce(checksum_address=checksum_address,
+        ursula = ursula_config.produce(checksum_address=staker_address,
+                                       worker_address=worker_address,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
                                        **ursula_overrides)
-        if stake is True:
-
-            min_stake, balance = economics.minimum_allowed_locked, ursula.token_balance
-            amount = random.randint(min_stake, balance)
-
-            # for a random lock duration
-            min_locktime, max_locktime = economics.minimum_locked_periods, economics.maximum_locked_periods
-            periods = random.randint(min_locktime, max_locktime)
-
-            ursula.initialize_stake(amount=amount, lock_periods=periods)
-            # TODO temporary fix to not break backward compatibility
-            ursula.set_worker(worker_address=ursula.checksum_address)
+        if confirm_activity:
             ursula.confirm_activity()
 
         ursulas.append(ursula)
