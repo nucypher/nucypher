@@ -14,16 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 
+import maya
 import pytest
 from eth_account._utils.signing import to_standard_signature_bytes
-from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.blockchain.eth.clients import Web3Client
-from nucypher.characters.lawful import Ursula
+from nucypher.characters.lawful import Enrico
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import verify_eip_191
-from nucypher.crypto.powers import SigningPower, CryptoPower
+from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
@@ -137,3 +137,34 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
+
+
+# TODO: Change name of this file
+def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, blockchain_bob, policy_value):
+
+    label = b'bbo'
+
+    # TODO: Investigate issues with wiggle room and additional ursulas during sampling. See also #1061
+    # 1 <= N <= 5 : OK
+    # N == 6 : NotEnoughBlockchainUrsulas: Cannot create policy with 6 arrangements: Selection failed after 5 attempts
+    # N >= 7 : NotEnoughBlockchainUrsulas: Cannot create policy with 7 arrangements: Cannot create policy with 7 arrangements: 10 stakers are available, need 11 (for wiggle room)
+    m = n = 5
+    expiration = maya.now() + datetime.timedelta(days=5)
+
+    _policy = blockchain_alice.grant(bob=blockchain_bob,
+                                     label=label,
+                                     m=m,
+                                     n=n,
+                                     expiration=expiration,
+                                     value=policy_value)
+
+    enrico = Enrico.from_alice(blockchain_alice, label)
+
+    message = b"Oh, this isn't even BO. This is beyond BO. It's BBO."
+
+    message_kit, signature = enrico.encrypt_message(message)
+
+    blockchain_bob.join_policy(label, bytes(blockchain_alice.stamp))
+
+    plaintext = blockchain_bob.retrieve(message_kit, enrico, blockchain_alice.stamp, label)
+    assert plaintext[0] == message
