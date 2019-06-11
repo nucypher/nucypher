@@ -105,6 +105,7 @@ class NucypherClickConfig:
 
         # NuCypher
         try:
+            character_configuration.attach_keyring()
             character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
