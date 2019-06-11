@@ -125,14 +125,15 @@ def test_stake(testerchain, agency):
     assert isinstance(slang_remaining, str)
 
 
-def test_stake_integration(blockchain_ursulas):
-    staking_ursula = list(blockchain_ursulas)[1]
-    stakes = staking_ursula.stakes
+def test_stake_integration(stakers):
+    staker = list(stakers)[1]
+    stakes = staker.stakes
     assert stakes
 
     stake = stakes[0]
-    blockchain_stakes = staking_ursula.staking_agent.get_all_stakes(staker_address=staking_ursula.checksum_address)
+    blockchain_stakes = staker.staking_agent.get_all_stakes(staker_address=staker.checksum_address)
 
     stake_info = (stake.start_period, stake.end_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]
-    assert stake_info == published_stake_info == stake.to_stake_info()
+    assert stake_info == published_stake_info
+    assert stake_info == stake.to_stake_info()
