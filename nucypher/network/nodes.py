@@ -816,11 +816,16 @@ class Learner:
 
             except node.NotStaking:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has no active stakes in the current period ({self.staking_agent.get_current_period()}')
+                              f'{node} has no active stakes in the current period '
+                              f'({self.staking_agent.get_current_period()}')
 
-            except node.InvalidWalletSignature:
+            except node.InvalidWorkerSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has an invalid wallet signature for {node.checksum_public_address}')
+                              f'{node} has an invalid wallet signature for {node.decentralized_identity_evidence}')
+
+            except node.DetachedWorker:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} is not bonded to a Staker.')
 
             except node.InvalidNode:
                 self.log.warn(node.invalid_metadata_message.format(node))
@@ -915,11 +920,14 @@ class Teacher:
     class StampNotSigned(InvalidStamp):
         """Raised when a node does not have a stamp signature when one is required for verification"""
 
-    class InvalidWalletSignature(InvalidStamp):
-        """Raised when a stamp fails signature verification or recovers an unexpected wallet address"""
+    class InvalidWorkerSignature(InvalidStamp):
+        """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
 
     class NotStaking(InvalidStamp):
         """Raised when a node fails verification because it is not currently staking"""
+
+    class DetachedWorker(InvalidNode):
+        """Raised when a node fails verification because it is not bonded to a Staker"""
 
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
@@ -972,26 +980,33 @@ class Teacher:
     # Stamp
     #
 
-    def _stamp_has_valid_wallet_signature(self) -> bool:
-        """Off-chain Signature Verification of ethereum client signature of stamp"""
+    def _stamp_has_valid_signature_by_worker(self) -> bool:
+        """Off-chain Signature Verification of stamp signature by Worker's ETH account"""
         if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
                                             signature=self.__decentralized_identity_evidence,
-                                            address=self.checksum_address)
+                                            address=self.worker_address)
         return signature_is_valid
 
-    def _is_valid_worker(self) -> bool:
+    def _worker_is_bonded_to_staker(self) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, validate the Staker and Worker on-chain.
+        As a follow-up, this checks that the worker is linked to a staker, but it may be
+        the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
+        """
+        staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
+        return staker_address == self.checksum_address
 
-        TODO: #1033 - Verify Staker <-> Worker relationship on-chain
+    def _staker_is_really_staking(self) -> bool:
+        """
+        This method assumes the stamp's signature is valid and accurate.
+        As a follow-up, this checks that the staker is, indeed, staking.
         """
         locked_tokens = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address)
         return locked_tokens > 0
 
-    def validate_stamp(self, verify_staking: bool = True) -> None:
+    def validate_worker(self, verify_staking: bool = True) -> None:
 
         # Federated
         if self.federated_only:
@@ -1007,12 +1022,15 @@ class Teacher:
                 raise self.StampNotSigned
 
             # Off-chain signature verification
-            if not self._stamp_has_valid_wallet_signature():
-                raise self.InvalidWalletSignature
+            if not self._stamp_has_valid_signature_by_worker():
+                raise self.InvalidWorkerSignature
 
             # On-chain staking check
             if verify_staking:
-                if self._is_valid_worker():  # <-- Blockchain CALL
+                if not self._worker_is_bonded_to_staker():  # <-- Blockchain CALL
+                    raise self.DetachedWorker
+
+                if self._staker_is_really_staking():  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
                     raise self.NotStaking
@@ -1033,7 +1051,7 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_stamp(verify_staking=verify_staking)
+            self.validate_worker(verify_staking=verify_staking)
         except self.WrongMode:
             if not accept_federated_only:
                 raise
