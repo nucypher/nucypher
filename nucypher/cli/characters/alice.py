@@ -136,7 +136,7 @@ def alice(click_config,
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-        configuration_file_location = config_file or AliceConfiguration.generate_filepath()
+        configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
         click_config.emit(response)
         return  # Exit

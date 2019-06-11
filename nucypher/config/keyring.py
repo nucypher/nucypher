@@ -387,15 +387,6 @@ class NucypherKeyring:
         return to_checksum_address(self.__account)
 
     @property
-    def federated_address(self) -> str:
-        signature_pubkey = self.signing_public_key
-        uncompressed_bytes = signature_pubkey.to_bytes(is_compressed=False)
-        without_prefix = uncompressed_bytes[1:]
-        verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-        address = verifying_key_as_eth_key.to_checksum_address()
-        return to_checksum_address(address)
-
-    @property
     def signing_public_key(self):
         signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, deserializer=None)
         signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes)
@@ -558,6 +549,10 @@ class NucypherKeyring:
 
         keyring_args = dict()
 
+        if checksum_address:
+            # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
+            checksum_address = to_checksum_address(checksum_address)
+
         if encrypting is True:
             signing_private_key, signing_public_key = _generate_signing_keys()
 
@@ -574,9 +569,6 @@ class NucypherKeyring:
 
         if not checksum_address:
             raise ValueError("Checksum address must bas provided for non-federated keyring generation")
-
-        # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
-        checksum_address = to_checksum_address(checksum_address)
 
         __key_filepaths = cls._generate_key_filepaths(account=checksum_address,
                                                       private_key_dir=_private_key_dir,

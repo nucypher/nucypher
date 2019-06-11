@@ -248,6 +248,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     )
 
     # Alice unlocks her restored keyring from disk
+    new_alice_config.attach_keyring()
     new_alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     new_alice = new_alice_config()
 
