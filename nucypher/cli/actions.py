@@ -242,6 +242,7 @@ def make_cli_character(character_config,
 
     # Handle Keyring
     if not dev:
+        character_config.attach_keyring()
         click_config.unlock_keyring(character_configuration=character_config,
                                     password=click_config.get_password(confirm=False))
 

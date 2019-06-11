@@ -48,7 +48,8 @@ def test_run_felix(click_runner,
     assert result.exit_code == 0
 
     # Felix creates a system configuration
-    init_args = ('felix', 'init',
+    init_args = ('--debug',
+                 'felix', 'init',
                  '--checksum-address', testerchain.interface.w3.eth.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
@@ -61,7 +62,8 @@ def test_run_felix(click_runner,
     configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
 
     # Felix Creates a Database
-    db_args = ('felix', 'createdb',
+    db_args = ('--debug',
+               'felix', 'createdb',
                '--config-file', configuration_file_location,
                '--provider-uri', TEST_PROVIDER_URI)
 
@@ -86,6 +88,8 @@ def test_run_felix(click_runner,
 
         # Init an equal Felix to the already running one.
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location)
+
+        felix_config.attach_keyring()
         felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
         felix = felix_config.produce()
 

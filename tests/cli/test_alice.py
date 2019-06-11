@@ -27,7 +27,7 @@ def test_initialize_alice_defaults(click_runner, mocker):
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_mocked(click_runner, mocker):
+def test_alice_control_starts_with_mocked_keyring(click_runner, mocker):
 
     class MockKeyring:
         is_unlocked = False
@@ -37,8 +37,8 @@ def test_alice_control_starts_mocked(click_runner, mocker):
             assert password == INSECURE_DEVELOPMENT_PASSWORD
             cls.is_unlocked = True
 
+    mocker.patch.object(AliceConfiguration, "attach_keyring", return_value=None)
     good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring)
-
     mocker.patch.object(AliceConfiguration, "from_configuration_file", return_value=good_enough_config)
     init_args = ('alice', 'run', '-x')
 
