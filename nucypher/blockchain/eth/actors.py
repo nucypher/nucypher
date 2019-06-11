@@ -29,6 +29,7 @@ from constant_sorrow.constants import (
     NO_STAKING_DEVICE,
     WORKER_NOT_RUNNING,
     NO_WORKER_ASSIGNED,
+    NO_FUNDING_ACCOUNT
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak
@@ -626,12 +627,18 @@ class PolicyAuthor(NucypherTokenActor):
 class StakeHolder(BaseConfiguration):
 
     _NAME = 'stakeholder'
+    TRANSACTION_GAS = {}
+
+    class NoFundingAccount(BaseConfiguration.ConfigurationError):
+        pass
 
     def __init__(self,
                  blockchain: BlockchainInterface = None,
                  staking_agent: StakingEscrowAgent = None,
-                 master_address: str = None,
-                 trezor: bool = False,
+                 funding_account: str = NO_FUNDING_ACCOUNT,
+                 offline_mode: bool = False,
+                 device = NO_STAKING_DEVICE,
+                 sync_now: bool = True,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -639,24 +646,92 @@ class StakeHolder(BaseConfiguration):
         # Blockchain and Contract connection
         if not staking_agent:
             staking_agent = StakingEscrowAgent(blockchain=blockchain)
+
         self.staking_agent = staking_agent
         self.blockchain = staking_agent.blockchain
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
 
-        # Default State
-        self.trezor = trezor
-        self.device = NO_STAKING_DEVICE
-        self.master_account = master_address
-        self.__accounts = list()
-        self.__stakers = dict()
+        # Mode
+        self.offline_mode = offline_mode
+        self.trezor = False
+        self.device = device
 
         # Setup
-        self.setup_device()
+        self.__funding_account = funding_account
+        self.__accounts = list()
+        self.__stakers = dict()
+        self._setup_device()
         self.__get_accounts()
-        self.sync()  # Stakes
+
+        if sync_now:
+            self.read_stakes()  # Stakes
+
+    def static_payload(self) -> dict:
+        """Values to read/write from stakeholder JSON configuration files"""
+        payload = dict(trezor=self.trezor,
+                       accounts=self.__accounts,
+                       stakers=self.__serialize_stake_info())
+        return payload
+
+    #
+    # Account Utilities
+    #
 
     @property
-    def accounts(self):
+    def accounts(self) -> list:
         return self.__accounts
+
+    def __get_accounts(self) -> None:
+        if self.device is not NO_STAKING_DEVICE:
+            accounts = self.device.accounts
+        else:
+            accounts = self.blockchain.interface.accounts
+        self.__accounts.extend(accounts)
+
+    def _setup_device(self) -> None:
+        device = NO_STAKING_DEVICE
+        if self.trezor:
+            device = NotImplemented  # Trezor()
+        self.device = device
+
+    def set_funding_account(self, address: str):
+        self.__funding_account = address
+
+    @property
+    def funding_account(self) -> str:
+        if self.__funding_account is NO_FUNDING_ACCOUNT:
+            raise self.NoFundingAccount
+        return self.__funding_account
+
+    @property
+    def funding_tokens(self) -> NU:
+        nunits = self.token_agent.get_balance(address=self.funding_account)
+        return NU.from_nunits(nunits)
+
+    @property
+    def funding_eth(self) -> Decimal:
+        ethers = self.blockchain.interface.client.w3.getBalance(self.funding_account)
+        return ethers
+
+    #
+    # Staking Utilities
+    #
+
+    def read_stakes(self) -> None:
+        for account in self.__accounts:
+            stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
+            if stakes:
+                staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
+                self.__stakers[staker] = staker.stakes
+
+    @property
+    def total_stake(self) -> NU:
+        total = sum(staker.locked_tokens() for staker in self.stakers)
+        return total
+
+    @property
+    def stakers(self) -> List[Staker]:
+        return list(self.__stakers.keys())
 
     @property
     def stakes(self) -> list:
@@ -666,92 +741,110 @@ class StakeHolder(BaseConfiguration):
         return payload
 
     @property
-    def stakers(self) -> List[Staker]:
-        return list(self.__stakers.keys())
+    def staker_balances(self) -> dict:
+        balances = dict()
+        for staker in self.stakers:
+            staker_funds = {'ETH': staker.eth_balance, 'NU': staker.token_balance}
+            balances = {staker.checksum_address: staker_funds}
+        return balances
 
     def __serialize_stake_info(self) -> list:
         payload = list()
         for staker in self.stakers:
             stake_info = [stake.to_stake_info() for stake in staker.stakes]
-            worker_address = staker.worker_address
-            staker_payload = {'staker': staker.checksum_public_address,
-                              'worker': worker_address or NO_WORKER_ASSIGNED,
+            worker_address = staker.worker_address or NO_WORKER_ASSIGNED
+            staker_funds = {'ETH': int(staker.eth_balance), 'NU': int(staker.token_balance)}
+            staker_payload = {'staker': staker.checksum_address,
+                              'balances': staker_funds,
+                              'worker': worker_address,
                               'stakes': stake_info}
             payload.append(staker_payload)
         return payload
 
-    def static_payload(self) -> dict:
-        payload = dict(trezor=self.trezor,
-                       accounts=self.__accounts,
-                       stakers=self.__serialize_stake_info())
-        return payload
-
-    def sync(self) -> None:
-        for account in self.__accounts:
-            stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
-            if stakes:
-                staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
-                self.__stakers[staker] = staker.stakes
-
-    def setup_device(self) -> None:
-        device = NO_STAKING_DEVICE
-        if self.trezor:
-            device = NotImplemented  # Trezor()
-        self.device = device
-
-    def get_balances(self, address: str) -> dict:
-        staker = self.get_staker(address=address)
-        balances = {'ETH': staker.eth_balance,
-                    'NU': staker.token_balance}
-        return balances
-
-    def __get_accounts(self) -> None:
-
-        # Device accounts
-        if self.device is not NO_STAKING_DEVICE:
-            accounts = self.device.accounts[1:]
-            self.__accounts.extend(accounts)
-
-        # We3 Provider accounts
-        else:
-            try:
-                accounts = self.blockchain.interface.accounts[1:]
-            except IndexError:
-                raise self.ConfigurationError(f"A minimum of two accounts are "
-                                              f"required to create a {self.__class__.__name__}")
-            else:
-                for account in accounts:
-                    self.__accounts.append(account)
-
-        if not self.master_account:
-            self.master_account = accounts[0]
-
-    def get_staker(self, address: str) -> Staker:
+    def get_active_staker(self, address: str) -> Staker:
+        self.read_stakes()
         try:
             staker = self.__stakers[address]
         except KeyError:
-            if address not in self.__accounts:
-                raise RuntimeError(f"Unknown or locked account {address}")
-            staker = Staker(is_me=True, checksum_address=address)
+            raise self.ConfigurationError(f"{address} does not have any stakes.")
         return staker
 
-    def set_worker(self, index: int, worker_address: str):
-        stake = self.__stakers[index]
-        result = self.staking_agent.set_worker(node_address=stake.owner_address, worker_address=worker_address)
+    def __create_staker(self, password: str) -> Staker:
+        if self.device:
+            raise NotImplementedError
+        else:
+            new_account = self.blockchain.interface.client.new_account(password=password)
+        self.__accounts.append(new_account)
+        staker = Staker(is_me=True, checksum_address=new_account)
+        return staker
+
+    def create_worker_configuration(self, staker_address: str, **configuration) -> str:
+        from nucypher.config.characters import UrsulaConfiguration
+        staker = self.get_active_staker(address=staker_address)
+        ursula_configuration = UrsulaConfiguration.generate(checksum_address=staker.checksum_address,
+                                                            config_root=self.config_root,
+                                                            federated_only=False,
+                                                            **configuration)
+        filepath = ursula_configuration.to_configuration_file()
+        return filepath
+
+    #
+    # Actions
+    #
+
+    def set_worker(self, staker_address: str, worker_address: str):
+        staker = self.get_active_staker(address=staker_address)
+        result = self.staking_agent.set_worker(node_address=staker.checksum_address,
+                                               worker_address=worker_address)
         return result
 
-    def initialize_stake(self, address: str, amount: NU, duration: int):
-        staker = self.get_staker(address=address)
-        new_stake = Stake.initialize_stake(staker=staker, amount=amount, lock_periods=duration)
+    def initialize_stake(self,
+                         password: str,
+                         amount: NU,
+                         duration: int,
+                         ) -> Stake:
+        staker = self.__create_staker(password=password)
+        if self.funding_tokens < amount:
+            delta = amount - staker.token_balance
+            raise self.ConfigurationError(f"{self.funding_account} Insufficient NU (need {delta} more).")
+        if not self.funding_eth:
+            raise self.ConfigurationError(f"{self.funding_account} has no ETH")
+        _result = self.token_agent.transfer(amount=int(amount),
+                                            sender_address=self.funding_account,
+                                            target_address=staker.checksum_address)
+        new_stake = staker.initialize_stake(amount=amount, lock_periods=duration)
         return new_stake
 
-    def divide_stake(self, address: str, index: int, value: int):
-        staker = self.get_staker(address=address)
+    def divide_stake(self,
+                     address: str,
+                     index: int,
+                     value: NU,
+                     duration: int):
+        staker = self.get_active_staker(address=address)
         if not staker.is_staking:
-            raise Stake.StakingError(f"{staker.checksum_public_address} has no published stakes.")
-        try:
-            stake = staker.stakes[index]
-        except IndexError:
-            raise
-        result = stake.divide(target_value=value)
+            raise Stake.StakingError(f"{staker.checksum_address} has no published stakes.")
+        result = staker.divide_stake(stake_index=index,
+                                     additional_periods=duration,
+                                     target_value=value)
         return result
+
+    def sweep(self) -> dict:
+        """Collect all rewards from all staking accounts"""
+        receipts = dict()
+        for staker in self.stakers:
+            receipt = self.collect_rewards(staker_address=staker.checksum_address)
+            receipts[staker.checksum_address] = receipt
+        return receipts
+
+    def collect_rewards(self,
+                        staker_address: str,
+                        staking: bool = True,
+                        policy: bool = True) -> dict:
+        if not staking and not policy:
+            raise ValueError("Either staking or policy must be True in order to collect rewards")
+        staker = self.get_active_staker(address=staker_address)
+        if staking:
+            receipt = staker.collect_staking_reward()
+        if policy:
+            receipt = staker.collect_policy_reward(collector_address=self.funding_account)
+        return receipt
