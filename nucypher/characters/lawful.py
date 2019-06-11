@@ -668,6 +668,8 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
+        # Try our best to get an UmbralPublicKey from input
+        alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
         capsule.set_correctness_keys(
