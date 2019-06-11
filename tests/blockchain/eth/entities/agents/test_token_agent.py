@@ -66,12 +66,10 @@ def test_approve_transfer(agent, token_economics):
     deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
     # Approve
-    txhash = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
-                                    target_address=agent.contract_address,
-                                    sender_address=someone)
+    receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
+                                     target_address=agent.contract_address,
+                                     sender_address=someone)
 
-    # Check the receipt for the contract address success code
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
@@ -81,12 +79,10 @@ def test_transfer(agent, token_economics):
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
 
     old_balance = agent.get_balance(someone)
-    txhash = agent.transfer(amount=token_economics.minimum_allowed_locked,
-                            target_address=someone,
-                            sender_address=origin)
+    receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
+                             target_address=someone,
+                             sender_address=origin)
 
-    # Check the receipt for the contract address success code
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 

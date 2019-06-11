@@ -16,21 +16,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import Agency
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 
 
 @pytest.fixture(scope='module')
 def staker(testerchain, agency):
     token_agent, staking_agent, policy_agent = agency
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_airdrop(token_agent, origin=testerchain.etherbase_account, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+    token_airdrop(token_agent=token_agent,
+                  origin=testerchain.etherbase_account,
+                  addresses=everybody_else,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
     staker = Staker(checksum_address=everybody_else[0], is_me=True)
     return staker
 
@@ -93,8 +95,7 @@ def test_staker_divides_stake(staker, token_economics):
 
 
 @pytest.mark.slow()
-@pytest.mark.usefixtures("blockchain_ursulas")
-def test_staker_collects_staking_reward(testerchain, staker, agency, token_economics):
+def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas, agency, token_economics, ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
 
     # Capture the current token balance of the staker
@@ -102,16 +103,27 @@ def test_staker_collects_staking_reward(testerchain, staker, agency, token_econo
     assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
-                           lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
-    staker.set_worker(worker_address=staker.checksum_address)
+                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
+
+    # Get an unused address for a new worker
+    worker_address = testerchain.unassigned_accounts[-1]
+    staker.set_worker(worker_address=worker_address)
+
+    # Create this worker and bond it with the staker
+    ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                        stakers_addresses=[staker.checksum_address],
+                                        workers_addresses=[worker_address],
+                                        confirm_activity=False).pop()
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
-        staker.confirm_activity()
+        ursula.confirm_activity()
 
     # ...wait more...
     testerchain.time_travel(periods=2)
+
+    # Profit!
     staker.collect_staking_reward()
 
     final_balance = token_agent.get_balance(staker.checksum_address)

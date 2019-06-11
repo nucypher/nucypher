@@ -639,12 +639,11 @@ class UserEscrowDeployer(ContractDeployer):
     def initial_deposit(self, value: int, duration: int) -> dict:
         """Allocate an amount of tokens with lock time, and transfer ownership to the beneficiary"""
         # Approve
-        allocation_transactions = dict()
-        approve_txhash = self.token_agent.approve_transfer(amount=value,
-                                                           target_address=self.contract.address,
-                                                           sender_address=self.deployer_address)
-        allocation_transactions['approve'] = approve_txhash
-        self.blockchain.wait_for_receipt(approve_txhash)
+        allocation_receipts = dict()
+        approve_receipt = self.token_agent.approve_transfer(amount=value,
+                                                            target_address=self.contract.address,
+                                                            sender_address=self.deployer_address)
+        allocation_receipts['approve'] = approve_receipt
 
         # Deposit
         try:
@@ -652,13 +651,13 @@ class UserEscrowDeployer(ContractDeployer):
             args = {'from': self.deployer_address,
                     'gasPrice': self.blockchain.interface.w3.eth.gasPrice,
                     'gas': 200_000}
-            txhash = self.contract.functions.initialDeposit(value, duration).transact(args)
+            deposit_receipt = self.contract.functions.initialDeposit(value, duration).transact(args)
         except TransactionFailed:
             raise  # TODO
 
-        allocation_transactions['initial_deposit'] = txhash
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
+        # TODO: Do something with allocation_receipts. Perhaps it should be returned instead of only the last receipt.
+        allocation_receipts['initial_deposit'] = deposit_receipt
+        return deposit_receipt
 
     def enroll_principal_contract(self):
         if self.__beneficiary_address is NO_BENEFICIARY:
