@@ -53,9 +53,9 @@ class UrsulaConfiguration(NodeConfiguration):
     @property
     def static_payload(self) -> dict:
         payload = dict(
-         rest_host=self.rest_host,
-         rest_port=self.rest_port,
-         db_filepath=self.db_filepath,
+            rest_host=self.rest_host,
+            rest_port=self.rest_port,
+            db_filepath=self.db_filepath,
         )
         return {**super().static_payload, **payload}
 
