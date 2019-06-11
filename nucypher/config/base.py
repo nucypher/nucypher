@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from nucypher.config import constants
 
 
-class BaseConfiguration:
+class BaseConfiguration(ABC):
 
     _NAME = NotImplemented
     _CONFIG_FILE_EXTENSION = 'json'
@@ -26,16 +26,42 @@ class BaseConfiguration:
                  filepath: str = None,
                  *args, **kwargs):
 
+        if self._NAME is NotImplemented:
+            error = f'_NAME must be implemented on BaseConfiguration subclass {self.__class__.__name__}'
+            raise TypeError(error)
+
         self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
         if not filepath:
             filepath = os.path.join(self.config_root, self.generate_filename())
         self.filepath = filepath
+
         super().__init__()
 
     def __eq__(self, other):
         return bool(self.static_payload() == other.static_payload())
 
+    @abstractmethod
     def static_payload(self) -> dict:
+        """
+        Return a dictionary of JSON serializable configuration key/value pairs
+        matching the input specification of this classes __init__.
+
+        Recommended subclass implementations:
+
+        ```
+        payload = dict(**super().static_payload(), key=value)
+        return payload
+        ```
+
+        OR
+
+        ```
+        subclass_payload = {'key': 'value'}
+        payload = {**super().static_payload(), **subclass_payload}
+        return payload
+        ```
+
+        """
         payload = dict(config_root=self.config_root)
         return payload
 

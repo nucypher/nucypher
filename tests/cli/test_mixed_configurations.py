@@ -17,7 +17,7 @@ from nucypher.utilities.sandbox.constants import (
 
 def test_destroy_with_no_configurations(click_runner, custom_filepath):
     """Provide useful error messages when attempting to destroy when there is nothing to destroy"""
-    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
+    ursula_file_location = os.path.join(custom_filepath, 'ursula.json')
     destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
     assert result.exit_code == 2
@@ -194,7 +194,6 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isfile(felix_file_location)
 
 
-@pytest.mark.skip("Needs refactoring with latest decentralized CLI")
 def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
     deployer, alice, ursula, another_ursula, *all_yall = testerchain.interface.w3.eth.accounts
 
@@ -234,25 +233,27 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
+    default_filename = UrsulaConfiguration.generate_filename()
+
     # Ensure configuration creation
     top_level_config_root = os.listdir(custom_filepath)
-    assert 'ursula.config' in top_level_config_root                                    # config file was created
+    assert default_filename in top_level_config_root, "JSON configuration file was not created"
     assert len(os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))) == 4   # keys were created
-    for field in ['known_nodes', 'keyring', 'ursula.config']:
+    for field in ['known_nodes', 'keyring', default_filename]:
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
     os.remove(mock_primary_registry_filepath)
 
     # Attempt destruction with invalid configuration (missing registry)
-    ursula_file_location = os.path.join(custom_filepath, 'ursula.config')
-    destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
+    ursula_file_location = os.path.join(custom_filepath, default_filename)
+    destruction_args = ('--debug', 'ursula', 'destroy', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # Ensure character destruction
     top_level_config_root = os.listdir(custom_filepath)
-    assert 'ursula.config' not in top_level_config_root                                # config file was destroyed
+    assert default_filename not in top_level_config_root                               # config file was destroyed
     assert len(os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))) == 0   # keys were destroyed
 
 
