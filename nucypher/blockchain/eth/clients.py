@@ -4,13 +4,12 @@ import shutil
 import time
 from typing import Union
 
-import click
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_canonical_address
-from eth_utils import to_checksum_address, is_checksum_address
+from eth_utils import to_checksum_address
 from geth import LoggingMixin
 from geth.accounts import get_accounts, create_new_account
 from geth.chain import (
@@ -22,7 +21,6 @@ from geth.chain import (
 from geth.process import BaseGethProcess
 from twisted.logger import Logger
 from web3 import Web3
-from web3.exceptions import BlockNotFound
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 
@@ -145,7 +143,7 @@ class Web3Client(object):
     @property
     def chain_name(self) -> str:
         if not self.is_local:
-            return PUBLIC_CHAINS[self.chain_id]
+            return PUBLIC_CHAINS[int(self.chain_id)]
         name = LOCAL_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
 
@@ -288,7 +286,10 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
     VERBOSITY = 5
     CHAIN_ID = NotImplemented  # 1
     _CHAIN_NAME = 'mainnet'
-    LOG_PATH = os.path.join(USER_LOG_DIR, 'nucypher-geth.log')
+
+    _LOG_NAME = 'nucypher-geth'
+    LOG = Logger(_LOG_NAME)
+    LOG_PATH = os.path.join(USER_LOG_DIR, f'{LOG}.log')
 
     def __init__(self,
                  geth_kwargs: dict,
@@ -300,8 +301,6 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
                          stdout_logfile_path=stdout_logfile_path,
                          stderr_logfile_path=stderr_logfile_path,
                          *args, **kwargs)
-
-        self.log = Logger('nucypher-geth')
 
     def provider_uri(self, scheme: str = None) -> str:
         if not scheme:
@@ -317,7 +316,7 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
         return uri
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
-        self.log.info(f"STARTING GETH NOW | CHAIN ID {self.CHAIN_ID} | {self.IPC_PROTOCOL}://{self.ipc_path}")
+        self.LOG.info(f"STARTING GETH NOW | CHAIN ID {self.CHAIN_ID} | {self.IPC_PROTOCOL}://{self.ipc_path}")
         super().start()
         self.wait_for_ipc(timeout=timeout)  # on for all nodes by default
         if self.IPC_PROTOCOL in ('rpc', 'http'):
@@ -352,7 +351,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
         self.command = [*self.command, '--dev']
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
-        self.log.info("STARTING GETH DEV NOW")
+        self.LOG.info("STARTING GETH DEV NOW")
         BaseGethProcess.start(self)  # <--- START GETH
         time.sleep(extra_delay)  # give it a second
         self.wait_for_ipc(timeout=timeout)

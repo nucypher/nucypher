@@ -44,10 +44,9 @@ USER_LOG_DIR = APP_DIR.user_log_dir
 SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
 
-
 # Sentry
-NUCYPHER_SENTRY_PUBLIC_KEY = "d8af7c4d692e4692a455328a280d845e"
-NUCYPHER_SENTRY_USER_ID = '1310685'
+NUCYPHER_SENTRY_PUBLIC_KEY = "fd21c3edda324065a34d3f334dddf1f0"
+NUCYPHER_SENTRY_USER_ID = '1480080'
 NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUCYPHER_SENTRY_USER_ID}"
 
 # Web

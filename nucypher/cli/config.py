@@ -42,26 +42,25 @@ class NucypherClickConfig:
     # Output Sinks
     capture_stdout = False
     __emitter = None
-    __sentry_endpoint = NUCYPHER_SENTRY_ENDPOINT
 
     # Environment Variables
     config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
-    sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", __sentry_endpoint)
+    sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
 
-    # Sentry Logging
-    if log_to_sentry is True:
-        initialize_sentry(dsn=__sentry_endpoint)
-        globalLogPublisher.addObserver(logToSentry)
-
-    # File Logging
-    if log_to_file is True:
-        globalLogPublisher.addObserver(getTextFileObserver())
-        globalLogPublisher.addObserver(getJsonFileObserver())
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Sentry Logging
+        if self.log_to_sentry is True:
+            initialize_sentry(dsn=NUCYPHER_SENTRY_ENDPOINT)
+            globalLogPublisher.addObserver(logToSentry)
+
+        # File Logging
+        if self.log_to_file is True:
+            globalLogPublisher.addObserver(getTextFileObserver())
+            globalLogPublisher.addObserver(getJsonFileObserver())
 
         # You guessed it
         self.debug = False

@@ -4,11 +4,11 @@ argh==0.26.2
 asn1crypto==0.24.0
 attrdict==2.0.1
 attrs==19.1.0
-autobahn==19.5.1
+autobahn==19.6.2
 automat==0.7.0
 base58==1.0.3
-boto3==1.9.156
-botocore==1.12.156
+boto3==1.9.167
+botocore==1.12.167
 bytestring-splitter==1.0.0a4
 certifi==2019.3.9
 cffi==1.12.3
@@ -18,7 +18,7 @@ coincurve==12.0.0
 colorama==0.4.1
 constant-sorrow==0.1.0a8
 constantly==15.1.0
-cryptography==2.6.1
+cryptography==2.7
 cytoolz==0.9.0.1 ; implementation_name == 'cpython'
 dateparser==0.7.1
 docutils==0.14
@@ -27,17 +27,17 @@ eth-account==0.4.0
 eth-bloom==1.0.3
 eth-hash[pycryptodome,pysha3]==0.2.0
 eth-keyfile==0.5.1
-eth-keys==0.2.2
+eth-keys==0.2.4
 eth-rlp==0.1.2
 eth-tester==0.1.0b39
 eth-typing==2.1.0
-eth-utils==1.6.0
+eth-utils==1.6.1
 ethpm==0.1.4a19
 flask-limiter==1.0.1
 flask-sqlalchemy==2.4.0
 flask==1.0.3
 hendrix==3.2.3
-hexbytes==0.1.0
+hexbytes==0.2.0
 humanize==0.5.1
 hyperlink==19.0.0
 idna==2.8
@@ -58,7 +58,7 @@ netaddr==0.7.19
 parsimonious==0.8.1
 pathtools==0.1.2
 pendulum==2.0.4
-protobuf==3.8.0rc1
+protobuf==3.8.0
 py-ecc==1.7.0
 py-evm==0.2.0a42
 py-geth==2.1.0
@@ -66,7 +66,7 @@ pyasn1-modules==0.2.5
 pyasn1==0.4.5
 pychalk==2.0.1
 pycparser==2.19
-pycryptodome==3.8.1
+pycryptodome==3.8.2
 pyethash==0.1.27
 pyhamcrest==1.9.0
 pynacl==1.3.0
@@ -76,22 +76,22 @@ pytest-ethereum==0.1.3a6
 python-dateutil==2.8.0 ; python_version >= '2.7'
 pytz==2019.1
 pytzdata==2019.1
-pyyaml==5.1
-regex==2019.5.25
+pyyaml==5.1.1
+regex==2019.6.8
 requests==2.22.0
 rlp==1.1.0
-s3transfer==0.2.0
+s3transfer==0.2.1
 semantic-version==2.6.0
-sentry-sdk==0.5.2
+sentry-sdk==0.9.0
 service-identity==18.1.0
 six==1.12.0
 snaptime==0.2.4
-sqlalchemy==1.3.3
+sqlalchemy==1.3.4
 toolz==0.9.0
 trie==1.4.0
-twisted==19.2.0
+twisted==19.2.1
 txaio==18.8.1
-tzlocal==2.0.0b1
+tzlocal==2.0.0b2
 umbral==0.1.3a0
 urllib3==1.25.3 ; python_version >= '3.4'
 varint==1.0.2
