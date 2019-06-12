@@ -115,6 +115,8 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
                                         workers_addresses=[worker_address],
                                         confirm_activity=False).pop()
 
+    # TODO: Use the above code as a starting point for a non-staking worker fixture
+
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
