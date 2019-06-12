@@ -180,22 +180,6 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     assert "'help' or '?'" in result.output
 
 
-def test_empty_federated_status(click_runner, custom_filepath):
-
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
-
-    status_args = ('status', '--config-file', custom_config_filepath)
-    result = click_runner.invoke(nucypher_cli, status_args, catch_exceptions=True)
-
-    assert result.exit_code == 0
-
-    assert 'Federated Only' in result.output
-    heading = 'Known Nodes (connected 0 / seen 0)'
-    assert heading in result.output
-    assert 'password' not in result.output
-
-
 def test_ursula_destroy_configuration(custom_filepath, click_runner):
 
     preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)

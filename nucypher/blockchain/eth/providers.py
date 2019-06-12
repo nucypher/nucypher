@@ -30,10 +30,10 @@ def _get_websocket_provider(provider_uri):
     return WebsocketProvider(endpoint_uri=provider_uri)
 
 
-def _get_infura_provider(self):
+def _get_infura_provider(provider_uri):
     # https://web3py.readthedocs.io/en/latest/providers.html#infura-mainnet
 
-    uri_breakdown = urlparse(self.provider_uri)
+    uri_breakdown = urlparse(provider_uri)
     infura_envvar = 'WEB3_INFURA_PROJECT_ID'
     os.environ[infura_envvar] = os.environ.get(infura_envvar, uri_breakdown.netloc)
 
@@ -42,12 +42,12 @@ def _get_infura_provider(self):
         from web3.auto.infura.goerli import w3
 
     except InfuraKeyNotFound:
-        raise self.InterfaceError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider.')
+        raise ProviderError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider.')
 
     # Verify Connection
     connected = w3.isConnected()
     if not connected:
-        raise self.InterfaceError('Failed to connect to Infura node.')
+        raise ProviderError('Failed to connect to Infura node.')
 
     return w3.provider
 
