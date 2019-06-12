@@ -25,7 +25,6 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--sync/--no-sync', default=True)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--bob-encrypting-key', help="Bob's encrypting key as a hexadecimal string", type=click.STRING)
@@ -65,7 +64,6 @@ def alice(click_config,
           geth,
           sync,
           poa,
-          no_registry,
           registry_filepath,
 
           # Alice
@@ -122,7 +120,7 @@ def alice(click_config,
                                                        rest_host="localhost",
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       download_registry=no_registry,
+                                                       download_registry=click_config.no_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,

@@ -69,7 +69,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
-@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--duration', help="Period duration of stake", type=click.INT)
@@ -100,7 +99,6 @@ def ursula(click_config,
            provider_uri,
            geth,
            recompile_solidity,
-           no_registry,
            registry_filepath,
            value,
            duration,
@@ -188,7 +186,7 @@ def ursula(click_config,
                                                      domains={network} if network else None,
                                                      federated_only=federated_only,
                                                      checksum_address=checksum_address,
-                                                     download_registry=federated_only or no_registry,
+                                                     download_registry=federated_only or click_config.no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,
