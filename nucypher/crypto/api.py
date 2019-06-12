@@ -106,14 +106,21 @@ def ecdsa_sign(message: bytes,
     return signature_der_bytes
 
 
-def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+def recover_address_eip_191(message: bytes, signature: bytes) -> str:
     """
-    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    Recover checksum address from EIP-191 signature
     """
     signable_message = encode_defunct(primitive=message)
     recovery = Account.recover_message(signable_message=signable_message, signature=signature)
     recovered_address = to_checksum_address(recovery)
+    return recovered_address
 
+
+def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+    """
+    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    """
+    recovered_address = recover_address_eip_191(message=message, signature=signature)
     signature_is_valid = recovered_address == to_checksum_address(address)
     return signature_is_valid
 
