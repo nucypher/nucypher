@@ -22,6 +22,7 @@ from eth_utils import is_checksum_address, to_wei
 
 from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import UserEscrowAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 
@@ -136,9 +137,12 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Move the tokens to the StakingEscrow
-    txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
-    assert txhash  # TODO
-    _txhash = agent.set_worker(worker_address=agent.beneficiary)
+    receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    assert receipt  # TODO
+
+    # User sets a worker in StakingEscrow via UserEscrow
+    worker = testerchain.ursula_account(0)
+    _receipt = agent.set_worker(worker_address=worker)
 
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     assert agent.unvested_tokens == allocation_value
@@ -148,7 +152,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
     for _ in range(token_economics.minimum_locked_periods):
-        agent.confirm_activity()
+        staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
     agent.mint()
@@ -160,7 +164,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Release worker
-    _txhash = agent.set_worker(worker_address=testerchain.etherbase_account)
+    _txhash = agent.set_worker(worker_address=Blockchain.NULL_ADDRESS)
 
     txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(address=agent.contract_address))
     assert txhash
@@ -168,11 +172,15 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
 
 def test_collect_policy_reward(testerchain, agent, agency, token_economics):
-    _token_agent, __proxy_contract, policy_agent = agency
+    _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
 
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
-    _txhash = agent.set_worker(worker_address=agent.beneficiary)
+
+    # User sets a worker in StakingEscrow via UserEscrow
+    worker = testerchain.ursula_account(0)
+    _receipt = agent.set_worker(worker_address=worker)
+
     testerchain.time_travel(periods=1)
 
     _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
@@ -182,9 +190,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                          initial_reward=0,
                                          node_addresses=[agent.contract_address])
 
-    _txhash = agent.confirm_activity()
+    _txhash = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
-    _txhash = agent.confirm_activity()
+    _txhash = staking_agent.confirm_activity(worker_address=worker)
 
     old_balance = testerchain.interface.w3.eth.getBalance(account=agent.beneficiary)
     txhash = agent.collect_policy_reward()
