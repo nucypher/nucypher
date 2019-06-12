@@ -507,7 +507,7 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert worker1 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
     assert intermediary1.address == escrow.functions.getStakerFromWorker(worker1).call()
-    tx = intermediary1.functions.confirmActivity().transact({'from': worker1})
+    tx = escrow.functions.confirmActivity().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
 
     events = worker_log.get_all_entries()
@@ -559,10 +559,10 @@ def test_worker(testerchain, token, escrow_contract):
 
     # Now the previous worker can no longer confirm
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.confirmActivity().transact({'from': worker1})
+        tx = escrow.functions.confirmActivity().transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
     # Only new worker can
-    tx = intermediary1.functions.confirmActivity().transact({'from': worker2})
+    tx = escrow.functions.confirmActivity().transact({'from': worker2})
     testerchain.wait_for_receipt(tx)
 
     # Another staker can use a free worker
@@ -616,6 +616,7 @@ def test_worker(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Ursula without intermediary contract can set itself as worker
+    # (Probably not her best idea, but whatever)
     tx = escrow.functions.setWorker(ursula3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert ursula3 == escrow.functions.getStakerFromWorker(ursula3).call()

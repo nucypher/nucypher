@@ -18,7 +18,6 @@ contract UserEscrowProxy {
     event WithdrawnAsStaker(address indexed sender, uint256 value);
     event Locked(address indexed sender, uint256 value, uint16 periods);
     event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
-    event ActivityConfirmed(address indexed sender);
     event Mined(address indexed sender);
     event PolicyRewardWithdrawn(address indexed sender, uint256 value);
     event MinRewardRateSet(address indexed sender, uint256 value);
@@ -137,14 +136,6 @@ contract UserEscrowProxy {
     {
         getStateContract().escrow().divideStake(_index, _newValue, _periods);
         emit Divided(msg.sender, _index, _newValue, _periods);
-    }
-
-    /**
-    * @notice Confirm activity for future period in the staking escrow
-    **/
-    function confirmActivity() external {
-        getStateContract().escrow().confirmActivity();
-        emit ActivityConfirmed(msg.sender);
     }
 
     /**
