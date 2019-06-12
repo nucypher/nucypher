@@ -848,7 +848,7 @@ class Ursula(Teacher, Character, Worker):
 
                 # Access to worker's ETH client via node's transacting keys
                 # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.worker_address)
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=worker_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp
