@@ -170,7 +170,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain):
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
-                                known_nodes=blockchain_ursulas[:-1],  # TODO: 1035
+                                known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 download_registry=False,
                                 save_metadata=False,
@@ -198,7 +198,7 @@ def bob_blockchain_test_config(blockchain_ursulas, testerchain):
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas[:-1],  # TODO: #1035
+                              known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
@@ -468,6 +468,9 @@ def blockchain_ursulas(testerchain, agency, stakers, ursula_decentralized_test_c
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
     yield _ursulas
+
+
+# TODO: Non-staking staker and free worker fixtures (#1035)
 
 
 @pytest.fixture(scope='module')
