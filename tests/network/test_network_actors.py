@@ -54,9 +54,9 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
     blockchain_alice.remember_node(blockchain_ursulas[0])
     blockchain_alice.learn_from_teacher_node()
-    assert len(blockchain_alice.known_nodes) == len(blockchain_ursulas[:-1])  # TODO: #1035
+    assert len(blockchain_alice.known_nodes) == len(blockchain_ursulas)
 
-    for ursula in blockchain_ursulas[:-1]:  # TODO: #1035
+    for ursula in blockchain_ursulas:
         assert ursula in blockchain_alice.known_nodes
 
 
