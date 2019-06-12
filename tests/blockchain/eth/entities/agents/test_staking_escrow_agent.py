@@ -186,13 +186,11 @@ def test_divide_stake(agency, token_economics):
     _txhash = agent.confirm_activity(node_address=someone)
     testerchain.time_travel(periods=1)
 
-    txhash = agent.divide_stake(staker_address=someone,
-                                stake_index=1,
-                                target_value=token_economics.minimum_allowed_locked,
-                                periods=1)
+    receipt = agent.divide_stake(staker_address=someone,
+                                 stake_index=1,
+                                 target_value=token_economics.minimum_allowed_locked,
+                                 periods=1)
 
-    testerchain = agent.blockchain
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
