@@ -167,37 +167,34 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(emitter, ursula_config):
-    contract_payload = """
+def paint_contract_status(blockchain, click_config):
+    contract_payload = f"""
 
-| NuCypher ETH Contracts |
+| NuCypher Contracts |
 
-Provider URI ............. {provider_uri}
-Registry Path ............ {registry_filepath}
+Chain .....................{blockchain.interface.client.chain_name}
+Provider URI ............. {blockchain.interface.provider_uri}
+Registry Path ............ {blockchain.interface.registry.filepath}
 
-NucypherToken ............ {token}
-StakingEscrow ............ {escrow}
-PolicyManager ............ {manager}
+NucypherToken ............ {click_config.token_agent.contract_address}
+StakingEscrow ............ {click_config.miner_agent.contract_address}
+PolicyManager ............ {click_config.policy_agent.contract_address}
+Adjudicator .............. {click_config.adjudicator_agent.contract_address} 
+    """
 
-    """.format(provider_uri=ursula_config.blockchain.provider_uri,
-               registry_filepath=ursula_config.blockchain.registry.filepath,
-               token=ursula_config.token_agent.contract_address,
-               escrow=ursula_config.staking_agent.contract_address,
-               manager=ursula_config.policy_agent.contract_address,
-               period=ursula_config.staking_agent.get_current_period())
-    emitter.echo(contract_payload)
+    network_payload = f"""
 
-    network_payload = """
-| Blockchain Network |
+| Staking |
 
-Current Period ........... {period}
-Gas Price ................ {gas_price}
-Active Staking Ursulas ... {ursulas}
+Current Period ........... {click_config.miner_agent.get_current_period()}
+Actively Staked Tokens.... {click_config.miner_agent.get_all_locked_tokens()}
+Published Stakes ......... {blockchain.interface.w3.eth.gasPrice}
+Gas Price ................ {click_config.miner_agent.get_miner_population()}
+    """
 
-    """.format(period=ursula_config.staking_agent.get_current_period(),
-               gas_price=ursula_config.blockchain.client.gasPrice,
-               ursulas=ursula_config.staking_agent.get_staker_population())
-    emitter.echo(network_payload)
+    click.clear()
+    click.secho(contract_payload)
+    click.secho(network_payload)
 
 
 def paint_staged_stake(emitter,

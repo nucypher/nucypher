@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import random
 from typing import Generator, List, Tuple, Union
 
@@ -184,6 +186,14 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     #
     # StakingEscrow Contract API
     #
+
+    def get_all_locked_tokens(self, periods: int = 1) -> int:
+        """
+        Returns the amount of tokens the staking escrow has locked.
+        """
+        if periods < 0:
+            raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
+        return self.contract.functions.getAllLockedTokens(periods).call()
 
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
