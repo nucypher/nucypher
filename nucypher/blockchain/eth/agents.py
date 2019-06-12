@@ -582,12 +582,6 @@ class UserEscrowAgent(EthereumContractAgent):
         return transaction_builder, payload
 
     @transaction
-    def confirm_activity(self):
-        payload = {'from': self.__beneficiary}
-        transaction_builder = self.__proxy_contract.functions.confirmActivity()
-        return transaction_builder, payload
-
-    @transaction
     def mint(self):
         payload = {'from': self.__beneficiary}
         transaction_builder = self.__proxy_contract.functions.mint()

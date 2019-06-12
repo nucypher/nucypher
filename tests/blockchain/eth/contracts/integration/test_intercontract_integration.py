@@ -417,7 +417,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = user_escrow_proxy_1.functions.setWorker(ursula3).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.getAllTokens(user_escrow_1.address).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
@@ -453,7 +453,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Turn on re-stake for Ursula1
@@ -467,7 +467,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Create policies
@@ -535,7 +535,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=1)
@@ -547,7 +547,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Turn off re-stake for Ursula1
@@ -737,14 +737,14 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+    tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
 
@@ -926,7 +926,7 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
         tx = escrow.functions.confirmActivity().transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
-        tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
+        tx = escrow.functions.confirmActivity().transact({'from': ursula3})
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(hours=1)
 
