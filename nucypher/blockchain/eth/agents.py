@@ -15,12 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import functools
+import pprint
 import random
 from typing import Generator, List, Tuple, Union, Callable
 
-from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
-from eth_tester.exceptions import TransactionFailed, ValidationError
-from eth_utils.address import to_checksum_address
+import eth_tester
+import web3
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE, UNKNOWN_TX_STATUS
+from eth_tester.exceptions import TransactionFailed
+from web3.exceptions import ValidationError, TimeExhausted
+from eth_utils.address import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
 
@@ -48,35 +52,61 @@ class Agency(type):
 
 def __transact(broadcaster: Callable,
                data: Union[dict, bytes],
-               blockchain: Blockchain,
-               confirmations: int = 1) -> dict:
+               blockchain: Blockchain) -> dict:
+
     try:
-        txhash = broadcaster(data)
-    except TransactionFailed:
+        txhash = broadcaster(data)  # <--- Transmit the transaction (signed or presigned)
+    except eth_tester.exceptions.TransactionFailed:
         raise
-    except ValidationError:
+    except web3.exceptions.ValidationError:
         raise
-    else:
-        if confirmations == 1:
-            receipt = blockchain.wait_for_receipt(txhash)
-        else:
-            raise NotImplementedError
-        return receipt
+
+    try:
+        # TODO: Use web3 abstractions for transaction receipts
+        # TODO: Implement timeout from interfaces or agency
+        receipt = blockchain.interface.client.w3.eth.waitForTransactionReceipt(txhash, timeout=180)
+    except web3.exceptions.TimeExhausted:
+        raise
+
+    # Primary check
+    status = receipt.get('status', UNKNOWN_TX_STATUS)
+    if status is 0:
+        pretty_receipt = pprint.pformat(receipt, indent=2)
+        failure = f"Transaction returned status code 0. Full receipt: \n {pretty_receipt}"
+        raise TransactionFailed(failure)
+
+    # Secondary check
+    if status is UNKNOWN_TX_STATUS:
+        pretty_receipt = pprint.pformat(receipt, indent=2)
+        if receipt["gas"] == receipt["gasUsed"]:
+            raise TransactionFailed(f"Transaction consumed 100% of transaction gas. Full receipt: \n {pretty_receipt}")
+
+    return receipt
 
 
 def transaction(agent_func, confirmations: int = 1, device=None) -> Callable:
+
+    @functools.wraps(agent_func)
     def wrapped(agent, *args, **kwargs) -> dict:
 
-        transaction_builder, payload = agent_func(agent, *args, **kwargs)
+        # Produce the transaction builder
+        try:
+            transaction_builder, payload = agent_func(agent, *args, **kwargs)
+        except web3.exceptions.ValidationError:
+            raise
 
-        # Gas
+        # Validate sender
+        sender_address = payload['from']
+        if not is_checksum_address(sender_address):
+            raise ValidationError(f"{sender_address} is not a valid EIP-55 checksum address.")
+
+        # Gas Control
         function_name = transaction_builder.abi['name']
         transaction_gas_limits = agent.DEFAULT_TRANSACTION_GAS
-        try:
-            gas = transaction_gas_limits[function_name]
-        except KeyError:
+        gas = transaction_gas_limits.get(function_name)
+        if not gas:
             gas = transaction_builder.estimateGas(payload)
-        payload.update(dict(gas=gas))
+        payload['gas'] = gas
 
         # HW Wallet Transaction Signer
         if device:
@@ -91,10 +121,20 @@ def transaction(agent_func, confirmations: int = 1, device=None) -> Callable:
         else:
             transaction_broadcaster = transaction_builder.transact
 
-        return __transact(broadcaster=transaction_broadcaster,
-                          data=payload,
-                          blockchain=agent.blockchain,
-                          confirmations=confirmations)
+        # Broadcast
+        receipt = __transact(broadcaster=transaction_broadcaster,
+                             data=payload,
+                             blockchain=agent.blockchain)
+
+        # Post-Broadcast
+        txhash = receipt['transactionHash'].hex()
+        agent.log.debug(f'[TX-{agent.contract_name.upper()}-{function_name.upper()}] {txhash}')
+
+        if confirmations:
+            # TODO: Handle transaction confirmations?
+            pass
+
+        return receipt
     return wrapped
 
 
@@ -409,6 +449,7 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
         transaction_builder = self.contract.functions.calculateRefundValue(policy_id)
         return transaction_builder, payload
 
+    @transaction
     def collect_refund(self, policy_id: str, author_address: str):
         payload = {'from': author_address}
         transaction_builder = self.contract.functions.refund(policy_id)
