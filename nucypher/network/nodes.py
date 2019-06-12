@@ -47,7 +47,7 @@ from twisted.logger import Logger
 
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest, verify_eip_191, verify_ecdsa
+from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -907,6 +907,7 @@ class Teacher:
         self.verified_worker = False
         self.verified_interface = False
         self.verified_node = False
+        self.__worker_address = None
 
         if substantiate_immediately:
             self.substantiate_stamp(client_password=password)
@@ -981,7 +982,12 @@ class Teacher:
     #
 
     def _stamp_has_valid_signature_by_worker(self) -> bool:
-        """Off-chain Signature Verification of stamp signature by Worker's ETH account"""
+        """
+        Off-chain Signature Verification of stamp signature by Worker's ETH account.
+        Note that this only "certifies" the stamp with the worker's account,
+        so it can be seen like a self certification. For complete assurance,
+        it's necessary to validate on-chain the Staker-Worker relation.
+        """
         if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
@@ -1121,11 +1127,21 @@ class Teacher:
     def decentralized_identity_evidence(self):
         return self.__decentralized_identity_evidence
 
+    @property
+    def worker_address(self):
+        if not self.__worker_address:
+            if self.decentralized_identity_evidence is NOT_SIGNED:
+                raise self.StampNotSigned  # TODO: Find a better exception
+            self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
+                                                            signature=self.decentralized_identity_evidence)
+        return self.__worker_address
+
     def substantiate_stamp(self, client_password: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
         blockchain_power.unlock_account(password=client_password)  # TODO: #349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
+        self.__worker_address = blockchain_power.account
 
     #
     # Interface
