@@ -166,9 +166,6 @@ def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, prox
         tx = proxy.functions.divideStake(1, 100, 1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = proxy.functions.confirmActivity().transact({'from': user})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
         tx = proxy.functions.mint().transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -186,7 +183,6 @@ def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, prox
 
     locks = user_escrow_proxy.events.Locked.createFilter(fromBlock='latest')
     divides = user_escrow_proxy.events.Divided.createFilter(fromBlock='latest')
-    confirms = user_escrow_proxy.events.ActivityConfirmed.createFilter(fromBlock='latest')
     mints = user_escrow_proxy.events.Mined.createFilter(fromBlock='latest')
     staker_withdraws = user_escrow_proxy.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
     withdraws = user_escrow.events.TokensWithdrawn.createFilter(fromBlock='latest')
@@ -205,9 +201,6 @@ def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, prox
     assert 1500 == escrow.functions.value().call()
     assert 1700 == escrow.functions.lockedValue().call()
     assert 1 == escrow.functions.index().call()
-    tx = user_escrow_proxy.functions.confirmActivity().transact({'from': user})
-    testerchain.wait_for_receipt(tx)
-    assert 1 == escrow.functions.confirmedPeriod().call()
     tx = user_escrow_proxy.functions.mint().transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 2500 == escrow.functions.value().call()
@@ -249,11 +242,6 @@ def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, prox
     assert 1 == event_args['index']
     assert 100 == event_args['newValue']
     assert 1 == event_args['periods']
-
-    events = confirms.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
-    assert user == event_args['sender']
 
     events = mints.get_all_entries()
     assert 1 == len(events)

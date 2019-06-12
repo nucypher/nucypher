@@ -15,7 +15,6 @@ contract StakingEscrowForUserEscrowMock {
     uint256 public value;
     uint256 public lockedValue;
     uint16 public periods;
-    uint16 public confirmedPeriod;
     uint256 public index;
     bool public reStake;
     uint16 public lockReStakeUntilPeriod;
@@ -51,10 +50,6 @@ contract StakingEscrowForUserEscrowMock {
 
     function withdrawAll() public {
         withdraw(value);
-    }
-
-    function confirmActivity() external {
-        confirmedPeriod += 1;
     }
 
     function mint() external {
