@@ -670,7 +670,7 @@ class Worker(NucypherTokenActor):
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.worker_address = worker_address
+        self.__worker_address = worker_address
         self.log = Logger("worker")
         self.is_me = is_me
 
@@ -776,7 +776,7 @@ class Worker(NucypherTokenActor):
     @only_me
     def confirm_activity(self) -> str:
         """For each period that the worker confirms activity, the staker is rewarded"""
-        txhash = self.staking_agent.confirm_activity(worker_address=self.worker_address)
+        txhash = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
         return txhash
 
