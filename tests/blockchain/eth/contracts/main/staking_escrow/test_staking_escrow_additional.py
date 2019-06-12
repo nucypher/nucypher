@@ -497,10 +497,6 @@ def test_worker(testerchain, token, escrow_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.setWorker(ursula3).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
-    # Ursula can't use zero address as worker
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
 
     # Ursula set worker and now worker can confirm activity
     tx = intermediary1.functions.setWorker(worker1).transact({'from': ursula1})
@@ -510,12 +506,14 @@ def test_worker(testerchain, token, escrow_contract):
     tx = escrow.functions.confirmActivity().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
 
+    number_of_events = 1
     events = worker_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
     assert worker1 == event_args['worker']
-    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
+    worker1_start_period = escrow.functions.getCurrentPeriod().call()
+    assert worker1_start_period == event_args['startPeriod']
 
     # Only worker can confirm activity
     with pytest.raises((TransactionFailed, ValueError)):
@@ -543,6 +541,28 @@ def test_worker(testerchain, token, escrow_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
+
+    # But she can unset her worker
+    tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
+
+    number_of_events += 1
+    events = worker_log.get_all_entries()
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
+    assert intermediary1.address == event_args['staker']
+    # Even though the worker has been unset...
+    assert Blockchain.NULL_ADDRESS == event_args['worker']
+    # ... the previous start period remains.
+    assert worker1_start_period == event_args['startPeriod']
+
+    # The staker can't set a new worker until the previous worker's time has passed
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+
+    # Let's advance one period and change the worker
     testerchain.time_travel(hours=1)
     tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -550,9 +570,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert intermediary1.address == escrow.functions.getStakerFromWorker(worker2).call()
     assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
     assert worker2 == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
@@ -571,9 +592,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert worker1 == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.getStakerFromWorker(worker1).call()
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 3 == len(events)
-    event_args = events[2]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert intermediary2.address == event_args['staker']
     assert worker1 == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
@@ -592,9 +614,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert intermediary2.address == escrow.functions.getStakerFromWorker(ursula2).call()
     assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert intermediary2.address == event_args['staker']
     assert ursula2 == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
@@ -622,9 +645,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert ursula3 == escrow.functions.getStakerFromWorker(ursula3).call()
     assert ursula3 == escrow.functions.getWorkerFromStaker(ursula3).call()
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 5 == len(events)
-    event_args = events[4]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert ursula3 == event_args['staker']
     assert ursula3 == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
@@ -640,9 +664,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert ursula3 == escrow.functions.getStakerFromWorker(worker3).call()
     assert worker3 == escrow.functions.getWorkerFromStaker(ursula3).call()
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 6 == len(events)
-    event_args = events[5]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert ursula3 == event_args['staker']
     assert worker3 == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
@@ -655,9 +680,10 @@ def test_worker(testerchain, token, escrow_contract):
     tx = escrow.functions.setWorker(intermediary3.address).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
+    number_of_events += 1
     events = worker_log.get_all_entries()
-    assert 7 == len(events)
-    event_args = events[6]['args']
+    assert number_of_events == len(events)
+    event_args = events[-1]['args']
     assert ursula3 == event_args['staker']
     assert intermediary3.address == event_args['worker']
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
