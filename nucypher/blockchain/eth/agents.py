@@ -309,9 +309,14 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         transaction_builder = self.contract.functions.setWorker(worker_address)
         return transaction_builder, payload
 
+    def release_worker(self, staker_address: str):
+        return self.set_worker(staker_address=staker_address, worker_address=Blockchain.NULL_ADDRESS)
+
     @transaction
     def confirm_activity(self, worker_address: str):
-        """For each period that the worker confirms activity, the staker is rewarded"""
+        """
+        For each period that the worker confirms activity, the staker is rewarded.
+        """
         payload = {'from': worker_address}
         transaction_builder = self.contract.functions.confirmActivity()
         return transaction_builder, payload

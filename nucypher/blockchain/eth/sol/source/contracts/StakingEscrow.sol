@@ -357,25 +357,33 @@ contract StakingEscrow is Issuer {
     * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
-        require(_worker != address(0), "Worker's address must not be empty");
-
         uint16 currentPeriod = getCurrentPeriod();
         StakerInfo storage info = stakerInfo[msg.sender];
-
         require(_worker != info.worker, "Specified worker is already set for this staker");
-        require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
-            "Not enough time has passed since the previous setting worker");
-        require(workerToStaker[_worker] == address(0), "Specified worker is already in use");
-        require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
-            "Specified worker is an another staker");
+        if (_worker != address(0)){
+            require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
+                "Not enough time has passed since the previous setting worker");
+            require(workerToStaker[_worker] == address(0), "Specified worker is already in use");
+            require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
+                "Specified worker is a staker");
+            // Remove relation between the old worker and the staker, if there was one
+            if (info.worker != address(0)) {
+                workerToStaker[info.worker] = address(0);
+            }
+            info.worker = _worker;
+            info.workerStartPeriod = currentPeriod;
+            // Set new worker->staker relation
+            workerToStaker[_worker] = msg.sender;
+        } else { // Staker wants to unset her worker
+            // In this case, we don't require a minimum elapsed time with the worker
 
-        // remove relation between the old worker and the staker
-        if (info.worker != address(0)) {
+            // Remove relation between the old worker and the staker
             workerToStaker[info.worker] = address(0);
+            // Unset worker
+            info.worker = address(0);
+            // Note we don't clear the previous worker start period, so staker
+            // can't bypass the time restriction by unsetting her previous worker
         }
-        info.worker = _worker;
-        info.workerStartPeriod = currentPeriod;
-        workerToStaker[_worker] = msg.sender;
         emit WorkerSet(msg.sender, _worker, currentPeriod);
     }
 
