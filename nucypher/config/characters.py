@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
@@ -49,6 +50,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
+                 stake_tracker: StakeTracker = None,
                  *args, **kwargs) -> None:
 
         if not rest_port:
@@ -60,6 +62,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
+        self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
@@ -85,6 +88,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None,
+            stake_tracker=self.stake_tracker
         )
         return {**super().dynamic_payload, **payload}
 
