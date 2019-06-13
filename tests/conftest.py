@@ -26,14 +26,16 @@ from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
 #
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
-globalLogPublisher.removeObserver(logToSentry)
 
 # Disable click sentry and file logging
+globalLogPublisher.removeObserver(logToSentry)
 NucypherClickConfig.log_to_sentry = False
+
+# Log to files
 NucypherClickConfig.log_to_file = True
 
 # Crash on server error by default
-WebEmitter._crash_on_error_default = False
+WebEmitter._crash_on_error_default = True
 
 
 ##########################################

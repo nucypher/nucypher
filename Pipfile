@@ -27,7 +27,7 @@ eth-tester = "*"
 coincurve = "*"
 web3 = "*"
 # CLI / Configuration
-sentry-sdk = "==0.5.2"
+sentry-sdk = "==0.9.0"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
