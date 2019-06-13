@@ -44,7 +44,7 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
-                           lock_periods=token_economics.minimum_locked_periods)
+                            lock_periods=token_economics.minimum_locked_periods)
 
     # Verify that the escrow is "approved" to receive tokens
     allowance = token_agent.contract.functions.allowance(
@@ -85,7 +85,7 @@ def test_staker_divides_stake(staker, token_economics):
     expected_yet_another_stake = Stake(start_period=current_period + 1,
                                        end_period=current_period + 34,
                                        value=yet_another_stake_value,
-                                       staker=staker,
+                                       checksum_address=staker.checksum_address,
                                        index=3)
 
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'

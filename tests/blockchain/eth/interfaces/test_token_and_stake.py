@@ -112,7 +112,7 @@ def test_stake(testerchain, agency):
         economics = TokenEconomics()
 
     ursula = FakeUrsula()
-    stake = Stake(staker=ursula,
+    stake = Stake(checksum_address=ursula.checksum_address,
                   start_period=1,
                   end_period=100,
                   value=NU(100, 'NU'),
