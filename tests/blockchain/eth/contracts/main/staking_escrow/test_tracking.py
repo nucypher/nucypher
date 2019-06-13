@@ -33,7 +33,7 @@ def test_sampling(testerchain, token, escrow_contract):
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    stakers = testerchain.interface.w3.eth.accounts[1:]
+    stakers = testerchain.stakers_accounts
     amount = token.functions.balanceOf(creator).call() // 2
     largest_locked = amount
 
@@ -68,7 +68,7 @@ def test_sampling(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
         all_locked_tokens += balance
 
-    # Stakers are active from the next period
+    # Stakers are active starting from the next period
     assert 0 == escrow.functions.getAllLockedTokens(1).call()
 
     # So sampling in current period is useless
