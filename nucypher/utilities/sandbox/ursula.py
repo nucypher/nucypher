@@ -20,6 +20,7 @@ import random
 from cryptography.x509 import Certificate
 from typing import Set, List, Iterable
 
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
@@ -76,12 +77,15 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
     stakers_and_workers = zip(stakers_addresses, workers_addresses)
     ursulas = list()
+
+    stake_tracker = StakeTracker(checksum_addresses=list(stakers_addresses))
     for port, (staker_address, worker_address) in enumerate(stakers_and_workers, start=starting_port):
 
         ursula = ursula_config.produce(checksum_address=staker_address,
                                        worker_address=worker_address,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
+                                       stake_tracker=stake_tracker,
                                        **ursula_overrides)
         if confirm_activity:
             ursula.confirm_activity()

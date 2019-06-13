@@ -444,10 +444,6 @@ def stakers(agency, token_economics):
     # Stake starts next period (or else signature validation will fail)
     blockchain.time_travel(periods=1)
 
-    # TODO: Fix staking loop in Staker
-    for staker in stakers:
-        staker.stake_tracker.refresh()
-
     yield stakers
 
 

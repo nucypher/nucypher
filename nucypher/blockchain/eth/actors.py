@@ -364,7 +364,7 @@ class Staker(NucypherTokenActor):
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
-        staker_tracker = StakeTracker(checksum_address=self.checksum_address, staking_agent=staking_agent)
+        staker_tracker = StakeTracker(checksum_addresses=[self.checksum_address], staking_agent=staking_agent)
         self.stake_tracker = staker_tracker
         self.staking_agent = self.stake_tracker.staking_agent
         self.economics = economics or TokenEconomics()
@@ -428,8 +428,8 @@ class Staker(NucypherTokenActor):
         modified_stake, new_stake = current_stake.divide(target_value=target_value,
                                                          additional_periods=additional_periods)
 
-        # Update staking cache
-        self.stake_tracker.refresh()
+        # Update staking cache element
+        self.stake_tracker.refresh(checksum_addresses=[self.checksum_address])
 
         return modified_stake, new_stake
 
@@ -464,7 +464,9 @@ class Staker(NucypherTokenActor):
 
         # Write to blockchain
         new_stake = Stake.initialize_stake(staker=self, amount=amount, lock_periods=lock_periods)
-        self.stake_tracker.refresh()
+
+        # Update stake tracker cache element
+        self.stake_tracker.refresh(checksum_addresses=[self.checksum_address])
         return new_stake
 
     #
@@ -531,8 +533,6 @@ class Worker(NucypherTokenActor):
         super().__init__(*args, **kwargs)
 
         self.log = Logger("worker")
-        self.stake_tracker = stake_tracker or StakeTracker(checksum_address=self.checksum_address, staking_agent=staking_agent)
-        self.stake_tracker.add_action(self._confirm_period)
 
         self.__worker_address = worker_address
         self.is_me = is_me
@@ -546,11 +546,16 @@ class Worker(NucypherTokenActor):
         self.__uptime_period = WORKER_NOT_RUNNING
 
         # Workers cannot be started without being assigned a stake first.
-        if not self.stake_tracker.stakes:
-            raise self.DetachedWorker
-        else:
-            if start_working_loop:
-                self.stake_tracker.start()
+        if is_me:
+            self.stake_tracker = stake_tracker or StakeTracker(checksum_addresses=[self.checksum_address],
+                                                               staking_agent=staking_agent)
+
+            if not self.stake_tracker.stakes(checksum_address=self.checksum_address):
+                raise self.DetachedWorker
+            else:
+                self.stake_tracker.add_action(self._confirm_period)
+                if start_working_loop:
+                    self.stake_tracker.start()
 
     @property
     def last_active_period(self) -> int:
