@@ -45,6 +45,7 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
@@ -1002,6 +1003,8 @@ class Teacher:
         the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
         """
         staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
+        if staker_address == Blockchain.NULL_ADDRESS:
+            raise self.DetachedWorker
         return staker_address == self.checksum_address
 
     def _staker_is_really_staking(self) -> bool:
