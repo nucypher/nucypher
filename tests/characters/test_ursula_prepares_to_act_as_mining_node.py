@@ -87,6 +87,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
     assert first_ursula.verified_stamp
 
 
+@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ursulas):
     his_target = list(blockchain_ursulas)[4]
 
@@ -117,6 +118,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
         vladimir.validate_metadata()
 
 
+@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
 def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, blockchain_alice):
     his_target = list(blockchain_ursulas)[4]
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
@@ -131,6 +133,7 @@ def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, bloc
         vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
 
 
+@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
 def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
@@ -162,7 +165,8 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     label = b'bbo'
 
     # TODO: Investigate issues with wiggle room and additional ursulas during sampling. See also #1061
-    # 1 <= N <= 5 : OK
+    # 1 <= N <= 5 : OK (sometimes)
+    # M = N = 5: Cannot create policy with 5 arrangements: Selection failed after 5 attempts
     # N == 6 : NotEnoughBlockchainUrsulas: Cannot create policy with 6 arrangements: Selection failed after 5 attempts
     # N >= 7 : NotEnoughBlockchainUrsulas: Cannot create policy with 7 arrangements: Cannot create policy with 7 arrangements: 10 stakers are available, need 11 (for wiggle room)
     m = n = 5
