@@ -17,8 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_contract_status
@@ -28,16 +30,27 @@ from nucypher.cli.painting import paint_contract_status
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
 @click.option('--sync/--no-sync', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
 @nucypher_click_config
 def status(click_config, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
-    ETH_NODE = None
-    if geth:
-        ETH_NODE = get_provider_process()
-    blockchain = BlockchainInterface(provider_uri=provider_uri, provider_process=ETH_NODE, poa=poa)
-    blockchain.connect(sync_now=sync, fetch_registry=True)
-    paint_contract_status(click_config.emitter, click_config=click_config)
-    return  # Exit
+    click.clear()
+    click_config.emit(message=NU_BANNER)
+    click_config.emit(message="Reading Latest Chaindata...")
+
+    try:
+        ETH_NODE = None
+        if geth:
+            ETH_NODE = get_provider_process()
+        blockchain = BlockchainInterface(provider_uri=provider_uri, provider_process=ETH_NODE, poa=poa)
+        blockchain.connect(sync_now=sync, fetch_registry=True)
+        paint_contract_status(blockchain=blockchain, click_config=click_config)
+        return  # Exit
+
+    except Exception as e:
+        if click_config.debug:
+            raise
+        click.secho(str(e), bold=True, fg='red')
+        return  # Exit

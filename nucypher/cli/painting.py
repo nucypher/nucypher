@@ -169,7 +169,6 @@ def paint_known_nodes(emitter, ursula) -> None:
 
 def paint_contract_status(blockchain, click_config):
     contract_payload = f"""
-
 | NuCypher Contracts |
 
 Chain .....................{blockchain.interface.client.chain_name}
@@ -183,16 +182,13 @@ Adjudicator .............. {click_config.adjudicator_agent.contract_address}
     """
 
     network_payload = f"""
-
 | Staking |
 
 Current Period ........... {click_config.miner_agent.get_current_period()}
 Actively Staked Tokens.... {click_config.miner_agent.get_all_locked_tokens()}
-Published Stakes ......... {blockchain.interface.w3.eth.gasPrice}
-Gas Price ................ {click_config.miner_agent.get_miner_population()}
+Published Stakes ......... {click_config.miner_agent.get_miner_population()}
+Gas Price ................ {blockchain.interface.w3.eth.gasPrice}
     """
-
-    click.clear()
     click.secho(contract_payload)
     click.secho(network_payload)
 
