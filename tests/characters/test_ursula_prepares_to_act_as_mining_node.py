@@ -101,8 +101,8 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
 
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
-    vladimir._is_valid_worker = lambda: True
-    vladimir.validate_worker()
+    vladimir.validate_worker = lambda: True
+    vladimir.validate_worker()  # lol
 
     # Now, even though his public signing key matches Ursulas...
     assert vladimir.stamp == his_target.stamp
@@ -115,6 +115,20 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     # Consequently, the metadata as a whole is also invalid.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.validate_metadata()
+
+
+def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, blockchain_alice):
+    his_target = list(blockchain_ursulas)[4]
+    vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
+
+    message = vladimir._signable_interface_info_message()
+    signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
+    vladimir._Teacher__interface_signature = signature
+    vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    # However, the actual handshake proves him wrong.
+    with pytest.raises(vladimir.InvalidNode):
+        vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
 
 
 def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas):
@@ -130,8 +144,11 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     vladimir._Teacher__interface_signature = signature
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
 
+    vladimir._worker_is_bonded_to_staker = lambda: True
+    vladimir._staker_is_really_staking = lambda: True
+    vladimir.validate_worker()  # lol
+
     # With this slightly more sophisticated attack, his metadata does appear valid.
-    vladimir._is_valid_worker = lambda: True  # bypass staking verification TODO: Split into two tests
     vladimir.validate_metadata()
 
     # However, the actual handshake proves him wrong.
