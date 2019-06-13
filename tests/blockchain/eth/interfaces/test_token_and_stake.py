@@ -131,6 +131,8 @@ def test_stake_integration(stakers):
     assert stakes
 
     stake = stakes[0]
+    stake.sync()
+
     blockchain_stakes = staker.staking_agent.get_all_stakes(staker_address=staker.checksum_address)
 
     stake_info = (stake.start_period, stake.end_period, int(stake.value))
