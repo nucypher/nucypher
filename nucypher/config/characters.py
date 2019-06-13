@@ -22,6 +22,7 @@ from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
 
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
@@ -40,7 +41,9 @@ class UrsulaConfiguration(NodeConfiguration):
     def __init__(self,
                  dev_mode: bool = False,
                  db_filepath: str = None,
+                 stake_tracker: StakeTracker = None,
                  *args, **kwargs) -> None:
+        self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
@@ -67,6 +70,7 @@ class UrsulaConfiguration(NodeConfiguration):
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None,
+            stake_tracker=self.stake_tracker
         )
         return {**super().dynamic_payload, **payload}
 

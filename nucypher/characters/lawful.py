@@ -45,6 +45,7 @@ import nucypher
 from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
@@ -797,6 +798,8 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
+                 stake_tracker: StakeTracker = None,
+                 staking_agent: StakingEscrowAgent = None,
 
                  # Character
                  password: str = None,
@@ -844,7 +847,9 @@ class Ursula(Teacher, Character, Worker):
                 Worker.__init__(self,
                                 is_me=is_me,
                                 checksum_address=checksum_address,
-                                worker_address=worker_address)
+                                worker_address=worker_address,
+                                stake_tracker=stake_tracker,
+                                staking_agent=staking_agent)
 
                 # Access to worker's ETH client via node's transacting keys
                 # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
