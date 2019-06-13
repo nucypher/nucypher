@@ -424,7 +424,7 @@ def stakers(agency, token_economics):
 
     stakers = list()
     for index, account in enumerate(blockchain.stakers_accounts):
-        staker = Staker(is_me=True, start_staking_loop=False, checksum_address=account)
+        staker = Staker(is_me=True, checksum_address=account)
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
@@ -446,7 +446,7 @@ def stakers(agency, token_economics):
 
     # TODO: Fix staking loop in Staker
     for staker in stakers:
-        staker.refresh_staking_cache()
+        staker.stake_tracker.refresh()
 
     yield stakers
 
