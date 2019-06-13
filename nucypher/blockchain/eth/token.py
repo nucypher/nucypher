@@ -444,10 +444,10 @@ class StakeTracker:
     __actions = list()   # type: List[Tuple[Callable, tuple]]
 
     def __init__(self,
-                 checksum_address: str,
+                 checksum_addresses: List[str],
                  staking_agent: StakingEscrowAgent = None,
-                 refresh_rate: int = 60,  # TODO
-                 start_now: bool = True,
+                 refresh_rate: int = None,
+                 start_now: bool = False,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -455,7 +455,7 @@ class StakeTracker:
         self.log = Logger('stake-tracker')
         self.staking_agent = staking_agent or StakingEscrowAgent()
 
-        self._refresh_rate = refresh_rate
+        self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
 
         self.__current_period = None
@@ -466,12 +466,15 @@ class StakeTracker:
         self._abort_on_stake_tracking_error = True
 
         # "load-in":  Read on-chain stakes
-        if not is_checksum_address(checksum_address):
-            raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
-        self.tracking_addresses.add(checksum_address)
-        self.refresh()
+        for checksum_address in checksum_addresses:
+            if not is_checksum_address(checksum_address):
+                raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
+            self.tracking_addresses.add(checksum_address)
+
         if start_now:
-            self.start()
+            self.start()  # damonize
+        else:
+            self.refresh(checksum_addresses=checksum_addresses)  # read-once
 
     @validate_checksum_address
     def __getitem__(self, checksum_address: str):
@@ -500,9 +503,10 @@ class StakeTracker:
                 return NO_STAKES.bool_value(False)
             raise
 
-    def refresh(self) -> None:
+    @validate_checksum_address
+    def refresh(self, checksum_addresses: List[str] = None) -> None:
         """Public staking cache invalidation method"""
-        return self.__read_stakes()
+        return self.__read_stakes(checksum_addresses=checksum_addresses)
 
     def stop(self) -> None:
         self._tracking_task.stop()
@@ -551,10 +555,14 @@ class StakeTracker:
             for action, args in self.__actions:
                 action(*args)
 
-    def __read_stakes(self) -> None:
+    @validate_checksum_address
+    def __read_stakes(self, checksum_addresses: List[str] = None) -> None:
         """Rewrite the local staking cache by reading on-chain stakes"""
 
-        for checksum_address in self.tracking_addresses:
+        if not checksum_addresses:
+            checksum_addresses = self.tracking_addresses
+
+        for checksum_address in checksum_addresses:
 
             if not is_checksum_address(checksum_address):
                 if self._abort_on_stake_tracking_error:
