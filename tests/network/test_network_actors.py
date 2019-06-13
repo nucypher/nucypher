@@ -134,6 +134,7 @@ def test_treasure_map_is_legit(enacted_federated_policy):
         assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()
 
 
+@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
@@ -181,6 +182,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
 
+@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
                                                                   idle_blockchain_policy,
                                                                   blockchain_ursulas):
