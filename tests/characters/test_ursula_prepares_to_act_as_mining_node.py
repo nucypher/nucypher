@@ -159,7 +159,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
         vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
 
 
-# TODO: Change name of this file
+# TODO: Change name of this file, extract this test
 def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, blockchain_bob, policy_value):
 
     label = b'bbo'
