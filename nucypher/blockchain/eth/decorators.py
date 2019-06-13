@@ -6,6 +6,9 @@ import inspect
 import eth_utils
 
 
+VERIFIED_ADDRESSES = set()
+
+
 def validate_checksum_address(func: Callable) -> Callable:
     """
     EIP-55 Checksum address validation decorator.
@@ -38,6 +41,9 @@ def validate_checksum_address(func: Callable) -> Callable:
         except KeyError:
             return func(*args, **kwargs)  # ... don't mind me!
 
+        if checksum_address in VERIFIED_ADDRESSES:
+            return func(*args, **kwargs)  # ... nothing to validate
+
         # Optional checksum_address present in this call
         signature = inspect.signature(func)
         checksum_address_is_optional = signature.parameters[parameter_name].default is None
@@ -46,6 +52,7 @@ def validate_checksum_address(func: Callable) -> Callable:
 
         # Validate
         address_is_valid = eth_utils.is_checksum_address(checksum_address)
+        VERIFIED_ADDRESSES.add(checksum_address)
 
         # OK!
         if address_is_valid:
@@ -61,23 +68,5 @@ def validate_checksum_address(func: Callable) -> Callable:
         message = '"{}" is not a valid EIP-55 checksum address.'.format(checksum_address)
         log.debug(message)
         raise InvalidChecksumAddress(message)
-
-    return wrapped
-
-
-def nucypher_transaction(func: Callable) -> Callable:
-
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-
-        transaction_components = func(*args, **kwargs)
-
-        assembled_transaction = {
-            'gas': 0,
-            'gasPrice': 0,
-        }
-
-        transaction_components.update(assembled_transaction)
-        return transaction_components
 
     return wrapped
