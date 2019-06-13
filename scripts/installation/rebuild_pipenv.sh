@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# can change output file names with rebuild_pipenv.sh <prefix>
+PREFIX=${1:-requirements}
+
 read -p "Ok if we update your pip and setuptools? (type y or Y) " -n 1 -r
 echo 
 if [[ $REPLY =~ ^[Yy]$ ]]
@@ -8,17 +11,15 @@ then
     pip install --upgrade setuptools
 fi
 
-rm requirements.txt
-rm dev-requirements.txt
+rm $PREFIX.txt
+rm dev-$PREFIX.txt
 
-touch requirements.txt
-touch dev-requirements.txt
+touch $PREFIX.txt
+touch dev-$PREFIX.txt
 
 set -e 
 echo "rebuilding pipenv.lock... this will take awhile."
 pipenv lock --clear
 
-pipenv lock -r > requirements.txt
-pipenv lock -r --dev > dev-requirements.txt
-
-
+pipenv lock --clear --pre --requirements > $PREFIX.txt
+pipenv lock --clear --pre --requirements --dev > dev-$PREFIX.txt
