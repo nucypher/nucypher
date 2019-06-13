@@ -39,11 +39,10 @@ class Blockchain:
     _instance = NO_BLOCKCHAIN_AVAILABLE
     __default_interface_class = BlockchainInterface
 
-    def __init__(
-            self,
-            provider_process=None,
-            interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None,
-            dev: bool = False):
+    def __init__(self,
+                 provider_process=None,
+                 interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None,
+                 dev: bool = False):
 
         self.log = Logger("blockchain")
         self.dev = dev
