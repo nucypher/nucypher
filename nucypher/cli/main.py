@@ -77,7 +77,7 @@ def nucypher_cli(click_config,
 
     # Logging
     if not no_logs:
-        GlobalConsoleLogger.start_if_not_started()
+        GlobalConsoleLogger.start()
 
     # CLI Session Configuration
     click_config.verbose = verbose

@@ -105,3 +105,4 @@ def pytest_collection_modifyitems(config, items):
     log_level_name = config.getoption("--log-level", "info", skip=True)
 
     GlobalConsoleLogger.set_log_level(log_level_name)
+    GlobalConsoleLogger.start()

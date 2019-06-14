@@ -81,18 +81,13 @@ class GlobalConsoleLogger:
     @classmethod
     def set_log_level(cls, log_level_name):
         cls.log_level = LogLevel.levelWithName(log_level_name)
-        if not cls.started:
-            cls.start()
 
     @classmethod
     def start(cls):
+        if cls.started:
+            return
         globalLogPublisher.addObserver(getTextFileObserver())
         cls.started = True
-
-    @classmethod
-    def start_if_not_started(cls):
-        if not cls.started:
-            cls.start()
 
 
 def logToSentry(event):
