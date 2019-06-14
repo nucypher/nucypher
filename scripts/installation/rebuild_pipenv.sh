@@ -4,7 +4,7 @@
 PREFIX=${1:-requirements}
 
 read -p "Ok if we update your pip and setuptools? (type y or Y) " -n 1 -r
-echo 
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
     pip install --upgrade pip
@@ -17,9 +17,12 @@ rm dev-$PREFIX.txt
 touch $PREFIX.txt
 touch dev-$PREFIX.txt
 
-set -e 
+set -e
 echo "rebuilding pipenv.lock... this will take awhile."
-pipenv lock --clear
 
-pipenv lock --clear --pre --requirements > $PREFIX.txt
+echo "bulding dev-$PREFIX.txt"
 pipenv lock --clear --pre --requirements --dev > dev-$PREFIX.txt
+
+echo "building $PREFIX.txt"
+pipenv lock --clear --pre --requirements > $PREFIX.txt
+
