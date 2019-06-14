@@ -53,8 +53,8 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, capl
     assert unsigned not in lonely_blockchain_learner.known_nodes
 
     # TODO: #1035
-    # minus 3: self, a non-staking ursula, and the unsigned ursula.
-    assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 3
+    # minus 2: self and the unsigned ursula.
+    assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
 
