@@ -20,7 +20,9 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from functools import wraps
 from importlib import import_module
+from typing import Tuple
 
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.crypto.signing import InvalidSignature
 
 
@@ -86,7 +88,7 @@ class TrustedDevice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sign_eth_transaction(self):
+    def sign_eth_transaction(self, chain_id: int, **transaction):
         """
         Abstract method for signing an Ethereum transaction via a device's
         API.
@@ -160,7 +162,8 @@ class Trezor(TrustedDevice):
         return self.Signature(sig.signature, sig.address)
 
     @_handle_device_call
-    def verify_message(self, signature: bytes, message: bytes, address: str):
+    @validate_checksum_address
+    def verify_message(self, signature: bytes, message: bytes, checksum_address: str):
         """
         Verifies that a signature and message pair are from a specified
         address via the TREZOR ethereum verify_message API. This method
@@ -172,12 +175,13 @@ class Trezor(TrustedDevice):
 
         TODO: Should we provide some input validation for the ETH address?
         """
-        is_valid = self.trezor_eth.verify_message(self.client, address,
+        is_valid = self.trezor_eth.verify_message(self.client, checksum_address,
                                                   signature, message)
         if not is_valid:
             raise InvalidSignature("Signature verification failed.")
         return True
 
     @_handle_device_call
-    def sign_eth_transaction(self):
-        raise NotImplementedError
+    def sign_eth_transaction(self, chain_id: int, **transaction) -> Tuple[bytes]:
+        response = self.trezor_eth.ethereum.sign_tx(client=self.client, chain_id=chain_id, **transaction)
+        return response
