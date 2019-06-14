@@ -21,7 +21,7 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
-from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
+from nucypher.utilities.logging import GlobalLogger, logToSentry
 # Logger Configuration
 #
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -104,5 +104,5 @@ def pytest_collection_modifyitems(config, items):
 
     log_level_name = config.getoption("--log-level", "info", skip=True)
 
-    GlobalConsoleLogger.set_log_level(log_level_name)
-    GlobalConsoleLogger.start()
+    GlobalLogger.set_log_level(log_level_name)
+    GlobalLogger.start()

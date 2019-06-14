@@ -9,7 +9,7 @@ from twisted.logger import globalLogPublisher
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.logging import ConsoleLoggingObserver
 
 
 ######################
@@ -20,7 +20,7 @@ from nucypher.utilities.logging import SimpleObserver
 # Twisted Logger
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
-globalLogPublisher.addObserver(SimpleObserver())
+globalLogPublisher.addObserver(ConsoleLoggingObserver())
 
 TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 

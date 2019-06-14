@@ -65,15 +65,15 @@ def getTextFileObserver(name="nucypher.log", path=USER_LOG_DIR):
     return observer
 
 
-class SimpleObserver:
+class ConsoleLoggingObserver:
 
     @provider(ILogObserver)
     def __call__(self, event):
-        if event['log_level'] >= GlobalConsoleLogger.log_level:
+        if event['log_level'] >= GlobalLogger.log_level:
             print(formatEvent(event))
 
 
-class GlobalConsoleLogger:
+class GlobalLogger:
 
     log_level = LogLevel.levelWithName("info")
     started = False

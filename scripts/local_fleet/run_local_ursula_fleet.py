@@ -28,8 +28,6 @@ from twisted.internet import protocol
 from twisted.internet import reactor
 from twisted.logger import globalLogPublisher
 
-from nucypher.utilities.logging import SimpleObserver
-
 
 FLEET_POPULATION = 5
 DEMO_NODE_STARTING_PORT = 11501
