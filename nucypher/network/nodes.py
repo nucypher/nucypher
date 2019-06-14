@@ -1085,8 +1085,13 @@ class Teacher:
 
         """
 
-        # Only perform this check once per object
-        if not force and self.verified_node:
+        if force:
+            self.verified_interface = False
+            self.verified_node = False
+            self.verified_stamp = False
+            self.verified_worker = False
+
+        if self.verified_node:
             return True
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
