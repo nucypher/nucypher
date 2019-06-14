@@ -265,6 +265,9 @@ class GethClient(Web3Client):
     def peers(self):
         return self.w3.geth.admin.peers()
 
+    def new_account(self, password: str) -> str:
+        return self.w3.geth.personal.newAccount(password)
+
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 

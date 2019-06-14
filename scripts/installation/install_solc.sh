@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-SOLC_VER="0.5.9"
+SOLC_VER="0.5.8"
 SOL_BIN_PATH="$(pipenv --venv)/bin/solc"
 
 echo "Downloading solidity compiler binary to: ${SOL_BIN_PATH}"

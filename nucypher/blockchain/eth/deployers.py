@@ -191,7 +191,7 @@ class DispatcherDeployer(ContractDeployer):
                                                        proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
-        args = (self.contract_name, self.target_contract.address, secret_hash)
+        args = (self.contract_name, self.target_contract.address, bytes(secret_hash))
         dispatcher_contract, txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *args)
         self._contract = dispatcher_contract
         return {'txhash': txhash}
