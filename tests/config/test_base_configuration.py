@@ -147,7 +147,7 @@ def test_configuration_preservation():
 
     # Serialize
     serialized_item = restorable_item.serialize()
-    serialized_payload = json.dumps(restorable_item.static_payload(), indent=4)
+    serialized_payload = json.dumps(restorable_item.static_payload(), indent=BaseConfiguration.INDENTATION)
     assert serialized_item == serialized_payload
 
     # Write to JSON file
