@@ -47,19 +47,19 @@ def initialize_sentry(dsn: str):
     )
 
 
-def _get_or_create_user_log_dir():
-    return pathlib.Path(USER_LOG_DIR).mkdir(parents=True, exist_ok=True)
+def _ensure_dir_exists(path):
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def getJsonFileObserver(name="ursula.log.json", path=USER_LOG_DIR):  # TODO: More configurable naming here?
-    _get_or_create_user_log_dir()
+    _ensure_dir_exists(path)
     logfile = DailyLogFile(name, path)
     observer = jsonFileLogObserver(outFile=logfile)
     return observer
 
 
 def getTextFileObserver(name="nucypher.log", path=USER_LOG_DIR):
-    _get_or_create_user_log_dir()
+    _ensure_dir_exists(path)
     logfile = DailyLogFile(name, path)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
     return observer
