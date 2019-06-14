@@ -721,7 +721,16 @@ class StakeHolder(BaseConfiguration):
         super().__init__(*args, **kwargs)
 
         self.log = Logger(f"stakeholder")
+
+        # Blockchain and Contract connection
         self.blockchain = blockchain
+        self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+        self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+        self.economics = TokenEconomics()
+
+        # Mode
+        if not offline_mode:
+            self.connect(blockchain=blockchain)
         self.offline_mode = offline_mode
         self.eth_funding = Web3.toWei('0.1', 'ether')  # TODO: How much ETH to use while funding new stakes.
 
