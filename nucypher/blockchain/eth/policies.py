@@ -148,7 +148,7 @@ class BlockchainPolicy(Policy):
 
         duration = end_block - start_block
 
-        staker = Staker(address=staker_address, staking_agent=self.author.policy_agent.staking_agent, is_me=False)
+        staker = Staker(address=staker_address, is_me=False)
         arrangement = BlockchainArrangement(alice=self.author,
                                             ursula=staker,
                                             value=rate*duration,   # TODO Check the math/types here

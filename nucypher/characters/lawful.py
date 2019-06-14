@@ -848,8 +848,7 @@ class Ursula(Teacher, Character, Worker):
                                 is_me=is_me,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                stake_tracker=stake_tracker,
-                                staking_agent=staking_agent)
+                                stake_tracker=stake_tracker)
 
                 # Access to worker's ETH client via node's transacting keys
                 # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
