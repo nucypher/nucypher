@@ -103,6 +103,7 @@ def test_initialize_system_blockchain_configuration(click_runner,
         assert TEMPORARY_DOMAIN in config_data['domains']
 
 
+@pytest.mark.skip(reason="Wait for #1056")
 def test_init_ursula_stake(click_runner,
                            configuration_file_location,
                            funded_blockchain,
@@ -129,6 +130,7 @@ def test_init_ursula_stake(click_runner,
     assert NU(int(value), 'NuNit') == stake_value
 
 
+@pytest.mark.skip(reason="Wait for #1056")
 def test_list_ursula_stakes(click_runner,
                             funded_blockchain,
                             configuration_file_location,
@@ -143,6 +145,7 @@ def test_list_ursula_stakes(click_runner,
     assert str(stake_value) in result.output
 
 
+@pytest.mark.skip(reason="Wait for #1056")
 def test_ursula_divide_stakes(click_runner, configuration_file_location, token_economics):
 
     divide_args = ('ursula', 'stake',
@@ -169,6 +172,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
+@pytest.mark.skip(reason="Wait for #1056")
 def test_run_blockchain_ursula(click_runner,
                                configuration_file_location,
                                staking_participant):
@@ -184,7 +188,8 @@ def test_run_blockchain_ursula(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-a
+
+@pytest.mark.skip(reason="Wait for #1056")
 def test_collect_rewards_integration(click_runner,
                                      configuration_file_location,
                                      blockchain_alice,
