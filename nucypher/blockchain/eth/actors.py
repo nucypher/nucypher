@@ -358,15 +358,13 @@ class Staker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 staking_agent: StakingEscrowAgent = None,
                  economics: TokenEconomics = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
-        staker_tracker = StakeTracker(checksum_addresses=[self.checksum_address], staking_agent=staking_agent)
-        self.stake_tracker = staker_tracker
-        self.staking_agent = self.stake_tracker.staking_agent
+        self.stake_tracker = StakeTracker(checksum_addresses=[self.checksum_address])
+        self.staking_agent = StakingEscrowAgent()
         self.economics = economics or TokenEconomics()
         self.is_me = is_me
 
@@ -527,7 +525,6 @@ class Worker(NucypherTokenActor):
                  stake_tracker: StakeTracker = None,
                  worker_address: str = None,
                  start_working_loop: bool = True,
-                 staking_agent: StakingEscrowAgent = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -547,8 +544,7 @@ class Worker(NucypherTokenActor):
 
         # Workers cannot be started without being assigned a stake first.
         if is_me:
-            self.stake_tracker = stake_tracker or StakeTracker(checksum_addresses=[self.checksum_address],
-                                                               staking_agent=staking_agent)
+            self.stake_tracker = stake_tracker or StakeTracker(checksum_addresses=[self.checksum_address])
 
             if not self.stake_tracker.stakes(checksum_address=self.checksum_address):
                 raise self.DetachedWorker

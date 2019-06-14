@@ -445,7 +445,6 @@ class StakeTracker:
 
     def __init__(self,
                  checksum_addresses: List[str],
-                 staking_agent: StakingEscrowAgent = None,
                  refresh_rate: int = None,
                  start_now: bool = False,
                  *args, **kwargs):
@@ -453,7 +452,7 @@ class StakeTracker:
         super().__init__(*args, **kwargs)
 
         self.log = Logger('stake-tracker')
-        self.staking_agent = staking_agent or StakingEscrowAgent()
+        self.staking_agent = StakingEscrowAgent()
 
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
@@ -472,7 +471,7 @@ class StakeTracker:
             self.tracking_addresses.add(checksum_address)
 
         if start_now:
-            self.start()  # damonize
+            self.start()  # deamonize
         else:
             self.refresh(checksum_addresses=checksum_addresses)  # read-once
 
