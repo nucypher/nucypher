@@ -271,7 +271,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
 
         stakers_population = self.get_staker_population()
         if quantity > stakers_population:
-            raise self.NotEnoughStakers('{} stakers are available, need {} (for wiggle room)'.format(stakers_population, quantity))
+            raise self.NotEnoughStakers(f'There are {stakers_population} published stakers, need a total of {quantity}.')
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
