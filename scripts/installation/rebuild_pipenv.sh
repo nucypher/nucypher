@@ -11,8 +11,8 @@ then
     pip install --upgrade setuptools
 fi
 
-rm $PREFIX.txt
-rm dev-$PREFIX.txt
+rm -f $PREFIX.txt
+rm -f dev-$PREFIX.txt
 
 touch $PREFIX.txt
 touch dev-$PREFIX.txt
