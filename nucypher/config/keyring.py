@@ -568,7 +568,7 @@ class NucypherKeyring:
             pass
 
         if not checksum_address:
-            raise ValueError("Checksum address must bas provided for non-federated keyring generation")
+            raise ValueError("Checksum address must be provided for non-federated keyring generation")
 
         __key_filepaths = cls._generate_key_filepaths(account=checksum_address,
                                                       private_key_dir=_private_key_dir,

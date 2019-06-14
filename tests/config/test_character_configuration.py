@@ -23,8 +23,8 @@ blockchain_only_characters = (Felix, )
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
-all_characters = tuple(list(characters) + list(blockchain_only_characters))
-all_configurations = tuple(list(configurations) + list(blockchain_only_configurations))
+all_characters = tuple(characters + blockchain_only_characters)
+all_configurations = tuple(configurations + blockchain_only_configurations)
 
 
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
