@@ -14,16 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import inspect
 
-from eth_keys.datatypes import PublicKey, Signature as EthSignature
-from eth_keys.exceptions import BadSignature
-from eth_utils import keccak
+
+import inspect
 from typing import List, Tuple, Optional
+
+from constant_sorrow.constants import NO_STAKING_DEVICE
+from eth_account._utils.transactions import encode_transaction
+from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
-from nucypher.crypto.signing import InvalidSignature
+from nucypher.cli.hardware.backends import TrustedDevice
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -92,13 +94,14 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str) -> None:
+    def __init__(self, blockchain: 'Blockchain', account: str, device: TrustedDevice = NO_STAKING_DEVICE) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
         self.blockchain = blockchain
         self.account = account
         self.is_unlocked = False
+        self.device = device
 
     def unlock_account(self, password: str):
         """
@@ -115,8 +118,21 @@ class BlockchainPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-        signature = self.blockchain.interface.client.sign_message(self.account, message)
+        if self.device is not NO_STAKING_DEVICE:
+            address_index = self.account  # TODO: Lookup the account index
+            signature = self.device.sign_message(message=message, address_index=address_index)  # FIXME
+        else:
+            signature = self.blockchain.interface.client.sign_message(self.account, message)
         return signature
+
+    def sign_transaction(self, transaction) -> HexBytes:
+        if self.device is not NO_STAKING_DEVICE:
+            txhash = self.blockchain.client.w3.eth.sendTransaction(transaction=transaction)
+        else:
+            transaction_signature = self.device.sign_eth_transaction(transaction)  # TODO: Handle Timeout / Error
+            singed_raw_transaction = encode_transaction(unsigned_transaction=transaction, vrs=transaction_signature)
+            txhash = self.blockchain.client.w3.eth.sendRawTransaction(raw_transaction=singed_raw_transaction)
+        return txhash
 
     def __del__(self):
         """
