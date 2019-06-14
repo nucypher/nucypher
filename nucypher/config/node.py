@@ -437,7 +437,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.connect_to_blockchain()
                 if not self.blockchain.interface.w3.eth.accounts:
                     raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_address = self.blockchain.interface.w3.eth.accounts[0]
+                self.checksum_address = self.blockchain.interface.etherbase
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
