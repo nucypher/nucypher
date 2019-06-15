@@ -47,7 +47,7 @@ contributing proposed changes:
 
    $ git remote update
 
-.. _`Developer Installation Guide`: /guides/installation_guide
+.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/guides/installation_guide.html
 
 5. Install the project dependencies: see the `Developer Installation Guide`_
 

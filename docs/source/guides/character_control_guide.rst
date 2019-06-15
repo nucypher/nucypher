@@ -36,7 +36,7 @@ This tells you that the server successfully completed the call.
 If you are returned a 400, check the data that you're sending to the server.
 See below for what the character control API expects.
 
-.. _`Contribution Guide`: https://docs.nucypher.com/en/latest/guides/contribution_guide.html/
+.. _`Contribution Guide`: https://docs.nucypher.com/en/latest/guides/contribution_guide.html
 .. _`Discord`: https://discord.gg/7rmXa3S
 
 If you are ever given a 500 status code, we'd like to know about it!

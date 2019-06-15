@@ -158,7 +158,7 @@ Alternately, you can install the development dependencies with pip:
 
 ```bash
 $ pip install -e .[development]
-$ ./scripts/install_solc.sh
+$ ./scripts/installation/install_solc.sh
 ```
 
 ## Systemd Service Installation

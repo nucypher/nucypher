@@ -1,6 +1,7 @@
 ## Postman collection
 
-This collection is designed to help in testing the nucypher encryption workflow.  Each item is linked to environment variables that are injected into future calls.
+This collection is designed to help in testing the nucypher encryption workflow.
+Each item is linked to environment variables that are injected into future calls.
 
 The order to call the collection is as follows
 

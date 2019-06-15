@@ -26,7 +26,7 @@ TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
 
 
 # if your ursulas are NOT running on your current host,
-# run like this: python finnegans-wake-demo.py 172.28.1.3:11500
+# run like this: python alicia.py 172.28.1.3:11500
 # otherwise the default will be fine.
 
 try:

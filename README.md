@@ -49,7 +49,7 @@ and he can subsequently decrypt it with his private key.
 
 More detailed information:
 
-- Documentation https://nucypher.readthedocs.io/en/latest/
+- Documentation https://docs.nucypher.com/
 - Website https://www.nucypher.com/
 
 
