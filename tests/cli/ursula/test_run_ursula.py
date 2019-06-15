@@ -36,8 +36,8 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('--debug',                                  # Display log output; Do not attach console
-            'ursula', 'run',                            # Stat Ursula Command
+    args = ('ursula', 'run',                            # Stat Ursula Command
+            '--debug',                                  # Display log output; Do not attach console
             '--federated-only',                         # Operating Mode
             '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
             '--dev',                                    # Run in development mode (ephemeral node)
@@ -74,8 +74,8 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
 
     def run_ursula(teacher_uri):
 
-        args = ('--debug',                                  # Display log output; Do not attach console
-                'ursula', 'run',
+        args = ('ursula', 'run',
+                '--debug',                                  # Display log output; Do not attach console
                 '--federated-only',                         # Operating Mode
                 '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
                 '--teacher-uri', teacher_uri,

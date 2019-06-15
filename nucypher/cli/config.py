@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import collections
+import functools
 import os
 
 import click
@@ -27,14 +28,20 @@ from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.config.node import NodeConfiguration
+from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
     initialize_sentry,
-    getJsonFileObserver
+    getJsonFileObserver,
+    GlobalLogger,
+    ConsoleLoggingObserver,
 )
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 class NucypherClickConfig:
@@ -60,14 +67,9 @@ class NucypherClickConfig:
         globalLogPublisher.addObserver(getTextFileObserver())
         globalLogPublisher.addObserver(getJsonFileObserver())
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # You guessed it
-        self.debug = False
+    def __init__(self):
 
         # Logging
-        self.quiet = False
         self.log = Logger(self.__class__.__name__)
 
         # Auth
@@ -76,6 +78,66 @@ class NucypherClickConfig:
         # Blockchain
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
+
+    def set_options(self,
+                    mock_networking,
+                    json_ipc,
+                    verbose,
+                    no_logs,
+                    quiet,
+                    debug,
+                    no_registry):
+
+        # Session Emitter for pre and post character control engagement.
+        if json_ipc:
+            emitter = IPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+        else:
+            emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+
+        self.attach_emitter(emitter)
+        self.emit(message=NUCYPHER_BANNER)
+
+        if debug and quiet:
+            raise click.BadOptionUsage(
+                option_name="quiet",
+                message="--debug and --quiet cannot be used at the same time.")
+
+        if debug:
+            self.log_to_sentry = False
+            self.log_to_file = True                 # File Logging
+            globalLogPublisher.addObserver(ConsoleLoggingObserver())  # Console Logging
+            globalLogPublisher.removeObserver(logToSentry)  # No Sentry
+            GlobalLogger.set_log_level(log_level_name='debug')
+
+        elif quiet:  # Disable Logging
+            globalLogPublisher.removeObserver(logToSentry)
+            globalLogPublisher.removeObserver(ConsoleLoggingObserver)
+            globalLogPublisher.removeObserver(getJsonFileObserver())
+
+        # Logging
+        if not no_logs:
+            GlobalLogger.start()
+
+        # CLI Session Configuration
+        self.verbose = verbose
+        self.mock_networking = mock_networking
+        self.json_ipc = json_ipc
+        self.no_logs = no_logs
+        self.quiet = quiet
+        self.no_registry = no_registry
+        self.debug = debug
+
+        # Only used for testing outputs;
+        # Redirects outputs to in-memory python containers.
+        if mock_networking:
+            self.emit(message="WARNING: Mock networking is enabled")
+            self.middleware = MockRestMiddleware()
+        else:
+            self.middleware = RestMiddleware()
+
+        # Global Warnings
+        if self.verbose:
+            self.emit(message="Verbose mode is enabled", color='blue')
 
     def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
         try:
@@ -143,9 +205,6 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
     __secrets = ('miner_secret', 'policy_secret', 'escrow_proxy_secret', 'mining_adjudicator_secret')
     Secrets = collections.namedtuple('Secrets', __secrets)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def collect_deployment_secrets(self) -> Secrets:
 
         # Deployment Environment Variables
@@ -183,5 +242,57 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
 
 
 # Register the above click configuration classes as a decorators
-nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
-nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
+_nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
+_nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
+
+
+def shared_cli_options(func):
+
+    @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
+    @click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True)
+    @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
+    @click.option('-Q', '--quiet', help="Disable console printing", is_flag=True)
+    @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
+    @click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
+    @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+    @functools.wraps(func)
+    def wrapper(config,
+                *args,
+                mock_networking,
+                json_ipc,
+                verbose,
+                no_logs,
+                quiet,
+                debug,
+                no_registry,
+                **kwargs):
+
+        config.set_options(
+            mock_networking,
+            json_ipc,
+            verbose,
+            no_logs,
+            quiet,
+            debug,
+            no_registry)
+
+        return func(config, *args, **kwargs)
+    return wrapper
+
+
+def nucypher_click_config(func):
+    @_nucypher_click_config
+    @shared_cli_options
+    @functools.wraps(func)
+    def wrapper(config, *args, **kwargs):
+        return func(config, *args, **kwargs)
+    return wrapper
+
+
+def nucypher_deployer_config(func):
+    @_nucypher_deployer_config
+    @shared_cli_options
+    @functools.wraps(func)
+    def wrapper(config, *args, **kwargs):
+        return func(config, *args, **kwargs)
+    return wrapper

@@ -47,7 +47,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.command()
 @click.argument('action')
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
@@ -79,7 +78,6 @@ from nucypher.utilities.sandbox.constants import (
 def ursula(click_config,
            action,
            dev,
-           quiet,
            dry_run,
            force,
            lonely,
@@ -134,7 +132,7 @@ def ursula(click_config,
     if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
-    if click_config.debug and quiet:
+    if click_config.debug and click_config.quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
     # Banner
@@ -395,7 +393,7 @@ def ursula(click_config,
                                                             target_value=value,
                                                             additional_periods=extension)
 
-            if not quiet:
+            if not click_config.quiet:
                 click.secho('Successfully divided stake', fg='green')
                 click.secho(f'Transaction Hash ........... {new_stake.receipt}')
 
@@ -413,7 +411,7 @@ def ursula(click_config,
         if balance == 0:
             click.secho(f"{URSULA.checksum_address} has 0 NU.")
             raise click.Abort
-        if not quiet:
+        if not click_config.quiet:
             click.echo(f"Current balance: {balance}")
 
         # Gather stake value
@@ -424,7 +422,7 @@ def ursula(click_config,
             value = NU(int(value), 'NU')
 
         # Duration
-        if not quiet:
+        if not click_config.quiet:
             message = f"Minimum duration: {URSULA.economics.minimum_allowed_locked} | " \
                       f"Maximum Duration: {URSULA.economics.maximum_allowed_locked}"
             click.echo(message)

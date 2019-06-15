@@ -13,7 +13,6 @@ from nucypher.crypto.powers import DecryptingPower
 @click.argument('action')
 @click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
@@ -33,7 +32,6 @@ from nucypher.crypto.powers import DecryptingPower
 @nucypher_click_config
 def bob(click_config,
         action,
-        quiet,
         teacher_uri,
         min_stake,
         http_port,

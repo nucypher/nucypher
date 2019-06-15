@@ -281,8 +281,8 @@ def test_collect_rewards_integration(click_runner,
     assert blockchain.interface.w3.eth.getBalance(burner_wallet.address) == 0
 
     # Snag a random teacher from the fleet
-    collection_args = ('--mock-networking',
-                       'ursula', 'collect-reward',
+    collection_args = ('ursula', 'collect-reward',
+                       '--mock-networking',
                        '--config-file', configuration_file_location,
                        '--withdraw-address', burner_wallet.address,
                        '--force')

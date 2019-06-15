@@ -70,8 +70,8 @@ def test_run_felix(click_runner,
 
     # Felix Runs Web Services
     def run_felix():
-        args = ('--debug',
-                'felix', 'run',
+        args = ('felix', 'run',
+                '--debug',
                 '--config-file', configuration_file_location,
                 '--provider-uri', TEST_PROVIDER_URI,
                 '--dry-run',

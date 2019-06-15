@@ -115,8 +115,8 @@ def test_cli_lifecycle(click_runner,
 
     # Alice uses her configuration file to run the character "view" command
     alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.CONFIG_FILENAME)
-    alice_view_args = ('--json-ipc',
-                       'alice', 'public-keys',
+    alice_view_args = ('alice',
+                       '--json-ipc', 'public-keys',
                        '--config-file', alice_configuration_file_location)
 
     alice_view_result = click_runner.invoke(nucypher_cli, alice_view_args, catch_exceptions=False, env=envvars)
@@ -142,8 +142,8 @@ def test_cli_lifecycle(click_runner,
 
     # Alice uses her configuration file to run the character "view" command
     bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.CONFIG_FILENAME)
-    bob_view_args = ('--json-ipc',
-                     'bob', 'public-keys',
+    bob_view_args = ('bob',
+                     '--json-ipc', 'public-keys',
                      '--config-file', bob_configuration_file_location)
 
     bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
@@ -162,9 +162,9 @@ def test_cli_lifecycle(click_runner,
 
     random_label = random_policy_label.decode()  # Unicode string
 
-    derive_args = ('--mock-networking',
+    derive_args = ('alice', 'derive-policy-pubkey',
+                   '--mock-networking',
                    '--json-ipc',
-                   'alice', 'derive-policy-pubkey',
                    '--config-file', alice_configuration_file_location,
                    '--label', random_label)
 
@@ -187,9 +187,9 @@ def test_cli_lifecycle(click_runner,
         # Fetch!
         policy = side_channel.fetch_policy()
 
-        enrico_args = ('--json-ipc',
-                       'enrico',
+        enrico_args = ('enrico',
                        'encrypt',
+                       '--json-ipc',
                        '--policy-encrypting-key', policy.encrypting_key,
                        '--message', PLAINTEXT)
 
@@ -212,9 +212,9 @@ def test_cli_lifecycle(click_runner,
         message_kit = encrypt_result['result']['message_kit']
 
         decrypt_args = (
+            'alice', 'decrypt',
             '--mock-networking',
             '--json-ipc',
-            'alice', 'decrypt',
             '--config-file', alice_configuration_file_location,
             '--message-kit', message_kit,
             '--label', policy.label,
@@ -259,9 +259,9 @@ def test_cli_lifecycle(click_runner,
         bob_encrypting_key = bob_keys.bob_encrypting_key
         bob_verifying_key = bob_keys.bob_verifying_key
 
-        grant_args = ('--mock-networking',
+        grant_args = ('alice', 'grant',
+                      '--mock-networking',
                       '--json-ipc',
-                      'alice', 'grant',
                       '--network', TEMPORARY_DOMAIN,
                       '--teacher-uri', teacher_uri,
                       '--config-file', alice_configuration_file_location,
@@ -302,9 +302,9 @@ def test_cli_lifecycle(click_runner,
 
         alice_signing_key = side_channel.fetch_alice_pubkey()
 
-        retrieve_args = ('--mock-networking',
+        retrieve_args = ('bob', 'retrieve',
+                         '--mock-networking',
                          '--json-ipc',
-                         'bob', 'retrieve',
                          '--teacher-uri', teacher_uri,
                          '--config-file', bob_configuration_file_location,
                          '--message-kit', ciphertext_message_kit,
