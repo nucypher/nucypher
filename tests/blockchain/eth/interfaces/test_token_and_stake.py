@@ -3,7 +3,7 @@ from decimal import InvalidOperation, Decimal
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -110,7 +110,7 @@ def test_stake(testerchain, agency):
         staking_agent = staking_agent
         token_agent = token_agent
         blockchain = testerchain
-        economics = TokenEconomics()
+        economics = StandardTokenEconomics()
 
     ursula = FakeUrsula()
     stake = Stake(checksum_address=ursula.checksum_address,

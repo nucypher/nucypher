@@ -175,8 +175,10 @@ class Stake:
         self.final_locked_period = final_locked_period
 
         # Time
-        self.start_datetime = datetime_at_period(period=first_locked_period)
-        self.unlock_datetime = datetime_at_period(period=final_locked_period + 1)
+        self.start_datetime = datetime_at_period(period=first_locked_period,
+                                                 seconds_per_period=miner.economics.seconds_per_period)
+        self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
+                                                  seconds_per_period=miner.economics.seconds_per_period)
 
         # Blockchain
         self.staking_agent = staking_agent

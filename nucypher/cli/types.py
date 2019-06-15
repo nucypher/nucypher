@@ -18,9 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from ipaddress import ip_address
 
 import click
-from eth_utils import is_checksum_address, to_checksum_address
+from eth_utils import to_checksum_address
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.token import NU
 
 
@@ -43,7 +43,7 @@ class IPv4Address(click.ParamType):
             return value
 
 
-token_economics = TokenEconomics()
+token_economics = StandardTokenEconomics()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 
 # Staking

@@ -20,7 +20,7 @@ from twisted.logger import Logger
 
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -206,7 +206,7 @@ class Felix(Character, NucypherTokenActor):
         self.start_time = NOT_RUNNING
 
         if not economics:
-            economics = TokenEconomics()
+            economics = StandardTokenEconomics()
         self.economics = economics
 
         self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked

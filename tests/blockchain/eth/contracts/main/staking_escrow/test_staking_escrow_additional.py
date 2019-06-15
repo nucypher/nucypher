@@ -32,7 +32,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token, deploy_contract):
+def test_upgrading(testerchain, token, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
 
@@ -41,16 +41,7 @@ def test_upgrading(testerchain, token, deploy_contract):
 
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        contract_name='StakingEscrow',
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=8*10**7,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=2,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=1500,
-        _minWorkerPeriods=1
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
@@ -73,7 +64,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    assert 1500 == contract.functions.maxAllowableLockedTokens().call()
+    assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
@@ -116,7 +107,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     testerchain.wait_for_receipt(tx)
     # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
-    assert 1500 == contract.functions.maxAllowableLockedTokens().call()
+    assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
     # Check new ABI

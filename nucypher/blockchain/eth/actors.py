@@ -33,7 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak
 from twisted.logger import Logger
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -409,7 +409,7 @@ class Staker(NucypherTokenActor):
         # Blockchain
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.economics = economics or TokenEconomics()
+        self.economics = economics or StandardTokenEconomics()
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
     def to_dict(self) -> dict:
@@ -668,7 +668,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
 
-        self.economics = economics or TokenEconomics()
+        self.economics = economics or StandardTokenEconomics()
         self.rate = rate
         self.duration_periods = duration_periods
         self.first_period_reward = first_period_reward

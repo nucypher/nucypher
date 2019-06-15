@@ -24,6 +24,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
+from nucypher.blockchain.economics import TokenEconomics
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -44,26 +45,31 @@ adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
-def token(testerchain, deploy_contract):
+def token_economics():
+    economics = TokenEconomics(initial_supply=10 ** 9,
+                               total_supply=2 * 10 ** 9,
+                               staking_coefficient=8 * 10 ** 7,
+                               locked_periods_coefficient=4,
+                               maximum_rewarded_periods=4,
+                               hours_per_period=1,
+                               minimum_locked_periods=2,
+                               minimum_allowed_locked=100,
+                               maximum_allowed_locked=2000)
+    return economics
+
+
+@pytest.fixture()
+def token(token_economics, deploy_contract):
     # Create an ERC20 token
-    contract, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    contract, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
     return contract
 
 
 @pytest.fixture()
-def escrow(testerchain, token, deploy_contract):
+def escrow(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        contract_name='StakingEscrow',
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=8*10**7,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=6,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=2000,
-        _minWorkerPeriods=2
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
 
     secret_hash = testerchain.w3.keccak(escrow_secret)
@@ -243,6 +249,7 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
 
 @pytest.mark.slow
 def test_all(testerchain,
+             token_economics,
              token,
              escrow,
              policy_manager,
@@ -304,8 +311,7 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Initialize escrow
-    reward = 10 ** 9
-    tx = token.functions.transfer(escrow.address, reward).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
@@ -474,7 +480,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert reward + 2000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 2000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula1, 1).call()
@@ -494,7 +500,7 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 10).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address, 11).call()
-    assert reward + 3000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 3000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(user_escrow_1.address).call()
 
     # Only user can deposit tokens to the staking escrow
@@ -680,16 +686,7 @@ def test_all(testerchain,
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
     escrow_v2, _ = deploy_contract(
-        contract_name='StakingEscrow',
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=8 * 10 ** 7,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=6,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=2000,
-        _minWorkerPeriods=2
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
     # Ursula and Alice can't upgrade contracts, only owner can

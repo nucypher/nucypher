@@ -20,6 +20,7 @@ import pytest
 from web3.contract import Contract
 from eth_utils import keccak
 
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
 
 VALUE_FIELD = 0
@@ -28,29 +29,32 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
-def token(testerchain, deploy_contract):
+def token_economics():
+    economics = TokenEconomics(initial_supply=10 ** 9,
+                               total_supply=2 * 10 ** 9,
+                               staking_coefficient=8 * 10 ** 7,
+                               locked_periods_coefficient=4,
+                               maximum_rewarded_periods=4,
+                               hours_per_period=1,
+                               minimum_locked_periods=2,
+                               minimum_allowed_locked=100)
+    return economics
+
+
+@pytest.fixture()
+def token(deploy_contract, token_economics):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
     return token
 
 
 @pytest.fixture(params=[False, True])
-def escrow_contract(testerchain, token, request, deploy_contract):
+def escrow_contract(testerchain, token, token_economics, request, deploy_contract):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
-        _staking_coefficient = 2 * 10 ** 7
-        contract, _ = deploy_contract(
-            contract_name='StakingEscrow',
-            _token=token.address,
-            _hoursPerPeriod=1,
-            _miningCoefficient=4 * _staking_coefficient,
-            _lockedPeriodsCoefficient=4,
-            _rewardedPeriods=4,
-            _minLockedPeriods=2,
-            _minAllowableLockedTokens=100,
-            _maxAllowableLockedTokens=max_allowed_locked_tokens,
-            _minWorkerPeriods=1
-        )
+        deploy_parameters = list(token_economics.staking_deployment_parameters)
+        deploy_parameters[-1] = max_allowed_locked_tokens
+        contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
 
         if request.param:
             secret_hash = keccak(secret)

@@ -20,29 +20,33 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
 
 SECRET_LENGTH = 32
+TOTAL_SUPPLY = 2 * 10 ** 40
 
 
 @pytest.fixture()
 def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 40, 'NuNit')))
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=TOTAL_SUPPLY)
     return token
 
 
 @pytest.mark.slow
 def test_issuer(testerchain, token, deploy_contract):
-    mining_coefficient = 10 ** 43
-    locked_periods_coefficient = 10 ** 4
-    total_supply = token.functions.totalSupply().call()
-    current_supply = 10 ** 30
-    reserved_reward = total_supply - current_supply
+    economics = TokenEconomics(initial_supply=10 ** 30,
+                               total_supply=TOTAL_SUPPLY,
+                               staking_coefficient=10 ** 43,
+                               locked_periods_coefficient=10 ** 4,
+                               maximum_rewarded_periods=10 ** 4,
+                               hours_per_period=1)
 
     def calculate_reward(locked, total_locked, locked_periods):
-        return reserved_reward * locked * (locked_periods + locked_periods_coefficient) // \
-               (total_locked * mining_coefficient)
+        return economics.erc20_reward_supply * locked * \
+               (locked_periods + economics.locked_periods_coefficient) // \
+               (total_locked * economics.staking_coefficient)
 
     creator = testerchain.client.accounts[0]
     ursula = testerchain.client.accounts[1]
@@ -52,25 +56,25 @@ def test_issuer(testerchain, token, deploy_contract):
         deploy_contract(
             contract_name='IssuerMock',
             _token=ursula,
-            _hoursPerPeriod=1,
-            _miningCoefficient=mining_coefficient,
-            _lockedPeriodsCoefficient=locked_periods_coefficient,
-            _rewardedPeriods=10 ** 4
+            _hoursPerPeriod=economics.hours_per_period,
+            _miningCoefficient=economics.staking_coefficient,
+            _lockedPeriodsCoefficient=economics.locked_periods_coefficient,
+            _rewardedPeriods=economics.maximum_rewarded_periods
         )
 
     # Creator deploys the issuer
     issuer, _ = deploy_contract(
             contract_name='IssuerMock',
             _token=token.address,
-            _hoursPerPeriod=1,
-            _miningCoefficient=mining_coefficient,
-            _lockedPeriodsCoefficient=locked_periods_coefficient,
-            _rewardedPeriods=10 ** 4
+            _hoursPerPeriod=economics.hours_per_period,
+            _miningCoefficient=economics.staking_coefficient,
+            _lockedPeriodsCoefficient=economics.locked_periods_coefficient,
+            _rewardedPeriods=economics.maximum_rewarded_periods
     )
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
     # Give staker tokens for reward and initialize contract
-    tx = token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
+    tx = token.functions.transfer(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Only owner can initialize
@@ -82,7 +86,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     events = events.get_all_entries()
     assert 1 == len(events)
-    assert reserved_reward == events[0]['args']['reservedReward']
+    assert economics.erc20_reward_supply == events[0]['args']['reservedReward']
     balance = token.functions.balanceOf(issuer.address).call()
 
     # Can't initialize second time
@@ -126,14 +130,28 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     During one period inflation rate must be the same
     """
 
+    economics = TokenEconomics(initial_supply=10 ** 30,
+                               total_supply=TOTAL_SUPPLY,
+                               staking_coefficient=2 * 10 ** 19,
+                               locked_periods_coefficient=1,
+                               maximum_rewarded_periods=1,
+                               hours_per_period=1)
+
     creator = testerchain.client.accounts[0]
     ursula = testerchain.client.accounts[1]
 
     # Creator deploys the contract
-    issuer, _ = deploy_contract('IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1)
+    issuer, _ = deploy_contract(
+        contract_name='IssuerMock',
+        _token=token.address,
+        _hoursPerPeriod=economics.hours_per_period,
+        _miningCoefficient=economics.staking_coefficient,
+        _lockedPeriodsCoefficient=economics.locked_periods_coefficient,
+        _rewardedPeriods=economics.maximum_rewarded_periods
+    )
 
     # Give staker tokens for reward and initialize contract
-    tx = token.functions.transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30).transact({'from': creator})
+    tx = token.functions.transfer(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = issuer.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -195,11 +213,25 @@ def test_upgrading(testerchain, token, deploy_contract):
     secret2_hash = testerchain.w3.keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = deploy_contract('Issuer', token.address, 1, 1, 1, 1)
+    contract_library_v1, _ = deploy_contract(
+        contract_name='Issuer',
+        _token=token.address,
+        _hoursPerPeriod=1,
+        _miningCoefficient=1,
+        _lockedPeriodsCoefficient=1,
+        _rewardedPeriods=1
+    )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
+    contract_library_v2, _ = deploy_contract(
+        contract_name='IssuerV2Mock',
+        _token=token.address,
+        _hoursPerPeriod=2,
+        _miningCoefficient=2,
+        _lockedPeriodsCoefficient=2,
+        _rewardedPeriods=2
+    )
     contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
@@ -237,7 +269,14 @@ def test_upgrading(testerchain, token, deploy_contract):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
+    contract_library_bad, _ = deploy_contract(
+        contract_name='IssuerBad',
+        _token=token.address,
+        _hoursPerPeriod=2,
+        _miningCoefficient=2,
+        _lockedPeriodsCoefficient=2,
+        _rewardedPeriods=2
+    )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
             .transact({'from': creator})

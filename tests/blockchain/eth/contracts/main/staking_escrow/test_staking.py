@@ -22,7 +22,7 @@ from web3.contract import Contract
 
 
 @pytest.mark.slow
-def test_mining(testerchain, token, escrow_contract):
+def test_mining(testerchain, token, escrow_contract, token_economics):
 
     escrow = escrow_contract(1500)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
@@ -34,15 +34,12 @@ def test_mining(testerchain, token, escrow_contract):
     ursula1 = testerchain.client.accounts[1]
     ursula2 = testerchain.client.accounts[2]
 
-    mining_coefficient = escrow.functions.miningCoefficient().call()
-    locked_periods_coefficient = escrow.functions.lockedPeriodsCoefficient().call()
-    total_supply = token.functions.totalSupply().call()
-    reserved_reward = 10 ** 9
-    current_supply = total_supply - reserved_reward
+    current_supply = token_economics.erc20_initial_supply
 
     def calculate_reward(locked, total_locked, locked_periods):
-        return (total_supply - current_supply) * locked * (locked_periods + locked_periods_coefficient) // \
-               (total_locked * mining_coefficient)
+        return (token_economics.erc20_total_supply - current_supply) * locked * \
+               (locked_periods + token_economics.locked_periods_coefficient) // \
+               (total_locked * token_economics.staking_coefficient)
 
     staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
@@ -52,7 +49,7 @@ def test_mining(testerchain, token, escrow_contract):
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, reserved_reward).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -337,7 +334,7 @@ def test_mining(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_slashing(testerchain, token, escrow_contract, deploy_contract):
+def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):
     escrow = escrow_contract(1500)
     adjudicator, _ = deploy_contract(
         'AdjudicatorForStakingEscrowMock', escrow.address
@@ -351,7 +348,7 @@ def test_slashing(testerchain, token, escrow_contract, deploy_contract):
     slashing_log = escrow.events.Slashed.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)

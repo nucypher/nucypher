@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from decimal import Decimal, localcontext
 from math import log
 
-from nucypher.blockchain.economics import TokenEconomics, LOG2
+from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
 
 
 def test_rough_economics():
@@ -37,11 +37,11 @@ def test_rough_economics():
     where allLockedPeriods == min(T, T1)
     """
 
-    e = TokenEconomics(initial_supply=int(1e9),
-                       initial_inflation=1,
-                       halving_delay=2,
-                       reward_saturation=1,
-                       small_stake_multiplier=Decimal(0.5))
+    e = StandardTokenEconomics(initial_supply=int(1e9),
+                               initial_inflation=1,
+                               halving_delay=2,
+                               reward_saturation=1,
+                               small_stake_multiplier=Decimal(0.5))
 
     assert float(round(e.erc20_total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
 
@@ -112,7 +112,7 @@ def test_exact_economics():
 
     # Use same precision as economics class
     with localcontext() as ctx:
-        ctx.prec = TokenEconomics._precision
+        ctx.prec = StandardTokenEconomics._precision
 
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
@@ -134,10 +134,10 @@ def test_exact_economics():
     #
 
     # Check creation
-    e = TokenEconomics()
+    e = StandardTokenEconomics()
 
     with localcontext() as ctx:
-        ctx.prec = TokenEconomics._precision
+        ctx.prec = StandardTokenEconomics._precision
 
         # Check that total_supply calculated correctly
         assert Decimal(e.erc20_total_supply) / e.initial_supply == expected_supply_ratio
@@ -160,34 +160,34 @@ def test_exact_economics():
         assert e.erc20_reward_supply == expected_reward_supply
 
         # Additional checks on supply
-        assert e.token_supply_function(at_period=0) == expected_initial_supply
+        assert e.token_supply_at_period(period=0) == expected_initial_supply
         assert e.cumulative_rewards_at_period(0) == 0
 
         # Last NuNit is mined after 184 years (or 67000 periods).
         # That's the year 2203, if token is launched in 2019.
         # 23rd century schizoid man!
-        assert expected_total_supply == e.token_supply_function(at_period=67000)
+        assert expected_total_supply == e.token_supply_at_period(period=67000)
 
         # After 1 year:
-        assert 1_845_111_188_584347879497984668 == e.token_supply_function(at_period=365)
+        assert 1_845_111_188_584347879497984668 == e.token_supply_at_period(period=365)
         assert 845_111_188_584347879497984668 == e.cumulative_rewards_at_period(365)
-        assert e.erc20_initial_supply + e.cumulative_rewards_at_period(365) == e.token_supply_function(at_period=365)
+        assert e.erc20_initial_supply + e.cumulative_rewards_at_period(365) == e.token_supply_at_period(period=365)
 
         # Checking that the supply function is monotonic
-        todays_supply = e.token_supply_function(at_period=0)
+        todays_supply = e.token_supply_at_period(period=0)
         for t in range(67000):
-            tomorrows_supply = e.token_supply_function(at_period=t+1)
+            tomorrows_supply = e.token_supply_at_period(period=t + 1)
             assert tomorrows_supply >= todays_supply
             todays_supply = tomorrows_supply
 
 
 def test_economic_parameter_aliases():
 
-    e = TokenEconomics()
+    e = StandardTokenEconomics()
 
     assert e.locked_periods_coefficient == 365
     assert int(e.staking_coefficient) == 768812
-    assert e.maximum_locked_periods == 365
+    assert e.maximum_rewarded_periods == 365
 
     deployment_params = e.staking_deployment_parameters
     assert isinstance(deployment_params, tuple)

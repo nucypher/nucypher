@@ -22,7 +22,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from eth_utils import is_checksum_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -275,7 +275,7 @@ class StakingEscrowDeployer(ContractDeployer):
     def __init__(self,  economics: TokenEconomics = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not economics:
-            economics = TokenEconomics()
+            economics = StandardTokenEconomics()
         self.__economics = economics
         self.__dispatcher_contract = None
 
