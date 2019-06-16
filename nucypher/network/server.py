@@ -415,7 +415,7 @@ class TLSHostingPower(KeyPairBasedPower):
             raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
 
         if public_certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
+            kwargs['key_pair'] = HostingKeypair(certificate=public_certificate, host=host)
         elif public_certificate_filepath:
-            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
+            kwargs['key_pair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
         super().__init__(*args, **kwargs)

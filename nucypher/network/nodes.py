@@ -48,7 +48,7 @@ from twisted.logger import Logger
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, verify_ecdsa
-from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
+from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -929,8 +929,8 @@ class Teacher:
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
-        certificate_filepath = tls_hosting_power.keypair.certificate_filepath
-        certificate = tls_hosting_power.keypair.certificate
+        certificate_filepath = tls_hosting_power.key_pair.certificate_filepath
+        certificate = tls_hosting_power.key_pair.certificate
         return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
 
     #
@@ -1104,7 +1104,7 @@ class Teacher:
         return self.__decentralized_identity_evidence
 
     def substantiate_stamp(self, client_password: str):
-        blockchain_power = self._crypto_power.power_ups(BlockchainPower)
+        blockchain_power = self._crypto_power.power_ups(TransactingPower)
         blockchain_power.unlock_account(password=client_password)  # TODO: #349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self.__decentralized_identity_evidence = signature

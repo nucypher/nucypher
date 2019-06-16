@@ -20,14 +20,15 @@ import inspect
 from typing import List, Tuple, Optional
 
 from constant_sorrow.constants import NO_STAKING_DEVICE
-from eth_account._utils.transactions import encode_transaction
+from eth_account._utils.transactions import encode_transaction, Transaction, assert_valid_fields
+from eth_utils import apply_key_map
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
-from web3 import Web3
 
 from nucypher.blockchain.eth.clients import Web3Client
-from nucypher.cli.hardware.backends import TrustedDevice
+from nucypher.crypto.device.base import TrustedDevice
+from nucypher.crypto.device.trezor import Trezor
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -44,21 +45,27 @@ class NoDecryptingPower(PowerUpError):
     pass
 
 
-class NoBlockchainPower(PowerUpError):
+class NoTransactingPower(PowerUpError):
     pass
 
 
 class CryptoPower(object):
     def __init__(self, power_ups: list = None) -> None:
-        self.power_ups = {}   # type: dict
+        self.__power_ups = {}   # type: dict
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}  # type: dict
 
         if power_ups is not None:
             for power_up in power_ups:
                 self.consume_power_up(power_up)
+
+    def __contains__(self, item):
+        try:
+            self.power_ups(item)
+        except PowerUpError:
+            return False
         else:
-            self.power_ups = []  # default
+            return True
 
     def consume_power_up(self, power_up):
         if isinstance(power_up, CryptoPowerUp):
@@ -71,14 +78,14 @@ class CryptoPower(object):
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
                  "of a CryptoPowerUp subclass."))
-        self.power_ups[power_up_class] = power_up_instance
+        self.__power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:
             self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def power_ups(self, power_up_class):
         try:
-            return self.power_ups[power_up_class]
+            return self.__power_ups[power_up_class]
         except KeyError:
             raise power_up_class.not_found_error
 
@@ -94,53 +101,59 @@ class TransactingPower(CryptoPowerUp):
     """
     Allows for transacting on a Blockchain via web3 backend.
     """
-    not_found_error = NoBlockchainPower
+    not_found_error = NoTransactingPower
 
-    def __init__(self, checksum_address: str, client: Web3Client = None, device: TrustedDevice = None) -> None:
+    def __init__(self, client: Web3Client = None, device: Trezor = NO_STAKING_DEVICE):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        if client and device:
+        if client and device is not NO_STAKING_DEVICE:
             raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
-        self.account = checksum_address
-        self.is_unlocked = False
+
         self.client = client
         self.device = device
 
-    def unlock_account(self, password: str):
+    def unlock_account(self, checksum_address: str, password: str = None):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.client.unlock_account(self.account, password)
-        if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(self.account))
+        if self.device is not NO_STAKING_DEVICE:
+            _hd_path = self.device.get_address_path(checksum_address=checksum_address)
+            ping = 'PING|PONG'
+            pong = self.device.client.ping(ping)  # TODO: Use pin protection
+            if not ping == pong:
+                raise self.device.NoDeviceDetected
+        else:
+            self.client.unlock_account(address=checksum_address, password=password)
 
-    def sign_message(self, message: bytes) -> bytes:
+    def sign_message(self, checksum_address: str, message: bytes) -> bytes:
         """
         Signs the message with the private key of the TransactingPower.
         """
-        if not self.is_unlocked:
-            raise PowerUpError("Account is not unlocked.")
         if self.device is not NO_STAKING_DEVICE:
-            address_index = 0  # self.account  # TODO: Lookup the account index
-            signature = self.device.sign_message(message=message, address_index=address_index)  # FIXME
+            signature = self.device.sign_message(checksum_address=checksum_address, message=message)  # FIXME
         else:
-            signature = self.client.sign_message(self.account, message)
-        return signature
+            signature = self.client.sign_message(account=checksum_address, message=message)
+        return signature.signature
 
-    def sign_transaction(self, unsigned_transaction) -> HexBytes:
+    def sign_transaction(self,
+                         checksum_address: str,
+                         unsigned_transaction: dict,
+                         ) -> HexBytes:
+
         # TODO: Make RLP optional
         # TODO: Handle Device Timeout / Error
+        # TODO: Normalize Transaction dictionary
+        # assert_valid_fields(unsigned_transaction)
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
-            singed_raw_transaction = self.client.w3.eth.signTransaction(transaction=unsigned_transaction)
-
+            singed_raw_transaction = self.device.sign_eth_transaction(unsigned_transaction=unsigned_transaction,
+                                                                      checksum_address=checksum_address)
         # Web3 Signer
         else:
-            signature = self.device.sign_eth_transaction(unsigned_transaction)
-            singed_raw_transaction = encode_transaction(unsigned_transaction=unsigned_transaction, vrs=signature)
+            singed_raw_transaction = self.client.w3.eth.signTransaction(transaction=unsigned_transaction)
 
         return singed_raw_transaction
 
@@ -151,45 +164,44 @@ class KeyPairBasedPower(CryptoPowerUp):
     _default_private_key_class = UmbralPrivateKey
 
     def __init__(self,
-                 pubkey: UmbralPublicKey = None,
-                 keypair: keypairs.Keypair = None,
+                 public_key: UmbralPublicKey = None,
+                 key_pair: keypairs.Keypair = None,
                  ) -> None:
-        if keypair and pubkey:
-            raise ValueError(
-                "Pass keypair or pubkey_bytes (or neither), but not both.")
-        elif keypair:
-            self.keypair = keypair
+        if key_pair and public_key:
+            raise ValueError("Pass key_pair or pubkey_bytes (or neither), but not both.")
+        elif key_pair:
+            self.key_pair = key_pair
         else:
-            # They didn't pass a keypair; we'll make one with the bytes or
+            # They didn't pass a key_pair; we'll make one with the bytes or
             # UmbralPublicKey if they provided such a thing.
-            if pubkey:
+            if public_key:
                 try:
-                    public_key = pubkey.as_umbral_pubkey()
+                    public_key = public_key.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        public_key = UmbralPublicKey.from_bytes(pubkey)
+                        public_key = UmbralPublicKey.from_bytes(public_key)
                     except TypeError:
-                        public_key = pubkey
-                self.keypair = self._keypair_class(
+                        public_key = public_key
+                self.key_pair = self._keypair_class(
                     public_key=public_key)
             else:
-                # They didn't even pass a public key.  We have no choice but to generate a keypair.
-                self.keypair = self._keypair_class(generate_keys_if_needed=True)
+                # They didn't even pass a public key.  We have no choice but to generate a key_pair.
+                self.key_pair = self._keypair_class(generate_keys_if_needed=True)
 
     def __getattr__(self, item):
         if item in self.provides:
             try:
-                return getattr(self.keypair, item)
+                return getattr(self.key_pair, item)
             except AttributeError:
                 raise PowerUpError(
-                    "This {} has a keypair, {}, which doesn't provide {}.".format(self.__class__,
-                                                                                  self.keypair.__class__,
-                                                                                  item))
+                    "This {} has a key_pair, {}, which doesn't provide {}.".format(self.__class__,
+                                                                                   self.key_pair.__class__,
+                                                                                   item))
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
     def public_key(self) -> 'UmbralPublicKey':
-        return self.keypair.pubkey
+        return self.key_pair.pubkey
 
 
 class SigningPower(KeyPairBasedPower):

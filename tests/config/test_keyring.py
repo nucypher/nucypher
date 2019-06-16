@@ -22,10 +22,10 @@ def test_generate_alice_keyring(tmpdir):
     assert enc_pubkey is not None
 
     with pytest.raises(NucypherKeyring.KeyringLocked):
-        _dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
+        _dec_keypair = keyring.derive_crypto_power(DecryptingPower).key_pair
 
     keyring.unlock(password)
-    dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
+    dec_keypair = keyring.derive_crypto_power(DecryptingPower).key_pair
 
     assert enc_pubkey == dec_keypair.pubkey
 

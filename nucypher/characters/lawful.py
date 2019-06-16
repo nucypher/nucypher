@@ -28,7 +28,7 @@ import requests
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE, NO_STAKING_DEVICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -50,11 +50,12 @@ from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER,
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
     WebController
+from nucypher.crypto.device.base import TrustedDevice
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
+from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -73,6 +74,7 @@ class Alice(Character, PolicyAuthor):
 
     def __init__(self,
                  checksum_address: str = None,
+                 device: TrustedDevice = NO_STAKING_DEVICE,
                  m: int = None,
                  n: int = None,
                  rate: int = None,
@@ -113,6 +115,8 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
+            blockchain_power = TransactingPower(device=device, client=self.blockchain.interface.client)
+            self._crypto_power.consume_power_up(blockchain_power)
             PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
         if is_me and controller:
@@ -794,6 +798,7 @@ class Ursula(Teacher, Character, Staker):
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,
+                 device: TrustedDevice = NO_STAKING_DEVICE,
 
                  # Character
                  password: str = None,
@@ -841,7 +846,9 @@ class Ursula(Teacher, Character, Staker):
                 Staker.__init__(self, is_me=is_me, checksum_address=checksum_address)
 
                 # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+                blockchain_power = TransactingPower(checksum_address=checksum_address,
+                                                    device=device,
+                                                    client=self.blockchain.interface.client)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
@@ -850,7 +857,7 @@ class Ursula(Teacher, Character, Staker):
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
         #
-        if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
+        if not crypto_power or (TLSHostingPower not in crypto_power):
 
             #
             # Ephemeral Self-Ursula
@@ -872,7 +879,7 @@ class Ursula(Teacher, Character, Staker):
                 #
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
                                                      checksum_address=self.checksum_address)
-                tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
+                tls_hosting_power = TLSHostingPower(key_pair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
@@ -1284,7 +1291,7 @@ class Enrico(Character):
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
         """
-        :param alice: Not a stranger.  This is your Alice who will derive the policy keypair, leaving Enrico with the public part.
+        :param alice: Not a stranger.  This is your Alice who will derive the policy key_pair, leaving Enrico with the public part.
         :param label: The label with which to derive the key.
         :return:
         """

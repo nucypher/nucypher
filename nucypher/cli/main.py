@@ -27,7 +27,7 @@ from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.device.actions import DEVICE_ACTIONS
-from nucypher.cli.hardware.backends import Trezor
+from nucypher.hardware.backends import Trezor
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry

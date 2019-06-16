@@ -49,7 +49,7 @@ from nucypher.crypto.powers import (
     DecryptingPower,
     KeyPairBasedPower,
     DerivedKeyBasedPower,
-    BlockchainPower
+    TransactingPower
 )
 
 from constant_sorrow.constants import FEDERATED_ADDRESS
@@ -499,7 +499,7 @@ class NucypherKeyring:
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 
-        elif power_class is BlockchainPower:
+        elif power_class is TransactingPower:
             new_cryptopower = power_class(blockchain=Blockchain.connect(), account=self.checksum_address)
 
         else:

@@ -27,7 +27,7 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
-                                    BlockchainPower,
+                                    TransactingPower,
                                     PowerUpError)
 
 """
@@ -116,18 +116,17 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain, agency):
+def test_character_software_blockchain_power(testerchain, agency):
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
-    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[
-        eth_utils.to_canonical_address(eth_address)]
+    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
+    signer._crypto_power.consume_power_up(TransactingPower(client=testerchain.interface.client, account_index=0))
 
     # Due to testing backend, the account is already unlocked.
-    power = signer._crypto_power.power_ups(BlockchainPower)
+    power = signer._crypto_power.power_ups(TransactingPower)
     power.is_unlocked = True
     # power.unlock_account('this-is-not-a-secure-password')
 

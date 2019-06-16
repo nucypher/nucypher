@@ -87,7 +87,7 @@ class Keypair(object):
 
 class DecryptingKeypair(Keypair):
     """
-    A keypair for Umbral
+    A key_pair for Umbral
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -136,7 +136,7 @@ class SigningKeypair(Keypair):
 
 class HostingKeypair(Keypair):
     """
-    A keypair for TLS'ing.
+    A key_pair for TLS'ing.
     """
     _private_key_source = ec.generate_private_key
     _public_key_method = "public_key"
