@@ -24,7 +24,9 @@ from eth_account._utils.transactions import encode_transaction
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+from web3 import Web3
 
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.cli.hardware.backends import TrustedDevice
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
@@ -48,7 +50,7 @@ class NoBlockchainPower(PowerUpError):
 
 class CryptoPower(object):
     def __init__(self, power_ups: list = None) -> None:
-        self._power_ups = {}   # type: dict
+        self.power_ups = {}   # type: dict
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}  # type: dict
 
@@ -56,7 +58,7 @@ class CryptoPower(object):
             for power_up in power_ups:
                 self.consume_power_up(power_up)
         else:
-            power_ups = []  # default
+            self.power_ups = []  # default
 
     def consume_power_up(self, power_up):
         if isinstance(power_up, CryptoPowerUp):
@@ -69,14 +71,14 @@ class CryptoPower(object):
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
                  "of a CryptoPowerUp subclass."))
-        self._power_ups[power_up_class] = power_up_instance
+        self.power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:
             self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def power_ups(self, power_up_class):
         try:
-            return self._power_ups[power_up_class]
+            return self.power_ups[power_up_class]
         except KeyError:
             raise power_up_class.not_found_error
 
@@ -88,19 +90,21 @@ class CryptoPowerUp(object):
     confers_public_key = False
 
 
-class BlockchainPower(CryptoPowerUp):
+class TransactingPower(CryptoPowerUp):
     """
     Allows for transacting on a Blockchain via web3 backend.
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str, device: TrustedDevice = NO_STAKING_DEVICE) -> None:
+    def __init__(self, checksum_address: str, client: Web3Client = None, device: TrustedDevice = None) -> None:
         """
-        Instantiates a BlockchainPower for the given account id.
+        Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = blockchain
-        self.account = account
+        if client and device:
+            raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
+        self.account = checksum_address
         self.is_unlocked = False
+        self.client = client
         self.device = device
 
     def unlock_account(self, password: str):
@@ -108,37 +112,37 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password)
+        self.is_unlocked = self.client.unlock_account(self.account, password)
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
     def sign_message(self, message: bytes) -> bytes:
         """
-        Signs the message with the private key of the BlockchainPower.
+        Signs the message with the private key of the TransactingPower.
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
         if self.device is not NO_STAKING_DEVICE:
-            address_index = self.account  # TODO: Lookup the account index
+            address_index = 0  # self.account  # TODO: Lookup the account index
             signature = self.device.sign_message(message=message, address_index=address_index)  # FIXME
         else:
-            signature = self.blockchain.interface.client.sign_message(self.account, message)
+            signature = self.client.sign_message(self.account, message)
         return signature
 
-    def sign_transaction(self, transaction) -> HexBytes:
-        if self.device is not NO_STAKING_DEVICE:
-            txhash = self.blockchain.client.w3.eth.sendTransaction(transaction=transaction)
-        else:
-            transaction_signature = self.device.sign_eth_transaction(transaction)  # TODO: Handle Timeout / Error
-            singed_raw_transaction = encode_transaction(unsigned_transaction=transaction, vrs=transaction_signature)
-            txhash = self.blockchain.client.w3.eth.sendRawTransaction(raw_transaction=singed_raw_transaction)
-        return txhash
+    def sign_transaction(self, unsigned_transaction) -> HexBytes:
+        # TODO: Make RLP optional
+        # TODO: Handle Device Timeout / Error
 
-    def __del__(self):
-        """
-        Deletes the blockchain power and locks the account.
-        """
-        self.blockchain.interface.client.lock_account(self.account)
+        # HW Signer
+        if self.device is not NO_STAKING_DEVICE:
+            singed_raw_transaction = self.client.w3.eth.signTransaction(transaction=unsigned_transaction)
+
+        # Web3 Signer
+        else:
+            signature = self.device.sign_eth_transaction(unsigned_transaction)
+            singed_raw_transaction = encode_transaction(unsigned_transaction=unsigned_transaction, vrs=signature)
+
+        return singed_raw_transaction
 
 
 class KeyPairBasedPower(CryptoPowerUp):

@@ -157,7 +157,7 @@ def test_cli_lifecycle(click_runner,
     side_channel.save_bob_public_keys(bob_public_keys)
 
     """
-    Scene 3: Alice derives a policy keypair, and saves it's public key to a sidechannel.
+    Scene 3: Alice derives a policy key_pair, and saves it's public key to a sidechannel.
     """
 
     random_label = random_policy_label.decode()  # Unicode string

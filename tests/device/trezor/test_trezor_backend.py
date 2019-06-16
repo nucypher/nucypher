@@ -3,7 +3,7 @@ from trezorlib import client as trezor_client
 from trezorlib.transport import TransportException
 from usb1 import USBErrorNoDevice, USBErrorBusy
 
-from nucypher.cli.hardware.backends import Trezor
+from nucypher.hardware.backends import Trezor
 from nucypher.crypto.signing import InvalidSignature
 
 
@@ -11,14 +11,16 @@ def test_trezor_defaults(mock_trezorlib):
     trezor_backend = Trezor()
 
     assert trezor_backend.DEFAULT_BIP44_PATH == "m/44'/60'/0'/0"
-    assert trezor_backend._Trezor__bip44_path == [2147483692, 2147483708,
-                                                  2147483648, 0]
+    assert trezor_backend._Trezor__bip44_path == [2147483692,
+                                                  2147483708,
+                                                  2147483648,
+                                                  0]
 
     def fail_get_default_client():
         raise TransportException("No device found...")
 
     trezor_client.get_default_client = fail_get_default_client
-    with pytest.raises(RuntimeError):
+    with pytest.raises(Trezor.NoDeviceDetected):
         Trezor()
     trezor_client.get_default_client = lambda: None
 
@@ -74,8 +76,29 @@ def test_trezor_sign_and_verify(mock_trezorlib, fake_trezor_signature,
                                       test_sig.address)
 
 
-def test_trezor_sign_eth_transaction(mock_trezorlib):
-    trezor_backend = Trezor()
-
-    with pytest.raises(NotImplementedError):
-        trezor_backend.sign_eth_transaction()
+# def test_trezor_sign_agent_eth_transaction(testerchain, agency):
+#     """
+#     https://github.com/trezor/trezor-firmware/blob/master/python/trezorlib/tests/device_tests/test_msg_ethereum_signtx.py
+#     """
+#     token, staking, policy = agency
+#
+#     trezor_test = TrezorTest()
+#     trezor_test.client = conftest.get_device()
+#     trezor_test.setup_mnemonic_nopin_nopassphrase()
+#
+#     with trezor_test.client:
+#         responses = [proto.ButtonRequest(code=proto.ButtonRequestType.SignTx),
+#                      proto.ButtonRequest(code=proto.ButtonRequestType.SignTx),
+#                      proto.EthereumTxRequest(data_length=None)]
+#         trezor_test.client.set_expected_responses(responses)
+#
+#         n = parse_path("44'/60'/0'/0/0")
+#         # token.approve_transfer(amount=15_000, target_address=target_address, sender_address=sender_address)
+#         #
+#         # sig_v, sig_r, sig_s = ethereum.sign_tx(trezor_test.client, n=parse_path("44'/60'/0'/0/0"), **transaction)
+#
+#         # taken from T1 might not be 100% correct but still better than nothing
+#         # assert sig_r.hex() == "ec1df922115d256745410fbc2070296756583c8786e4d402a88d4e29ec513fa9"
+#         # assert sig_s.hex() == "7001bfe3ba357e4a9f9e0d3a3f8a8962257615a4cf215db93e48b98999fc51b7"
+#
+#         # nucypher_trezor = Trezor()
