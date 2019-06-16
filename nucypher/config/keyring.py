@@ -487,7 +487,7 @@ class NucypherKeyring:
             try:
                 umbral_privkey = self.__decrypt_keyfile(codex[power_class])
                 keypair = power_class._keypair_class(umbral_privkey)
-                new_cryptopower = power_class(keypair=keypair)
+                new_cryptopower = power_class(key_pair=keypair)
             except KeyError:
                 failure_message = "{} is an invalid type for deriving a CryptoPower".format(power_class.__name__)
                 raise TypeError(failure_message)

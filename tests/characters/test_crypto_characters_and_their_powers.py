@@ -116,22 +116,25 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_software_blockchain_power(testerchain, agency):
+def test_character_client_transacting_power(testerchain, agency):
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
     sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(TransactingPower(client=testerchain.interface.client, account_index=0))
+    signer._crypto_power.consume_power_up(TransactingPower(client=testerchain.interface.client))
 
-    # Due to testing backend, the account is already unlocked.
     power = signer._crypto_power.power_ups(TransactingPower)
-    power.is_unlocked = True
-    # power.unlock_account('this-is-not-a-secure-password')
+
+    # Test a signature without unlocking the account
+    with pytest.raises(PowerUpError):
+        power.sign_message(message=b'test', checksum_address=eth_address)
+
+    power.unlock_account(checksum_address=eth_address)
 
     data_to_sign = b'What does Ursula look like?!?'
-    sig = power.sign_message(data_to_sign)
+    sig = power.sign_message(message=data_to_sign, checksum_address=eth_address)
 
     is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
     assert is_verified is True
@@ -142,13 +145,12 @@ def test_character_software_blockchain_power(testerchain, agency):
                                  signature=sig)
     assert is_verified is False
 
-    # Test a signature without unlocking the account
-    power.is_unlocked = False
-    with pytest.raises(PowerUpError):
-        power.sign_message(b'test')
-
     # Test lockAccount call
-    del power
+    power.lock_account(checksum_address=eth_address)
+
+    # Test a signature without unlocking the account
+    with pytest.raises(PowerUpError):
+        power.sign_message(message=b'test', checksum_address=eth_address)
 
 
 """

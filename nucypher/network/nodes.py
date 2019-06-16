@@ -1105,8 +1105,8 @@ class Teacher:
 
     def substantiate_stamp(self, client_password: str):
         blockchain_power = self._crypto_power.power_ups(TransactingPower)
-        blockchain_power.unlock_account(password=client_password)  # TODO: #349
-        signature = blockchain_power.sign_message(bytes(self.stamp))
+        blockchain_power.unlock_account(checksum_address=self.checksum_address, password=client_password)  # TODO: #349
+        signature = blockchain_power.sign_message(checksum_address=self.checksum_address, message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
 
     #

@@ -846,9 +846,7 @@ class Ursula(Teacher, Character, Staker):
                 Staker.__init__(self, is_me=is_me, checksum_address=checksum_address)
 
                 # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
-                blockchain_power = TransactingPower(checksum_address=checksum_address,
-                                                    device=device,
-                                                    client=self.blockchain.interface.client)
+                blockchain_power = TransactingPower(device=device, client=self.blockchain.interface.client)
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
@@ -914,8 +912,8 @@ class Ursula(Teacher, Character, Staker):
         #
         # Verifiable Node
         #
-        certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
-        certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+        certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).key_pair.certificate_filepath
+        certificate = self._crypto_power.power_ups(TLSHostingPower).key_pair.certificate
         Teacher.__init__(self,
                          password=password,
                          domains=domains,
@@ -945,8 +943,8 @@ class Ursula(Teacher, Character, Staker):
 
         return (
             self.rest_server.rest_interface,
-            hosting_power.keypair.certificate,
-            hosting_power.keypair.pubkey
+            hosting_power.key_pair.certificate,
+            hosting_power.key_pair.pubkey
         )
 
     def get_deployer(self):
@@ -955,7 +953,7 @@ class Ursula(Teacher, Character, Staker):
         return deployer
 
     def rest_server_certificate(self):
-        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+        return self._crypto_power.power_ups(TLSHostingPower).key_pair.certificate
 
     def __bytes__(self):
 

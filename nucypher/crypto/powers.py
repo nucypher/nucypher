@@ -102,6 +102,7 @@ class TransactingPower(CryptoPowerUp):
     Allows for transacting on a Blockchain via web3 backend.
     """
     not_found_error = NoTransactingPower
+    __accounts = {}
 
     def __init__(self, client: Web3Client = None, device: Trezor = NO_STAKING_DEVICE):
         """
@@ -113,35 +114,57 @@ class TransactingPower(CryptoPowerUp):
         self.client = client
         self.device = device
 
+    def lock_account(self, checksum_address: str):
+        if self.__accounts.get(checksum_address, False):
+            if self.client:
+                self.client.lock_account(address=checksum_address)
+            self.__accounts[checksum_address] = False
+
     def unlock_account(self, checksum_address: str, password: str = None):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
         if self.device is not NO_STAKING_DEVICE:
-            _hd_path = self.device.get_address_path(checksum_address=checksum_address)
+            try:
+                _hd_path = self.device.get_address_path(checksum_address=checksum_address)
+            except Exception:
+                self.__accounts[checksum_address] = False
+                raise
+
             ping = 'PING|PONG'
             pong = self.device.client.ping(ping)  # TODO: Use pin protection
             if not ping == pong:
+                self.__accounts[checksum_address] = False
                 raise self.device.NoDeviceDetected
+            unlocked = True
+
         else:
-            self.client.unlock_account(address=checksum_address, password=password)
+            unlocked = self.client.unlock_account(address=checksum_address, password=password)
+
+        self.__accounts[checksum_address] = unlocked
 
     def sign_message(self, checksum_address: str, message: bytes) -> bytes:
         """
         Signs the message with the private key of the TransactingPower.
         """
+        if not self.__accounts.get(checksum_address, False):
+            raise PowerUpError("Account is locked.")
+
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
             signature = self.device.sign_message(checksum_address=checksum_address, message=message)
+            signature = signature.signature  # TODO: Use a common type from clients and devices
 
         # Web3 Signer
         else:
             signature = self.client.sign_message(account=checksum_address, message=message)
 
-        return signature.signature
+        return signature
 
     def sign_transaction(self, checksum_address: str, unsigned_transaction: dict) -> HexBytes:
+        if not self.__accounts.get(checksum_address, False):
+            raise PowerUpError("Account is locked.")
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
@@ -262,5 +285,5 @@ class DelegatingPower(DerivedKeyBasedPower):
     def get_decrypting_power_from_label(self, label):
         label_privkey = self._get_privkey_from_label(label)
         label_keypair = keypairs.DecryptingKeypair(private_key=label_privkey)
-        decrypting_power = DecryptingPower(keypair=label_keypair)
+        decrypting_power = DecryptingPower(key_pair=label_keypair)
         return decrypting_power

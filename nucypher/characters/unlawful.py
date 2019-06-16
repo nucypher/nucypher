@@ -46,7 +46,7 @@ class Vladimir(Ursula):
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
         if claim_signing_key:
-            crypto_power.consume_power_up(SigningPower(pubkey=target_ursula.stamp.as_umbral_pubkey()))
+            crypto_power.consume_power_up(SigningPower(public_key=target_ursula.stamp.as_umbral_pubkey()))
 
         if attach_transacting_key:
             cls.attach_transacting_key(blockchain=target_ursula.blockchain)
