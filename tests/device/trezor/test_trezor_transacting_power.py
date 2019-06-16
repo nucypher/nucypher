@@ -1,3 +1,6 @@
+from eth_account._utils.transactions import strip_signature, Transaction
+from eth_utils import to_checksum_address
+
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.characters.base import Character
 from nucypher.crypto.device.trezor import Trezor
@@ -28,13 +31,18 @@ def test_trezor_transacting_power_integration(testerchain):
     assert isinstance(signature, bytes)
 
     # As they come from web3.py
-    transaction = dict(nonce=0,
-                       gasPrice=1,
-                       gas=100000,
-                       to='0x950041c1599529a9f64cf2be59ffb86072f00111',
-                       value=1,
-                       data=b'')
+    transaction_dict = {'nonce': 0,
+                        'gasPrice': 1,
+                        'gas': 1,
+                        'to': to_checksum_address('0x950041c1599529a9f64cf2be59ffb86072f00111'),
+                        'value': 1,
+                        'data': b'\0',
+                        'chainId': 112358123456789}
 
-    signed_transaction = power.sign_transaction(unsigned_transaction=transaction, checksum_address=etherbase)
+    signed_transaction = power.sign_transaction(unsigned_transaction=transaction_dict, checksum_address=etherbase)
 
+    transaction = Transaction.from_bytes(signed_transaction)
+
+    # assert transaction.as_dict() == transaction_dict
+    # result = strip_signature(signed_transaction)
     assert True

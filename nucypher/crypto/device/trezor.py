@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import rlp
-from eth_utils import to_canonical_address, to_int, ValidationError
+from eth_utils import to_canonical_address, to_int, ValidationError, apply_formatters_to_dict, apply_key_map
 from rlp.sedes import (
     Binary,
     big_endian_int,
@@ -23,6 +23,7 @@ from rlp.sedes import (
 )
 from trezorlib.tools import parse_path, Address
 from eth_account._utils.transactions import Transaction, encode_transaction, assert_valid_fields
+from web3.middleware.formatting import apply_formatters
 
 from nucypher.crypto.device.base import TrustedDevice
 
@@ -166,15 +167,31 @@ class Trezor(TrustedDevice):
                              rlp_encoded: bool = True,
                              ) -> Tuple[bytes]:
 
-        # TODO: Handle web3.py formatting
-        unsigned_transaction.update(dict(to=to_canonical_address(checksum_address)))
+        # Handle Web3.py -> Trezor native transaction formatting
+        # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
+        assert_valid_fields(unsigned_transaction)
+        trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
+        trezor_transaction = dict(apply_key_map(trezor_transaction_keys, unsigned_transaction))
 
+        # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
-        v, r, s = ethereum.sign_tx(client=self.client, n=n, **unsigned_transaction)
+
+        # Sign TX
+        v, r, s = ethereum.sign_tx(client=self.client, n=n, **trezor_transaction)
+
+        # If `chain_id` is included, an EIP-155 transaction signature will be applied:
+        # v = (v + 2) * (chain_id + 35)
+        # https://github.com/ethereum/eips/issues/155
+        # https://github.com/trezor/trezor-core/pull/311
+        del unsigned_transaction['chainId']   # see above
+
+        # Create RLP serializable Transaction
+        unsigned_transaction['to'] = to_canonical_address(checksum_address)
         signed_transaction = Transaction(v=to_int(v),
                                          r=to_int(r),
                                          s=to_int(s),
                                          **unsigned_transaction)
         if rlp_encoded:
             signed_transaction = rlp.encode(signed_transaction)
+
         return signed_transaction

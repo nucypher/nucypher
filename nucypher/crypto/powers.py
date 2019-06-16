@@ -131,21 +131,17 @@ class TransactingPower(CryptoPowerUp):
         """
         Signs the message with the private key of the TransactingPower.
         """
+        # HW Signer
         if self.device is not NO_STAKING_DEVICE:
-            signature = self.device.sign_message(checksum_address=checksum_address, message=message)  # FIXME
+            signature = self.device.sign_message(checksum_address=checksum_address, message=message)
+
+        # Web3 Signer
         else:
             signature = self.client.sign_message(account=checksum_address, message=message)
+
         return signature.signature
 
-    def sign_transaction(self,
-                         checksum_address: str,
-                         unsigned_transaction: dict,
-                         ) -> HexBytes:
-
-        # TODO: Make RLP optional
-        # TODO: Handle Device Timeout / Error
-        # TODO: Normalize Transaction dictionary
-        # assert_valid_fields(unsigned_transaction)
+    def sign_transaction(self, checksum_address: str, unsigned_transaction: dict) -> HexBytes:
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
