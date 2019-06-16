@@ -14,7 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.hardware.backends import TrustedDevice
+import rlp
+from eth_utils import to_canonical_address, to_int, ValidationError
+from rlp.sedes import (
+    Binary,
+    big_endian_int,
+    binary,
+)
+from trezorlib.tools import parse_path, Address
+from eth_account._utils.transactions import Transaction, encode_transaction, assert_valid_fields
+
+from nucypher.crypto.device.base import TrustedDevice
 
 try:
 
@@ -34,7 +44,7 @@ else:
     from trezorlib import transport, client, device, ethereum, tools
 
 from functools import wraps
-from typing import Tuple
+from typing import Tuple, List
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.crypto.signing import InvalidSignature
@@ -45,14 +55,17 @@ class Trezor(TrustedDevice):
     An implementation of a Trezor device for staking on the NuCypher network.
     """
 
+    ADDRESS_CACHE_SIZE = 10
+
     def __init__(self):
         try:
             self.client = client.get_default_client()
         except TransportException:
             raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. Have you unlocked it?")
-        else:
-            self.__bip44_path = tools.parse_path(self.DEFAULT_BIP44_PATH)
-            # ethereum.get_address()
+
+        self._device_id = self.client.get_device_id()
+        self.__addresses = dict()
+        self.__load_addresses()
 
     def _handle_device_call(device_func):
         @wraps(device_func)
@@ -83,7 +96,7 @@ class Trezor(TrustedDevice):
         raise NotImplementedError
 
     @_handle_device_call
-    def sign_message(self, message: bytes, address_index: int = 0):
+    def sign_message(self, message: bytes, checksum_address: str):
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
         the signature and the address used to sign it. This method requires
@@ -93,9 +106,8 @@ class Trezor(TrustedDevice):
         index to sign the message. If no index is provided, the address at
         the 0th index is used by default.
         """
-        bip44_path = self.__bip44_path + [address_index]
-
-        sig = ethereum.sign_message(self.client, bip44_path, message)
+        hd_path = self.get_address_path(checksum_address=checksum_address)
+        sig = ethereum.sign_message(self.client, hd_path, message)
         return self.Signature(sig.signature, sig.address)
 
     @_handle_device_call
@@ -112,13 +124,57 @@ class Trezor(TrustedDevice):
 
         TODO: Should we provide some input validation for the ETH address?
         """
-        is_valid = ethereum.verify_message(self.client, checksum_address,
-                                                  signature, message)
+        is_valid = ethereum.verify_message(self.client,
+                                           checksum_address,
+                                           signature,
+                                           message)
         if not is_valid:
             raise InvalidSignature("Signature verification failed.")
         return True
 
+    def get_address_path(self, index: int = None, checksum_address: str = None) -> List[int]:
+        if index is not None and checksum_address:
+            raise ValueError("Expected index or checksum address; Got both.")
+        elif index is not None:
+            hd_path = parse_path(f"{self.ETH_CHAIN_ROOT}/{index}")
+        else:
+            try:
+                hd_path = self.__addresses[checksum_address]
+            except KeyError:
+                raise self.DeviceError(f"{checksum_address} was not loaded into the device address cache.")
+        return hd_path
+
+    def __load_addresses(self):
+        for index in range(self.ADDRESS_CACHE_SIZE):
+            hd_path = self.get_address_path(index=index)
+            address = self.get_address(hd_path=hd_path, show_display=False)
+            self.__addresses[address] = hd_path
+
     @_handle_device_call
-    def sign_eth_transaction(self, chain_id: int, **transaction) -> Tuple[bytes]:
-        response = ethereum.sign_tx(client=self.client, chain_id=chain_id, **transaction)
-        return response
+    def get_address(self, index: int = None, hd_path: Address = None, show_display: bool = True) -> str:
+        if not hd_path:
+            if index is None:
+                raise ValueError("No index or HD path supplied.")  # TODO: better error handling here
+            hd_path = self.get_address_path(index=index)
+        address = ethereum.get_address(client=self.client, n=hd_path, show_display=show_display)
+        return address
+
+    @_handle_device_call
+    def sign_eth_transaction(self,
+                             checksum_address: str,
+                             unsigned_transaction: dict,
+                             rlp_encoded: bool = True,
+                             ) -> Tuple[bytes]:
+
+        # TODO: Handle web3.py formatting
+        unsigned_transaction.update(dict(to=to_canonical_address(checksum_address)))
+
+        n = self.get_address_path(checksum_address=checksum_address)
+        v, r, s = ethereum.sign_tx(client=self.client, n=n, **unsigned_transaction)
+        signed_transaction = Transaction(v=to_int(v),
+                                         r=to_int(r),
+                                         s=to_int(s),
+                                         **unsigned_transaction)
+        if rlp_encoded:
+            signed_transaction = rlp.encode(signed_transaction)
+        return signed_transaction

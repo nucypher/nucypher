@@ -3,7 +3,7 @@ from trezorlib import client as trezor_client
 from trezorlib.transport import TransportException
 from usb1 import USBErrorNoDevice, USBErrorBusy
 
-from nucypher.hardware.backends import Trezor
+from nucypher.crypto.device.trezor import Trezor
 from nucypher.crypto.signing import InvalidSignature
 
 
@@ -74,6 +74,13 @@ def test_trezor_sign_and_verify(mock_trezorlib, fake_trezor_signature,
     with pytest.raises(InvalidSignature):
         trezor_backend.verify_message(test_sig.signature, b'bad message',
                                       test_sig.address)
+
+
+def test_trezor_sign_eth_transaction(mock_trezorlib):
+    trezor_backend = Trezor()
+
+    with pytest.raises(NotImplementedError):
+        trezor_backend.sign_eth_transaction()
 
 
 # def test_trezor_sign_agent_eth_transaction(testerchain, agency):

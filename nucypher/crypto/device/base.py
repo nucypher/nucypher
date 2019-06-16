@@ -2,6 +2,8 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
 
+from trezorlib.tools import H_
+
 
 class TrustedDevice(ABC):
     """
@@ -15,7 +17,20 @@ class TrustedDevice(ABC):
 
     # We intentionally keep the address index off the path so that the
     # subclass interfaces can handle which address index to use.
-    DEFAULT_BIP44_PATH = "m/44'/60'/0'/0"
+    __BIP_44 = 44
+    __ETH_COIN_TYPE = 60
+
+    CHAIN_ID = 0
+    DEFAULT_ACCOUNT = 0
+    DEFAULT_ACCOUNT_INDEX = 0
+
+    # n = m/44'/60'/0'
+    # n = [H_(44), H_(60), H_(0)]
+    ETH_CHAIN_ROOT = f"m/{__BIP_44}'/{__ETH_COIN_TYPE}'/{DEFAULT_ACCOUNT}'/{CHAIN_ID}"
+
+    # n = m/44'/60'/0'/0
+    n = [H_(44), H_(60), H_(0), H_(0)]
+    DEFAULT_BIP44_PATH = f"{ETH_CHAIN_ROOT}/{DEFAULT_ACCOUNT_INDEX}"
 
     Signature = namedtuple('Signature', ['signature', 'address'])
 
