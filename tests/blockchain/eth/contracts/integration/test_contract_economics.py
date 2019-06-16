@@ -38,7 +38,7 @@ def test_reward(testerchain, three_agents, token_economics):
                                            target_address=miner_agent.contract_address,
                                            sender_address=ursula)
     _txhash = miner_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
-                                         lock_periods=100 * token_economics.maximum_locked_periods,
+                                         lock_periods=100 * token_economics.maximum_rewarded_periods,
                                          sender_address=ursula)
 
     # Get a reward for one period
@@ -52,14 +52,16 @@ def test_reward(testerchain, three_agents, token_economics):
     contract_reward = miner_agent.calculate_staking_reward(checksum_address=ursula)
     calculations_reward = token_economics.cumulative_rewards_at_period(1)
     error = (contract_reward - calculations_reward) / calculations_reward
+    assert error > 0
     assert error < MAX_ERROR
 
-    # Get a reward for ten periods
+    # Get a reward for other periods
     for i in range(1, MAX_PERIODS):
         testerchain.time_travel(periods=1)
         _txhash = miner_agent.confirm_activity(node_address=ursula)
         contract_reward = miner_agent.calculate_staking_reward(checksum_address=ursula)
         calculations_reward = token_economics.cumulative_rewards_at_period(i + 1)
         next_error = (contract_reward - calculations_reward) / calculations_reward
+        assert next_error > 0
         assert next_error < error
         error = next_error
