@@ -175,7 +175,7 @@ def test_anybody_can_encrypt():
 def test_node_deployer(federated_ursulas):
     for ursula in federated_ursulas:
         deployer = ursula.get_deployer()
-        assert deployer.options['https_port'] == ursula.rest_interface().port
+        assert deployer.options['https_port'] == ursula.rest_interface.port
         assert deployer.application == ursula.rest_app
 
 
