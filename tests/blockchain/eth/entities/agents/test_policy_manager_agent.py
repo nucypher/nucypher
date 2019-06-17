@@ -130,7 +130,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
 
     staker = policy_meta.addresses[-1]
     ursula = staking_agent.get_worker_from_staker(staker)
-    old_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(staker)
+    old_eth_balance = token_agent.blockchain.w3.eth.getBalance(staker)
 
     for _ in range(token_economics.minimum_locked_periods):
         _receipt = staking_agent.confirm_activity(worker_address=ursula)
@@ -139,5 +139,5 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
     receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
-    new_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(staker)
+    new_eth_balance = token_agent.blockchain.w3.eth.getBalance(staker)
     assert new_eth_balance > old_eth_balance

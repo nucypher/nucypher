@@ -50,7 +50,7 @@ def test_run_felix(click_runner,
     # Felix creates a system configuration
     init_args = ('--debug',
                  'felix', 'init',
-                 '--checksum-address', testerchain.interface.w3.eth.accounts[0],
+                 '--checksum-address', testerchain.w3.eth.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
                  '--no-registry',
@@ -102,7 +102,7 @@ def test_run_felix(click_runner,
         assert response.status_code == 200
 
         # Register a new recipient
-        response = test_client.post('/register', data={'address': felix.blockchain.interface.w3.eth.accounts[-1]})
+        response = test_client.post('/register', data={'address': felix.blockchain.w3.eth.accounts[-1]})
         assert response.status_code == 200
 
         return
@@ -111,7 +111,7 @@ def test_run_felix(click_runner,
         clock.advance(amount=60)
 
     # Record starting ether balance
-    recipient = testerchain.interface.w3.eth.accounts[-1]
+    recipient = testerchain.w3.eth.accounts[-1]
     staker = Staker(checksum_address=recipient,
                     blockchain=testerchain,
                     is_me=True)
@@ -125,14 +125,14 @@ def test_run_felix(click_runner,
     yield d
 
     def confirm_airdrop(_results):
-        recipient = testerchain.interface.w3.eth.accounts[-1]
+        recipient = testerchain.w3.eth.accounts[-1]
         staker = Staker(checksum_address=recipient,
                         blockchain=testerchain,
                         is_me=True)
 
         assert staker.token_balance == NU(15000, 'NU')
 
-        new_eth_balance = original_eth_balance + testerchain.interface.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
+        new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
         assert staker.eth_balance == new_eth_balance
 
     staged_airdrops = Felix._AIRDROP_QUEUE

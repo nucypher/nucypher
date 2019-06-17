@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain):
 
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.w3.eth.accounts
 
     #
     # Nucypher Token
@@ -66,7 +66,7 @@ def test_deploy_ethereum_contracts(testerchain):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed
 
-    staking_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(stakers_escrow_secret))
+    staking_escrow_deployer.deploy(secret_hash=testerchain.w3.keccak(stakers_escrow_secret))
     assert staking_escrow_deployer.is_deployed
     assert len(staking_escrow_deployer.contract_address) == 42
 
@@ -93,7 +93,7 @@ def test_deploy_ethereum_contracts(testerchain):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed
 
-    policy_manager_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    policy_manager_deployer.deploy(secret_hash=testerchain.w3.keccak(policy_manager_secret))
     assert policy_manager_deployer.is_deployed
     assert len(policy_manager_deployer.contract_address) == 42
 

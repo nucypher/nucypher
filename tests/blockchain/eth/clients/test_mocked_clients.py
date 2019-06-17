@@ -4,16 +4,18 @@ from nucypher.blockchain.eth.clients import (
     GanacheClient,
     PUBLIC_CHAINS
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import Blockchain
 
+
+#
+# Mock Providers
+#
 
 class MockGethProvider:
-
     clientVersion = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
 
 
 class MockParityProvider:
-
     clientVersion = 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
 
 
@@ -22,11 +24,14 @@ class MockGanacheProvider:
 
 
 class ChainIdReporter:
-
     # Support older and newer versions of web3 py in-test
     version = 5
     chainID = 5
 
+
+#
+# Mock Web3
+#
 
 class MockWeb3:
 
@@ -40,7 +45,11 @@ class MockWeb3:
         return self.provider.clientVersion
 
 
-class BlockChainInterfaceTestBase(BlockchainInterface):
+#
+# Mock Blockchain
+#
+
+class BlockchainTestBase(Blockchain):
 
     Web3 = MockWeb3
 
@@ -50,33 +59,34 @@ class BlockChainInterfaceTestBase(BlockchainInterface):
     def _setup_solidity(self, *args, **kwargs):
         pass
 
+    def attach_middleware(self):
+        pass
 
-class GethClientTestInterface(BlockChainInterfaceTestBase):
 
-    def _get_IPC_provider(self):
-        return MockGethProvider()
+class GethClientTestBlockchain(BlockchainTestBase):
+
+    def _attach_provider(self, *args, **kwargs) -> None:
+        super()._attach_provider(provider=MockGethProvider())
 
     @property
     def is_local(self):
         return int(self.w3.net.version) not in PUBLIC_CHAINS
 
 
-class ParityClientTestInterface(BlockChainInterfaceTestBase):
+class ParityClientTestInterface(BlockchainTestBase):
 
-    def _get_IPC_provider(self):
-        return MockParityProvider()
+    def _attach_provider(self, *args, **kwargs) -> None:
+        super()._attach_provider(provider=MockParityProvider())
 
 
-class GanacheClientTestInterface(BlockChainInterfaceTestBase):
+class GanacheClientTestInterface(BlockchainTestBase):
 
-    def _get_HTTP_provider(self):
-        return MockGanacheProvider()
+    def _attach_provider(self, *args, **kwargs) -> None:
+        super()._attach_provider(provider=MockGanacheProvider())
 
 
 def test_geth_web3_client():
-    interface = GethClientTestInterface(
-        provider_uri='file:///ipc.geth'
-    )
+    interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth', sync_now=False)
     assert isinstance(interface.client, GethClient)
     assert interface.node_technology == 'Geth'
     assert interface.node_version == 'v1.4.11-stable-fed692f6'
@@ -88,9 +98,7 @@ def test_geth_web3_client():
 
 
 def test_parity_web3_client():
-    interface = ParityClientTestInterface(
-        provider_uri='file:///ipc.parity'
-    )
+    interface = ParityClientTestInterface(provider_uri='file:///ipc.parity', sync_now=False)
     assert isinstance(interface.client, ParityClient)
     assert interface.node_technology == 'Parity-Ethereum'
     assert interface.node_version == 'v2.5.1-beta-e0141f8-20190510'
@@ -99,7 +107,7 @@ def test_parity_web3_client():
 
 
 def test_ganache_web3_client():
-    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445')
+    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445', sync_now=False)
     assert isinstance(interface.client, GanacheClient)
     assert interface.node_technology == 'EthereumJS TestRPC'
     assert interface.node_version == 'v2.1.5'

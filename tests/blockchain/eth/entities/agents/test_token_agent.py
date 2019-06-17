@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, DispatcherD
 
 @pytest.fixture(scope='module')
 def agent(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.w3.eth.accounts
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
     token_deployer.deploy()
@@ -41,9 +41,9 @@ def test_token_properties(agent):
 
     # Cannot transfer any ETH to token contract
     with pytest.raises((TransactionFailed, ValueError)):
-        origin = testerchain.interface.w3.eth.coinbase
+        origin = testerchain.w3.eth.coinbase
         payload = {'from': origin, 'to': agent.contract_address, 'value': 1}
-        tx = testerchain.interface.w3.eth.sendTransaction(payload)
+        tx = testerchain.w3.eth.sendTransaction(payload)
         testerchain.wait_for_receipt(tx)
 
     assert len(agent.contract_address) == 42
@@ -54,7 +54,7 @@ def test_token_properties(agent):
 
 def test_get_balance(agent, token_economics):
     testerchain = agent.blockchain
-    deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer, someone, *everybody_else = testerchain.w3.eth.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
@@ -63,7 +63,7 @@ def test_get_balance(agent, token_economics):
 
 def test_approve_transfer(agent, token_economics):
     testerchain = agent.blockchain
-    deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer, someone, *everybody_else = testerchain.w3.eth.accounts
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
@@ -76,7 +76,7 @@ def test_approve_transfer(agent, token_economics):
 
 def test_transfer(agent, token_economics):
     testerchain = agent.blockchain
-    origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, someone, *everybody_else = testerchain.w3.eth.accounts
 
     old_balance = agent.get_balance(someone)
     receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
