@@ -75,10 +75,10 @@ class Vladimir(Ursula):
         """
         try:
             password = INSECURE_DEVELOPMENT_PASSWORD
-            blockchain.interface.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
+            blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError, ):
             # check if Vlad's key is already on the keyring...
-            if cls.fraud_address in blockchain.interface.w3.eth.accounts:
+            if cls.fraud_address in blockchain.w3.eth.accounts:
                 return True
             else:
                 raise

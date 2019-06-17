@@ -22,7 +22,7 @@ from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -186,7 +186,7 @@ class Felix(Character, NucypherTokenActor):
         self.reserved_addresses = [self.checksum_address, Blockchain.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
-        existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
+        existing_entries = list(self.blockchain.registry.enrolled_addresses)
         self.reserved_addresses.extend(existing_entries)
 
         # Distribution
@@ -379,8 +379,8 @@ class Felix(Character, NucypherTokenActor):
             transaction = {'to': recipient_address,
                            'from': self.checksum_address,
                            'value': ether,
-                           'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
-            ether_txhash = self.blockchain.interface.w3.eth.sendTransaction(transaction)
+                           'gasPrice': self.blockchain.w3.eth.gasPrice}
+            ether_txhash = self.blockchain.w3.eth.sendTransaction(transaction)
 
             self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
