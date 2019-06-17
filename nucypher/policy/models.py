@@ -557,9 +557,10 @@ class WorkOrder:
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
             self.cfrag_signature = cfrag_signature
 
-        def get_specification(self, ursula_pubkey, alice_address, blockhash):
+        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):
             task_specification = (bytes(self.capsule),
                                   bytes(ursula_pubkey),
+                                  bytes(ursula_identity_evidence),
                                   alice_address,
                                   blockhash)
             return b''.join(task_specification)
@@ -624,13 +625,17 @@ class WorkOrder:
         # TODO: Bob's input to prove freshness for this work order
         blockhash = b'\x00' * 32
 
+        ursula_identity_evidence = b''
+        if ursula._stamp_has_valid_signature_by_worker():
+            ursula_identity_evidence = ursula.decentralized_identity_evidence
+
         tasks, tasks_bytes = [], []
         for capsule in capsules:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
 
             task = cls.Task(capsule, signature=None)
-            specification = task.get_specification(ursula.stamp, alice_address, blockhash)
+            specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
             tasks.append(task)
             tasks_bytes.append(bytes(task))
@@ -645,7 +650,7 @@ class WorkOrder:
                    ursula=ursula, blockhash=blockhash)
 
     @classmethod
-    def from_rest_payload(cls, arrangement_id, rest_payload, ursula_pubkey_bytes, alice_address):
+    def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
 
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
@@ -655,9 +660,13 @@ class WorkOrder:
         # TODO: check freshness of blockhash?
 
         # Check receipt
-        receipt_bytes = b"wo:" + ursula_pubkey_bytes + msgpack.dumps(tasks_bytes)
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
         if not signature.verify(receipt_bytes, bob_verifying_key):
             raise InvalidSignature()
+
+        ursula_identity_evidence = b''
+        if ursula._stamp_has_valid_signature_by_worker():
+            ursula_identity_evidence = ursula.decentralized_identity_evidence
 
         tasks = []
         for task_bytes in tasks_bytes:
@@ -665,12 +674,17 @@ class WorkOrder:
             tasks.append(task)
 
             # Each task signature has to match the original specification
-            specification = task.get_specification(ursula_pubkey_bytes, alice_address, blockhash)
+            specification = task.get_specification(ursula.stamp,
+                                                   alice_address,
+                                                   blockhash,
+                                                   ursula_identity_evidence)
+
             if not task.signature.verify(specification, bob_verifying_key):
                 raise InvalidSignature()
 
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
+                   ursula=ursula,
                    arrangement_id=arrangement_id,
                    tasks=tasks,
                    alice_address=alice_address,
@@ -805,7 +819,8 @@ class IndisputableEvidence:
 
         self.task = task
         self.ursula_pubkey = work_order.ursula.stamp.as_umbral_pubkey()
-        self.bob_pubkey = work_order.bob.stamp.as_umbral_pubkey()
+        self.ursula_identity_evidence = work_order.ursula.decentralized_identity_evidence
+        self.bob_verifying_key = work_order.bob.stamp.as_umbral_pubkey()
         self.blockhash = work_order.blockhash
         self.alice_address = work_order.alice_address
 
@@ -923,10 +938,12 @@ class IndisputableEvidence:
 
         specification = self.task.get_specification(ursula_pubkey=self.ursula_pubkey,
                                                     alice_address=self.alice_address,
-                                                    blockhash=self.blockhash)
+                                                    blockhash=self.blockhash,
+                                                    ursula_identity_evidence=self.ursula_identity_evidence)
+
         specification_signature_v = get_signature_recovery_value(message=specification,
                                                                  signature=self.task.signature,
-                                                                 public_key=self.bob_pubkey)
+                                                                 public_key=self.bob_verifying_key)
 
         ursula_pubkey_prefix_byte = bytes(self.ursula_pubkey)[0:1]
 
@@ -951,8 +968,8 @@ class IndisputableEvidence:
                 bytes(self.task.cfrag),
                 bytes(self.task.cfrag_signature),
                 bytes(self.task.signature),
-                get_coordinates_as_bytes(self.bob_pubkey),
+                get_coordinates_as_bytes(self.bob_verifying_key),
                 get_coordinates_as_bytes(self.ursula_pubkey),
-                None,   # FIXME: bytes memory _stakerPublicKeySignature #962
+                bytes(self.ursula_identity_evidence),
                 self.precompute_values()
                 )
