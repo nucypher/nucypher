@@ -22,8 +22,8 @@ from eth_tester.exceptions import TransactionFailed
 
 @pytest.mark.slow
 def test_escrow(testerchain, token, user_escrow):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    user = testerchain.w3.eth.accounts[1]
     deposits = user_escrow.events.TokensDeposited.createFilter(fromBlock='latest')
 
     # Deposit some tokens to the user escrow and lock them
@@ -108,8 +108,8 @@ def test_staker(testerchain, token, escrow, user_escrow, user_escrow_proxy, prox
     """
     Test staker functions in the user escrow
     """
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    user = testerchain.w3.eth.accounts[1]
 
     deposits = user_escrow.events.TokensDeposited.createFilter(fromBlock='latest')
 
@@ -296,9 +296,9 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     """
     Test policy manager functions in the user escrow
     """
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
-    user_balance = testerchain.interface.w3.eth.getBalance(user)
+    creator = testerchain.w3.eth.accounts[0]
+    user = testerchain.w3.eth.accounts[1]
+    user_balance = testerchain.w3.eth.getBalance(user)
 
     # Nothing to withdraw
     with pytest.raises((TransactionFailed, ValueError)):
@@ -307,12 +307,12 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.functions.withdrawETH().transact({'from': user, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
-    assert user_balance == testerchain.interface.w3.eth.getBalance(user)
-    assert 0 == testerchain.interface.w3.eth.getBalance(user_escrow.address)
+    assert user_balance == testerchain.w3.eth.getBalance(user)
+    assert 0 == testerchain.w3.eth.getBalance(user_escrow.address)
 
     # Send ETH to the policy manager as a reward for the user
-    tx = testerchain.interface.w3.eth.sendTransaction(
-        {'from': testerchain.interface.w3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
+    tx = testerchain.w3.eth.sendTransaction(
+        {'from': testerchain.w3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
     staker_reward = user_escrow_proxy.events.PolicyRewardWithdrawn.createFilter(fromBlock='latest')
@@ -329,9 +329,9 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     # User withdraws reward
     tx = user_escrow_proxy.functions.withdrawPolicyReward().transact({'from': user, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert user_balance + 10000 == testerchain.interface.w3.eth.getBalance(user)
-    assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert 0 == testerchain.interface.w3.eth.getBalance(user_escrow.address)
+    assert user_balance + 10000 == testerchain.w3.eth.getBalance(user)
+    assert 0 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert 0 == testerchain.w3.eth.getBalance(user_escrow.address)
 
     events = staker_reward.get_all_entries()
     assert 1 == len(events)

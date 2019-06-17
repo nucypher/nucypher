@@ -23,13 +23,13 @@ from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT
 @pytest.mark.slow()
 @pytest.fixture(scope='module')
 def author(testerchain, agency):
-    _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
+    _origin, ursula, alice, *everybody_else = testerchain.w3.eth.accounts
     author = PolicyAuthor(checksum_address=alice)
     return author
 
 
 @pytest.mark.slow()
 def test_create_policy_author(testerchain, agency):
-    _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
+    _origin, ursula, alice, *everybody_else = testerchain.w3.eth.accounts
     policy_author = PolicyAuthor(checksum_address=alice)
     assert policy_author.checksum_address == alice

@@ -21,7 +21,7 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 
 CLIENT_FIELD = 0
 RATE_FIELD = 1
@@ -46,8 +46,8 @@ value = rate * number_of_periods
 
 @pytest.mark.slow
 def test_reward(testerchain, escrow, policy_manager):
-    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.interface.w3.eth.accounts
-    node_balance = testerchain.interface.w3.eth.getBalance(node1)
+    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.w3.eth.accounts
+    node_balance = testerchain.w3.eth.getBalance(node1)
     withdraw_log = policy_manager.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Mint period without policies
@@ -84,8 +84,8 @@ def test_reward(testerchain, escrow, policy_manager):
     # Withdraw some ETH
     tx = policy_manager.functions.withdraw().transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert node_balance + 80 == testerchain.interface.w3.eth.getBalance(node1)
-    assert 120 + value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
+    assert node_balance + 80 == testerchain.w3.eth.getBalance(node1)
+    assert 120 + value == testerchain.w3.eth.getBalance(policy_manager.address)
 
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
@@ -107,8 +107,8 @@ def test_reward(testerchain, escrow, policy_manager):
     # Withdraw some ETH
     tx = policy_manager.functions.withdraw(node1).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert node_balance + value == testerchain.interface.w3.eth.getBalance(node1)
-    assert value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
+    assert node_balance + value == testerchain.w3.eth.getBalance(node1)
+    assert value == testerchain.w3.eth.getBalance(policy_manager.address)
 
     events = withdraw_log.get_all_entries()
     assert 2 == len(events)
@@ -137,13 +137,13 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 210 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
 
     # Withdraw ETH for first node
-    node_balance = testerchain.interface.w3.eth.getBalance(node1)
-    node_2_balance = testerchain.interface.w3.eth.getBalance(node2)
+    node_balance = testerchain.w3.eth.getBalance(node1)
+    node_2_balance = testerchain.w3.eth.getBalance(node2)
     tx = policy_manager.functions.withdraw(node1).transact({'from': node2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert node_balance + 210 == testerchain.interface.w3.eth.getBalance(node1)
-    assert node_2_balance == testerchain.interface.w3.eth.getBalance(node2)
-    assert value + 210 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
+    assert node_balance + 210 == testerchain.w3.eth.getBalance(node1)
+    assert node_2_balance == testerchain.w3.eth.getBalance(node2)
+    assert value + 210 == testerchain.w3.eth.getBalance(policy_manager.address)
 
     events = withdraw_log.get_all_entries()
     assert 3 == len(events)
@@ -155,12 +155,12 @@ def test_reward(testerchain, escrow, policy_manager):
 
 @pytest.mark.slow
 def test_refund(testerchain, escrow, policy_manager):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    client = testerchain.interface.w3.eth.accounts[1]
-    node1 = testerchain.interface.w3.eth.accounts[3]
-    node2 = testerchain.interface.w3.eth.accounts[4]
-    node3 = testerchain.interface.w3.eth.accounts[5]
-    client_balance = testerchain.interface.w3.eth.getBalance(client)
+    creator = testerchain.w3.eth.accounts[0]
+    client = testerchain.w3.eth.accounts[1]
+    node1 = testerchain.w3.eth.accounts[3]
+    node2 = testerchain.w3.eth.accounts[4]
+    node3 = testerchain.w3.eth.accounts[5]
+    client_balance = testerchain.w3.eth.getBalance(client)
     policy_created_log = policy_manager.events.PolicyCreated.createFilter(fromBlock='latest')
     arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock='latest')
     policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
@@ -180,16 +180,16 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.calculateRefundValue(policy_id, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 210 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 210 == testerchain.interface.w3.eth.getBalance(client)
+    assert 210 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 210 == testerchain.w3.eth.getBalance(client)
     assert 190 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     assert 190 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
 
     # Call refund, the result must be almost all ETH without payment for one period
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 20 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 20 == testerchain.interface.w3.eth.getBalance(client)
+    assert 20 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 20 == testerchain.w3.eth.getBalance(client)
     assert client == policy_manager.functions.policies(policy_id).call()[CLIENT_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
@@ -214,8 +214,8 @@ def test_refund(testerchain, escrow, policy_manager):
     # Call refund, last period must be refunded
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance == testerchain.interface.w3.eth.getBalance(client)
+    assert 0 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance == testerchain.w3.eth.getBalance(client)
     assert policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
@@ -270,8 +270,8 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
     tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 3 * value + 1.5 * rate == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - int(3 * value + 1.5 * rate) == testerchain.interface.w3.eth.getBalance(client)
+    assert 3 * value + 1.5 * rate == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - int(3 * value + 1.5 * rate) == testerchain.w3.eth.getBalance(client)
 
     events = arrangement_refund_log.get_all_entries()
     assert 5 == len(events)
@@ -344,8 +344,8 @@ def test_refund(testerchain, escrow, policy_manager):
     # Refund for only inactive periods
     tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 2 * value + 90 + rate == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - (2 * value + 90 + rate) == testerchain.interface.w3.eth.getBalance(client)
+    assert 2 * value + 90 + rate == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - (2 * value + 90 + rate) == testerchain.w3.eth.getBalance(client)
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
@@ -379,8 +379,8 @@ def test_refund(testerchain, escrow, policy_manager):
     assert 120 == policy_manager.functions.calculateRefundValue(policy_id_2, node3).call({'from': client})
     tx = policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 3 * 90 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 3 * 90 == testerchain.interface.w3.eth.getBalance(client)
+    assert 3 * 90 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 3 * 90 == testerchain.w3.eth.getBalance(client)
     assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
@@ -433,8 +433,8 @@ def test_refund(testerchain, escrow, policy_manager):
 
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 60 + 3 * 90 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - (60 + 3 * 90) == testerchain.interface.w3.eth.getBalance(client)
+    assert 60 + 3 * 90 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - (60 + 3 * 90) == testerchain.w3.eth.getBalance(client)
     assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()

@@ -25,24 +25,24 @@ from nucypher.blockchain.eth.deployers import DispatcherDeployer
 
 @pytest.fixture()
 def escrow(testerchain):
-    escrow, _ = testerchain.interface.deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 
 
 @pytest.fixture(params=[False, True])
 def adjudicator_contract(testerchain, escrow, request, slashing_economics):
-    contract, _ = testerchain.interface.deploy_contract(
+    contract, _ = testerchain.deploy_contract(
         'Adjudicator',
         escrow.address,
         *slashing_economics.deployment_parameters)
 
     if request.param:
         secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-        secret_hash = testerchain.interface.w3.keccak(secret)
-        dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
+        secret_hash = testerchain.w3.keccak(secret)
+        dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
-        contract = testerchain.interface.w3.eth.contract(
+        contract = testerchain.w3.eth.contract(
             abi=contract.abi,
             address=dispatcher.address,
             ContractFactoryClass=Contract)

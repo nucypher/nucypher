@@ -22,7 +22,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 
 CLIENT_FIELD = 0
 RATE_FIELD = 1
@@ -52,9 +52,9 @@ value = rate * number_of_periods
 
 @pytest.mark.slow
 def test_create_revoke(testerchain, escrow, policy_manager):
-    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.w3.eth.accounts
 
-    client_balance = testerchain.interface.w3.eth.getBalance(client)
+    client_balance = testerchain.w3.eth.getBalance(client)
     policy_created_log = policy_manager.events.PolicyCreated.createFilter(fromBlock='latest')
     arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock='latest')
     policy_revoked_log = policy_manager.events.PolicyRevoked.createFilter(fromBlock='latest')
@@ -88,8 +88,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         .transact({'from': client, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     # Check balances and policy info
-    assert value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 200 == testerchain.interface.w3.eth.getBalance(client)
+    assert value == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 200 == testerchain.w3.eth.getBalance(client)
     policy = policy_manager.functions.policies(policy_id).call()
     assert client == policy[CLIENT_FIELD]
     assert rate == policy[RATE_FIELD]
@@ -148,8 +148,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     tx = policy_manager.functions.createPolicy(policy_id_2, number_of_periods, 0, [node1, node2, node3])\
         .transact({'from': client, 'value': 6 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 6 * value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 6 * value == testerchain.interface.w3.eth.getBalance(client)
+    assert 6 * value == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 6 * value == testerchain.w3.eth.getBalance(client)
     policy = policy_manager.functions.policies(policy_id_2).call()
     assert client == policy[CLIENT_FIELD]
     assert 2 * rate == policy[RATE_FIELD]
@@ -166,7 +166,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Can't revoke nonexistent arrangement
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, testerchain.interface.w3.eth.accounts[6])\
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, testerchain.w3.eth.accounts[6])\
             .transact({'from': client})
         testerchain.wait_for_receipt(tx)
     # Can't revoke null arrangement (also it's nonexistent)
@@ -177,8 +177,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Revoke only one arrangement
     tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 4 * value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - 4 * value == testerchain.interface.w3.eth.getBalance(client)
+    assert 4 * value == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - 4 * value == testerchain.w3.eth.getBalance(client)
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
@@ -201,8 +201,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Revoke policy with remaining arrangements
     tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance == testerchain.interface.w3.eth.getBalance(client)
+    assert 0 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance == testerchain.w3.eth.getBalance(client)
     assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
@@ -271,8 +271,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
                    'value': int((0.5 * rate + rate * number_of_periods) * 3),
                    'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 3 * value + 1.5 * rate == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - int(3 * value + 1.5 * rate) == testerchain.interface.w3.eth.getBalance(client)
+    assert 3 * value + 1.5 * rate == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - int(3 * value + 1.5 * rate) == testerchain.w3.eth.getBalance(client)
     policy = policy_manager.functions.policies(policy_id_3).call()
     assert client == policy[CLIENT_FIELD]
     assert rate == policy[RATE_FIELD]
@@ -290,8 +290,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Revoke only one arrangement
     tx = policy_manager.functions.revokeArrangement(policy_id_3, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 2 * value + rate == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance - (2 * value + rate) == testerchain.interface.w3.eth.getBalance(client)
+    assert 2 * value + rate == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance - (2 * value + rate) == testerchain.w3.eth.getBalance(client)
     assert not policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
@@ -305,8 +305,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Revoke policy
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
-    assert client_balance == testerchain.interface.w3.eth.getBalance(client)
+    assert 0 == testerchain.w3.eth.getBalance(policy_manager.address)
+    assert client_balance == testerchain.w3.eth.getBalance(client)
     assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
@@ -338,26 +338,26 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
 @pytest.mark.slow
 def test_upgrading(testerchain):
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret_hash = testerchain.w3.keccak(secret)
+    secret2_hash = testerchain.w3.keccak(secret2)
 
     # Only escrow contract is allowed in PolicyManager constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('PolicyManager', creator)
+        testerchain.deploy_contract('PolicyManager', creator)
 
     # Deploy contracts
-    escrow1, _ = testerchain.interface.deploy_contract('StakingEscrowForPolicyMock', 1)
-    escrow2, _ = testerchain.interface.deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow1, _ = testerchain.deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow2, _ = testerchain.deploy_contract('StakingEscrowForPolicyMock', 1)
     address1 = escrow1.address
     address2 = escrow2.address
-    contract_library_v1, _ = testerchain.interface.deploy_contract('PolicyManager', address1)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    contract_library_v1, _ = testerchain.deploy_contract('PolicyManager', address1)
+    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.interface.deploy_contract('PolicyManagerV2Mock', address2)
-    contract = testerchain.interface.w3.eth.contract(
+    contract_library_v2, _ = testerchain.deploy_contract('PolicyManagerV2Mock', address2)
+    contract = testerchain.w3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -383,7 +383,7 @@ def test_upgrading(testerchain):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.interface.deploy_contract('PolicyManagerBad', address2)
+    contract_library_bad, _ = testerchain.deploy_contract('PolicyManagerBad', address2)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
             .transact({'from': creator})

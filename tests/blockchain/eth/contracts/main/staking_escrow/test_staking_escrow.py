@@ -30,9 +30,9 @@ def test_staking(testerchain, token, escrow_contract):
     """
 
     escrow = escrow_contract(1500)
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula1 = testerchain.interface.w3.eth.accounts[1]
-    ursula2 = testerchain.interface.w3.eth.accounts[2]
+    creator = testerchain.w3.eth.accounts[0]
+    ursula1 = testerchain.w3.eth.accounts[1]
+    ursula2 = testerchain.w3.eth.accounts[2]
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
@@ -68,7 +68,7 @@ def test_staking(testerchain, token, escrow_contract):
     # Check that nothing is locked
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
-    assert 0 == escrow.functions.getLockedTokens(testerchain.interface.w3.eth.accounts[3]).call()
+    assert 0 == escrow.functions.getLockedTokens(testerchain.w3.eth.accounts[3]).call()
 
     # Ursula can't deposit tokens before Escrow initialization
     with pytest.raises((TransactionFailed, ValueError)):
@@ -84,7 +84,7 @@ def test_staking(testerchain, token, escrow_contract):
         tx = escrow.functions.deposit(1, 10).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, 1, testerchain.interface.w3.toBytes(10))\
+        tx = token.functions.approveAndCall(escrow.address, 1, testerchain.w3.toBytes(10))\
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     # And can't deposit and lock too high value (more than _maxAllowableLockedTokens coefficient)
@@ -92,7 +92,7 @@ def test_staking(testerchain, token, escrow_contract):
         tx = escrow.functions.deposit(1501, 10).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, 1501, testerchain.interface.w3.toBytes(10))\
+        tx = token.functions.approveAndCall(escrow.address, 1501, testerchain.w3.toBytes(10))\
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     # And can't deposit for too short a period (less than _minLockedPeriods coefficient)
@@ -100,7 +100,7 @@ def test_staking(testerchain, token, escrow_contract):
         tx = escrow.functions.deposit(1000, 1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, 1000, testerchain.interface.w3.toBytes(1))\
+        tx = token.functions.approveAndCall(escrow.address, 1000, testerchain.w3.toBytes(1))\
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
@@ -204,7 +204,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 1000 == event_args['value']
 
     locked_next_period = escrow.functions.lockedPerPeriod(current_period + 1).call()
-    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.interface.w3.toBytes(2))\
+    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.w3.toBytes(2))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert 2000 == token.functions.balanceOf(escrow.address).call()
@@ -226,7 +226,7 @@ def test_staking(testerchain, token, escrow_contract):
         tx = escrow.functions.deposit(100, 2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, 100, testerchain.interface.w3.toBytes(2))\
+        tx = token.functions.approveAndCall(escrow.address, 100, testerchain.w3.toBytes(2))\
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
@@ -271,7 +271,7 @@ def test_staking(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Ursula can deposit and lock more tokens
-    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.interface.w3.toBytes(2))\
+    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.w3.toBytes(2))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -317,7 +317,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 1100 == escrow.functions.getLockedTokens(ursula1).call()
 
     # Ursula(2) increases lock by deposit more tokens using approveAndCall
-    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.interface.w3.toBytes(2))\
+    tx = token.functions.approveAndCall(escrow.address, 500, testerchain.w3.toBytes(2))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
@@ -457,8 +457,8 @@ def test_staking(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_max_sub_stakes(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    ursula = testerchain.w3.eth.accounts[1]
 
     # Initialize Escrow contract
     tx = escrow.functions.initialize().transact({'from': creator})

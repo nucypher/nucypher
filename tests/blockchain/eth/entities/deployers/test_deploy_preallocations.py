@@ -29,12 +29,12 @@ def user_escrow_proxy(agency):
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, blockchain=testerchain)
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
-    testerchain.interface.registry.clear()
+    testerchain.registry.clear()
     testerchain.sever_connection()
 
 
