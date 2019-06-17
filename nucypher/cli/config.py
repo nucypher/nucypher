@@ -26,7 +26,6 @@ from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.config.node import CharacterConfiguration
 from nucypher.utilities.logging import (
@@ -113,7 +112,7 @@ class NucypherClickConfig:
         # Ethereum Client  # TODO : Integrate with Powers API
         if not character_configuration.federated_only and unlock_wallet:
             self.emit(message='Decrypting Ethereum Node Keyring...', color='yellow')
-            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_address,
+            character_configuration.blockchain.unlock_account(address=character_configuration.checksum_address,
                                                                         password=password)
 
     @classmethod

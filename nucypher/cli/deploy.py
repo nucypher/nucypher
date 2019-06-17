@@ -23,7 +23,7 @@ from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import NU_BANNER
@@ -115,11 +115,11 @@ def deploy(click_config,
     #
 
     if not deployer_address:
-        for index, address in enumerate(blockchain.interface.w3.eth.accounts):
+        for index, address in enumerate(blockchain.w3.eth.accounts):
             click.secho(f"{index} --- {address}")
-        choices = click.IntRange(0, len(blockchain.interface.w3.eth.accounts))
+        choices = click.IntRange(0, len(blockchain.w3.eth.accounts))
         deployer_address_index = click.prompt("Select deployer address", default=0, type=choices)
-        deployer_address = blockchain.interface.w3.eth.accounts[deployer_address_index]
+        deployer_address = blockchain.w3.eth.accounts[deployer_address_index]
 
     # Verify Address
     if not force:
@@ -132,15 +132,15 @@ def deploy(click_config,
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
 
-    if not blockchain.interface.is_local:
+    if not blockchain.is_local:
         # (~ dev mode; Assume accounts are already unlocked)
         password = click.prompt("Enter ETH node password", hide_input=True)
-        blockchain.interface.w3.geth.personal.unlockAccount(deployer_address, password)
+        blockchain.w3.geth.personal.unlockAccount(deployer_address, password)
 
     # Add ETH Bootnode or Peer
     if enode:
         if geth:
-            blockchain.interface.w3.geth.admin.addPeer(enode)
+            blockchain.w3.geth.admin.addPeer(enode)
             click.secho(f"Added ethereum peer {enode}")
         else:
             raise NotImplemented  # TODO: other backends
@@ -167,7 +167,7 @@ def deploy(click_config,
 
     elif action == "contracts":
 
-        registry_filepath = deployer.blockchain.interface.registry.filepath
+        registry_filepath = deployer.blockchain.registry.filepath
         if os.path.isfile(registry_filepath):
             click.secho(f"\nThere is an existing contract registry at {registry_filepath}.\n"
                         f"Did you mean 'nucypher-deploy upgrade'?\n", fg='yellow')
@@ -209,9 +209,9 @@ def deploy(click_config,
         click.clear()
         click.secho(NU_BANNER)
 
-        w3 = deployer.blockchain.interface.w3
+        w3 = deployer.blockchain.w3
         click.secho(f"Current Time ........ {maya.now().iso8601()}")
-        click.secho(f"Web3 Provider ....... {deployer.blockchain.interface.provider_uri}")
+        click.secho(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
         click.secho(f"Block ............... {w3.eth.blockNumber}")
         click.secho(f"Gas Price ........... {w3.eth.gasPrice}")
 
@@ -284,7 +284,7 @@ def deploy(click_config,
 
         # Paint outfile paths
         click.secho("Cumulative Gas Consumption: {} gas".format(total_gas_used), bold=True, fg='blue')
-        registry_outfile = deployer.blockchain.interface.registry.filepath
+        registry_outfile = deployer.blockchain.registry.filepath
         click.secho('Generated registry {}'.format(registry_outfile), bold=True, fg='blue')
 
         # Save transaction metadata
@@ -305,7 +305,7 @@ def deploy(click_config,
         click.secho(f"OK | {txhash}")
 
     elif action == "destroy-registry":
-        registry_filepath = deployer.blockchain.interface.registry.filepath
+        registry_filepath = deployer.blockchain.registry.filepath
         click.confirm(f"Are you absolutely sure you want to destroy the contract registry at {registry_filepath}?", abort=True)
         os.remove(registry_filepath)
         click.secho(f"Successfully destroyed {registry_filepath}", fg='red')

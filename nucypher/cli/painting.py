@@ -182,8 +182,8 @@ NucypherToken ............ {token}
 StakingEscrow ............ {escrow}
 PolicyManager ............ {manager}
 
-    """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
-               registry_filepath=ursula_config.blockchain.interface.registry.filepath,
+    """.format(provider_uri=ursula_config.blockchain.provider_uri,
+               registry_filepath=ursula_config.blockchain.registry.filepath,
                token=ursula_config.token_agent.contract_address,
                escrow=ursula_config.staking_agent.contract_address,
                manager=ursula_config.policy_agent.contract_address,
@@ -198,7 +198,7 @@ Gas Price ................ {gas_price}
 Active Staking Ursulas ... {ursulas}
 
     """.format(period=ursula_config.staking_agent.get_current_period(),
-               gas_price=ursula_config.blockchain.interface.w3.eth.gasPrice,
+               gas_price=ursula_config.blockchain.w3.eth.gasPrice,
                ursulas=ursula_config.staking_agent.get_staker_population())
     click.secho(network_payload)
 
