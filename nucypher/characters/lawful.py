@@ -953,11 +953,12 @@ class Ursula(Teacher, Character, Worker):
             hosting_power.keypair.pubkey
         )
 
+    @property
     def rest_interface(self):
         return self.rest_server.rest_interface
 
     def get_deployer(self):
-        port = self.rest_interface().port
+        port = self.rest_interface.port
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
@@ -967,7 +968,7 @@ class Ursula(Teacher, Character, Worker):
     def __bytes__(self):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
-        interface_info = VariableLengthBytestring(bytes(self.rest_interface()))
+        interface_info = VariableLengthBytestring(bytes(self.rest_interface))
         decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
 
         certificate = self.rest_server_certificate()

@@ -239,10 +239,6 @@ class Character(Learner):
         return self.__class__.__name__
 
     @property
-    def rest_interface(self):
-        return self.rest_server.rest_url()
-
-    @property
     def stamp(self):
         if self._stamp is NO_SIGNING_POWER:
             raise NoSigningPower
