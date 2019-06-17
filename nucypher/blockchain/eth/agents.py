@@ -334,19 +334,24 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
 
     @validate_checksum_address
     def calculate_staking_reward(self, staker_address: str) -> int:
-        token_amount = self.contract.functions.stakerInfo(staker_address).call()[0]
+        token_amount = self.owned_tokens(staker_address)
         staked_amount = max(self.contract.functions.getLockedTokens(staker_address).call(),
                             self.contract.functions.getLockedTokens(staker_address, 1).call())
         reward_amount = token_amount - staked_amount
         return reward_amount
 
-    @transaction
     @validate_checksum_address
     def collect_staking_reward(self, staker_address: str):
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
+        return self.withdraw(staker_address=staker_address, amount=reward_amount)
+
+    @transaction
+    @validate_checksum_address
+    def withdraw(self, staker_address: str, amount: int):
+        """Withdraw tokens"""
         payload = {'from': staker_address, 'gas': 500_000}  # TODO: #842 Gas Management
-        transaction_builder = self.contract.functions.withdraw(reward_amount)
+        transaction_builder = self.contract.functions.withdraw(amount)
         return transaction_builder, payload
 
     #
