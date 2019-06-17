@@ -20,18 +20,18 @@ import pytest
 
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2, MAX_TEST_SEEDER_ENTRIES, \
     MOCK_URSULA_STARTING_PORT
 
 
 @pytest.mark.slow()
 def test_seeder(testerchain):
-    origin, seed_address, another_seed_address, *everyone_else = testerchain.interface.w3.eth.accounts
+    origin, seed_address, another_seed_address, *everyone_else = testerchain.w3.eth.accounts
     seed = (MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT)
     another_seed = (MOCK_IP_ADDRESS_2, MOCK_URSULA_STARTING_PORT + 1)
 
-    contract, _txhash = testerchain.interface.deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
+    contract, _txhash = testerchain.deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
 
     assert contract.functions.getSeedArrayLength().call() == MAX_TEST_SEEDER_ENTRIES
     assert contract.functions.owner().call() == origin

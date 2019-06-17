@@ -22,7 +22,7 @@ import pytest
 from web3.auto import w3
 
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
@@ -41,11 +41,13 @@ def test_rapid_deployment(token_economics):
     compiler = SolidityCompiler()
     registry = InMemoryEthereumContractRegistry()
     allocation_registry = InMemoryAllocationRegistry()
-    interface = BlockchainDeployerInterface(compiler=compiler,
-                                            registry=registry,
-                                            provider_uri=TEST_PROVIDER_URI)
 
-    blockchain = TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
+    blockchain = TesterBlockchain(eth_airdrop=False,
+                                  test_accounts=4,
+                                  compiler=compiler,
+                                  registry=registry,
+                                  provider_uri=TEST_PROVIDER_URI)
+
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

@@ -39,7 +39,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
@@ -352,28 +352,22 @@ def solidity_compiler():
 @pytest.fixture(scope='module')
 def testerchain(solidity_compiler):
     """
-    https: // github.com / ethereum / eth - tester     # available-backends
+    https://github.com/ethereum/eth-tester     # available-backends
     """
-    memory_registry = InMemoryEthereumContractRegistry()
-
-    # Use the the custom provider and registrar to init an interface
-
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=memory_registry,
-                                                     provider_uri=TEST_PROVIDER_URI)
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface,
+    testerchain = TesterBlockchain(compiler=solidity_compiler,
+                                   registry=InMemoryEthereumContractRegistry(),
+                                   provider_uri=TEST_PROVIDER_URI,
                                    eth_airdrop=True,
                                    free_transactions=True,
                                    poa=True)
 
     # Set the deployer address from a freshly created test account
-    deployer_interface.deployer_address = testerchain.etherbase_account
+    testerchain.deployer_address = testerchain.etherbase_account
 
     yield testerchain
-    deployer_interface.disconnect()
-    testerchain.sever_connection()
+    testerchain.disconnect()
 
 
 @pytest.fixture(scope='module')
@@ -389,17 +383,17 @@ def agency(testerchain):
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
     staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    token_agent = token_deployer.make_agent()  # 1: Token
+    token_agent = token_deployer.make_agent()             # 1: Token
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Miner Escrow
-    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
+    policy_agent = policy_manager_deployer.make_agent()   # 3 Policy Agent
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     yield token_agent, staking_agent, policy_agent
@@ -424,7 +418,7 @@ def stakers(agency, token_economics):
 
     stakers = list()
     for index, account in enumerate(blockchain.stakers_accounts):
-        staker = Staker(is_me=True, checksum_address=account)
+        staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
@@ -451,7 +445,8 @@ def stakers(agency, token_economics):
 def blockchain_ursulas(testerchain, agency, stakers, ursula_decentralized_test_config):
 
     # Leave out the last Ursula for manual stake testing
-    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+    _ursulas = make_decentralized_ursulas(blockchain=testerchain,
+                                          ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
                                           confirm_activity=True)
@@ -491,7 +486,7 @@ def policy_value(token_economics, policy_rate):
 def funded_blockchain(testerchain, agency, token_economics):
 
     # Who are ya'?
-    deployer_address, *everyone_else, staking_participant = testerchain.interface.w3.eth.accounts
+    deployer_address, *everyone_else, staking_participant = testerchain.w3.eth.accounts
 
     # Free ETH!!!
     testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)

@@ -25,15 +25,15 @@ from nucypher.blockchain.eth.token import NU
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = testerchain.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 
 @pytest.fixture()
 def escrow(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = testerchain.interface.deploy_contract('StakingEscrowForUserEscrowMock', token.address)
+    contract, _ = testerchain.deploy_contract('StakingEscrowForUserEscrowMock', token.address)
 
     # Give some coins to the escrow
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
@@ -44,14 +44,14 @@ def escrow(testerchain, token):
 
 @pytest.fixture()
 def policy_manager(testerchain):
-    contract, _ = testerchain.interface.deploy_contract('PolicyManagerForUserEscrowMock')
+    contract, _ = testerchain.deploy_contract('PolicyManagerForUserEscrowMock')
     return contract
 
 
 @pytest.fixture()
 def proxy(testerchain, token, escrow, policy_manager):
     # Creator deploys the user escrow proxy
-    contract, _ = testerchain.interface.deploy_contract(
+    contract, _ = testerchain.deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     return contract
 
@@ -59,17 +59,17 @@ def proxy(testerchain, token, escrow, policy_manager):
 @pytest.fixture()
 def linker(testerchain, proxy):
     secret = os.urandom(32)
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
+    secret_hash = testerchain.w3.keccak(secret)
+    linker, _ = testerchain.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker
 
 
 @pytest.fixture()
 def user_escrow(testerchain, token, linker):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    user = testerchain.w3.eth.accounts[1]
 
-    contract, _ = testerchain.interface.deploy_contract('UserEscrow', linker.address, token.address)
+    contract, _ = testerchain.deploy_contract('UserEscrow', linker.address, token.address)
 
     # Transfer ownership
     tx = contract.functions.transferOwnership(user).transact({'from': creator})
@@ -79,7 +79,7 @@ def user_escrow(testerchain, token, linker):
 
 @pytest.fixture()
 def user_escrow_proxy(testerchain, proxy, user_escrow):
-    return testerchain.interface.w3.eth.contract(
+    return testerchain.w3.eth.contract(
         abi=proxy.abi,
         address=user_escrow.address,
         ContractFactoryClass=Contract)

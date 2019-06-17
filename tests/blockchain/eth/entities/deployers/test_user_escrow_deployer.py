@@ -32,7 +32,7 @@ def user_escrow_proxy(agency):
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
-    testerchain.interface.registry.clear()
+    testerchain.registry.clear()
     testerchain.sever_connection()
 
 
@@ -40,7 +40,7 @@ def user_escrow_proxy(agency):
 def test_user_escrow_deployer(agency, testerchain):
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, blockchain=testerchain)
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
 
@@ -60,7 +60,7 @@ def test_deploy_multiple(testerchain):
 
     number_of_deployments = 100
     for index in range(number_of_deployments):
-        deployer = UserEscrowDeployer(deployer_address=deployer)
+        deployer = UserEscrowDeployer(deployer_address=deployer, blockchain=testerchain)
 
         deployment_txhashes = deployer.deploy()
 
@@ -70,5 +70,5 @@ def test_deploy_multiple(testerchain):
 
         # simulates passage of time / blocks
         if index % 15 == 0:
-            testerchain.interface.w3.eth.web3.testing.mine(1)
+            testerchain.w3.eth.web3.testing.mine(1)
             testerchain.time_travel(seconds=5)

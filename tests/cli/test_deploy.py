@@ -13,8 +13,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     AdjudicatorAgent,
     Agency)
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer, Blockchain
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
@@ -41,13 +41,13 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 def make_testerchain(provider_uri, solidity_compiler):
 
     # Destroy existing blockchain
-    BlockchainInterface.disconnect()
+    Blockchain.disconnect()
     TesterBlockchain.sever_connection()
 
     registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
-                                                     registry=registry,
-                                                     provider_uri=provider_uri)
+    deployer_interface = BlockchainDeployer(compiler=solidity_compiler,
+                                            registry=registry,
+                                            provider_uri=provider_uri)
 
     # Create new blockchain
     testerchain = TesterBlockchain(interface=deployer_interface,
@@ -66,7 +66,7 @@ def pyevm_testerchain():
 
 def geth_poa_devchain():
     _testerchain = make_testerchain(provider_uri='tester://geth', solidity_compiler=SolidityCompiler())
-    return f'ipc://{_testerchain.interface.provider.ipc_path}'
+    return f'ipc://{_testerchain.provider.ipc_path}'
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -239,7 +239,7 @@ def test_upgrade_contracts(click_runner):
                                                         f"Expected {expected_enrollments} got {enrollments}."
 
         # Ensure deployments are different addresses
-        records = blockchain.interface.registry.search(contract_name=contract_name)
+        records = blockchain.registry.search(contract_name=contract_name)
         assert len(records) == expected_enrollments
 
         old, new = records[-2:]            # Get the last two entries
@@ -255,7 +255,7 @@ def test_upgrade_contracts(click_runner):
             proxy_name = 'Dispatcher'
 
         # Ensure the proxy targets the new deployment
-        proxy = blockchain.interface.get_proxy(target_address=new_address, proxy_name=proxy_name)
+        proxy = blockchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
@@ -291,7 +291,7 @@ def test_rollback(click_runner):
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        records = blockchain.interface.registry.search(contract_name=contract_name)
+        records = blockchain.registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
@@ -302,10 +302,10 @@ def test_rollback(click_runner):
         assert current_target_address != rollback_target_address
 
         # Ensure the proxy targets the rollback target (previous version)
-        with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.interface.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
+        with pytest.raises(Blockchain.UnknownContract):
+            blockchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
-        proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
+        proxy = blockchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()
@@ -365,7 +365,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     assert result.exit_code == 0
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
-    beneficiary = testerchain.interface.w3.eth.accounts[-1]
+    beneficiary = testerchain.w3.eth.accounts[-1]
     allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
@@ -375,7 +375,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     #
 
     # Destroy existing blockchain
-    BlockchainInterface.disconnect()
+    Blockchain.disconnect()
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):
