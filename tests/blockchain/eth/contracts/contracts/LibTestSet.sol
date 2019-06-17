@@ -43,6 +43,28 @@ contract SignatureVerifierMock {
         return SignatureVerifier.verify(_message, _signature, _publicKey, _algorithm);
     }
 
+    function verifyEIP191(
+        bytes memory _message,
+        bytes memory _signature,
+        bytes memory _publicKey
+    )
+        public
+        pure
+        returns (bool)
+    {
+        return SignatureVerifier.verifyEIP191(_message, _signature, _publicKey);
+    }
+
+    function hashEIP191(
+        bytes memory _message
+    )
+        public
+        pure
+        returns (bytes32)
+    {
+        return SignatureVerifier.hashEIP191(_message);
+    }
+
 }
 
 
