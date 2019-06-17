@@ -185,7 +185,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed re-encryption properly).
     for u in federated_ursulas:
-        if u.rest_interface().port == work_order.ursula.rest_interface().port:
+        if u.rest_interface.port == work_order.ursula.rest_interface.port:
             ursula = u
             break
     else:

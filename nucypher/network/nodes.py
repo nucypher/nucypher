@@ -1104,8 +1104,8 @@ class Teacher:
             else:
                 certificate_filepath = self.certificate_filepath
 
-        response_data = network_middleware.node_information(host=self.rest_interface().host,
-                                                            port=self.rest_interface().port,
+        response_data = network_middleware.node_information(host=self.rest_interface.host,
+                                                            port=self.rest_interface.port,
                                                             certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
@@ -1169,7 +1169,7 @@ class Teacher:
             raise self.InvalidNode
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface()
+        message = self.canonical_public_address + self.rest_interface
         return message
 
     def _sign_and_date_interface_info(self):

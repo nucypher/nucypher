@@ -51,7 +51,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
         # Store this Ursula in our global testing cache.
 
-        port = ursula.rest_interface().port
+        port = ursula.rest_interface.port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
     if know_each_other:
@@ -92,7 +92,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
         ursulas.append(ursula)
         # Store this Ursula in our global cache.
-        port = ursula.rest_interface().port
+        port = ursula.rest_interface.port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
     return ursulas
