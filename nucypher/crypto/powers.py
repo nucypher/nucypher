@@ -105,7 +105,7 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password)
+        self.is_unlocked = self.blockchain.unlock_account(self.account, password)
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
@@ -115,14 +115,14 @@ class BlockchainPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-        signature = self.blockchain.interface.client.sign_message(self.account, message)
+        signature = self.blockchain.client.sign_message(self.account, message)
         return signature
 
     def __del__(self):
         """
         Deletes the blockchain power and locks the account.
         """
-        self.blockchain.interface.client.lock_account(self.account)
+        self.blockchain.client.lock_account(self.account)
 
 
 class KeyPairBasedPower(CryptoPowerUp):
