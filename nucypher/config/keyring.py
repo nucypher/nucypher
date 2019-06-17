@@ -40,7 +40,7 @@ from nacl.secret import SecretBox
 from twisted.logger import Logger
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
