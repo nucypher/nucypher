@@ -699,7 +699,7 @@ class Bob(Character):
 
         cleartexts = []
         the_airing_of_grievances = []
-        work_orders = work_orders.values()
+
         for work_order in work_orders:
             try:
                 cfrags = self.get_reencrypted_cfrags(work_order)
