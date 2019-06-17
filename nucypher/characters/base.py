@@ -39,7 +39,7 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.characters.control.controllers import JSONRPCController
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
