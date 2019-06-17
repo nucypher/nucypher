@@ -23,7 +23,7 @@ from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain, BlockchainDeployer
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import NU_BANNER
@@ -101,7 +101,7 @@ def deploy(click_config,
         provider_uri = ETH_NODE.provider_uri
 
     # Deployment-tuned blockchain connection
-    blockchain = Blockchain.connect(provider_uri=provider_uri,
+    blockchain = BlockchainDeployer(provider_uri=provider_uri,
                                     poa=poa,
                                     registry=registry,
                                     compile=not no_compile,
@@ -217,8 +217,8 @@ def deploy(click_config,
 
         click.secho(f"Deployer Address .... {deployer.checksum_address}")
         click.secho(f"ETH ................. {deployer.eth_balance}")
-        click.secho(f"Chain ID ............ {deployer.blockchain.interface.chain_id}")
-        click.secho(f"Chain Name .......... {deployer.blockchain.interface.chain_name}")
+        click.secho(f"Chain ID ............ {deployer.blockchain.chain_id}")
+        click.secho(f"Chain Name .......... {deployer.blockchain.chain_name}")
 
         # Ask - Last chance to gracefully abort
         if not force:
