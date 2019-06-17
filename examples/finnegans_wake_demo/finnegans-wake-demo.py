@@ -9,7 +9,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 ######################
@@ -25,6 +25,7 @@ NUMBER_OF_LINES_TO_REENCRYPT = 25
 
 # Twisted Logger
 globalLogPublisher.addObserver(SimpleObserver())
+GlobalConsoleLogger.set_log_level(log_level_name='debug')
 
 
 #######################################
