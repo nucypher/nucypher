@@ -208,9 +208,6 @@ class Blockchain:
             registry = RegistryClass()
         self.registry = registry
 
-    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
-        return self.__provider
-
     @property
     def is_connected(self) -> bool:
         """

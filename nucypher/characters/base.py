@@ -35,7 +35,6 @@ from constant_sorrow.constants import (
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-from nucypher.blockchain.eth.chains import Blockchain
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -130,7 +129,7 @@ class Character(Learner):
 
         # Needed for on-chain verification
         if not self.federated_only:
-            self.blockchain = blockchain or Blockchain.connect()
+            self.blockchain = blockchain
             self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
         else:
             self.blockchain = FEDERATED_ONLY

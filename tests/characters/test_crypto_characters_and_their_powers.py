@@ -119,8 +119,8 @@ def test_anybody_can_verify():
 def test_character_blockchain_power(testerchain, agency):
     # TODO: Handle multiple providers
     eth_address = testerchain.w3.eth.accounts[0]
-    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
-    sig_pubkey = sig_privkey.public_key
+    canonical_address = eth_utils.to_canonical_address(eth_address)
+    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
     signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
