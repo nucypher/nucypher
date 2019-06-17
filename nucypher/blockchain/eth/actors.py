@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -55,7 +55,7 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowDeployer,
     AdjudicatorDeployer,
     ContractDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
@@ -80,7 +80,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, checksum_address: str = None, blockchain: Blockchain = None):
+    def __init__(self, blockchain: Blockchain, checksum_address: str = None):
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
         """
@@ -92,10 +92,7 @@ class NucypherTokenActor:
         except AttributeError:
             self.checksum_address = checksum_address  # type: str
 
-        if blockchain is None:
-            blockchain = Blockchain.connect()  # Attempt to connect
         self.blockchain = blockchain
-
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
@@ -108,8 +105,8 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.blockchain.interface.get_balance(self.checksum_address)
-        return self.blockchain.interface.fromWei(balance, 'ether')
+        balance = self.blockchain.get_balance(self.checksum_address)
+        return self.blockchain.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
@@ -132,7 +129,7 @@ class Deployer(NucypherTokenActor):
 
     contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
 
-    __interface_class = BlockchainDeployerInterface
+    __interface_class = BlockchainDeployer
 
     class UnknownContract(ValueError):
         pass
@@ -172,12 +169,12 @@ class Deployer(NucypherTokenActor):
 
     @property
     def deployer_address(self):
-        return self.blockchain.interface.deployer_address
+        return self.blockchain.deployer_address
 
     @deployer_address.setter
     def deployer_address(self, value):
         """Used for validated post-init setting of deployer's address"""
-        self.blockchain.interface.deployer_address = value
+        self.blockchain.deployer_address = value
 
     @property
     def token_balance(self) -> NU:
@@ -204,7 +201,7 @@ class Deployer(NucypherTokenActor):
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
-            secret_hash = self.blockchain.interface.keccak(bytes(plaintext_secret, encoding='utf-8'))
+            secret_hash = self.blockchain.keccak(bytes(plaintext_secret, encoding='utf-8'))
             txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
             txhashes = deployer.deploy(gas_limit=gas_limit)
@@ -213,7 +210,7 @@ class Deployer(NucypherTokenActor):
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = self.blockchain.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
         return txhashes
@@ -221,7 +218,7 @@ class Deployer(NucypherTokenActor):
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = self.blockchain.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                    new_secret_hash=new_secret_hash)
         return txhash

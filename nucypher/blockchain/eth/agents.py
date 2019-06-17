@@ -28,7 +28,7 @@ from eth_utils.address import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import AllocationRegistry
 
@@ -64,7 +64,7 @@ def __transact(broadcaster: Callable,
     try:
         # TODO: Use web3 abstractions for transaction receipts
         # TODO: Implement timeout from interfaces or agency
-        receipt = blockchain.interface.client.w3.eth.waitForTransactionReceipt(txhash, timeout=180)
+        receipt = blockchain.client.w3.eth.waitForTransactionReceipt(txhash, timeout=180)
     except web3.exceptions.TimeExhausted:
         raise
 
@@ -114,7 +114,7 @@ def transaction(agent_func, confirmations: int = 1, device=None) -> Callable:
             signed_transaction = device.sign_transaction(unsigned_transaction)
             if not device.broadcast_now:
                 raise NotImplementedError
-            transaction_broadcaster = agent.blockchain.interface.client.w3.sendRawTransaction
+            transaction_broadcaster = agent.blockchain.client.w3.sendRawTransaction
             payload = signed_transaction
 
         # We3 Transaction Signer
@@ -165,7 +165,7 @@ class EthereumContractAgent:
         self.blockchain = blockchain
 
         if contract is None:  # Fetch the contract
-            contract = self.blockchain.interface.get_contract_by_name(name=self.registry_contract_name,
+            contract = self.blockchain.get_contract_by_name(name=self.registry_contract_name,
                                                                       proxy_name=self._proxy_name,
                                                                       use_proxy_address=self._forward_address)
         self.__contract = contract
@@ -177,8 +177,8 @@ class EthereumContractAgent:
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract_address,
-                                                                        self.blockchain.interface.provider_uri,
-                                                                        self.blockchain.interface.registry.filepath))
+                                                                        self.blockchain.provider_uri,
+                                                                        self.blockchain.registry.filepath))
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -479,7 +479,7 @@ class UserEscrowAgent(EthereumContractAgent):
         _forward_address = False
 
         def _generate_beneficiary_agency(self, principal_address: str):
-            contract = self.blockchain.interface.w3.eth.contract(address=principal_address, abi=self.contract.abi)
+            contract = self.blockchain.w3.eth.contract(address=principal_address, abi=self.contract.abi)
             return contract
 
     def __init__(self,
@@ -512,7 +512,7 @@ class UserEscrowAgent(EthereumContractAgent):
         else:
             contract_data = self.__allocation_registry.search(beneficiary_address=self.beneficiary)
         address, abi = contract_data
-        principal_contract = self.blockchain.interface.w3.eth.contract(abi=abi,
+        principal_contract = self.blockchain.w3.eth.contract(abi=abi,
                                                                        address=address,
                                                                        ContractFactoryClass=Contract)
         self.__principal_contract = principal_contract
