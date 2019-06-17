@@ -40,6 +40,7 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
 @click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+@click.option('--log-level', help="The log level for this process.  Is overridden by --debug.", type=click.STRING, default="info")
 @nucypher_click_config
 def nucypher_cli(click_config,
                  verbose,
@@ -48,7 +49,8 @@ def nucypher_cli(click_config,
                  no_logs,
                  quiet,
                  debug,
-                 no_registry):
+                 no_registry,
+                 log_level):
 
     # Session Emitter for pre and post character control engagement.
     if json_ipc:
@@ -59,6 +61,9 @@ def nucypher_cli(click_config,
     click_config.attach_emitter(emitter)
     if not json_ipc:
         click_config.emit(message=NUCYPHER_BANNER)
+
+    GlobalConsoleLogger.set_log_level(log_level_name=log_level)
+    globalLogPublisher.addObserver(SimpleObserver())
 
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
