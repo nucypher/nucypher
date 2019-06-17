@@ -29,7 +29,8 @@ try:
     from solc import install_solc, compile_files
     from solc.exceptions import SolcError
 except ImportError:
-    pass  # TODO: Issue #461 and #758 - Include precompiled ABI; Do not use py-solc in standard installation
+    # TODO: Issue #461 and #758 - Include precompiled ABI; Do not use py-solc in standard installation
+    pass
 
 
 class SolidityCompiler:

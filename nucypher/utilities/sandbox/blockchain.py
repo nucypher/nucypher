@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
 import maya
 from twisted.logger import Logger
-from web3 import Web3
+from web3 import Web3, IPCProvider, WebsocketProvider, HTTPProvider
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
-from nucypher.config.constants import CONTRACT_ROOT
+from nucypher.config.constants import CONTRACT_ROOT, BASE_DIR
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
@@ -66,6 +66,8 @@ class TesterBlockchain(BlockchainDeployer):
     """
 
     _PROVIDER_URI = 'tester://pyevm'
+    TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+    _compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
     _test_account_cache = list()
 
     _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS
@@ -84,12 +86,23 @@ class TesterBlockchain(BlockchainDeployer):
                  poa=True,
                  eth_airdrop=False,
                  free_transactions=False,
+                 compiler: SolidityCompiler = None,
                  *args, **kwargs):
 
         if not test_accounts:
             test_accounts = self._default_test_accounts
         self.free_transactions = free_transactions
-        super().__init__(provider_process=None, poa=poa, *args, **kwargs)
+
+        if compiler:
+            TesterBlockchain._compiler = compiler
+
+        super().__init__(provider_uri=self._PROVIDER_URI,
+                         provider_process=None,
+                         poa=poa,
+                         compiler=self._compiler,
+                         registry=InMemoryEthereumContractRegistry(),
+                         *args, **kwargs)
+
         self.log = Logger("test-blockchain")
 
         # Generate additional ethereum accounts for testing
@@ -188,17 +201,9 @@ class TesterBlockchain(BlockchainDeployer):
                       f"| period {epoch_to_period(epoch=end_timestamp)} "
                       f"| epoch {end_timestamp}")
 
-    def sync(self, timeout: int = 0):
-        return True
-
-    @classmethod
-    def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
-        interface = BlockchainDeployer(provider_uri=cls._PROVIDER_URI,
-                                       compiler=SolidityCompiler(test_contract_dir=CONTRACT_ROOT),
-                                       registry=InMemoryEthereumContractRegistry())
-
-        testerchain = TesterBlockchain(interface=interface, *args, **kwargs)
-        return testerchain
+    @property
+    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
+        return self.__provider
 
     @classmethod
     def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:

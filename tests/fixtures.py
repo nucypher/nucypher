@@ -66,7 +66,6 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
                                                make_federated_ursulas,
                                                start_pytest_ursula_services)
 
-TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
@@ -345,23 +344,18 @@ def slashing_economics():
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
+    compiler = SolidityCompiler()
     yield compiler
 
 
 @pytest.fixture(scope='module')
-def testerchain(solidity_compiler):
+def testerchain():
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
 
     # Create the blockchain
-    testerchain = TesterBlockchain(compiler=solidity_compiler,
-                                   registry=InMemoryEthereumContractRegistry(),
-                                   provider_uri=TEST_PROVIDER_URI,
-                                   eth_airdrop=True,
-                                   free_transactions=True,
-                                   poa=True)
+    testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
 
     # Set the deployer address from a freshly created test account
     testerchain.deployer_address = testerchain.etherbase_account
