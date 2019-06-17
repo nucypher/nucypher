@@ -26,7 +26,7 @@ from eth_utils import to_canonical_address
 from typing import Tuple
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 
@@ -55,7 +55,7 @@ def test_evaluate_cfrag(testerchain,
                         mock_ursula_reencrypts
                         ):
     ursula = list(federated_ursulas)[0]
-    creator, staker, wrong_staker, investigator, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, staker, wrong_staker, investigator, *everyone_else = testerchain.w3.eth.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
     verdict_log = adjudicator_contract.events.IncorrectCFragVerdict.createFilter(fromBlock='latest')
 
@@ -80,7 +80,7 @@ def test_evaluate_cfrag(testerchain,
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(staker_umbral_public_key_bytes)
     staker_umbral_public_key_hash = hash_ctx.finalize()
-    provider = testerchain.interface.provider
+    provider = testerchain.provider
     address = to_canonical_address(staker)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_staker_umbral_public_key = bytes(sig_key.sign_msg_hash(staker_umbral_public_key_hash))
@@ -419,28 +419,28 @@ def test_evaluate_cfrag(testerchain,
 
 @pytest.mark.slow
 def test_upgrading(testerchain):
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret_hash = testerchain.w3.keccak(secret)
+    secret2_hash = testerchain.w3.keccak(secret2)
 
     # Only escrow contract is allowed in Adjudicator constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('Adjudicator', creator, ALGORITHM_KECCAK256, 1, 2, 3, 4)
+        testerchain.deploy_contract('Adjudicator', creator, ALGORITHM_KECCAK256, 1, 2, 3, 4)
 
     # Deploy contracts
-    escrow1, _ = testerchain.interface.deploy_contract('StakingEscrowForAdjudicatorMock')
-    escrow2, _ = testerchain.interface.deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow1, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow2, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
     address1 = escrow1.address
     address2 = escrow2.address
-    contract_library_v1, _ = testerchain.interface.deploy_contract(
+    contract_library_v1, _ = testerchain.deploy_contract(
         'Adjudicator', address1, ALGORITHM_KECCAK256, 1, 2, 3, 4)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.interface.deploy_contract(
+    contract_library_v2, _ = testerchain.deploy_contract(
         'AdjudicatorV2Mock', address2, ALGORITHM_SHA256, 5, 6, 7, 8)
-    contract = testerchain.interface.w3.eth.contract(
+    contract = testerchain.w3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -476,7 +476,7 @@ def test_upgrading(testerchain):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.interface.deploy_contract('AdjudicatorBad')
+    contract_library_bad, _ = testerchain.deploy_contract('AdjudicatorBad')
     with pytest.raises(TransactionFailed):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash) \
             .transact({'from': creator})

@@ -28,14 +28,14 @@ def test_create_token(testerchain, token_economics):
     but some of the tests are converted from javascript to python
     """
 
-    creator = testerchain.interface.w3.eth.accounts[0]
-    account1 = testerchain.interface.w3.eth.accounts[1]
-    account2 = testerchain.interface.w3.eth.accounts[2]
+    creator = testerchain.w3.eth.accounts[0]
+    account1 = testerchain.w3.eth.accounts[1]
+    account2 = testerchain.w3.eth.accounts[2]
 
-    assert creator == testerchain.interface.w3.eth.coinbase
+    assert creator == testerchain.w3.eth.coinbase
 
     # Create an ERC20 token
-    token, txhash = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    token, txhash = testerchain.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     assert txhash is not None
 
     # Account balances
@@ -49,7 +49,7 @@ def test_create_token(testerchain, token_economics):
 
     # Cannot send ETH to the contract because there is no payable function
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.interface.w3.eth.sendTransaction({'from': testerchain.interface.w3.eth.coinbase,
+        tx = testerchain.w3.eth.sendTransaction({'from': testerchain.w3.eth.coinbase,
                                                            'to': token.address,
                                                            'value': 100,
                                                            'gasPrice': 0})
@@ -71,12 +71,12 @@ def test_create_token(testerchain, token_economics):
 
 @pytest.mark.slow()
 def test_approve_and_call(testerchain, token_economics):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    account1 = testerchain.interface.w3.eth.accounts[1]
-    account2 = testerchain.interface.w3.eth.accounts[2]
+    creator = testerchain.w3.eth.accounts[0]
+    account1 = testerchain.w3.eth.accounts[1]
+    account2 = testerchain.w3.eth.accounts[2]
 
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
-    mock, _ = testerchain.interface.deploy_contract('ReceiveApprovalMethodMock')
+    token, _ = testerchain.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    mock, _ = testerchain.deploy_contract('ReceiveApprovalMethodMock')
 
     # Approve some value and check allowance
     tx = token.functions.approve(account1, 100).transact({'from': creator})
@@ -94,7 +94,7 @@ def test_approve_and_call(testerchain, token_economics):
     assert 50 == token.functions.allowance(creator, account1).call()
 
     # The result of approveAndCall is increased allowance and method execution in the mock contract
-    tx = token.functions.approveAndCall(mock.address, 25, testerchain.interface.w3.toBytes(111))\
+    tx = token.functions.approveAndCall(mock.address, 25, testerchain.w3.toBytes(111))\
         .transact({'from': account1})
     testerchain.wait_for_receipt(tx)
     assert 50 == token.functions.balanceOf(account2).call()
@@ -103,7 +103,7 @@ def test_approve_and_call(testerchain, token_economics):
     assert account1 == mock.functions.sender().call()
     assert 25 == mock.functions.value().call()
     assert token.address == mock.functions.tokenContract().call()
-    assert 111 == testerchain.interface.w3.toInt(mock.functions.extraData().call())
+    assert 111 == testerchain.w3.toInt(mock.functions.extraData().call())
 
     # Can't approve non zero value
     with pytest.raises((TransactionFailed, ValueError)):

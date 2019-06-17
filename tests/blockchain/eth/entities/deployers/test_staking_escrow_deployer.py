@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscr
 
 
 def test_token_deployer_and_agent(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.w3.eth.accounts
 
     # The big day...
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -51,4 +51,4 @@ def test_token_deployer_and_agent(testerchain):
     assert staking_agent.contract_address == same_staking_agent.contract_address
     assert staking_agent == same_staking_agent  # __eq__
 
-    testerchain.interface.registry.clear()
+    testerchain.registry.clear()

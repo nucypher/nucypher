@@ -22,7 +22,7 @@ from eth_utils import is_checksum_address, to_wei
 
 from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import UserEscrowAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 
@@ -39,11 +39,11 @@ def allocation_value(token_economics):
 @pytest.mark.usefixtures("agency")
 @pytest.fixture(scope='module')
 def proxy_deployer(testerchain) -> UserEscrowAgent:
-    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
 
     # Proxy
     proxy_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address)
+    proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address, blockchain=testerchain)
 
     proxy_deployer.deploy( secret_hash=proxy_secret)
     yield proxy_deployer
@@ -52,10 +52,11 @@ def proxy_deployer(testerchain) -> UserEscrowAgent:
 @pytest.mark.usefixtures(["agency", "proxy_deployer"])
 @pytest.fixture(scope='function')
 def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
-    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
+                                         blockchain=testerchain,
                                          allocation_registry=TEST_ALLOCATION_REGISTRY)
 
     _txhash = escrow_deployer.deploy()
@@ -102,7 +103,7 @@ def test_user_escrow_agent_represents_beneficiary(agent, agency):
 
 
 def test_read_beneficiary(testerchain, agent):
-    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
     benficiary = agent.beneficiary
     assert benficiary == beneficiary_address
     assert is_checksum_address(benficiary)
@@ -127,7 +128,6 @@ def test_read_timestamp(agent):
 
 
 @pytest.mark.slow()
-@pytest.mark.usesfixtures("agency")
 def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics):
     token_agent, staking_agent, policy_agent = agency
 
@@ -173,7 +173,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
 def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     _token_agent, staking_agent, policy_agent = agency
-    deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.w3.eth.accounts
 
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
 
@@ -194,15 +194,15 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     testerchain.time_travel(periods=2)
     _txhash = staking_agent.confirm_activity(worker_address=worker)
 
-    old_balance = testerchain.interface.w3.eth.getBalance(account=agent.beneficiary)
+    old_balance = testerchain.w3.eth.getBalance(account=agent.beneficiary)
     txhash = agent.collect_policy_reward()
     assert txhash  # TODO
-    assert testerchain.interface.w3.eth.getBalance(account=agent.beneficiary) > old_balance
+    assert testerchain.w3.eth.getBalance(account=agent.beneficiary) > old_balance
 
 
 def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
     token_agent, staking_agent, policy_agent = agency
-    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
     with pytest.raises((TransactionFailed, ValueError)):

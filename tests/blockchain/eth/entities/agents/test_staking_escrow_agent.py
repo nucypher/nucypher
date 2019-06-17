@@ -21,7 +21,7 @@ import pytest
 from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 
 
 @pytest.mark.slow()
@@ -167,7 +167,7 @@ def test_divide_stake(agency, token_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = staking_agent
     testerchain = agent.blockchain
-    origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, someone, *everybody_else = testerchain.w3.eth.accounts
 
     stakes = list(agent.get_all_stakes(staker_address=someone))
     assert len(stakes) == 1

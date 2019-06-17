@@ -26,21 +26,21 @@ SECRET_LENGTH = 32
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 40)
+    token, _ = testerchain.deploy_contract('NuCypherToken', 2 * 10 ** 40)
     return token
 
 
 @pytest.mark.slow
 def test_issuer(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    ursula = testerchain.w3.eth.accounts[1]
 
     # Only token contract is allowed in Issuer constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('IssuerMock', ursula, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+        testerchain.deploy_contract('IssuerMock', ursula, 1, 10 ** 43, 10 ** 4, 10 ** 4)
 
     # Creator deploys the issuer
-    issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
+    issuer, _ = testerchain.deploy_contract('IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4)
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
     # Give staker tokens for reward and initialize contract
@@ -97,11 +97,11 @@ def test_inflation_rate(testerchain, token):
     During one period inflation rate must be the same
     """
 
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    ursula = testerchain.w3.eth.accounts[1]
 
     # Creator deploys the contract
-    issuer, _ = testerchain.interface.deploy_contract('IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1)
+    issuer, _ = testerchain.deploy_contract('IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1)
 
     # Give staker tokens for reward and initialize contract
     tx = token.functions.transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30).transact({'from': creator})
@@ -158,20 +158,20 @@ def test_inflation_rate(testerchain, token):
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
     secret = os.urandom(SECRET_LENGTH)
-    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret_hash = testerchain.w3.keccak(secret)
     secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret2_hash = testerchain.w3.keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = testerchain.interface.deploy_contract('Issuer', token.address, 1, 1, 1, 1)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    contract_library_v1, _ = testerchain.deploy_contract('Issuer', token.address, 1, 1, 1, 1)
+    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.interface.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
-    contract = testerchain.interface.w3.eth.contract(
+    contract_library_v2, _ = testerchain.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
+    contract = testerchain.w3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -208,7 +208,7 @@ def test_upgrading(testerchain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.interface.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
+    contract_library_bad, _ = testerchain.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
             .transact({'from': creator})

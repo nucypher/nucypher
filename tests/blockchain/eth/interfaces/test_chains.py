@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -33,9 +33,9 @@ from nucypher.utilities.sandbox.constants import (
 @pytest.fixture()
 def another_testerchain(solidity_compiler):
     memory_registry = InMemoryEthereumContractRegistry()
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
-                                                     registry=memory_registry,
-                                                     provider_uri=TEST_PROVIDER_URI)
+    deployer_interface = BlockchainDeployer(compiler=solidity_compiler,
+                                            registry=memory_registry,
+                                            provider_uri=TEST_PROVIDER_URI)
     testerchain = TesterBlockchain(interface=deployer_interface,
                                    test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
                                    eth_airdrop=True)
@@ -51,23 +51,23 @@ def test_testerchain_creation(testerchain, another_testerchain):
     for chain in chains:
 
         # Ensure we are testing on the correct network...
-        assert 'tester' in chain.interface.provider_uri
+        assert 'tester' in chain.provider_uri
 
         # ... and that there are already some blocks mined
-        assert chain.interface.w3.eth.blockNumber > 0
+        assert chain.w3.eth.blockNumber > 0
 
         # Check that we have enough test accounts
-        assert len(chain.interface.w3.eth.accounts) >= NUMBER_OF_ETH_TEST_ACCOUNTS
+        assert len(chain.w3.eth.accounts) >= NUMBER_OF_ETH_TEST_ACCOUNTS
 
         # Check that distinguished accounts are assigned
         etherbase = chain.etherbase_account
-        assert etherbase == chain.interface.w3.eth.accounts[0]
+        assert etherbase == chain.w3.eth.accounts[0]
 
         alice = chain.alice_account
-        assert alice == chain.interface.w3.eth.accounts[1]
+        assert alice == chain.w3.eth.accounts[1]
 
         bob = chain.bob_account
-        assert bob == chain.interface.w3.eth.accounts[2]
+        assert bob == chain.w3.eth.accounts[2]
 
         stakers = [chain.staker_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
         assert stakers == chain.stakers_accounts
@@ -79,14 +79,14 @@ def test_testerchain_creation(testerchain, another_testerchain):
         assert set([etherbase, alice, bob] + ursulas + stakers).isdisjoint(set(chain.unassigned_accounts))
 
         # Check that accounts are funded
-        for account in chain.interface.w3.eth.accounts:
-            assert chain.interface.w3.eth.getBalance(account) >= DEVELOPMENT_ETH_AIRDROP_AMOUNT
+        for account in chain.w3.eth.accounts:
+            assert chain.w3.eth.getBalance(account) >= DEVELOPMENT_ETH_AIRDROP_AMOUNT
 
         # Check that accounts can send transactions
-        for account in chain.interface.w3.eth.accounts:
-            balance = chain.interface.w3.eth.getBalance(account)
+        for account in chain.w3.eth.accounts:
+            balance = chain.w3.eth.getBalance(account)
             assert balance
 
             tx = {'to': etherbase, 'from': account, 'value': 100}
-            txhash = chain.interface.w3.eth.sendTransaction(tx)
+            txhash = chain.w3.eth.sendTransaction(tx)
             _receipt = chain.wait_for_receipt(txhash)

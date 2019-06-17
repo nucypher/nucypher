@@ -25,7 +25,7 @@ from web3.contract import Contract
 def test_sampling(testerchain, token, escrow_contract):
     escrow = escrow_contract(5 * 10 ** 8)
     NULL_ADDR = '0x' + '0' * 40
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
@@ -142,12 +142,12 @@ def test_sampling(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_pre_deposit(testerchain, token, escrow_contract):
     escrow = escrow_contract(1500)
-    policy_manager_interface = testerchain.interface.get_contract_factory('PolicyManagerForStakingEscrowMock')
-    policy_manager = testerchain.interface.w3.eth.contract(
+    policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
+    policy_manager = testerchain.w3.eth.contract(
         abi=policy_manager_interface.abi,
         address=escrow.functions.policyManager().call(),
         ContractFactoryClass=Contract)
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
 
@@ -160,7 +160,7 @@ def test_pre_deposit(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deposit tokens for 1 staker
-    owner = testerchain.interface.w3.eth.accounts[1]
+    owner = testerchain.w3.eth.accounts[1]
     tx = escrow.functions.preDeposit([owner], [1000], [10]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 1000 == token.functions.balanceOf(escrow.address).call()
@@ -177,26 +177,26 @@ def test_pre_deposit(testerchain, token, escrow_contract):
 
     # Can't pre-deposit tokens again for the same staker twice
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([testerchain.interface.w3.eth.accounts[1]], [1000], [10])\
+        tx = escrow.functions.preDeposit([testerchain.w3.eth.accounts[1]], [1000], [10])\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([testerchain.interface.w3.eth.accounts[2]], [1], [10])\
+        tx = escrow.functions.preDeposit([testerchain.w3.eth.accounts[2]], [1], [10])\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([testerchain.interface.w3.eth.accounts[2]], [1501], [10])\
+        tx = escrow.functions.preDeposit([testerchain.w3.eth.accounts[2]], [1501], [10])\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([testerchain.interface.w3.eth.accounts[2]], [500], [1])\
+        tx = escrow.functions.preDeposit([testerchain.w3.eth.accounts[2]], [500], [1])\
             .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Deposit tokens for multiple stakers
-    stakers = testerchain.interface.w3.eth.accounts[2:7]
+    stakers = testerchain.w3.eth.accounts[2:7]
     tx = escrow.functions.preDeposit(
         stakers, [100, 200, 300, 400, 500], [50, 100, 150, 200, 250]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -216,7 +216,7 @@ def test_pre_deposit(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[0]['args']
-    assert testerchain.interface.w3.eth.accounts[1] == event_args['staker']
+    assert testerchain.w3.eth.accounts[1] == event_args['staker']
     assert 1000 == event_args['value']
     assert 10 == event_args['periods']
     event_args = events[1]['args']

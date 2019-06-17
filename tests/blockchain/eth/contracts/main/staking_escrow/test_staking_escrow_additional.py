@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 
 RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
@@ -31,14 +31,14 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    staker = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.w3.eth.accounts[0]
+    staker = testerchain.w3.eth.accounts[1]
 
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret_hash = testerchain.w3.keccak(secret)
+    secret2_hash = testerchain.w3.keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = testerchain.interface.deploy_contract(
+    contract_library_v1, _ = testerchain.deploy_contract(
         contract_name='StakingEscrow',
         _token=token.address,
         _hoursPerPeriod=1,
@@ -50,10 +50,10 @@ def test_upgrading(testerchain, token):
         _maxAllowableLockedTokens=1500,
         _minWorkerPeriods=1
     )
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.interface.deploy_contract(
+    contract_library_v2, _ = testerchain.deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -67,7 +67,7 @@ def test_upgrading(testerchain, token):
         _valueToCheck=2
     )
 
-    contract = testerchain.interface.w3.eth.contract(
+    contract = testerchain.w3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -82,7 +82,7 @@ def test_upgrading(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Initialize contract and staker
-    policy_manager, _ = testerchain.interface.deploy_contract(
+    policy_manager, _ = testerchain.deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
@@ -116,7 +116,7 @@ def test_upgrading(testerchain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.interface.deploy_contract(
+    contract_library_bad, _ = testerchain.deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -182,9 +182,9 @@ def test_upgrading(testerchain, token):
 @pytest.mark.slow
 def test_re_stake(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula = testerchain.interface.w3.eth.accounts[1]
-    ursula2 = testerchain.interface.w3.eth.accounts[2]
+    creator = testerchain.w3.eth.accounts[0]
+    ursula = testerchain.w3.eth.accounts[1]
+    ursula2 = testerchain.w3.eth.accounts[2]
 
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
@@ -447,7 +447,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 def test_worker(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
-        testerchain.interface.w3.eth.accounts
+        testerchain.w3.eth.accounts
 
     worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
 
@@ -456,9 +456,9 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
-    intermediary1, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary2, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary3, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary1, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary2, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary3, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
 
     # Prepare stakers: two with intermediary contract and one just a staker
     sub_stake = 1000
@@ -481,7 +481,7 @@ def test_worker(testerchain, token, escrow_contract):
 
     tx = token.functions.transfer(ursula3, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(ursula3).call()
@@ -532,7 +532,7 @@ def test_worker(testerchain, token, escrow_contract):
     tx = token.functions.transfer(worker1, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
@@ -601,7 +601,7 @@ def test_worker(testerchain, token, escrow_contract):
 
     # The first worker still can't be a staker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
@@ -624,7 +624,7 @@ def test_worker(testerchain, token, escrow_contract):
     # The first worker is free and can deposit tokens and become a staker
     tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
