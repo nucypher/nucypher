@@ -17,6 +17,10 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - validate_reqs_files:
+          filters:
+            tags:
+              only: /.*/
       - pip_install_37:
           filters:
             tags:
@@ -430,6 +434,15 @@ jobs:
           command: ./scripts/circle/run_finnegans_wake_demo_docker-circle.sh
       - store_artifacts:
           path: /tmp/ursulas-logs
+
+  validate_reqs_files:
+    working_directory: ~/nucypher
+    <<: *python_37_base
+    steps:
+      - pipenv_install
+      - run:
+          name: Run Requirements comparison
+          command: ./scripts/circle/compare_reqs.sh
 
   mypy:
     <<: *python_36_base
