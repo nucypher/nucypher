@@ -30,16 +30,16 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     AdjudicatorAgent)
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployer
 from nucypher.blockchain.eth.registry import AllocationRegistry
-from .chains import Blockchain
+from .interfaces import Blockchain
 
 
 class ContractDeployer:
 
     agency = NotImplemented
     contract_name = NotImplemented
-    _interface_class = BlockchainDeployerInterface
+    _interface_class = BlockchainDeployer
     _upgradeable = NotImplemented
     __proxy_deployer = NotImplemented
 
@@ -49,10 +49,9 @@ class ContractDeployer:
     class ContractNotDeployed(ContractDeploymentError):
         pass
 
-    def __init__(self, deployer_address: str, blockchain: Blockchain = None) -> None:
+    def __init__(self, deployer_address: str, blockchain: Blockchain) -> None:
 
-        self.blockchain = blockchain or Blockchain.connect()
-
+        self.blockchain = blockchain
         self.deployment_transactions = CONTRACT_NOT_DEPLOYED
         self.deployment_receipt = CONTRACT_NOT_DEPLOYED
         self._contract = CONTRACT_NOT_DEPLOYED
@@ -168,7 +167,7 @@ class NucypherTokenDeployer(ContractDeployer):
         """
         self.check_deployment_readiness()
 
-        _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
+        _contract, deployment_txhash = self.blockchain.deploy_contract(
                                        self.contract_name,
                                        self.__economics.erc20_total_supply)
 
@@ -191,12 +190,12 @@ class DispatcherDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
         self.target_contract = target_contract
         if bare:
-            self._contract = self.blockchain.interface.get_proxy(target_address=self.target_contract.address,
+            self._contract = self.blockchain.get_proxy(target_address=self.target_contract.address,
                                                                  proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
         args = (self.contract_name, self.target_contract.address, secret_hash)
-        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract(gas_limit=gas_limit, *args)
+        dispatcher_contract, txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *args)
         self._contract = dispatcher_contract
         return {'txhash': txhash}
 
@@ -206,13 +205,13 @@ class DispatcherDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}  # TODO: Gas management
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.w3.eth.gasPrice}  # TODO: Gas management
         txhash = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash).transact(origin_args)
         _receipt = self.blockchain.wait_for_receipt(txhash=txhash)
         return txhash
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> bytes:
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.interface.w3.eth.gasPrice}  # TODO: Gas management
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.w3.eth.gasPrice}  # TODO: Gas management
         txhash = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash).transact(origin_args)
         _receipt = self.blockchain.wait_for_receipt(txhash=txhash)
         return txhash
@@ -262,13 +261,13 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # Build deployment arguments
         origin_args = {'from': self.deployer_address,
-                       'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
+                       'gasPrice': self.blockchain.w3.eth.gasPrice}
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
         # 1 - Deploy #
         the_escrow_contract, deploy_txhash, = \
-            self.blockchain.interface.deploy_contract(self.contract_name,
+            self.blockchain.deploy_contract(self.contract_name,
                                                       self.token_agent.contract_address,
                                                       *self.__economics.staking_deployment_parameters)
 
@@ -284,7 +283,7 @@ class StakingEscrowDeployer(ContractDeployer):
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract
-        wrapped_escrow_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
+        wrapped_escrow_contract = self.blockchain._wrap_contract(dispatcher_contract,
                                                                            target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
@@ -320,7 +319,7 @@ class StakingEscrowDeployer(ContractDeployer):
         self.check_deployment_readiness()
         origin_args = {'from': self.deployer_address, 'gas': 5000000}  # TODO: Gas management
 
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                                 proxy_name=self.__proxy_deployer.contract_name,
                                                                                 use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
@@ -329,12 +328,12 @@ class StakingEscrowDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         # 2 - Deploy new version #
-        the_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
+        the_escrow_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
                                                                                        self.token_agent.contract_address,
                                                                                        *self.__economics.staking_deployment_parameters)
 
         # 5 - Wrap the escrow contract
-        wrapped_escrow_contract = self.blockchain.interface._wrap_contract(wrapper_contract=dispatcher_deployer.contract,
+        wrapped_escrow_contract = self.blockchain._wrap_contract(wrapper_contract=dispatcher_deployer.contract,
                                                                            target_contract=the_escrow_contract)
         self._contract = wrapped_escrow_contract
 
@@ -349,9 +348,9 @@ class StakingEscrowDeployer(ContractDeployer):
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
                                                  target_contract=existing_bare_contract,
                                                  deployer_address=self.deployer_address,
@@ -392,7 +391,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         # Creator deploys the policy manager
-        policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name, self.staking_agent.contract_address)
+        policy_manager_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name, self.staking_agent.contract_address)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=policy_manager_contract,
@@ -405,7 +404,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self.__proxy_contract = proxy_contract
 
         # Wrap the escrow contract
-        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=policy_manager_contract)
+        wrapped = self.blockchain._wrap_contract(proxy_contract, target_contract=policy_manager_contract)
 
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped
@@ -432,7 +431,7 @@ class PolicyManagerDeployer(ContractDeployer):
 
         self.check_deployment_readiness()
 
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                                 proxy_name=self.__proxy_deployer.contract_name,
                                                                                 use_proxy_address=False)
 
@@ -442,7 +441,7 @@ class PolicyManagerDeployer(ContractDeployer):
                                                bare=True)  # acquire agency for the dispatcher itself.
 
         # Creator deploys the policy manager
-        policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
+        policy_manager_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
                                                                                            self.staking_agent.contract_address)
 
         upgrade_tx_hash = proxy_deployer.retarget(new_target=policy_manager_contract.address,
@@ -451,7 +450,7 @@ class PolicyManagerDeployer(ContractDeployer):
         _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Wrap the escrow contract
-        wrapped_policy_manager_contract = self.blockchain.interface._wrap_contract(proxy_deployer.contract,
+        wrapped_policy_manager_contract = self.blockchain._wrap_contract(proxy_deployer.contract,
                                                                                    target_contract=policy_manager_contract)
 
         # Switch the contract for the wrapped one
@@ -465,7 +464,7 @@ class PolicyManagerDeployer(ContractDeployer):
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                                 proxy_name=self.__proxy_deployer.contract_name,
                                                                                 use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
@@ -488,12 +487,12 @@ class LibraryLinkerDeployer(ContractDeployer):
         self.target_contract = target_contract
         super().__init__(*args, **kwargs)
         if bare:
-            self._contract = self.blockchain.interface.get_proxy(target_address=self.target_contract.address,
+            self._contract = self.blockchain.get_proxy(target_address=self.target_contract.address,
                                                                  proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
         linker_args = (self.contract_name, self.target_contract.address, secret_hash)
-        linker_contract, linker_deployment_txhash = self.blockchain.interface.deploy_contract(gas_limit=gas_limit, *linker_args)
+        linker_contract, linker_deployment_txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *linker_args)
         self._contract = linker_contract
         return {'txhash': linker_deployment_txhash}
 
@@ -532,12 +531,13 @@ class UserEscrowProxyDeployer(ContractDeployer):
                       self.token_agent.contract_address,
                       self.staking_agent.contract_address,
                       self.policy_agent.contract_address)
-        user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.interface.deploy_contract(gas_limit=gas_limit, *proxy_args)
+        user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *proxy_args)
         self._contract = user_escrow_proxy_contract
         deployment_transactions['deployment_txhash'] = proxy_deployment_txhash
 
         # Proxy-Proxy
-        proxy_deployer = self.__proxy_deployer(deployer_address=self.deployer_address,
+        proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
+                                               deployer_address=self.deployer_address,
                                                target_contract=user_escrow_proxy_contract)
 
         proxy_deployment_txhashes = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
@@ -547,19 +547,19 @@ class UserEscrowProxyDeployer(ContractDeployer):
 
     @classmethod
     def get_latest_version(cls, blockchain) -> Contract:
-        contract = blockchain.interface.get_contract_by_name(name=cls.contract_name,
-                                                             proxy_name=cls.__proxy_deployer.contract_name)
+        contract = blockchain.get_contract_by_name(name=cls.contract_name, proxy_name=cls.__proxy_deployer.contract_name)
         return contract
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
 
         deployment_transactions = dict()
 
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
         # Proxy-Proxy
-        proxy_deployer = self.__proxy_deployer(deployer_address=self.deployer_address,
+        proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
+                                               deployer_address=self.deployer_address,
                                                target_contract=existing_bare_contract,
                                                bare=True)
 
@@ -569,7 +569,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
                       self.staking_agent.contract_address,
                       self.policy_agent.contract_address)
 
-        user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.interface.deploy_contract(*proxy_args)
+        user_escrow_proxy_contract, proxy_deployment_txhash = self.blockchain.deploy_contract(*proxy_args)
         self._contract = user_escrow_proxy_contract
         deployment_transactions['deployment_txhash'] = proxy_deployment_txhash
 
@@ -582,9 +582,10 @@ class UserEscrowProxyDeployer(ContractDeployer):
         return deployment_transactions
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
+
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
                                                  target_contract=existing_bare_contract,
                                                  deployer_address=self.deployer_address,
@@ -631,7 +632,7 @@ class UserEscrowDeployer(ContractDeployer):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
         txhash = self.contract.functions.transferOwnership(beneficiary_address).transact({'from': self.deployer_address,
                                                                                           'gas': 500_000,
-                                                                                          'gasPrice': self.blockchain.interface.w3.eth.gasPrice})  # TODO: Gas
+                                                                                          'gasPrice': self.blockchain.w3.eth.gasPrice})  # TODO: Gas
         self.blockchain.wait_for_receipt(txhash)
         self.__beneficiary_address = beneficiary_address
         return txhash
@@ -649,7 +650,7 @@ class UserEscrowDeployer(ContractDeployer):
         try:
             # TODO: Gas management
             args = {'from': self.deployer_address,
-                    'gasPrice': self.blockchain.interface.w3.eth.gasPrice,
+                    'gasPrice': self.blockchain.w3.eth.gasPrice,
                     'gas': 200_000}
             deposit_receipt = self.contract.functions.initialDeposit(value, duration).transact(args)
         except TransactionFailed:
@@ -688,9 +689,9 @@ class UserEscrowDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         deployment_transactions = dict()
-        linker_contract = self.blockchain.interface.get_contract_by_name(name=self.__linker_deployer.contract_name)
+        linker_contract = self.blockchain.get_contract_by_name(name=self.__linker_deployer.contract_name)
         args = (self.contract_name, linker_contract.address, self.token_agent.contract_address)
-        user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
+        user_escrow_contract, deploy_txhash = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
         deployment_transactions['deploy_user_escrow'] = deploy_txhash
 
         self._contract = user_escrow_contract
@@ -716,11 +717,10 @@ class AdjudicatorDeployer(ContractDeployer):
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> Dict[str, str]:
         self.check_deployment_readiness()
 
-        adjudicator_contract, deploy_txhash = self.blockchain.interface \
-                                                         .deploy_contract(self.contract_name,
-                                                                          self.staking_agent.contract_address,
-                                                                          *self.__economics.deployment_parameters,
-                                                                          gas_limit=gas_limit)
+        adjudicator_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
+                                                                              self.staking_agent.contract_address,
+                                                                              *self.__economics.deployment_parameters,
+                                                                              gas_limit=gas_limit)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=adjudicator_contract,
@@ -733,7 +733,7 @@ class AdjudicatorDeployer(ContractDeployer):
         self.__proxy_contract = proxy_contract
 
         # Wrap the escrow contract
-        wrapped = self.blockchain.interface._wrap_contract(proxy_contract, target_contract=adjudicator_contract)
+        wrapped = self.blockchain._wrap_contract(proxy_contract, target_contract=adjudicator_contract)
 
         # Switch the contract for the wrapped one
         adjudicator_contract = wrapped
@@ -751,18 +751,18 @@ class AdjudicatorDeployer(ContractDeployer):
 
         self.check_deployment_readiness()
 
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=existing_bare_contract,
                                                deployer_address=self.deployer_address,
                                                bare=True)
 
-        adjudicator_contract, deploy_txhash = self.blockchain.interface.deploy_contract(self.contract_name,
-                                                                                        self.staking_agent.contract_address,
-                                                                                        *self.__economics.deployment_parameters)
+        adjudicator_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
+                                                                              self.staking_agent.contract_address,
+                                                                              *self.__economics.deployment_parameters)
 
         upgrade_tx_hash = proxy_deployer.retarget(new_target=adjudicator_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
@@ -770,8 +770,7 @@ class AdjudicatorDeployer(ContractDeployer):
         _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Wrap the escrow contract
-        wrapped_adjudicator_contract = self.blockchain.interface._wrap_contract(proxy_deployer.contract,
-                                                                                target_contract=adjudicator_contract)
+        wrapped_adjudicator_contract = self.blockchain._wrap_contract(proxy_deployer.contract, target_contract=adjudicator_contract)
 
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped_adjudicator_contract
@@ -782,9 +781,9 @@ class AdjudicatorDeployer(ContractDeployer):
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
-        existing_bare_contract = self.blockchain.interface.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
                                                  target_contract=existing_bare_contract,
                                                  deployer_address=self.deployer_address,
