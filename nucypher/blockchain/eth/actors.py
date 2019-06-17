@@ -508,6 +508,14 @@ class Staker(NucypherTokenActor):
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
         return collection_txhash
 
+    @only_me
+    def withdraw(self, amount: NU) -> str:
+        """Withdraw tokens (assuming they're unlocked)"""
+        collection_txhash = self.staking_agent.withdraw(staker_address=self.checksum_address,
+                                                        amount=int(amount))
+        self._transaction_cache.append((datetime.utcnow(), collection_txhash))
+        return collection_txhash
+
 
 class Worker(NucypherTokenActor):
     """
