@@ -142,7 +142,7 @@ def felix(click_config,
         # Add ETH Bootnode or Peer
         if enode:
             if geth:
-                felix_config.blockchain.interface.w3.geth.admin.addPeer(enode)
+                felix_config.blockchain.w3.geth.admin.addPeer(enode)
                 click.secho(f"Added ethereum peer {enode}")
             else:
                 raise NotImplemented  # TODO: other backends
@@ -178,7 +178,7 @@ ETH ........ {str(eth_balance)}
         """)
 
     elif action == "accounts":
-        accounts = FELIX.blockchain.interface.w3.eth.accounts
+        accounts = FELIX.blockchain.w3.eth.accounts
         for account in accounts:
             click.secho(account)
 

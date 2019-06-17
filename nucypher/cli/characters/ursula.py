@@ -326,11 +326,11 @@ def ursula(click_config,
         if not URSULA.federated_only:
             click.secho("BLOCKCHAIN ----------\n")
             painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
-            current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+            current_block = URSULA.blockchain.w3.eth.blockNumber
             click.secho(f'Block # {current_block}')
             click.secho(f'NU Balance: {URSULA.token_balance}')
             click.secho(f'ETH Balance: {URSULA.eth_balance}')
-            click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.w3.eth.gasPrice}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
