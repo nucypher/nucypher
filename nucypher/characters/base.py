@@ -35,11 +35,12 @@ from constant_sorrow.constants import (
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
+from nucypher.blockchain.eth.chains import Blockchain
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -68,7 +69,6 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-    from nucypher.crypto.signing import InvalidSignature  # TODO: Restore nucypher Signing exceptions
 
     def __init__(self,
                  domains: Set = None,

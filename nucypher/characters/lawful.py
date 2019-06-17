@@ -114,7 +114,10 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
+            PolicyAuthor.__init__(self,
+                                  blockchain=self.blockchain,
+                                  policy_agent=policy_agent,
+                                  checksum_address=checksum_address)
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -846,6 +849,7 @@ class Ursula(Teacher, Character, Worker):
             if not federated_only:
                 Worker.__init__(self,
                                 is_me=is_me,
+                                blockchain=self.blockchain,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 stake_tracker=stake_tracker)
