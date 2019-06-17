@@ -20,6 +20,7 @@ import random
 from cryptography.x509 import Certificate
 from typing import Set, List, Iterable
 
+from nucypher.blockchain.eth.interfaces import Blockchain
 from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
@@ -65,6 +66,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
 
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
+                               blockchain: Blockchain,
                                stakers_addresses: Iterable[str],
                                workers_addresses: Iterable[str],
                                confirm_activity: bool = False,
@@ -83,6 +85,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
         ursula = ursula_config.produce(checksum_address=staker_address,
                                        worker_address=worker_address,
+                                       blockchain=blockchain,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
                                        stake_tracker=stake_tracker,
