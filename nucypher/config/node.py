@@ -322,8 +322,7 @@ class CharacterConfiguration(BaseConfiguration):
     def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
         self.read_known_nodes()
-        payload = dict(blockchain=self.blockchain,
-                       network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
+        payload = dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups())
@@ -443,9 +442,9 @@ class CharacterConfiguration(BaseConfiguration):
             # Determine etherbase (web3)
             elif not self.checksum_address:
                 self.connect_to_blockchain()
-                if not self.blockchain.interface.w3.eth.accounts:
+                if not self.blockchain.client.accounts:
                     raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_address = self.blockchain.interface.etherbase
+                self.checksum_address = self.blockchain.etherbase
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,

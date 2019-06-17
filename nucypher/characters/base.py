@@ -130,7 +130,7 @@ class Character(Learner):
 
         # Needed for on-chain verification
         if not self.federated_only:
-            self.blockchain = blockchain or Blockchain.connect()
+            self.blockchain = blockchain
             self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
         else:
             self.blockchain = FEDERATED_ONLY

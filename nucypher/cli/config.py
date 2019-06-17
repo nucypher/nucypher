@@ -75,11 +75,11 @@ class NucypherClickConfig:
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
 
-    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
-        character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
+    def connect_to_blockchain(self, character_configuration, sync_now: bool = True):
+        character_configuration.connect_to_blockchain(sync_now=sync_now)
         character_configuration.connect_to_contracts()
         self.blockchain = character_configuration.blockchain
-        self.accounts = self.blockchain.interface.client.accounts
+        self.accounts = self.blockchain.client.accounts
 
     def get_password(self, confirm: bool = False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
