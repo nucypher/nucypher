@@ -337,7 +337,8 @@ class Deployer(NucypherTokenActor):
             for contract_name, transactions in transactions.items():
                 contract_records = dict()
                 for tx_name, txhash in transactions.items():
-                    receipt = {item: str(result) for item, result in self.blockchain.wait_for_receipt(txhash).items()}
+                    receipt = self.blockchain.client.w3.eth.waitForTransactionReceipt(txhash)
+                    receipt = {item: str(result) for item, result in receipt.items()}
                     contract_records.update({tx_name: receipt for tx_name in transactions})
                 data[contract_name] = contract_records
             data = json.dumps(data, indent=4)
