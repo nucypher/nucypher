@@ -21,7 +21,7 @@ import pytest
 from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.slow()
@@ -92,7 +92,7 @@ def test_stakers_and_workers_relationships(testerchain, agency):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # The staker hasn't set a worker yet
-    assert Blockchain.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
+    assert BlockchainInterface.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
     _txhash = staking_agent.set_worker(staker_address=staker_account,
                                        worker_address=worker_account)
@@ -103,8 +103,8 @@ def test_stakers_and_workers_relationships(testerchain, agency):
 
     # No staker-worker relationship
     random_address = to_checksum_address(os.urandom(20))
-    assert Blockchain.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=random_address)
-    assert Blockchain.NULL_ADDRESS == staking_agent.get_staker_from_worker(worker_address=random_address)
+    assert BlockchainInterface.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=random_address)
+    assert BlockchainInterface.NULL_ADDRESS == staking_agent.get_staker_from_worker(worker_address=random_address)
 
 
 @pytest.mark.slow()

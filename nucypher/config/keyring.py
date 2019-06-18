@@ -40,7 +40,7 @@ from nacl.secret import SecretBox
 from twisted.logger import Logger
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
@@ -500,7 +500,7 @@ class NucypherKeyring:
             new_cryptopower = power_class(keying_material=keying_material)
 
         elif power_class is BlockchainPower:
-            new_cryptopower = power_class(blockchain=Blockchain.connect(), account=self.checksum_address)
+            new_cryptopower = power_class(blockchain=BlockchainInterface.connect(), account=self.checksum_address)
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)

@@ -23,7 +23,7 @@ from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import Blockchain, BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import NU_BANNER
@@ -101,13 +101,13 @@ def deploy(click_config,
         provider_uri = ETH_NODE.provider_uri
 
     # Deployment-tuned blockchain connection
-    blockchain = BlockchainDeployer(provider_uri=provider_uri,
-                                    poa=poa,
-                                    registry=registry,
-                                    compile=not no_compile,
-                                    deployer=True,
-                                    fetch_registry=False,
-                                    sync=sync)
+    blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
+                                             poa=poa,
+                                             registry=registry,
+                                             compile=not no_compile,
+                                             deployer=True,
+                                             fetch_registry=False,
+                                             sync=sync)
 
 
     #

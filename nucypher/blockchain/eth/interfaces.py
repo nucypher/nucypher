@@ -54,7 +54,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
 
-class Blockchain:
+class BlockchainInterface:
     """
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
@@ -318,7 +318,7 @@ class Blockchain:
                          ) -> dict:
 
         if self.transacting_power is READ_ONLY_INTERFACE:
-            raise self.InterfaceError
+            raise self.InterfaceError(str(READ_ONLY_INTERFACE))
 
         #
         # Build
@@ -373,7 +373,7 @@ class Blockchain:
         raise NotImplementedError  # TODO
 
 
-class BlockchainDeployer(Blockchain):
+class BlockchainDeployerInterface(BlockchainInterface):
 
     _contract_factory = Contract
 

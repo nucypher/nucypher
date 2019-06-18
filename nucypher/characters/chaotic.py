@@ -22,7 +22,7 @@ from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -183,7 +183,7 @@ class Felix(Character, NucypherTokenActor):
 
         # Blockchain
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.reserved_addresses = [self.checksum_address, Blockchain.NULL_ADDRESS]
+        self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
         existing_entries = list(self.blockchain.registry.enrolled_addresses)

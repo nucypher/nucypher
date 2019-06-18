@@ -45,7 +45,7 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
@@ -1003,7 +1003,7 @@ class Teacher:
         the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
         """
         staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
-        if staker_address == Blockchain.NULL_ADDRESS:
+        if staker_address == BlockchainInterface.NULL_ADDRESS:
             raise self.DetachedWorker
         return staker_address == self.checksum_address
 
@@ -1146,8 +1146,8 @@ class Teacher:
 
     def substantiate_stamp(self, client_password: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=client_password)  # TODO: #349
-        signature = blockchain_power.sign_message(bytes(self.stamp))
+        blockchain_power.unlock_account(password=client_password, account=self.checksum_address)  # TODO: #349
+        signature = blockchain_power.sign_message(messagebytes(self.stamp))
         self.__decentralized_identity_evidence = signature
         self.__worker_address = blockchain_power.account
 

@@ -23,7 +23,7 @@ from twisted.logger import Logger
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
@@ -59,7 +59,7 @@ class EthereumContractAgent:
         pass
 
     def __init__(self,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
@@ -67,7 +67,7 @@ class EthereumContractAgent:
         self.log = Logger(self.__class__.__name__)
 
         if blockchain is None:
-            blockchain = Blockchain.connect()
+            blockchain = BlockchainInterface.connect()
         self.blockchain = blockchain
 
         if contract is None:  # Fetch the contract
@@ -215,7 +215,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         return receipt
 
     def release_worker(self, staker_address: str):
-        return self.set_worker(staker_address=staker_address, worker_address=Blockchain.NULL_ADDRESS)
+        return self.set_worker(staker_address=staker_address, worker_address=BlockchainInterface.NULL_ADDRESS)
 
     def confirm_activity(self, worker_address: str):
         """
@@ -301,7 +301,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
                 deltas.append(next_point - previous_point)
 
             addresses = set(self.contract.functions.sample(deltas, duration).call())
-            addresses.discard(str(Blockchain.NULL_ADDRESS))
+            addresses.discard(str(BlockchainInterface.NULL_ADDRESS))
 
             if len(addresses) >= quantity:
                 return system_random.sample(addresses, quantity)
@@ -386,11 +386,11 @@ class UserEscrowAgent(EthereumContractAgent):
 
     def __init__(self,
                  beneficiary: str,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  allocation_registry: AllocationRegistry = None,
                  *args, **kwargs) -> None:
 
-        self.blockchain = blockchain or Blockchain.connect()
+        self.blockchain = blockchain or BlockchainInterface.connect()
 
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
         self.__beneficiary = beneficiary
