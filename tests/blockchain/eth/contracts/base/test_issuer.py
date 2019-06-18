@@ -32,8 +32,8 @@ def token(testerchain):
 
 @pytest.mark.slow
 def test_issuer(testerchain, token):
-    creator = testerchain.w3.eth.accounts[0]
-    ursula = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
 
     # Only token contract is allowed in Issuer constructor
     with pytest.raises((TransactionFailed, ValueError)):
@@ -97,8 +97,8 @@ def test_inflation_rate(testerchain, token):
     During one period inflation rate must be the same
     """
 
-    creator = testerchain.w3.eth.accounts[0]
-    ursula = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
 
     # Creator deploys the contract
     issuer, _ = testerchain.deploy_contract('IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1)
@@ -158,7 +158,7 @@ def test_inflation_rate(testerchain, token):
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.w3.eth.accounts[0]
+    creator = testerchain.client.accounts[0]
 
     secret = os.urandom(SECRET_LENGTH)
     secret_hash = testerchain.w3.keccak(secret)
@@ -171,7 +171,7 @@ def test_upgrading(testerchain, token):
 
     # Deploy second version of the contract
     contract_library_v2, _ = testerchain.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)

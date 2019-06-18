@@ -48,7 +48,7 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
-        args = {'from': origin, 'gasPrice': token_agent.blockchain.w3.eth.gasPrice}
+        args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gasPrice}
         for address in addresses:
             txhash = token_agent.contract.functions.transfer(address, int(amount)).transact(args)
             yield txhash
@@ -204,13 +204,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     @property
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
-        return self.__provider
+        return self._provider
 
     @classmethod
     def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
         testerchain = cls.connect()
 
-        origin = testerchain.w3.eth.accounts[0]
+        origin = testerchain.client.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
 
         _txhashes, agents = deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
@@ -221,25 +221,25 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     @property
     def etherbase_account(self):
-        return self.w3.eth.accounts[self._ETHERBASE]
+        return self.client.accounts[self._ETHERBASE]
 
     @property
     def alice_account(self):
-        return self.w3.eth.accounts[self._ALICE]
+        return self.client.accounts[self._ALICE]
 
     @property
     def bob_account(self):
-        return self.w3.eth.accounts[self._BOB]
+        return self.client.accounts[self._BOB]
 
     def ursula_account(self, index):
         if index not in self._ursulas_range:
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
-        return self.w3.eth.accounts[index + self._FIRST_URSULA]
+        return self.client.accounts[index + self._FIRST_URSULA]
 
     def staker_account(self, index):
         if index not in self._stakers_range:
             raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
-        return self.w3.eth.accounts[index + self._FIRST_STAKER]
+        return self.client.accounts[index + self._FIRST_STAKER]
 
     @property
     def ursulas_accounts(self):
@@ -253,7 +253,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
     def unassigned_accounts(self):
         special_accounts = [self.etherbase_account, self.alice_account, self.bob_account]
         assigned_accounts = set(self.stakers_accounts + self.ursulas_accounts + special_accounts)
-        accounts = set(self.w3.eth.accounts)
+        accounts = set(self.client.accounts)
         return list(accounts.difference(assigned_accounts))
 
     def wait_for_receipt(self, txhash: bytes, timeout: int = None) -> dict:

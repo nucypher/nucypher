@@ -329,7 +329,7 @@ def ursula(click_config,
             click.secho(f'Block # {current_block}')
             click.secho(f'NU Balance: {URSULA.token_balance}')
             click.secho(f'ETH Balance: {URSULA.eth_balance}')
-            click.secho(f'Current Gas Price {URSULA.blockchain.w3.eth.gasPrice}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)

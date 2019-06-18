@@ -27,7 +27,7 @@ from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRES
 
 @pytest.mark.slow()
 def test_seeder(testerchain):
-    origin, seed_address, another_seed_address, *everyone_else = testerchain.w3.eth.accounts
+    origin, seed_address, another_seed_address, *everyone_else = testerchain.client.accounts
     seed = (MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT)
     another_seed = (MOCK_IP_ADDRESS_2, MOCK_URSULA_STARTING_PORT + 1)
 

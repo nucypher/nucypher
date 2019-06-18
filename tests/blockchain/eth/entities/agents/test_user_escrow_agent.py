@@ -39,7 +39,7 @@ def allocation_value(token_economics):
 @pytest.mark.usefixtures("agency")
 @pytest.fixture(scope='module')
 def proxy_deployer(testerchain) -> UserEscrowAgent:
-    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Proxy
     proxy_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
@@ -52,7 +52,7 @@ def proxy_deployer(testerchain) -> UserEscrowAgent:
 @pytest.mark.usefixtures(["agency", "proxy_deployer"])
 @pytest.fixture(scope='function')
 def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
-    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
@@ -103,7 +103,7 @@ def test_user_escrow_agent_represents_beneficiary(agent, agency):
 
 
 def test_read_beneficiary(testerchain, agent):
-    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
     benficiary = agent.beneficiary
     assert benficiary == beneficiary_address
     assert is_checksum_address(benficiary)
@@ -173,7 +173,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
 def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     _token_agent, staking_agent, policy_agent = agency
-    deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.w3.eth.accounts
+    deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
 
@@ -194,15 +194,15 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     testerchain.time_travel(periods=2)
     _txhash = staking_agent.confirm_activity(worker_address=worker)
 
-    old_balance = testerchain.w3.eth.getBalance(account=agent.beneficiary)
+    old_balance = testerchain.client.get_balance(account=agent.beneficiary)
     txhash = agent.collect_policy_reward()
     assert txhash  # TODO
-    assert testerchain.w3.eth.getBalance(account=agent.beneficiary) > old_balance
+    assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
 
 
 def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
     token_agent, staking_agent, policy_agent = agency
-    deployer_address, beneficiary_address, *everybody_else = testerchain.w3.eth.accounts
+    deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
     with pytest.raises((TransactionFailed, ValueError)):

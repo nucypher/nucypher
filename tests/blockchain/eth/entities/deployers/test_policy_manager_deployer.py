@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.deployers import (
@@ -28,7 +29,7 @@ from nucypher.blockchain.eth.deployers import (
 
 
 def test_policy_manager_deployer(testerchain):
-    origin, *everybody_else = testerchain.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
@@ -39,14 +40,14 @@ def test_policy_manager_deployer(testerchain):
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
-    staking_escrow_deployer.deploy(secret_hash=testerchain.w3.keccak(stakers_escrow_secret))
+    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
 
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
 
-    deployment_txhashes = deployer.deploy(secret_hash=testerchain.w3.keccak(policy_manager_secret))
+    deployment_txhashes = deployer.deploy(secret_hash=keccak(policy_manager_secret))
     assert len(deployment_txhashes) == 3
 
     for title, txhash in deployment_txhashes.items():

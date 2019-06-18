@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from web3.contract import Contract
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.token import NU
 
@@ -52,9 +53,9 @@ def escrow_contract(testerchain, token, request):
         )
 
         if request.param:
-            secret_hash = testerchain.w3.keccak(secret)
+            secret_hash = keccak(secret)
             dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
-            contract = testerchain.w3.eth.contract(
+            contract = testerchain.client.get_contract(
                 abi=contract.abi,
                 address=dispatcher.address,
                 ContractFactoryClass=Contract)

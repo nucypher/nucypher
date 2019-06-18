@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from web3.contract import Contract
+from eth_utils import keccak
 
 
 secret = (123456).to_bytes(32, byteorder='big')
@@ -32,22 +33,22 @@ def escrow(testerchain):
 
 @pytest.fixture(params=[False, True])
 def policy_manager(testerchain, escrow, request):
-    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.w3.eth.accounts
+    creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
 
     # Creator deploys the policy manager
     contract, _ = testerchain.deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
-    tx = testerchain.w3.eth.sendTransaction(
-        {'from': testerchain.w3.eth.coinbase, 'to': client, 'value': 10000})
+    tx = testerchain.client.sendTransaction(
+        {'from': testerchain.client.coinbase, 'to': client, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
     if request.param:
-        secret_hash = testerchain.w3.keccak(secret)
+        secret_hash = keccak(secret)
         dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
-        contract = testerchain.w3.eth.contract(
+        contract = testerchain.client.get_contract(
             abi=contract.abi,
             address=dispatcher.address,
             ContractFactoryClass=Contract)

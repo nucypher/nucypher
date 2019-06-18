@@ -198,7 +198,7 @@ Gas Price ................ {gas_price}
 Active Staking Ursulas ... {ursulas}
 
     """.format(period=ursula_config.staking_agent.get_current_period(),
-               gas_price=ursula_config.blockchain.w3.eth.gasPrice,
+               gas_price=ursula_config.blockchain.client.gasPrice,
                ursulas=ursula_config.staking_agent.get_staker_population())
     click.secho(network_payload)
 
