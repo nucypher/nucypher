@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -33,9 +33,9 @@ from nucypher.utilities.sandbox.constants import (
 @pytest.fixture()
 def another_testerchain(solidity_compiler):
     memory_registry = InMemoryEthereumContractRegistry()
-    deployer_interface = BlockchainDeployer(compiler=solidity_compiler,
-                                            registry=memory_registry,
-                                            provider_uri=TEST_PROVIDER_URI)
+    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
+                                                     registry=memory_registry,
+                                                     provider_uri=TEST_PROVIDER_URI)
     testerchain = TesterBlockchain(interface=deployer_interface,
                                    test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
                                    eth_airdrop=True)

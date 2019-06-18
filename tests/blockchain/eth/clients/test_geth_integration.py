@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.crypto.api import verify_eip_191
 
 
@@ -15,7 +15,7 @@ def test_geth_EIP_191_client_signature_integration(geth_dev_node):
         pytest.skip("Do not run Geth nodes in CI")
 
     # Start a geth process
-    blockchain = Blockchain(provider_process=geth_dev_node, sync_now=False)
+    blockchain = BlockchainInterface(provider_process=geth_dev_node, sync_now=False)
 
     # Sign a message (RPC) and verify it.
     etherbase = blockchain.accounts[0]

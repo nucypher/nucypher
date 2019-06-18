@@ -21,7 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 SECRET_LENGTH = 16
 
@@ -62,7 +62,7 @@ def test_dispatcher(testerchain):
     events = upgrades.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert Blockchain.NULL_ADDRESS == event_args['from']
+    assert BlockchainInterface.NULL_ADDRESS == event_args['from']
     assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
 
@@ -492,7 +492,7 @@ def test_selfdestruct(testerchain):
 
     # Can't create dispatcher using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', Blockchain.NULL_ADDRESS, secret_hash)
+        testerchain.deploy_contract('Dispatcher', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
         testerchain.deploy_contract('Dispatcher', account, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -514,7 +514,7 @@ def test_selfdestruct(testerchain):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
@@ -532,7 +532,7 @@ def test_selfdestruct(testerchain):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})

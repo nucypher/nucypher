@@ -39,7 +39,7 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -73,7 +73,7 @@ class Character(Learner):
                  domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_root: str = None,

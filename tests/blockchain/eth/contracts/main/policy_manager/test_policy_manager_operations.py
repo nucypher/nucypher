@@ -21,7 +21,7 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 CLIENT_FIELD = 0
 RATE_FIELD = 1
@@ -245,14 +245,14 @@ def test_refund(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.refund(policy_id, Blockchain.NULL_ADDRESS).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id, BlockchainInterface.NULL_ADDRESS).transact({'from': client})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
     with pytest.raises((TransactionFailed, ValueError)):
         policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     with pytest.raises((TransactionFailed, ValueError)):
-        policy_manager.functions.calculateRefundValue(policy_id, Blockchain.NULL_ADDRESS).call({'from': client})
+        policy_manager.functions.calculateRefundValue(policy_id, BlockchainInterface.NULL_ADDRESS).call({'from': client})
 
     # Create new policy
     testerchain.time_travel(hours=1)
@@ -366,12 +366,12 @@ def test_refund(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.refund(policy_id_2, Blockchain.NULL_ADDRESS).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id_2, BlockchainInterface.NULL_ADDRESS).transact({'from': client})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         policy_manager.functions.calculateRefundValue(policy_id_2, node1).call({'from': client})
     with pytest.raises((TransactionFailed, ValueError)):
-        policy_manager.functions.calculateRefundValue(policy_id_2, Blockchain.NULL_ADDRESS).call({'from': client})
+        policy_manager.functions.calculateRefundValue(policy_id_2, BlockchainInterface.NULL_ADDRESS).call({'from': client})
 
     # But can refund others arrangements
     assert 240 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': client})
