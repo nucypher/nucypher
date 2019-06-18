@@ -43,7 +43,7 @@ def make_testerchain(provider_uri, solidity_compiler):
 
     # Destroy existing blockchain
     BlockchainInterface.disconnect()
-    _TesterBlockchain.sever_connection()
+    _TesterBlockchain.disconnect()
 
     registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
@@ -321,7 +321,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               mock_allocation_infile,
                                               token_economics):
 
-    _TesterBlockchain.sever_connection()
+    _TesterBlockchain.disconnect()
     Agency.clear()
 
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
