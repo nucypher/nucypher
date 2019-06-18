@@ -500,7 +500,8 @@ class NucypherKeyring:
             new_cryptopower = power_class(keying_material=keying_material)
 
         elif power_class is BlockchainPower:
-            new_cryptopower = power_class(blockchain=BlockchainInterface.connect(), account=self.checksum_address)
+            # new_cryptopower = power_class(account=self.checksum_address)
+            pass  # TODO: Needs refactoring with TransactingPower
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
