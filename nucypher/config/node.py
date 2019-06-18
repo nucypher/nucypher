@@ -284,7 +284,7 @@ class CharacterConfiguration(BaseConfiguration):
             if not os.path.exists(path):
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
-                    message += ' Did you mean to pass --federated-only?'                    
+                    message += ' Did you mean to pass --federated-only?'
                 raise CharacterConfiguration.InvalidConfiguration(message.format(path))
         return True
 
@@ -444,7 +444,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.connect_to_blockchain()
                 if not self.blockchain.client.accounts:
                     raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_address = self.blockchain.etherbase
+                self.checksum_address = self.blockchain.client.etherbase
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
