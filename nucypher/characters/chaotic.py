@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
-from nucypher.crypto.powers import SigningPower, BlockchainPower
+from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
@@ -129,7 +129,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower]
+    _default_crypto_powerups = [SigningPower, TransactingPower]
 
     TEMPLATE_NAME = 'felix.html'
 

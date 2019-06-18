@@ -179,7 +179,7 @@ class Character(Learner):
             if not checksum_address:
                 raise ValueError("No checksum_address provided while running in a non-federated mode.")
             else:
-                self._checksum_address = checksum_address  # TODO: Check that this matches BlockchainPower
+                self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
         #
         # Federated
         #
@@ -304,7 +304,7 @@ class Character(Learner):
             except TypeError:
                 umbral_key = public_key
 
-            crypto_power.consume_power_up(power_up(pubkey=umbral_key))
+            crypto_power.consume_power_up(power_up(public_key=umbral_key))
 
         return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
 
