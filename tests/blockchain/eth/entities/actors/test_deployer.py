@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
@@ -39,21 +40,17 @@ from nucypher.utilities.sandbox.constants import (
 @pytest.mark.slow()
 def test_rapid_deployment(token_economics):
     compiler = SolidityCompiler()
-    registry = InMemoryEthereumContractRegistry()
     allocation_registry = InMemoryAllocationRegistry()
 
     blockchain = TesterBlockchain(eth_airdrop=False,
                                   test_accounts=4,
-                                  compiler=compiler,
-                                  registry=registry,
-                                  provider_uri=TEST_PROVIDER_URI)
+                                  compiler=compiler)
 
+    blockchain.transacting_power = BlockchainPower(client=blockchain.client)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
-    # The Big Three (+ Dispatchers)
-    # Deploy User Escrow, too (+ Linker)
     deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
                                       policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
                                       adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,

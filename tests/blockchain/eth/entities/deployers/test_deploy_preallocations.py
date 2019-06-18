@@ -35,7 +35,7 @@ def user_escrow_proxy(agency):
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
     testerchain.registry.clear()
-    testerchain.sever_connection()
+    testerchain.disconnect()
 
 
 @pytest.mark.slow()
@@ -50,7 +50,7 @@ def test_deploy_and_allocate(agency, user_escrow_proxy, token_economics):
 
     _last_deployment_address = None
     for index in range(number_of_deployments):
-        escrow_deployer = UserEscrowDeployer(deployer_address=origin)
+        escrow_deployer = UserEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
         _deployment_txhashes = escrow_deployer.deploy()
 

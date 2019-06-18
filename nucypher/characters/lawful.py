@@ -860,7 +860,7 @@ class Ursula(Teacher, Character, Worker):
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp
-                self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
+                self.substantiate_stamp(client_password=password, checksum_address=worker_address)  # TODO: Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -926,6 +926,7 @@ class Ursula(Teacher, Character, Worker):
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
                          password=password,
+                         worker_address=worker_address,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
