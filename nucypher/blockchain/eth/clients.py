@@ -160,14 +160,14 @@ class Web3Client(object):
 
     @property
     def etherbase(self):
-        return self.w3.eth.accounts[0]
+        return self.accounts[0]
 
     @property
     def accounts(self):
         return self.w3.eth.accounts
 
-    def get_balance(self, address):
-        return self.w3.eth.getBalance(address)
+    def get_balance(self, account):
+        return self.w3.eth.getBalance(account)
 
     def inject_middleware(self, middleware, **kwargs):
         self.w3.middleware_onion.inject(middleware, **kwargs)
@@ -175,6 +175,20 @@ class Web3Client(object):
     @property
     def chain_id(self):
         return self.w3.net.version
+
+    def get_contract(self, **kwargs):
+        return self.w3.eth.contract(**kwargs)
+
+    @property
+    def gasPrice(self):
+        return self.w3.eth.gasPrice
+
+    @property
+    def coinbase(self):
+        return self.w3.eth.coinbase
+
+    def sendTransaction(self, transaction: dict):
+        return self.w3.eth.sendTransaction(transaction)
 
     def sync(self,
              timeout: int = 120,

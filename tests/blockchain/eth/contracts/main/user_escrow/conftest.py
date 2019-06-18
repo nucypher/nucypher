@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
+from eth_utils import keccak
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.token import NU
@@ -31,7 +32,7 @@ def token(testerchain):
 
 @pytest.fixture()
 def escrow(testerchain, token):
-    creator = testerchain.w3.eth.accounts[0]
+    creator = testerchain.client.accounts[0]
     # Creator deploys the escrow
     contract, _ = testerchain.deploy_contract('StakingEscrowForUserEscrowMock', token.address)
 
@@ -59,15 +60,15 @@ def proxy(testerchain, token, escrow, policy_manager):
 @pytest.fixture()
 def linker(testerchain, proxy):
     secret = os.urandom(32)
-    secret_hash = testerchain.w3.keccak(secret)
+    secret_hash = keccak(secret)
     linker, _ = testerchain.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker
 
 
 @pytest.fixture()
 def user_escrow(testerchain, token, linker):
-    creator = testerchain.w3.eth.accounts[0]
-    user = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    user = testerchain.client.accounts[1]
 
     contract, _ = testerchain.deploy_contract('UserEscrow', linker.address, token.address)
 
@@ -79,7 +80,7 @@ def user_escrow(testerchain, token, linker):
 
 @pytest.fixture()
 def user_escrow_proxy(testerchain, proxy, user_escrow):
-    return testerchain.w3.eth.contract(
+    return testerchain.client.get_contract(
         abi=proxy.abi,
         address=user_escrow.address,
         ContractFactoryClass=Contract)

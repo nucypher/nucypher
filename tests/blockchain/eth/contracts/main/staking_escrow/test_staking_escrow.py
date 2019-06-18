@@ -30,9 +30,9 @@ def test_staking(testerchain, token, escrow_contract):
     """
 
     escrow = escrow_contract(1500)
-    creator = testerchain.w3.eth.accounts[0]
-    ursula1 = testerchain.w3.eth.accounts[1]
-    ursula2 = testerchain.w3.eth.accounts[2]
+    creator = testerchain.client.accounts[0]
+    ursula1 = testerchain.client.accounts[1]
+    ursula2 = testerchain.client.accounts[2]
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock='latest')
@@ -68,7 +68,7 @@ def test_staking(testerchain, token, escrow_contract):
     # Check that nothing is locked
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
-    assert 0 == escrow.functions.getLockedTokens(testerchain.w3.eth.accounts[3]).call()
+    assert 0 == escrow.functions.getLockedTokens(testerchain.client.accounts[3]).call()
 
     # Ursula can't deposit tokens before Escrow initialization
     with pytest.raises((TransactionFailed, ValueError)):
@@ -457,8 +457,8 @@ def test_staking(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_max_sub_stakes(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator = testerchain.w3.eth.accounts[0]
-    ursula = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
 
     # Initialize Escrow contract
     tx = escrow.functions.initialize().transact({'from': creator})

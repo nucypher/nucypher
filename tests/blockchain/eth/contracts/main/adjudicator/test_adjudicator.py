@@ -22,7 +22,7 @@ import pytest
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_canonical_address
+from eth_utils import to_canonical_address, keccak
 from typing import Tuple
 from web3.contract import Contract
 
@@ -55,7 +55,7 @@ def test_evaluate_cfrag(testerchain,
                         mock_ursula_reencrypts
                         ):
     ursula = list(federated_ursulas)[0]
-    creator, staker, wrong_staker, investigator, *everyone_else = testerchain.w3.eth.accounts
+    creator, staker, wrong_staker, investigator, *everyone_else = testerchain.client.accounts
     evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
     verdict_log = adjudicator_contract.events.IncorrectCFragVerdict.createFilter(fromBlock='latest')
 
@@ -419,10 +419,10 @@ def test_evaluate_cfrag(testerchain,
 
 @pytest.mark.slow
 def test_upgrading(testerchain):
-    creator = testerchain.w3.eth.accounts[0]
+    creator = testerchain.client.accounts[0]
 
-    secret_hash = testerchain.w3.keccak(secret)
-    secret2_hash = testerchain.w3.keccak(secret2)
+    secret_hash = keccak(secret)
+    secret2_hash = keccak(secret2)
 
     # Only escrow contract is allowed in Adjudicator constructor
     with pytest.raises((TransactionFailed, ValueError)):
@@ -440,7 +440,7 @@ def test_upgrading(testerchain):
     # Deploy second version of the contract
     contract_library_v2, _ = testerchain.deploy_contract(
         'AdjudicatorV2Mock', address2, ALGORITHM_SHA256, 5, 6, 7, 8)
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
