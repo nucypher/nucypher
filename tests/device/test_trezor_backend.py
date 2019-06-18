@@ -3,8 +3,8 @@ from trezorlib import client as trezor_client
 from trezorlib.transport import TransportException
 from usb1 import USBErrorNoDevice, USBErrorBusy
 
-from nucypher.cli.hardware.backends import Trezor
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.device.trezor import Trezor
 
 
 def test_trezor_defaults(mock_trezorlib):
