@@ -26,10 +26,12 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.powers import BlockchainPower
 
 
 @click.command()
@@ -104,10 +106,11 @@ def deploy(click_config,
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
                                              registry=registry,
-                                             compile=not no_compile,
-                                             deployer=True,
+                                             compiler=SolidityCompiler(),
                                              fetch_registry=False,
-                                             sync=sync)
+                                             sync_now=sync)
+
+    blockchain.transacting_power = BlockchainPower(client=blockchain.client)
 
 
     #
@@ -262,16 +265,8 @@ def deploy(click_config,
             for tx_name, txhash in transactions.items():
 
                 # Wait for inclusion in the blockchain
-                try:
-                    receipt = deployer.blockchain.wait_for_receipt(txhash=txhash)
-                except TimeExhausted:
-                    raise  # TODO: Option to wait longer or retry
-
-                # Examine Receipt # TODO: This currently cannot receive failed transactions
-                if receipt['status'] == 1:
-                    click.secho("OK", fg='green', nl=False, bold=True)
-                else:
-                    click.secho("Failed", fg='red', nl=False, bold=True)
+                receipt = deployer.blockchain.client.w3.eth.waitForTransactionReceipt(txhash)
+                click.secho("OK", fg='green', nl=False, bold=True)
 
                 # Accumulate gas
                 total_gas_used += int(receipt['gasUsed'])
