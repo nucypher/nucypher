@@ -37,14 +37,14 @@ def test_policy_manager_deployer(testerchain):
     token_agent = token_deployer.make_agent()  # 1: Token
 
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
     staking_escrow_deployer.deploy(secret_hash=testerchain.w3.keccak(stakers_escrow_secret))
 
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    deployer = PolicyManagerDeployer(deployer_address=origin)
+    deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
 
     deployment_txhashes = deployer.deploy(secret_hash=testerchain.w3.keccak(policy_manager_secret))
     assert len(deployment_txhashes) == 3

@@ -33,16 +33,10 @@ from nucypher.utilities.sandbox.constants import (
 
 @pytest.fixture()
 def another_testerchain(solidity_compiler):
-    memory_registry = InMemoryEthereumContractRegistry()
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
-                                                     registry=memory_registry,
-                                                     provider_uri=TEST_PROVIDER_URI)
-    testerchain = _TesterBlockchain(interface=deployer_interface,
-                                   test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
-                                   eth_airdrop=True)
-    deployer_interface.deployer_address = testerchain.etherbase_account
+    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True)
+    testerchain.deployer_address = testerchain.etherbase_account
     yield testerchain
-    testerchain.sever_connection()
+    testerchain.disconnect()
 
 
 def test_testerchain_creation(testerchain, another_testerchain):
