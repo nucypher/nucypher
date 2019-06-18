@@ -27,7 +27,7 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
-                                    BlockchainPower,
+                                    TransactingPower,
                                     PowerUpError)
 
 """
@@ -116,19 +116,22 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain, agency):
+def test_character_client_transacting_power(testerchain, agency):
     # TODO: Handle multiple providers
-    eth_address = testerchain.client.accounts[0]
-    canonical_address = eth_utils.to_canonical_address(eth_address)
-    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
+    eth_address = testerchain.interface.w3.eth.accounts[0]
+    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
+    sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(blockchain=testerchain, account=eth_address))
+    signer._crypto_power.consume_power_up(TransactingPower(blockchain=testerchain, account=eth_address))
 
-    # Due to testing backend, the account is already unlocked.
-    power = signer._crypto_power.power_ups(BlockchainPower)
-    power.is_unlocked = True
-    # power.unlock_account('this-is-not-a-secure-password')
+    power = signer._crypto_power.power_ups(TransactingPower)
+
+    # Test a signature without unlocking the account
+    with pytest.raises(PowerUpError):
+        power.sign_message(message=b'test', checksum_address=eth_address)
+
+    power.unlock_account(checksum_address=eth_address)
 
     data_to_sign = b'What does Ursula look like?!?'
     sig = power.sign_message(message=data_to_sign)
@@ -142,8 +145,10 @@ def test_character_blockchain_power(testerchain, agency):
                                  signature=sig)
     assert is_verified is False
 
+    # Test lockAccount call
+    power.lock_account(checksum_address=eth_address)
+
     # Test a signature without unlocking the account
-    power.is_unlocked = False
     with pytest.raises(PowerUpError):
         power.sign_message(message=b'test')
 
@@ -174,7 +179,7 @@ def test_anybody_can_encrypt():
 def test_node_deployer(federated_ursulas):
     for ursula in federated_ursulas:
         deployer = ursula.get_deployer()
-        assert deployer.options['https_port'] == ursula.rest_interface.port
+        assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
 
 
