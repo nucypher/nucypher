@@ -85,6 +85,7 @@ class Blockchain:
                  sync_now: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
+                 transacting_power = READ_ONLY_INTERFACE,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
                  registry: EthereumContractRegistry = None,
                  fetch_registry: bool = True):
@@ -159,6 +160,7 @@ class Blockchain:
         self.__provider = provider
         self.__provider_process = provider_process
         self.client = NO_BLOCKCHAIN_CONNECTION
+        self.transacting_power = transacting_power
         self.registry = registry
 
         self.__connect(provider=provider,
@@ -309,6 +311,67 @@ class Blockchain:
         else:
             self.__provider = provider
 
+    def send_transaction(self,
+                         transaction_function: ContractFunction,
+                         sender_address: str,
+                         payload: dict = None,
+                         ) -> dict:
+
+        if self.transacting_power is READ_ONLY_INTERFACE:
+            raise self.InterfaceError
+
+        #
+        # Build
+        #
+
+        if not payload:
+            payload = {}
+
+        nonce = self.client.w3.eth.getTransactionCount(sender_address)
+        payload.update({'chainId': int(self.client.chain_id),
+                        'nonce': nonce,
+                        'from': sender_address,
+                        'gasPrice': self.client.w3.eth.gasPrice})
+
+        unsigned_transaction = transaction_function.buildTransaction(payload)
+
+        #
+        # Broadcast
+        #
+
+        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction, sender_address)
+        txhash = self.client.w3.eth.sendRawTransaction(signed_raw_transaction)
+
+        try:
+            receipt = self.client.w3.eth.waitForTransactionReceipt(txhash, timeout=self.TIMEOUT)
+        except TimeExhausted:
+            raise
+
+        #
+        # Confirm
+        #
+
+        # Primary check
+        deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
+        if deployment_status is 0:
+            failure = f"Transaction transmitted, but receipt returned status code 0. " \
+                      f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
+            raise self.DeploymentFailed(failure)
+
+        if deployment_status is UNKNOWN_TX_STATUS:
+            self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
+
+            # Secondary check TODO: Is this a sensible check?
+            tx = self.client.w3.eth.getTransaction(txhash)
+            if tx["gas"] == receipt["gasUsed"]:
+                raise self.DeploymentFailed(f"Deployment transaction consumed 100% of transaction gas."
+                                            f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
+
+        return receipt
+
+    def read(self, query_function: ContractFunction):
+        raise NotImplementedError  # TODO
+
 
 class BlockchainDeployer(Blockchain):
 
@@ -374,46 +437,28 @@ class BlockchainDeployer(Blockchain):
         # Build the deployment transaction #
         #
 
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.client.w3.eth.gasPrice}
+        deploy_transaction = {'gasPrice': self.client.w3.eth.gasPrice}
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 
-        self.log.info("Deployer address is {}".format(deploy_transaction['from']))
+        self.log.info("Deployer address is {}".format(self.deployer_address))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        transaction = contract_factory.constructor(*constructor_args, **kwargs).buildTransaction(deploy_transaction)
-        self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(transaction['data'])))
+        transaction_function = contract_factory.constructor(*constructor_args, **kwargs)
+        # self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(transaction['data'])))
 
         #
         # Transmit the deployment tx #
         #
 
-        txhash = self.client.w3.eth.sendTransaction(transaction=transaction)
-        self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
-
-        # Wait for receipt
-        self.log.info(f"Waiting for deployment receipt for {contract_name}")
-        receipt = self.client.w3.eth.waitForTransactionReceipt(txhash, timeout=240)
+        receipt = self.send_transaction(transaction_function=transaction_function,
+                                        sender_address=self.deployer_address,
+                                        payload=deploy_transaction)
 
         #
         # Verify deployment success
         #
-
-        # Primary check
-        deployment_status = receipt.get('status', UNKNOWN_TX_STATUS)
-        if deployment_status is 0:
-            failure = f"{contract_name.upper()} Deployment transaction transmitted, but receipt returned status code 0. " \
-                      f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
-            raise self.DeploymentFailed(failure)
-
-        if deployment_status is UNKNOWN_TX_STATUS:
-            self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
-
-            # Secondary check TODO: Is this a sensible check?
-            tx = self.client.w3.eth.getTransaction(txhash)
-            if tx["gas"] == receipt["gasUsed"]:
-                raise self.DeploymentFailed(f"Deployment transaction consumed 100% of transaction gas."
-                                            f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
+        txhash = receipt['transactionHash']
 
         # Success
         address = receipt['contractAddress']

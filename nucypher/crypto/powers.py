@@ -92,37 +92,39 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str) -> None:
+    def __init__(self, client=None, device=None) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
-        self.blockchain = blockchain
-        self.account = account
+        self.device = device
+        self.client = client
         self.is_unlocked = False
 
-    def unlock_account(self, password: str):
+    def unlock_account(self, account, password: str):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.unlock_account(self.account, password)
+        self.is_unlocked = self.client.unlock_account(account, password)
         if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(self.account))
+            raise PowerUpError("Failed to unlock account {}".format(account))
 
-    def sign_message(self, message: bytes) -> bytes:
+    def sign_message(self, message: bytes, account: str) -> bytes:
         """
         Signs the message with the private key of the BlockchainPower.
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-        signature = self.blockchain.client.sign_message(self.account, message)
+        signature = self.client.sign_message(account, message)
         return signature
 
-    def __del__(self):
-        """
-        Deletes the blockchain power and locks the account.
-        """
-        self.blockchain.client.lock_account(self.account)
+    def sign_transaction(self, unsigned_transaction: dict, sender_address: str):
+        if self.device:
+            assert False
+        elif self.client:
+            signed_raw_transaction = self.client.sign_transaction(transaction=unsigned_transaction,
+                                                                  account=sender_address)
+            return signed_raw_transaction
 
 
 class KeyPairBasedPower(CryptoPowerUp):
