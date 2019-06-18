@@ -27,7 +27,7 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -87,6 +87,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  eth_airdrop=False,
                  free_transactions=False,
                  compiler: SolidityCompiler = None,
+                 registry: EthereumContractRegistry = None,
                  *args, **kwargs):
 
         if not test_accounts:
@@ -100,7 +101,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          provider_process=None,
                          poa=poa,
                          compiler=self._compiler,
-                         registry=InMemoryEthereumContractRegistry(),
+                         registry=registry or InMemoryEthereumContractRegistry(),
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")

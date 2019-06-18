@@ -11,14 +11,12 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     UserEscrowAgent,
     PolicyAgent,
-    AdjudicatorAgent,
     Agency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -38,25 +36,14 @@ PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
-def make_testerchain(provider_uri, solidity_compiler):
-
-    # Destroy existing blockchain
-    BlockchainInterface.disconnect()
-    TesterBlockchain.disconnect()
-
-    registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
-                                                     registry=registry,
-                                                     provider_uri=provider_uri)
+def make_testerchain():
 
     # Create new blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface,
-                                   eth_airdrop=True,
-                                   free_transactions=False,
-                                   poa=True)
+    testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=False)
 
     # Set the deployer address from a freshly created test account
-    deployer_interface.deployer_address = testerchain.etherbase_account
+    testerchain.deployer_address = testerchain.etherbase_account
+    testerchain.transacting_power = BlockchainPower(client=testerchain.client)
     return testerchain
 
 
@@ -65,11 +52,12 @@ def pyevm_testerchain():
 
 
 def geth_poa_devchain():
-    _testerchain = make_testerchain(provider_uri='tester://geth', solidity_compiler=SolidityCompiler())
+    _testerchain = make_testerchain()
     return f'ipc://{_testerchain.provider.ipc_path}'
 
 
 def test_nucypher_deploy_contracts(click_runner,
+                                   testerchain,
                                    mock_primary_registry_filepath,
                                    mock_allocation_infile,
                                    token_economics):
@@ -134,19 +122,23 @@ def test_nucypher_deploy_contracts(click_runner,
     # assert AdjudicatorAgent()  # TODO
 
 
-def test_upgrade_contracts(click_runner):
+def test_upgrade_contracts(click_runner,
+                           testerchain,
+                           mock_primary_registry_filepath):
 
     #
     # Setup
     #
 
-    # Connect to the blockchain with a blank temporary file-based registry
-    mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = BlockchainInterface.connect(registry=mock_temporary_registry)
+    # testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True, registry=mock_temporary_registry)
+    # testerchain.transacting_power = BlockchainPower(client=testerchain.client)
+    # testerchain.deployer_address = testerchain.etherbase_account
 
     # Check the existing state of the registry before the meat and potatoes
+    assert os.path.isfile(mock_primary_registry_filepath)
+
     expected_registrations = 9
-    with open(MOCK_REGISTRY_FILEPATH, 'r') as file:
+    with open(mock_primary_registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
         assert len(registry_data) == expected_registrations
@@ -156,7 +148,7 @@ def test_upgrade_contracts(click_runner):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', MOCK_REGISTRY_FILEPATH, '--provider-uri', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', mock_primary_registry_filepath, '--provider-uri', TEST_PROVIDER_URI, '--poa')
 
     # Generate user inputs
     yes = 'Y\n'  # :-)
@@ -221,7 +213,7 @@ def test_upgrade_contracts(click_runner):
         expected_registrations += 1
 
         # Verify the registry is updated (Potatoes)
-        with open(MOCK_REGISTRY_FILEPATH, 'r') as file:
+        with open(mock_primary_registry_filepath, 'r') as file:
 
             # Read the registry file directly, bypassing its interfaces
             raw_registry_data = file.read()
@@ -239,7 +231,7 @@ def test_upgrade_contracts(click_runner):
                                                         f"Expected {expected_enrollments} got {enrollments}."
 
         # Ensure deployments are different addresses
-        records = blockchain.registry.search(contract_name=contract_name)
+        records = testerchain.registry.search(contract_name=contract_name)
         assert len(records) == expected_enrollments
 
         old, new = records[-2:]            # Get the last two entries
@@ -255,7 +247,7 @@ def test_upgrade_contracts(click_runner):
             proxy_name = 'Dispatcher'
 
         # Ensure the proxy targets the new deployment
-        proxy = blockchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
+        proxy = testerchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
@@ -264,8 +256,11 @@ def test_upgrade_contracts(click_runner):
 def test_rollback(click_runner):
     """Roll 'em all back!"""
 
+    # Connect to the blockchain with a blank temporary file-based registry
     mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = BlockchainInterface.connect(registry=mock_temporary_registry)
+    testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True, registry=mock_temporary_registry)
+    testerchain.transacting_power = BlockchainPower(client=testerchain.client)
+    testerchain.deployer_address = testerchain.etherbase_account
 
     # Input Components
     yes = 'Y\n'
@@ -291,7 +286,7 @@ def test_rollback(click_runner):
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        records = blockchain.registry.search(contract_name=contract_name)
+        records = testerchain.registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
@@ -303,9 +298,9 @@ def test_rollback(click_runner):
 
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
+            testerchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
-        proxy = blockchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
+        proxy = testerchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()
@@ -319,8 +314,6 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               mock_primary_registry_filepath,
                                               mock_allocation_infile,
                                               token_economics):
-
-    TesterBlockchain.disconnect()
     Agency.clear()
 
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
@@ -375,7 +368,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     #
 
     # Destroy existing blockchain
-    BlockchainInterface.disconnect()
+    testerchain.disconnect()
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):
