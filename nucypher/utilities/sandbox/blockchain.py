@@ -26,7 +26,7 @@ from web3 import Web3, IPCProvider, WebsocketProvider, HTTPProvider
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
@@ -60,7 +60,7 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     return receipts
 
 
-class TesterBlockchain(BlockchainDeployer):
+class TesterBlockchain(BlockchainDeployerInterface):
     """
     Blockchain subclass with additional test utility methods and options.
     """

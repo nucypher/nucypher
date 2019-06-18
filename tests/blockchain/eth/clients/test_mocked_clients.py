@@ -4,7 +4,7 @@ from nucypher.blockchain.eth.clients import (
     GanacheClient,
     PUBLIC_CHAINS
 )
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 #
@@ -49,7 +49,7 @@ class MockWeb3:
 # Mock Blockchain
 #
 
-class BlockchainTestBase(Blockchain):
+class BlockchainInterfaceTestBase(BlockchainInterface):
 
     Web3 = MockWeb3
 
@@ -63,7 +63,7 @@ class BlockchainTestBase(Blockchain):
         pass
 
 
-class GethClientTestBlockchain(BlockchainTestBase):
+class GethClientTestBlockchain(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockGethProvider())
@@ -73,13 +73,13 @@ class GethClientTestBlockchain(BlockchainTestBase):
         return int(self.w3.net.version) not in PUBLIC_CHAINS
 
 
-class ParityClientTestInterface(BlockchainTestBase):
+class ParityClientTestInterface(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockParityProvider())
 
 
-class GanacheClientTestInterface(BlockchainTestBase):
+class GanacheClientTestInterface(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockGanacheProvider())

@@ -22,7 +22,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 CLIENT_FIELD = 0
 RATE_FIELD = 1
@@ -171,7 +171,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     # Can't revoke null arrangement (also it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, Blockchain.NULL_ADDRESS).transact({'from': client})
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, BlockchainInterface.NULL_ADDRESS).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
     # Revoke only one arrangement
@@ -195,7 +195,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
     # Can't revoke null arrangement (it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, Blockchain.NULL_ADDRESS).transact({'from': client})
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, BlockchainInterface.NULL_ADDRESS).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
     # Revoke policy with remaining arrangements
