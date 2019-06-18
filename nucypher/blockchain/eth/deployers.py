@@ -268,8 +268,8 @@ class StakingEscrowDeployer(ContractDeployer):
         # 1 - Deploy #
         the_escrow_contract, deploy_txhash, = \
             self.blockchain.deploy_contract(self.contract_name,
-                                                      self.token_agent.contract_address,
-                                                      *self.__economics.staking_deployment_parameters)
+                                            self.token_agent.contract_address,
+                                            *self.__economics.staking_deployment_parameters)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
