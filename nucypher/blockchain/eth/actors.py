@@ -105,7 +105,7 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.blockchain.get_balance(self.checksum_address)
+        balance = self.blockchain.client.get_balance(self.checksum_address)
         return self.blockchain.fromWei(balance, 'ether')
 
     @property
@@ -201,7 +201,7 @@ class Deployer(NucypherTokenActor):
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
-            secret_hash = self.blockchain.keccak(bytes(plaintext_secret, encoding='utf-8'))
+            secret_hash = self.blockchain.client.keccak(bytes(plaintext_secret, encoding='utf-8'))
             txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
             txhashes = deployer.deploy(gas_limit=gas_limit)

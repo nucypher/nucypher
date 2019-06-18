@@ -88,29 +88,29 @@ class GanacheClientTestInterface(BlockchainInterfaceTestBase):
 def test_geth_web3_client():
     interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth', sync_now=False)
     assert isinstance(interface.client, GethClient)
-    assert interface.node_technology == 'Geth'
-    assert interface.node_version == 'v1.4.11-stable-fed692f6'
-    assert interface.platform == 'darwin'
-    assert interface.backend == 'go1.7'
+    assert interface.client.node_technology == 'Geth'
+    assert interface.client.node_version == 'v1.4.11-stable-fed692f6'
+    assert interface.client.platform == 'darwin'
+    assert interface.client.backend == 'go1.7'
 
-    assert interface.is_local is False
-    assert interface.chain_id == 5
+    assert interface.client.is_local is False
+    assert interface.client.chain_id == 5
 
 
 def test_parity_web3_client():
     interface = ParityClientTestInterface(provider_uri='file:///ipc.parity', sync_now=False)
     assert isinstance(interface.client, ParityClient)
-    assert interface.node_technology == 'Parity-Ethereum'
-    assert interface.node_version == 'v2.5.1-beta-e0141f8-20190510'
-    assert interface.platform == 'x86_64-linux-gnu'
-    assert interface.backend == 'rustc1.34.1'
+    assert interface.client.node_technology == 'Parity-Ethereum'
+    assert interface.client.node_version == 'v2.5.1-beta-e0141f8-20190510'
+    assert interface.client.platform == 'x86_64-linux-gnu'
+    assert interface.client.backend == 'rustc1.34.1'
 
 
 def test_ganache_web3_client():
     interface = GanacheClientTestInterface(provider_uri='http://ganache:8445', sync_now=False)
     assert isinstance(interface.client, GanacheClient)
-    assert interface.node_technology == 'EthereumJS TestRPC'
-    assert interface.node_version == 'v2.1.5'
-    assert interface.platform is None
-    assert interface.backend == 'ethereum-js'
-    assert interface.is_local
+    assert interface.client.node_technology == 'EthereumJS TestRPC'
+    assert interface.client.node_version == 'v2.1.5'
+    assert interface.client.platform is None
+    assert interface.client.backend == 'ethereum-js'
+    assert interface.client.is_local

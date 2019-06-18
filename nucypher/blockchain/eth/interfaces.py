@@ -171,39 +171,6 @@ class BlockchainInterface:
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
-    def __getattr__(self, name):
-        """
-
-        MAGIC...
-
-        allows the interface class to defer to methods of its client
-        or its client.w3
-
-        for example:
-            methods/properties of w3 can be called through eg. interface.toWei()
-            if a particular eth provider needs a different method,
-            override that method for that provider's client
-        """
-
-        # does Blockchain have this attr/method?
-        if name not in self.__dict__:
-
-            # do we have a client?
-            if self.client is not NO_BLOCKCHAIN_CONNECTION:
-
-                # does the client have this property/method?
-                # most likely it is because of an implementation difference
-                # between parity/geth/etc.
-                if hasattr(self.client, name):
-                    return getattr(self.client, name)
-
-                # ok, does w3 have it?
-                if hasattr(self.client.w3, name):
-                    return getattr(self.client.w3, name)
-
-        # return the default getattr behavior (could be an AttributeError)
-        return object.__getattribute__(self, name)
-
     def _configure_registry(self, fetch_registry: bool = True):
         RegistryClass = EthereumContractRegistry._get_registry_class(local=self.client.is_local)
         if fetch_registry:
@@ -230,7 +197,7 @@ class BlockchainInterface:
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
-            self.middleware_onion.inject(geth_poa_middleware, layer=0)
+            self.client.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def __connect(self,
                   provider: Web3Providers = None,
@@ -253,8 +220,8 @@ class BlockchainInterface:
 
         # Connect Web3 Instance
         try:
-            w3 = self.Web3(provider=self.__provider)
-            self.client = Web3Client.from_w3(w3=w3)
+            self.w3 = self.Web3(provider=self.__provider)
+            self.client = Web3Client.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
         except FileNotFoundError:         # IPC File Protocol
@@ -268,7 +235,7 @@ class BlockchainInterface:
 
         # Wait for chaindata sync
         if sync_now:
-            self.sync()
+            self.client.sync()
 
         return self.is_connected
 
