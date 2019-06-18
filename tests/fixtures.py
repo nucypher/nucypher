@@ -478,7 +478,7 @@ def policy_value(token_economics, policy_rate):
 def funded_blockchain(testerchain, agency, token_economics):
 
     # Who are ya'?
-    deployer_address, *everyone_else, staking_participant = testerchain.w3.eth.accounts
+    deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
     # Free ETH!!!
     testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)

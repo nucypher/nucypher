@@ -156,8 +156,8 @@ class BlockchainInterface:
         self.log = Logger('Blockchain')
         self.poa = poa
         self.provider_uri = provider_uri
-        self.__provider = provider
-        self.__provider_process = provider_process
+        self._provider = provider
+        self._provider_process = provider_process
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = transacting_power
         self.registry = registry
@@ -187,10 +187,10 @@ class BlockchainInterface:
         return self.client.is_connected
 
     def disconnect(self):
-        if self.__provider_process:
-            self.__provider_process.stop()
-        self.__provider_process = NO_BLOCKCHAIN_CONNECTION
-        self.__provider = NO_BLOCKCHAIN_CONNECTION
+        if self._provider_process:
+            self._provider_process.stop()
+        self._provider_process = NO_BLOCKCHAIN_CONNECTION
+        self._provider = NO_BLOCKCHAIN_CONNECTION
 
     def attach_middleware(self):
 
@@ -206,21 +206,21 @@ class BlockchainInterface:
                   sync_now: bool = True):
 
         # Spawn child process
-        if self.__provider_process:
-            self.__provider_process.start()
-            provider_uri = self.__provider_process.provider_uri(scheme='file')
+        if self._provider_process:
+            self._provider_process.start()
+            provider_uri = self._provider_process.provider_uri(scheme='file')
         else:
             self.log.info(f"Using external Web3 Provider '{provider_uri}'")
 
         # Attach Provider
         self._attach_provider(provider=provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
-        if self.__provider is NO_BLOCKCHAIN_CONNECTION:
+        if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect Web3 Instance
         try:
-            self.w3 = self.Web3(provider=self.__provider)
+            self.w3 = self.Web3(provider=self._provider)
             self.client = Web3Client.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
@@ -269,13 +269,13 @@ class BlockchainInterface:
                 }
                 provider_scheme = uri_breakdown.scheme
             try:
-                self.__provider = providers[provider_scheme](provider_uri)
+                self._provider = providers[provider_scheme](provider_uri)
             except KeyError:
                 raise ValueError(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
             else:
                 self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         else:
-            self.__provider = provider
+            self._provider = provider
 
     def send_transaction(self,
                          transaction_function: ContractFunction,

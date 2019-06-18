@@ -42,7 +42,7 @@ def adjudicator_contract(testerchain, escrow, request, slashing_economics):
         dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
-        contract = testerchain.w3.eth.contract(
+        contract = testerchain.client.get_contract(
             abi=contract.abi,
             address=dispatcher.address,
             ContractFactoryClass=Contract)

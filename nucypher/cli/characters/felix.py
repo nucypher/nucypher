@@ -138,7 +138,7 @@ def felix(click_config,
                                                federated_only=felix_config.federated_only,
                                                network_domains=felix_config.domains,
                                                network_middleware=click_config.middleware)
-        
+
         # Add ETH Bootnode or Peer
         if enode:
             if geth:
@@ -178,7 +178,7 @@ ETH ........ {str(eth_balance)}
         """)
 
     elif action == "accounts":
-        accounts = FELIX.blockchain.w3.eth.accounts
+        accounts = FELIX.blockchain.client.accounts
         for account in accounts:
             click.secho(account)
 

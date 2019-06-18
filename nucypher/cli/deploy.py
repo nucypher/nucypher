@@ -118,11 +118,11 @@ def deploy(click_config,
     #
 
     if not deployer_address:
-        for index, address in enumerate(blockchain.w3.eth.accounts):
+        for index, address in enumerate(blockchain.client.accounts):
             click.secho(f"{index} --- {address}")
-        choices = click.IntRange(0, len(blockchain.w3.eth.accounts))
+        choices = click.IntRange(0, len(blockchain.client.accounts))
         deployer_address_index = click.prompt("Select deployer address", default=0, type=choices)
-        deployer_address = blockchain.w3.eth.accounts[deployer_address_index]
+        deployer_address = blockchain.client.accounts[deployer_address_index]
 
     # Verify Address
     if not force:
@@ -135,10 +135,10 @@ def deploy(click_config,
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
 
-    if not blockchain.is_local:
+    if not blockchain.client.is_local:
         # (~ dev mode; Assume accounts are already unlocked)
         password = click.prompt("Enter ETH node password", hide_input=True)
-        blockchain.w3.geth.personal.unlockAccount(deployer_address, password)
+        blockchain.client.unlockAccount(deployer_address, password)
 
     # Add ETH Bootnode or Peer
     if enode:
@@ -220,8 +220,8 @@ def deploy(click_config,
 
         click.secho(f"Deployer Address .... {deployer.checksum_address}")
         click.secho(f"ETH ................. {deployer.eth_balance}")
-        click.secho(f"Chain ID ............ {deployer.blockchain.chain_id}")
-        click.secho(f"Chain Name .......... {deployer.blockchain.chain_name}")
+        click.secho(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
+        click.secho(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
 
         # Ask - Last chance to gracefully abort
         if not force:

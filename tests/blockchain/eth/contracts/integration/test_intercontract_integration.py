@@ -72,7 +72,7 @@ def escrow(testerchain, token):
     dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -82,7 +82,7 @@ def escrow(testerchain, token):
 @pytest.fixture()
 def policy_manager(testerchain, escrow):
     escrow, _ = escrow
-    creator = testerchain.w3.eth.accounts[0]
+    creator = testerchain.client.accounts[0]
 
     secret_hash = testerchain.w3.keccak(policy_manager_secret)
 
@@ -91,7 +91,7 @@ def policy_manager(testerchain, escrow):
     dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -105,7 +105,7 @@ def policy_manager(testerchain, escrow):
 @pytest.fixture()
 def adjudicator(testerchain, escrow, slashing_economics):
     escrow, _ = escrow
-    creator = testerchain.w3.eth.accounts[0]
+    creator = testerchain.client.accounts[0]
 
     secret_hash = testerchain.w3.keccak(adjudicator_secret)
 
@@ -123,7 +123,7 @@ def adjudicator(testerchain, escrow, slashing_economics):
     dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -187,7 +187,7 @@ def multisig(testerchain, escrow, policy_manager, adjudicator, user_escrow_proxy
     adjudicator, adjudicator_dispatcher = adjudicator
     user_escrow_proxy, user_escrow_linker = user_escrow_proxy
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *contract_owners =\
-        testerchain.w3.eth.accounts
+        testerchain.client.accounts
     contract_owners = sorted(contract_owners)
     contract, _ = testerchain.deploy_contract('MultiSig', 2, contract_owners)
     tx = escrow.functions.transferOwnership(contract.address).transact({'from': creator})
@@ -247,7 +247,7 @@ def test_all(testerchain,
     adjudicator, adjudicator_dispatcher = adjudicator
     user_escrow_proxy, user_escrow_linker = user_escrow_proxy
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *contracts_owners =\
-        testerchain.w3.eth.accounts
+        testerchain.client.accounts
     contracts_owners = sorted(contracts_owners)
 
     # We'll need this later for slashing these Ursulas
@@ -256,11 +256,11 @@ def test_all(testerchain,
     ursula3_with_stamp = mock_ursula_with_stamp()
 
     # Give clients some ether
-    tx = testerchain.w3.eth.sendTransaction(
-        {'from': testerchain.w3.eth.coinbase, 'to': alice1, 'value': 10 ** 10})
+    tx = testerchain.client.sendTransaction(
+        {'from': testerchain.client.coinbase, 'to': alice1, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
-    tx = testerchain.w3.eth.sendTransaction(
-        {'from': testerchain.w3.eth.coinbase, 'to': alice2, 'value': 10 ** 10})
+    tx = testerchain.client.sendTransaction(
+        {'from': testerchain.client.coinbase, 'to': alice2, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
 
     # Give Ursula and Alice some coins
@@ -295,7 +295,7 @@ def test_all(testerchain,
     # Create the first user escrow, set and lock re-stake parameter
     user_escrow_1, _ = testerchain.deploy_contract(
         'UserEscrow', user_escrow_linker.address, token.address)
-    user_escrow_proxy_1 = testerchain.w3.eth.contract(
+    user_escrow_proxy_1 = testerchain.client.get_contract(
         abi=user_escrow_proxy.abi,
         address=user_escrow_1.address,
         ContractFactoryClass=Contract)
@@ -501,11 +501,11 @@ def test_all(testerchain,
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
-    alice2_balance = testerchain.w3.eth.getBalance(alice2)
+    alice2_balance = testerchain.client.get_balance(alice2)
     tx = policy_manager.functions.revokePolicy(policy_id_5).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 8440 == testerchain.w3.eth.getBalance(policy_manager.address)
-    assert alice2_balance + 2000 == testerchain.w3.eth.getBalance(alice2)
+    assert 8440 == testerchain.client.get_balance(policy_manager.address)
+    assert alice2_balance + 2000 == testerchain.client.get_balance(alice2)
     assert policy_manager.functions.policies(policy_id_5).call()[DISABLED_FIELD]
 
     # Can't revoke again
@@ -516,12 +516,12 @@ def test_all(testerchain,
         tx = policy_manager.functions.revokeArrangement(policy_id_5, ursula1).transact({'from': alice2})
         testerchain.wait_for_receipt(tx)
 
-    alice1_balance = testerchain.w3.eth.getBalance(alice1)
+    alice1_balance = testerchain.client.get_balance(alice1)
     tx = policy_manager.functions.revokeArrangement(policy_id_2, ursula2).transact({'from': alice1, 'gas_price': 0})
 
     testerchain.wait_for_receipt(tx)
-    assert 7440 == testerchain.w3.eth.getBalance(policy_manager.address)
-    assert alice1_balance + 1000 == testerchain.w3.eth.getBalance(alice1)
+    assert 7440 == testerchain.client.get_balance(policy_manager.address)
+    assert alice1_balance + 1000 == testerchain.client.get_balance(alice1)
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     # Can't revoke again
@@ -566,34 +566,34 @@ def test_all(testerchain,
 
     # Withdraw reward and refund
     testerchain.time_travel(hours=3)
-    ursula1_balance = testerchain.w3.eth.getBalance(ursula1)
+    ursula1_balance = testerchain.client.get_balance(ursula1)
     tx = policy_manager.functions.withdraw().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert ursula1_balance < testerchain.w3.eth.getBalance(ursula1)
-    ursula2_balance = testerchain.w3.eth.getBalance(ursula2)
+    assert ursula1_balance < testerchain.client.get_balance(ursula1)
+    ursula2_balance = testerchain.client.get_balance(ursula2)
     tx = policy_manager.functions.withdraw().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert ursula2_balance < testerchain.w3.eth.getBalance(ursula2)
-    ursula3_balance = testerchain.w3.eth.getBalance(ursula3)
+    assert ursula2_balance < testerchain.client.get_balance(ursula2)
+    ursula3_balance = testerchain.client.get_balance(ursula3)
     tx = user_escrow_proxy_1.functions.withdrawPolicyReward().transact({'from': ursula3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert ursula3_balance < testerchain.w3.eth.getBalance(ursula3)
+    assert ursula3_balance < testerchain.client.get_balance(ursula3)
 
-    alice1_balance = testerchain.w3.eth.getBalance(alice1)
+    alice1_balance = testerchain.client.get_balance(alice1)
     tx = policy_manager.functions.refund(policy_id_1).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert alice1_balance < testerchain.w3.eth.getBalance(alice1)
-    alice1_balance = testerchain.w3.eth.getBalance(alice1)
+    assert alice1_balance < testerchain.client.get_balance(alice1)
+    alice1_balance = testerchain.client.get_balance(alice1)
     tx = policy_manager.functions.refund(policy_id_2).transact({'from': alice1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert alice1_balance < testerchain.w3.eth.getBalance(alice1)
-    alice2_balance = testerchain.w3.eth.getBalance(alice2)
+    assert alice1_balance < testerchain.client.get_balance(alice1)
+    alice2_balance = testerchain.client.get_balance(alice2)
     tx = policy_manager.functions.refund(policy_id_3).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert alice2_balance == testerchain.w3.eth.getBalance(alice2)
+    assert alice2_balance == testerchain.client.get_balance(alice2)
     tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert alice2_balance < testerchain.w3.eth.getBalance(alice2)
+    assert alice2_balance < testerchain.client.get_balance(alice2)
 
     # Upgrade main contracts
     escrow_secret2 = os.urandom(SECRET_LENGTH)

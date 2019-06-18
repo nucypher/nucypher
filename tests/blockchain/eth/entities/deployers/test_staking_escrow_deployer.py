@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscr
 
 
 def test_token_deployer_and_agent(testerchain):
-    origin, *everybody_else = testerchain.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
 
     # The big day...
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)

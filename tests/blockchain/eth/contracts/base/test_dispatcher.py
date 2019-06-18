@@ -18,6 +18,7 @@ import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
@@ -28,15 +29,15 @@ SECRET_LENGTH = 16
 
 @pytest.mark.slow
 def test_dispatcher(testerchain):
-    creator = testerchain.w3.eth.accounts[0]
-    account = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    account = testerchain.client.accounts[1]
 
     secret = os.urandom(SECRET_LENGTH)
-    secret_hash = testerchain.w3.keccak(secret)
+    secret_hash = keccak(secret)
     secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = testerchain.w3.keccak(secret2)
+    secret2_hash = keccak(secret2)
     secret3 = os.urandom(SECRET_LENGTH)
-    secret3_hash = testerchain.w3.keccak(secret3)
+    secret3_hash = keccak(secret3)
 
     # Try to deploy broken libraries and dispatcher for them
     contract0_bad_lib, _ = testerchain.deploy_contract('BadDispatcherStorage')
@@ -80,7 +81,7 @@ def test_dispatcher(testerchain):
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -219,7 +220,7 @@ def test_dispatcher(testerchain):
     assert 'Hello' == contract_instance.functions.dynamicallySizedValue().call()
 
     # Changes ABI to ContractV2 for using additional methods
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract2_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -306,7 +307,7 @@ def test_dispatcher(testerchain):
     assert contract1_lib.address == dispatcher.functions.target().call()
 
     # Create Event
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -322,7 +323,7 @@ def test_dispatcher(testerchain):
     testerchain.wait_for_receipt(tx)
     tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract3_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -388,7 +389,7 @@ def test_dispatcher(testerchain):
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
 
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -400,7 +401,7 @@ def test_dispatcher(testerchain):
     # Check upgrading to the contract with explicit storage slots
     tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract4_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -472,15 +473,15 @@ def test_dispatcher(testerchain):
 
 @pytest.mark.slow
 def test_selfdestruct(testerchain):
-    creator = testerchain.w3.eth.accounts[0]
-    account = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    account = testerchain.client.accounts[1]
 
     secret = os.urandom(SECRET_LENGTH)
-    secret_hash = testerchain.w3.keccak(secret)
+    secret_hash = keccak(secret)
     secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = testerchain.w3.keccak(secret2)
+    secret2_hash = keccak(secret2)
     secret3 = os.urandom(SECRET_LENGTH)
-    secret3_hash = testerchain.w3.keccak(secret3)
+    secret3_hash = keccak(secret3)
 
     # Deploy contract and destroy it
     contract1_lib, _ = testerchain.deploy_contract('Destroyable', 22)
@@ -503,7 +504,7 @@ def test_selfdestruct(testerchain):
     dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract2_lib.address, secret_hash)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
-    contract_instance = testerchain.w3.eth.contract(
+    contract_instance = testerchain.client.get_contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
