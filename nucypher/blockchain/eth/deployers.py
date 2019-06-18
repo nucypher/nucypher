@@ -343,7 +343,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # 5 - Wrap the escrow contract
         wrapped_escrow_contract = self.blockchain._wrap_contract(wrapper_contract=dispatcher_deployer.contract,
-                                                                           target_contract=the_escrow_contract)
+                                                                 target_contract=the_escrow_contract)
         self._contract = wrapped_escrow_contract
 
         # 4 - Set the new Dispatcher target
