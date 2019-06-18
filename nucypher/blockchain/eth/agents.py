@@ -65,9 +65,6 @@ class EthereumContractAgent:
                  ) -> None:
 
         self.log = Logger(self.__class__.__name__)
-
-        if blockchain is None:
-            blockchain = BlockchainInterface.connect()
         self.blockchain = blockchain
 
         if contract is None:  # Fetch the contract
