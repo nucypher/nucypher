@@ -169,6 +169,9 @@ class Web3Client(object):
     def get_balance(self, address):
         return self.w3.eth.getBalance(address)
 
+    def inject_middleware(self, middleware, **kwargs):
+        self.w3.middleware_onion.inject(middleware, **kwargs)
+
     @property
     def chain_id(self):
         return self.w3.net.version

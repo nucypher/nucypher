@@ -197,7 +197,7 @@ class BlockchainInterface:
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
-            self.client.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            self.client.inject_middleware(geth_poa_middleware, layer=0)
 
     def __connect(self,
                   provider: Web3Providers = None,
