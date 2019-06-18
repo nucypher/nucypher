@@ -47,6 +47,7 @@ from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import CharacterConfiguration
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -353,13 +354,10 @@ def testerchain():
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
-
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
-
-    # Set the deployer address from a freshly created test account
+    testerchain.transacting_power = BlockchainPower(client=testerchain.client)
     testerchain.deployer_address = testerchain.etherbase_account
-
     yield testerchain
     testerchain.disconnect()
 
