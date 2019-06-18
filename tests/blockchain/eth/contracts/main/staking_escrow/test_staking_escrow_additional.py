@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -31,11 +32,11 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.w3.eth.accounts[0]
-    staker = testerchain.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    staker = testerchain.client.accounts[1]
 
-    secret_hash = testerchain.w3.keccak(secret)
-    secret2_hash = testerchain.w3.keccak(secret2)
+    secret_hash = keccak(secret)
+    secret2_hash = keccak(secret2)
 
     # Deploy contract
     contract_library_v1, _ = testerchain.deploy_contract(
@@ -67,7 +68,7 @@ def test_upgrading(testerchain, token):
         _valueToCheck=2
     )
 
-    contract = testerchain.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -182,9 +183,9 @@ def test_upgrading(testerchain, token):
 @pytest.mark.slow
 def test_re_stake(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator = testerchain.w3.eth.accounts[0]
-    ursula = testerchain.w3.eth.accounts[1]
-    ursula2 = testerchain.w3.eth.accounts[2]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
+    ursula2 = testerchain.client.accounts[2]
 
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
@@ -447,7 +448,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 def test_worker(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
-        testerchain.w3.eth.accounts
+        testerchain.client.accounts
 
     worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
 

@@ -21,6 +21,7 @@ from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
+from eth_utils import keccak
 
 import maya
 from constant_sorrow.constants import (
@@ -106,7 +107,7 @@ class NucypherTokenActor:
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
         balance = self.blockchain.client.get_balance(self.checksum_address)
-        return self.blockchain.fromWei(balance, 'ether')
+        return self.blockchain.client.w3.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
@@ -201,7 +202,7 @@ class Deployer(NucypherTokenActor):
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
-            secret_hash = self.blockchain.client.keccak(bytes(plaintext_secret, encoding='utf-8'))
+            secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
             txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
             txhashes = deployer.deploy(gas_limit=gas_limit)
@@ -210,7 +211,7 @@ class Deployer(NucypherTokenActor):
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
         return txhashes
@@ -218,7 +219,7 @@ class Deployer(NucypherTokenActor):
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                    new_secret_hash=new_secret_hash)
         return txhash

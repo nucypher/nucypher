@@ -33,7 +33,7 @@ def configuration_file_location(custom_filepath):
 @pytest.fixture(scope="module")
 def charlie_blockchain_test_config(blockchain_ursulas, agency):
     token_agent, staking_agent, policy_agent = agency
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.w3.eth.accounts
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.client.accounts
 
     config = BobConfiguration(dev_mode=True,
                               provider_uri=TEST_PROVIDER_URI,
@@ -283,7 +283,7 @@ def test_collect_rewards_integration(click_runner,
     burner_wallet = blockchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
 
     # The rewards wallet is initially empty, because it is freshly created
-    assert blockchain.w3.eth.getBalance(burner_wallet.address) == 0
+    assert blockchain.client.get_balance(burner_wallet.address) == 0
 
     # Snag a random teacher from the fleet
     collection_args = ('--mock-networking',
@@ -299,7 +299,7 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # Policy Reward
-    collected_policy_reward = blockchain.w3.eth.getBalance(burner_wallet.address)
+    collected_policy_reward = blockchain.client.get_balance(burner_wallet.address)
     expected_collection = policy_rate * 30
     assert collected_policy_reward == expected_collection
 

@@ -379,8 +379,8 @@ class Felix(Character, NucypherTokenActor):
             transaction = {'to': recipient_address,
                            'from': self.checksum_address,
                            'value': ether,
-                           'gasPrice': self.blockchain.w3.eth.gasPrice}
-            ether_txhash = self.blockchain.w3.eth.sendTransaction(transaction)
+                           'gasPrice': self.blockchain.client.gasPrice}
+            ether_txhash = self.blockchain.client.sendTransaction(transaction)
 
             self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")

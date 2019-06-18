@@ -28,7 +28,7 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 @pytest.fixture(scope='module')
 def staker(testerchain, agency):
     token_agent, staking_agent, policy_agent = agency
-    origin, *everybody_else = testerchain.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
     token_airdrop(token_agent=token_agent,
                   origin=testerchain.etherbase_account,
                   addresses=everybody_else,

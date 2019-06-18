@@ -358,7 +358,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     assert result.exit_code == 0
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
-    beneficiary = testerchain.w3.eth.accounts[-1]
+    beneficiary = testerchain.client.accounts[-1]
     allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
     user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked

@@ -193,7 +193,7 @@ class CharacterConfiguration(BaseConfiguration):
                                               sync_now=sync_now)
 
         # Read Ethereum Node Keyring
-        self.accounts = self.blockchain.w3.eth.accounts
+        self.accounts = self.blockchain.client.accounts
 
     def connect_to_contracts(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)

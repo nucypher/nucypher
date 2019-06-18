@@ -51,17 +51,17 @@ def test_testerchain_creation(testerchain, another_testerchain):
         assert chain.w3.eth.blockNumber > 0
 
         # Check that we have enough test accounts
-        assert len(chain.w3.eth.accounts) >= NUMBER_OF_ETH_TEST_ACCOUNTS
+        assert len(chain.client.accounts) >= NUMBER_OF_ETH_TEST_ACCOUNTS
 
         # Check that distinguished accounts are assigned
         etherbase = chain.etherbase_account
-        assert etherbase == chain.w3.eth.accounts[0]
+        assert etherbase == chain.client.accounts[0]
 
         alice = chain.alice_account
-        assert alice == chain.w3.eth.accounts[1]
+        assert alice == chain.client.accounts[1]
 
         bob = chain.bob_account
-        assert bob == chain.w3.eth.accounts[2]
+        assert bob == chain.client.accounts[2]
 
         stakers = [chain.staker_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
         assert stakers == chain.stakers_accounts
@@ -73,14 +73,14 @@ def test_testerchain_creation(testerchain, another_testerchain):
         assert set([etherbase, alice, bob] + ursulas + stakers).isdisjoint(set(chain.unassigned_accounts))
 
         # Check that accounts are funded
-        for account in chain.w3.eth.accounts:
-            assert chain.w3.eth.getBalance(account) >= DEVELOPMENT_ETH_AIRDROP_AMOUNT
+        for account in chain.client.accounts:
+            assert chain.client.get_balance(account) >= DEVELOPMENT_ETH_AIRDROP_AMOUNT
 
         # Check that accounts can send transactions
-        for account in chain.w3.eth.accounts:
-            balance = chain.w3.eth.getBalance(account)
+        for account in chain.client.accounts:
+            balance = chain.client.get_balance(account)
             assert balance
 
             tx = {'to': etherbase, 'from': account, 'value': 100}
-            txhash = chain.w3.eth.sendTransaction(tx)
+            txhash = chain.client.sendTransaction(tx)
             _receipt = chain.wait_for_receipt(txhash)

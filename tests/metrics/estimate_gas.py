@@ -174,7 +174,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     web3 = testerchain.w3
 
     # Accounts
-    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.w3.eth.accounts
+    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.client.accounts
 
     ursula_with_stamp = mock_ursula_with_stamp()
 

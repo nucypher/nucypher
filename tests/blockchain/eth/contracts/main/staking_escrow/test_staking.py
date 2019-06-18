@@ -25,13 +25,13 @@ from web3.contract import Contract
 def test_mining(testerchain, token, escrow_contract):
     escrow = escrow_contract(1500)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
-    policy_manager = testerchain.w3.eth.contract(
+    policy_manager = testerchain.client.get_contract(
         abi=policy_manager_interface.abi,
         address=escrow.functions.policyManager().call(),
         ContractFactoryClass=Contract)
-    creator = testerchain.w3.eth.accounts[0]
-    ursula1 = testerchain.w3.eth.accounts[1]
-    ursula2 = testerchain.w3.eth.accounts[2]
+    creator = testerchain.client.accounts[0]
+    ursula1 = testerchain.client.accounts[1]
+    ursula2 = testerchain.client.accounts[2]
 
     staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
@@ -314,9 +314,9 @@ def test_slashing(testerchain, token, escrow_contract):
     )
     tx = escrow.functions.setAdjudicator(adjudicator.address).transact()
     testerchain.wait_for_receipt(tx)
-    creator = testerchain.w3.eth.accounts[0]
-    ursula = testerchain.w3.eth.accounts[1]
-    investigator = testerchain.w3.eth.accounts[2]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
+    investigator = testerchain.client.accounts[2]
 
     slashing_log = escrow.events.Slashed.createFilter(fromBlock='latest')
 
@@ -620,7 +620,7 @@ def test_slashing(testerchain, token, escrow_contract):
     assert 0 == event_args['reward']
 
     # Prepare second Ursula for tests
-    ursula2 = testerchain.w3.eth.accounts[3]
+    ursula2 = testerchain.client.accounts[3]
     tx = token.functions.transfer(ursula2, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, 10000).transact({'from': ursula2})

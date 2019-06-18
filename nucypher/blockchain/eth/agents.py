@@ -378,7 +378,7 @@ class UserEscrowAgent(EthereumContractAgent):
         _forward_address = False
 
         def _generate_beneficiary_agency(self, principal_address: str):
-            contract = self.blockchain.w3.eth.contract(address=principal_address, abi=self.contract.abi)
+            contract = self.blockchain.client.get_contract(address=principal_address, abi=self.contract.abi)
             return contract
 
     def __init__(self,
@@ -411,7 +411,7 @@ class UserEscrowAgent(EthereumContractAgent):
         else:
             contract_data = self.__allocation_registry.search(beneficiary_address=self.beneficiary)
         address, abi = contract_data
-        principal_contract = self.blockchain.w3.eth.contract(abi=abi, address=address, ContractFactoryClass=Contract)
+        principal_contract = self.blockchain.client.get_contract(abi=abi, address=address, ContractFactoryClass=Contract)
         self.__principal_contract = principal_contract
 
     def __set_owner(self) -> None:

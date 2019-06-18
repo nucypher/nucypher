@@ -118,12 +118,12 @@ def test_anybody_can_verify():
 
 def test_character_blockchain_power(testerchain, agency):
     # TODO: Handle multiple providers
-    eth_address = testerchain.w3.eth.accounts[0]
+    eth_address = testerchain.client.accounts[0]
     canonical_address = eth_utils.to_canonical_address(eth_address)
     sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
+    signer._crypto_power.consume_power_up(BlockchainPower(testerchain.client, eth_address))
 
     # Due to testing backend, the account is already unlocked.
     power = signer._crypto_power.power_ups(BlockchainPower)
@@ -137,7 +137,7 @@ def test_character_blockchain_power(testerchain, agency):
     assert is_verified is True
 
     # Test a bad address/pubkey pair
-    is_verified = verify_eip_191(address=testerchain.w3.eth.accounts[1],
+    is_verified = verify_eip_191(address=testerchain.client.accounts[1],
                                  message=data_to_sign,
                                  signature=sig)
     assert is_verified is False
