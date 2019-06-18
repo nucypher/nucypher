@@ -268,10 +268,23 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
+    def sign_transaction(self, account: str, transaction: dict):
+        # assert_valid_fields(transaction_dict=transaction)
+
+        # Get signing key of test account
+        address = to_canonical_address(account)
+        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
+
+        # Sign using a local private key
+        signed_transaction = self.w3.eth.account.sign_transaction(transaction, private_key=signing_key)
+        rlp_transaction = signed_transaction.rawTransaction
+
+        return rlp_transaction
+
     def sign_message(self, account: str, message: bytes) -> str:
         # Get signing key of test account
         address = to_canonical_address(account)
-        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]
+        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
         # Sign, EIP-191 (Geth) Style
         signable_message = encode_defunct(primitive=message)
