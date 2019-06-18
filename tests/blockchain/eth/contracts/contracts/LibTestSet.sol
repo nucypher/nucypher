@@ -46,23 +46,25 @@ contract SignatureVerifierMock {
     function verifyEIP191(
         bytes memory _message,
         bytes memory _signature,
-        bytes memory _publicKey
+        bytes memory _publicKey,
+        byte _version
     )
         public
-        pure
+        view
         returns (bool)
     {
-        return SignatureVerifier.verifyEIP191(_message, _signature, _publicKey);
+        return SignatureVerifier.verifyEIP191(_message, _signature, _publicKey, _version);
     }
 
     function hashEIP191(
-        bytes memory _message
+        bytes memory _message,
+        byte _version
     )
         public
-        pure
+        view
         returns (bytes32)
     {
-        return SignatureVerifier.hashEIP191(_message);
+        return SignatureVerifier.hashEIP191(_message, _version);
     }
 
 }

@@ -90,57 +90,68 @@ library SignatureVerifier {
     /**
     * @notice Hash message according to EIP191 signature specification
     * @dev It always assumes Keccak256 is used as hashing algorithm
-    * @dev Only supports version E
+    * @dev Only supports version 0 and version E (0x45)
     * @param _message Message to sign
+    * @param _version EIP191 version to use
     **/
     function hashEIP191(
-        bytes memory _message
+        bytes memory _message,
+        byte _version
     )
         internal
-        pure
+        view
         returns (bytes32 result)
     {
-        require(_message.length > 0, "Empty message not allowed");
+        if(_version == byte(0x00)){  // Version 0: Data with intended validator
+            address validator = address(this);
+            return keccak256(abi.encodePacked(byte(0x19), byte(0x00), validator, _message));
+        } else if (_version == byte(0x45)){  // Version E: personal_sign messages
+            require(_message.length > 0, "Empty message not allowed for version E");
+            // Header for Version E as defined by EIP191. First byte ('E') is also the version
+            bytes25 header = "Ethereum Signed Message:\n";
 
-        // Header for Version E as defined by EIP191. First byte ('E') is the version
-        bytes25 header = "Ethereum Signed Message:\n";
+            // Compute text-encoded length of message
+            uint256 length = _message.length;
+            uint256 digits = 0;
+            while (length != 0) {
+                digits++;
+                length /= 10;
+            }
+            bytes memory lengthAsText = new bytes(digits);
+            length = _message.length;
+            uint256 index = digits - 1;
+            while (length != 0) {
+                lengthAsText[index--] = byte(uint8(48 + length % 10));
+                length /= 10;
+            }
 
-        // Compute text-encoded length of message
-        uint256 length = _message.length;
-        uint256 digits = 0;
-        while (length != 0) {
-            digits++;
-            length /= 10;
+            return keccak256(abi.encodePacked(byte(0x19), header, lengthAsText, _message));
+        } else {
+            revert("Unsupported EIP191 version");
         }
-        bytes memory lengthAsText = new bytes(digits);
-        length = _message.length;
-        uint256 index = digits - 1;
-        while (length != 0) {
-            lengthAsText[index--] = byte(uint8(48 + length % 10));
-            length /= 10;
-        }
-
-        return keccak256(abi.encodePacked(byte(0x19), header, lengthAsText, _message));
     }
 
     /**
     * @notice Verify EIP191 signature
     * @dev It always assumes Keccak256 is used as hashing algorithm
+    * @dev Only supports version 0 and version E (0x45)
     * @param _message Signed message
     * @param _signature Signature of message hash
     * @param _publicKey secp256k1 public key in uncompressed format without prefix byte (64 bytes)
+    * @param _version EIP191 version to use
     **/
     function verifyEIP191(
         bytes memory _message,
         bytes memory _signature,
-        bytes memory _publicKey
+        bytes memory _publicKey,
+        byte _version
     )
         internal
-        pure
+        view
         returns (bool)
     {
         require(_publicKey.length == 64);
-        return toAddress(_publicKey) == recover(hashEIP191(_message), _signature);
+        return toAddress(_publicKey) == recover(hashEIP191(_message, _version), _signature);
     }
 
 }
