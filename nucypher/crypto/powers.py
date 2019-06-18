@@ -117,7 +117,7 @@ class TransactingPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
-        
+
         if self.device is not NO_STAKING_DEVICE:
             _hd_path = self.device.get_address_path(checksum_address=self.account)
             ping = 'PING|PONG'

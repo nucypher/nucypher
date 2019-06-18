@@ -151,6 +151,10 @@ class Web3Client(object):
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
+    def lock_account(self, address):
+        if not self.is_local:
+            return self.lock_account(address=address)
+
     def unlock_account(self, address, password) -> bool:
         if not self.is_local:
             return self.unlock_account(address, password)

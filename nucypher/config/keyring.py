@@ -34,7 +34,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, is_checksum_address
+from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
@@ -49,10 +49,8 @@ from nucypher.crypto.powers import (
     DecryptingPower,
     KeyPairBasedPower,
     DerivedKeyBasedPower,
-    BlockchainPower
+    TransactingPower
 )
-
-from constant_sorrow.constants import FEDERATED_ADDRESS
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
@@ -499,9 +497,10 @@ class NucypherKeyring:
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 
-        elif power_class is BlockchainPower:
-            # new_cryptopower = power_class(account=self.checksum_address)
-            pass  # TODO: Needs refactoring with TransactingPower
+        elif power_class is TransactingPower:
+            # TODO: Is it possible to derive TransactingPower from the NuCypher keyring?
+            # new_cryptopower = power_class(client=Blockchain.connect(), account=self.checksum_address)
+            pass
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
