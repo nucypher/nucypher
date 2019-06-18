@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
@@ -468,16 +468,16 @@ def test_worker(testerchain, token, escrow_contract):
     tx = intermediary1.functions.deposit(sub_stake, duration).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary1.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary1.address).call()
 
     tx = token.functions.transfer(intermediary2.address, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     tx = intermediary2.functions.deposit(sub_stake, duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary2.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary2.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary2.address).call()
 
     tx = token.functions.transfer(ursula3, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
@@ -485,8 +485,8 @@ def test_worker(testerchain, token, escrow_contract):
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(ursula3).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(ursula3).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(ursula3).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(ursula3).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(ursula3).call()
 
     # Ursula can't confirm activity because there is no worker by default
     with pytest.raises((TransactionFailed, ValueError)):
@@ -543,14 +543,14 @@ def test_worker(testerchain, token, escrow_contract):
 
     # She can't unset her worker too, until enough time has passed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+        tx = intermediary1.functions.setWorker(BlockchainInterface.NULL_ADDRESS).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
     # Let's advance one period and unset the worker
     testerchain.time_travel(hours=1)
-    tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+    tx = intermediary1.functions.setWorker(BlockchainInterface.NULL_ADDRESS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -558,7 +558,7 @@ def test_worker(testerchain, token, escrow_contract):
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
     # Now the worker has been unset ...
-    assert Blockchain.NULL_ADDRESS == event_args['worker']
+    assert BlockchainInterface.NULL_ADDRESS == event_args['worker']
     # ... with a new starting period.
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
@@ -567,7 +567,7 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert worker2 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
     assert intermediary1.address == escrow.functions.getStakerFromWorker(worker2).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -611,7 +611,7 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert ursula2 == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.getStakerFromWorker(ursula2).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -628,8 +628,8 @@ def test_worker(testerchain, token, escrow_contract):
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
 
     # Ursula can't use the first worker again because worker is a staker now
     testerchain.time_travel(hours=1)

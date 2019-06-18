@@ -22,7 +22,7 @@ from eth_utils import is_checksum_address, to_wei
 
 from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import UserEscrowAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 
@@ -164,7 +164,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Release worker
-    _txhash = agent.set_worker(worker_address=Blockchain.NULL_ADDRESS)
+    _txhash = agent.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
 
     txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(address=agent.contract_address))
     assert txhash

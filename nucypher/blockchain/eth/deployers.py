@@ -30,16 +30,16 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     AdjudicatorAgent)
 
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
-from .interfaces import Blockchain
+from .interfaces import BlockchainInterface
 
 
 class ContractDeployer:
 
     agency = NotImplemented
     contract_name = NotImplemented
-    _interface_class = BlockchainDeployer
+    _interface_class = BlockchainDeployerInterface
     _upgradeable = NotImplemented
     __proxy_deployer = NotImplemented
 
@@ -49,7 +49,7 @@ class ContractDeployer:
     class ContractNotDeployed(ContractDeploymentError):
         pass
 
-    def __init__(self, deployer_address: str, blockchain: Blockchain) -> None:
+    def __init__(self, deployer_address: str, blockchain: BlockchainInterface) -> None:
 
         self.blockchain = blockchain
         self.deployment_transactions = CONTRACT_NOT_DEPLOYED

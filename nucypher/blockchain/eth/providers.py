@@ -17,8 +17,8 @@ class ProviderError(Exception):
 
 def _get_IPC_provider(provider_uri):
     uri_breakdown = urlparse(provider_uri)
-    from nucypher.blockchain.eth.interfaces import Blockchain
-    return IPCProvider(ipc_path=uri_breakdown.path, timeout=Blockchain.TIMEOUT)
+    from nucypher.blockchain.eth.interfaces import BlockchainInterface
+    return IPCProvider(ipc_path=uri_breakdown.path, timeout=BlockchainInterface.TIMEOUT)
 
 
 def _get_HTTP_provider(provider_uri):
@@ -67,16 +67,16 @@ def _get_tester_pyevm(provider_uri):
 
 
 def _get_test_geth_parity_provider(provider_uri):
-    from nucypher.blockchain.eth.interfaces import Blockchain
+    from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
     # geth --dev
     geth_process = NuCypherGethDevProcess()
     geth_process.start()
     geth_process.wait_for_ipc(timeout=30)
-    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=Blockchain.TIMEOUT)
+    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=BlockchainInterface.TIMEOUT)
 
     #  TODO: this seems strange to modify a class attr here?
-    Blockchain.process = geth_process
+    BlockchainInterface.process = geth_process
     return provider
 
 

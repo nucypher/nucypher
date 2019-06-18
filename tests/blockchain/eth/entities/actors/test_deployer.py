@@ -22,7 +22,7 @@ import pytest
 from web3.auto import w3
 
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain

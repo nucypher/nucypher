@@ -32,7 +32,7 @@ from twisted.logger import Logger
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
@@ -186,11 +186,11 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
-        self.blockchain = Blockchain(provider_uri=self.provider_uri,
-                                     poa=self.poa,
-                                     fetch_registry=True,
-                                     provider_process=self.provider_process,
-                                     sync_now=sync_now)
+        self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
+                                              poa=self.poa,
+                                              fetch_registry=True,
+                                              provider_process=self.provider_process,
+                                              sync_now=sync_now)
 
         # Read Ethereum Node Keyring
         self.accounts = self.blockchain.w3.eth.accounts

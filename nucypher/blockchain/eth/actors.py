@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -55,7 +55,7 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowDeployer,
     AdjudicatorDeployer,
     ContractDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
@@ -80,7 +80,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain, checksum_address: str = None):
+    def __init__(self, blockchain: BlockchainInterface, checksum_address: str = None):
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
         """
@@ -129,13 +129,13 @@ class Deployer(NucypherTokenActor):
 
     contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
 
-    __interface_class = BlockchainDeployer
+    __interface_class = BlockchainDeployerInterface
 
     class UnknownContract(ValueError):
         pass
 
     def __init__(self,
-                 blockchain: Blockchain,
+                 blockchain: BlockchainInterface,
                  deployer_address: str = None,
                  bare: bool = True
                  ) -> None:
@@ -163,7 +163,7 @@ class Deployer(NucypherTokenActor):
 
     @classmethod
     def from_blockchain(cls, provider_uri: str, registry=None, *args, **kwargs):
-        blockchain = Blockchain.connect(provider_uri=provider_uri, registry=registry)
+        blockchain = BlockchainInterface.connect(provider_uri=provider_uri, registry=registry)
         instance = cls(blockchain=blockchain, *args, **kwargs)
         return instance
 

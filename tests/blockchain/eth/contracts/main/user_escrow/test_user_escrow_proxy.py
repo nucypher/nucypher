@@ -23,7 +23,7 @@ from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.slow
@@ -187,7 +187,7 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't create linker using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrowLibraryLinker', Blockchain.NULL_ADDRESS, secret_hash)
+        testerchain.deploy_contract('UserEscrowLibraryLinker', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
         testerchain.deploy_contract('UserEscrowLibraryLinker', account, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -216,7 +216,7 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = linker_contract.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
@@ -234,7 +234,7 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = linker_contract.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})

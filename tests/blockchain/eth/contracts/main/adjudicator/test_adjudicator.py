@@ -26,7 +26,7 @@ from eth_utils import to_canonical_address
 from typing import Tuple
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.interfaces import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from umbral.keys import UmbralPrivateKey
 from umbral.point import Point
 
@@ -72,7 +72,7 @@ def test_evaluate_cfrag(testerchain,
         return penalty_, reward_
 
     # Prepare one staker
-    tx = escrow.functions.setStakerInfo(staker, worker_stake, Blockchain.NULL_ADDRESS).transact()
+    tx = escrow.functions.setStakerInfo(staker, worker_stake, BlockchainInterface.NULL_ADDRESS).transact()
     testerchain.wait_for_receipt(tx)
     staker_umbral_public_key_bytes = get_coordinates_as_bytes(ursula.stamp)
 
@@ -359,7 +359,7 @@ def test_evaluate_cfrag(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Can't evaluate staker without tokens
-    tx = escrow.functions.setStakerInfo(wrong_staker, 0, Blockchain.NULL_ADDRESS).transact()
+    tx = escrow.functions.setStakerInfo(wrong_staker, 0, BlockchainInterface.NULL_ADDRESS).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = adjudicator_contract.functions.evaluateCFrag(*wrong_args).transact()

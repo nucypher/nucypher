@@ -13,8 +13,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     AdjudicatorAgent,
     Agency)
-from nucypher.blockchain.eth.interfaces import Blockchain
-from nucypher.blockchain.eth.interfaces import BlockchainDeployer, Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
@@ -41,13 +41,13 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 def make_testerchain(provider_uri, solidity_compiler):
 
     # Destroy existing blockchain
-    Blockchain.disconnect()
+    BlockchainInterface.disconnect()
     TesterBlockchain.sever_connection()
 
     registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    deployer_interface = BlockchainDeployer(compiler=solidity_compiler,
-                                            registry=registry,
-                                            provider_uri=provider_uri)
+    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
+                                                     registry=registry,
+                                                     provider_uri=provider_uri)
 
     # Create new blockchain
     testerchain = TesterBlockchain(interface=deployer_interface,
@@ -142,7 +142,7 @@ def test_upgrade_contracts(click_runner):
 
     # Connect to the blockchain with a blank temporary file-based registry
     mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = Blockchain.connect(registry=mock_temporary_registry)
+    blockchain = BlockchainInterface.connect(registry=mock_temporary_registry)
 
     # Check the existing state of the registry before the meat and potatoes
     expected_registrations = 9
@@ -265,7 +265,7 @@ def test_rollback(click_runner):
     """Roll 'em all back!"""
 
     mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = Blockchain.connect(registry=mock_temporary_registry)
+    blockchain = BlockchainInterface.connect(registry=mock_temporary_registry)
 
     # Input Components
     yes = 'Y\n'
@@ -302,7 +302,7 @@ def test_rollback(click_runner):
         assert current_target_address != rollback_target_address
 
         # Ensure the proxy targets the rollback target (previous version)
-        with pytest.raises(Blockchain.UnknownContract):
+        with pytest.raises(BlockchainInterface.UnknownContract):
             blockchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
         proxy = blockchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
@@ -375,7 +375,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     #
 
     # Destroy existing blockchain
-    Blockchain.disconnect()
+    BlockchainInterface.disconnect()
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):
