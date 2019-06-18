@@ -512,8 +512,7 @@ def test_worker(testerchain, token, escrow_contract):
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
     assert worker1 == event_args['worker']
-    worker1_start_period = escrow.functions.getCurrentPeriod().call()
-    assert worker1_start_period == event_args['startPeriod']
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
     # Only worker can confirm activity
     with pytest.raises((TransactionFailed, ValueError)):
@@ -537,12 +536,18 @@ def test_worker(testerchain, token, escrow_contract):
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
-    # Can't change worker twice in the same period
+    # Can't change worker twice too soon
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # But she can unset her worker
+    # She can't unset her worker too, until enough time has passed
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+
+    # Let's advance one period and unset the worker
+    testerchain.time_travel(hours=1)
     tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
@@ -552,18 +557,12 @@ def test_worker(testerchain, token, escrow_contract):
     assert number_of_events == len(events)
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
-    # Even though the worker has been unset...
+    # Now the worker has been unset ...
     assert Blockchain.NULL_ADDRESS == event_args['worker']
-    # ... the previous start period remains.
-    assert worker1_start_period == event_args['startPeriod']
+    # ... with a new starting period.
+    assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
-    # The staker can't set a new worker until the previous worker's time has passed
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
-
-    # Let's advance one period and change the worker
-    testerchain.time_travel(hours=1)
+    # The staker can set now a new worker, without waiting additional time.
     tx = intermediary1.functions.setWorker(worker2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert worker2 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
