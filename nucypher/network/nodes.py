@@ -870,6 +870,7 @@ class Teacher:
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
+                 worker_address: str,
                  domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
@@ -911,7 +912,7 @@ class Teacher:
         self.__worker_address = None
 
         if substantiate_immediately:
-            self.substantiate_stamp(client_password=password)
+            self.substantiate_stamp(client_password=password, checksum_address=worker_address)
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -1144,12 +1145,12 @@ class Teacher:
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
 
-    def substantiate_stamp(self, client_password: str):
+    def substantiate_stamp(self, client_password: str, checksum_address: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=client_password, account=self.checksum_address)  # TODO: #349
-        signature = blockchain_power.sign_message(messagebytes(self.stamp))
+        blockchain_power.unlock_account(password=client_password, account=checksum_address)  # TODO: #349
+        signature = blockchain_power.sign_message(message=bytes(self.stamp), account=checksum_address)
         self.__decentralized_identity_evidence = signature
-        self.__worker_address = blockchain_power.account
+        self.__worker_address = checksum_address
 
     #
     # Interface

@@ -33,7 +33,7 @@ def user_escrow_proxy(agency):
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
     testerchain.registry.clear()
-    testerchain.sever_connection()
+    testerchain.disconnect()
 
 
 @pytest.mark.usesfixtures('agency')
@@ -44,7 +44,7 @@ def test_user_escrow_deployer(agency, testerchain):
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
 
-    deployer = UserEscrowDeployer(deployer_address=deployer)
+    deployer = UserEscrowDeployer(deployer_address=deployer, blockchain=testerchain)
 
     deployment_txhashes = deployer.deploy()
 

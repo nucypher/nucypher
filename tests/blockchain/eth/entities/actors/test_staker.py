@@ -113,7 +113,8 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=False).pop()
+                                        confirm_activity=False,
+                                        blockchain=testerchain).pop()
 
     # TODO: Use the above code as a starting point for a non-staking worker fixture
 
