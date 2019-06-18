@@ -27,12 +27,15 @@ from constant_sorrow.constants import (
     NO_COMPILATION_PERFORMED,
     NO_DEPLOYER_CONFIGURED,
     UNKNOWN_TX_STATUS,
-    NO_PROVIDER_PROCESS
+    NO_PROVIDER_PROCESS,
+    READ_ONLY_INTERFACE
 )
+from eth_account._utils.transactions import assert_valid_fields
 from eth_tester import EthereumTester
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract, ConciseContract
+from web3.contract import Contract, ConciseContract, ContractFunction
+from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import Web3Client, NuCypherGethProcess
