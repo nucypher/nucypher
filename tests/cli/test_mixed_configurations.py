@@ -250,20 +250,3 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     top_level_config_root = os.listdir(custom_filepath)
     assert 'ursula.config' not in top_level_config_root                                # config file was destroyed
     assert len(os.listdir(os.path.join(custom_filepath, 'keyring', 'private'))) == 0   # keys were destroyed
-
-
-def test_nucypher_removal(click_runner, custom_filepath):
-    """Remove all nucypher configuration files, keys, node metadata, and logs from the local filesystem"""
-
-    # Remove nucypher completely
-    destruction_args = ('remove', '--force', '--config-root', custom_filepath)
-    result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert not os.path.isdir(custom_filepath)
-
-    # Everything is gone, but we'll try again anyways...
-    destruction_args = ('remove', '--config-root', custom_filepath)
-    result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False)
-    assert result.exit_code == 0
-    assert not os.path.isdir(custom_filepath)
-    assert "No NuCypher configuration root directory found" in result.output  # Graceful crash

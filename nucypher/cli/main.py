@@ -23,7 +23,6 @@ from twisted.logger import globalLogPublisher
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
 from nucypher.cli import status
-from nucypher.cli.actions import destroy_configuration_root
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
@@ -101,14 +100,6 @@ def nucypher_cli(click_config,
         click_config.emit(message="Verbose mode is enabled", color='blue')
 
 
-@click.command()
-@click.option('--logs', help="Also destroy logs", is_flag=True)
-@click.option('--force', help="Don't ask for confirmation and Ignore Errors", is_flag=True)
-@click.option('--config-root', help="Custom configuration directory", type=click.Path())
-def remove(logs, force, config_root):
-    destroy_configuration_root(config_root=config_root, force=force, logs=logs)
-
-
 #
 # Character CLI Entry Points (Fan Out Input)
 #
@@ -137,7 +128,6 @@ Inversely, commenting out an entry point here will disable it.
 ENTRY_POINTS = (
 
     # Utility Sub-Commands
-    remove,         # Remove NuCypher Files
     status.status,  # Network Status
 
     # Characters
