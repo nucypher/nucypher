@@ -129,7 +129,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower, BlockchainPower]
+    _default_crypto_powerups = [SigningPower]
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -182,6 +182,10 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
+        blockchain_power = BlockchainPower(client=self.blockchain.client)
+        self._crypto_power.consume_power_up(blockchain_power)
+        # blockchain_power.unlock_account(account=self.checksum_address)  # TODO
+
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
@@ -370,10 +374,10 @@ class Felix(Character, NucypherTokenActor):
         """Perform a single token transfer transaction from one account to another."""
 
         self.__disbursement += 1
-        txhash = self.token_agent.transfer(amount=disbursement,
-                                           target_address=recipient_address,
-                                           sender_address=self.checksum_address)
-
+        receipt = self.token_agent.transfer(amount=disbursement,
+                                            target_address=recipient_address,
+                                            sender_address=self.checksum_address)
+        txhash = receipt['transactionHash']
         if self.distribute_ether:
             ether = self.ETHER_AIRDROP_AMOUNT
             transaction = {'to': recipient_address,
