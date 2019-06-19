@@ -87,8 +87,12 @@ def test_trezor_get_address(mock_trezorlib, fake_trezor_address):
         trezor_backend.get_address(address_index=0, hd_path="m/44'/60'/0'/0/0")
 
 
-def test_trezor_sign_eth_transaction(mock_trezorlib):
+def test_trezor_sign_eth_transaction(mock_trezorlib, fake_trezor_address,
+                                     fake_signed_trezor_tx):
     trezor_backend = Trezor()
 
-    with pytest.raises(NotImplementedError):
-        trezor_backend.sign_eth_transaction()
+    signed_tx = trezor_backend.sign_eth_transaction(fake_trezor_address)
+    assert signed_tx == fake_signed_trezor_tx
+
+    with pytest.raises(Trezor.DeviceError):
+        trezor_backend.sign_eth_transaction('0x0000000000000000000000000000000000000000')

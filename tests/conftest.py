@@ -146,10 +146,16 @@ def fake_trezor_message():
 
 
 @pytest.fixture()
+def fake_signed_trezor_tx():
+    return (28, b'\x01!\xbf}\x06T\x98\xe1k\xd9C\xdb\xe8}\xae\xc3\x82\x98\x8b\x12\x13\xacyo/G$\x86\xe4\x05!M', b'\x06\xa8\xeb\xa2\xb3\x9d\xf3\xbe\xe2x6\xa4\x9d\xaf\xbaUl\t\xde\x9f\x0b\xef\xcaT\\N.p\xa9\xbf.\x1b')
+
+
+@pytest.fixture()
 def mock_trezorlib(mocker,
                    fake_trezor_signature,
                    fake_trezor_address,
-                   fake_trezor_message):
+                   fake_trezor_message,
+                   fake_signed_trezor_tx):
     trezor_client.get_default_client = lambda: None
 
     # trezorlib.ethereum mock functions
@@ -168,6 +174,9 @@ def mock_trezorlib(mocker,
     def mocked_get_address(client, address_index=None, hd_path=None):
         return fake_trezor_address
 
+    def mocked_sign_tx(client, n, **transaction):
+        return fake_signed_trezor_tx
+
     # trezorlib.device mock functions
     def mocked_wipe(client):
         return 'Device wiped'
@@ -176,6 +185,7 @@ def mock_trezorlib(mocker,
             'sign_message': mocked_sign_message,
             'verify_message': mocked_verify_message,
             'get_address': mocked_get_address,
+            'sign_tx': mocked_sign_tx,
     }
 
     device_mock_load = {

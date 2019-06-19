@@ -86,7 +86,6 @@ class Trezor(TrustedDevice):
         raise NotImplementedError
 
     @_handle_device_call
-    @validate_checksum_address
     def sign_message(self, message: bytes, checksum_address: str):
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
@@ -114,8 +113,6 @@ class Trezor(TrustedDevice):
         If the signature or message is not valid, it will raise a
         nucypher.crypto.signing.InvalidSignature exception. Otherwise, it
         will return True.
-
-        TODO: Should we provide some input validation for the ETH address?
         """
         is_valid = trezor_eth.verify_message(self.client, checksum_address,
                                              signature, message)
@@ -141,7 +138,7 @@ class Trezor(TrustedDevice):
         return address
 
     @_handle_device_call
-    def sign_eth_transaction(self, chain_id: int, **transaction) -> Tuple[bytes]:
+    def sign_eth_transaction(self, checksum_address: str, **transaction) -> Tuple[bytes]:
         """
         Signs an Ethereum transaction via the Trezor ethereum sign_tx API
         and returns the signed transaction.
@@ -149,7 +146,11 @@ class Trezor(TrustedDevice):
         TODO: Is there any input validation required for the transaction
               data that is passed in?
         """
-        signed_tx = trezor_eth.sign_tx(client=self.client,
-                                       chain_id=chain_id,
+        try:
+            bip44_path = self.__addresses[checksum_address]
+        except KeyError:
+            raise self.DeviceError(f'{checksum_address} is not available as a cached address on this device.')
+
+        signed_tx = trezor_eth.sign_tx(client=self.client, n=bip44_path,
                                        **transaction)
         return signed_tx
