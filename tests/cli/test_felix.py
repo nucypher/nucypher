@@ -5,6 +5,8 @@ from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli import deploy
@@ -21,6 +23,7 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner,
                    testerchain,
+                   agency,
                    deploy_user_input,
                    mock_primary_registry_filepath):
 
@@ -33,19 +36,19 @@ def test_run_felix(click_runner,
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
+    # Simulate "Reconnection"
+    real_attach_provider = BlockchainDeployerInterface._attach_provider
+    cached_blockchain = BlockchainDeployerInterface.reconnect()
+
+    def attach_cached_provider(interface, *args, **kwargs):
+        cached_provider = cached_blockchain.provider
+        real_attach_provider(interface, provider=cached_provider)
+    BlockchainDeployerInterface._attach_provider = attach_cached_provider
+
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
-
-    # Deploy contracts
-    deploy_args = ('contracts',
-                   '--registry-outfile', mock_primary_registry_filepath,
-                   '--provider-uri', TEST_PROVIDER_URI,
-                   '--poa')
-
-    result = click_runner.invoke(deploy.deploy, deploy_args, input=deploy_user_input, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
 
     # Felix creates a system configuration
     init_args = ('--debug',
@@ -132,8 +135,9 @@ def test_run_felix(click_runner,
 
         assert staker.token_balance == NU(15000, 'NU')
 
-        new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
-        assert staker.eth_balance == new_eth_balance
+        # TODO: Airdrop Testnet Ethers?
+        # new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
+        assert staker.eth_balance == original_eth_balance
 
     staged_airdrops = Felix._AIRDROP_QUEUE
     next_airdrop = staged_airdrops[0]

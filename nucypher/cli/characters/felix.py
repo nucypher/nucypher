@@ -190,7 +190,6 @@ ETH ........ {str(eth_balance)}
 
         try:
             click.secho("Waiting for blockchain sync...", fg='yellow')
-            FELIX.blockchain.sync()
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,
