@@ -439,7 +439,7 @@ jobs:
     working_directory: ~/nucypher
     <<: *python_36_base
     steps:
-      - pipenv_install
+      - prepare_environment
       - run:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
