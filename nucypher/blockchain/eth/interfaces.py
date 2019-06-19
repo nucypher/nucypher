@@ -49,6 +49,7 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.crypto.powers import BlockchainPower
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -62,10 +63,11 @@ class BlockchainInterface:
     TIMEOUT = 180  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
 
+    _instance = NO_BLOCKCHAIN_CONNECTION
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = ConciseContract
+    _contract_factory = Contract
 
     class InterfaceError(Exception):
         pass
@@ -84,7 +86,7 @@ class BlockchainInterface:
                  sync_now: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 transacting_power = READ_ONLY_INTERFACE,
+                 transacting_power: BlockchainPower = READ_ONLY_INTERFACE,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
                  registry: EthereumContractRegistry = None,
                  fetch_registry: bool = True):
@@ -162,10 +164,12 @@ class BlockchainInterface:
         self.transacting_power = transacting_power
         self.registry = registry
 
-        self.__connect(provider=provider,
-                       provider_uri=provider_uri,
-                       fetch_registry=fetch_registry,
-                       sync_now=sync_now)
+        self.connect(provider=provider,
+                     provider_uri=provider_uri,
+                     fetch_registry=fetch_registry,
+                     sync_now=sync_now)
+
+        BlockchainInterface._instance = self
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -189,8 +193,13 @@ class BlockchainInterface:
     def disconnect(self):
         if self._provider_process:
             self._provider_process.stop()
-        self._provider_process = NO_BLOCKCHAIN_CONNECTION
+        self._provider_process = NO_PROVIDER_PROCESS
         self._provider = NO_BLOCKCHAIN_CONNECTION
+        BlockchainInterface._instance = NO_BLOCKCHAIN_CONNECTION
+
+    @classmethod
+    def reconnect(cls, *args, **kwargs) -> 'BlockchainInterface':
+        return cls._instance
 
     def attach_middleware(self):
 
@@ -199,11 +208,11 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def __connect(self,
-                  provider: Web3Providers = None,
-                  provider_uri: str = None,
-                  fetch_registry: bool = True,
-                  sync_now: bool = True):
+    def connect(self,
+                provider: Web3Providers = None,
+                provider_uri: str = None,
+                fetch_registry: bool = True,
+                sync_now: bool = True):
 
         # Spawn child process
         if self._provider_process:
@@ -238,6 +247,10 @@ class BlockchainInterface:
             self.client.sync()
 
         return self.is_connected
+
+    @property
+    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
+        return self._provider
 
     def _attach_provider(self, provider: Web3Providers = None, provider_uri: str = None) -> None:
         """
@@ -322,7 +335,7 @@ class BlockchainInterface:
         if deployment_status is 0:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
-            raise self.DeploymentFailed(failure)
+            raise self.InterfaceError(failure)
 
         if deployment_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
@@ -330,13 +343,71 @@ class BlockchainInterface:
             # Secondary check TODO: Is this a sensible check?
             tx = self.client.w3.eth.getTransaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
-                raise self.DeploymentFailed(f"Deployment transaction consumed 100% of transaction gas."
-                                            f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
+                raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
+                                          f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
         return receipt
 
-    def read(self, query_function: ContractFunction):
-        raise NotImplementedError  # TODO
+    def get_contract_by_name(self,
+                             name: str,
+                             proxy_name: str = None,
+                             use_proxy_address: bool = True
+                             ) -> Union[Contract, List[tuple]]:
+        """
+        Instantiate a deployed contract from registry data,
+        and assimilate it with it's proxy if it is upgradeable,
+        or return all registered records if use_proxy_address is False.
+        """
+        target_contract_records = self.registry.search(contract_name=name)
+
+        if not target_contract_records:
+            raise self.UnknownContract(f"No such contract records with name {name}.")
+
+        if proxy_name:  # It's upgradeable
+            # Lookup proxies; Search fot a published proxy that targets this contract record
+
+            proxy_records = self.registry.search(contract_name=proxy_name)
+
+            results = list()
+            for proxy_name, proxy_addr, proxy_abi in proxy_records:
+                proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
+                                                             address=proxy_addr,
+                                                             ContractFactoryClass=self._contract_factory)
+
+                # Read this dispatchers target address from the blockchain
+                proxy_live_target_address = proxy_contract.functions.target().call()
+                for target_name, target_addr, target_abi in target_contract_records:
+
+                    if target_addr == proxy_live_target_address:
+                        if use_proxy_address:
+                            pair = (proxy_addr, target_abi)
+                        else:
+                            pair = (proxy_live_target_address, target_abi)
+                    else:
+                        continue
+
+                    results.append(pair)
+
+            if len(results) > 1:
+                address, abi = results[0]
+                message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
+                raise self.InterfaceError(message.format(name))
+
+            else:
+                selected_address, selected_abi = results[0]
+
+        else:  # It's not upgradeable
+            if len(target_contract_records) != 1:
+                m = "Multiple records registered for non-upgradeable contract {}"
+                raise self.InterfaceError(m.format(name))
+            _target_contract_name, selected_address, selected_abi = target_contract_records[0]
+
+        # Create the contract from selected sources
+        unified_contract = self.client.w3.eth.contract(abi=selected_abi,
+                                                       address=selected_address,
+                                                       ContractFactoryClass=self._contract_factory)
+
+        return unified_contract
 
 
 class BlockchainDeployerInterface(BlockchainInterface):
@@ -460,9 +531,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                    ContractFactoryClass=Contract)
             return contract
 
-    def _wrap_contract(self,
-                       wrapper_contract: Contract,
-                       target_contract: Contract) -> Contract:
+    def _wrap_contract(self, wrapper_contract: Contract, target_contract: Contract) -> Contract:
         """
         Used for upgradeable contracts; Returns a new contract object assembled
         with its own address but the abi of the other.
@@ -474,7 +543,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                        ContractFactoryClass=self._contract_factory)
         return wrapped_contract
 
-    def get_proxy(self, target_address: str, proxy_name: str):
+    def get_proxy(self, target_address: str, proxy_name: str) -> Contract:
 
         # Lookup proxies; Search for a registered proxy that targets this contract record
         records = self.registry.search(contract_name=proxy_name)
@@ -499,64 +568,3 @@ class BlockchainDeployerInterface(BlockchainInterface):
             return dispatchers[0]
         except IndexError:
             raise self.UnknownContract(f"No registered Dispatcher deployments target {target_address}")
-
-    def get_contract_by_name(self,
-                             name: str,
-                             proxy_name: str = None,
-                             use_proxy_address: bool = True
-                             ) -> Union[Contract, List[tuple]]:
-        """
-        Instantiate a deployed contract from registry data,
-        and assimilate it with it's proxy if it is upgradeable,
-        or return all registered records if use_proxy_address is False.
-        """
-        target_contract_records = self.registry.search(contract_name=name)
-
-        if not target_contract_records:
-            raise self.UnknownContract(f"No such contract records with name {name}.")
-
-        if proxy_name:  # It's upgradeable
-            # Lookup proxies; Search fot a published proxy that targets this contract record
-
-            proxy_records = self.registry.search(contract_name=proxy_name)
-
-            results = list()
-            for proxy_name, proxy_addr, proxy_abi in proxy_records:
-                proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
-                                                             address=proxy_addr,
-                                                             ContractFactoryClass=self._contract_factory)
-
-                # Read this dispatchers target address from the blockchain
-                proxy_live_target_address = proxy_contract.functions.target().call()
-                for target_name, target_addr, target_abi in target_contract_records:
-
-                    if target_addr == proxy_live_target_address:
-                        if use_proxy_address:
-                            pair = (proxy_addr, target_abi)
-                        else:
-                            pair = (proxy_live_target_address, target_abi)
-                    else:
-                        continue
-
-                    results.append(pair)
-
-            if len(results) > 1:
-                address, abi = results[0]
-                message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
-                raise self.InterfaceError(message.format(name))
-
-            else:
-                selected_address, selected_abi = results[0]
-
-        else:  # It's not upgradeable
-            if len(target_contract_records) != 1:
-                m = "Multiple records registered for non-upgradeable contract {}"
-                raise self.InterfaceError(m.format(name))
-            _target_contract_name, selected_address, selected_abi = target_contract_records[0]
-
-        # Create the contract from selected sources
-        unified_contract = self.client.w3.eth.contract(abi=selected_abi,
-                                                       address=selected_address,
-                                                       ContractFactoryClass=self._contract_factory)
-
-        return unified_contract

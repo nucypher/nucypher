@@ -65,6 +65,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
     Blockchain subclass with additional test utility methods and options.
     """
 
+    _instance = None
+
     _PROVIDER_URI = 'tester://pyevm'
     TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
     _compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
@@ -202,17 +204,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| period {epoch_to_period(epoch=end_timestamp)} "
                       f"| epoch {end_timestamp}")
 
-    @property
-    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
-        return self._provider
 
     @classmethod
     def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
-        testerchain = cls.connect()
+        testerchain = cls.connect()  # FIXME
 
         origin = testerchain.client.accounts[0]
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
-
         _txhashes, agents = deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
                                                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
                                                               adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
