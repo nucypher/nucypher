@@ -39,6 +39,7 @@ def test_run_felix(click_runner,
     # Simulate "Reconnection"
     real_attach_provider = BlockchainDeployerInterface._attach_provider
     cached_blockchain = BlockchainDeployerInterface.reconnect()
+    cached_blockchain.registry.commit(filepath=mock_primary_registry_filepath)
 
     def attach_cached_provider(interface, *args, **kwargs):
         cached_provider = cached_blockchain.provider
@@ -53,6 +54,7 @@ def test_run_felix(click_runner,
     # Felix creates a system configuration
     init_args = ('--debug',
                  'felix', 'init',
+                 '--registry-filepath', mock_primary_registry_filepath,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
@@ -67,6 +69,7 @@ def test_run_felix(click_runner,
     # Felix Creates a Database
     db_args = ('--debug',
                'felix', 'createdb',
+               '--registry-filepath', mock_primary_registry_filepath,
                '--config-file', configuration_file_location,
                '--provider-uri', TEST_PROVIDER_URI)
 
@@ -77,6 +80,7 @@ def test_run_felix(click_runner,
     def run_felix():
         args = ('--debug',
                 'felix', 'run',
+                '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', configuration_file_location,
                 '--provider-uri', TEST_PROVIDER_URI,
                 '--dry-run',
