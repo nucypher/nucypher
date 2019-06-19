@@ -34,14 +34,7 @@ from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.config.node import NodeConfiguration
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import (
-    logToSentry,
-    getTextFileObserver,
-    initialize_sentry,
-    getJsonFileObserver,
-    GlobalLogger,
-    ConsoleLoggingObserver,
-)
+from nucypher.utilities.logging import GlobalLogger
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
