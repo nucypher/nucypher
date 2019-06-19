@@ -75,11 +75,9 @@ def test_deploy_and_allocate(agency, user_escrow_proxy, token_economics):
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        receipt = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
+        _deposit_receipt = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)
-        assignment_txhash = deployer.assign_beneficiary(beneficiary)
-        receipt = testerchain.wait_for_receipt(txhash=assignment_txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}".format(assignment_txhash)
+        _assign_receipt = deployer.assign_beneficiary(beneficiary)
 
     assert len(deposit_txhashes) == number_of_deployments == len(deployments)

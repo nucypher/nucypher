@@ -18,7 +18,7 @@ def test_geth_EIP_191_client_signature_integration(geth_dev_node):
     blockchain = BlockchainInterface(provider_process=geth_dev_node, sync_now=False)
 
     # Sign a message (RPC) and verify it.
-    etherbase = blockchain.accounts[0]
+    etherbase = blockchain.client.accounts[0]
     stamp = b'STAMP-' + os.urandom(64)
     signature = blockchain.client.sign_message(account=etherbase, message=stamp)
     is_valid = verify_eip_191(address=etherbase,
