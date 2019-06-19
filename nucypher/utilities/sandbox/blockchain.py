@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict
 
 import maya
 from twisted.logger import Logger
-from web3 import Web3, IPCProvider, WebsocketProvider, HTTPProvider
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Deployer
@@ -31,7 +31,8 @@ from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, E
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
-from nucypher.config.constants import CONTRACT_ROOT, BASE_DIR
+from nucypher.config.constants import BASE_DIR
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
@@ -40,8 +41,8 @@ from nucypher.utilities.sandbox.constants import (
     STAKING_ESCROW_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     ADJUDICATOR_DEPLOYMENT_SECRET,
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET
-)
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
+    INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -50,12 +51,14 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     def txs():
         args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gasPrice}
         for address in addresses:
-            txhash = token_agent.contract.functions.transfer(address, int(amount)).transact(args)
-            yield txhash
+            contract_function = token_agent.contract.functions.transfer(address, int(amount))
+            _receipt = token_agent.blockchain.send_transaction(transaction_function=contract_function,
+                                                               sender_address=origin,
+                                                               payload=args)
+            yield _receipt
 
     receipts = list()
-    for tx in txs():  # One at a time
-        receipt = token_agent.blockchain.wait_for_receipt(tx)
+    for receipt in txs():  # One at a time
         receipts.append(receipt)
     return receipts
 
@@ -204,12 +207,16 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| period {epoch_to_period(epoch=end_timestamp)} "
                       f"| epoch {end_timestamp}")
 
-
     @classmethod
     def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
-        testerchain = cls.connect()  # FIXME
+        """For use with metric testing scripts"""
 
-        origin = testerchain.client.accounts[0]
+        testerchain = cls(compiler=SolidityCompiler())
+        power = BlockchainPower(client=testerchain.client)
+        power.unlock_account(account=testerchain.client.etherbase, password=INSECURE_DEVELOPMENT_PASSWORD)
+        testerchain.transacting_power = power
+
+        origin = testerchain.client.etherbase
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
         _txhashes, agents = deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
                                                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
