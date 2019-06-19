@@ -39,8 +39,11 @@ class Trezor(TrustedDevice):
     An implementation of a Trezor device for staking on the NuCypher network.
     """
 
-    def __init__(self):
+    def __init__(self, cached_index: int = 1):
         """
+        Initializes a Trezor device.
+
+        `cached_index` is the highest address_index to cache in memory.
         TODO: Use a device config to determine some init settings like how many
               addresses to cache.
         """
@@ -48,6 +51,12 @@ class Trezor(TrustedDevice):
             self.client = trezor_client.get_default_client()
         except TransportException:
             raise RuntimeError("Could not find a TREZOR device to connect to. Have you unlocked it?")
+
+        self.__addresses = {}
+        for addr_idx in range(cached_index + 1):
+            hd_path = self.ETH_BIP44_PATH.format(address_index=addr_idx)
+            address = self.get_address(hd_path=hd_path)
+            self.__addresses[address] = trezor_tools.parse_path(hd_path)
 
     def _handle_device_call(device_func):
         @wraps(device_func)
@@ -77,17 +86,19 @@ class Trezor(TrustedDevice):
         raise NotImplementedError
 
     @_handle_device_call
-    def sign_message(self, message: bytes, address_index: int = 0):
+    @validate_checksum_address
+    def sign_message(self, message: bytes, checksum_address: str):
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
         the signature and the address used to sign it. This method requires
         interaction between the TREZOR and the user.
 
-        If an address_index is provided, it will use the address at that
-        index to sign the message. If no index is provided, the address at
-        the 0th index is used by default.
+        It will sign the message with the account described by checksum_address.
         """
-        bip44_path = self.__bip44_path + [address_index]
+        try:
+            bip44_path = self.__addresses[checksum_address]
+        except KeyError:
+            raise self.DeviceError(f'{checksum_address} is not available as a cached address on this device.')
 
         sig = trezor_eth.sign_message(self.client, bip44_path, message)
         return self.Signature(sig.signature, sig.address)

@@ -153,8 +153,7 @@ def mock_trezorlib(mocker,
     trezor_client.get_default_client = lambda: None
 
     # trezorlib.ethereum mock functions
-    def mocked_sign_message(client, bip44_path, message):
-
+    def mocked_sign_message(client, message, checksum_address):
         return EthereumMessageSignature(
                 signature=fake_trezor_signature,
                 address=fake_trezor_address)
@@ -167,13 +166,6 @@ def mock_trezorlib(mocker,
         return True
 
     def mocked_get_address(client, address_index=None, hd_path=None):
-        if address_index is not None and hd_path is None:
-            return fake_trezor_address
-        elif address_index is None and hd_path is not None:
-            _ = trezor_tools.parse_path(hd_path)
-            return fake_trezor_address
-        else:
-            raise ValueError("Provide either, but not both..")
         return fake_trezor_address
 
     # trezorlib.device mock functions
