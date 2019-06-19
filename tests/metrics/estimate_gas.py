@@ -24,17 +24,16 @@ import os
 import re
 import sys
 import time
-from mock import Mock
 from os.path import abspath, dirname
 
-from eth_utils import to_canonical_address
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
+from eth_utils import to_canonical_address
+from mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
-from zope.interface import provider
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
@@ -182,7 +181,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     token_agent = NucypherTokenAgent(blockchain=testerchain)
     staking_agent = StakingEscrowAgent(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
-    adjudicator_agent = AdjudicatorAgent()
+    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
 
     # Contract Callers
     token_functions = token_agent.contract.functions

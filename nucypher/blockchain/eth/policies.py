@@ -284,7 +284,11 @@ class BlockchainPolicy(Policy):
                        prearranged_ursulas)  # address[] memory _nodes
 
         # Transact
-        txhash = self.author.policy_agent.contract.functions.createPolicy(*policy_args).transact(payload)
+        contract_function = self.author.policy_agent.contract.functions.createPolicy(*policy_args)
+        receipt = self.author.blockchain.send_transaction(transaction_function=contract_function,
+                                                          sender_address=self.author.checksum_address,
+                                                          payload=payload)
+        txhash = receipt['transactionHash']
 
         # Capture Response
         self.receipt = self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
