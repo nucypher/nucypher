@@ -9,7 +9,7 @@ from umbral.keys import UmbralPublicKey
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import ConsoleLoggingObserver
+from nucypher.utilities.logging import GlobalLogger
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 ######################
@@ -24,7 +24,7 @@ BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
 NUMBER_OF_LINES_TO_REENCRYPT = 25
 
 # Twisted Logger
-globalLogPublisher.addObserver(ConsoleLoggingObserver())
+GlobalLogger.set_console_logging(True)
 
 
 #######################################

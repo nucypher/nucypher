@@ -17,10 +17,10 @@ from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey
 
-from nucypher.utilities.logging import ConsoleLoggingObserver
+from nucypher.utilities.logging import GlobalLogger
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
-globalLogPublisher.addObserver(ConsoleLoggingObserver())
+GlobalLogger.set_console_logging(True)
 
 ######################
 # Boring setup stuff #
