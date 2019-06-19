@@ -46,6 +46,9 @@ def test_run_felix(click_runner,
         real_attach_provider(interface, provider=cached_provider)
     BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
+    # Mock live contract registry reads
+    EthereumContractRegistry.read = lambda *a, **kw: cached_blockchain.registry.read()
+
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
