@@ -23,7 +23,7 @@ contract Adjudicator is Upgradeable {
     );
     event IncorrectCFragVerdict(
         bytes32 indexed evaluationHash,
-        address indexed violator,
+        address indexed worker,
         address indexed staker
     );
 
@@ -78,8 +78,8 @@ contract Adjudicator is Upgradeable {
     * @param _cFragSignature Signature of CFrag by staker
     * @param _taskSignature Signature of task specification by Bob
     * @param _requesterPublicKey Requester's public key that was used to sign Capsule
-    * @param _stakerPublicKey Staker's public key that was used to sign Capsule and CFrag
-    * @param _stakerPublicKeySignature Signature of public key by staker's eth-key
+    * @param _workerPublicKey Staker's public key that was used to sign Capsule and CFrag
+    * @param _workerIdentityEvidence Signature of worker's public key by worker's eth-key
     * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
     function evaluateCFrag(
@@ -88,8 +88,8 @@ contract Adjudicator is Upgradeable {
         bytes memory _cFragSignature,
         bytes memory _taskSignature,
         bytes memory _requesterPublicKey,
-        bytes memory _stakerPublicKey,
-        bytes memory _stakerPublicKeySignature,
+        bytes memory _workerPublicKey,
+        bytes memory _workerIdentityEvidence,   // TODO: Better name (#1085)
         bytes memory _preComputedData
     )
         public
@@ -107,42 +107,44 @@ contract Adjudicator is Upgradeable {
             return;
         }
 
-        require(ReEncryptionValidator.checkSerializedCoordinates(_stakerPublicKey),
+        require(ReEncryptionValidator.checkSerializedCoordinates(_workerPublicKey),
                 "Staker's public key is invalid");
         require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
                 "Requester's public key is invalid");
 
         UmbralDeserializer.PreComputedData memory precomp = _preComputedData.toPreComputedData();
 
-        // Verify staker's signature of CFrag
+        // Verify worker's signature of CFrag
         require(SignatureVerifier.verify(
                 _cFragBytes,
                 abi.encodePacked(_cFragSignature, precomp.lostBytes[1]),
-                _stakerPublicKey,
+                _workerPublicKey,
                 hashAlgorithm),
                 "CFrag signature is invalid"
         );
 
-        // Verify staker's signature of taskSignature and that it corresponds to cfrag.proof.metadata
+        // Verify worker's signature of taskSignature and that it corresponds to cfrag.proof.metadata
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         require(SignatureVerifier.verify(
                 _taskSignature,
                 abi.encodePacked(cFrag.proof.metadata, precomp.lostBytes[2]),
-                _stakerPublicKey,
+                _workerPublicKey,
                 hashAlgorithm),
                 "Task signature is invalid"
         );
 
         // Verify that _taskSignature is bob's signature of the task specification.
         // A task specification is: capsule + ursula pubkey + alice address + blockhash
-        bytes32 stakerXCoord;
+        bytes32 stampXCoord;
         assembly {
-            stakerXCoord := mload(add(_stakerPublicKey, 32))
+            stampXCoord := mload(add(_workerPublicKey, 32))
         }
+        bytes memory stamp = abi.encodePacked(precomp.lostBytes[4], stampXCoord);
+
         require(SignatureVerifier.verify(
                 abi.encodePacked(_capsuleBytes,
-                                 precomp.lostBytes[4],
-                                 stakerXCoord,
+                                 stamp,
+                                 _workerIdentityEvidence,
                                  precomp.alicesKeyAsAddress,
                                  bytes32(0)),
                 abi.encodePacked(_taskSignature, precomp.lostBytes[3]),
@@ -151,19 +153,19 @@ contract Adjudicator is Upgradeable {
                 "Specification signature is invalid"
         );
 
-        // Extract violator's address
-        // TODO: This will depend on the outcome of #962
-        address violator = SignatureVerifier.recover(
-            SignatureVerifier.hash(_stakerPublicKey, hashAlgorithm), _stakerPublicKeySignature);
-        address staker = escrow.getStakerFromWorker(violator);
-        require(staker != address(0), "Violator must be related to a staker");
+        // Extract worker address from stamp signature.
+        address worker = SignatureVerifier.recover(
+            SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
+            _workerIdentityEvidence);
+        address staker = escrow.getStakerFromWorker(worker);
+        require(staker != address(0), "Worker must be related to a staker");
 
         // Check that staker can be slashed
         uint256 stakerValue = escrow.getAllTokens(staker);
         require(stakerValue > 0, "Staker has no tokens");
         (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(staker, stakerValue);
         escrow.slashStaker(staker, penalty, msg.sender, reward);
-        emit IncorrectCFragVerdict(evaluationHash, violator, staker);
+        emit IncorrectCFragVerdict(evaluationHash, worker, staker);
     }
 
     /**
