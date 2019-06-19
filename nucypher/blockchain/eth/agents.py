@@ -383,11 +383,11 @@ class UserEscrowAgent(EthereumContractAgent):
 
     def __init__(self,
                  beneficiary: str,
-                 blockchain: BlockchainInterface = None,
+                 blockchain: BlockchainInterface,
                  allocation_registry: AllocationRegistry = None,
                  *args, **kwargs) -> None:
 
-        self.blockchain = blockchain or BlockchainInterface.connect()
+        self.blockchain = blockchain
 
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
         self.__beneficiary = beneficiary

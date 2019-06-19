@@ -88,19 +88,17 @@ def deploy(click_config,
     # Connect to Blockchain
     #
 
-    # Establish a contract registry from disk if specified
-    registry, registry_filepath = None, (registry_outfile or registry_infile)
-    if registry_filepath is not None:
-        registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-
     if geth:
         # Spawn geth child process
         ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
         ETH_NODE.ensure_account_exists(password=click_config.get_password(confirm=True))
-        if not ETH_NODE.initialized:
-            ETH_NODE.initialize_blockchain()
         ETH_NODE.start()  # TODO: Graceful shutdown
         provider_uri = ETH_NODE.provider_uri
+
+    # Establish a contract registry from disk if specified
+    registry, registry_filepath = None, (registry_outfile or registry_infile)
+    if registry_filepath is not None:
+        registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
     # Deployment-tuned blockchain connection
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
@@ -110,8 +108,8 @@ def deploy(click_config,
                                              fetch_registry=False,
                                              sync_now=sync)
 
+    # TODO: Integrate with Deployer Actor (Character)
     blockchain.transacting_power = BlockchainPower(client=blockchain.client)
-
 
     #
     # Deployment Actor
