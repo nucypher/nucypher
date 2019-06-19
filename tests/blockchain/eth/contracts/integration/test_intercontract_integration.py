@@ -20,8 +20,8 @@ import os
 from mock import Mock
 
 import pytest
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
@@ -30,8 +30,8 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.blockchain.eth.token import NU
+from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.utils import get_coordinates_as_bytes
 
 
 RE_STAKE_FIELD = 3
@@ -110,7 +110,7 @@ def adjudicator(testerchain, escrow, slashing_economics):
     secret_hash = testerchain.w3.keccak(adjudicator_secret)
 
     deployment_parameters = list(slashing_economics.deployment_parameters)
-    # TODO: For some reason this test used non-stadard slashing parameters (#354)
+    # TODO: For some reason this test used non-standard slashing parameters (#354)
     deployment_parameters[1] = 300
     deployment_parameters[3] = 2
 
@@ -134,36 +134,28 @@ def adjudicator(testerchain, escrow, slashing_economics):
     return contract, dispatcher
 
 
-def mock_ursula_with_stamp():
+def mock_ursula(testerchain, account):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp)
+
+    # Sign Umbral public key using eth-key
+    address = to_canonical_address(account)
+    sig_key = testerchain.provider.ethereum_tester.backend._key_lookup[address]
+    signable_message = encode_defunct(primitive=bytes(ursula_stamp))
+    signature = Account.sign_message(signable_message=signable_message,
+                                     private_key=sig_key)
+    signed_stamp = bytes(signature.signature)
+
+    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
 
 
-def sha256_hash(data):
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(data)
-    digest = hash_ctx.finalize()
-    return digest
-
-
 # TODO organize support functions
-def generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula, account):
+def generate_args_for_slashing(mock_ursula_reencrypts, ursula):
     evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)
-
-    # Sign Umbral public key using eth-key
-    staker_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
-    provider = testerchain.provider
-    address = to_canonical_address(account)
-    sig_key = provider.ethereum_tester.backend._key_lookup[address]
-    signed_staker_umbral_public_key = bytes(sig_key.sign_msg_hash(staker_umbral_public_key_hash))
-
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_staker_umbral_public_key  # FIXME  #962
-
-    data_hash = sha256_hash(bytes(evidence.task.capsule) + bytes(evidence.task.cfrag))
+    data_hash = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
     return data_hash, args
 
 
@@ -251,9 +243,9 @@ def test_all(testerchain,
     contracts_owners = sorted(contracts_owners)
 
     # We'll need this later for slashing these Ursulas
-    ursula1_with_stamp = mock_ursula_with_stamp()
-    ursula2_with_stamp = mock_ursula_with_stamp()
-    ursula3_with_stamp = mock_ursula_with_stamp()
+    ursula1_with_stamp = mock_ursula(testerchain, ursula1)
+    ursula2_with_stamp = mock_ursula(testerchain, ursula2)
+    ursula3_with_stamp = mock_ursula(testerchain, ursula3)
 
     # Give clients some ether
     tx = testerchain.client.send_transaction(
@@ -771,7 +763,7 @@ def test_all(testerchain,
     algorithm_sha256, base_penalty, *coefficients = deployment_parameters
     penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
 
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -793,7 +785,7 @@ def test_all(testerchain,
     previous_lock = escrow.functions.getLockedTokensInPast(ursula2, 1).call()
     lock = escrow.functions.getLockedTokens(ursula2).call()
     next_lock = escrow.functions.getLockedTokens(ursula2, 1).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula2_with_stamp, ursula2)
+    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula2_with_stamp)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -816,7 +808,7 @@ def test_all(testerchain,
     total_lock = escrow.functions.lockedPerPeriod(current_period).call()
     alice1_balance = token.functions.balanceOf(alice1).call()
 
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula3_with_stamp, ursula3)
+    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula3_with_stamp)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
@@ -900,12 +892,12 @@ def test_all(testerchain,
     next_lock = escrow.functions.getLockedTokens(ursula1, 1).call()
     total_lock = escrow.functions.lockedPerPeriod(current_period).call()
     alice2_balance = token.functions.balanceOf(alice2).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
     testerchain.wait_for_receipt(tx)
     assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    data_hash, slashing_args = generate_args_for_slashing(testerchain, mock_ursula_reencrypts, ursula1_with_stamp, ursula1)
+    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
     assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
     tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
     testerchain.wait_for_receipt(tx)
