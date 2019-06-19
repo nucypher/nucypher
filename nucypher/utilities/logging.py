@@ -22,10 +22,8 @@ import pathlib
 from sentry_sdk import capture_exception, add_breadcrumb
 from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
-from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
 from twisted.python.logfile import DailyLogFile
-from zope.interface import provider
 
 import nucypher
 from nucypher.config.constants import USER_LOG_DIR
@@ -65,12 +63,9 @@ def getTextFileObserver(name="nucypher.log", path=USER_LOG_DIR):
     return observer
 
 
-class ConsoleLoggingObserver:
-
-    @provider(ILogObserver)
-    def __call__(self, event):
-        if event['log_level'] >= GlobalLogger.log_level:
-            print(formatEvent(event))
+def logToConsole(event):
+    if event['log_level'] >= GlobalLogger.log_level:
+        print(formatEvent(event))
 
 
 class GlobalLogger:
@@ -80,7 +75,6 @@ class GlobalLogger:
     log_to_file = False
     log_to_console = False
 
-    console_observer = None
     text_file_observer = None
     json_file_observer = None
 
@@ -125,12 +119,10 @@ class GlobalLogger:
     @classmethod
     def set_console_logging(cls, state: bool):
         if state and not cls.log_to_console:
-            cls.console_observer = ConsoleLoggingObserver()
-            globalLogPublisher.addObserver(cls.console_observer)
+            globalLogPublisher.addObserver(logToConsole)
             cls.log_to_console = True
         elif not state and cls.log_to_console:
-            globalLogPublisher.removeObserver(cls.console_observer)
-            cls.console_observer = None
+            globalLogPublisher.removeObserver(logToConsole)
             cls.log_to_console = False
 
 
