@@ -29,7 +29,7 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
 
     # Banner
     click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
+    if not click_config.json_ipc and click_config.log_to_console:
         click.secho(ENRICO_BANNER)
 
     #
@@ -39,7 +39,7 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
     policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
     if click_config.json_ipc:
-        ENRICO.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
+        ENRICO.controller.emitter = IPCStdoutEmitter(quiet=not click_config.log_to_console)
 
     #
     # Actions

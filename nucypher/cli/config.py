@@ -67,16 +67,6 @@ class NucypherClickConfig:
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
-    # Sentry Logging
-    if log_to_sentry is True:
-        initialize_sentry(dsn=__sentry_endpoint)
-        globalLogPublisher.addObserver(logToSentry)
-
-    # File Logging
-    if log_to_file is True:
-        globalLogPublisher.addObserver(getTextFileObserver())
-        globalLogPublisher.addObserver(getJsonFileObserver())
-
     def __init__(self):
 
         # Logging
@@ -93,8 +83,9 @@ class NucypherClickConfig:
                     mock_networking,
                     json_ipc,
                     verbose,
-                    no_logs,
                     quiet,
+                    no_logs,
+                    no_sentry,
                     debug,
                     no_registry):
 
@@ -112,28 +103,31 @@ class NucypherClickConfig:
                 option_name="quiet",
                 message="--debug and --quiet cannot be used at the same time.")
 
+        if no_sentry is not None:
+            self.log_to_sentry = not no_sentry
+
+        if no_logs is not None:
+            self.log_to_file = not no_logs
+
+        #self.log_to_console = not quiet
+        self.verbose = verbose
+
         if debug:
             self.log_to_sentry = False
-            self.log_to_file = True                 # File Logging
-            globalLogPublisher.addObserver(ConsoleLoggingObserver())  # Console Logging
-            globalLogPublisher.removeObserver(logToSentry)  # No Sentry
-            GlobalLogger.set_log_level(log_level_name='debug')
+            self.log_to_file = True
+            self.log_to_console = True
+            self.verbose = 2
+        else:
+            self.log_to_console = False
 
-        elif quiet:  # Disable Logging
-            globalLogPublisher.removeObserver(logToSentry)
-            globalLogPublisher.removeObserver(ConsoleLoggingObserver)
-            globalLogPublisher.removeObserver(getJsonFileObserver())
-
-        # Logging
-        if not no_logs:
-            GlobalLogger.start()
+        GlobalLogger.set_log_level_from_verbosity(self.verbose)
+        GlobalLogger.set_sentry_logging(self.log_to_sentry)
+        GlobalLogger.set_file_logging(self.log_to_file)
+        GlobalLogger.set_console_logging(self.log_to_console)
 
         # CLI Session Configuration
-        self.verbose = verbose
         self.mock_networking = mock_networking
         self.json_ipc = json_ipc
-        self.no_logs = no_logs
-        self.quiet = quiet
         self.no_registry = no_registry
         self.debug = debug
 
@@ -183,7 +177,7 @@ class NucypherClickConfig:
                        character_configuration: NodeConfiguration,
                        unlock_wallet: bool = True):
 
-        if not self.quiet:
+        if self.log_to_console:
             self.emit(message='Decrypting NuCypher keyring...', color='yellow')
 
         if character_configuration.dev_mode:
@@ -262,7 +256,8 @@ def shared_cli_options(func):
     @click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True)
     @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
     @click.option('-Q', '--quiet', help="Disable console printing", is_flag=True)
-    @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
+    @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True, default=None)
+    @click.option('-S', '--no-sentry', help="Disable sending logs to Sentry", is_flag=True, default=None)
     @click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
     @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
     @functools.wraps(func)
@@ -271,8 +266,9 @@ def shared_cli_options(func):
                 mock_networking,
                 json_ipc,
                 verbose,
-                no_logs,
                 quiet,
+                no_logs,
+                no_sentry,
                 debug,
                 no_registry,
                 **kwargs):
@@ -281,8 +277,9 @@ def shared_cli_options(func):
             mock_networking,
             json_ipc,
             verbose,
-            no_logs,
             quiet,
+            no_logs,
+            no_sentry,
             debug,
             no_registry)
 

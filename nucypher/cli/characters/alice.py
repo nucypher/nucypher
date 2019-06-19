@@ -89,7 +89,7 @@ def alice(click_config,
 
     # Banner
     click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
+    if not click_config.json_ipc and click_config.log_to_console:
         click.secho(ALICE_BANNER)
 
     #

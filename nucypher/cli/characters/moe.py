@@ -25,7 +25,7 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
 
     # Banner
     click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
+    if not click_config.json_ipc and click_config.log_to_console:
         click.secho(MOE_BANNER)
 
     # Teacher Ursula

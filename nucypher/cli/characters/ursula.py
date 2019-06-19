@@ -132,18 +132,15 @@ def ursula(click_config,
     if federated_only and geth:
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
-    if click_config.debug and click_config.quiet:
-        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
-
     # Banner
-    if not click_config.json_ipc and not click_config.quiet:
+    if not click_config.json_ipc and click_config.log_to_console:
         click.secho(URSULA_BANNER.format(checksum_address or ''))
 
     #
     # Pre-Launch Warnings
     #
 
-    if not click_config.quiet:
+    if click_config.log_to_console:
         if dev:
             click.secho("WARNING: Running in Development mode", fg='yellow')
         if force:
@@ -393,7 +390,7 @@ def ursula(click_config,
                                                             target_value=value,
                                                             additional_periods=extension)
 
-            if not click_config.quiet:
+            if click_config.log_to_console:
                 click.secho('Successfully divided stake', fg='green')
                 click.secho(f'Transaction Hash ........... {new_stake.receipt}')
 
@@ -411,7 +408,7 @@ def ursula(click_config,
         if balance == 0:
             click.secho(f"{URSULA.checksum_address} has 0 NU.")
             raise click.Abort
-        if not click_config.quiet:
+        if click_config.log_to_console:
             click.echo(f"Current balance: {balance}")
 
         # Gather stake value
@@ -422,7 +419,7 @@ def ursula(click_config,
             value = NU(int(value), 'NU')
 
         # Duration
-        if not click_config.quiet:
+        if click_config.log_to_console:
             message = f"Minimum duration: {URSULA.economics.minimum_allowed_locked} | " \
                       f"Maximum Duration: {URSULA.economics.maximum_allowed_locked}"
             click.echo(message)

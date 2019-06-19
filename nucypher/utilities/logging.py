@@ -76,18 +76,62 @@ class ConsoleLoggingObserver:
 class GlobalLogger:
 
     log_level = LogLevel.levelWithName("info")
-    started = False
+    log_to_sentry = False
+    log_to_file = False
+    log_to_console = False
+
+    console_observer = None
+    text_file_observer = None
+    json_file_observer = None
 
     @classmethod
     def set_log_level(cls, log_level_name):
         cls.log_level = LogLevel.levelWithName(log_level_name)
 
     @classmethod
-    def start(cls):
-        if cls.started:
-            return
-        globalLogPublisher.addObserver(getTextFileObserver())
-        cls.started = True
+    def set_log_level_from_verbosity(cls, verbose):
+        if verbose >= 2:
+            cls.set_log_level("debug")
+        elif verbose == 1:
+            cls.set_log_level("info")
+        else:
+            cls.set_log_level("warn")
+
+    @classmethod
+    def set_sentry_logging(cls, state: bool):
+        if state and not cls.log_to_sentry:
+            initialize_sentry(dsn=__sentry_endpoint)
+            globalLogPublisher.addObserver(logToSentry)
+            cls.log_to_sentry = True
+        elif not state and cls.log_to_sentry:
+            globalLogPublisher.removeObserver(logToSentry)
+            cls.log_to_sentry = False
+
+    @classmethod
+    def set_file_logging(cls, state: bool):
+        if state and not cls.log_to_file:
+            cls.text_file_observer = getTextFileObserver()
+            cls.json_file_observer = getJsonFileObserver()
+            globalLogPublisher.addObserver(cls.text_file_observer)
+            globalLogPublisher.addObserver(cls.json_file_observer)
+            cls.log_to_file = True
+        elif not state and cls.log_to_file:
+            globalLogPublisher.removeObserver(cls.text_file_observer)
+            globalLogPublisher.removeObserver(cls.json_file_observer)
+            cls.text_file_observer = None
+            cls.json_file_observer = None
+            cls.log_to_file = False
+
+    @classmethod
+    def set_console_logging(cls, state: bool):
+        if state and not cls.log_to_console:
+            cls.console_observer = ConsoleLoggingObserver()
+            globalLogPublisher.addObserver(cls.console_observer)
+            cls.log_to_console = True
+        elif not state and cls.log_to_console:
+            globalLogPublisher.removeObserver(cls.console_observer)
+            cls.console_observer = None
+            cls.log_to_console = False
 
 
 def logToSentry(event):

@@ -275,7 +275,7 @@ def make_cli_character(character_config,
 
     # Switch to character control emitter
     if click_config.json_ipc:
-        CHARACTER.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
+        CHARACTER.controller.emitter = IPCStdoutEmitter(quiet=not click_config.log_to_console)
 
     # Federated
     if character_config.federated_only:

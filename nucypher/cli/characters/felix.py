@@ -56,7 +56,7 @@ def felix(click_config,
 
     # Intro
     click.clear()
-    if not click_config.quiet:
+    if click_config.log_to_console:
         click.secho(FELIX_BANNER.format(checksum_address or ''))
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
