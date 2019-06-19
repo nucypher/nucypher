@@ -30,9 +30,7 @@ class TrustedDevice(ABC):
     TODO: Define an abstractmethod for BIP44 derivation?
     """
 
-    # We intentionally keep the address index off the path so that the
-    # subclass interfaces can handle which address index to use.
-    DEFAULT_BIP44_PATH = "m/44'/60'/0'/0"
+    ETH_BIP44_PATH = "m/44'/60'/0'/0/{address_index}"
 
     Signature = namedtuple('Signature', ['signature', 'address'])
 
@@ -82,7 +80,15 @@ class TrustedDevice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sign_eth_transaction(self):
+    def get_address(self, address_index: int = 0, hd_path: str = None):
+        """
+        Abstract method for retrieving an address off a device specified at
+        either the address_index or the hd_path.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def sign_eth_transaction(self, chain_id: int, **transaction):
         """
         Abstract method for signing an Ethereum transaction via a device's
         API.

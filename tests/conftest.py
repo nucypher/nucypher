@@ -19,6 +19,7 @@ import sys
 from trezorlib import client as trezor_client
 from trezorlib import device as trezor_device
 from trezorlib import ethereum as trezor_eth
+from trezorlib import tools as trezor_tools
 from trezorlib.messages import EthereumMessageSignature
 from twisted.logger import globalLogPublisher
 
@@ -165,6 +166,16 @@ def mock_trezorlib(mocker,
             return False
         return True
 
+    def mocked_get_address(client, address_index=None, hd_path=None):
+        if address_index is not None and hd_path is None:
+            return fake_trezor_address
+        elif address_index is None and hd_path is not None:
+            _ = trezor_tools.parse_path(hd_path)
+            return fake_trezor_address
+        else:
+            raise ValueError("Provide either, but not both..")
+        return fake_trezor_address
+
     # trezorlib.device mock functions
     def mocked_wipe(client):
         return 'Device wiped'
@@ -172,6 +183,7 @@ def mock_trezorlib(mocker,
     ethereum_mock_load = {
             'sign_message': mocked_sign_message,
             'verify_message': mocked_verify_message,
+            'get_address': mocked_get_address,
     }
 
     device_mock_load = {

@@ -40,9 +40,12 @@ class Trezor(TrustedDevice):
     """
 
     def __init__(self):
+        """
+        TODO: Use a device config to determine some init settings like how many
+              addresses to cache.
+        """
         try:
             self.client = trezor_client.get_default_client()
-            self.__bip44_path = trezor_tools.parse_path(self.DEFAULT_BIP44_PATH)
         except TransportException:
             raise RuntimeError("Could not find a TREZOR device to connect to. Have you unlocked it?")
 
@@ -110,5 +113,32 @@ class Trezor(TrustedDevice):
         return True
 
     @_handle_device_call
-    def sign_eth_transaction(self):
-        raise NotImplementedError
+    def get_address(self, address_index: int = None, hd_path: str = None):
+        """
+        Derives an address available on the Trezor via the ethereum
+        get_address API and returns it.
+        """
+        if address_index is not None and hd_path is None:
+            hd_path = self.ETH_BIP44_PATH.format(address_index=address_index)
+            hd_path = trezor_tools.parse_path(hd_path)
+        elif address_index is None and hd_path is not None:
+            hd_path = trezor_tools.parse_path(hd_path)
+        else:
+            raise ValueError("You must provider either an address_index or an hd_path.")
+
+        address = trezor_eth.get_address(self.client, hd_path)
+        return address
+
+    @_handle_device_call
+    def sign_eth_transaction(self, chain_id: int, **transaction) -> Tuple[bytes]:
+        """
+        Signs an Ethereum transaction via the Trezor ethereum sign_tx API
+        and returns the signed transaction.
+
+        TODO: Is there any input validation required for the transaction
+              data that is passed in?
+        """
+        signed_tx = trezor_eth.sign_tx(client=self.client,
+                                       chain_id=chain_id,
+                                       **transaction)
+        return signed_tx

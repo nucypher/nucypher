@@ -8,11 +8,7 @@ from nucypher.device.trezor import Trezor
 
 
 def test_trezor_defaults(mock_trezorlib):
-    trezor_backend = Trezor()
-
-    assert trezor_backend.DEFAULT_BIP44_PATH == "m/44'/60'/0'/0"
-    assert trezor_backend._Trezor__bip44_path == [2147483692, 2147483708,
-                                                  2147483648, 0]
+    Trezor()
 
     def fail_get_default_client():
         raise TransportException("No device found...")
@@ -72,6 +68,19 @@ def test_trezor_sign_and_verify(mock_trezorlib, fake_trezor_signature,
     with pytest.raises(InvalidSignature):
         trezor_backend.verify_message(test_sig.signature, b'bad message',
                                       test_sig.address)
+
+
+def test_trezor_get_address(mock_trezorlib, fake_trezor_address):
+    trezor_backend = Trezor()
+
+    test_addr = trezor_backend.get_address(address_index=0)
+    assert test_addr == fake_trezor_address
+
+    test_addr = trezor_backend.get_address(hd_path="m/44'/60'/0'/0/0")
+    assert test_addr == fake_trezor_address
+
+    with pytest.raises(ValueError):
+        trezor_backend.get_address(address_index=0, hd_path="m/44'/60'/0'/0/0")
 
 
 def test_trezor_sign_eth_transaction(mock_trezorlib):
