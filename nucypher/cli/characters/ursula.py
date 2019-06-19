@@ -62,6 +62,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
+@click.option('--interactive', '-I', help="Launch command interface after connecting to seednodes.", is_flag=True, default=False)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
@@ -107,7 +108,8 @@ def ursula(click_config,
            index,
            list_,
            divide,
-           sync
+           sync,
+           interactive,
 
            ) -> None:
     """
@@ -293,7 +295,7 @@ def ursula(click_config,
                     color='blue',
                     bold=True)
 
-            if not click_config.debug:
+            if interactive:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
 
             if dry_run:
