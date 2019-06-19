@@ -219,7 +219,7 @@ library UmbralDeserializer {
         //     1: cfrag signature recovery value v
         //     2: metadata signature recovery value v
         //     3: specification signature recovery value v
-        //     5: ursula pubkey sign byte
+        //     4: ursula pubkey sign byte
         data.lostBytes = bytes5(getBytes32(pointer));
         pointer += 5;
 
