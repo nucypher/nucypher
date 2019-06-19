@@ -14,12 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from eth_tester.exceptions import TransactionFailed
-from eth_utils import is_checksum_address
 from typing import Tuple, Dict
-from web3.contract import Contract
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
+from eth_utils import is_checksum_address
+from web3.contract import Contract
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
 from nucypher.blockchain.eth.agents import (
@@ -29,10 +28,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     UserEscrowAgent,
     AdjudicatorAgent)
-
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
-from .interfaces import BlockchainInterface
 
 
 class ContractDeployer:
@@ -49,7 +46,7 @@ class ContractDeployer:
     class ContractNotDeployed(ContractDeploymentError):
         pass
 
-    def __init__(self, deployer_address: str, blockchain: BlockchainInterface) -> None:
+    def __init__(self, deployer_address: str, blockchain: BlockchainDeployerInterface) -> None:
 
         self.blockchain = blockchain
         self.deployment_transactions = CONTRACT_NOT_DEPLOYED
@@ -288,7 +285,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # Wrap the escrow contract
         wrapped_escrow_contract = self.blockchain._wrap_contract(dispatcher_contract,
-                                                                           target_contract=the_escrow_contract)
+                                                                 target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
@@ -326,7 +323,6 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # Raise if not all-systems-go
         self.check_deployment_readiness()
-        origin_args = {'from': self.deployer_address, 'gas': 5000000}  # TODO: Gas management
 
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self.__proxy_deployer.contract_name,
@@ -347,13 +343,12 @@ class StakingEscrowDeployer(ContractDeployer):
         self._contract = wrapped_escrow_contract
 
         # 4 - Set the new Dispatcher target
-        upgrade_tx_hash = dispatcher_deployer.retarget(new_target=the_escrow_contract.address,
+        upgrade_receipt = dispatcher_deployer.retarget(new_target=the_escrow_contract.address,
                                                        existing_secret_plaintext=existing_secret_plaintext,
                                                        new_secret_hash=new_secret_hash)
-        _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Respond
-        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_tx_hash}
+        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
@@ -365,11 +360,11 @@ class StakingEscrowDeployer(ContractDeployer):
                                                  deployer_address=self.deployer_address,
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
-        rollback_txhash = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                       new_secret_hash=new_secret_hash)
+        rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
+                                                        new_secret_hash=new_secret_hash)
 
-        _rollback_receipt = self.blockchain.wait_for_receipt(txhash=rollback_txhash)
-        return rollback_txhash
+        txhash = rollback_receipt['transactionHash']
+        return txhash
 
     def make_agent(self) -> EthereumContractAgent:
         self.__check_policy_manager()  # Ensure the PolicyManager contract has already been initialized
@@ -454,38 +449,34 @@ class PolicyManagerDeployer(ContractDeployer):
         policy_manager_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
                                                                                  self.staking_agent.contract_address)
 
-        upgrade_tx_hash = proxy_deployer.retarget(new_target=policy_manager_contract.address,
+        upgrade_receipt = proxy_deployer.retarget(new_target=policy_manager_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
                                                   new_secret_hash=new_secret_hash)
-        _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Wrap the escrow contract
         wrapped_policy_manager_contract = self.blockchain._wrap_contract(proxy_deployer.contract,
-                                                                                   target_contract=policy_manager_contract)
+                                                                         target_contract=policy_manager_contract)
 
         # Switch the contract for the wrapped one
         policy_manager_contract = wrapped_policy_manager_contract
-
         self._contract = policy_manager_contract
 
-        upgrade_transaction = {'deploy': deploy_txhash,
-                               'retarget': upgrade_tx_hash}
-
+        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
-                                                                                proxy_name=self.__proxy_deployer.contract_name,
-                                                                                use_proxy_address=False)
+                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
                                                  target_contract=existing_bare_contract,
                                                  deployer_address=self.deployer_address,
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
-        rollback_txhash = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                       new_secret_hash=new_secret_hash)
+        rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
+                                                        new_secret_hash=new_secret_hash)
 
-        _rollback_receipt = self.blockchain.wait_for_receipt(txhash=rollback_txhash)
+        rollback_txhash = rollback_receipt['transactionHash']
         return rollback_txhash
 
 
@@ -498,7 +489,7 @@ class LibraryLinkerDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
         if bare:
             self._contract = self.blockchain.get_proxy(target_address=self.target_contract.address,
-                                                                 proxy_name=self.contract_name)
+                                                       proxy_name=self.contract_name)
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
         linker_args = (self.contract_name, self.target_contract.address, secret_hash)
@@ -552,7 +543,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                deployer_address=self.deployer_address,
                                                target_contract=user_escrow_proxy_contract)
 
-        proxy_deployment_txhashes = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        _proxy_deployment_txhashes = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
 
         deployment_transactions['proxy_deployment'] = proxy_deployment_txhash
         return deployment_transactions
@@ -603,10 +594,10 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                  deployer_address=self.deployer_address,
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
-        rollback_txhash = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                       new_secret_hash=new_secret_hash)
+        _rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
+                                                         new_secret_hash=new_secret_hash)
 
-        _rollback_receipt = self.blockchain.wait_for_receipt(txhash=rollback_txhash)
+        rollback_txhash = _rollback_receipt['transactionHash']
         return rollback_txhash
 
 
@@ -642,6 +633,7 @@ class UserEscrowDeployer(ContractDeployer):
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
         if not is_checksum_address(beneficiary_address):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
+        # TODO: #413, #842 - Gas Management
         payload = {'from': self.deployer_address, 'gas': 500_000, 'gasPrice': self.blockchain.client.gasPrice}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
         transfer_owner_receipt = self.blockchain.send_transaction(transaction_function=transfer_owner_function,
@@ -660,7 +652,7 @@ class UserEscrowDeployer(ContractDeployer):
         allocation_receipts['approve'] = approve_receipt
 
         # Deposit
-        # TODO: Gas management
+        # TODO: #413, #842 - Gas Management
         args = {'from': self.deployer_address,
                 'gasPrice': self.blockchain.client.gasPrice,
                 'gas': 200_000}
@@ -777,10 +769,9 @@ class AdjudicatorDeployer(ContractDeployer):
                                                                               self.staking_agent.contract_address,
                                                                               *self.__economics.deployment_parameters)
 
-        upgrade_tx_hash = proxy_deployer.retarget(new_target=adjudicator_contract.address,
+        upgrade_receipt = proxy_deployer.retarget(new_target=adjudicator_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
                                                   new_secret_hash=new_secret_hash)
-        _upgrade_receipt = self.blockchain.wait_for_receipt(upgrade_tx_hash)
 
         # Wrap the escrow contract
         wrapped_adjudicator_contract = self.blockchain._wrap_contract(proxy_deployer.contract, target_contract=adjudicator_contract)
@@ -790,7 +781,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
         self._contract = policy_manager_contract
 
-        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_tx_hash}
+        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
