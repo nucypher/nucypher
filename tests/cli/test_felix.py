@@ -9,7 +9,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
-from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
 from nucypher.utilities.sandbox.constants import (
