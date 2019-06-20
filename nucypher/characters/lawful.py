@@ -124,9 +124,10 @@ class Alice(Character, PolicyAuthor):
                                   policy_agent=policy_agent,
                                   checksum_address=checksum_address)
 
-            blockchain_power = BlockchainPower(client=self.blockchain.client)
+            # TODO: #1092 - TransactingPower
+            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
             self._crypto_power.consume_power_up(blockchain_power)
-            self.blockchain.transacting_power = blockchain_power  # TODO: #1092
+            self.blockchain.transacting_power = blockchain_power  # TODO: Embed in Powerups
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -821,7 +822,6 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  stake_tracker: StakeTracker = None,
-                 staking_agent: StakingEscrowAgent = None,
 
                  # Character
                  password: str = None,
@@ -859,7 +859,9 @@ class Ursula(Teacher, Character, Worker):
         #
         # Self-Ursula
         #
-        if is_me is True:  # TODO: 340
+        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+
+        if is_me is True:  # TODO: #340
             self._stored_treasure_maps = dict()
 
             #
@@ -874,13 +876,11 @@ class Ursula(Teacher, Character, Worker):
                                 stake_tracker=stake_tracker)
 
                 # Access to worker's ETH client via node's transacting keys
-                # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
-                blockchain_power = BlockchainPower(client=self.blockchain.client)
+                # TODO: #1092 - TransactingPower
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=worker_address)
                 self._crypto_power.consume_power_up(blockchain_power)
-                # TODO: #1092
-
-                # Use blockchain power to substantiate stamp
-                self.substantiate_stamp(client_password=password, checksum_address=worker_address)  # TODO: Derive from keyring
+                self.blockchain.transacting_power = blockchain_power  # TODO: Embed in powerups
+                self.substantiate_stamp(client_password=password)  # TODO: Use PowerUp / Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?

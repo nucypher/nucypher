@@ -92,39 +92,44 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, client=None, device=None) -> None:
+    def __init__(self, blockchain: 'Blockchain', account: str, device = None) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
+        self.blockchain = blockchain
+        self.account = account
         self.device = device
-        self.client = client
         self.is_unlocked = False
 
-    def unlock_account(self, account, password: str):
+    def unlock_account(self, password: str):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.client.unlock_account(account, password)
+        self.is_unlocked = self.blockchain.client.unlock_account(self.account, password)
         if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(account))
+            raise PowerUpError("Failed to unlock account {}".format(self.account))
 
-    def sign_message(self, message: bytes, account: str) -> bytes:
+    def sign_message(self, message: bytes) -> bytes:
         """
         Signs the message with the private key of the BlockchainPower.
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-        signature = self.client.sign_message(account, message)
+        signature = self.blockchain.client.sign_message(account=self.account, message=message)
         return signature
 
-    def sign_transaction(self, unsigned_transaction: dict, sender_address: str):
+    def sign_transaction(self, unsigned_transaction: dict):
         if self.device:
-            assert False
-        elif self.client:
-            signed_raw_transaction = self.client.sign_transaction(transaction=unsigned_transaction,
-                                                                  account=sender_address)
-            return signed_raw_transaction
+            # TODO: Implement TrustedDevice
+            raise NotImplementedError
+
+        sender_address = unsigned_transaction['from']
+        if sender_address != self.account:
+            raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")
+
+        signed_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction, account=self.account)
+        return signed_transaction
 
 
 class KeyPairBasedPower(CryptoPowerUp):
