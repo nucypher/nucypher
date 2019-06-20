@@ -46,11 +46,11 @@ def test_proxy(testerchain, policy_manager, user_escrow):
         testerchain.wait_for_receipt(tx)
 
     # And can't send ETH to the user escrow without payable fallback function
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': user, 'value': 1})
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.sendTransaction(
+        tx = testerchain.client.send_transaction(
             {'from': user, 'to': user_escrow.address, 'value': 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
@@ -59,7 +59,7 @@ def test_proxy(testerchain, policy_manager, user_escrow):
 def test_upgrading(testerchain, token):
     creator = testerchain.client.accounts[0]
     user = testerchain.client.accounts[1]
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': user, 'value': 1})
     testerchain.wait_for_receipt(tx)
 
@@ -101,7 +101,7 @@ def test_upgrading(testerchain, token):
 
     # Can't send ETH to this version of the library
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.sendTransaction(
+        tx = testerchain.client.send_transaction(
             {'from': user, 'to': user_escrow_contract.address, 'value': 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
@@ -140,13 +140,13 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
 
     # And can send and withdraw ETH
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': user, 'to': user_escrow_contract.address, 'value': 1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 1 == testerchain.client.get_balance(user_escrow_contract.address)
     # Only user can send ETH
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.sendTransaction(
+        tx = testerchain.client.send_transaction(
             {'from': testerchain.client.coinbase,
              'to': user_escrow_contract.address,
              'value': 1,

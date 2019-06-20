@@ -275,7 +275,7 @@ class BlockchainPolicy(Policy):
         payload = {'from': self.author.checksum_address,
                    'value': self.value,
                    'gas': 500_000,  # TODO: Gas management
-                   'gasPrice': self.author.blockchain.client.gasPrice}
+                   'gasPrice': self.author.blockchain.client.gas_price}
 
         prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
         policy_args = (self.hrac()[:16],     # bytes16 _policyID

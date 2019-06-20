@@ -338,7 +338,7 @@ class Deployer(NucypherTokenActor):
             for contract_name, transactions in transactions.items():
                 contract_records = dict()
                 for tx_name, txhash in transactions.items():
-                    receipt = self.blockchain.client.w3.eth.waitForTransactionReceipt(txhash)
+                    receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=self.blockchain.TIMEOUT)
                     receipt = {item: str(result) for item, result in receipt.items()}
                     contract_records.update({tx_name: receipt for tx_name in transactions})
                 data[contract_name] = contract_records
@@ -363,7 +363,7 @@ class Staker(NucypherTokenActor):
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
         self.stake_tracker = StakeTracker(checksum_addresses=[self.checksum_address])
-        self.staking_agent = StakingEscrowAgent()
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.economics = economics or TokenEconomics()
         self.is_me = is_me
 

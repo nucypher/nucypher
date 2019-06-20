@@ -39,7 +39,7 @@ def policy_manager(testerchain, escrow, request):
     contract, _ = testerchain.deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': client, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 

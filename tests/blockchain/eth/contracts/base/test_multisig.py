@@ -64,7 +64,7 @@ def test_execute(testerchain):
     assert not multisig.functions.isOwner(others[1]).call()
 
     # Transfer ETH to the multisig contract
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': multisig.address, 'value': 200})
     testerchain.wait_for_receipt(tx)
     assert 200 == w3.eth.getBalance(multisig.address)
