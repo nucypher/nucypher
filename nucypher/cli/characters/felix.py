@@ -130,22 +130,12 @@ def felix(click_config,
         click_config.unlock_keyring(character_configuration=felix_config,
                                     password=password)
 
-
-
         # Produce Teacher Ursulas
         teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                                min_stake=min_stake,
                                                federated_only=felix_config.federated_only,
                                                network_domains=felix_config.domains,
                                                network_middleware=click_config.middleware)
-
-        # Add ETH Bootnode or Peer
-        if enode:
-            if geth:
-                felix_config.blockchain.w3.geth.admin.addPeer(enode)
-                click.secho(f"Added ethereum peer {enode}")
-            else:
-                raise NotImplemented  # TODO: other backends
 
         # Produce Felix
         FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)

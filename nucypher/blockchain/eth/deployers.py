@@ -202,7 +202,7 @@ class DispatcherDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gasPrice}  # TODO: Gas management
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         upgrade_receipt = self.blockchain.send_transaction(transaction_function=upgrade_function,
                                                            sender_address=self.deployer_address,
@@ -210,7 +210,7 @@ class DispatcherDeployer(ContractDeployer):
         return upgrade_receipt
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> dict:
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gasPrice}  # TODO: Gas management
+        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
         rollback_function = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash)
         rollback_receipt = self.blockchain.send_transaction(transaction_function=rollback_function,
                                                             sender_address=self.deployer_address,
@@ -262,7 +262,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # Build deployment arguments
         origin_args = {'from': self.deployer_address,
-                       'gasPrice': self.blockchain.client.gasPrice}
+                       'gasPrice': self.blockchain.client.gas_price}
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
@@ -634,7 +634,7 @@ class UserEscrowDeployer(ContractDeployer):
         if not is_checksum_address(beneficiary_address):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
         # TODO: #413, #842 - Gas Management
-        payload = {'from': self.deployer_address, 'gas': 500_000, 'gasPrice': self.blockchain.client.gasPrice}
+        payload = {'from': self.deployer_address, 'gas': 500_000, 'gasPrice': self.blockchain.client.gas_price}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
         transfer_owner_receipt = self.blockchain.send_transaction(transaction_function=transfer_owner_function,
                                                                   payload=payload,
@@ -654,7 +654,7 @@ class UserEscrowDeployer(ContractDeployer):
         # Deposit
         # TODO: #413, #842 - Gas Management
         args = {'from': self.deployer_address,
-                'gasPrice': self.blockchain.client.gasPrice,
+                'gasPrice': self.blockchain.client.gas_price,
                 'gas': 200_000}
         deposit_function = self.contract.functions.initialDeposit(value, duration)
         deposit_receipt = self.blockchain.send_transaction(transaction_function=deposit_function,

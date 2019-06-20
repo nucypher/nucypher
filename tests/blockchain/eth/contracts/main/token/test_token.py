@@ -49,7 +49,7 @@ def test_create_token(testerchain, token_economics):
 
     # Cannot send ETH to the contract because there is no payable function
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.client.sendTransaction({'from': testerchain.client.coinbase,
+        tx = testerchain.client.send_transaction({'from': testerchain.client.coinbase,
                                                            'to': token.address,
                                                            'value': 100,
                                                            'gasPrice': 0})

@@ -82,5 +82,5 @@ def test_testerchain_creation(testerchain, another_testerchain):
             assert balance
 
             tx = {'to': etherbase, 'from': account, 'value': 100}
-            txhash = chain.client.sendTransaction(tx)
+            txhash = chain.client.send_transaction(tx)
             _receipt = chain.wait_for_receipt(txhash)

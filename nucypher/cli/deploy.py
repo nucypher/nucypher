@@ -213,8 +213,8 @@ def deploy(click_config,
         w3 = deployer.blockchain.w3
         click.secho(f"Current Time ........ {maya.now().iso8601()}")
         click.secho(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
-        click.secho(f"Block ............... {w3.eth.blockNumber}")
-        click.secho(f"Gas Price ........... {w3.eth.gasPrice}")
+        click.secho(f"Block ............... {deployer.blockchain.client.block_number}")
+        click.secho(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
 
         click.secho(f"Deployer Address .... {deployer.checksum_address}")
         click.secho(f"ETH ................. {deployer.eth_balance}")
@@ -263,7 +263,7 @@ def deploy(click_config,
             for tx_name, txhash in transactions.items():
 
                 # Wait for inclusion in the blockchain
-                receipt = deployer.blockchain.client.w3.eth.waitForTransactionReceipt(txhash)
+                receipt = deployer.blockchain.w3.eth.waitForTransactionReceipt(txhash)
                 click.secho("OK", fg='green', nl=False, bold=True)
 
                 # Accumulate gas

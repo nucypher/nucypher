@@ -256,10 +256,10 @@ def test_all(testerchain,
     ursula3_with_stamp = mock_ursula_with_stamp()
 
     # Give clients some ether
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': alice1, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': alice2, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
 
