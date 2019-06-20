@@ -91,6 +91,7 @@ class Alice(Character, PolicyAuthor):
                  controller=True,
                  policy_agent=None,
                  device = NO_STAKING_DEVICE,
+                 client_password: str = None,
                  *args, **kwargs) -> None:
 
         #
@@ -120,13 +121,15 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
+            transacting_power = TransactingPower(account=self.checksum_address,
+                                                 device=device,
+                                                 blockchain=self.blockchain)
+            self._crypto_power.consume_power_up(transacting_power, password=client_password)
+
             PolicyAuthor.__init__(self,
                                   blockchain=self.blockchain,
                                   policy_agent=policy_agent,
                                   checksum_address=checksum_address)
-
-            transacting_power = TransactingPower(blockchain=self.blockchain, account=self.checksum_address)
-            self._crypto_power.consume_power_up(transacting_power)
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -843,6 +846,7 @@ class Ursula(Teacher, Character, Worker):
                  stake_tracker: StakeTracker = None,
                  staking_agent: StakingEscrowAgent = None,
                  device = NO_STAKING_DEVICE,
+                 client_password: str = None,
 
                  # Character
                  password: str = None,
@@ -889,17 +893,23 @@ class Ursula(Teacher, Character, Worker):
             # Ursula is a Decentralized Worker
             #
             if not federated_only:
+
+                # Access staking node via node's transacting keys
+                transacting_power = TransactingPower(account=self.checksum_address,
+                                                     device=device,
+                                                     password=client_password,  # FIXME: password from somewhere
+                                                     blockchain=self.blockchain)
+                self._crypto_power.consume_power_up(transacting_power)
+
+                # Use blockchain power to substantiate stamp
+                self.substantiate_stamp(client_password=password)
+
                 Worker.__init__(self,
                                 is_me=is_me,
                                 blockchain=self.blockchain,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 stake_tracker=stake_tracker)
-
-                # Access to worker's ETH client via node's transacting keys
-                transacting_power = TransactingPower(blockchain=self.blockchain, account=worker_address)
-                self._crypto_power.consume_power_up(transacting_power)
-                self.substantiate_stamp(client_password=password)  # TODO: Use PowerUp / Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower #

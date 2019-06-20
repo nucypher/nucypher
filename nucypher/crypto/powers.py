@@ -62,9 +62,10 @@ class CryptoPower(object):
         else:
             return True
 
-    def consume_power_up(self, power_up):
+    def consume_power_up(self, power_up, *args, **kwargs):
         if isinstance(power_up, CryptoPowerUp):
             power_up_class = power_up.__class__
+            power_up.activate(*args, **kwargs)
             power_up_instance = power_up
         elif CryptoPowerUp in inspect.getmro(power_up):
             power_up_class = power_up
@@ -85,11 +86,14 @@ class CryptoPower(object):
             raise power_up_class.not_found_error
 
 
-class CryptoPowerUp(object):
+class CryptoPowerUp:
     """
     Gives you MORE CryptoPower!
     """
     confers_public_key = False
+
+    def activate(self, *args, **kwargs):
+        return
 
 
 class TransactingPower(CryptoPowerUp):
@@ -97,26 +101,51 @@ class TransactingPower(CryptoPowerUp):
     Allows for transacting on a Blockchain via web3 backend.
     """
     not_found_error = NoTransactingPower
-    __accounts = {}
 
-    def __init__(self, blockchain: 'Blockchain', account: str, device = NO_STAKING_DEVICE):
+    def __init__(self,
+                 blockchain,
+                 account: str,
+                 password: str = None,
+                 device=NO_STAKING_DEVICE):
         """
-        # TODO: TrustedDevice Integration
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = blockchain
-        self.client = self.blockchain.client
-        self.account = account
-        self.device = device
-        self.is_unlocked = False
+        if password and (device is not NO_STAKING_DEVICE):
+            raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
 
-    def unlock_account(self, password: str):
+        self.blockchain = blockchain
+
+        self.account = account
+        self.client = self.blockchain.client
+        self.device = device
+
+        self.__password = password
+        self.__unlocked = False
+        self.unlock_account()
+
+    @property
+    def is_unlocked(self):
+        return self.__unlocked
+
+    def activate(self, password: str):
+        self.blockchain.connect()
+        self.unlock_account(password=password)
+        self.blockchain.transacting_power = self
+        self.__password = None
+
+    def lock_account(self):
+        if self.client:
+            self.client.lock_account(address=self.account)
+        elif self.device:
+            # TODO: Implement TrustedDevice
+            raise NotImplementedError
+        self.__unlocked = False
+
+    def unlock_account(self, password: str = None):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(self.account))
 
         if self.device is not NO_STAKING_DEVICE:
             _hd_path = self.device.get_address_path(checksum_address=self.account)
@@ -125,17 +154,15 @@ class TransactingPower(CryptoPowerUp):
             if not ping == pong:
                 raise self.device.NoDeviceDetected
             unlocked = True
-
         else:
             unlocked = self.client.unlock_account(address=self.account, password=password)
 
-        self.is_unlocked = unlocked
+        self.__unlocked = unlocked
 
     def sign_message(self, message: bytes) -> bytes:
         """
         Signs the message with the private key of the TransactingPower.
         """
-
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
@@ -150,17 +177,17 @@ class TransactingPower(CryptoPowerUp):
 
         return signature
 
-    def sign_transaction(self, checksum_address: str, unsigned_transaction: dict) -> HexBytes:
-        if not self.__accounts.get(checksum_address, False):
-            raise PowerUpError("Account is locked.")
+    def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
+        if not self.is_unlocked:
+            raise PowerUpError("Failed to unlock account {}".format(self.account))
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
             signed_raw_transaction = self.device.sign_eth_transaction(unsigned_transaction=unsigned_transaction,
-                                                                      checksum_address=checksum_address)
+                                                                      checksum_address=self.account)
         # Web3 Signer
         else:
-            # This check is also performed client-side.
+            # Note: This check is also performed client-side.
             sender_address = unsigned_transaction['from']
             if sender_address != self.account:
                 raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")

@@ -39,15 +39,12 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
-from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import CharacterConfiguration
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -59,8 +56,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   MOCK_URSULA_STARTING_PORT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEMPORARY_DOMAIN,
-                                                  TEST_PROVIDER_URI
-                                                  )
+                                                  TEST_PROVIDER_URI,
+                                                  INSECURE_DEVELOPMENT_PASSWORD)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
@@ -371,10 +368,12 @@ def testerchain():
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
 
-    # TODO: TransactingPower
     # Mock TransactingPower Consumption
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=testerchain.etherbase_account)
     testerchain.deployer_address = testerchain.etherbase_account
+    testerchain.transacting_power.unlock_account()
     yield testerchain
     testerchain.disconnect()
 
@@ -430,8 +429,8 @@ def stakers(agency, token_economics):
     blockchain = token_agent.blockchain
 
     # Mock Powerup consumption (Deployer)
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain,
-                                                   account=blockchain.etherbase_account)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    account=blockchain.etherbase_account)
 
     token_airdrop(origin=blockchain.etherbase_account,
                   addresses=blockchain.stakers_accounts,
@@ -442,9 +441,10 @@ def stakers(agency, token_economics):
     for index, account in enumerate(blockchain.stakers_accounts):
         staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
 
-        # Mock TransactingPower consumption (Ursula-Staker)
-        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain,
-                                                              account=staker.checksum_address)
+        # Mock TransactingPower consumption
+        staker.blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                               account=account,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)

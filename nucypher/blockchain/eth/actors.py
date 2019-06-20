@@ -170,12 +170,6 @@ class Deployer(NucypherTokenActor):
                                                               deployer_address=self.deployer_address)
         return r
 
-    @classmethod
-    def from_blockchain(cls, provider_uri: str, registry=None, *args, **kwargs):
-        blockchain = BlockchainInterface.connect(provider_uri=provider_uri, registry=registry)
-        instance = cls(blockchain=blockchain, *args, **kwargs)
-        return instance
-
     @property
     def deployer_address(self):
         return self.blockchain.deployer_address
