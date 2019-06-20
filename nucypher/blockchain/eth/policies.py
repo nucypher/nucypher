@@ -291,7 +291,7 @@ class BlockchainPolicy(Policy):
         txhash = receipt['transactionHash']
 
         # Capture Response
-        self.receipt = self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
+        self.receipt = receipt
         self.publish_transaction = txhash
         self.is_published = True
 
