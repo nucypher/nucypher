@@ -11,12 +11,12 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     UserEscrowAgent,
     PolicyAgent,
-    Agency, AdjudicatorAgent)
+    Agency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -44,7 +44,7 @@ def make_testerchain():
 
     # Set the deployer address from a freshly created test account
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
     return testerchain
 
 

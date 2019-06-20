@@ -19,7 +19,7 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, DispatcherDeployer
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
@@ -67,7 +67,7 @@ def test_approve_transfer(agent, token_economics):
     deployer, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=someone)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=someone)
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
@@ -83,7 +83,7 @@ def test_transfer(agent, token_economics):
     origin, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=origin)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=origin)
 
     old_balance = agent.get_balance(someone)
     receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
