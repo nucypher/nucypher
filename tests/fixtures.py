@@ -478,7 +478,57 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     yield _ursulas
 
 
-# TODO: Non-staking staker and free worker fixtures (#1035)
+@pytest.fixture(scope="module")
+def idle_staker(testerchain, agency):
+    token_agent, _staking_agent, _policy_agent = agency
+
+    idle_staker_account = testerchain.unassigned_accounts[-2]
+    idle_worker_account = testerchain.unassigned_accounts[-1]
+
+    token_airdrop(origin=testerchain.etherbase_account,
+                  addresses=[idle_staker_account, idle_worker_account],
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+
+    # Prepare idle staker
+    idle_staker = Staker(is_me=True, checksum_address=idle_staker_account)
+    yield idle_staker
+
+
+@pytest.fixture(scope="module")
+def activate_idle_staker(testerchain, idle_staker, token_economics, ursula_decentralized_test_config):
+    idle_staker_account = testerchain.unassigned_accounts[-2]
+    idle_worker_account = testerchain.unassigned_accounts[-1]
+
+    def _activate_idle_staker(ursulas_to_learn_about=None):
+        blockchain = testerchain
+
+        # Stake the bare minimum
+        amount = token_economics.minimum_allowed_locked
+        periods = token_economics.minimum_locked_periods
+        idle_staker.initialize_stake(amount=amount, lock_periods=periods)
+
+        # Stake starts next period (or else signature validation will fail)
+        blockchain.time_travel(periods=1)
+        idle_staker.stake_tracker.refresh()
+
+        # Prepare idle worker
+        idle_staker.set_worker(worker_address=idle_worker_account)
+
+        worker = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                            stakers_addresses=[idle_staker_account],
+                                            workers_addresses=[idle_worker_account],
+                                            confirm_activity=True).pop()
+
+        blockchain.time_travel(periods=1)
+
+        for ursula_to_learn_about in (ursulas_to_learn_about or []):
+            worker.remember_node(ursula_to_learn_about)
+            ursula_to_learn_about.remember_node(worker)
+
+        return worker
+
+    return _activate_idle_staker
 
 
 @pytest.fixture(scope='module')
