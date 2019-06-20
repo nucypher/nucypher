@@ -193,6 +193,7 @@ class CharacterConfiguration(BaseConfiguration):
                                               sync_now=sync_now)
 
         # Read Ethereum Node Keyring
+        self.blockchain.connect(sync_now=sync_now)
         self.accounts = self.blockchain.client.accounts
 
     def connect_to_contracts(self) -> None:

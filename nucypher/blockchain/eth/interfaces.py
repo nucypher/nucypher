@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -86,7 +86,7 @@ class BlockchainInterface:
                  sync_now: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 transacting_power: BlockchainPower = READ_ONLY_INTERFACE,
+                 transacting_power: TransactingPower = READ_ONLY_INTERFACE,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
                  registry: EthereumContractRegistry = None,
                  fetch_registry: bool = True):
@@ -164,10 +164,10 @@ class BlockchainInterface:
         self.transacting_power = transacting_power
         self.registry = registry
 
-        self.connect(provider=provider,
-                     provider_uri=provider_uri,
-                     fetch_registry=fetch_registry,
-                     sync_now=sync_now)
+        # self.connect(provider=provider,
+        #              provider_uri=provider_uri,
+        #              fetch_registry=fetch_registry,
+        #              sync_now=sync_now)
 
         BlockchainInterface._instance = self
 
@@ -208,21 +208,18 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self,
-                provider: Web3Providers = None,
-                provider_uri: str = None,
-                fetch_registry: bool = True,
-                sync_now: bool = True):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = True):
 
         # Spawn child process
         if self._provider_process:
             self._provider_process.start()
             provider_uri = self._provider_process.provider_uri(scheme='file')
         else:
-            self.log.info(f"Using external Web3 Provider '{provider_uri}'")
+            provider_uri = self.provider_uri
+            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
-        self._attach_provider(provider=provider, provider_uri=provider_uri)
+        self._attach_provider(provider=self._provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")

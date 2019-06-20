@@ -118,8 +118,8 @@ def test_anybody_can_verify():
 
 def test_character_client_transacting_power(testerchain, agency):
     # TODO: Handle multiple providers
-    eth_address = testerchain.interface.w3.eth.accounts[0]
-    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
+    eth_address = testerchain.etherbase_account
+    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)

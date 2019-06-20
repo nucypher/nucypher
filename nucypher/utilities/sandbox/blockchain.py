@@ -32,7 +32,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.config.constants import BASE_DIR
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
@@ -110,12 +110,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")
+        self.connect()
 
         # Generate additional ethereum accounts for testing
         population = test_accounts
-        enough_accounts = len(self.w3.eth.accounts) >= population
+        enough_accounts = len(self.client.accounts) >= population
         if not enough_accounts:
-            accounts_to_make = population - len(self.w3.eth.accounts)
+            accounts_to_make = population - len(self.client.accounts)
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
             assert test_accounts == len(self.w3.eth.accounts)
 
@@ -212,7 +213,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())
-        power = BlockchainPower(blockchain=testerchain, account=testerchain.client.etherbase)
+        power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
         power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)
         testerchain.transacting_power = power
 
