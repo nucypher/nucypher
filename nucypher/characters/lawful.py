@@ -124,6 +124,10 @@ class Alice(Character, PolicyAuthor):
                                   policy_agent=policy_agent,
                                   checksum_address=checksum_address)
 
+            blockchain_power = BlockchainPower(client=self.blockchain.client)
+            self._crypto_power.consume_power_up(blockchain_power)
+            self.blockchain.transacting_power = blockchain_power  # TODO: #1092
+
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
 
@@ -873,6 +877,7 @@ class Ursula(Teacher, Character, Worker):
                 # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
                 blockchain_power = BlockchainPower(client=self.blockchain.client)
                 self._crypto_power.consume_power_up(blockchain_power)
+                # TODO: #1092
 
                 # Use blockchain power to substantiate stamp
                 self.substantiate_stamp(client_password=password, checksum_address=worker_address)  # TODO: Derive from keyring
