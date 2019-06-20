@@ -31,7 +31,7 @@ from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()
@@ -124,7 +124,7 @@ def deploy(click_config,
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
     # TODO: Integrate with Deployer Actor (Character)
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=deployer_address)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=deployer_address)
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # Verify ETH Balance

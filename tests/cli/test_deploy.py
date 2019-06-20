@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDe
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -43,7 +43,7 @@ def make_testerchain():
 
     # Set the deployer address from a freshly created test account
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
     return testerchain
 
 

@@ -182,9 +182,9 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
-        self._crypto_power.consume_power_up(blockchain_power)
-        # blockchain_power.unlock_account(password=None)  # TODO: TransactingPower
+        transacting_power = TransactingPower(blockchain=self.blockchain, account=self.checksum_address)
+        self._crypto_power.consume_power_up(transacting_power)
+        # transacting_power.unlock_account(password=None)  # TODO: TransactingPower
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]

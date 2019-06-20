@@ -22,7 +22,7 @@ from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.mark.slow()
@@ -34,7 +34,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
     staker_account = testerchain.unassigned_accounts[0]
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
 
     balance = token_agent.get_balance(address=staker_account)
     assert balance == 0
@@ -45,7 +45,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
 
     #
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
@@ -165,7 +165,7 @@ def test_confirm_activity(agency, testerchain):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=worker_account)
 
     receipt = staking_agent.confirm_activity(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -219,7 +219,7 @@ def test_collect_staking_reward(agency, testerchain):
     testerchain.time_travel(periods=2)
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
 
     # Mint
     _receipt = staking_agent.mint(staker_address=staker_account)

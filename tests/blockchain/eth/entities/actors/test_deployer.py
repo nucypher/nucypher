@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
@@ -47,7 +47,7 @@ def test_rapid_deployment(token_economics):
                                   compiler=compiler)
 
     # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=blockchain.etherbase_account)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=blockchain.etherbase_account)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
