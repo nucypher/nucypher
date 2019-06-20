@@ -717,6 +717,10 @@ class Bob(Character):
                     cfrags = self.get_reencrypted_cfrags(work_order)
                 except requests.exceptions.ConnectTimeout:
                     continue
+                except NotFound:
+                    # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    continue
 
                 cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
                 try:
