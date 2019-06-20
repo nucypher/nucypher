@@ -401,6 +401,7 @@ class Learner:
             return False
 
         # First, determine if this is an outdated representation of an already known node.
+        # TODO: #1032
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
@@ -782,6 +783,7 @@ class Learner:
                 continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
+            # TODO: #1032
             with suppress(KeyError):
                 already_known_node = self.known_nodes[node.checksum_address]
                 if not node.timestamp > already_known_node.timestamp:

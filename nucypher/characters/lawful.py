@@ -323,6 +323,7 @@ class Alice(Character, PolicyAuthor):
                 number_of_ursulas_needed = params['n'] - len(handpicked_ursulas)
                 new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
+                # TODO: new_ursulas can overlap with handpicked_ursulas, so we may still don't have n
 
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  value=params['value'],

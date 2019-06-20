@@ -15,14 +15,12 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
-def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, caplog):
-
+def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
     #
     # Setup
     #
 
-    # TODO: #1035
-    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others, non_staking_ursula = list(blockchain_ursulas)
+    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(blockchain_ursulas)
 
     warnings = []
 
@@ -33,7 +31,6 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, capl
     #
     # Attempt to verify unsigned stamp
     #
-
     unsigned._Teacher__decentralized_identity_evidence = NOT_SIGNED
 
     # Wipe known nodes!
@@ -52,16 +49,23 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, capl
     assert "stamp is unsigned" in warning  # TODO: Cleanup logging templates
     assert unsigned not in lonely_blockchain_learner.known_nodes
 
-    # TODO: #1035
     # minus 2: self and the unsigned ursula.
     assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
-def test_non_staking_ursula_tolerance(blockchain_ursulas):
-
-    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others, non_staking_ursula = list(blockchain_ursulas)
+def test_invalid_workers_tolerance(testerchain,
+                                   blockchain_ursulas,
+                                   agency,
+                                   idle_staker,
+                                   activate_idle_staker
+                                   ):
+    #
+    # Setup
+    #
+    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(blockchain_ursulas)
+    _, staking_agent, _ = agency
 
     warnings = []
 
@@ -69,20 +73,62 @@ def test_non_staking_ursula_tolerance(blockchain_ursulas):
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
 
-    lonely_blockchain_learner._current_teacher_node = non_staking_ursula
+    # We start with an "idle_staker" (i.e., no tokens in StakingEscrow)
+    assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
+
+    # Let's create an active worker for this staker
+    worker = activate_idle_staker(ursulas_to_learn_about=None)
+
+    # The worker is valid and can be verified (even with the force option)
+    worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+    # In particular, we know that it's bonded to a staker who is really staking.
+    assert worker._worker_is_bonded_to_staker()
+    assert worker._staker_is_really_staking()
+
+    # OK. Now we learn about this worker.
+    lonely_blockchain_learner.remember_node(worker)
+
+    # The worker already confirmed one period before. Let's confirm the remaining 29.
+    for i in range(29):
+        worker.confirm_activity()
+        testerchain.time_travel(periods=1)
+
+    # The stake period has ended, and the staker wants her tokens back ("when lambo?").
+    # She withdraws up to the last penny (well, last nunit, actually).
+    idle_staker.mint()
+    testerchain.time_travel(periods=1)
+    i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)
+    idle_staker.withdraw(i_want_it_all)
+
+    # OK...so...the staker is not staking anymore ...
+    assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
+
+    # ... but the worker node still is "verified" (since we're not forcing on-chain verification)
+    worker.verify_node(network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+
+    # If we force, on-chain verification, the worker is of course not verified
+    with pytest.raises(worker.NotStaking):
+        worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+
+
+    # Let's learn from this invalid node
+    lonely_blockchain_learner._current_teacher_node = worker
     globalLogPublisher.addObserver(warning_trapper)
     lonely_blockchain_learner.learn_from_teacher_node()
+    # lonely_blockchain_learner.remember_node(worker)  # The same problem occurs if we directly try to remember this node
     globalLogPublisher.removeObserver(warning_trapper)
 
-    assert len(warnings) == 2
-    warning = warnings[1]['log_format']
-    assert str(non_staking_ursula) in warning
+    # TODO: What should we really check here? (#1075)
+    assert len(warnings) == 1
+    warning = warnings[-1]['log_format']
+    assert str(worker) in warning
     assert "no active stakes" in warning  # TODO: Cleanup logging templates
-    assert non_staking_ursula not in lonely_blockchain_learner.known_nodes
+    assert worker not in lonely_blockchain_learner.known_nodes
+
+    # TODO: Write a similar test but for detached worker (#1075)
 
 
 def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
-
     nodes = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                    quantity=3,
                                    know_each_other=False)
