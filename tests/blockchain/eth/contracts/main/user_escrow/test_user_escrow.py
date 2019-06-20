@@ -311,7 +311,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
     assert 0 == testerchain.client.get_balance(user_escrow.address)
 
     # Send ETH to the policy manager as a reward for the user
-    tx = testerchain.client.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': policy_manager.address, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 

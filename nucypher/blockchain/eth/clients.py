@@ -173,22 +173,36 @@ class Web3Client(object):
         self.w3.middleware_onion.inject(middleware, **kwargs)
 
     @property
-    def chain_id(self):
+    def chain_id(self) -> str:
         return self.w3.net.version
 
     def get_contract(self, **kwargs):
         return self.w3.eth.contract(**kwargs)
 
     @property
-    def gasPrice(self):
+    def gas_price(self):
         return self.w3.eth.gasPrice
 
     @property
-    def coinbase(self):
+    def block_number(self) -> int:
+        return self.w3.eth.blockNumber
+
+    @property
+    def coinbase(self) -> str:
         return self.w3.eth.coinbase
 
-    def sendTransaction(self, transaction: dict):
+    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
+        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
+        return receipt
+
+    def get_transaction(self, transaction_hash) -> str:
+        return self.w3.eth.getTransaction(transaction_hash)
+
+    def send_transaction(self, transaction: dict) -> str:
         return self.w3.eth.sendTransaction(transaction)
+
+    def send_raw_transaction(self, transaction: bytes) -> str:
+        return self.w3.eth.sendRawTransaction(transaction)
 
     def sync(self,
              timeout: int = 120,
@@ -286,8 +300,6 @@ class EthereumTesterClient(Web3Client):
         return True
 
     def sign_transaction(self, account: str, transaction: dict):
-        # assert_valid_fields(transaction_dict=transaction)
-
         # Get signing key of test account
         address = to_canonical_address(account)
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key

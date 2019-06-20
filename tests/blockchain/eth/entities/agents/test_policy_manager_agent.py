@@ -85,8 +85,8 @@ def test_revoke_arrangement(agency, policy_meta):
     agent = policy_agent
 
     receipt = agent.revoke_arrangement(policy_id=policy_meta.policy_id,
-                                      author_address=policy_meta.author,
-                                      node_address=policy_meta.addresses[0])
+                                       author_address=policy_meta.author,
+                                       node_address=policy_meta.addresses[0])
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 

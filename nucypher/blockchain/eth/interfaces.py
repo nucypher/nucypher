@@ -67,7 +67,7 @@ class BlockchainInterface:
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = Contract
+    _contract_factory = ConciseContract
 
     class InterfaceError(Exception):
         pass
@@ -319,10 +319,10 @@ class BlockchainInterface:
         #
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
-        txhash = self.client.w3.eth.sendRawTransaction(signed_raw_transaction)
+        txhash = self.client.send_raw_transaction(signed_raw_transaction)
 
         try:
-            receipt = self.client.w3.eth.waitForTransactionReceipt(txhash, timeout=self.TIMEOUT)
+            receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
             raise
 
@@ -341,7 +341,7 @@ class BlockchainInterface:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
 
             # Secondary check TODO: Is this a sensible check?
-            tx = self.client.w3.eth.getTransaction(txhash)
+            tx = self.client.get_transaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
                 raise self.InterfaceError(f"Transaction consumed 100% of transaction gas."
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
@@ -474,7 +474,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        deploy_transaction = {'gasPrice': self.client.w3.eth.gasPrice}
+        deploy_transaction = {'gasPrice': self.client.gas_price}
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 

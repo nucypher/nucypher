@@ -44,7 +44,7 @@ def test_token_properties(agent):
     with pytest.raises((TransactionFailed, ValueError)):
         origin = testerchain.client.coinbase
         payload = {'from': origin, 'to': agent.contract_address, 'value': 1}
-        tx = testerchain.client.sendTransaction(payload)
+        tx = testerchain.client.send_transaction(payload)
         testerchain.wait_for_receipt(tx)
 
     assert len(agent.contract_address) == 42
