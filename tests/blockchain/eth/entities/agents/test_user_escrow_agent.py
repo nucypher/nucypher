@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
+from nucypher.crypto.powers import BlockchainPower
 
 TEST_DURATION = 60*60
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
@@ -53,6 +54,9 @@ def proxy_deployer(testerchain) -> UserEscrowAgent:
 @pytest.fixture(scope='function')
 def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
+
+    # Mock Powerup consumption (Deployer)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=deployer_address)
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
@@ -136,6 +140,9 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert agent.unvested_tokens == allocation_value
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
+    # Mock Powerup consumption (Beneficiary)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=agent.beneficiary)
+
     # Move the tokens to the StakingEscrow
     receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
     assert receipt  # TODO
@@ -151,10 +158,17 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
+    # Mock Powerup consumption (Beneficiary-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
     for _ in range(token_economics.minimum_locked_periods):
         staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
+
+    # Mock Powerup consumption (Beneficiary)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=agent.beneficiary)
+
     agent.mint()
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
@@ -175,6 +189,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
+    # Mock Powerup consumption (Beneficiary)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=agent.beneficiary)
+
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
 
     # User sets a worker in StakingEscrow via UserEscrow
@@ -183,6 +200,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     testerchain.time_travel(periods=1)
 
+    # Mock Powerup consumption (Alice)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=author)
+
     _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
                                          author_address=author,
                                          value=to_wei(1, 'ether'),
@@ -190,11 +210,18 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                          initial_reward=0,
                                          node_addresses=[agent.contract_address])
 
+    # Mock Powerup consumption (Beneficiary-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
     _txhash = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
     _txhash = staking_agent.confirm_activity(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
+
+    # Mock Powerup consumption (Beneficiary)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=agent.beneficiary)
+
     txhash = agent.collect_policy_reward()
     assert txhash  # TODO
     assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
@@ -203,6 +230,9 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
     token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
+
+    # Mock Powerup consumption (Beneficiary)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=agent.beneficiary)
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
     with pytest.raises((TransactionFailed, ValueError)):
