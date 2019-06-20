@@ -20,6 +20,7 @@ import collections
 import pytest
 from eth_utils import is_checksum_address
 
+from nucypher.crypto.powers import BlockchainPower
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
@@ -47,6 +48,9 @@ def policy_meta(testerchain, agency, token_economics):
 def test_create_policy(testerchain, agency, token_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
+
+    # Mock Powerup consumption
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.alice_account)
 
     policy_id = os.urandom(16)
     node_addresses = list(staking_agent.sample(quantity=3, duration=1))
@@ -104,9 +108,17 @@ def test_calculate_refund(testerchain, agency, policy_meta):
     agent = policy_agent
 
     staker = policy_meta.addresses[-1]
-    ursula = staking_agent.get_worker_from_staker(staker)
+    worker = staking_agent.get_worker_from_staker(staker)
+
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
     testerchain.time_travel(hours=9)
-    _receipt = staking_agent.confirm_activity(worker_address=ursula)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
+
+    # Mock Powerup consumption (Alice)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.alice_account)
+
     receipt = agent.calculate_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
 
@@ -129,12 +141,19 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
     agent = policy_agent
 
     staker = policy_meta.addresses[-1]
-    ursula = staking_agent.get_worker_from_staker(staker)
+    worker = staking_agent.get_worker_from_staker(staker)
+
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
 
     for _ in range(token_economics.minimum_locked_periods):
-        _receipt = staking_agent.confirm_activity(worker_address=ursula)
+        _receipt = staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
+
+    # Mock Powerup consumption (Ursula-Staker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker)
 
     receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"

@@ -420,6 +420,10 @@ def stakers(agency, token_economics):
     token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
+    # Mock Powerup consumption (Deployer)
+    blockchain.transacting_power = BlockchainPower(blockchain=blockchain,
+                                                   account=blockchain.etherbase_account)
+
     token_airdrop(origin=blockchain.etherbase_account,
                   addresses=blockchain.stakers_accounts,
                   token_agent=token_agent,
@@ -429,9 +433,9 @@ def stakers(agency, token_economics):
     for index, account in enumerate(blockchain.stakers_accounts):
         staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
 
-        # TODO: #1092 - TransactingPower
-        # Mock TransactingPower consumption
-        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain, account=staker.checksum_address)
+        # Mock TransactingPower consumption (Ursula-Staker)
+        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain,
+                                                              account=staker.checksum_address)
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
