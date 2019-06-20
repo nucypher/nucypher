@@ -176,8 +176,10 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
+            if not blockchain:
+                raise ValueError('No blockchain interface provided to run decentralized mode.')
             if not checksum_address:
-                raise ValueError("No checksum_address provided while running in a non-federated mode.")
+                raise ValueError("No checksum_address provided to run in decentralized mode.")
             else:
                 self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
         #

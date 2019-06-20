@@ -29,6 +29,7 @@ from nucypher.crypto.powers import (CryptoPower,
                                     NoSigningPower,
                                     TransactingPower,
                                     PowerUpError)
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 """
 Chapter 1: SIGNING
@@ -123,15 +124,17 @@ def test_character_client_transacting_power(testerchain, agency):
     sig_pubkey = sig_privkey.public_key
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(TransactingPower(blockchain=testerchain, account=eth_address))
-
+    transacting_power = TransactingPower(blockchain=testerchain, account=eth_address)
+    signer._crypto_power.consume_power_up(transacting_power)
     power = signer._crypto_power.power_ups(TransactingPower)
+
+    power.lock_account()
 
     # Test a signature without unlocking the account
     with pytest.raises(PowerUpError):
-        power.sign_message(message=b'test', checksum_address=eth_address)
+        power.sign_message(message=b'test')
 
-    power.unlock_account(checksum_address=eth_address)
+    power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     data_to_sign = b'What does Ursula look like?!?'
     sig = power.sign_message(message=data_to_sign)
@@ -146,7 +149,7 @@ def test_character_client_transacting_power(testerchain, agency):
     assert is_verified is False
 
     # Test lockAccount call
-    power.lock_account(checksum_address=eth_address)
+    power.lock_account()
 
     # Test a signature without unlocking the account
     with pytest.raises(PowerUpError):
