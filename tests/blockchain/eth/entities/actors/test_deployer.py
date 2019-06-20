@@ -47,7 +47,8 @@ def test_rapid_deployment(token_economics):
                                    test_accounts=4,
                                    compiler=compiler)
 
-    blockchain.transacting_power = BlockchainPower(client=blockchain.client)
+    # TODO: #1092 - TransactingPower
+    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=blockchain.etherbase_account)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

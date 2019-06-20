@@ -123,7 +123,7 @@ def test_character_blockchain_power(testerchain, agency):
     sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
 
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(testerchain.client, eth_address))
+    signer._crypto_power.consume_power_up(BlockchainPower(blockchain=testerchain, account=eth_address))
 
     # Due to testing backend, the account is already unlocked.
     power = signer._crypto_power.power_ups(BlockchainPower)
@@ -131,7 +131,7 @@ def test_character_blockchain_power(testerchain, agency):
     # power.unlock_account('this-is-not-a-secure-password')
 
     data_to_sign = b'What does Ursula look like?!?'
-    sig = power.sign_message(message=data_to_sign, account=eth_address)
+    sig = power.sign_message(message=data_to_sign)
 
     is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
     assert is_verified is True
@@ -145,7 +145,7 @@ def test_character_blockchain_power(testerchain, agency):
     # Test a signature without unlocking the account
     power.is_unlocked = False
     with pytest.raises(PowerUpError):
-        power.sign_message(message=b'test', account=eth_address)
+        power.sign_message(message=b'test')
 
     # Test lockAccount call
     del power

@@ -318,7 +318,7 @@ class BlockchainInterface:
         # Broadcast
         #
 
-        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction, sender_address)
+        signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.w3.eth.sendRawTransaction(signed_raw_transaction)
 
         try:

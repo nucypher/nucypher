@@ -108,9 +108,6 @@ def deploy(click_config,
                                              fetch_registry=False,
                                              sync_now=sync)
 
-    # TODO: Integrate with Deployer Actor (Character)
-    blockchain.transacting_power = BlockchainPower(client=blockchain.client)
-
     #
     # Deployment Actor
     #
@@ -125,6 +122,9 @@ def deploy(click_config,
     # Verify Address
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
+
+    # TODO: Integrate with Deployer Actor (Character)
+    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=deployer_address)
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # Verify ETH Balance

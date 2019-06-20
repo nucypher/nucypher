@@ -44,7 +44,7 @@ def make_testerchain():
 
     # Set the deployer address from a freshly created test account
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = BlockchainPower(client=testerchain.client)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
     return testerchain
 
 

@@ -370,7 +370,10 @@ def testerchain():
     """
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
-    testerchain.transacting_power = BlockchainPower(client=testerchain.client)
+
+    # TODO: TransactingPower
+    # Mock TransactingPower Consumption
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
     testerchain.deployer_address = testerchain.etherbase_account
     yield testerchain
     testerchain.disconnect()
@@ -425,6 +428,10 @@ def stakers(agency, token_economics):
     stakers = list()
     for index, account in enumerate(blockchain.stakers_accounts):
         staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
+
+        # TODO: #1092 - TransactingPower
+        # Mock TransactingPower consumption
+        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain, account=staker.checksum_address)
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)

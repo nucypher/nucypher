@@ -913,7 +913,8 @@ class Teacher:
         self.__worker_address = None
 
         if substantiate_immediately:
-            self.substantiate_stamp(client_password=password, checksum_address=worker_address)
+            # TODO: #1091
+            self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -1146,12 +1147,13 @@ class Teacher:
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
 
-    def substantiate_stamp(self, client_password: str, checksum_address: str):
+    def substantiate_stamp(self, client_password: str):
+        # TODO: #1092 - TransactingPower
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=client_password, account=checksum_address)  # TODO: #349
-        signature = blockchain_power.sign_message(message=bytes(self.stamp), account=checksum_address)
+        blockchain_power.unlock_account(password=client_password)  # TODO: #349
+        signature = blockchain_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
-        self.__worker_address = checksum_address
+        self.__worker_address = blockchain_power.account
 
     #
     # Interface
