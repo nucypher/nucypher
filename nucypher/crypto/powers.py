@@ -124,10 +124,10 @@ class BlockchainPower(CryptoPowerUp):
             # TODO: Implement TrustedDevice
             raise NotImplementedError
 
+        # This check is also performed client-side.
         sender_address = unsigned_transaction['from']
         if sender_address != self.account:
             raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")
-
         signed_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction, account=self.account)
         return signed_transaction
 
