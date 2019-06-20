@@ -59,7 +59,7 @@ class EthereumContractAgent:
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface = None,
+                 blockchain: BlockchainInterface,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
