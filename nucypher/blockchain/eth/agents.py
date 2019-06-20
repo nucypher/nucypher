@@ -249,10 +249,10 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     @validate_checksum_address
     def withdraw(self, staker_address: str, amount: int):
         """Withdraw tokens"""
-        overrides = {'gas': 500_000}  # TODO: #842 Gas Management
+        payload = {'gas': 500_000}  # TODO: #842 Gas Management
         contract_function = self.contract.functions.withdraw(amount)
         receipt = self.blockchain.send_transaction(transaction_function=contract_function,
-                                                   payload=overrides,
+                                                   payload=payload,
                                                    sender_address=staker_address)
         return receipt
     #

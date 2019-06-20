@@ -49,7 +49,7 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
-        args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gasPrice}
+        args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
         for address in addresses:
             contract_function = token_agent.contract.functions.transfer(address, int(amount))
             _receipt = token_agent.blockchain.send_transaction(transaction_function=contract_function,
