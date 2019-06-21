@@ -72,15 +72,15 @@ contract Adjudicator is Upgradeable {
     }
 
     /**
-    * @notice Submit proof that staker created wrong CFrag
+    * @notice Submit proof that a worker created wrong CFrag
     * @param _capsuleBytes Serialized capsule
     * @param _cFragBytes Serialized CFrag
-    * @param _cFragSignature Signature of CFrag by staker
+    * @param _cFragSignature Signature of CFrag by worker
     * @param _taskSignature Signature of task specification by Bob
-    * @param _requesterPublicKey Requester's public key that was used to sign Capsule
-    * @param _workerPublicKey Staker's public key that was used to sign Capsule and CFrag
+    * @param _requesterPublicKey Bob's signing public key, also known as "stamp"
+    * @param _workerPublicKey Worker's signing public key, also known as "stamp"
     * @param _workerIdentityEvidence Signature of worker's public key by worker's eth-key
-    * @param _preComputedData Pre computed data for CFrag correctness verification
+    * @param _preComputedData Additional pre-computed data for CFrag correctness verification
     **/
     function evaluateCFrag(
         bytes memory _capsuleBytes,
