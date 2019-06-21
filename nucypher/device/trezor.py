@@ -142,7 +142,7 @@ class Trezor(TrustedDevice):
         return address
 
     @_handle_device_call
-    def sign_eth_transaction(self, checksum_address: str, transaction: dict) -> Tuple[bytes]:
+    def sign_eth_transaction(self, checksum_address: str, transaction: dict) -> bytes:
         """
         Signs an Ethereum transaction via the Trezor ethereum sign_tx API
         and returns the signed, RLP encoded transaction.
