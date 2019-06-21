@@ -54,7 +54,8 @@ def token_economics():
                                hours_per_period=1,
                                minimum_locked_periods=2,
                                minimum_allowed_locked=100,
-                               maximum_allowed_locked=2000)
+                               maximum_allowed_locked=2000,
+                               minimum_worker_periods=2)
     return economics
 
 

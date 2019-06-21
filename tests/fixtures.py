@@ -432,7 +432,7 @@ def _make_agency(testerchain, test_registry):
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     token_agent = token_deployer.make_agent()              # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()   # 2 Miner Escrow
+    staking_agent = staking_escrow_deployer.make_agent()   # 2 Staking Escrow
     policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
     _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
 
@@ -493,7 +493,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         amount = random.randint(min_stake, balance)
 
         # for a random lock duration
-        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
+        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods
         periods = random.randint(min_locktime, max_locktime)
 
         staker.initialize_stake(amount=amount, lock_periods=periods)

@@ -37,7 +37,8 @@ def token_economics():
                                maximum_rewarded_periods=4,
                                hours_per_period=1,
                                minimum_locked_periods=2,
-                               minimum_allowed_locked=100)
+                               minimum_allowed_locked=100,
+                               minimum_worker_periods=1)
     return economics
 
 
@@ -53,7 +54,7 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
         deploy_parameters = list(token_economics.staking_deployment_parameters)
-        deploy_parameters[-1] = max_allowed_locked_tokens
+        deploy_parameters[-2] = max_allowed_locked_tokens
         contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
 
         if request.param:

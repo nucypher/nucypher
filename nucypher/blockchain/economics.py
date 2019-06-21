@@ -53,6 +53,7 @@ class TokenEconomics:
     __default_hours_per_period = 24
 
     # Time Constraints
+    __default_minimum_worker_periods = 2
     __default_minimum_locked_periods = 30  # 720 Hours minimum
 
     # Value Constraints
@@ -68,7 +69,8 @@ class TokenEconomics:
                  hours_per_period: int = __default_hours_per_period,
                  minimum_locked_periods: int = __default_minimum_locked_periods,
                  minimum_allowed_locked: int = __default_minimum_allowed_locked,
-                 maximum_allowed_locked: int = __default_maximum_allowed_locked
+                 maximum_allowed_locked: int = __default_maximum_allowed_locked,
+                 minimum_worker_periods: int = __default_minimum_worker_periods
                  ):
         """
         :param initial_supply: Tokens at t=0
@@ -80,6 +82,7 @@ class TokenEconomics:
         :param minimum_locked_periods: Min amount of periods during which tokens can be locked
         :param minimum_allowed_locked: Min amount of tokens that can be locked
         :param maximum_allowed_locked: Max amount of tokens that can be locked
+        :param minimum_worker_periods: Min amount of periods while a worker can't be changed
         """
 
         self.initial_supply = initial_supply
@@ -93,6 +96,7 @@ class TokenEconomics:
         self.minimum_locked_periods = minimum_locked_periods
         self.minimum_allowed_locked = minimum_allowed_locked
         self.maximum_allowed_locked = maximum_allowed_locked
+        self.minimum_worker_periods = minimum_worker_periods
         self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
 
     @property
@@ -123,7 +127,8 @@ class TokenEconomics:
             # Constraints
             self.minimum_locked_periods,      # Min amount of periods during which tokens can be locked
             self.minimum_allowed_locked,      # Min amount of tokens that can be locked
-            self.maximum_allowed_locked       # Max amount of tokens that can be locked
+            self.maximum_allowed_locked,      # Max amount of tokens that can be locked
+            self.minimum_worker_periods       # Min amount of periods while a worker can't be changed
         )
         return tuple(map(int, deploy_parameters))
 

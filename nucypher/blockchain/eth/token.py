@@ -176,18 +176,12 @@ class Stake:
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
-                                                 seconds_per_period=miner.economics.seconds_per_period)
+                                                 seconds_per_period=self.economics.seconds_per_period)
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
-                                                  seconds_per_period=miner.economics.seconds_per_period)
+                                                  seconds_per_period=self.economics.seconds_per_period)
 
         # Blockchain
         self.staking_agent = staking_agent
-
-        # Economics
-        from nucypher.blockchain.economics import TokenEconomics
-        self.economics = economics or TokenEconomics()
-        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), 'NuNit')
-        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), 'NuNit')
 
         if validate_now:
             self.validate_duration()
