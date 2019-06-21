@@ -22,7 +22,7 @@ from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -129,7 +129,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower, BlockchainPower]
+    _default_crypto_powerups = [SigningPower]
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -182,11 +182,15 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
+        blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+        self._crypto_power.consume_power_up(blockchain_power)
+        # blockchain_power.unlock_account(password=None)  # TODO: TransactingPower
+
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.reserved_addresses = [self.checksum_address, Blockchain.NULL_ADDRESS]
+        self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
-        existing_entries = list(self.blockchain.interface.registry.enrolled_addresses)
+        existing_entries = list(self.blockchain.registry.enrolled_addresses)
         self.reserved_addresses.extend(existing_entries)
 
         # Distribution
@@ -370,17 +374,17 @@ class Felix(Character, NucypherTokenActor):
         """Perform a single token transfer transaction from one account to another."""
 
         self.__disbursement += 1
-        txhash = self.token_agent.transfer(amount=disbursement,
-                                           target_address=recipient_address,
-                                           sender_address=self.checksum_address)
-
+        receipt = self.token_agent.transfer(amount=disbursement,
+                                            target_address=recipient_address,
+                                            sender_address=self.checksum_address)
+        txhash = receipt['transactionHash']
         if self.distribute_ether:
             ether = self.ETHER_AIRDROP_AMOUNT
             transaction = {'to': recipient_address,
                            'from': self.checksum_address,
                            'value': ether,
-                           'gasPrice': self.blockchain.interface.w3.eth.gasPrice}
-            ether_txhash = self.blockchain.interface.w3.eth.sendTransaction(transaction)
+                           'gasPrice': self.blockchain.client.gasPrice}
+            ether_txhash = self.blockchain.client.send_transaction(transaction)
 
             self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")

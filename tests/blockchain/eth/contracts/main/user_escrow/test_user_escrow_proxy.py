@@ -20,10 +20,11 @@ import os
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from web3.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.slow
@@ -31,10 +32,10 @@ def test_proxy(testerchain, policy_manager, user_escrow):
     """
     Test that proxy executes only predefined methods
     """
-    user = testerchain.interface.w3.eth.accounts[1]
+    user = testerchain.client.accounts[1]
 
     # Create fake instance of the user escrow contract
-    fake_user_escrow = testerchain.interface.w3.eth.contract(
+    fake_user_escrow = testerchain.client.get_contract(
         abi=policy_manager.abi,
         address=user_escrow.address,
         ContractFactoryClass=Contract)
@@ -45,42 +46,42 @@ def test_proxy(testerchain, policy_manager, user_escrow):
         testerchain.wait_for_receipt(tx)
 
     # And can't send ETH to the user escrow without payable fallback function
-    tx = testerchain.interface.w3.eth.sendTransaction(
-        {'from': testerchain.interface.w3.eth.coinbase, 'to': user, 'value': 1})
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': user, 'value': 1})
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.interface.w3.eth.sendTransaction(
+        tx = testerchain.client.send_transaction(
             {'from': user, 'to': user_escrow.address, 'value': 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
-    tx = testerchain.interface.w3.eth.sendTransaction(
-        {'from': testerchain.interface.w3.eth.coinbase, 'to': user, 'value': 1})
+    creator = testerchain.client.accounts[0]
+    user = testerchain.client.accounts[1]
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': user, 'value': 1})
     testerchain.wait_for_receipt(tx)
 
     secret = os.urandom(32)
     secret2 = os.urandom(32)
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret_hash = keccak(secret)
+    secret2_hash = keccak(secret2)
 
-    library_v1, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV1')
-    library_v2, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV2')
-    linker_contract, _ = testerchain.interface.deploy_contract(
+    library_v1, _ = testerchain.deploy_contract('UserEscrowLibraryMockV1')
+    library_v2, _ = testerchain.deploy_contract('UserEscrowLibraryMockV2')
+    linker_contract, _ = testerchain.deploy_contract(
         'UserEscrowLibraryLinker', library_v1.address, secret_hash)
-    user_escrow_contract, _ = testerchain.interface.deploy_contract(
+    user_escrow_contract, _ = testerchain.deploy_contract(
         'UserEscrow', linker_contract.address, token.address)
     # Transfer ownership
     tx = user_escrow_contract.functions.transferOwnership(user).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    user_escrow_library_v1 = testerchain.interface.w3.eth.contract(
+    user_escrow_library_v1 = testerchain.client.get_contract(
         abi=library_v1.abi,
         address=user_escrow_contract.address,
         ContractFactoryClass=Contract)
-    user_escrow_library_v2 = testerchain.interface.w3.eth.contract(
+    user_escrow_library_v2 = testerchain.client.get_contract(
         abi=library_v2.abi,
         address=user_escrow_contract.address,
         ContractFactoryClass=Contract)
@@ -100,7 +101,7 @@ def test_upgrading(testerchain, token):
 
     # Can't send ETH to this version of the library
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.interface.w3.eth.sendTransaction(
+        tx = testerchain.client.send_transaction(
             {'from': user, 'to': user_escrow_contract.address, 'value': 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
@@ -139,26 +140,26 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
 
     # And can send and withdraw ETH
-    tx = testerchain.interface.w3.eth.sendTransaction(
+    tx = testerchain.client.send_transaction(
         {'from': user, 'to': user_escrow_contract.address, 'value': 1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.interface.w3.eth.getBalance(user_escrow_contract.address)
+    assert 1 == testerchain.client.get_balance(user_escrow_contract.address)
     # Only user can send ETH
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = testerchain.interface.w3.eth.sendTransaction(
-            {'from': testerchain.interface.w3.eth.coinbase,
+        tx = testerchain.client.send_transaction(
+            {'from': testerchain.client.coinbase,
              'to': user_escrow_contract.address,
              'value': 1,
              'gas_price': 0})
         testerchain.wait_for_receipt(tx)
-    assert 1 == testerchain.interface.w3.eth.getBalance(user_escrow_contract.address)
+    assert 1 == testerchain.client.get_balance(user_escrow_contract.address)
 
     rewards = user_escrow_contract.events.ETHWithdrawn.createFilter(fromBlock='latest')
-    user_balance = testerchain.interface.w3.eth.getBalance(user)
+    user_balance = testerchain.client.get_balance(user)
     tx = user_escrow_contract.functions.withdrawETH().transact({'from': user, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert user_balance + 1 == testerchain.interface.w3.eth.getBalance(user)
-    assert 0 == testerchain.interface.w3.eth.getBalance(user_escrow_contract.address)
+    assert user_balance + 1 == testerchain.client.get_balance(user)
+    assert 0 == testerchain.client.get_balance(user_escrow_contract.address)
 
     events = rewards.get_all_entries()
     assert 1 == len(events)
@@ -169,16 +170,16 @@ def test_upgrading(testerchain, token):
 
 @pytest.mark.slow
 def test_proxy_selfdestruct(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    account = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    account = testerchain.client.accounts[1]
 
     secret = os.urandom(32)
-    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret_hash = keccak(secret)
     secret2 = os.urandom(32)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret2_hash = keccak(secret2)
 
     # Deploy proxy and destroy it
-    contract1_lib, _ = testerchain.interface.deploy_contract('DestroyableUserEscrowLibrary')
+    contract1_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
     assert 15 == contract1_lib.functions.method().call()
     tx = contract1_lib.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
@@ -187,28 +188,28 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't create linker using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('UserEscrowLibraryLinker', Blockchain.NULL_ADDRESS, secret_hash)
+        testerchain.deploy_contract('UserEscrowLibraryLinker', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('UserEscrowLibraryLinker', account, secret_hash)
+        testerchain.deploy_contract('UserEscrowLibraryLinker', account, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('UserEscrowLibraryLinker', contract1_lib.address, secret_hash)
+        testerchain.deploy_contract('UserEscrowLibraryLinker', contract1_lib.address, secret_hash)
 
     # Deploy contract again with a linker targeting it
-    contract2_lib, _ = testerchain.interface.deploy_contract('DestroyableUserEscrowLibrary')
-    linker_contract, _ = testerchain.interface.deploy_contract(
+    contract2_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
+    linker_contract, _ = testerchain.deploy_contract(
         'UserEscrowLibraryLinker', contract2_lib.address, secret_hash)
     assert contract2_lib.address == linker_contract.functions.target().call()
 
     # Can't create user escrow using wrong contracts
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('UserEscrow', linker_contract.address, linker_contract.address)
+        testerchain.deploy_contract('UserEscrow', linker_contract.address, linker_contract.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.interface.deploy_contract('UserEscrow', token.address, token.address)
+        testerchain.deploy_contract('UserEscrow', token.address, token.address)
 
     # Deploy user escrow
-    user_escrow_contract, _ = testerchain.interface.deploy_contract(
+    user_escrow_contract, _ = testerchain.deploy_contract(
         'UserEscrow', linker_contract.address, token.address)
-    user_escrow_library = testerchain.interface.w3.eth.contract(
+    user_escrow_library = testerchain.client.get_contract(
         abi=contract1_lib.abi,
         address=user_escrow_contract.address,
         ContractFactoryClass=Contract)
@@ -216,7 +217,7 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = linker_contract.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
@@ -234,7 +235,7 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't upgrade to an address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = linker_contract.functions.upgrade(Blockchain.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
+        tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(account, secret, secret2_hash).transact({'from': creator})
@@ -244,7 +245,7 @@ def test_proxy_selfdestruct(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade to this contract
-    contract3_lib, _ = testerchain.interface.deploy_contract('DestroyableUserEscrowLibrary')
+    contract3_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
     tx = linker_contract.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 15 == user_escrow_library.functions.method().call()

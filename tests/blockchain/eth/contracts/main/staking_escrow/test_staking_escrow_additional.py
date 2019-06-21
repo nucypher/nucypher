@@ -18,9 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
@@ -31,14 +32,14 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    staker = testerchain.interface.w3.eth.accounts[1]
+    creator = testerchain.client.accounts[0]
+    staker = testerchain.client.accounts[1]
 
-    secret_hash = testerchain.interface.w3.keccak(secret)
-    secret2_hash = testerchain.interface.w3.keccak(secret2)
+    secret_hash = keccak(secret)
+    secret2_hash = keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = testerchain.interface.deploy_contract(
+    contract_library_v1, _ = testerchain.deploy_contract(
         contract_name='StakingEscrow',
         _token=token.address,
         _hoursPerPeriod=1,
@@ -50,10 +51,10 @@ def test_upgrading(testerchain, token):
         _maxAllowableLockedTokens=1500,
         _minWorkerPeriods=1
     )
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.interface.deploy_contract(
+    contract_library_v2, _ = testerchain.deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -67,7 +68,7 @@ def test_upgrading(testerchain, token):
         _valueToCheck=2
     )
 
-    contract = testerchain.interface.w3.eth.contract(
+    contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -82,7 +83,7 @@ def test_upgrading(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Initialize contract and staker
-    policy_manager, _ = testerchain.interface.deploy_contract(
+    policy_manager, _ = testerchain.deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
@@ -116,7 +117,7 @@ def test_upgrading(testerchain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.interface.deploy_contract(
+    contract_library_bad, _ = testerchain.deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -182,9 +183,9 @@ def test_upgrading(testerchain, token):
 @pytest.mark.slow
 def test_re_stake(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator = testerchain.interface.w3.eth.accounts[0]
-    ursula = testerchain.interface.w3.eth.accounts[1]
-    ursula2 = testerchain.interface.w3.eth.accounts[2]
+    creator = testerchain.client.accounts[0]
+    ursula = testerchain.client.accounts[1]
+    ursula2 = testerchain.client.accounts[2]
 
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
     re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
@@ -447,7 +448,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 def test_worker(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
-        testerchain.interface.w3.eth.accounts
+        testerchain.client.accounts
 
     worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
 
@@ -456,9 +457,9 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
-    intermediary1, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary2, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary3, _ = testerchain.interface.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary1, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary2, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary3, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
 
     # Prepare stakers: two with intermediary contract and one just a staker
     sub_stake = 1000
@@ -468,25 +469,25 @@ def test_worker(testerchain, token, escrow_contract):
     tx = intermediary1.functions.deposit(sub_stake, duration).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary1.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary1.address).call()
 
     tx = token.functions.transfer(intermediary2.address, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     tx = intermediary2.functions.deposit(sub_stake, duration).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(intermediary2.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary2.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(intermediary2.address).call()
 
     tx = token.functions.transfer(ursula3, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(ursula3).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(ursula3).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(ursula3).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(ursula3).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(ursula3).call()
 
     # Ursula can't confirm activity because there is no worker by default
     with pytest.raises((TransactionFailed, ValueError)):
@@ -532,7 +533,7 @@ def test_worker(testerchain, token, escrow_contract):
     tx = token.functions.transfer(worker1, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
@@ -543,14 +544,14 @@ def test_worker(testerchain, token, escrow_contract):
 
     # She can't unset her worker too, until enough time has passed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+        tx = intermediary1.functions.setWorker(BlockchainInterface.NULL_ADDRESS).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
     # Let's advance one period and unset the worker
     testerchain.time_travel(hours=1)
-    tx = intermediary1.functions.setWorker(Blockchain.NULL_ADDRESS).transact({'from': ursula1})
+    tx = intermediary1.functions.setWorker(BlockchainInterface.NULL_ADDRESS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -558,7 +559,7 @@ def test_worker(testerchain, token, escrow_contract):
     event_args = events[-1]['args']
     assert intermediary1.address == event_args['staker']
     # Now the worker has been unset ...
-    assert Blockchain.NULL_ADDRESS == event_args['worker']
+    assert BlockchainInterface.NULL_ADDRESS == event_args['worker']
     # ... with a new starting period.
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
@@ -567,7 +568,7 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert worker2 == escrow.functions.getWorkerFromStaker(intermediary1.address).call()
     assert intermediary1.address == escrow.functions.getStakerFromWorker(worker2).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -601,7 +602,7 @@ def test_worker(testerchain, token, escrow_contract):
 
     # The first worker still can't be a staker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+        tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
             .transact({'from': worker1})
         testerchain.wait_for_receipt(tx)
 
@@ -611,7 +612,7 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert ursula2 == escrow.functions.getWorkerFromStaker(intermediary2.address).call()
     assert intermediary2.address == escrow.functions.getStakerFromWorker(ursula2).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -624,12 +625,12 @@ def test_worker(testerchain, token, escrow_contract):
     # The first worker is free and can deposit tokens and become a staker
     tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
     testerchain.wait_for_receipt(tx)
-    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.interface.w3.toBytes(duration)) \
+    tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
-    assert Blockchain.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
+    assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
 
     # Ursula can't use the first worker again because worker is a staker now
     testerchain.time_travel(hours=1)

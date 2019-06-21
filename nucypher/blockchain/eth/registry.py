@@ -295,6 +295,16 @@ class InMemoryEthereumContractRegistry(EthereumContractRegistry):
                 raise
         return registry_data
 
+    def commit(self, filepath) -> str:
+        """writes the current state of the registry to a file"""
+        if 'tmp' not in filepath:
+            raise ValueError(f"Filepaths for saving in-memory registries must contain 'tmp'.  Got {filepath}")
+        self.log.info("Committing temporary registry to {}".format(filepath))
+        with open(filepath, 'w') as file:
+            file.write(self.__registry_data)
+        self.log.info("Wrote in-memory registry to filesystem {}".format(filepath))
+        return filepath
+
 
 class AllocationRegistry(EthereumContractRegistry):
 

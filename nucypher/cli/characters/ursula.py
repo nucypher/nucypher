@@ -253,7 +253,6 @@ def ursula(click_config,
 
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
-                                        recompile_contracts=recompile_solidity,
                                         sync=sync,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
@@ -326,11 +325,11 @@ def ursula(click_config,
         if not URSULA.federated_only:
             click.secho("BLOCKCHAIN ----------\n")
             painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
-            current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+            current_block = URSULA.blockchain.w3.eth.blockNumber
             click.secho(f'Block # {current_block}')
             click.secho(f'NU Balance: {URSULA.token_balance}')
             click.secho(f'ETH Balance: {URSULA.eth_balance}')
-            click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)

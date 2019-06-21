@@ -21,6 +21,7 @@ from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
+from eth_utils import keccak
 
 import maya
 from constant_sorrow.constants import (
@@ -46,7 +47,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -80,7 +81,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, checksum_address: str = None, blockchain: Blockchain = None):
+    def __init__(self, blockchain: BlockchainInterface, checksum_address: str = None):
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
         """
@@ -92,10 +93,7 @@ class NucypherTokenActor:
         except AttributeError:
             self.checksum_address = checksum_address  # type: str
 
-        if blockchain is None:
-            blockchain = Blockchain.connect()  # Attempt to connect
         self.blockchain = blockchain
-
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
@@ -108,8 +106,8 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.blockchain.interface.get_balance(self.checksum_address)
-        return self.blockchain.interface.fromWei(balance, 'ether')
+        balance = self.blockchain.client.get_balance(self.checksum_address)
+        return self.blockchain.client.w3.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
@@ -138,7 +136,7 @@ class Deployer(NucypherTokenActor):
         pass
 
     def __init__(self,
-                 blockchain: Blockchain,
+                 blockchain: BlockchainInterface,
                  deployer_address: str = None,
                  bare: bool = True
                  ) -> None:
@@ -166,18 +164,18 @@ class Deployer(NucypherTokenActor):
 
     @classmethod
     def from_blockchain(cls, provider_uri: str, registry=None, *args, **kwargs):
-        blockchain = Blockchain.connect(provider_uri=provider_uri, registry=registry)
+        blockchain = BlockchainInterface.connect(provider_uri=provider_uri, registry=registry)
         instance = cls(blockchain=blockchain, *args, **kwargs)
         return instance
 
     @property
     def deployer_address(self):
-        return self.blockchain.interface.deployer_address
+        return self.blockchain.deployer_address
 
     @deployer_address.setter
     def deployer_address(self, value):
         """Used for validated post-init setting of deployer's address"""
-        self.blockchain.interface.deployer_address = value
+        self.blockchain.deployer_address = value
 
     @property
     def token_balance(self) -> NU:
@@ -204,7 +202,7 @@ class Deployer(NucypherTokenActor):
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
-            secret_hash = self.blockchain.interface.keccak(bytes(plaintext_secret, encoding='utf-8'))
+            secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
             txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         else:
             txhashes = deployer.deploy(gas_limit=gas_limit)
@@ -213,7 +211,7 @@ class Deployer(NucypherTokenActor):
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
         return txhashes
@@ -221,7 +219,7 @@ class Deployer(NucypherTokenActor):
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
-        new_secret_hash = self.blockchain.interface.keccak(bytes(new_plaintext_secret, encoding='utf-8'))
+        new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                    new_secret_hash=new_secret_hash)
         return txhash
@@ -340,7 +338,8 @@ class Deployer(NucypherTokenActor):
             for contract_name, transactions in transactions.items():
                 contract_records = dict()
                 for tx_name, txhash in transactions.items():
-                    receipt = {item: str(result) for item, result in self.blockchain.wait_for_receipt(txhash).items()}
+                    receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=self.blockchain.TIMEOUT)
+                    receipt = {item: str(result) for item, result in receipt.items()}
                     contract_records.update({tx_name: receipt for tx_name in transactions})
                 data[contract_name] = contract_records
             data = json.dumps(data, indent=4)
@@ -364,7 +363,7 @@ class Staker(NucypherTokenActor):
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
         self.stake_tracker = StakeTracker(checksum_addresses=[self.checksum_address])
-        self.staking_agent = StakingEscrowAgent()
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.economics = economics or TokenEconomics()
         self.is_me = is_me
 

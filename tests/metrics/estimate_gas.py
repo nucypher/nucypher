@@ -24,17 +24,16 @@ import os
 import re
 import sys
 import time
-from mock import Mock
 from os.path import abspath, dirname
 
-from eth_utils import to_canonical_address
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
+from eth_utils import to_canonical_address
+from mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
-from zope.interface import provider
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
@@ -141,7 +140,7 @@ def generate_args_for_slashing(testerchain, ursula, account, corrupt_cfrag: bool
 
     # Sign Umbral public key using eth-key
     staker_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
-    provider = testerchain.interface.provider
+    provider = testerchain.provider
     address = to_canonical_address(account)
     sig_key = provider.ethereum_tester.backend._key_lookup[address]
     signed_staker_umbral_public_key = bytes(sig_key.sign_msg_hash(staker_umbral_public_key_hash))
@@ -171,10 +170,10 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Blockchain
     testerchain, agents = TesterBlockchain.bootstrap_network()
-    web3 = testerchain.interface.w3
+    web3 = testerchain.w3
 
     # Accounts
-    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
+    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.client.accounts
 
     ursula_with_stamp = mock_ursula_with_stamp()
 
@@ -182,7 +181,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     token_agent = NucypherTokenAgent(blockchain=testerchain)
     staking_agent = StakingEscrowAgent(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
-    adjudicator_agent = AdjudicatorAgent()
+    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
 
     # Contract Callers
     token_functions = token_agent.contract.functions
@@ -654,7 +653,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
     # Deploy adjudicator to estimate slashing method in StakingEscrow contract
-    adjudicator, _ = testerchain.interface.deploy_contract(
+    adjudicator, _ = testerchain.deploy_contract(
         'Adjudicator', staking_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
     )
     tx = staker_functions.setAdjudicator(adjudicator.address).transact()

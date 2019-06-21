@@ -118,13 +118,12 @@ def test_anybody_can_verify():
 
 def test_character_blockchain_power(testerchain, agency):
     # TODO: Handle multiple providers
-    eth_address = testerchain.interface.w3.eth.accounts[0]
-    sig_privkey = testerchain.interface.provider.ethereum_tester.backend._key_lookup[
-        eth_utils.to_canonical_address(eth_address)]
-    sig_pubkey = sig_privkey.public_key
+    eth_address = testerchain.client.accounts[0]
+    canonical_address = eth_utils.to_canonical_address(eth_address)
+    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
 
-    signer = Character(is_me=True, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
+    signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
+    signer._crypto_power.consume_power_up(BlockchainPower(blockchain=testerchain, account=eth_address))
 
     # Due to testing backend, the account is already unlocked.
     power = signer._crypto_power.power_ups(BlockchainPower)
@@ -132,13 +131,13 @@ def test_character_blockchain_power(testerchain, agency):
     # power.unlock_account('this-is-not-a-secure-password')
 
     data_to_sign = b'What does Ursula look like?!?'
-    sig = power.sign_message(data_to_sign)
+    sig = power.sign_message(message=data_to_sign)
 
     is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
     assert is_verified is True
 
     # Test a bad address/pubkey pair
-    is_verified = verify_eip_191(address=testerchain.interface.w3.eth.accounts[1],
+    is_verified = verify_eip_191(address=testerchain.client.accounts[1],
                                  message=data_to_sign,
                                  signature=sig)
     assert is_verified is False
@@ -146,7 +145,7 @@ def test_character_blockchain_power(testerchain, agency):
     # Test a signature without unlocking the account
     power.is_unlocked = False
     with pytest.raises(PowerUpError):
-        power.sign_message(b'test')
+        power.sign_message(message=b'test')
 
     # Test lockAccount call
     del power

@@ -92,12 +92,13 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str) -> None:
+    def __init__(self, blockchain: 'Blockchain', account: str, device = None) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
         self.blockchain = blockchain
         self.account = account
+        self.device = device
         self.is_unlocked = False
 
     def unlock_account(self, password: str):
@@ -105,7 +106,7 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.interface.unlock_account(self.account, password)
+        self.is_unlocked = self.blockchain.client.unlock_account(self.account, password)
         if not self.is_unlocked:
             raise PowerUpError("Failed to unlock account {}".format(self.account))
 
@@ -115,14 +116,20 @@ class BlockchainPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
-        signature = self.blockchain.interface.client.sign_message(self.account, message)
+        signature = self.blockchain.client.sign_message(account=self.account, message=message)
         return signature
 
-    def __del__(self):
-        """
-        Deletes the blockchain power and locks the account.
-        """
-        self.blockchain.interface.client.lock_account(self.account)
+    def sign_transaction(self, unsigned_transaction: dict):
+        if self.device:
+            # TODO: Implement TrustedDevice
+            raise NotImplementedError
+
+        # This check is also performed client-side.
+        sender_address = unsigned_transaction['from']
+        if sender_address != self.account:
+            raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")
+        signed_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction, account=self.account)
+        return signed_transaction
 
 
 class KeyPairBasedPower(CryptoPowerUp):

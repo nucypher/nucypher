@@ -130,22 +130,12 @@ def felix(click_config,
         click_config.unlock_keyring(character_configuration=felix_config,
                                     password=password)
 
-
-
         # Produce Teacher Ursulas
         teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
                                                min_stake=min_stake,
                                                federated_only=felix_config.federated_only,
                                                network_domains=felix_config.domains,
                                                network_middleware=click_config.middleware)
-        
-        # Add ETH Bootnode or Peer
-        if enode:
-            if geth:
-                felix_config.blockchain.interface.w3.geth.admin.addPeer(enode)
-                click.secho(f"Added ethereum peer {enode}")
-            else:
-                raise NotImplemented  # TODO: other backends
 
         # Produce Felix
         FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
@@ -178,7 +168,7 @@ ETH ........ {str(eth_balance)}
         """)
 
     elif action == "accounts":
-        accounts = FELIX.blockchain.interface.w3.eth.accounts
+        accounts = FELIX.blockchain.client.accounts
         for account in accounts:
             click.secho(account)
 
@@ -190,7 +180,6 @@ ETH ........ {str(eth_balance)}
 
         try:
             click.secho("Waiting for blockchain sync...", fg='yellow')
-            FELIX.blockchain.sync()
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,

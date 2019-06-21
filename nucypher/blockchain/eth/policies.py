@@ -275,7 +275,7 @@ class BlockchainPolicy(Policy):
         payload = {'from': self.author.checksum_address,
                    'value': self.value,
                    'gas': 500_000,  # TODO: Gas management
-                   'gasPrice': self.author.blockchain.interface.w3.eth.gasPrice}
+                   'gasPrice': self.author.blockchain.client.gas_price}
 
         prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
         policy_args = (self.hrac()[:16],     # bytes16 _policyID
@@ -284,10 +284,14 @@ class BlockchainPolicy(Policy):
                        prearranged_ursulas)  # address[] memory _nodes
 
         # Transact
-        txhash = self.author.policy_agent.contract.functions.createPolicy(*policy_args).transact(payload)
+        contract_function = self.author.policy_agent.contract.functions.createPolicy(*policy_args)
+        receipt = self.author.blockchain.send_transaction(transaction_function=contract_function,
+                                                          sender_address=self.author.checksum_address,
+                                                          payload=payload)
+        txhash = receipt['transactionHash']
 
         # Capture Response
-        self.receipt = self.alice.policy_agent.blockchain.wait_for_receipt(txhash)
+        self.receipt = receipt
         self.publish_transaction = txhash
         self.is_published = True
 

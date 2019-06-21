@@ -32,11 +32,9 @@ from twisted.logger import Logger
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.config.base import BaseConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
@@ -180,15 +178,22 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def connect_to_blockchain(self, recompile_contracts: bool = False, full_sync: bool = False) -> None:
+    @property
+    def known_nodes(self):
+        return self.__fleet_state
+
+    def connect_to_blockchain(self, sync_now: bool = False) -> None:
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
-        self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
-                                             compile=recompile_contracts,
-                                             poa=self.poa,
-                                             fetch_registry=True,
-                                             provider_process=self.provider_process,
-                                             sync=full_sync)
+
+        self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
+                                              poa=self.poa,
+                                              fetch_registry=True,
+                                              provider_process=self.provider_process,
+                                              sync_now=sync_now)
+
+        # Read Ethereum Node Keyring
+        self.accounts = self.blockchain.client.accounts
 
     def connect_to_contracts(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
@@ -279,7 +284,7 @@ class CharacterConfiguration(BaseConfiguration):
             if not os.path.exists(path):
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
-                    message += ' Did you mean to pass --federated-only?'                    
+                    message += ' Did you mean to pass --federated-only?'
                 raise CharacterConfiguration.InvalidConfiguration(message.format(path))
         return True
 
@@ -320,9 +325,9 @@ class CharacterConfiguration(BaseConfiguration):
         payload = dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
-                       crypto_power_ups=self.derive_node_power_ups() or None)
+                       crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
-            self.connect_to_blockchain(recompile_contracts=False)
+            self.connect_to_blockchain()
             payload.update(blockchain=self.blockchain)
         return payload
 
@@ -437,9 +442,9 @@ class CharacterConfiguration(BaseConfiguration):
             # Determine etherbase (web3)
             elif not self.checksum_address:
                 self.connect_to_blockchain()
-                if not self.blockchain.interface.w3.eth.accounts:
+                if not self.blockchain.client.accounts:
                     raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_address = self.blockchain.interface.etherbase
+                self.checksum_address = self.blockchain.client.etherbase
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,

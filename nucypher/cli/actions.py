@@ -227,7 +227,6 @@ def make_cli_character(character_config,
                        teacher_uri: str = None,
                        min_stake: int = 0,
                        sync: bool = True,
-                       recompile_contracts: bool = False,
                        **config_args):
 
     #
@@ -236,9 +235,7 @@ def make_cli_character(character_config,
 
     # Handle Blockchain
     if not character_config.federated_only:
-        click_config.connect_to_blockchain(character_configuration=character_config,
-                                           full_sync=sync,
-                                           recompile_contracts=recompile_contracts)
+        click_config.connect_to_blockchain(character_configuration=character_config, sync_now=sync)
 
     # Handle Keyring
     if not dev:

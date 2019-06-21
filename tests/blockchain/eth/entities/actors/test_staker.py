@@ -20,6 +20,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
@@ -28,18 +29,21 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 @pytest.fixture(scope='module')
 def staker(testerchain, agency):
     token_agent, staking_agent, policy_agent = agency
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
     token_airdrop(token_agent=token_agent,
                   origin=testerchain.etherbase_account,
                   addresses=everybody_else,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    staker = Staker(checksum_address=everybody_else[0], is_me=True)
+    staker = Staker(checksum_address=everybody_else[0], is_me=True, blockchain=testerchain)
     return staker
 
 
 @pytest.mark.slow()
 def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
     token_agent, staking_agent, policy_agent = agency
+
+    # Mock Powerup consumption (Ursula-Staker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker.checksum_address)
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
@@ -102,6 +106,9 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     initial_balance = staker.token_balance
     assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker.checksum_address)
+
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                             lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
 
@@ -113,7 +120,8 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        confirm_activity=False).pop()
+                                        confirm_activity=False,
+                                        blockchain=testerchain).pop()
 
     # TODO: Use the above code as a starting point for a non-staking worker fixture
 
@@ -124,6 +132,9 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
 
     # ...wait more...
     testerchain.time_travel(periods=2)
+
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker.checksum_address)
 
     # Profit!
     staker.collect_staking_reward()

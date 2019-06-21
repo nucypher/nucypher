@@ -39,7 +39,7 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -68,13 +68,12 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-    from nucypher.crypto.signing import InvalidSignature  # TODO: Restore nucypher Signing exceptions
 
     def __init__(self,
                  domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_root: str = None,
@@ -130,7 +129,7 @@ class Character(Learner):
 
         # Needed for on-chain verification
         if not self.federated_only:
-            self.blockchain = blockchain or Blockchain.connect()
+            self.blockchain = blockchain
             self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
         else:
             self.blockchain = FEDERATED_ONLY

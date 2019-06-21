@@ -136,6 +136,8 @@ def test_cli_lifecycle(click_runner,
                      '--config-root', bob_config_root)
     if federated:
         bob_init_args += ('--federated-only', )
+    else:
+        bob_init_args += ('--provider-uri', TEST_PROVIDER_URI)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0

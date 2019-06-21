@@ -114,7 +114,15 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
+            PolicyAuthor.__init__(self,
+                                  blockchain=self.blockchain,
+                                  policy_agent=policy_agent,
+                                  checksum_address=checksum_address)
+
+            # TODO: #1092 - TransactingPower
+            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+            self._crypto_power.consume_power_up(blockchain_power)
+            self.blockchain.transacting_power = blockchain_power  # TODO: Embed in Powerups
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -799,7 +807,6 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  stake_tracker: StakeTracker = None,
-                 staking_agent: StakingEscrowAgent = None,
 
                  # Character
                  password: str = None,
@@ -837,7 +844,9 @@ class Ursula(Teacher, Character, Worker):
         #
         # Self-Ursula
         #
-        if is_me is True:  # TODO: 340
+        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+
+        if is_me is True:  # TODO: #340
             self._stored_treasure_maps = dict()
 
             #
@@ -846,17 +855,17 @@ class Ursula(Teacher, Character, Worker):
             if not federated_only:
                 Worker.__init__(self,
                                 is_me=is_me,
+                                blockchain=self.blockchain,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 stake_tracker=stake_tracker)
 
                 # Access to worker's ETH client via node's transacting keys
-                # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+                # TODO: #1092 - TransactingPower
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=worker_address)
                 self._crypto_power.consume_power_up(blockchain_power)
-
-                # Use blockchain power to substantiate stamp
-                self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
+                self.blockchain.transacting_power = blockchain_power  # TODO: Embed in powerups
+                self.substantiate_stamp(client_password=password)  # TODO: Use PowerUp / Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -922,6 +931,7 @@ class Ursula(Teacher, Character, Worker):
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
                          password=password,
+                         worker_address=worker_address,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
