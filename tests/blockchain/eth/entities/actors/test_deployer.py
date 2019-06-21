@@ -25,18 +25,17 @@ from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.crypto.powers import TransactingPower
-
+# Prevents TesterBlockchain to be picked up by py.test as a test class
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
     USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
     ADJUDICATOR_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     STAKING_ESCROW_DEPLOYMENT_SECRET,
-    NUMBER_OF_ALLOCATIONS_IN_TESTS
+    NUMBER_OF_ALLOCATIONS_IN_TESTS,
+    INSECURE_DEVELOPMENT_PASSWORD
 )
-
-# Prevents TesterBlockchain to be picked up by py.test as a test class
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 
 
 @pytest.mark.slow()
@@ -50,6 +49,7 @@ def test_rapid_deployment(token_economics):
 
     # TODO: #1092 - TransactingPower
     blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
