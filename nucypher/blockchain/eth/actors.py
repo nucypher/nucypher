@@ -60,7 +60,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
-from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
@@ -70,6 +69,15 @@ def only_me(func):
         if not actor.is_me:
             raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
+    return wrapped
+
+
+def cache_transaction(actor_method):
+    """Decorator to cache transmitted transactions from actor methods"""
+    def wrapped(self, *args, **kwargs):
+        receipt = actor_method(self, *args, **kwargs)
+        self._transaction_cache.append((datetime.utcnow(), receipt))
+        return receipt
     return wrapped
 
 
@@ -471,49 +479,49 @@ class Staker(NucypherTokenActor):
     #
 
     @only_me
+    @cache_transaction
     def set_worker(self, worker_address: str) -> str:
         # TODO: Set a Worker for this staker, not just in StakingEscrow
-        txhash = self.staking_agent.set_worker(staker_address=self.checksum_address,
-                                               worker_address=worker_address)
-        self._transaction_cache.append((datetime.utcnow(), txhash))
-        return txhash
+        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
+                                                worker_address=worker_address)
+        return receipt
 
     @only_me
+    @cache_transaction
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the staker's account"""
-        mint_txhash = self.staking_agent.mint(staker_address=self.checksum_address)
-        self._transaction_cache.append((datetime.utcnow(), mint_txhash))
-        return mint_txhash
+        receipt = self.staking_agent.mint(staker_address=self.checksum_address)
+        return receipt
 
     def calculate_reward(self) -> int:
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
         return staking_reward
 
     @only_me
+    @cache_transaction
     def collect_policy_reward(self, collector_address=None, policy_agent: PolicyAgent = None):
         """Collect rewarded ETH"""
         policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
 
         withdraw_address = collector_address or self.checksum_address
-        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=withdraw_address,
-                                                                  staker_address=self.checksum_address)
-        self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
-        return policy_reward_txhash
+        receipt = policy_agent.collect_policy_reward(collector_address=withdraw_address,
+                                                     staker_address=self.checksum_address)
+        return receipt
 
     @only_me
+    @cache_transaction
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        collection_txhash = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
-        self._transaction_cache.append((datetime.utcnow(), collection_txhash))
-        return collection_txhash
+        receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
+        return receipt
 
     @only_me
+    @cache_transaction
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
-        collection_txhash = self.staking_agent.withdraw(staker_address=self.checksum_address,
+        receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
                                                         amount=int(amount))
-        self._transaction_cache.append((datetime.utcnow(), collection_txhash))
-        return collection_txhash
+        return receipt
 
 
 class Worker(NucypherTokenActor):
@@ -566,11 +574,11 @@ class Worker(NucypherTokenActor):
         return period
 
     @only_me
+    @cache_transaction
     def confirm_activity(self) -> str:
         """For each period that the worker confirms activity, the staker is rewarded"""
-        txhash = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
-        self._transaction_cache.append((datetime.utcnow(), txhash))
-        return txhash
+        receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
+        return receipt
 
     @only_me
     def _confirm_period(self) -> None:
@@ -649,8 +657,8 @@ class Investigator(NucypherTokenActor):
 
         self.adjudicator_agent = AdjudicatorAgent(blockchain=self.blockchain)
 
+    @cache_transaction
     def request_evaluation(self, evidence):
         receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence,
                                                         sender_address=self.checksum_address)
-        self._transaction_cache.append((datetime.utcnow(), receipt))
         return receipt
