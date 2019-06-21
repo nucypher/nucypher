@@ -297,12 +297,6 @@ def deploy(click_config,
         txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
         click.secho(f"OK | {txhash}")
 
-    elif action == "destroy-registry":
-        registry_filepath = deployer.blockchain.registry.filepath
-        click.confirm(f"Are you absolutely sure you want to destroy the contract registry at {registry_filepath}?", abort=True)
-        os.remove(registry_filepath)
-        click.secho(f"Successfully destroyed {registry_filepath}", fg='red')
-
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")
 

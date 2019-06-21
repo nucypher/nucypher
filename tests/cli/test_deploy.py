@@ -379,24 +379,3 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     # Destroy existing blockchain
     testerchain.disconnect()
-
-
-def test_destroy_registry(click_runner, mock_primary_registry_filepath):
-
-    #   ... I changed my mind, destroy the registry!
-    destroy_command = ('destroy-registry',
-                       '--registry-infile', mock_primary_registry_filepath,
-                       '--provider-uri', TEST_PROVIDER_URI,
-                       '--poa')
-
-    # TODO: #1036 - Providers and unlocking are not needed for this command
-    account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
-
-    result = click_runner.invoke(deploy, destroy_command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert mock_primary_registry_filepath in result.output
-    assert DEFAULT_CONFIG_ROOT not in result.output, 'WARNING: Deploy CLI tests are using default config root dir!'
-    assert f'Successfully destroyed {mock_primary_registry_filepath}' in result.output
-    assert not os.path.isfile(mock_primary_registry_filepath)
