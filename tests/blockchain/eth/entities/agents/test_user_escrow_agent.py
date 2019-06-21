@@ -26,6 +26,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 TEST_DURATION = 60*60
 TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
@@ -57,6 +58,7 @@ def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
 
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=deployer_address)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
@@ -142,6 +144,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
     # Mock Powerup consumption (Beneficiary)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=agent.beneficiary)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Move the tokens to the StakingEscrow
     receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
@@ -160,6 +163,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
     # Mock Powerup consumption (Beneficiary-Worker)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=worker)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     for _ in range(token_economics.minimum_locked_periods):
         staking_agent.confirm_activity(worker_address=worker)
@@ -168,6 +172,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
     # Mock Powerup consumption (Beneficiary)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=agent.beneficiary)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     agent.mint()
 
@@ -191,6 +196,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     # Mock Powerup consumption (Beneficiary)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=agent.beneficiary)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
 
@@ -202,6 +208,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     # Mock Powerup consumption (Alice)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=author)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
                                          author_address=author,
@@ -212,6 +219,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     # Mock Powerup consumption (Beneficiary-Worker)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=worker)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     _txhash = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
@@ -221,6 +229,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
 
     # Mock Powerup consumption (Beneficiary)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=agent.beneficiary)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     txhash = agent.collect_policy_reward()
     assert txhash  # TODO
@@ -233,6 +242,7 @@ def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
 
     # Mock Powerup consumption (Beneficiary)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=agent.beneficiary)
+    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
     with pytest.raises((TransactionFailed, ValueError)):

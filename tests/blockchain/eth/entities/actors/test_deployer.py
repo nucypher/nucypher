@@ -34,7 +34,7 @@ from nucypher.utilities.sandbox.constants import (
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     STAKING_ESCROW_DEPLOYMENT_SECRET,
     NUMBER_OF_ALLOCATIONS_IN_TESTS,
-    TEST_PROVIDER_URI)
+    TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD)
 
 
 @pytest.mark.slow()
@@ -48,6 +48,7 @@ def test_rapid_deployment(token_economics):
 
     # TODO: #1092 - TransactingPower
     blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
