@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from typing import List, Tuple, Optional
 
-from constant_sorrow.constants import NO_STAKING_DEVICE
+from constant_sorrow.constants import NO_STAKING_DEVICE, NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
@@ -102,6 +102,9 @@ class TransactingPower(CryptoPowerUp):
     """
     not_found_error = NoTransactingPower
 
+    class AccountLocked(PowerUpError):
+        pass
+
     def __init__(self,
                  blockchain,
                  account: str,
@@ -114,14 +117,13 @@ class TransactingPower(CryptoPowerUp):
             raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
 
         self.blockchain = blockchain
+        self.client = NO_BLOCKCHAIN_CONNECTION
 
         self.account = account
-        self.client = self.blockchain.client
         self.device = device
 
         self.__password = password
         self.__unlocked = False
-        self.unlock_account()
 
     @property
     def is_unlocked(self):
@@ -129,7 +131,8 @@ class TransactingPower(CryptoPowerUp):
 
     def activate(self, password: str = None):
         """Be Consumed"""
-        self.blockchain.connect()                  # Connect
+        self.blockchain.connect()
+        self.client = self.blockchain.client       # Connect
         self.unlock_account(password=password)     # Unlock
         self.blockchain.transacting_power = self   # Attach
         self.__password = None                     # Discard
@@ -161,7 +164,7 @@ class TransactingPower(CryptoPowerUp):
         Signs the message with the private key of the TransactingPower.
         """
         if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(self.account))
+            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:
@@ -179,7 +182,7 @@ class TransactingPower(CryptoPowerUp):
         Signs the transaction with the private key of the TransactingPower.
         """
         if not self.is_unlocked:
-            raise PowerUpError("Failed to unlock account {}".format(self.account))
+            raise self.AccountLocked("Failed to unlock account {}".format(self.account))
 
         # Note: This check is also performed client-side.
         sender_address = unsigned_transaction['from']

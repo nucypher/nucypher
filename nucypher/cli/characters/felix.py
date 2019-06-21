@@ -6,6 +6,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
+from nucypher.cli.actions import get_password, unlock_nucypher_keyring
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
@@ -72,11 +73,8 @@ def felix(click_config,
         if not config_root:                         # Flag
             config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
 
-        # Acquire Keyring Password
-        new_password = click_config.get_password(confirm=True)
-
         try:
-            new_felix_config = FelixConfiguration.generate(password=new_password,
+            new_felix_config = FelixConfiguration.generate(password=get_password(confirm=True),
                                                            config_root=config_root,
                                                            rest_host=host,
                                                            rest_port=discovery_port,
@@ -123,12 +121,10 @@ def felix(click_config,
     try:
 
         # Connect to Blockchain
-        felix_config.connect_to_blockchain()
+        felix_config.get_blockchain_interface()
 
         # Authenticate
-        password = click_config.get_password(confirm=False)
-        click_config.unlock_keyring(character_configuration=felix_config,
-                                    password=password)
+        unlock_nucypher_keyring(character_configuration=felix_config, password=get_password(confirm=False))
 
         # Produce Teacher Ursulas
         teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,

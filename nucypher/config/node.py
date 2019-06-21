@@ -26,7 +26,8 @@ from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     LIVE_CONFIGURATION,
     NO_KEYRING_ATTACHED,
-    DEVELOPMENT_CONFIGURATION
+    DEVELOPMENT_CONFIGURATION,
+    FEDERATED_ADDRESS
 )
 from twisted.logger import Logger
 from umbral.signing import Signature
@@ -126,7 +127,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-        self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.token_agent = NO_BLOCKCHAIN_CONNECTION
         self.staking_agent = NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = NO_BLOCKCHAIN_CONNECTION
@@ -178,11 +178,7 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    @property
-    def known_nodes(self):
-        return self.__fleet_state
-
-    def connect_to_blockchain(self, sync_now: bool = False) -> None:
+    def get_blockchain_interface(self, sync_now: bool = False) -> None:
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
@@ -192,11 +188,7 @@ class CharacterConfiguration(BaseConfiguration):
                                               provider_process=self.provider_process,
                                               sync_now=sync_now)
 
-        # Read Ethereum Node Keyring
-        self.blockchain.connect(sync_now=sync_now)
-        self.accounts = self.blockchain.client.accounts
-
-    def connect_to_contracts(self) -> None:
+    def acquire_agency(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
@@ -328,7 +320,7 @@ class CharacterConfiguration(BaseConfiguration):
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
-            self.connect_to_blockchain()
+            self.get_blockchain_interface()
             payload.update(blockchain=self.blockchain)
         return payload
 
@@ -425,9 +417,11 @@ class CharacterConfiguration(BaseConfiguration):
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
-        # Note: It is assumed the blockchain is not yet available.
-        if not self.federated_only:
+        if self.federated_only:
+            checksum_address = FEDERATED_ADDRESS
 
+        else:
+            # Note: It is assumed the blockchain interface is not yet connected.
             if self.provider_process:
 
                 # Generate Geth's "datadir"
@@ -440,17 +434,14 @@ class CharacterConfiguration(BaseConfiguration):
                 elif self.checksum_address not in self.provider_process.accounts():
                     raise self.ConfigurationError(f'Unknown Account {self.checksum_address}')
 
-            # Determine etherbase (web3)
             elif not self.checksum_address:
-                self.connect_to_blockchain()
-                if not self.blockchain.client.accounts:
-                    raise self.ConfigurationError(f'Web3 provider "{self.provider_uri}" does not have any accounts')
-                self.checksum_address = self.blockchain.client.etherbase
+                raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
+
+            checksum_address = self.checksum_address
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
-                                                checksum_address=self.checksum_address,
-                                                federated=self.federated_only,
+                                                checksum_address=checksum_address,
                                                 **generation_kwargs)
 
         self.checksum_address = self.keyring.account

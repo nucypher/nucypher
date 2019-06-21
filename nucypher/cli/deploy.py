@@ -19,12 +19,11 @@ import time
 
 import click
 import maya
-from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
@@ -100,6 +99,7 @@ def deploy(click_config,
     if registry_filepath is not None:
         registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
+    # TODO: Move to Deployer with TransactingPower
     # Deployment-tuned blockchain connection
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
@@ -107,6 +107,8 @@ def deploy(click_config,
                                              compiler=SolidityCompiler(),
                                              fetch_registry=False,
                                              sync_now=sync)
+
+    blockchain.connect(fetch_registry=False, sync_now=sync)
 
     #
     # Deployment Actor
@@ -124,7 +126,10 @@ def deploy(click_config,
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
     # TODO: Integrate with Deployer Actor (Character)
-    blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=deployer_address)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    account=deployer_address,
+                                                    password=click.prompt("Enter ETH node password", hide_input=True))
+    blockchain.transacting_power.activate()
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
     # Verify ETH Balance
@@ -132,11 +137,6 @@ def deploy(click_config,
     if deployer.eth_balance == 0:
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
-
-    if not blockchain.client.is_local:
-        # (~ dev mode; Assume accounts are already unlocked)
-        password = click.prompt("Enter ETH node password", hide_input=True)
-        blockchain.client.unlockAccount(deployer_address, password)
 
     # Add ETH Bootnode or Peer
     if enode:
