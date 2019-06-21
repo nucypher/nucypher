@@ -632,3 +632,25 @@ class PolicyAuthor(NucypherTokenActor):
         from nucypher.blockchain.eth.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
         return blockchain_policy
+
+
+class Investigator(NucypherTokenActor):
+    """
+    Actor that reports incorrect CFrags to the Adjudicator contract.
+    In most cases, Bob will act as investigator, but the actor is generic enough than
+    anyone can report CFrags.
+    """
+
+    def __init__(self,
+                 checksum_address: str,
+                 *args, **kwargs) -> None:
+
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
+
+        self.adjudicator_agent = AdjudicatorAgent(blockchain=self.blockchain)
+
+    def request_evaluation(self, evidence):
+        receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence,
+                                                        sender_address=self.checksum_address)
+        self._transaction_cache.append((datetime.utcnow(), receipt))
+        return receipt

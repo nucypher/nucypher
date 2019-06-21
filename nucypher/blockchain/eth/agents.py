@@ -499,46 +499,17 @@ class UserEscrowAgent(EthereumContractAgent):
 
 
 class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
-    """TODO Issue #931"""
 
     registry_contract_name = "Adjudicator"
     _proxy_name = "Dispatcher"
 
-    def evaluate_cfrag(self,
-                       capsule_bytes: bytes,
-                       capsule_signature_by_requester: bytes,
-                       capsule_signature_by_requester_and_staker: bytes,
-                       cfrag_bytes: bytes,
-                       cfrag_signature_by_staker: bytes,
-                       requester_public_key: bytes,
-                       staker_public_key: bytes,
-                       staker_public_key_signature: bytes,
-                       precomputed_data: bytes):
+    def evaluate_cfrag(self, evidence, sender_address: str):
         """
-
-        From Contract Source:
-
-        function evaluateCFrag(
-            bytes memory _capsuleBytes,
-            bytes memory _capsuleSignatureByRequester,
-            bytes memory _capsuleSignatureByRequesterAndStaker,
-            bytes memory _cFragBytes,
-            bytes memory _cFragSignatureByStaker,
-            bytes memory _requesterPublicKey,
-            bytes memory _stakerPublicKey,
-            bytes memory _stakerPublicKeySignature,
-            bytes memory _preComputedData
-        )
-
-        :param capsule:
-        :param capsule_signature_by_requester:
-        :param capsule_signature_by_requester_and_staker:
-        :param cfrag:
-        :param cfrag_signature_by_staker:
-        :param requester_public_key:
-        :param staker_public_key:
-        :param staker_piblc_key_signature:
-        :param precomputed_data:
+        Submits proof that a worker created wrong CFrag
+        :param evidence:
+        :param sender_address:
         :return:
         """
-        # TODO: #931 - Challenge Agent and Actor - "Investigator"
+        contract_function = self.contract.functions.evaluateCFrag(evidence.evaluation_arguments())
+        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=sender_address)
+        return receipt
