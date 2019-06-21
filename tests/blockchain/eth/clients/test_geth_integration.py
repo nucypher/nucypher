@@ -16,6 +16,7 @@ def test_geth_EIP_191_client_signature_integration(geth_dev_node):
 
     # Start a geth process
     blockchain = BlockchainInterface(provider_process=geth_dev_node, sync_now=False)
+    blockchain.connect(fetch_registry=False, sync_now=False)
 
     # Sign a message (RPC) and verify it.
     etherbase = blockchain.client.accounts[0]
