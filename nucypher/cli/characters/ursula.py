@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherG
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import UnknownIPAddress
+from nucypher.cli.actions import UnknownIPAddress, get_password
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -68,7 +68,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--sync/--no-sync', default=True)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Token value of stake", type=click.INT)
@@ -98,7 +97,6 @@ def ursula(click_config,
            config_file,
            provider_uri,
            geth,
-           recompile_solidity,
            no_registry,
            registry_filepath,
            value,
@@ -178,9 +176,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(force=force)
 
-        new_password = click_config.get_password(confirm=True)
-
-        ursula_config = UrsulaConfiguration.generate(password=new_password,
+        ursula_config = UrsulaConfiguration.generate(password=get_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,

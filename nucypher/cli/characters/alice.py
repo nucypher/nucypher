@@ -2,8 +2,8 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.banners import ALICE_BANNER
-from nucypher.cli import actions, painting
-from nucypher.cli import types
+from nucypher.cli import actions, painting, types
+from nucypher.cli.actions import get_password
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
@@ -117,7 +117,7 @@ def alice(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_alice_config = AliceConfiguration.generate(password=click_config.get_password(confirm=True),
+        new_alice_config = AliceConfiguration.generate(password=get_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,

@@ -176,7 +176,7 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
-            if not blockchain:
+            if not blockchain and is_me:
                 raise ValueError('No blockchain interface provided to run decentralized mode.')
             if not checksum_address:
                 raise ValueError("No checksum_address provided to run in decentralized mode.")

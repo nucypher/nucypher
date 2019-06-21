@@ -23,7 +23,8 @@ from typing import List
 
 import click
 import requests
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
@@ -32,6 +33,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
+from nucypher.config.node import CharacterConfiguration
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
 
@@ -65,6 +67,27 @@ console_emitter = NucypherClickConfig.emit
 
 class UnknownIPAddress(RuntimeError):
     pass
+
+
+def get_password(confirm: bool = False) -> str:
+    keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
+    if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
+        prompt = "Enter keyring password"
+        keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+    return keyring_password
+
+
+def unlock_nucypher_keyring(password: str, character_configuration: CharacterConfiguration):
+    console_emitter(message='Decrypting NuCypher keyring...', color='yellow')
+    if character_configuration.dev_mode:
+        return True  # Dev accounts are always unlocked
+
+    # NuCypher
+    try:
+        character_configuration.attach_keyring()
+        character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
+    except CryptoError:
+        raise character_configuration.keyring.AuthenticationFailed
 
 
 def load_seednodes(min_stake: int,
@@ -102,25 +125,6 @@ def load_seednodes(min_stake: int,
         console_emitter(message=f'WARNING - No Bootnodes Available')
 
     return teacher_nodes
-
-
-def destroy_configuration_root(config_root=None, force=False, logs: bool = False) -> str:
-    """CAUTION: This will destroy *all* nucypher configuration files from the configuration root"""
-
-    config_root = config_root or DEFAULT_CONFIG_ROOT
-
-    if not force:
-        click.confirm(DESTRUCTION.format(config_root), abort=True)  # ABORT
-
-    if os.path.isdir(config_root):
-        shutil.rmtree(config_root, ignore_errors=force)  # config
-    else:
-        console_emitter(message=f'No NuCypher configuration root directory found at \'{config_root}\'')
-
-    if logs:
-        shutil.rmtree(USER_LOG_DIR, ignore_errors=force)  # logs
-
-    return config_root
 
 
 def get_external_ip_from_centralized_source() -> str:
@@ -235,13 +239,13 @@ def make_cli_character(character_config,
 
     # Handle Blockchain
     if not character_config.federated_only:
-        click_config.connect_to_blockchain(character_configuration=character_config, sync_now=sync)
+        character_config.get_blockchain_interface(sync_now=sync)
 
     # Handle Keyring
     if not dev:
         character_config.attach_keyring()
-        click_config.unlock_keyring(character_configuration=character_config,
-                                    password=click_config.get_password(confirm=False))
+        unlock_nucypher_keyring(character_configuration=character_config,
+                                password=get_password(confirm=False))
 
     # Handle Teachers
     teacher_nodes = None
@@ -250,7 +254,7 @@ def make_cli_character(character_config,
                                        min_stake=min_stake,
                                        federated_only=character_config.federated_only,
                                        network_domains=character_config.domains,
-                                       network_middleware=click_config.middleware)
+                                       network_middleware=character_config.network_middleware)
 
     #
     # Character Init
@@ -258,19 +262,20 @@ def make_cli_character(character_config,
 
     # Produce Character
     CHARACTER = character_config(known_nodes=teacher_nodes,
-                                 network_middleware=click_config.middleware,
+                                 network_middleware=character_config.network_middleware,
                                  **config_args)
 
     #
     # Post-Init
     #
 
+    # TODO: Move to character configuration
     # Switch to character control emitter
     if click_config.json_ipc:
         CHARACTER.controller.emitter = JSONRPCStdoutEmitter(quiet=click_config.quiet)
 
     # Federated
     if character_config.federated_only:
-        click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
+        console_emitter(message="WARNING: Running in Federated mode", color='yellow')
 
     return CHARACTER

@@ -82,7 +82,7 @@ def test_nucypher_deploy_contracts(click_runner,
                '--provider-uri', TEST_PROVIDER_URI,
                '--poa']
 
-    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    user_input = '0\n' + 'Y\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -172,7 +172,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         except KeyError:
             continue
         #             addr-----secret----new deploy secret (2x for confirmation)
-        user_input = '0\n' + yes + old_secret + (new_secret * 2)
+        user_input = '0\n' + yes + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + old_secret + (new_secret * 2)
         upgrade_inputs[next_version] = user_input
 
     #
@@ -285,7 +285,7 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
     # Stage Rollbacks
     old_secret = INSECURE_SECRETS[PLANNED_UPGRADES]
     rollback_secret = generate_insecure_secret()
-    user_input = '0\n' + yes + old_secret + rollback_secret + rollback_secret
+    user_input = '0\n' + yes + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + old_secret + rollback_secret + rollback_secret
 
     contracts_to_rollback = ('StakingEscrow',  # v4 -> v3
                              'PolicyManager',  # v4 -> v3

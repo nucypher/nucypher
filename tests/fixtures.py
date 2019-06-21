@@ -368,12 +368,12 @@ def testerchain():
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
 
-    # Mock TransactingPower Consumption
+    # Mock TransactingPower Consumption (Deployer)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain,
                                                      password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power.unlock_account()
+    testerchain.transacting_power.activate()
     yield testerchain
     testerchain.disconnect()
 
@@ -424,13 +424,15 @@ def clear_out_agency():
 
 
 @pytest.fixture(scope="module")
-def stakers(agency, token_economics):
+def stakers(testerchain, agency, token_economics):
     token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     # Mock Powerup consumption (Deployer)
     blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
                                                     account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate()
 
     token_airdrop(origin=blockchain.etherbase_account,
                   addresses=blockchain.stakers_accounts,
@@ -443,8 +445,9 @@ def stakers(agency, token_economics):
 
         # Mock TransactingPower consumption
         staker.blockchain.transacting_power = TransactingPower(blockchain=blockchain,
-                                                               account=account,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                               account=account)
+        staker.blockchain.transacting_power.activate()
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)

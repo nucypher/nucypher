@@ -129,7 +129,7 @@ class Felix(Character, NucypherTokenActor):
     research and the development of production-ready nucypher dApps.
     """
 
-    _default_crypto_powerups = [SigningPower, TransactingPower]
+    _default_crypto_powerups = [SigningPower]
 
     TEMPLATE_NAME = 'felix.html'
 
@@ -161,6 +161,7 @@ class Felix(Character, NucypherTokenActor):
                  db_filepath: str,
                  rest_host: str,
                  rest_port: int,
+                 client_password: str = None,
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
                  distribute_ether: bool = True,
@@ -182,9 +183,10 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(blockchain=self.blockchain, account=self.checksum_address)
+        transacting_power = TransactingPower(blockchain=self.blockchain,
+                                             password=client_password,
+                                             account=self.checksum_address)
         self._crypto_power.consume_power_up(transacting_power)
-        # transacting_power.unlock_account(password=None)  # TODO: TransactingPower
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
