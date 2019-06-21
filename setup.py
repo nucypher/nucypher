@@ -82,7 +82,8 @@ TESTS_REQUIRE = [
     'mypy',
     'codecov',
     'coverage',
-    'moto'
+    'moto',
+    'trezor[ethereum]',
 ]
 
 DEPLOY_REQUIRES = [
