@@ -1,4 +1,6 @@
 import pytest
+import rlp
+from eth_account._utils.transactions import Transaction
 from trezorlib import client as trezor_client
 from trezorlib.transport import TransportException
 from usb1 import USBErrorNoDevice, USBErrorBusy
@@ -91,8 +93,22 @@ def test_trezor_sign_eth_transaction(mock_trezorlib, fake_trezor_address,
                                      fake_signed_trezor_tx):
     trezor_backend = Trezor()
 
-    signed_tx = trezor_backend.sign_eth_transaction(fake_trezor_address)
-    assert signed_tx == fake_signed_trezor_tx
+    fake_tx = {'gas': 60000,
+               'gasPrice': 2,
+               'chainId': 1,
+               'to': '0x0000000000000000000000000000000000000000',
+               'value': 0,
+               'data': b'test',
+               'nonce': 0}
+
+    signed_rlp_tx = trezor_backend.sign_eth_transaction(fake_trezor_address, fake_tx)
+    fake_v, fake_r, fake_s = fake_signed_trezor_tx
+
+    tx = Transaction(v=fake_v,
+                     r=int.from_bytes(fake_r, 'big'),
+                     s=int.from_bytes(fake_s, 'big'),
+                     **fake_tx)
+    assert signed_rlp_tx == rlp.encode(tx)
 
     with pytest.raises(Trezor.DeviceError):
-        trezor_backend.sign_eth_transaction('0x0000000000000000000000000000000000000000')
+        trezor_backend.sign_eth_transaction('0x0000000000000000000000000000000000000000', fake_tx)
