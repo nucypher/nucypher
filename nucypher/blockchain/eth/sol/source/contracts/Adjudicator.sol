@@ -94,19 +94,17 @@ contract Adjudicator is Upgradeable {
     )
         public
     {
-        // Check that CFrag is not evaluated yet
+        // 1. Check that CFrag is not evaluated yet
         bytes32 evaluationHash = SignatureVerifier.hash(
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
         require(!evaluatedCFrags[evaluationHash], "This CFrag has already been evaluated.");
         evaluatedCFrags[evaluationHash] = true;
 
-        // Verify correctness of re-encryption
+        // 2. Verify correctness of re-encryption
         bool cFragIsCorrect = ReEncryptionValidator.validateCFrag(_capsuleBytes, _cFragBytes, _preComputedData);
         emit CFragEvaluated(evaluationHash, msg.sender, cFragIsCorrect);
-        if (cFragIsCorrect) {
-            return;
-        }
 
+        // 3. Verify associated public keys and signatures
         require(ReEncryptionValidator.checkSerializedCoordinates(_workerPublicKey),
                 "Staker's public key is invalid");
         require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
@@ -153,19 +151,23 @@ contract Adjudicator is Upgradeable {
                 "Specification signature is invalid"
         );
 
-        // Extract worker address from stamp signature.
+        // 4. Extract worker address from stamp signature.
         address worker = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
         address staker = escrow.getStakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");
 
-        // Check that staker can be slashed
+        // 5. Check that staker can be slashed
         uint256 stakerValue = escrow.getAllTokens(staker);
         require(stakerValue > 0, "Staker has no tokens");
-        (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(staker, stakerValue);
-        escrow.slashStaker(staker, penalty, msg.sender, reward);
-        emit IncorrectCFragVerdict(evaluationHash, worker, staker);
+
+        // 6. If CFrag was incorrect, slash staker
+        if (!cFragIsCorrect) {
+            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(staker, stakerValue);
+            escrow.slashStaker(staker, penalty, msg.sender, reward);
+            emit IncorrectCFragVerdict(evaluationHash, worker, staker);
+        }
     }
 
     /**
