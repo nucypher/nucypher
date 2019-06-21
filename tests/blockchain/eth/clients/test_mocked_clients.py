@@ -86,7 +86,9 @@ class GanacheClientTestInterface(BlockchainInterfaceTestBase):
 
 
 def test_geth_web3_client():
-    interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth', sync_now=False)
+    interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth')
+    interface.connect(fetch_registry=False, sync_now=False)
+
     assert isinstance(interface.client, GethClient)
     assert interface.client.node_technology == 'Geth'
     assert interface.client.node_version == 'v1.4.11-stable-fed692f6'
@@ -98,7 +100,9 @@ def test_geth_web3_client():
 
 
 def test_parity_web3_client():
-    interface = ParityClientTestInterface(provider_uri='file:///ipc.parity', sync_now=False)
+    interface = ParityClientTestInterface(provider_uri='file:///ipc.parity')
+    interface.connect(fetch_registry=False, sync_now=False)
+
     assert isinstance(interface.client, ParityClient)
     assert interface.client.node_technology == 'Parity-Ethereum'
     assert interface.client.node_version == 'v2.5.1-beta-e0141f8-20190510'
@@ -107,7 +111,9 @@ def test_parity_web3_client():
 
 
 def test_ganache_web3_client():
-    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445', sync_now=False)
+    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445')
+    interface.connect(fetch_registry=False, sync_now=False)
+
     assert isinstance(interface.client, GanacheClient)
     assert interface.client.node_technology == 'EthereumJS TestRPC'
     assert interface.client.node_version == 'v2.1.5'
