@@ -88,9 +88,9 @@ class TrustedDevice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sign_eth_transaction(self, chain_id: int, **transaction):
+    def sign_eth_transaction(self, checksum_address: str, transaction: dict) -> bytes:
         """
         Abstract method for signing an Ethereum transaction via a device's
-        API.
+        API. Should return a web3 compatible, RLP-encoded signed transaction.
         """
         raise NotImplementedError
