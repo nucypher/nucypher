@@ -19,7 +19,7 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from umbral.keys import UmbralPrivateKey
 
-from nucypher.crypto.api import ecdsa_sign
+from nucypher.crypto.api import ecdsa_sign, verify_ecdsa
 from nucypher.crypto.signing import Signature, Signer
 from nucypher.crypto.utils import recover_pubkey_from_signature, get_signature_recovery_value
 
@@ -28,6 +28,7 @@ def test_signature_can_verify():
     privkey = UmbralPrivateKey.gen_key()
     message = b"peace at dawn"
     der_sig_bytes = ecdsa_sign(message, privkey)
+    assert verify_ecdsa(message, der_sig_bytes, privkey.get_pubkey())
     signature = Signature.from_bytes(der_sig_bytes, der_encoded=True)
     assert signature.verify(message, privkey.get_pubkey())
 
