@@ -25,6 +25,7 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.crypto.api import sha256_digest
 
 
 class Agency(type):
@@ -510,6 +511,13 @@ class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
         :param sender_address:
         :return:
         """
-        contract_function = self.contract.functions.evaluateCFrag(evidence.evaluation_arguments())
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=sender_address)
+        payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
+        contract_function = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
+        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+                                                   sender_address=sender_address,
+                                                   payload=payload)
         return receipt
+
+    def was_this_evidence_evaluated(self, evidence) -> bool:
+        data_hash = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
+        return self.contract.functions.evaluatedCFrags(data_hash).call()
