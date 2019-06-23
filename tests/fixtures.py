@@ -371,8 +371,6 @@ def agency(testerchain):
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
-
-    """Launch all Nucypher ethereum contracts"""
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -384,12 +382,23 @@ def agency(testerchain):
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
+    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+
     token_agent = token_deployer.make_agent()             # 1: Token
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Miner Escrow
     policy_agent = policy_manager_deployer.make_agent()   # 3 Policy Agent
+    adjudicator_agent = adjudicator_deployer.make_agent()  # 4
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
-    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    # TODO: Perhaps we should get rid of returning these agents here.
+    # What's important is deploying and creating the first agent for each contract,
+    # and since agents are singletons, in tests it's only necessary to call the agent
+    # constructor again to receive the existing agent. For example:
+    #     staking_agent = StakingEscrowAgent()
+    # This is more clear than how we currently obtain an agent instance in tests:
+    #     _, staking_agent, _ = agency
+    # Other advantages is that it's closer to how agents should be use (i.e., there
+    # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
 
     yield token_agent, staking_agent, policy_agent
     Agency.clear()
