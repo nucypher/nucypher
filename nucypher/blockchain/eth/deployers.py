@@ -743,9 +743,19 @@ class AdjudicatorDeployer(ContractDeployer):
         # Switch the contract for the wrapped one
         adjudicator_contract = wrapped
 
+        # Configure the StakingEscrow contract by setting the Adjudicator
+        tx_args = {'from': self.deployer_address}
+        if gas_limit:
+            tx_args.update({'gas': gas_limit})
+        set_adjudicator_function = self.staking_agent.contract.functions.setAdjudicator(adjudicator_contract.address)
+        set_adjudicator_receipt = self.blockchain.send_transaction(transaction_function=set_adjudicator_function,
+                                                                   sender_address=self.deployer_address,
+                                                                   payload=tx_args)
+
         # Gather the transaction hashes
         deployment_transactions = {'deployment': deploy_txhash,
-                                   'dispatcher_deployment': proxy_deploy_txhashes['txhash']}
+                                   'dispatcher_deployment': proxy_deploy_txhashes['txhash'],
+                                   'set_adjudicator': set_adjudicator_receipt['transactionHash']}
 
         self.deployment_transactions = deployment_transactions
         self._contract = adjudicator_contract
