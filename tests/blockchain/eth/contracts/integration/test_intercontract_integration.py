@@ -20,8 +20,6 @@ import os
 from mock import Mock
 
 import pytest
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
@@ -139,13 +137,8 @@ def mock_ursula(testerchain, account):
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
 
-    # Sign Umbral public key using eth-key
-    address = to_canonical_address(account)
-    sig_key = testerchain.provider.ethereum_tester.backend._key_lookup[address]
-    signable_message = encode_defunct(primitive=bytes(ursula_stamp))
-    signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=sig_key)
-    signed_stamp = bytes(signature.signature)
+    signed_stamp = testerchain.client.sign_message(account=account,
+                                                   message=bytes(ursula_stamp))
 
     ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
