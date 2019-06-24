@@ -57,14 +57,13 @@ def test_software_stakeholder_configuration(testerchain,
     del stakeholder
 
     # Restore StakeHolder instance from JSON config
-    the_same_stakeholder = StakeHolder.from_configuration_file(filepath=path)
+    the_same_stakeholder = StakeHolder.from_configuration_file(filepath=path, blockchain=testerchain)
 
     # Save the JSON config again
-    stakeholder.to_configuration_file(filepath=path, override=True)
+    the_same_stakeholder.to_configuration_file(filepath=path, override=True)
     with open(the_same_stakeholder.filepath, 'r') as file:
         contents = file.read()
         second_config_contents = json.loads(contents)
 
     # Ensure the stakeholder was accurately restored from JSON config
     assert first_config_contents == second_config_contents
-    assert stakeholder == the_same_stakeholder
