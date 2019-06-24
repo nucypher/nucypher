@@ -37,6 +37,7 @@ from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.utils import get_coordinates_as_bytes
 from nucypher.policy.models import Policy
