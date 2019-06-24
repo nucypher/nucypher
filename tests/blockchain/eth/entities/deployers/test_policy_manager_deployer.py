@@ -35,14 +35,10 @@ def test_policy_manager_deployer(testerchain):
 
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()  # 1: Token
-
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
     staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
-
-    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
@@ -54,14 +50,15 @@ def test_policy_manager_deployer(testerchain):
         receipt = testerchain.wait_for_receipt(txhash=txhash)
         assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
-    # Create a token instance
+    # Create a PolicyAgent
     policy_agent = deployer.make_agent()
-    policy_manager_contract = policy_agent.contract
 
-    # Retrieve the token from the blockchain
+    # TODO: #1102 - Check that StakingEscrow contract address and public parameters are correct
+
+    # Retrieve the PolicyAgent singleton
     some_policy_agent = PolicyAgent()
-    assert some_policy_agent.contract.address == policy_manager_contract.address
+    assert policy_agent == some_policy_agent  # __eq__
 
     # Compare the contract address for equality
     assert policy_agent.contract_address == some_policy_agent.contract_address
-    assert policy_agent == some_policy_agent  # __eq__
+
