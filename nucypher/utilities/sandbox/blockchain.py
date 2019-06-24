@@ -215,7 +215,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain = cls(compiler=SolidityCompiler())
         power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
         power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
-        testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
