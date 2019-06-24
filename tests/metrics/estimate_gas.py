@@ -636,13 +636,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
-    # Deploy adjudicator to estimate slashing method in StakingEscrow contract
-    adjudicator, _ = testerchain.deploy_contract(
-        'Adjudicator', staking_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
-    )
-    tx = staker_functions.setAdjudicator(adjudicator.address).transact()
-    testerchain.wait_for_receipt(tx)
-    adjudicator_functions = adjudicator.functions
 
     #
     # Slashing
