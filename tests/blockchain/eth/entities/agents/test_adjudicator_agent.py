@@ -21,9 +21,10 @@ from mock import Mock
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from nucypher.blockchain.eth.actors import NucypherTokenActor
+from nucypher.blockchain.eth.actors import NucypherTokenActor, Staker
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import BlockchainPower
 from nucypher.crypto.signing import SignatureStamp
 
@@ -41,7 +42,12 @@ def mock_ursula(testerchain, account):
 
 
 @pytest.mark.slow()
-def test_adjudicator_slashes(agency, testerchain, mock_ursula_reencrypts, token_economics):
+def test_adjudicator_slashes(agency,
+                             testerchain,
+                             mock_ursula_reencrypts,
+                             token_economics,
+                             slashing_economics):
+
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
 
@@ -54,34 +60,19 @@ def test_adjudicator_slashes(agency, testerchain, mock_ursula_reencrypts, token_
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
 
-    balance = token_agent.get_balance(address=staker_account)
-    assert balance == 0
-
     # The staker receives an initial amount of tokens
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked * 10,
+    _txhash = token_agent.transfer(amount=locked_tokens,
                                    target_address=staker_account,
                                    sender_address=testerchain.etherbase_account)
 
-    # Mock Powerup consumption (Ursula-Staker)
+    # Mock Powerup consumption (Staker)
     testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker_account)
 
-    #
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
-    # Previously, she needs to approve this transfer on the token contract.
-    #
-
-    _receipt = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
-                                            target_address=staking_agent.contract_address,
-                                            sender_address=staker_account)
-
-    receipt = staking_agent.deposit_tokens(amount=locked_tokens,
-                                           lock_periods=token_economics.minimum_locked_periods,
-                                           sender_address=staker_account)
-
-    testerchain.time_travel(periods=1)
-    balance = token_agent.get_balance(address=staker_account)
-    assert balance == locked_tokens
-    assert staking_agent.get_locked_tokens(staker_address=staker_account) == locked_tokens
+    staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
+    staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
+                            lock_periods=token_economics.minimum_locked_periods)
+    assert staker.locked_tokens(periods=1) == locked_tokens
 
     # The staker hasn't set a worker yet
     assert BlockchainInterface.NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
@@ -97,7 +88,6 @@ def test_adjudicator_slashes(agency, testerchain, mock_ursula_reencrypts, token_
     adjudicator_agent = AdjudicatorAgent()
     bob_account = testerchain.bob_account
     bobby = NucypherTokenActor(blockchain=testerchain, checksum_address=bob_account)
-    stacy = NucypherTokenActor(blockchain=testerchain, checksum_address=staker_account)
     ursula = mock_ursula(testerchain, worker_account)
 
     # Let's create a bad cfrag
@@ -105,16 +95,14 @@ def test_adjudicator_slashes(agency, testerchain, mock_ursula_reencrypts, token_
 
     assert not adjudicator_agent.was_this_evidence_evaluated(evidence)
     bobby_old_balance = bobby.token_balance
-    stacy_old_balance = stacy.token_balance
 
-    # Mock Powerup consumption (Ursula-Staker)
+    # Mock Powerup consumption (Bob)
     testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=bob_account)
     adjudicator_agent.evaluate_cfrag(evidence=evidence, sender_address=bob_account)
 
     assert adjudicator_agent.was_this_evidence_evaluated(evidence)
-    assert bobby.token_balance > bobby_old_balance
+    investigator_reward = bobby.token_balance - bobby_old_balance
 
-    # FIXME: Not working for some reason. Let's try tomorrow.
-    # assert stacy.token_balance < stacy_old_balance
-
-
+    assert investigator_reward > 0
+    assert investigator_reward == slashing_economics.base_penalty / slashing_economics.reward_coefficient
+    assert staker.locked_tokens(periods=1) < locked_tokens

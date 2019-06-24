@@ -20,11 +20,13 @@ import pytest
 from eth_utils import keccak
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, Agency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               ContractDeployer, DispatcherDeployer)
+                                               AdjudicatorDeployer,
+                                               ContractDeployer,
+                                               DispatcherDeployer)
 
 
 @pytest.mark.slow()
@@ -55,7 +57,7 @@ def test_deploy_ethereum_contracts(testerchain):
     assert another_token_agent.contract_address == token_deployer.contract_address == token_agent.contract_address
 
     #
-    # Staker Escrow
+    # StakingEscrow
     #
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     staking_escrow_deployer = StakingEscrowDeployer(
@@ -105,3 +107,30 @@ def test_deploy_ethereum_contracts(testerchain):
     another_policy_agent = policy_manager_deployer.make_agent()
     assert len(another_policy_agent.contract_address) == 42
     assert another_policy_agent.contract_address == policy_manager_deployer.contract_address == policy_agent.contract_address
+
+
+    #
+    # Adjudicator
+    #
+    adjudicator_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    adjudicator_deployer = AdjudicatorDeployer(
+        blockchain=testerchain,
+        deployer_address=origin)
+
+    assert adjudicator_deployer.deployer_address == origin
+
+    with pytest.raises(ContractDeployer.ContractDeploymentError):
+        assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not adjudicator_deployer.is_deployed
+
+    adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret))
+    assert adjudicator_deployer.is_deployed
+    assert len(adjudicator_deployer.contract_address) == 42
+
+    adjudicator_agent = adjudicator_deployer.make_agent()
+    assert len(adjudicator_agent.contract_address) == 42
+    assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
+
+    another_adjudicator_agent = adjudicator_deployer.make_agent()
+    assert len(another_adjudicator_agent.contract_address) == 42
+    assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
