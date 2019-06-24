@@ -57,10 +57,10 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
     assert 0 == allowance
 
     # Staking starts after one period
-    locked_tokens = staking_agent.contract.functions.getLockedTokens(staker.checksum_address).call()
+    locked_tokens = staker.locked_tokens()
     assert 0 == locked_tokens
 
-    locked_tokens = staking_agent.contract.functions.getLockedTokens(staker.checksum_address, 1).call()
+    locked_tokens = staker.locked_tokens(periods=1)
     assert token_economics.minimum_allowed_locked == locked_tokens
 
 
@@ -106,7 +106,7 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     initial_balance = staker.token_balance
     assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
-    # Mock Powerup consumption (Ursula-Worker)
+    # Mock Powerup consumption (Staker)
     testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker.checksum_address)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
@@ -123,8 +123,6 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
                                         confirm_activity=False,
                                         blockchain=testerchain).pop()
 
-    # TODO: Use the above code as a starting point for a non-staking worker fixture
-
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
         testerchain.time_travel(periods=1)
@@ -133,7 +131,7 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     # ...wait more...
     testerchain.time_travel(periods=2)
 
-    # Mock Powerup consumption (Ursula-Worker)
+    # Mock Powerup consumption (Staker)
     testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker.checksum_address)
 
     # Profit!
