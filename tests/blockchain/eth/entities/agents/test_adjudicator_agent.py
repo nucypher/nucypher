@@ -16,40 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from mock import Mock
+
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.signing import SignatureStamp
 
 
 def mock_ursula(testerchain, account):
-
-    from mock import Mock
-
-    from eth_account import Account
-    from eth_account.messages import encode_defunct
-    from eth_utils.address import to_canonical_address
-    from umbral.keys import UmbralPrivateKey
-    from umbral.signing import Signer
-
-    from nucypher.crypto.signing import SignatureStamp
-
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
 
-    # Sign Umbral public key using eth-key
-    address = to_canonical_address(account)
-    sig_key = testerchain.provider.ethereum_tester.backend._key_lookup[address]
-    signable_message = encode_defunct(primitive=bytes(ursula_stamp))
-    signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=sig_key)
-    signed_stamp = bytes(signature.signature)
+    signed_stamp = testerchain.client.sign_message(account=account,
+                                                   message=bytes(ursula_stamp))
 
     ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
-
 
 
 @pytest.mark.slow()

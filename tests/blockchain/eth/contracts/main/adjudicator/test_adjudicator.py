@@ -19,10 +19,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_canonical_address, keccak
+from eth_utils import keccak
 from typing import Tuple
 from web3.contract import Contract
 
@@ -329,12 +327,8 @@ def test_evaluate_cfrag(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Can't evaluate nonexistent staker
-    address = to_canonical_address(non_staker)
-    sig_key = testerchain.provider.ethereum_tester.backend._key_lookup[address]
-    signable_message = encode_defunct(primitive=bytes(ursula.stamp))
-    signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=sig_key)
-    signed_stamp = bytes(signature.signature)
+    signed_stamp = testerchain.client.sign_message(account=non_staker,
+                                                   message=bytes(ursula.stamp))
 
     wrong_args = list(args)
     wrong_args[7] = signed_stamp
