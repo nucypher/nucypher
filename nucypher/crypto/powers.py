@@ -20,8 +20,6 @@ import inspect
 from typing import List, Tuple, Optional
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from cytoolz.dicttoolz import dissoc
-from eth_account._utils.transactions import assert_valid_fields
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
