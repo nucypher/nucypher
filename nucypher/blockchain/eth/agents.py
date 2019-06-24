@@ -521,3 +521,31 @@ class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
     def was_this_evidence_evaluated(self, evidence) -> bool:
         data_hash = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
         return self.contract.functions.evaluatedCFrags(data_hash).call()
+
+    @property
+    def staking_escrow_contract(self) -> str:
+        return self.contract.functions.escrow().call()
+
+    @property
+    def hash_algorithm(self) -> int:
+        return self.contract.functions.hashAlgorithm().call()
+
+    @property
+    def base_penalty(self) -> int:
+        return self.contract.functions.basePenalty().call()
+
+    @property
+    def penalty_history_coefficient(self) -> int:
+        return self.contract.functions.penaltyHistoryCoefficient().call()
+
+    @property
+    def percentage_penalty_coefficient(self) -> int:
+        return self.contract.functions.percentagePenaltyCoefficient().call()
+
+    @property
+    def reward_coefficient(self) -> int:
+        return self.contract.functions.rewardCoefficient().call()
+
+    def penalty_history(self, staker_address: str) -> int:
+        return self.contract.functions.penaltyHistory(staker_address).call()
+
