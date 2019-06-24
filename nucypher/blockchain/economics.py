@@ -172,7 +172,11 @@ class TokenEconomics:
 
 class SlashingEconomics:
 
-    algorithm_sha256 = 1
+    HASH_ALGORITHM_KECCAK256 = 0
+    HASH_ALGORITHM_SHA256 = 1
+    HASH_ALGORITHM_RIPEMD160 = 2
+
+    hash_algorithm = HASH_ALGORITHM_SHA256
     base_penalty = 100
     penalty_history_coefficient = 10
     percentage_penalty_coefficient = 8
@@ -183,7 +187,7 @@ class SlashingEconomics:
         """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
 
         deployment_parameters = [
-            self.algorithm_sha256,
+            self.hash_algorithm,
             self.base_penalty,
             self.penalty_history_coefficient,
             self.percentage_penalty_coefficient,
