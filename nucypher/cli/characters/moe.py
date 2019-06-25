@@ -44,4 +44,7 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
 
     # Run
     MOE.start_learning_loop(now=learn_on_launch)
+
+    click_config.emit(message=f"Running Moe on 127.0.0.1:{http_port}")
+
     MOE.start(http_port=http_port, ws_port=ws_port, dry_run=dry_run)

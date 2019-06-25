@@ -173,6 +173,7 @@ ETH ........ {str(eth_balance)}
 
         try:
             click.secho("Waiting for blockchain sync...", fg='yellow')
+            click_config.emit(message=f"Running Felix on {host}:{port}")
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,

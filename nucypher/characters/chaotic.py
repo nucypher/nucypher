@@ -111,8 +111,6 @@ class Moe(Character):
         deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
         deployer.add_non_tls_websocket_service(websocket_service)
 
-        click.secho(f"Running Moe on 127.0.0.1:{http_port}")
-
         if not dry_run:
             deployer.run()
 
@@ -330,7 +328,6 @@ class Felix(Character, NucypherTokenActor):
         self.start_time = maya.now()
         payload = {"wsgi": self.rest_app, "http_port": port}
         deployer = HendrixDeploy(action="start", options=payload)
-        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
 
         if distribution is True:
             self.start_distribution()
