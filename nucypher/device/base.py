@@ -73,7 +73,7 @@ class TrustedDevice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def verify_message(self, signature: bytes, messsage: bytes, checksum_address: str):
+    def verify_message(self, signature: bytes, message: bytes, checksum_address: str):
         """
         Abstract method for verifying a signature via a device's API.
         """
