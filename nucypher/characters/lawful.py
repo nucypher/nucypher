@@ -28,7 +28,8 @@ import requests
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
+from constant_sorrow.constants import FEDERATED_POLICY, STRANGER_ALICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -48,8 +49,12 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import AliceJSONController, BobJSONController, EnricoJSONController, \
+from nucypher.characters.control.controllers import (
+    AliceJSONController,
+    BobJSONController,
+    EnricoJSONController,
     WebController
+)
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -379,22 +384,31 @@ class Alice(Character, PolicyAuthor):
         )]
         return cleartexts
 
-    def make_web_controller(drone_alice, crash_on_error: bool = False):
+    # def make_rpc_controller(drone_alice, crash_on_error: bool = False):
+    #     app_name = bytes(drone_alice.stamp).hex()[:6]
+    #     controller = JSONRPCController(app_name=app_name,
+    #                                    character_controller=drone_alice.controller,
+    #                                    crash_on_error=crash_on_error)
+    #
+    #     drone_alice.controller = controller
+    #     alice_rpc_control = controller.make_control_transport(rpc_controller=controller)
+    #     return controller
 
+    def make_web_controller(drone_alice, crash_on_error: bool = False):
         app_name = bytes(drone_alice.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_contoller=drone_alice.controller,
+                                   character_controller=drone_alice.controller,
                                    crash_on_error=crash_on_error)
         drone_alice.controller = controller
 
         # Register Flask Decorator
-        alice_control = controller.make_web_controller()
+        alice_flask_control = controller.make_control_transport()
 
         #
         # Character Control HTTP Endpoints
         #
 
-        @alice_control.route('/public_keys', methods=['GET'])
+        @alice_flask_control.route('/public_keys', methods=['GET'])
         def public_keys():
             """
             Character control endpoint for getting Alice's encrypting and signing public keys
@@ -402,7 +416,7 @@ class Alice(Character, PolicyAuthor):
             return controller(interface=controller._internal_controller.public_keys,
                               control_request=request)
 
-        @alice_control.route("/create_policy", methods=['PUT'])
+        @alice_flask_control.route("/create_policy", methods=['PUT'])
         def create_policy() -> Response:
             """
             Character control endpoint for creating a policy and making
@@ -412,7 +426,7 @@ class Alice(Character, PolicyAuthor):
                                   control_request=request)
             return response
 
-        @alice_control.route("/decrypt", methods=['POST'])
+        @alice_flask_control.route("/decrypt", methods=['POST'])
         def decrypt():
             """
             Character control endpoint for decryption of Alice's own policy data.
@@ -424,7 +438,7 @@ class Alice(Character, PolicyAuthor):
             )
             return response
 
-        @alice_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
+        @alice_flask_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
         def derive_policy_encrypting_key(label) -> Response:
             """
             Character control endpoint for deriving a policy encrypting given a unicode label.
@@ -434,7 +448,7 @@ class Alice(Character, PolicyAuthor):
                                   label=label)
             return response
 
-        @alice_control.route("/grant", methods=['PUT'])
+        @alice_flask_control.route("/grant", methods=['PUT'])
         def grant() -> Response:
             """
             Character control endpoint for policy granting.
@@ -442,7 +456,7 @@ class Alice(Character, PolicyAuthor):
             response = controller(interface=controller._internal_controller.grant, control_request=request)
             return response
 
-        @alice_control.route("/revoke", methods=['DELETE'])
+        @alice_flask_control.route("/revoke", methods=['DELETE'])
         def revoke():
             """
             Character control endpoint for policy revocation.
@@ -720,12 +734,13 @@ class Bob(Character):
 
         app_name = bytes(drone_bob.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_contoller=drone_bob.controller,
+                                   character_controller=drone_bob.controller,
                                    crash_on_error=crash_on_error)
-        drone_bob.controller = controller.make_web_controller()
+
+        drone_bob.controller = controller.make_control_transport()
 
         # Register Flask Decorator
-        bob_control = controller.make_web_controller()
+        bob_control = controller.make_control_transport()
 
         #
         # Character Control HTTP Endpoints
@@ -1296,12 +1311,13 @@ class Enrico(Character):
 
         app_name = bytes(drone_enrico.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
-                                   character_contoller=drone_enrico.controller,
+                                   character_controller=drone_enrico.controller,
                                    crash_on_error=crash_on_error)
+
         drone_enrico.controller = controller
 
         # Register Flask Decorator
-        enrico_control = controller.make_web_controller()
+        enrico_control = controller.make_control_transport()
 
         #
         # Character Control HTTP Endpoints

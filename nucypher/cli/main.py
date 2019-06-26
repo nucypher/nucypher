@@ -21,7 +21,7 @@ import click
 from twisted.logger import globalLogPublisher
 
 from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.characters.control.emitters import StdoutEmitter, IPCStdoutEmitter
+from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli import status
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
@@ -52,12 +52,13 @@ def nucypher_cli(click_config,
 
     # Session Emitter for pre and post character control engagement.
     if json_ipc:
-        emitter = IPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+        emitter = JSONRPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
     else:
         emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
 
     click_config.attach_emitter(emitter)
-    click_config.emit(message=NUCYPHER_BANNER)
+    if not json_ipc:
+        click_config.emit(message=NUCYPHER_BANNER)
 
     if debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")

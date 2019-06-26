@@ -40,6 +40,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.characters.control.controllers import JSONRPCController
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -68,7 +69,6 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-    from nucypher.crypto.signing import InvalidSignature  # TODO: Restore nucypher Signing exceptions
 
     def __init__(self,
                  domains: Set = None,
@@ -472,3 +472,12 @@ class Character(Learner):
                     "You can't use a plain Character in federated mode - you need to implement ether_address.")
 
         self._checksum_address = public_address
+
+    def make_rpc_controller(drone, crash_on_error: bool = False):
+        app_name = bytes(drone.stamp).hex()[:6]
+        controller = JSONRPCController(app_name=app_name,
+                                       character_controller=drone.controller,
+                                       crash_on_error=crash_on_error)
+
+        drone.controller = controller
+        return controller

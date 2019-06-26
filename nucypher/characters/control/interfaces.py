@@ -12,12 +12,16 @@ from nucypher.network.middleware import NotFound
 
 def character_control_interface(func):
 
+    # Use server time for internal request IDs
+    received = maya.now()
+    internal_request_id = received.epoch
+
     # noinspection PyPackageRequirements
     @functools.wraps(func)
-    def wrapped(instance, request=None, *args, **kwargs) -> bytes:
+    def wrapped(instance, request=None, request_id: int = None, *args, **kwargs) -> bytes:
 
-        # Record request time
-        received = maya.now()
+        if request_id is None:
+            request_id = internal_request_id
 
         # Get specification
         interface_name = func.__name__
@@ -32,8 +36,10 @@ def character_control_interface(func):
             # Validate request
             instance.validate_request(request=request, interface_name=interface_name)
 
-        # Call the interface
+        ######################
+        # INTERNAL INTERFACE #
         response = func(self=instance, request=request, *args, **kwargs)
+        ######################
 
         # Validate response
         instance.validate_response(response=response, interface_name=interface_name)
@@ -42,11 +48,8 @@ def character_control_interface(func):
         responding = maya.now()
         duration = responding - received
 
-        # Assemble response with metadata
-        response_with_metadata = instance.serializer.build_response_metadata(response=response, duration=duration)
-
         # Emit
-        return instance.emitter(response=response_with_metadata)
+        return instance.emitter(response=response, request_id=request_id, duration=duration)
 
     return wrapped
 

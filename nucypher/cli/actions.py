@@ -27,7 +27,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
-from nucypher.characters.control.emitters import IPCStdoutEmitter
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
@@ -275,7 +275,7 @@ def make_cli_character(character_config,
 
     # Switch to character control emitter
     if click_config.json_ipc:
-        CHARACTER.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
+        CHARACTER.controller.emitter = JSONRPCStdoutEmitter(quiet=click_config.quiet)
 
     # Federated
     if character_config.federated_only:

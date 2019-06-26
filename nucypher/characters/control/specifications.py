@@ -24,7 +24,7 @@ class CharacterSpecification(ABC):
         try:
             input_specification, output_specification = cls.specifications()[interface_name]
         except KeyError:
-            raise cls.SpecificationError(f"No Such Control Interface '{interface_name}'")
+            raise cls.SpecificationError(f"{cls.__class__.__name__} has no such control interface: '{interface_name}'")
 
         return input_specification, output_specification
 

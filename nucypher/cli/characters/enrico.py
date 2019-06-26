@@ -2,7 +2,7 @@ import click
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.banners import ENRICO_BANNER
-from nucypher.characters.control.emitters import IPCStdoutEmitter
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT
@@ -39,13 +39,21 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
     policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
     if click_config.json_ipc:
-        ENRICO.controller.emitter = IPCStdoutEmitter(quiet=click_config.quiet)
+        ENRICO.controller.emitter = JSONRPCStdoutEmitter(quiet=click_config.quiet)
 
     #
     # Actions
     #
 
     if action == 'run':
+
+        # RPC
+        if click_config.json_ipc:
+            rpc_controller = ENRICO.make_rpc_controller()
+            _transport = rpc_controller.make_control_transport()
+            rpc_controller.start()
+            return
+
         ENRICO.log.info('Starting HTTP Character Web Controller')
         controller = ENRICO.make_web_controller()
         return controller.start(http_port=http_port, dry_run=dry_run)
