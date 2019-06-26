@@ -201,12 +201,6 @@ class WebEmitter:
 
         self.log = Logger('web-emitter')
 
-    def __call__(self, *args, **kwargs):
-        if 'response' in kwargs:
-            return self.__emit_http_response(*args, **kwargs)
-        else:
-            return self.__emit_exception(*args, **kwargs)
-
     @staticmethod
     def assemble_response(response: dict, request_id: int, duration) -> dict:
         response_data = {'result': response,
@@ -215,11 +209,11 @@ class WebEmitter:
                          'duration': str(duration)}
         return response_data
 
-    def __emit_exception(drone_character,
-                         e,
-                         error_message: str,
-                         log_level: str = 'info',
-                         response_code: int = 500):
+    def exception(drone_character,
+                  e,
+                  error_message: str,
+                  log_level: str = 'info',
+                  response_code: int = 500):
 
         message = f"{drone_character} [{str(response_code)} - {error_message}] | ERROR: {str(e)}"
         logger = getattr(drone_character.log, log_level)
@@ -228,7 +222,7 @@ class WebEmitter:
             raise e
         return drone_character.sink(str(e), status=response_code)
 
-    def __emit_http_response(drone_character, response, request_id, duration) -> Response:
+    def ipc(drone_character, response, request_id, duration) -> Response:
         assembled_response = drone_character.assemble_response(response=response,
                                                                request_id=request_id,
                                                                duration=duration)

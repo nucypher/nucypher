@@ -409,10 +409,11 @@ class WebController(CharacterControlServer):
         #
         except _400_exceptions as e:
             __exception_code = 400
-            return self.emitter(e=e,
-                                log_level='debug',
-                                response_code=__exception_code,
-                                error_message=WebController._captured_status_codes[__exception_code])
+            return self.emitter.exception(
+                e=e,
+                log_level='debug',
+                response_code=__exception_code,
+                error_message=WebController._captured_status_codes[__exception_code])
 
         #
         # Server Errors
@@ -421,10 +422,11 @@ class WebController(CharacterControlServer):
             __exception_code = 500
             if self.crash_on_error:
                 raise
-            return self.emitter(e=e,
-                                log_level='critical',
-                                response_code=__exception_code,
-                                error_message=WebController._captured_status_codes[__exception_code])
+            return self.emitter.exception(
+                e=e,
+                log_level='critical',
+                response_code=__exception_code,
+                error_message=WebController._captured_status_codes[__exception_code])
 
         #
         # Unhandled Server Errors
@@ -433,10 +435,11 @@ class WebController(CharacterControlServer):
             __exception_code = 500
             if self.crash_on_error:
                 raise
-            return self.emitter(e=e,
-                                log_level='debug',
-                                response_code=__exception_code,
-                                error_message=WebController._captured_status_codes[__exception_code])
+            return self.emitter.exception(
+                e=e,
+                log_level='debug',
+                response_code=__exception_code,
+                error_message=WebController._captured_status_codes[__exception_code])
 
         #
         # Send to WebEmitter
