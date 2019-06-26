@@ -9,6 +9,9 @@ library SignatureVerifier {
 
     enum HashAlgorithm {KECCAK256, SHA256, RIPEMD160}
 
+    // Header for Version E as defined by EIP191. First byte ('E') is also the version
+    bytes25 constant EIP191_VERSION_E_HEADER = "Ethereum Signed Message:\n";
+
     /**
     * @notice Recover signer address from hash and signature
     * @param _hash 32 bytes message hash
@@ -106,12 +109,10 @@ library SignatureVerifier {
             address validator = address(this);
             return keccak256(abi.encodePacked(byte(0x19), byte(0x00), validator, _message));
         } else if (_version == byte(0x45)){  // Version E: personal_sign messages
-            require(_message.length > 0, "Empty message not allowed for version E");
-            // Header for Version E as defined by EIP191. First byte ('E') is also the version
-            bytes25 header = "Ethereum Signed Message:\n";
+            uint256 length = _message.length;
+            require(length > 0, "Empty message not allowed for version E");
 
             // Compute text-encoded length of message
-            uint256 length = _message.length;
             uint256 digits = 0;
             while (length != 0) {
                 digits++;
@@ -125,7 +126,7 @@ library SignatureVerifier {
                 length /= 10;
             }
 
-            return keccak256(abi.encodePacked(byte(0x19), header, lengthAsText, _message));
+            return keccak256(abi.encodePacked(byte(0x19), EIP191_VERSION_E_HEADER, lengthAsText, _message));
         } else {
             revert("Unsupported EIP191 version");
         }
