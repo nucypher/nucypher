@@ -9,10 +9,11 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
 
 from nucypher.characters.base import Character
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_ursula_for_staker
 
 
 def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
@@ -59,7 +60,8 @@ def test_invalid_workers_tolerance(testerchain,
                                    blockchain_ursulas,
                                    agency,
                                    idle_staker,
-                                   activate_idle_staker
+                                   token_economics,
+                                   ursula_decentralized_test_config
                                    ):
     #
     # Setup
@@ -76,8 +78,31 @@ def test_invalid_workers_tolerance(testerchain,
     # We start with an "idle_staker" (i.e., no tokens in StakingEscrow)
     assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
 
-    # Let's create an active worker for this staker
-    worker = activate_idle_staker(ursulas_to_learn_about=None)
+    # Now let's create an active worker for this staker.
+    # First, stake something (e.g. the bare minimum)
+    amount = token_economics.minimum_allowed_locked
+    periods = token_economics.minimum_locked_periods
+
+    # Mock Powerup consumption (Staker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
+                                                    account=idle_staker.checksum_address)
+
+    idle_staker.initialize_stake(amount=amount, lock_periods=periods)
+
+    # Stake starts next period (or else signature validation will fail)
+    testerchain.time_travel(periods=1)
+    idle_staker.stake_tracker.refresh()
+
+    # We create an active worker node for this staker
+    worker = make_ursula_for_staker(staker=idle_staker,
+                                    worker_address=testerchain.unassigned_accounts[-1],
+                                    ursula_config=ursula_decentralized_test_config,
+                                    blockchain=testerchain,
+                                    confirm_activity=True,
+                                    ursulas_to_learn_about=None)
+
+    # Since we confirmed activity, we need to advance one period
+    testerchain.time_travel(periods=1)
 
     # The worker is valid and can be verified (even with the force option)
     worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
@@ -95,6 +120,10 @@ def test_invalid_workers_tolerance(testerchain,
 
     # The stake period has ended, and the staker wants her tokens back ("when lambo?").
     # She withdraws up to the last penny (well, last nunit, actually).
+
+    # Mock Powerup consumption (Staker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
+                                                    account=idle_staker.checksum_address)
     idle_staker.mint()
     testerchain.time_travel(periods=1)
     i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)
