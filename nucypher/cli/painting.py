@@ -102,6 +102,7 @@ def paint_node_status(ursula, start_time):
 
     stats = ['⇀URSULA {}↽'.format(ursula.nickname_icon),
              '{}'.format(ursula),
+             'Worker Address ...... {}'.format(ursula.worker_address),
              'Uptime .............. {}'.format(maya.now() - start_time),
              'Start Time .......... {}'.format(start_time.slang_time()),
              'Fleet State.......... {}'.format(fleet_state),
@@ -114,10 +115,7 @@ def paint_node_status(ursula, start_time):
              'Work Orders ......... {}'.format(len(ursula._work_orders)),
              teacher]
 
-    if not ursula.federated_only and ursula.stakes:
-        total_staked = f'Total Staked ........ {ursula.current_stake} NU-wei'
-        stats.append(total_staked)
-
+    if not ursula.federated_only:
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
         stats.append(current_period)
 
