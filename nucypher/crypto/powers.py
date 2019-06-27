@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 
 from constant_sorrow.constants import NO_STAKING_DEVICE, NO_BLOCKCHAIN_CONNECTION
 from hexbytes import HexBytes
@@ -107,7 +107,7 @@ class TransactingPower(CryptoPowerUp):
 
     def __init__(self,
                  blockchain,
-                 account: str,
+                 account: Union[str, int],
                  password: str = None,
                  device=NO_STAKING_DEVICE):
         """
@@ -119,7 +119,7 @@ class TransactingPower(CryptoPowerUp):
         self.blockchain = blockchain
         self.client = NO_BLOCKCHAIN_CONNECTION
 
-        self.account = account
+        self.__account = account
         self.device = device
 
         self.__password = password
@@ -128,6 +128,16 @@ class TransactingPower(CryptoPowerUp):
     @property
     def is_unlocked(self):
         return self.__unlocked
+
+    @property
+    def account(self) -> str:
+        return self.__account
+        # if isinstance(self.account, int):
+        #     index = self.account
+        #     return self.blockchain.client.accounts[index]
+        # elif isinstance(self.account, str):
+        #     # TODO: Accept HD Path here
+        #     return self.__account
 
     def activate(self, password: str = None):
         """Be Consumed"""

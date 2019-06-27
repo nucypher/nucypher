@@ -370,16 +370,6 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def write_config_root(self):
-        try:
-            os.mkdir(self.config_root, mode=0o755)
-        except FileExistsError:
-            if os.listdir(self.config_root):
-                message = "There are existing files located at {}".format(self.config_root)
-                self.log.debug(message)
-        except FileNotFoundError:
-            os.makedirs(self.config_root, mode=0o755)
-
     def initialize(self, password: str) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
@@ -398,7 +388,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Persistent
         else:
-            self.write_config_root()
+            self._ensure_config_root_exists()
             self.write_keyring(password=password)
 
         self._cache_runtime_filepaths()
