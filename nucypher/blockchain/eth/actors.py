@@ -753,12 +753,14 @@ class StakeHolder(BaseConfiguration):
     def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
+
+        # Sub config
         blockchain_payload = payload.pop('blockchain')
         blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
-        instance = cls(filepath=filepath,
-                       blockchain=blockchain,
-                       **payload, **overrides)
+        payload.update(dict(blockchain=blockchain))
 
+        payload.update(overrides)
+        instance = cls(filepath=filepath, **payload)
         return instance
 
     @validate_checksum_address
