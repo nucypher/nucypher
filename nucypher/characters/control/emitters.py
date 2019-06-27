@@ -19,45 +19,46 @@ class StdoutEmitter:
 
     def __init__(self,
                  sink: Callable = None,
-                 quiet: bool = False):
+                 verbosity: int = 1):
 
         self.name = self.__class__.__name__.lower()
         self.sink = sink or self.default_sink_callable
-        self.quiet = quiet
+        self.verbosity = verbosity
         self.log = Logger(self.name)
 
     def clear(self):
-        if not self.quiet:
+        if self.verbosity >= 1:
             click.clear()
 
     def message(self,
-                message: str = None,
+                message: str,
                 color: str = None,
-                bold: bool = False):
-        if not self.quiet:
-            self.echo(message=message, color=color or self.default_color, bold=bold)
-            self.log.debug(message)
+                bold: bool = False,
+                verbosity: int = 1):
+        self.echo(message, color=color or self.default_color, bold=bold, verbosity=verbosity)
+        self.log.debug(message)
 
     def echo(self,
-             message: str = None,
+             message: str,
              color: str = None,
              bold: bool = False,
-             nl: bool = True):
-        if not self.quiet:
+             nl: bool = True,
+             verbosity: int = 0):
+        if verbosity <= self.verbosity:
             click.secho(message=message, fg=color or self.default_color, bold=bold, nl=nl)
 
     def banner(self, banner):
-        if not self.quiet:
+        if self.verbosity >= 1:
             click.echo(banner)
 
     def ipc(self, response: dict, request_id: int, duration):
         # WARNING: Do not log in this block
-        if not self.quiet:
+        if self.verbosity >= 1:
             for k, v in response.items():
                 click.secho(message=f'{k} ...... {v}', fg=self.default_color)
 
     def error(self, e):
-        if not self.quiet:
+        if self.verbosity >= 1:
             e_str = str(e)
             click.echo(message=e_str)
             self.log.info(e_str)
@@ -140,12 +141,8 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
     def clear(self):
         pass
 
-    def message(self,
-                message: str = None,
-                color: str = None,
-                bold: bool = False):
-        if not self.quiet:
-            self.log.info(message)
+    def message(self, message: str, **kwds):
+        self.log.debug(message)
 
     def echo(self, *args, **kwds):
         pass
@@ -161,8 +158,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
         # Serialize JSON RPC Message
         assembled_response = self.assemble_response(response=response, message_id=request_id)
         size = self.__write(data=assembled_response)
-        if not self.quiet:
-            self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
+        self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
         return size
 
     def error(self, e):
@@ -179,8 +175,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
                 raise self.JSONRPCError
 
         size = self.__write(data=assembled_error)
-        #if not self.quiet:
-        #    self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
+        # self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
         return size
 
 

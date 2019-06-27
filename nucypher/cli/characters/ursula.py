@@ -131,11 +131,10 @@ def ursula(click_config,
     # Pre-Launch Warnings
     #
 
-    if not click_config.quiet:
-        if dev:
-            emitter.echo("WARNING: Running in Development mode", color='yellow')
-        if force:
-            emitter.echo("WARNING: Force is enabled", color='yellow')
+    if dev:
+        emitter.echo("WARNING: Running in Development mode", color='yellow', verbosity=1)
+    if force:
+        emitter.echo("WARNING: Force is enabled", color='yellow', verbosity=1)
 
     #
     # Internal Ethereum Client
