@@ -6,6 +6,7 @@ from typing import Union
 
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
+from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_canonical_address
@@ -196,17 +197,17 @@ class Web3Client(object):
         return self.w3.eth.coinbase
 
     def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
-        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
+        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
         return receipt
 
     def get_transaction(self, transaction_hash) -> str:
-        return self.w3.eth.getTransaction(transaction_hash)
+        return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
 
     def send_transaction(self, transaction: dict) -> str:
-        return self.w3.eth.sendTransaction(transaction)
+        return self.w3.eth.sendTransaction(transaction=transaction)
 
     def send_raw_transaction(self, transaction: bytes) -> str:
-        return self.w3.eth.sendRawTransaction(transaction)
+        return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
 
     def sync(self,
              timeout: int = 120,
@@ -254,6 +255,9 @@ class Web3Client(object):
         """
         return self.w3.eth.sign(account, data=message)
 
+    def sign_transaction(self, transaction: dict) -> bytes:
+        raise NotImplementedError
+
 
 class GethClient(Web3Client):
 
@@ -269,7 +273,21 @@ class GethClient(Web3Client):
         return self.w3.geth.personal.newAccount(password)
 
     def unlock_account(self, address, password):
+        # if self.is_local:
+        #     return True
         return self.w3.geth.personal.unlockAccount(address, password)
+
+    def sign_transaction(self, transaction: dict) -> bytes:
+
+        # Do not include a 'to' field for contract creation.
+        if transaction['to'] == b'':
+            transaction = dissoc(transaction, 'to')
+
+        # Sign
+        result = self.w3.eth.signTransaction(transaction=transaction)
+
+        rlp_encoded_transaction = result.raw
+        return rlp_encoded_transaction
 
 
 class ParityClient(Web3Client):
@@ -306,9 +324,13 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
-    def sign_transaction(self, account: str, transaction: dict):
+    def new_account(self, password: str):
+        insecure_account = self.w3.provider.ethereum_tester.add_account(os.urandom(32).hex(), password=password)
+        return insecure_account
+
+    def sign_transaction(self, transaction: dict):
         # Get signing key of test account
-        address = to_canonical_address(account)
+        address = to_canonical_address(transaction['from'])
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
         # Sign using a local private key
@@ -393,17 +415,20 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
         self.data_dir = get_chain_data_dir(base_dir=base_dir, name=self._CHAIN_NAME)
 
         ipc_path = os.path.join(self.data_dir, 'geth.ipc')
-        self.geth_kwargs = {'ipc_path': ipc_path}
-        super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
-        self.geth_kwargs.update({'dev': True})
+        self.geth_kwargs = {'ipc_path': ipc_path,
+                            'data_dir': self.data_dir}
 
+        super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
         self.command = [*self.command, '--dev']
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
-        self.LOG.info("STARTING GETH DEV NOW")
-        BaseGethProcess.start(self)  # <--- START GETH
-        time.sleep(extra_delay)  # give it a second
-        self.wait_for_ipc(timeout=timeout)
+        if not self.is_running:
+            self.LOG.info("STARTING GETH DEV PROCESS NOW")
+            BaseGethProcess.start(self)  # <--- START GETH
+            time.sleep(extra_delay)  # give it a second
+            self.wait_for_ipc(timeout=timeout)
+        else:
+            self.LOG.info("RECONNECTING TO GETH DEV PROCESS")
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):

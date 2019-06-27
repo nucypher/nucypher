@@ -63,11 +63,11 @@ class BlockchainInterface:
     TIMEOUT = 180  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
 
-    _instance = NO_BLOCKCHAIN_CONNECTION
+    _instance = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = ConciseContract
+    _contract_factory = Contract
 
     class InterfaceError(Exception):
         pass
@@ -162,26 +162,36 @@ class BlockchainInterface:
         self._provider_process = provider_process
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = transacting_power
+
+        self.fetch_registry = fetch_registry
         self.registry = registry
-
-        # self.connect(provider=provider,
-        #              provider_uri=provider_uri,
-        #              fetch_registry=fetch_registry,
-        #              sync_now=sync_now)
-
         BlockchainInterface._instance = self
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
-    def _configure_registry(self, fetch_registry: bool = True):
+    @classmethod
+    def from_dict(cls, payload: dict) -> 'BlockchainInterface':
+        registry = EthereumContractRegistry(registry_filepath=payload['registry_filepath'])
+        blockchain = cls(provider_uri=payload['provider_uri'],
+                         registry=registry)
+        return blockchain
+
+    def to_dict(self) -> dict:
+        payload = dict(provider_uri=self.provider_uri,
+                       poa=self.poa,
+                       registry_filepath=self.registry.filepath)
+        return payload
+
+    def _configure_registry(self) -> None:
         RegistryClass = EthereumContractRegistry._get_registry_class(local=self.client.is_local)
-        if fetch_registry:
+        if self.fetch_registry:
             registry = RegistryClass.from_latest_publication()
         else:
             registry = RegistryClass()
         self.registry = registry
+        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
     @property
     def is_connected(self) -> bool:
@@ -190,7 +200,7 @@ class BlockchainInterface:
         """
         return self.client.is_connected
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         if self._provider_process:
             self._provider_process.stop()
         self._provider_process = NO_PROVIDER_PROCESS
@@ -235,13 +245,13 @@ class BlockchainInterface:
         else:
             self.attach_middleware()
 
-        # Establish contact with NuCypher contracts
-        if not self.registry:
-            self._configure_registry(fetch_registry=fetch_registry)
-
         # Wait for chaindata sync
         if sync_now:
             self.client.sync()
+
+        # Establish contact with NuCypher contracts
+        if not self.registry:
+            self._configure_registry()
 
         return self.is_connected
 
@@ -307,7 +317,9 @@ class BlockchainInterface:
         payload.update({'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address,
-                        'gasPrice': self.client.w3.eth.gasPrice})
+                        'gasPrice': self.client.w3.eth.gasPrice,
+                        # 'gas': 0,  # TODO: Gas Management
+                        })
 
         unsigned_transaction = transaction_function.buildTransaction(payload)
 
@@ -441,8 +453,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
         recompile = True if compiler is not None else False
         self.__recompile = recompile
         self.__sol_compiler = compiler
-
-        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
         if self.__recompile is True:
             # Execute the compilation if we're recompiling

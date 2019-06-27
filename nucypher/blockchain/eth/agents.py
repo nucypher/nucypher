@@ -30,6 +30,9 @@ from nucypher.blockchain.eth.registry import AllocationRegistry
 class Agency(type):
     __agents = dict()
 
+    class NoAgency(Exception):
+        pass
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls.__agents:
             cls.__agents[cls] = super().__call__(*args, **kwargs)
@@ -42,6 +45,13 @@ class Agency(type):
     @property
     def agents(cls):
         return cls.__agents
+
+    @classmethod
+    def get_agent(mcs, cls):
+        try:
+            return mcs.__agents[cls]
+        except KeyError:
+            raise mcs.NoAgency
 
 
 class EthereumContractAgent:
@@ -125,7 +135,8 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
     def transfer(self, amount: int, target_address: str, sender_address: str):
         self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
         contract_function = self.contract.functions.transfer(target_address, amount)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=sender_address)
+        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+                                                   sender_address=sender_address)
         return receipt
 
 

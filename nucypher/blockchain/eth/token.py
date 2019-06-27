@@ -2,7 +2,15 @@ from _pydecimal import Decimal
 from typing import Union, Tuple, Callable, List
 
 import maya
-from constant_sorrow.constants import NEW_STAKE, NO_STAKING_RECEIPT, NOT_STAKING, UNKNOWN_STAKES, NO_STAKES, EMPTY_STAKING_SLOT
+from constant_sorrow.constants import (
+    NEW_STAKE,
+    NO_STAKING_RECEIPT,
+    NOT_STAKING,
+    UNKNOWN_STAKES,
+    NO_STAKES,
+    EMPTY_STAKING_SLOT,
+    UNKNOWN_WORKER_STATUS
+)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import task, reactor
 from twisted.logger import Logger
@@ -149,6 +157,7 @@ class Stake:
 
         # Stake Metadata
         self.owner_address = checksum_address
+        self.worker_address = UNKNOWN_WORKER_STATUS
         self.index = index
         self.value = value
         self.start_period = start_period
@@ -161,7 +170,7 @@ class Stake:
 
         # Agency
         self.staking_agent = None
-        self.token_agent = NucypherTokenAgent()
+        self.token_agent = NucypherTokenAgent()  # TODO: Use Agency
         self.blockchain = self.token_agent.blockchain
 
         # Economics
@@ -215,6 +224,9 @@ class Stake:
                        start_period=start_period,
                        end_period=end_period,
                        value=NU(value, 'NuNit'))
+
+        agent = StakingEscrowAgent()
+        instance.worker_address = agent.get_worker_from_staker(staker_address=checksum_address)
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:
@@ -304,9 +316,9 @@ class Stake:
         """Update this stakes attributes with on-chain values."""
 
         if not self.staking_agent:
-            self.staking_agent = StakingEscrowAgent()
+            self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         if not self.token_agent:
-            self.token_agent = NucypherTokenAgent()
+            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
 
         # Read from blockchain
         stake_info = self.staking_agent.get_substake_info(staker_address=self.owner_address,
@@ -320,6 +332,7 @@ class Stake:
         # Mutate the instance with the on-chain values
         self.end_period = last_period
         self.value = NU.from_nunits(locked_value)
+        self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.owner_address)
 
     @classmethod
     def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
