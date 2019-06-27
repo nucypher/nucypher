@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 import secrets
 import string
@@ -182,8 +183,13 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
+        registry = None
+        if self.registry_filepath:
+            registry = EthereumContractRegistry(registry_filepath=self.registry_filepath)
+
         self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
                                               poa=self.poa,
+                                              registry=registry,
                                               provider_process=self.provider_process)
 
     def acquire_agency(self) -> None:
@@ -319,6 +325,7 @@ class CharacterConfiguration(BaseConfiguration):
                        crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
             self.get_blockchain_interface()
+            self.blockchain.connect()  # TODO: This makes blockchain connection more eager than transacting power acivation
             payload.update(blockchain=self.blockchain)
         return payload
 
