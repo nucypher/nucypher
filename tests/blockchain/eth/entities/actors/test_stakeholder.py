@@ -36,6 +36,13 @@ def staking_software_stakeholder(testerchain,
         os.remove(path)
 
 
+@pytest.fixture(scope='module')
+def manual_worker(testerchain):
+    worker_private_key = '4115115f4159db59a06327aa29544c417c52ddb80a4a26517367ff4514e0f694'
+    address = testerchain.provider.ethereum_tester.add_account(worker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
+    yield address
+
+
 def test_software_stakeholder_configuration(testerchain,
                                             staking_software_stakeholder,
                                             stakeholder_config_file_location):
@@ -124,36 +131,28 @@ def test_divide_stake(staking_software_stakeholder, token_economics):
     assert len(stakes) == 2
 
 
-#
-# TODO: Finish testing StakeHolder
-#
+def test_set_worker(staking_software_stakeholder, manual_worker):
+    stake = staking_software_stakeholder.stakes[0]
+    staker = staking_software_stakeholder.get_active_staker(stake.owner_address)
+    staking_agent = Agency.get_agent(StakingEscrowAgent)
 
-# def test_generate_worker_configuration(staking_software_stakeholder):
-#
-#     stakes = staking_software_stakeholder.stakes
-#     stake = stakes[-1]
-#
-#     ursula_config = staking_software_stakeholder.create_worker_configuration(staker_address=stake.owner_address,
-#                                                                              worker_address=worker_address,
-#                                                                              password=INSECURE_DEVELOPMENT_PASSWORD)
-#     assert ursula_configuration.checksum_address == stake.owner_address
+    staking_software_stakeholder.set_worker(staker_address=staker.checksum_address,
+                                            worker_address=manual_worker)
+    assert staking_agent.get_worker_from_staker(staker_address=staker.checksum_address) == manual_worker
 
 
-# def test_collect_rewards(staking_software_stakeholder):
-    # stake = staking_software_stakeholder.stakes[0]
-    # staker = staking_software_stakeholder.get_active_staker(stake.owner_address)
-    # worker_config = staking_software_stakeholder.create_worker_configuration(worker_address=)
-    #
-    # for period in range(stake.periods_remaining):
-    #     pass
-    #
-    # result = staking_software_stakeholder.collect_rewards(staker_address=stake.owner_address,
-    #                                                       password=INSECURE_DEVELOPMENT_PASSWORD)
-    # assert False
+def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker):
 
+    stake = staking_software_stakeholder.stakes[0]
+    worker_config = staking_software_stakeholder.create_worker_configuration(staking_address=stake.owner_address,
+                                                                             worker_address=manual_worker,
+                                                                             password=INSECURE_DEVELOPMENT_PASSWORD)
 
-# def test_sweep_accounts(staking_software_stakeholder):
-    # staking_software_stakeholder.blockchain.time_travel(periods=30)
-    # receipts = staking_software_stakeholder.sweep()
-    # assert False
+    worker = worker_config.produce(password=INSECURE_DEVELOPMENT_PASSWORD)
+    for period in range(stake.periods_remaining):
+        worker.confirm_activity()
+        staking_software_stakeholder.blockchain.time_travel(periods=1)
 
+    result = staking_software_stakeholder.collect_rewards(staker_address=stake.owner_address,
+                                                          password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert False

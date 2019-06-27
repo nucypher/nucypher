@@ -45,6 +45,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def __init__(self,
                  dev_mode: bool = False,
+                 worker_address: str = None,
                  db_filepath: str = None,
                  rest_host: str = None,
                  rest_port: int = None,
@@ -64,6 +65,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.certificate = certificate
         self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
+        self.worker_address = worker_address
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
@@ -74,6 +76,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
+            worker_address=self.worker_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,
