@@ -182,8 +182,13 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
+        registry = None
+        if self.registry_filepath:
+            registry = EthereumContractRegistry(registry_filepath=self.registry_filepath)
+
         self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
                                               poa=self.poa,
+                                              registry=registry,
                                               fetch_registry=True,
                                               provider_process=self.provider_process,
                                               sync_now=sync_now)
@@ -321,6 +326,7 @@ class CharacterConfiguration(BaseConfiguration):
                        crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
             self.get_blockchain_interface()
+            self.blockchain.connect()  # TODO: This makes blockchain connection more eager than transacting power acivation
             payload.update(blockchain=self.blockchain)
         return payload
 

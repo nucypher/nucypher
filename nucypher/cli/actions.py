@@ -289,3 +289,15 @@ def select_stake(stakeholder) -> Stake:
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
 
+
+def select_client_account(blockchain) -> str:
+    enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    for index, account in enumerated_accounts.items():
+        click.secho(f"{index} | {account}")
+    choice = click.prompt("Select Account",
+                          type=click.IntRange(min=0, max=len(enumerated_accounts)))
+
+    chosen_account = enumerated_accounts[choice]
+    return chosen_account
+
+

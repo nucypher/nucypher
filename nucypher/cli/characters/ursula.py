@@ -21,9 +21,11 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password
+from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -50,7 +52,8 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
@@ -74,7 +77,8 @@ def ursula(click_config,
            rest_host,
            rest_port,
            db_filepath,
-           checksum_address,
+           staker_address,
+           worker_address,
            federated_only,
            poa,
            sync,
@@ -116,7 +120,7 @@ def ursula(click_config,
 
     # Banner
     if not click_config.json_ipc and not click_config.quiet:
-        click.secho(URSULA_BANNER.format(checksum_address or ''))
+        click.secho(URSULA_BANNER.format(worker_address or ''))
 
     #
     # Pre-Launch Warnings
@@ -137,6 +141,7 @@ def ursula(click_config,
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
+
     #
     # Eager Actions
     #
@@ -146,6 +151,21 @@ def ursula(click_config,
 
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
+
+        if not staker_address:
+            staker_address = click.prompt("Enter staker checksum address", type=EIP55_CHECKSUM_ADDRESS)
+
+        # TODO: Restore Federated Only Operation
+        if not worker_address:
+
+            # Blockchain
+            registry = None
+            if registry_filepath:
+                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+            blockchain.connect(fetch_registry=False)
+
+            worker_address = select_client_account(blockchain=blockchain)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -160,7 +180,8 @@ def ursula(click_config,
                                                      db_filepath=db_filepath,
                                                      domains={network} if network else None,
                                                      federated_only=federated_only,
-                                                     checksum_address=checksum_address,
+                                                     checksum_address=staker_address,
+                                                     worker_address=worker_address,
                                                      download_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
@@ -182,7 +203,8 @@ def ursula(click_config,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
-                                            checksum_address=checksum_address,
+                                            checksum_address=staker_address,
+                                            worker_address=worker_address,
                                             federated_only=federated_only,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
@@ -255,11 +277,10 @@ def ursula(click_config,
                 color='green',
                 bold=True)
 
-            if not URSULA.federated_only and URSULA.stakes:
-                click_config.emit(
-                    message=f"Staking {str(URSULA.current_stake)} ~ Keep Ursula Online!",
-                    color='blue',
-                    bold=True)
+            click_config.emit(
+                message=f"Working ~ Keep Ursula Online!",
+                color='blue',
+                bold=True)
 
             if not click_config.debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
