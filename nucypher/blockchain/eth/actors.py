@@ -921,7 +921,8 @@ class StakeHolder(BaseConfiguration):
         # Send new staker account NU
         _result = self.token_agent.transfer(amount=amount.to_nunits(),
                                             sender_address=self.funding_account,
-                                            target_address=staker.checksum_address)
+                                            target_address=staker.checksum_address,
+                                            auto_approve=True)
         return staker
 
     def initialize_stake(self,
@@ -974,6 +975,13 @@ class StakeHolder(BaseConfiguration):
             receipts[staker.checksum_address] = receipt
         self.to_configuration_file(override=True)
         return receipts
+
+    def calculate_rewards(self) -> dict:
+        rewards = dict()
+        for staker in self.stakers:
+            reward = staker.calculate_reward()
+            rewards[staker.checksum_address] = reward
+        return rewards
 
     def collect_rewards(self,
                         staker_address: str,

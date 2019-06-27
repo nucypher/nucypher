@@ -123,6 +123,12 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
+    def increase_allowance(self, sender_address: str, target_address: str, increase: int):
+        contract_function = self.contract.functions.increaseAllowance(target_address, increase)
+        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+                                                   sender_address=sender_address)
+        return receipt
+
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
         """Approve the transfer of token from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
@@ -132,8 +138,16 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
                                                    sender_address=sender_address)
         return receipt
 
-    def transfer(self, amount: int, target_address: str, sender_address: str):
-        self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+    def transfer(self, amount: int, target_address: str, sender_address: str, auto_approve: bool = True):
+        if auto_approve:
+            allowance = self.contract.functions.allowance(sender_address, target_address).call()
+            if allowance != 0:
+                delta = int(amount) - int(allowance)
+                self.increase_allowance(sender_address=sender_address,
+                                        target_address=target_address,
+                                        increase=delta)
+            else:
+                self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
         contract_function = self.contract.functions.transfer(target_address, amount)
         receipt = self.blockchain.send_transaction(transaction_function=contract_function,
                                                    sender_address=sender_address)

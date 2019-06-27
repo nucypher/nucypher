@@ -17,7 +17,6 @@ from nucypher.cli.types import (
     STAKE_DURATION,
     STAKE_EXTENSION,
     EXISTING_READABLE_FILE)
-from nucypher.utilities.sandbox.hardware import MockTrezor
 
 
 @click.command()
@@ -111,6 +110,7 @@ def stake(click_config,
             click.echo(f"There are no active stakes for {STAKEHOLDER.funding_account}")
         else:
             painting.paint_stakes(stakes=STAKEHOLDER.stakes)
+            click.secho(f"Total Stake: {str(STAKEHOLDER.total_stake)}", bold=True)
         return
 
     elif action == 'accounts':
@@ -126,10 +126,8 @@ def stake(click_config,
         return  # Exit
 
     elif action == 'set-worker':
-
         if not staking_address:
             staking_address = select_stake(stakeholder=STAKEHOLDER).owner_address
-
         if not worker_address:
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
 
@@ -273,13 +271,30 @@ def stake(click_config,
         # Show the resulting stake list
         painting.paint_stakes(stakes=STAKEHOLDER.stakes)
         return  # Exit
-    
+
+    elif action == 'calculate-rewards':
+        rewards = STAKEHOLDER.calculate_rewards()
+        click.secho("================ INFLATION REWARDS =================\n")
+        for address, reward in rewards.items():
+            click.secho(f'{address} | {reward} NU')
+        return  # Exit
+
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
+
+        _stake = select_stake(stakeholder=STAKEHOLDER)
+        rewards = STAKEHOLDER.calculate_rewards()
+        reward = rewards[_stake.owner_address]
+
+        if not reward:
+            click.secho(f"{_stake.owner_address} has no outstanding inflation rewards to collect.")
+            return  # Exit
+
         if not force:
-            click.confirm(f"Send {STAKEHOLDER.calculate_reward()} to {STAKEHOLDER.funding_account}?")
+            click.confirm(f"Send {reward} to {STAKEHOLDER.funding_account}?")
 
         password = get_password(confirm=False)
-        STAKEHOLDER.collect_rewards(staker_address=staking_address, password=password)
+        STAKEHOLDER.collect_rewards(staker_address=_stake.owner_address, password=password)
 
-    return  # Exit
+    else:
+        raise click.BadArgumentUsage(f"No such action '{action}'")
