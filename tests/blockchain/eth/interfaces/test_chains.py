@@ -22,7 +22,8 @@ from nucypher.utilities.sandbox.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, NU
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+# Prevents TesterBlockchain to be picked up by py.test as a test class
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 
 
 @pytest.fixture()
@@ -31,7 +32,7 @@ def another_testerchain(solidity_compiler):
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
                                                      registry=memory_registry,
                                                      provider_uri=TEST_PROVIDER_URI)
-    testerchain = TesterBlockchain(interface=deployer_interface,
+    testerchain = _TesterBlockchain(interface=deployer_interface,
                                    test_accounts=2*NUMBER_OF_ETH_TEST_ACCOUNTS,
                                    eth_airdrop=True)
     deployer_interface.deployer_address = testerchain.etherbase_account
