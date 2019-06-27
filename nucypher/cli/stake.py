@@ -245,9 +245,8 @@ def stake(click_config,
                                                              value=value,
                                                              duration=extension,
                                                              password=password)
-        if not click_config.quiet:
-            emitter.echo('Successfully divided stake', color='green')
-            emitter.echo(f'Receipt ........... {new_stake.receipt}')
+        emitter.echo('Successfully divided stake', color='green', verbosity=1)
+        emitter.echo(f'Receipt ........... {new_stake.receipt}', verbosity=1)
 
         # Show the resulting stake list
         painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
