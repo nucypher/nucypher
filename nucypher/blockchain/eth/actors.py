@@ -145,8 +145,6 @@ class Deployer(NucypherTokenActor):
 
     def __init__(self,
                  blockchain: BlockchainDeployerInterface,
-                 client_password: str = None,
-                 device = NO_STAKING_DEVICE,
                  deployer_address: str = None,
                  client_password: str = None,
                  bare: bool = True
@@ -174,7 +172,6 @@ class Deployer(NucypherTokenActor):
 
         # TODO: Does this class want to be a Character implementing PowerUp consumption?
         self.transacting_power = TransactingPower(blockchain=blockchain,
-                                                  device=device,
                                                   password=client_password,
                                                   account=deployer_address)
         self.transacting_power.activate()
