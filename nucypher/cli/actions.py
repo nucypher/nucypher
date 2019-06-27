@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import shutil
 from typing import List
 
 import click
@@ -28,11 +27,12 @@ from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
+from nucypher.cli import painting
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
@@ -183,7 +183,7 @@ def confirm_staged_stake(stakeholder, value, duration):
 * Ursula Node Operator Notice *
 -------------------------------
 
-By agreeing to stake {str(value)}: 
+By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits): 
 
 - Staked tokens will be locked, and unavailable for transactions for the stake duration.
 
@@ -278,3 +278,14 @@ def make_cli_character(character_config,
         console_emitter(message="WARNING: Running in Federated mode", color='yellow')
 
     return CHARACTER
+
+
+def select_stake(stakeholder) -> Stake:
+    enumerated_stakes = dict(enumerate(stakeholder.stakes))
+    painting.paint_stakes(stakes=stakeholder.stakes)
+    choice = click.prompt("Select Stake",
+                          type=click.IntRange(min=0, max=len(enumerated_stakes)))
+
+    chosen_stake = enumerated_stakes[choice]
+    return chosen_stake
+
