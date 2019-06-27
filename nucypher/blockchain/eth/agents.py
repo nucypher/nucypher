@@ -31,6 +31,9 @@ from nucypher.crypto.api import sha256_digest
 class Agency(type):
     __agents = dict()
 
+    class NoAgency(Exception):
+        pass
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls.__agents:
             cls.__agents[cls] = super().__call__(*args, **kwargs)
@@ -43,6 +46,13 @@ class Agency(type):
     @property
     def agents(cls):
         return cls.__agents
+
+    @classmethod
+    def get_agent(mcs, cls):
+        try:
+            return mcs.__agents[cls]
+        except KeyError:
+            raise mcs.NoAgency
 
 
 class EthereumContractAgent:

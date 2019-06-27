@@ -164,9 +164,8 @@ class NucypherTokenDeployer(ContractDeployer):
         """
         self.check_deployment_readiness()
 
-        _contract, deployment_txhash = self.blockchain.deploy_contract(
-                                       self.contract_name,
-                                       self.__economics.erc20_total_supply)
+        _contract, deployment_txhash = self.blockchain.deploy_contract(self.contract_name,
+                                                                       self.__economics.erc20_total_supply)
 
         self._contract = _contract
         return {'txhash': deployment_txhash}
