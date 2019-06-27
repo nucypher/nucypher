@@ -124,10 +124,12 @@ class TransactingPower(CryptoPowerUp):
         else:
             self.client = NO_BLOCKCHAIN_CONNECTION
 
-        self.account = account
+        self.__account = account
         self.device = True if not password else False
+
         self.__password = password
         self.__unlocked = False
+        self.__activated = False
 
     def __del__(self):
         self.lock_account()
@@ -140,6 +142,11 @@ class TransactingPower(CryptoPowerUp):
     def is_active(self) -> bool:
         """Returns True if the blockchain currently has this transacting power attached."""
         return self.blockchain.transacting_power == self
+
+    @property
+    def account(self) -> str:
+        # TODO: Implement HD Path here?
+        return self.__account
 
     def activate(self, password: str = None):
         """Be Consumed"""
