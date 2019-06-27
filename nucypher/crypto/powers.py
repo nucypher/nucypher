@@ -156,6 +156,9 @@ class TransactingPower(CryptoPowerUp):
         self.__unlocked = False
 
     def unlock_account(self, password: str = None):
+        if self.is_unlocked:
+            return True
+
         if self.device is not NO_STAKING_DEVICE:
             # TODO: Embed in TrustedDevice
             _hd_path = self.device.get_address_path(checksum_address=self.account)
@@ -206,8 +209,7 @@ class TransactingPower(CryptoPowerUp):
                                                                       checksum_address=self.account)
         # Web3 Signer
         else:
-            signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction,
-                                                                             account=self.account)
+            signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction)
         return signed_raw_transaction
 
 
