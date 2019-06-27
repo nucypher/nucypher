@@ -21,22 +21,16 @@ from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
-from eth_utils import keccak
 
 import maya
 from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
     NO_DEPLOYER_ADDRESS,
-    EMPTY_STAKING_SLOT,
-    UNKNOWN_STAKES,
-    NOT_STAKING,
-    NO_STAKES,
-    STRANGER_STAKER,
     NO_STAKING_DEVICE,
-    STRANGER_WORKER,
     WORKER_NOT_RUNNING
 )
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import keccak
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomics
@@ -47,7 +41,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -57,10 +50,12 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     ContractDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.powers import TransactingPower
 
 
 def only_me(func):
@@ -146,6 +141,8 @@ class Deployer(NucypherTokenActor):
     def __init__(self,
                  blockchain: BlockchainInterface,
                  deployer_address: str = None,
+                 device = NO_STAKING_DEVICE,
+                 client_password: str = None,
                  bare: bool = True
                  ) -> None:
 
@@ -162,6 +159,12 @@ class Deployer(NucypherTokenActor):
 
         self.user_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
+
+        blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                        account=deployer_address,
+                                                        password=client_password,
+                                                        device=device)
+        blockchain.transacting_power.activate()
         self.log = Logger("Deployment-Actor")
 
     def __repr__(self):

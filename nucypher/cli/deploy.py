@@ -19,6 +19,7 @@ import time
 
 import click
 import maya
+from constant_sorrow.constants import NO_STAKING_DEVICE
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
@@ -27,10 +28,10 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
+from nucypher.cli.actions import get_password
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()
@@ -125,12 +126,10 @@ def deploy(click_config,
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
-    # TODO: Integrate with Deployer Actor (Character)
-    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
-                                                    account=deployer_address,
-                                                    password=click.prompt("Enter ETH node password", hide_input=True))
-    blockchain.transacting_power.activate()
-    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+    deployer = Deployer(blockchain=blockchain,
+                        device=NO_STAKING_DEVICE,
+                        client_password=get_password(confirm=False),
+                        deployer_address=deployer_address)
 
     # Verify ETH Balance
     click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")

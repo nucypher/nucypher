@@ -148,7 +148,6 @@ class TransactingPower(CryptoPowerUp):
     def unlock_account(self, password: str = None):
         if self.device is not NO_STAKING_DEVICE:
             # TODO: Embed in TrustedDevice
-            _hd_path = self.device.get_address_path(checksum_address=self.account)
             ping = 'PING|PONG'
             pong = self.device.client.ping(ping)  # TODO: Use pin protection?
             if not ping == pong:
