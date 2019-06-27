@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import collections
+from distutils.util import strtobool
 import functools
 import os
 
@@ -30,6 +31,15 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
+def get_env_bool(var_name: str, default: bool) -> bool:
+    if var_name in os.environ:
+        # TODO: which is better: to fail on an incorrect envvar, or to use the default?
+        # Currently doing the former.
+        return strtoobool(os.environ[var_name])
+    else:
+        return default
+
+
 class NucypherClickConfig:
 
     # Output Sinks
@@ -38,8 +48,8 @@ class NucypherClickConfig:
     # Environment Variables
     config_file = os.environ.get('NUCYPHER_CONFIG_FILE')
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
-    log_to_sentry = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
-    log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
+    log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", True)
+    log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
