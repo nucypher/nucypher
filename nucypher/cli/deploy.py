@@ -97,15 +97,13 @@ def deploy(click_config,
         provider_uri = ETH_NODE.provider_uri
 
     # Establish a contract registry from disk if specified
-    registry, registry_filepath = None, (registry_outfile or registry_infile)
-    if registry_filepath is not None:
-        registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+    registry_filepath = registry_outfile or registry_infile
 
     # Deployment-tuned blockchain connection
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
-                                             registry=registry,
-                                             compiler=SolidityCompiler())
+                                             compiler=SolidityCompiler(),
+                                             registry=EthereumContractRegistry(registry_filepath=registry_filepath))
 
     blockchain.connect(fetch_registry=False, sync_now=sync)
 
