@@ -780,17 +780,21 @@ class StakeHolder(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                blockchain = None,
+                                **overrides) -> 'StakeHolder':
+
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
-        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
-        payload.update(dict(blockchain=blockchain))
-
-        payload.update(overrides)
-        instance = cls(filepath=filepath, **payload)
+        if not blockchain:
+            blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
+        instance = cls(filepath=filepath,
+                       blockchain=blockchain,
+                       **payload, **overrides)
         return instance
 
     @validate_checksum_address
@@ -922,10 +926,16 @@ class StakeHolder(BaseConfiguration):
         staker = Staker(blockchain=self.blockchain, is_me=True, checksum_address=new_account)
         return staker
 
-    def create_worker_configuration(self, worker_address: str, password: str, **configuration) -> str:
+    def create_worker_configuration(self,
+                                    staking_address: str,
+                                    worker_address: str,
+                                    password: str,
+                                    **configuration):
+
         """Generates a worker JSON configuration file for a given staking address."""
         from nucypher.config.characters import UrsulaConfiguration
-        worker_configuration = UrsulaConfiguration.generate(worker_address=worker_address,
+        worker_configuration = UrsulaConfiguration.generate(checksum_address=staking_address,
+                                                            worker_address=worker_address,
                                                             password=password,
                                                             config_root=self.config_root,
                                                             federated_only=False,
