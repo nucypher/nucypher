@@ -116,7 +116,7 @@ def test_read_allocation(agent, three_agents, allocation_value):
     assert allocation == allocation_value
 
 
-@pytest.mark.usesfixtures("three_agents")
+@pytest.mark.usefixtures("three_agents")
 def test_read_timestamp(agent):
     timestamp = agent.end_timestamp
     end_locktime = maya.MayaDT(timestamp)
@@ -126,7 +126,7 @@ def test_read_timestamp(agent):
 
 
 @pytest.mark.slow()
-@pytest.mark.usesfixtures("three_agents")
+@pytest.mark.usefixtures("three_agents")
 def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents, allocation_value, token_economics):
     token_agent, miner_agent, policy_agent = three_agents
 
