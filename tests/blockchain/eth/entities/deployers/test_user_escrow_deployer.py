@@ -36,7 +36,6 @@ def user_escrow_proxy(agency):
     testerchain.disconnect()
 
 
-@pytest.mark.usefixtures('agency')
 def test_user_escrow_deployer(agency, testerchain):
     deployer = testerchain.etherbase_account
 
