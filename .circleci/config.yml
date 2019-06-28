@@ -95,20 +95,26 @@ workflows:
 #            - agents     # These jobs are left out to not block execution of workflow
 #            - actors
 #            - contracts
+      - build_dev_docker_images:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - basics
       - finnegans_wake_demo:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - tests_ok
+            - build_dev_docker_images
       - heartbeat_demo:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - tests_ok
+            - build_dev_docker_images
 #      - mypy:  # Disable mypy for the moment as it was wasting a CircleCI container for nothing
 #          context: "NuCypher Tests"
 #          filters:
@@ -269,6 +275,16 @@ commands:
           name: "Create directory for test reports"
           command: mkdir reports
 
+  prepare_dev_docker:
+    description: "access pre-build docker image"
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: ~/docker-dev
+      - run:
+          name: "load docker"
+          command: docker load < ~/docker-dev/dev-docker-build.tar
+
   codecov:
     description: "Upload Coverage Report To codecov.io"
     steps:
@@ -282,7 +298,7 @@ commands:
       - store_test_results:
           path: reports
 
-  build_test_docker:
+  build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
     steps:
       - checkout
@@ -290,6 +306,16 @@ commands:
       - run:
           name: Build Docker Image
           command: docker-compose -f ./scripts/circle/docker-compose.yml build nucypher-circle-dev
+      - run:
+          name: mkdir
+          command: mkdir ~/docker-dev
+      - run:
+          name: save Docker Image
+          command: docker save dev:nucypher -o ~/docker-dev/dev-docker-build.tar
+      - persist_to_workspace:
+          root: ~/docker-dev
+          paths:
+            - "*.tar"
 
 
 jobs:
@@ -412,11 +438,16 @@ jobs:
           name: Nucypher CLI Tests
           command: echo "Test modules succeeded"
 
+  build_dev_docker_images:
+    <<: *python_36_base
+    steps:
+      - build_and_save_test_docker
+
   heartbeat_demo:
     <<: *python_37_base
     steps:
       - checkout
-      - build_test_docker
+      - prepare_dev_docker
       - run:
           name: Run demo Ursula fleet, Alicia and the Doctor
           command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
@@ -428,7 +459,7 @@ jobs:
     <<: *python_37_base
     steps:
       - checkout
-      - build_test_docker
+      - prepare_dev_docker
       - run:
           name: Run demo Ursula fleet, Finnegans wake Demo code
           command: ./scripts/circle/run_finnegans_wake_demo_docker-circle.sh
@@ -437,9 +468,9 @@ jobs:
 
   validate_reqs_files:
     working_directory: ~/nucypher
-    <<: *python_37_base
+    <<: *python_36_base
     steps:
-      - pipenv_install
+      - prepare_environment
       - run:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
