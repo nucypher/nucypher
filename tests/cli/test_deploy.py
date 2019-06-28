@@ -19,7 +19,8 @@ from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContrac
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+# Prevents TesterBlockchain to be picked up by py.test as a test class
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
@@ -42,7 +43,7 @@ def make_testerchain(provider_uri, solidity_compiler):
 
     # Destroy existing blockchain
     BlockchainInterface.disconnect()
-    TesterBlockchain.sever_connection()
+    _TesterBlockchain.sever_connection()
 
     registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
@@ -50,7 +51,7 @@ def make_testerchain(provider_uri, solidity_compiler):
                                                      provider_uri=provider_uri)
 
     # Create new blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface,
+    testerchain = _TesterBlockchain(interface=deployer_interface,
                                    eth_airdrop=True,
                                    free_transactions=False,
                                    poa=True)
@@ -320,7 +321,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               mock_allocation_infile,
                                               token_economics):
 
-    TesterBlockchain.sever_connection()
+    _TesterBlockchain.sever_connection()
     Agency.clear()
 
     if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):

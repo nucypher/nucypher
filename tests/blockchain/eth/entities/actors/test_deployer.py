@@ -25,7 +25,8 @@ from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+# Prevents TesterBlockchain to be picked up by py.test as a test class
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
     USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
@@ -45,7 +46,7 @@ def test_rapid_deployment(token_economics):
                                             registry=registry,
                                             provider_uri=TEST_PROVIDER_URI)
 
-    blockchain = TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
+    blockchain = _TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

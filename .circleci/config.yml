@@ -326,7 +326,7 @@ jobs:
       - run:
           name: Blockchain Agent Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   actors:
@@ -337,7 +337,7 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml  $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   deployers:
@@ -348,7 +348,7 @@ jobs:
       - run:
           name: Contract Deployer Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/entities/deployers/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/deployers/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   contracts:
@@ -359,7 +359,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   basics:
@@ -370,7 +370,7 @@ jobs:
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   network:
@@ -380,7 +380,7 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
@@ -391,7 +391,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   cli:
@@ -402,7 +402,7 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:

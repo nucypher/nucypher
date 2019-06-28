@@ -36,7 +36,7 @@ def user_escrow_proxy(three_agents):
     testerchain.sever_connection()
 
 
-@pytest.mark.usesfixtures('three_agents')
+@pytest.mark.usefixtures('three_agents')
 def test_user_escrow_deployer(three_agents, testerchain):
     deployer = testerchain.etherbase_account
 
@@ -54,7 +54,8 @@ def test_user_escrow_deployer(three_agents, testerchain):
 
 
 @pytest.mark.slow()
-@pytest.mark.usesfixtures(['user_escrow_proxy', 'three_agents'])
+@pytest.mark.usefixtures('user_escrow_proxy', 'three_agents')
+@pytest.mark.skip(reason="Blocked by issue #1102")
 def test_deploy_multiple(testerchain):
     deployer = testerchain.etherbase_account
 
