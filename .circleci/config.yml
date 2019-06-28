@@ -81,7 +81,7 @@ workflows:
               only: /.*/
           requires:
             - pipenv_install_36
-      - tests_ok:
+      - build_dev_docker_images:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -95,12 +95,6 @@ workflows:
 #            - agents     # These jobs are left out to not block execution of workflow
 #            - actors
 #            - contracts
-      - build_dev_docker_images:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - basics
       - finnegans_wake_demo:
           context: "NuCypher Tests"
           filters:
@@ -121,20 +115,24 @@ workflows:
 #            tags:
 #              only: /.*/
 #          requires:
-#            - tests_ok
+#            - build_dev_docker_images
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - tests_ok
+            - basics
+            - network
+            - character
+            - cli
+            - deployers
       - build_docs:
           filters:
             tags:
               only: /.*/
           requires:
-            - tests_ok
+            - build_dev_docker_images
       - test_build:
           filters:
             tags:
@@ -307,11 +305,10 @@ commands:
           name: Build Docker Image
           command: docker-compose -f ./scripts/circle/docker-compose.yml build nucypher-circle-dev
       - run:
-          name: mkdir
-          command: mkdir ~/docker-dev
-      - run:
-          name: save Docker Image
-          command: docker save dev:nucypher -o ~/docker-dev/dev-docker-build.tar
+          name: Save Docker Image
+          command: |
+            mkdir ~/docker-dev
+            docker save dev:nucypher -o ~/docker-dev/dev-docker-build.tar
       - persist_to_workspace:
           root: ~/docker-dev
           paths:
@@ -430,13 +427,6 @@ jobs:
           command: |
             pipenv run pytest --durations=0 --cov=nucypher --cov-report xml:reports/coverage.xml $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
-
-  tests_ok:
-    <<: *python_36_base
-    steps:
-      - run:
-          name: Nucypher CLI Tests
-          command: echo "Test modules succeeded"
 
   build_dev_docker_images:
     <<: *python_36_base
