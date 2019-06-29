@@ -29,8 +29,7 @@ def bob_web_controller_test_client(federated_bob):
 
 @pytest.fixture(scope='module')
 def enrico_web_controller_test_client(capsule_side_channel):
-    _, data_source = capsule_side_channel
-    message_kit, enrico = capsule_side_channel
+    _message_kit, enrico = capsule_side_channel()
     web_controller = enrico.make_web_controller(crash_on_error=True)
     yield web_controller.test_client()
 
@@ -62,8 +61,7 @@ def bob_rpc_controller(federated_bob):
 def enrico_rpc_controller_test_client(capsule_side_channel):
 
     # Side Channel
-    _, data_source = capsule_side_channel
-    _message_kit, enrico = capsule_side_channel
+    _message_kit, enrico = capsule_side_channel()
 
     # RPC Controler
     rpc_controller = enrico.make_rpc_controller(crash_on_error=True)
@@ -121,7 +119,7 @@ def join_control_request(federated_bob, enacted_federated_policy):
 @pytest.fixture(scope='module')
 def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_side_channel):
     method_name = 'retrieve'
-    message_kit, data_source = capsule_side_channel
+    message_kit, data_source = capsule_side_channel()
 
     params = {
         'label': enacted_federated_policy.label.decode(),
