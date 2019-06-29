@@ -28,7 +28,6 @@ from nucypher.blockchain.economics import TokenEconomics
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
@@ -55,7 +54,9 @@ def token_economics():
                                minimum_locked_periods=2,
                                minimum_allowed_locked=100,
                                maximum_allowed_locked=2000,
-                               minimum_worker_periods=2)
+                               minimum_worker_periods=2,
+                               base_penalty=300,
+                               percentage_penalty_coefficient=2)
     return economics
 
 
@@ -108,22 +109,17 @@ def policy_manager(testerchain, escrow, deploy_contract):
 
 
 @pytest.fixture()
-def adjudicator(testerchain, escrow, slashing_economics, deploy_contract):
+def adjudicator(testerchain, escrow, token_economics, deploy_contract):
     escrow, _ = escrow
     creator = testerchain.client.accounts[0]
 
     secret_hash = testerchain.w3.keccak(adjudicator_secret)
 
-    deployment_parameters = list(slashing_economics.deployment_parameters)
-    # TODO: For some reason this test used non-standard slashing parameters (#354)
-    deployment_parameters[1] = 300
-    deployment_parameters[3] = 2
-
     # Creator deploys the contract
     contract, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
-        *deployment_parameters)
+        *token_economics.slashing_deployment_parameters)
 
     dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
 
@@ -258,7 +254,6 @@ def test_all(testerchain,
              worklock,
              user_escrow_proxy,
              multisig,
-             slashing_economics,
              mock_ursula_reencrypts,
              deploy_contract):
 
@@ -837,12 +832,7 @@ def test_all(testerchain,
     total_lock = escrow.functions.lockedPerPeriod(current_period).call()
     alice1_balance = token.functions.balanceOf(alice1).call()
 
-    deployment_parameters = list(slashing_economics.deployment_parameters)
-    # TODO: For some reason this test used non-stadard slashing parameters (#354)
-    deployment_parameters[1] = 300
-    deployment_parameters[3] = 2
-
-    algorithm_sha256, base_penalty, *coefficients = deployment_parameters
+    algorithm_sha256, base_penalty, *coefficients = token_economics.slashing_deployment_parameters
     penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
 
     data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
@@ -910,7 +900,7 @@ def test_all(testerchain,
     adjudicator_v2, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
-        *slashing_economics.deployment_parameters)
+        *token_economics.slashing_deployment_parameters)
     adjudicator_secret2 = os.urandom(SECRET_LENGTH)
     adjudicator_secret2_hash = testerchain.w3.keccak(adjudicator_secret2)
     # Ursula and Alice can't upgrade library, only owner can

@@ -206,7 +206,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls) -> 'TesterBlockchain':
+    def bootstrap_network(cls, economics: TokenEconomics = None) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()
@@ -218,7 +218,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin, registry=registry)
+        deployer = ContractAdministrator(deployer_address=origin, 
+                                         registry=registry, 
+                                         economics=economics or cls._default_token_economics)
         secrets = dict()
         for deployer_class in deployer.upgradeable_deployer_classes:
             secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD

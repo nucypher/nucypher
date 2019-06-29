@@ -22,7 +22,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from eth_utils import is_checksum_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -812,9 +812,9 @@ class AdjudicatorDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, economics: SlashingEconomics = None, *args, **kwargs):
+    def __init__(self, economics: TokenEconomics = None, *args, **kwargs):
         if not economics:
-            economics = SlashingEconomics()
+            economics = StandardTokenEconomics()
         super().__init__(*args, economics=economics, **kwargs)
         staking_contract_name = StakingEscrowDeployer.contract_name
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
@@ -824,7 +824,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
     def _deploy_essential(self, gas_limit: int = None):
         constructor_args = (self.staking_contract.address,
-                            *self.economics.deployment_parameters)
+                            *self.__economics.slashing_deployment_parameters)
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                self.registry,
                                                                                self.contract_name,

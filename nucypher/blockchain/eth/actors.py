@@ -157,7 +157,8 @@ class ContractAdministrator(NucypherTokenActor):
     def __init__(self,
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
-                 client_password: str = None):
+                 client_password: str = None,
+                 economics: TokenEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.
         TODO: Review this logic ^^ "bare mode".
@@ -166,6 +167,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.deployer_address = deployer_address
         self.checksum_address = self.deployer_address
+        self.economics = economics or StandardTokenEconomics()
 
         self.registry = registry
         self.user_escrow_deployers = dict()
@@ -202,11 +204,13 @@ class ContractAdministrator(NucypherTokenActor):
                         contract_name: str,
                         gas_limit: int = None,
                         plaintext_secret: str = None,
-                        progress=None
+                        progress=None,
+                        *args,
+                        **kwargs,
                         ) -> Tuple[dict, ContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address, *args, **kwargs)
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
@@ -283,12 +287,14 @@ class ContractAdministrator(NucypherTokenActor):
                 if deployer_class in self.standard_deployer_classes:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               gas_limit=gas_limit,
-                                                              progress=bar)
+                                                              progress=bar,
+                                                              economics=self.economics)
                 else:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               plaintext_secret=secrets[deployer_class.contract_name],
                                                               gas_limit=gas_limit,
-                                                              progress=bar)
+                                                              progress=bar,
+                                                              economics=self.economics)
 
                 if emitter:
                     blockchain = BlockchainInterfaceFactory.get_interface()

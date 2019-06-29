@@ -60,6 +60,17 @@ class TokenEconomics:
     __default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
     __default_maximum_allowed_locked = NU(4_000_000, 'NU').to_nunits()
 
+    # Slashing parameters
+    HASH_ALGORITHM_KECCAK256 = 0
+    HASH_ALGORITHM_SHA256 = 1
+    HASH_ALGORITHM_RIPEMD160 = 2
+
+    __default_hash_algorithm = HASH_ALGORITHM_SHA256
+    __default_base_penalty = 100
+    __default_penalty_history_coefficient = 10
+    __default_percentage_penalty_coefficient = 8
+    __default_reward_coefficient = 2
+
     def __init__(self,
                  initial_supply: int,
                  total_supply: int,
@@ -70,7 +81,13 @@ class TokenEconomics:
                  minimum_locked_periods: int = __default_minimum_locked_periods,
                  minimum_allowed_locked: int = __default_minimum_allowed_locked,
                  maximum_allowed_locked: int = __default_maximum_allowed_locked,
-                 minimum_worker_periods: int = __default_minimum_worker_periods
+                 minimum_worker_periods: int = __default_minimum_worker_periods,
+
+                 hash_algorithm: int = __default_hash_algorithm,
+                 base_penalty: int = __default_base_penalty,
+                 penalty_history_coefficient: int = __default_penalty_history_coefficient,
+                 percentage_penalty_coefficient: int = __default_percentage_penalty_coefficient,
+                 reward_coefficient: int = __default_reward_coefficient
                  ):
         """
         :param initial_supply: Tokens at t=0
@@ -83,6 +100,12 @@ class TokenEconomics:
         :param minimum_allowed_locked: Min amount of tokens that can be locked
         :param maximum_allowed_locked: Max amount of tokens that can be locked
         :param minimum_worker_periods: Min amount of periods while a worker can't be changed
+
+        :param hash_algorithm: Hashing algorithm
+        :param base_penalty: Base for the penalty calculation
+        :param penalty_history_coefficient: Coefficient for calculating the penalty depending on the history
+        :param percentage_penalty_coefficient: Coefficient for calculating the percentage penalty
+        :param reward_coefficient: Coefficient for calculating the reward
         """
 
         self.initial_supply = initial_supply
@@ -98,6 +121,12 @@ class TokenEconomics:
         self.maximum_allowed_locked = maximum_allowed_locked
         self.minimum_worker_periods = minimum_worker_periods
         self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
+
+        self.hash_algorithm = hash_algorithm
+        self.base_penalty = base_penalty
+        self.penalty_history_coefficient = penalty_history_coefficient
+        self.percentage_penalty_coefficient = percentage_penalty_coefficient
+        self.reward_coefficient = reward_coefficient
 
     @property
     def erc20_initial_supply(self) -> int:
@@ -131,6 +160,18 @@ class TokenEconomics:
             self.minimum_worker_periods       # Min amount of periods while a worker can't be changed
         )
         return tuple(map(int, deploy_parameters))
+
+    @property
+    def slashing_deployment_parameters(self) -> Tuple[int, ...]:
+        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
+        deployment_parameters = [
+            self.hash_algorithm,
+            self.base_penalty,
+            self.penalty_history_coefficient,
+            self.percentage_penalty_coefficient,
+            self.reward_coefficient
+        ]
+        return tuple(map(int, deployment_parameters))
 
 
 class StandardTokenEconomics(TokenEconomics):
@@ -247,30 +288,3 @@ class StandardTokenEconomics(TokenEconomics):
 
     def rewards_during_period(self, period: int) -> int:
         return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
-
-
-class SlashingEconomics:
-
-    HASH_ALGORITHM_KECCAK256 = 0
-    HASH_ALGORITHM_SHA256 = 1
-    HASH_ALGORITHM_RIPEMD160 = 2
-
-    hash_algorithm = HASH_ALGORITHM_SHA256
-    base_penalty = 100
-    penalty_history_coefficient = 10
-    percentage_penalty_coefficient = 8
-    reward_coefficient = 2
-
-    @property
-    def deployment_parameters(self) -> Tuple[int, ...]:
-        """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
-
-        deployment_parameters = [
-            self.hash_algorithm,
-            self.base_penalty,
-            self.penalty_history_coefficient,
-            self.percentage_penalty_coefficient,
-            self.reward_coefficient
-        ]
-
-        return tuple(map(int, deployment_parameters))
