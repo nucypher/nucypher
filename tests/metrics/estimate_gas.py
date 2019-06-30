@@ -155,7 +155,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    testerchain, registry = TesterBlockchain.bootstrap_network()
+    economics = StandardTokenEconomics()
+    economics.base_penalty = MIN_ALLOWED_LOCKED - 1
+    economics.penalty_history_coefficient = 0
+    economics.percentage_penalty_coefficient = 2
+    economics.reward_coefficient = 2
+    testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
     web3 = testerchain.w3
 
     # Accounts
