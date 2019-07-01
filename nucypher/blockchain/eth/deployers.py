@@ -165,11 +165,11 @@ class NucypherTokenDeployer(ContractDeployer):
         """
         self.check_deployment_readiness()
 
-        _contract, deployment_receipt = self.blockchain.deploy_contract(self.contract_name,
-                                                                        self.__economics.erc20_total_supply)
+        contract, deployment_receipt = self.blockchain.deploy_contract(self.contract_name,
+                                                                       self.__economics.erc20_total_supply)
 
-        self._contract = _contract
-        return {'deploy': deployment_receipt}
+        self._contract = contract
+        return {'txhash': deployment_receipt}
 
 
 class DispatcherDeployer(ContractDeployer):
@@ -552,7 +552,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                      target_contract=user_escrow_proxy_contract)
 
             linker_deployment_txhash = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
-            deployment_receipts['linker_deployment'] = linker_deployment_txhash
+            deployment_receipts['linker_deployment'] = linker_deployment_txhash['txhash']
         else:
             # LibraryLinker.retarget
             retarget = linker_contract.functions.upgrade(self._contract.address,
