@@ -391,7 +391,7 @@ class BlockchainInterface:
                              ) -> Union[Contract, List[tuple]]:
         """
         Instantiate a deployed contract from registry data,
-        and assimilate it with it's proxy if it is upgradeable,
+        and assimilate it with its proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
         target_contract_records = self.registry.search(contract_name=name)
@@ -400,7 +400,7 @@ class BlockchainInterface:
             raise self.UnknownContract(f"No such contract records with name {name}.")
 
         if proxy_name:  # It's upgradeable
-            # Lookup proxies; Search fot a published proxy that targets this contract record
+            # Lookup proxies; Search for a published proxy that targets this contract record
 
             proxy_records = self.registry.search(contract_name=proxy_name)
 
@@ -410,7 +410,7 @@ class BlockchainInterface:
                                                              address=proxy_addr,
                                                              ContractFactoryClass=self._contract_factory)
 
-                # Read this dispatchers target address from the blockchain
+                # Read this dispatcher's target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
                 for target_name, target_addr, target_abi in target_contract_records:
 
