@@ -46,7 +46,7 @@ def proxy_deployer(testerchain, agency) -> UserEscrowAgent:
     proxy_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address, blockchain=testerchain)
 
-    proxy_deployer.deploy( secret_hash=proxy_secret)
+    proxy_deployer.deploy(secret_hash=proxy_secret)
     yield proxy_deployer
 
 
