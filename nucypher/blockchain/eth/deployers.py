@@ -29,8 +29,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     UserEscrowAgent,
     AdjudicatorAgent)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
+from nucypher.crypto.api import keccak_digest
 
 
 class ContractDeployer:
@@ -39,7 +40,7 @@ class ContractDeployer:
     contract_name = NotImplemented
     _interface_class = BlockchainDeployerInterface
     _upgradeable = NotImplemented
-    __proxy_deployer = NotImplemented
+    __linker_deployer = NotImplemented
 
     class ContractDeploymentError(Exception):
         pass
@@ -500,6 +501,12 @@ class LibraryLinkerDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
+        # TODO: Make this logic a decorator for retarget and upgrade
+        secret_hash = self._contract.functions.secretHash().call()
+        if secret_hash != keccak_digest(existing_secret_plaintext):
+            raise self.ContractDeploymentError(f"The secret for retargeting {self.contract_name} "
+                                               f"is not {existing_secret_plaintext}.")
+
         origin_args = {'from': self.deployer_address}  # TODO: Gas management
         retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         retarget_receipt = self.blockchain.send_transaction(contract_function=retarget_function,
@@ -511,7 +518,7 @@ class LibraryLinkerDeployer(ContractDeployer):
 class UserEscrowProxyDeployer(ContractDeployer):
 
     contract_name = 'UserEscrowProxy'
-    __proxy_deployer = LibraryLinkerDeployer
+    __linker_deployer = LibraryLinkerDeployer
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -519,10 +526,11 @@ class UserEscrowProxyDeployer(ContractDeployer):
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.policy_agent = PolicyAgent(blockchain=self.blockchain)
 
-    def __get_state_contract(self) -> str:
-        return self.contract.functions.getStateContract()
-
-    def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
+    def deploy(self, secret_hash: bytes, existing_secret_plaintext: bytes = None, gas_limit: int = None) -> dict:
+        """
+        Deploys a new UserEscrowProxy contract, and retargets UserEscrowLibraryLinker to new contract.
+        In case UserEscrowLibraryLinker is not found, then it deploys it.
+        """
 
         deployment_receipts = dict()
 
@@ -535,19 +543,33 @@ class UserEscrowProxyDeployer(ContractDeployer):
         self._contract = user_escrow_proxy_contract
         deployment_receipts['deployment'] = proxy_deployment_txhash
 
-        # Proxy-Proxy
-        proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
-                                               deployer_address=self.deployer_address,
-                                               target_contract=user_escrow_proxy_contract)
+        # LibraryLinker
+        try:
+            linker_contract = self.blockchain.get_contract_by_name(name=self.__linker_deployer.contract_name)
+        except (BlockchainInterface.UnknownContract, EthereumContractRegistry.UnknownContract):  # TODO: Unify exceptions
+            linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
+                                                     deployer_address=self.deployer_address,
+                                                     target_contract=user_escrow_proxy_contract)
 
-        _proxy_deployment_txhashes = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+            linker_deployment_txhash = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+            deployment_receipts['linker_deployment'] = linker_deployment_txhash
+        else:
+            # LibraryLinker.retarget
+            retarget = linker_contract.functions.upgrade(self._contract.address,
+                                                         existing_secret_plaintext,
+                                                         secret_hash)
+            retarget_receipt = self.blockchain.send_transaction(transaction_function=retarget,
+                                                                # payload=payload,
+                                                                sender_address=self.deployer_address)
+            deployment_receipts['linker_retarget'] = retarget_receipt
 
-        deployment_receipts['proxy_deployment'] = proxy_deployment_txhash
         return deployment_receipts
 
     @classmethod
     def get_latest_version(cls, blockchain) -> Contract:
-        contract = blockchain.get_contract_by_name(name=cls.contract_name, proxy_name=cls.__proxy_deployer.contract_name)
+        contract = blockchain.get_contract_by_name(name=cls.contract_name,
+                                                   proxy_name=cls.__linker_deployer.contract_name,
+                                                   use_proxy_address=False)
         return contract
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
@@ -555,13 +577,13 @@ class UserEscrowProxyDeployer(ContractDeployer):
         deployment_receipts = dict()
 
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
-                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      proxy_name=self.__linker_deployer.contract_name,
                                                                       use_proxy_address=False)
-        # Proxy-Proxy
-        proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
-                                               deployer_address=self.deployer_address,
-                                               target_contract=existing_bare_contract,
-                                               bare=True)
+        # UserEscrowLibraryLinker
+        linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
+                                                 deployer_address=self.deployer_address,
+                                                 target_contract=existing_bare_contract,
+                                                 bare=True)
 
         # Proxy
         proxy_args = (self.contract_name,
@@ -573,17 +595,17 @@ class UserEscrowProxyDeployer(ContractDeployer):
         self._contract = user_escrow_proxy_contract
         deployment_receipts['deployment'] = proxy_deployment_receipt
 
-        proxy_deployer.retarget(new_target=user_escrow_proxy_contract.address,
-                                existing_secret_plaintext=existing_secret_plaintext,
-                                new_secret_hash=new_secret_hash)
+        linker_receipt = linker_deployer.retarget(new_target=user_escrow_proxy_contract.address,
+                                                  existing_secret_plaintext=existing_secret_plaintext,
+                                                  new_secret_hash=new_secret_hash)
 
-        deployment_receipts['proxy_deployment'] = proxy_deployment_receipt
+        deployment_receipts['linker_retarget'] = linker_receipt
 
         return deployment_receipts
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
-                                                                      proxy_name=self.__proxy_deployer.contract_name,
+                                                                      proxy_name=self.__linker_deployer.contract_name,
                                                                       use_proxy_address=False)
 
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
