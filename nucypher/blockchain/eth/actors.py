@@ -32,7 +32,8 @@ from constant_sorrow.constants import (
     NO_FUNDING_ACCOUNT
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak, is_checksum_address
+from eth_utils import is_checksum_address
+from eth_utils import keccak
 from twisted.logger import Logger
 from web3 import Web3
 
@@ -724,8 +725,20 @@ class StakeHolder(BaseConfiguration):
 
         self.__get_accounts()
 
-        if sync_now:
+        if sync_now and not offline_mode:
             self.read_onchain_stakes()  # Stakes
+
+    def __str__(self) -> str:
+        r = f'{self.__class__.__name__}(funding_account={self.funding_account})'
+        return r
+
+    def __repr__(self) -> str:
+        r = f'{self.__class__.__name__}(funding_account={self.funding_account})'
+        return r
+
+    #
+    # Configuration
+    #
 
     def static_payload(self) -> dict:
         """Values to read/write from stakeholder JSON configuration files"""
@@ -756,6 +769,18 @@ class StakeHolder(BaseConfiguration):
             transacting_power = TransactingPower(blockchain=self.blockchain, account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
         transacting_power.activate(password=password)
+
+    def to_configuration_file(self, *args, **kwargs) -> str:
+        filepath = super().to_configuration_file(modifier=self.funding_account, *args, **kwargs)
+        return filepath
+
+    def connect(self, blockchain: BlockchainInterface = None) -> None:
+        """Go Online"""
+        if not self.staking_agent:
+            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+        if not self.token_agent:
+            self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+        self.blockchain = self.token_agent.blockchain
 
     #
     # Account Utilities
@@ -916,7 +941,9 @@ class StakeHolder(BaseConfiguration):
         # Send new staker account NU
         _result = self.token_agent.transfer(amount=amount.to_nunits(),
                                             sender_address=self.funding_account,
-                                            target_address=staker.checksum_address)
+                                            target_address=staker.checksum_address,
+                                            auto_approve=True)
+        return staker
 
     def initialize_stake(self,
                          amount: NU,
@@ -966,6 +993,13 @@ class StakeHolder(BaseConfiguration):
             receipts[staker.checksum_address] = receipt
         self.to_configuration_file(override=True)
         return receipts
+
+    def calculate_rewards(self) -> dict:
+        rewards = dict()
+        for staker in self.stakers:
+            reward = staker.calculate_reward()
+            rewards[staker.checksum_address] = reward
+        return rewards
 
     def collect_rewards(self,
                         staker_address: str,
