@@ -196,21 +196,27 @@ class DispatcherDeployer(ContractDeployer):
         self._contract = dispatcher_contract
         return {'deployment': receipt}
 
-    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> dict:
+    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
         if new_target == self.target_contract.address:
             raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
         origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
+        if gas_limit:
+            origin_args.update({'gas': gas_limit})
+
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
                                                            payload=origin_args)
         return upgrade_receipt
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> dict:
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
         origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
+        if gas_limit:
+            origin_args.update({'gas': gas_limit})
+
         rollback_function = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash)
         rollback_receipt = self.blockchain.send_transaction(contract_function=rollback_function,
                                                             sender_address=self.deployer_address,
@@ -318,7 +324,7 @@ class StakingEscrowDeployer(ContractDeployer):
         self.deployment_receipts = deployment_receipts
         return deployment_receipts
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
 
         # Raise if not all-systems-go
         self.check_deployment_readiness()
@@ -344,13 +350,14 @@ class StakingEscrowDeployer(ContractDeployer):
         # 4 - Set the new Dispatcher target
         upgrade_receipt = dispatcher_deployer.retarget(new_target=the_escrow_contract.address,
                                                        existing_secret_plaintext=existing_secret_plaintext,
-                                                       new_secret_hash=new_secret_hash)
+                                                       new_secret_hash=new_secret_hash,
+                                                       gas_limit=gas_limit)
 
         # Respond
         upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self.__proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
@@ -360,7 +367,8 @@ class StakingEscrowDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                        new_secret_hash=new_secret_hash)
+                                                        new_secret_hash=new_secret_hash,
+                                                        gas_limit=gas_limit)
 
         txhash = rollback_receipt['transactionHash']
         return txhash
@@ -430,7 +438,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self._contract = policy_manager_contract
         return deployment_receipts
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
 
         self.check_deployment_readiness()
 
@@ -445,11 +453,13 @@ class PolicyManagerDeployer(ContractDeployer):
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
-                                                                                 self.staking_agent.contract_address)
+                                                                                 self.staking_agent.contract_address,
+                                                                                 gas_limit=gas_limit)
 
         upgrade_receipt = proxy_deployer.retarget(new_target=policy_manager_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
-                                                  new_secret_hash=new_secret_hash)
+                                                  new_secret_hash=new_secret_hash,
+                                                  gas_limit=gas_limit)
 
         # Wrap the escrow contract
         wrapped_policy_manager_contract = self.blockchain._wrap_contract(proxy_deployer.contract,
@@ -462,7 +472,7 @@ class PolicyManagerDeployer(ContractDeployer):
         upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self.__proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
@@ -472,7 +482,8 @@ class PolicyManagerDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                        new_secret_hash=new_secret_hash)
+                                                        new_secret_hash=new_secret_hash,
+                                                        gas_limit=gas_limit)
 
         rollback_txhash = rollback_receipt['transactionHash']
         return rollback_txhash
@@ -495,7 +506,7 @@ class LibraryLinkerDeployer(ContractDeployer):
         self._contract = linker_contract
         return {'txhash': linker_deployment_txhash}
 
-    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if new_target == self.target_contract.address:
             raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
         if new_target == self._contract.address:
@@ -508,6 +519,8 @@ class LibraryLinkerDeployer(ContractDeployer):
                                                f"is not {existing_secret_plaintext}.")
 
         origin_args = {'from': self.deployer_address}  # TODO: Gas management
+        if gas_limit:
+            origin_args.update({'gas': gas_limit})
         retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         retarget_receipt = self.blockchain.send_transaction(contract_function=retarget_function,
                                                             sender_address=self.deployer_address,
@@ -572,7 +585,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                    use_proxy_address=False)
         return contract
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
 
         deployment_receipts = dict()
 
@@ -597,13 +610,14 @@ class UserEscrowProxyDeployer(ContractDeployer):
 
         linker_receipt = linker_deployer.retarget(new_target=user_escrow_proxy_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
-                                                  new_secret_hash=new_secret_hash)
+                                                  new_secret_hash=new_secret_hash,
+                                                  gas_limit=gas_limit)
 
         deployment_receipts['linker_retarget'] = linker_receipt
 
         return deployment_receipts
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self.__linker_deployer.contract_name,
                                                                       use_proxy_address=False)
@@ -614,7 +628,8 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         _rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                         new_secret_hash=new_secret_hash)
+                                                         new_secret_hash=new_secret_hash,
+                                                         gas_limit=gas_limit)
 
         rollback_txhash = _rollback_receipt['transactionHash']
         return rollback_txhash
@@ -747,7 +762,7 @@ class AdjudicatorDeployer(ContractDeployer):
                                                target_contract=adjudicator_contract,
                                                deployer_address=self.deployer_address)
 
-        proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash)
+        proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
 
         # Cache the dispatcher contract
         proxy_contract = proxy_deployer.contract
@@ -778,7 +793,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
         return deployment_receipts
 
-    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
 
         self.check_deployment_readiness()
 
@@ -793,11 +808,13 @@ class AdjudicatorDeployer(ContractDeployer):
 
         adjudicator_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
                                                                               self.staking_agent.contract_address,
-                                                                              *self.__economics.deployment_parameters)
+                                                                              *self.__economics.deployment_parameters,
+                                                                              gas_limit=gas_limit)
 
         upgrade_receipt = proxy_deployer.retarget(new_target=adjudicator_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
-                                                  new_secret_hash=new_secret_hash)
+                                                  new_secret_hash=new_secret_hash,
+                                                  gas_limit=gas_limit)
 
         # Wrap the escrow contract
         wrapped_adjudicator_contract = self.blockchain._wrap_contract(proxy_deployer.contract, target_contract=adjudicator_contract)
@@ -810,7 +827,7 @@ class AdjudicatorDeployer(ContractDeployer):
         upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes):
+    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self.__proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
@@ -820,6 +837,7 @@ class AdjudicatorDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         _rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                         new_secret_hash=new_secret_hash)
+                                                         new_secret_hash=new_secret_hash,
+                                                         gas_limit=gas_limit)
 
         return _rollback_receipt
