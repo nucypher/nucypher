@@ -5,7 +5,7 @@ from string import ascii_uppercase, digits
 
 import pytest
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -86,7 +86,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert result.exit_code == 0
 
     # Ensure there is a report on each contract
-    for registry_name in Deployer.contract_names:
+    for registry_name in DeployerActor.contract_names:
         assert registry_name in result.output
 
     # Check that the primary contract registry was written
@@ -96,7 +96,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
         # Ensure every contract's name was written to the file, somehow
         raw_registry_data = file.read()
-        for registry_name in Deployer.contract_names:
+        for registry_name in DeployerActor.contract_names:
             assert registry_name in raw_registry_data
 
         # Ensure the Registry is JSON deserializable

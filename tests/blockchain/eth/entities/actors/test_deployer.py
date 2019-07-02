@@ -21,7 +21,7 @@ import string
 import pytest
 from web3.auto import w3
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.crypto.powers import TransactingPower
@@ -54,12 +54,12 @@ def test_rapid_deployment(token_economics):
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+    deployer = DeployerActor(blockchain=blockchain, deployer_address=deployer_address)
 
-    secrets = Deployer.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                               adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                               user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+    secrets = DeployerActor.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
+                                    policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                    adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
+                                    user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
     deployer.deploy_network_contracts(secrets=secrets)
 

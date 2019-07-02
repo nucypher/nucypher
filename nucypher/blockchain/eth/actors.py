@@ -131,7 +131,7 @@ class NucypherTokenActor:
         return nu_balance
 
 
-class Deployer(NucypherTokenActor):
+class DeployerActor(NucypherTokenActor):
 
     # Registry of deployer classes
     deployer_classes = (
