@@ -20,7 +20,7 @@ import time
 import click
 import maya
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
@@ -134,9 +134,9 @@ def deploy(click_config,
     if not hw_wallet and not blockchain.client.is_local:
         password = get_password(confirm=False)
 
-    deployer = Deployer(blockchain=blockchain,
-                        client_password=password,
-                        deployer_address=deployer_address)
+    deployer = DeployerActor(blockchain=blockchain,
+                             client_password=password,
+                             deployer_address=deployer_address)
 
     # Verify ETH Balance
     click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
