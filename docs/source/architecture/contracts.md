@@ -112,6 +112,6 @@ When the user wants to become a staker - he uses the `UserEscrow` contract as a 
 
 
 ### Ursula's Worker
-In the case when Ursula uses an intermediary contract to lock tokens (for example, `UserEscrow`), the staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the `StakingEscrow.setWorker(address)` method.
+The staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the `StakingEscrow.setWorker(address)` method.
 Changing a worker is allowed no more than 1 time in `StakingEscrow.minWorkerPeriods()`.
-Only the worker can confirm activity (by default, the worker is the staker).
+Only the worker can confirm activity.

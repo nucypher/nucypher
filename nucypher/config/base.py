@@ -45,7 +45,7 @@ class BaseConfiguration(ABC):
 
     Default behavior *avoids* overwriting an existing configuration file:
 
-    - The name of the JOSN file to write/read from is determined by `_NAME`.
+    - The name of the JSON file to write/read from is determined by `_NAME`.
       When calling `to_configuration_file`.
 
     - If the default path (i.e. `my-item.json`) already  exists and, optionally,
@@ -58,7 +58,7 @@ class BaseConfiguration(ABC):
 
         ```
         def to_configuration_file(*args, **kwargs) -> str:
-            filepath = super(),to_configuration_file(modifier=<MODIFIER>, *args, **kwargs)
+            filepath = super().to_configuration_file(modifier=<MODIFIER>, *args, **kwargs)
             return filepath
         ```
 
