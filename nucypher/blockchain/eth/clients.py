@@ -59,7 +59,7 @@ LOCAL_CHAINS = {1337: "GethDev",
                 5777: "Ganache/TestRPC"}
 
 
-class Web3Client(object):
+class Web3Client:
 
     is_local = False
 
@@ -297,8 +297,11 @@ class EthereumTesterClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password):
-        return True
+    def unlock_account(self, address, password) -> bool:
+        """Returns True if the testing backend keyring has control of the given address."""
+        address = to_canonical_address(address)
+        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
+        return address in keystore
 
     def sync(self, *args, **kwargs):
         return True

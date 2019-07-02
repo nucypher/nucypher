@@ -20,6 +20,8 @@ import inspect
 from typing import List, Tuple, Optional
 
 from constant_sorrow.constants import NO_STAKING_DEVICE, NO_BLOCKCHAIN_CONNECTION
+from cytoolz.dicttoolz import dissoc
+from eth_account._utils.transactions import assert_valid_fields
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
@@ -102,7 +104,13 @@ class TransactingPower(CryptoPowerUp):
     """
     not_found_error = NoTransactingPower
 
+    class NoBlockchainConnection(PowerUpError):
+        pass
+
     class AccountLocked(PowerUpError):
+        pass
+
+    class InvalidSigningRequest(PowerUpError):
         pass
 
     def __init__(self,
@@ -117,17 +125,30 @@ class TransactingPower(CryptoPowerUp):
             raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
 
         self.blockchain = blockchain
-        self.client = NO_BLOCKCHAIN_CONNECTION
+
+        if blockchain.is_connected:
+            self.client = blockchain.client
+        else:
+            self.client = NO_BLOCKCHAIN_CONNECTION
 
         self.account = account
         self.device = device
 
+        self.__activated = False
         self.__password = password
         self.__unlocked = False
 
+    def __del__(self):
+        self.lock_account()
+
     @property
-    def is_unlocked(self):
+    def is_unlocked(self) -> bool:
         return self.__unlocked
+
+    @property
+    def is_active(self) -> bool:
+        """Returns True if the blockchain currently has this transacting power attached."""
+        return self.blockchain.transacting_power == self
 
     def activate(self, password: str = None):
         """Be Consumed"""
@@ -136,6 +157,7 @@ class TransactingPower(CryptoPowerUp):
         self.unlock_account(password=password)     # Unlock
         self.blockchain.transacting_power = self   # Attach
         self.__password = None                     # Discard
+        self.__activated = True                    # Remember
 
     def lock_account(self):
         if self.device is not NO_STAKING_DEVICE:
@@ -149,11 +171,14 @@ class TransactingPower(CryptoPowerUp):
         if self.device is not NO_STAKING_DEVICE:
             # TODO: Embed in TrustedDevice
             ping = 'PING|PONG'
-            pong = self.device.client.ping(ping)  # TODO: Use pin protection?
+            pong = self.device.client.ping(ping)
             if not ping == pong:
                 raise self.device.NoDeviceDetected
             unlocked = True
+
         else:
+            if self.client is NO_BLOCKCHAIN_CONNECTION:
+                raise self.NoBlockchainConnection
             unlocked = self.client.unlock_account(address=self.account, password=password)
 
         self.__unlocked = unlocked
@@ -165,13 +190,13 @@ class TransactingPower(CryptoPowerUp):
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(self.account))
 
-        # HW Signer
+        # Hardware Wallet
         if self.device is not NO_STAKING_DEVICE:
             # TODO: Use a common message signature type from clients and devices
             signature = self.device.sign_message(checksum_address=self.account, message=message)
             signature = signature.signature
 
-        # Web3 Signer
+        # Software Wallet
         else:
             signature = self.client.sign_message(account=self.account, message=message)
         return signature
@@ -187,6 +212,12 @@ class TransactingPower(CryptoPowerUp):
         sender_address = unsigned_transaction['from']
         if sender_address != self.account:
             raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")
+
+        try:
+            transaction_fields = dissoc(unsigned_transaction, 'from')
+            assert_valid_fields(transaction_fields)
+        except TypeError as e:
+            raise self.InvalidSigningRequest(f"Invalid Transaction: '{str(e)}'")
 
         # HW Signer
         if self.device is not NO_STAKING_DEVICE:

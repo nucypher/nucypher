@@ -164,11 +164,6 @@ class BlockchainInterface:
         self.transacting_power = transacting_power
         self.registry = registry
 
-        # self.connect(provider=provider,
-        #              provider_uri=provider_uri,
-        #              fetch_registry=fetch_registry,
-        #              sync_now=sync_now)
-
         BlockchainInterface._instance = self
 
     def __repr__(self):
@@ -188,6 +183,8 @@ class BlockchainInterface:
         """
         https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
         """
+        if self.client is NO_BLOCKCHAIN_CONNECTION:
+            return False
         return self.client.is_connected
 
     def disconnect(self):
