@@ -29,9 +29,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyAgent,
     UserEscrowAgent,
     AdjudicatorAgent)
+from nucypher.blockchain.eth.decorators import validate_secret
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
-from nucypher.crypto.api import keccak_digest
 
 
 class ContractDeployer:
@@ -196,6 +196,7 @@ class DispatcherDeployer(ContractDeployer):
         self._contract = dispatcher_contract
         return {'deployment': receipt}
 
+    @validate_secret
     def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
         if new_target == self.target_contract.address:
             raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
@@ -212,6 +213,7 @@ class DispatcherDeployer(ContractDeployer):
                                                            payload=origin_args)
         return upgrade_receipt
 
+    @validate_secret
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
         origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
         if gas_limit:
@@ -516,17 +518,12 @@ class LibraryLinkerDeployer(ContractDeployer):
         self._contract = linker_contract
         return {'txhash': linker_deployment_txhash}
 
+    @validate_secret
     def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if new_target == self.target_contract.address:
             raise self.ContractDeploymentError(f"{new_target} is already targeted by {self.contract_name}: {self._contract.address}")
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
-
-        # TODO: Make this logic a decorator for retarget and upgrade
-        secret_hash = self._contract.functions.secretHash().call()
-        if secret_hash != keccak_digest(existing_secret_plaintext):
-            raise self.ContractDeploymentError(f"The secret for retargeting {self.contract_name} "
-                                               f"is not {existing_secret_plaintext}.")
 
         origin_args = {'from': self.deployer_address}  # TODO: Gas management
         if gas_limit:
