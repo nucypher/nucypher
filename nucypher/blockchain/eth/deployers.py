@@ -614,23 +614,6 @@ class UserEscrowProxyDeployer(ContractDeployer):
 
         return deployment_receipts
 
-    def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
-        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
-                                                                      proxy_name=self.__linker_deployer.contract_name,
-                                                                      use_proxy_address=False)
-
-        dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
-                                                 target_contract=existing_bare_contract,
-                                                 deployer_address=self.deployer_address,
-                                                 bare=True)  # acquire agency for the dispatcher itself.
-
-        _rollback_receipt = dispatcher_deployer.rollback(existing_secret_plaintext=existing_secret_plaintext,
-                                                         new_secret_hash=new_secret_hash,
-                                                         gas_limit=gas_limit)
-
-        rollback_txhash = _rollback_receipt['transactionHash']
-        return rollback_txhash
-
 
 class UserEscrowDeployer(ContractDeployer):
 
