@@ -320,6 +320,7 @@ def test_federated_bob_retrieves(federated_bob,
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
+    capsule_side_channel.reset()
     the_message_kit, the_data_source = capsule_side_channel()
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()

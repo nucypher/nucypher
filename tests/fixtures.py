@@ -286,8 +286,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 def capsule_side_channel(enacted_federated_policy):
     class _CapsuleSideChannel:
         def __init__(self):
-            self.messages = []
-            self()
+            self.reset()
 
         def __call__(self):
             enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
@@ -295,6 +294,11 @@ def capsule_side_channel(enacted_federated_policy):
             message_kit, _signature = enrico.encrypt_message(message)
             self.messages.append((message_kit, enrico))
             return message_kit, enrico
+
+        def reset(self):
+            self.messages = []
+            self()
+
 
     return _CapsuleSideChannel()
 
