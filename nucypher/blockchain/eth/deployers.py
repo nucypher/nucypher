@@ -315,7 +315,7 @@ class StakingEscrowDeployer(ContractDeployer):
         _escrow_balance = self.token_agent.get_balance(address=self.contract.address)
 
         # 4 - Initialize the Staker Escrow contract
-        init_function = the_escrow_contract.functions.initialize()
+        init_function = self.contract.functions.initialize()
 
         init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
@@ -428,11 +428,9 @@ class PolicyManagerDeployer(ContractDeployer):
         proxy_contract = proxy_deployer.contract
         self.__proxy_contract = proxy_contract
 
-        # Wrap the escrow contract
-        wrapped = self.blockchain._wrap_contract(proxy_contract, target_contract=policy_manager_contract)
-
-        # Switch the contract for the wrapped one
-        policy_manager_contract = wrapped
+        # Wrap the StakingEscrow contract, and use this wrapper
+        self._contract = self.blockchain._wrap_contract(wrapper_contract=proxy_contract,
+                                                        target_contract=policy_manager_contract)
 
         # Configure the StakingEscrow contract by setting the PolicyManager
         tx_args = {}
@@ -449,7 +447,6 @@ class PolicyManagerDeployer(ContractDeployer):
                                'set_policy_manager': set_policy_manager_receipt}
 
         self.deployment_receipts = deployment_receipts
-        self._contract = policy_manager_contract
         return deployment_receipts
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
@@ -473,13 +470,9 @@ class PolicyManagerDeployer(ContractDeployer):
                                                   new_secret_hash=new_secret_hash,
                                                   gas_limit=gas_limit)
 
-        # Wrap the escrow contract
-        wrapped_policy_manager_contract = self.blockchain._wrap_contract(proxy_deployer.contract,
-                                                                         target_contract=policy_manager_contract)
-
-        # Switch the contract for the wrapped one
-        policy_manager_contract = wrapped_policy_manager_contract
-        self._contract = policy_manager_contract
+        # Wrap the PolicyManager contract, and use the wrapped version.
+        self._contract = self.blockchain._wrap_contract(proxy_deployer.contract,
+                                                        target_contract=policy_manager_contract)
 
         upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
