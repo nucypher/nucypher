@@ -558,8 +558,8 @@ class UserEscrowProxyDeployer(ContractDeployer):
 
     def deploy(self, secret_hash: bytes, existing_secret_plaintext: bytes = None, gas_limit: int = None) -> dict:
         """
-        Deploys a new UserEscrowProxy contract, and retargets UserEscrowLibraryLinker to new contract.
-        In case UserEscrowLibraryLinker is not found, then it deploys it.
+        Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
+        This is meant to be called only once per general deployment.
         """
 
         deployment_receipts = dict()
@@ -569,24 +569,12 @@ class UserEscrowProxyDeployer(ContractDeployer):
         deployment_receipts['deployment'] = deployment_receipts
 
         # UserEscrowLibraryLinker
-        try:
-            linker_contract = self.blockchain.get_contract_by_name(name=self.__linker_deployer.contract_name)
-        except (BlockchainInterface.UnknownContract, EthereumContractRegistry.UnknownContract):  # TODO: Unify exceptions
-            linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
-                                                     deployer_address=self.deployer_address,
-                                                     target_contract=user_escrow_proxy_contract)
+        linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
+                                                 deployer_address=self.deployer_address,
+                                                 target_contract=user_escrow_proxy_contract)
 
-            linker_deployment_txhash = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
-            deployment_receipts['linker_deployment'] = linker_deployment_txhash['txhash']
-        else:
-            # LibraryLinker.retarget
-            retarget = linker_contract.functions.upgrade(self._contract.address,
-                                                         existing_secret_plaintext,
-                                                         secret_hash)
-            retarget_receipt = self.blockchain.send_transaction(transaction_function=retarget,
-                                                                # payload=payload,
-                                                                sender_address=self.deployer_address)
-            deployment_receipts['linker_retarget'] = retarget_receipt
+        linker_deployment_txhash = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        deployment_receipts['linker_deployment'] = linker_deployment_txhash['txhash']
 
         return deployment_receipts
 
@@ -598,6 +586,9 @@ class UserEscrowProxyDeployer(ContractDeployer):
         return contract
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        """
+        Deploys a new UserEscrowProxy contract, and retargets UserEscrowLibraryLinker accordingly.
+        """
 
         deployment_receipts = dict()
 
