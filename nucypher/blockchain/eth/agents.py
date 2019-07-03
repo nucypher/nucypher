@@ -285,6 +285,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
                                                    payload=payload,
                                                    sender_address=staker_address)
         return receipt
+
     #
     # Contract Utilities
     #

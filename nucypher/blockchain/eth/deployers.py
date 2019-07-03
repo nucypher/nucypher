@@ -203,7 +203,7 @@ class DispatcherDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
+        origin_args = {}  # TODO: Gas management
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
@@ -215,7 +215,7 @@ class DispatcherDeployer(ContractDeployer):
 
     @validate_secret
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
-        origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
+        origin_args = {}  # TODO: Gas management
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
@@ -278,7 +278,7 @@ class StakingEscrowDeployer(ContractDeployer):
         self.check_deployment_readiness()
 
         # Build deployment arguments
-        origin_args = {'from': self.deployer_address}
+        origin_args = {}
         if gas_limit:
             origin_args.update({'gas': gas_limit})
 
@@ -435,7 +435,7 @@ class PolicyManagerDeployer(ContractDeployer):
         policy_manager_contract = wrapped
 
         # Configure the StakingEscrow contract by setting the PolicyManager
-        tx_args = {'from': self.deployer_address}
+        tx_args = {}
         if gas_limit:
             tx_args.update({'gas': gas_limit})
         set_policy_manager_function = self.staking_agent.contract.functions.setPolicyManager(policy_manager_contract.address)
@@ -525,7 +525,7 @@ class LibraryLinkerDeployer(ContractDeployer):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {'from': self.deployer_address}  # TODO: Gas management
+        origin_args = {}  # TODO: Gas management
         if gas_limit:
             origin_args.update({'gas': gas_limit})
         retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
@@ -611,7 +611,6 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                   gas_limit=gas_limit)
 
         deployment_receipts['linker_retarget'] = linker_receipt
-
         return deployment_receipts
 
 
@@ -648,7 +647,7 @@ class UserEscrowDeployer(ContractDeployer):
         if not is_checksum_address(beneficiary_address):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
         # TODO: #413, #842 - Gas Management
-        payload = {'from': self.deployer_address, 'gas': 500_000, 'gasPrice': self.blockchain.client.gas_price}
+        payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
         transfer_owner_receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
                                                                   payload=payload,
@@ -667,9 +666,7 @@ class UserEscrowDeployer(ContractDeployer):
 
         # Deposit
         # TODO: #413, #842 - Gas Management
-        args = {'from': self.deployer_address,
-                'gasPrice': self.blockchain.client.gas_price,
-                'gas': 200_000}
+        args = {'gas': 200_000}
         deposit_function = self.contract.functions.initialDeposit(value, duration)
         deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,
                                                            sender_address=self.deployer_address,
@@ -761,7 +758,7 @@ class AdjudicatorDeployer(ContractDeployer):
         adjudicator_contract = wrapped
 
         # Configure the StakingEscrow contract by setting the Adjudicator
-        tx_args = {'from': self.deployer_address}
+        tx_args = {}
         if gas_limit:
             tx_args.update({'gas': gas_limit})
         set_adjudicator_function = self.staking_agent.contract.functions.setAdjudicator(adjudicator_contract.address)
