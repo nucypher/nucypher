@@ -38,10 +38,11 @@ def user_escrow_proxy_deployer(testerchain):
 
 @pytest.mark.slow()
 def test_user_escrow_deployer(agency, testerchain, user_escrow_proxy_deployer):
+    deployer_account = testerchain.etherbase_account
     secret_hash = keccak_digest(USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode())
     _escrow_proxy_deployments_txhashes = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash)
 
-    deployer = UserEscrowDeployer(deployer_address=user_escrow_proxy_deployer.deployer_address,
+    deployer = UserEscrowDeployer(deployer_address=deployer_account,
                                   blockchain=testerchain)
 
     deployment_receipts = deployer.deploy()
