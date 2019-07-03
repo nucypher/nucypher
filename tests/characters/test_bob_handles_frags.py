@@ -308,7 +308,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     cleartext = federated_bob.verify_from(the_data_source,
                                           the_message_kit,
                                           decrypt=True)
-    assert cleartext == b'Welcome to the flippering.'
+    assert cleartext == b'Welcome to flippering number 1.'
 
 
 def test_federated_bob_retrieves(federated_bob,
@@ -330,4 +330,4 @@ def test_federated_bob_retrieves(federated_bob,
                                                   label=enacted_federated_policy.label)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to the flippering." == delivered_cleartexts[0]
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]

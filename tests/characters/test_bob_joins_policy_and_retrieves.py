@@ -36,7 +36,7 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                                   label=enacted_federated_policy.label)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to the flippering." == delivered_cleartexts[0]
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
 
 def test_bob_joins_policy_and_retrieves(federated_alice,
