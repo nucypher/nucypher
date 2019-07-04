@@ -141,7 +141,7 @@ def test_coexisting_configurations(click_runner,
     #
 
     # Run an Ursula amidst the other configuration files
-    run_args = ('ursula', 'run', '--dry-run',
+    run_args = ('ursula', 'run', '--dry-run', '--interactive',
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'

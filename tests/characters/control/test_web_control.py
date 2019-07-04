@@ -4,11 +4,30 @@ from base64 import b64encode, b64decode
 
 import maya
 import pytest
+from click.testing import CliRunner
 
 import nucypher
+from nucypher.characters.control.serializers import AliceControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.models import TreasureMap
+
+click_runner = CliRunner()
+
+
+def test_label_whose_b64_representation_is_invalid_utf8(alice_web_controller_test_client, create_policy_control_request):
+    # In our Discord, user robin#2324 (github username @robin-thomas) reported certain labels
+    # break Bob's retrieve endpoint.
+    # convo starts here: https://ptb.discordapp.com/channels/411401661714792449/411401661714792451/564353305887637517
+
+    bad_label = '516d593559505355376d454b61374751577146467a47754658396d516a685674716b7663744b376b4b666a35336d'
+
+    method_name, params = create_policy_control_request
+    params['label'] = bad_label
+
+    # This previously caused an unhandled UnicodeDecodeError.  #920
+    response = alice_web_controller_test_client.put(f'/{method_name}', data=json.dumps(params))
+    assert response.status_code == 200
 
 
 def test_alice_web_character_control_create_policy(alice_web_controller_test_client, create_policy_control_request):
@@ -98,9 +117,10 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_federated_policy,
                                          capsule_side_channel):
 
-    message_kit, data_source = capsule_side_channel
+    message_kit, data_source = capsule_side_channel()
 
     label = enacted_federated_policy.label.decode()
+    policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
     message_kit = b64encode(message_kit.to_bytes()).decode()
 
     request_data = {
@@ -114,8 +134,8 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     response_data = json.loads(response.data)
     assert 'cleartexts' in response_data['result']
 
-    for plaintext in response_data['result']['cleartexts']:
-        assert bytes(plaintext, encoding='utf-8') == b'Welcome to the flippering.'
+    response_message = response_data['result']['cleartexts'][0]
+    assert response_message == 'Welcome to flippering number 1.'  # This is the first message - in a test below, we'll show retrieving a second one.
 
     # Send bad data to assert error returns
     response = alice_web_controller_test_client.post('/decrypt', data=json.dumps({'bad': 'input'}))
@@ -159,8 +179,8 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     response_data = json.loads(response.data)
     assert 'cleartexts' in response_data['result']
 
-    for plaintext in response_data['result']['cleartexts']:
-        assert bytes(plaintext, encoding='utf-8') == b'Welcome to the flippering.'
+    response_message = response_data['result']['cleartexts'][0]
+    assert response_message == 'Welcome to flippering number 2.'  # This is the second message - the first is in the test above.
 
     # Send bad data to assert error returns
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))

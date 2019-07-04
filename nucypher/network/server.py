@@ -41,6 +41,7 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -181,10 +182,13 @@ def make_rest_app(
                     message = f"Suspicious Activity: Discovered node with bad signature: {node}.  Announced via REST."
                     log.warn(message)
                     this_node.suspicious_activities_witnessed['vladimirs'].append(node)
-
+                except NodeSeemsToBeDown as e:
+                    # This is a rather odd situation - this node *just* contacted us and asked to be verified.  Where'd it go?  Maybe a NAT problem?
+                    log.info(f"Node announced itself to us just now, but seems to be down: {node}.  Response was {e}.")
+                    log.debug(f"Phantom node certificate: {node.certificate}")
                 # Async Sentinel
                 except Exception as e:
-                    log.critical(str(e))
+                    log.critical(f"This exception really needs to be handled differently: {e}")
                     raise
 
                 # Believable
@@ -293,10 +297,12 @@ def make_rest_app(
 
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
-
-        with ThreadedSession(db_engine) as session:
-            policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                  session=session)
+        try:
+            with ThreadedSession(db_engine) as session:
+                policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                      session=session)
+        except NotFound:
+            return Response(response=arrangement_id, status=404)
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_verifying_key.key_data
 

@@ -296,7 +296,7 @@ class Alice(Character, PolicyAuthor):
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        # TODO: #289
+        # TODO: 289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < params['n']:
@@ -630,7 +630,7 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None):
+    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
@@ -658,9 +658,9 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
-
-                # TODO: Fix this. It's always using the last capsule, via leaky-loop
-                self._saved_work_orders[node_id][capsule] = work_order
+                # TODO: Fix this. It's always taking the last capsule
+                if cache:
+                    self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas == len(generated_work_orders):
                 break
@@ -681,53 +681,71 @@ class Bob(Character):
         treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key, label):
+    def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
+        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
+
+        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
+
+        if already_retrieved:
+            if cache:
+                must_do_new_retrieval = False
+            else:
+                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+        else:
+            must_do_new_retrieval = True
+
         capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
 
-        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
-        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
-
-        # TODO: Consider blocking until map is done being followed.
-
-        work_orders = self.generate_work_orders(map_id, capsule)
-
         cleartexts = []
-        the_airing_of_grievances = []
-        work_orders = work_orders.values()
-        for work_order in work_orders:
-            try:
-                cfrags = self.get_reencrypted_cfrags(work_order)
-            except requests.exceptions.ConnectTimeout:
-                continue
 
-            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-            try:
-                message_kit.capsule.attach_cfrag(cfrag)
-                if len(message_kit.capsule._attached_cfrags) >= m:
-                    break
-            except UmbralCorrectnessError:
-                task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                from nucypher.policy.models import IndisputableEvidence
-                evidence = IndisputableEvidence(task=task, work_order=work_order)
-                # I got a lot of problems with you people ...
-                the_airing_of_grievances.append(evidence)
-        else:
-            raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+        if must_do_new_retrieval:
+            # TODO: Consider blocking until map is done being followed. #1114 
 
-        if the_airing_of_grievances:
-            # ... and now you're gonna hear about it!
-            raise self.IncorrectCFragsReceived(the_airing_of_grievances)
-            # TODO: Find a better strategy for handling incorrect CFrags #500
-            #  - There maybe enough cfrags to still open the capsule
-            #  - This line is unreachable when NotEnoughUrsulas
+            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+            the_airing_of_grievances = []
+
+        # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
+            for work_order in work_orders.values():
+                try:
+                    cfrags = self.get_reencrypted_cfrags(work_order)
+                except requests.exceptions.ConnectTimeout:
+                    continue
+                except NotFound:
+                    # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    continue
+
+                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                try:
+                    message_kit.capsule.attach_cfrag(cfrag)
+                    if len(message_kit.capsule._attached_cfrags) >= m:
+                        break
+                except UmbralCorrectnessError:
+                    task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                    from nucypher.policy.models import IndisputableEvidence
+                    evidence = IndisputableEvidence(task=task, work_order=work_order)
+                    # I got a lot of problems with you people ...
+                    the_airing_of_grievances.append(evidence)
+            else:
+                raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+
+            if the_airing_of_grievances:
+                # ... and now you're gonna hear about it!
+                raise self.IncorrectCFragsReceived(the_airing_of_grievances)
+                # TODO: Find a better strategy for handling incorrect CFrags #500
+                #  - There maybe enough cfrags to still open the capsule
+                #  - This line is unreachable when NotEnoughUrsulas
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
+
         return cleartexts
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):

@@ -778,6 +778,7 @@ class Learner:
         new_nodes = []
         for node in node_list:
             if not set(self.learning_domains).intersection(set(node.serving_domains)):
+                self.log.debug(f"Teacher {node} is serving {node.serving_domains}, but we're only learning {self.learning_domains}.")
                 continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
