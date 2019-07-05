@@ -30,7 +30,8 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 
 
 @pytest.mark.slow()
-def test_deploy_ethereum_contracts(testerchain):
+def test_deploy_ethereum_contracts(session_testerchain):
+    testerchain = session_testerchain
 
     origin, *everybody_else = testerchain.client.accounts
 

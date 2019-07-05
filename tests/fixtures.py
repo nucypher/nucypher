@@ -359,8 +359,7 @@ def solidity_compiler():
     yield compiler
 
 
-@pytest.fixture(scope='module')
-def testerchain():
+def _make_testerchain():
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
@@ -373,15 +372,36 @@ def testerchain():
                                                      password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.deployer_address)
     testerchain.transacting_power.activate()
+    return testerchain
 
+
+@pytest.fixture(scope='module')
+def testerchain():
+    testerchain = _make_testerchain()
+    yield testerchain
+    testerchain.disconnect()
+
+@pytest.fixture(scope='session')
+def _session_testerchain():  # ... boring name...BOOH!
+    testerchain = _make_testerchain()
     yield testerchain
     testerchain.disconnect()
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain):
-    """Launch all Nucypher ethereum contracts"""
+def session_testerchain(_session_testerchain):
+    testerchain = _session_testerchain
+    testerchain.registry.clear()
+    # TODO: Check also that there's enough ETH/NU for everyone
+    yield testerchain
+    testerchain.registry.clear()
 
+
+def _make_agency(testerchain):
+    """
+    Launch the big three contracts on provided chain,
+    make agents for each and return them.
+    """
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -415,7 +435,24 @@ def agency(testerchain):
     # Other advantages is that it's closer to how agents should be use (i.e., there
     # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
 
-    yield token_agent, staking_agent, policy_agent
+    return token_agent, staking_agent, policy_agent
+
+
+@pytest.fixture(scope='module')
+def agency(testerchain):
+    agents = _make_agency(testerchain)
+    yield agents
+    testerchain.registry.clear()
+    Agency.clear()
+
+
+@pytest.fixture(scope='module')
+def session_agency(_session_testerchain):
+    testerchain = _session_testerchain
+    testerchain.registry.clear()
+    agents = _make_agency(testerchain)
+    yield agents
+    testerchain.registry.clear()
     Agency.clear()
 
 
