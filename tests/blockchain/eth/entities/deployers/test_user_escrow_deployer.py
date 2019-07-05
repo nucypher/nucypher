@@ -29,7 +29,9 @@ user_escrow_contracts = list()
 
 
 @pytest.fixture(scope='module')
-def user_escrow_proxy_deployer(testerchain):
+def user_escrow_proxy_deployer(session_testerchain, session_agency):
+    print("ENTER USER ESCROW")
+    testerchain = session_testerchain
     deployer = testerchain.etherbase_account
     user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
                                                          blockchain=testerchain)
@@ -37,7 +39,8 @@ def user_escrow_proxy_deployer(testerchain):
 
 
 @pytest.mark.slow()
-def test_user_escrow_deployer(agency, testerchain, user_escrow_proxy_deployer):
+def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_proxy_deployer):
+    testerchain = session_testerchain
     deployer_account = testerchain.etherbase_account
     secret_hash = keccak_digest(USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode())
     _escrow_proxy_deployments_txhashes = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash)
@@ -52,7 +55,8 @@ def test_user_escrow_deployer(agency, testerchain, user_escrow_proxy_deployer):
 
 
 @pytest.mark.slow()
-def test_deploy_multiple(testerchain, agency, user_escrow_proxy_deployer):
+def test_deploy_multiple(session_testerchain, session_agency, user_escrow_proxy_deployer):
+    testerchain = session_testerchain
     deployer_account = testerchain.etherbase_account
 
     linker_deployer = LibraryLinkerDeployer(blockchain=testerchain,
@@ -84,7 +88,9 @@ def test_deploy_multiple(testerchain, agency, user_escrow_proxy_deployer):
 
 
 @pytest.mark.slow()
-def test_upgrade_user_escrow_proxy(testerchain, agency, user_escrow_proxy_deployer):
+def test_upgrade_user_escrow_proxy(session_testerchain, session_agency, user_escrow_proxy_deployer):
+    testerchain = session_testerchain
+    agency = session_agency
     old_secret = USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode()
     new_secret = 'new' + USER_ESCROW_PROXY_DEPLOYMENT_SECRET
     new_secret_hash = keccak_digest(new_secret.encode())

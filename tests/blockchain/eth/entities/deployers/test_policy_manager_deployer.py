@@ -28,7 +28,8 @@ from nucypher.blockchain.eth.deployers import (
 )
 
 
-def test_policy_manager_deployer(testerchain):
+def test_policy_manager_deployer(session_testerchain):
+    testerchain = session_testerchain
     origin, *everybody_else = testerchain.client.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)

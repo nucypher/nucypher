@@ -20,7 +20,8 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, DispatcherDeployer
 
 
-def test_staking_escrow_deployer_and_agent(testerchain):
+def test_staking_escrow_deployer_and_agent(session_testerchain):
+    testerchain = session_testerchain
     origin, *everybody_else = testerchain.client.accounts
 
     # The big day...
