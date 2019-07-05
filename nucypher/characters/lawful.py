@@ -657,6 +657,7 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
             ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
@@ -723,7 +724,7 @@ class Bob(Character):
             work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
             the_airing_of_grievances = []
 
-        # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
+            # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
             for work_order in work_orders.values():
                 try:
                     cfrags = self.get_reencrypted_cfrags(work_order)
