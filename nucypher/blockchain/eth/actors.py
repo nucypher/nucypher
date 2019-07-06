@@ -534,7 +534,7 @@ class Staker(NucypherTokenActor):
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
         receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
-                                                        amount=int(amount))
+                                              amount=int(amount))
         return receipt
 
 
