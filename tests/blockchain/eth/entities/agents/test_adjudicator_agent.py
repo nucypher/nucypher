@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def mock_ursula(testerchain, account):
@@ -59,6 +60,7 @@ def test_adjudicator_slashes(agency,
 
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power.activate()
 
     # The staker receives an initial amount of tokens
     _txhash = token_agent.transfer(amount=locked_tokens,
@@ -67,6 +69,7 @@ def test_adjudicator_slashes(agency,
 
     # Mock Powerup consumption (Staker)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power.activate()
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
@@ -98,6 +101,8 @@ def test_adjudicator_slashes(agency,
 
     # Mock Powerup consumption (Bob)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=bob_account)
+    testerchain.transacting_power.activate()
+
     adjudicator_agent.evaluate_cfrag(evidence=evidence, sender_address=bob_account)
 
     assert adjudicator_agent.was_this_evidence_evaluated(evidence)

@@ -28,6 +28,7 @@ from nucypher.crypto.powers import TransactingPower
 def escrow(testerchain):
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power.activate()
     escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 
