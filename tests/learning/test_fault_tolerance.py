@@ -9,7 +9,7 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED
 
 from nucypher.characters.base import Character
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -84,8 +84,8 @@ def test_invalid_workers_tolerance(testerchain,
     periods = token_economics.minimum_locked_periods
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
-                                                    account=idle_staker.checksum_address)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     account=idle_staker.checksum_address)
 
     idle_staker.initialize_stake(amount=amount, lock_periods=periods)
 
@@ -122,7 +122,7 @@ def test_invalid_workers_tolerance(testerchain,
     # She withdraws up to the last penny (well, last nunit, actually).
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
                                                     account=idle_staker.checksum_address)
     idle_staker.mint()
     testerchain.time_travel(periods=1)

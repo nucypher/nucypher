@@ -21,13 +21,13 @@ import pytest
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.deployers import DispatcherDeployer
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture()
 def escrow(testerchain):
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
     escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 

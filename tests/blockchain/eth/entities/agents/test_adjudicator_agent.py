@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor, Staker
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
 
 
@@ -58,7 +58,7 @@ def test_adjudicator_slashes(agency,
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
 
     # The staker receives an initial amount of tokens
     _txhash = token_agent.transfer(amount=locked_tokens,
@@ -66,7 +66,7 @@ def test_adjudicator_slashes(agency,
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
@@ -97,7 +97,7 @@ def test_adjudicator_slashes(agency,
     bobby_old_balance = bobby.token_balance
 
     # Mock Powerup consumption (Bob)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=bob_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=bob_account)
     adjudicator_agent.evaluate_cfrag(evidence=evidence, sender_address=bob_account)
 
     assert adjudicator_agent.was_this_evidence_evaluated(evidence)
