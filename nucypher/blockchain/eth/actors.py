@@ -776,25 +776,17 @@ class StakeHolder(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls,
-                                filepath: str = None,
-                                provider_uri: str = None,
-                                registry_filepath: str = None,
-                                **overrides) -> 'StakeHolder':
-
+    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
-        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload,
-                                                   provider_uri=provider_uri,
-                                                   registry_filepath=registry_filepath)
+        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
+        payload.update(dict(blockchain=blockchain))
 
-        blockchain.connect()
-        instance = cls(filepath=filepath,
-                       blockchain=blockchain,
-                       **payload, **overrides)
+        payload.update(overrides)
+        instance = cls(filepath=filepath, **payload)
         return instance
 
     @validate_checksum_address
