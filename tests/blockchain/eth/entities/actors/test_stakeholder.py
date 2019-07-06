@@ -219,4 +219,6 @@ def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker, 
                                                           policy=False,
                                                           password=INSECURE_DEVELOPMENT_PASSWORD)
 
+    # TODO: Make Assertions reasonable for this layer.
+    #       Consider recycling logic from test_collect_reward_integration CLI test.
     assert result
