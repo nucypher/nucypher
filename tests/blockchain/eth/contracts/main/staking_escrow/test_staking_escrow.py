@@ -376,7 +376,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
 
     # Check number of stakes and last stake parameters
-    assert 3 == escrow.functions.getSubStakesLength(ursula2).call()
+    assert 4 == escrow.functions.getSubStakesLength(ursula2).call()
     assert current_period + 1 == escrow.functions.getLastPeriodOfSubStake(ursula2, 2).call()
 
     # Divide stake again
@@ -402,15 +402,15 @@ def test_staking(testerchain, token, escrow_contract):
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
     assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 300 == escrow.functions.getLockedTokens(ursula2, 2).call()
-    assert 100 == escrow.functions.getLockedTokens(ursula2, 3).call()
+    assert 200 == escrow.functions.getLockedTokens(ursula2, 3).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
 
     events = lock_log.get_all_entries()
     assert 11 == len(events)
     event_args = events[10]['args']
     assert ursula2 == event_args['staker']
-    assert 100 == event_args['value']
-    assert period + 3 == event_args['firstPeriod']
+    assert 200 == event_args['value']
+    assert current_period + 3 == event_args['firstPeriod']
     assert 1 == event_args['periods']
 
     # Prolong sub stake that will end in the next period
@@ -421,7 +421,7 @@ def test_staking(testerchain, token, escrow_contract):
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
     assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 400 == escrow.functions.getLockedTokens(ursula2, 2).call()
-    assert 100 == escrow.functions.getLockedTokens(ursula2, 3).call()
+    assert 200 == escrow.functions.getLockedTokens(ursula2, 3).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
 
     events = lock_log.get_all_entries()
@@ -429,7 +429,7 @@ def test_staking(testerchain, token, escrow_contract):
     event_args = events[11]['args']
     assert ursula2 == event_args['staker']
     assert 100 == event_args['value']
-    assert period + 2 == event_args['firstPeriod']
+    assert current_period + 2 == event_args['firstPeriod']
     assert 1 == event_args['periods']
 
     # Can't prolong sub stake that will end in the current period
@@ -463,7 +463,7 @@ def test_staking(testerchain, token, escrow_contract):
     event_args = events[12]['args']
     assert ursula2 == event_args['staker']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
-    assert 100 == event_args['value']
+    assert 200 == event_args['value']
 
     assert 5 == len(deposit_log.get_all_entries())
     assert 1 == len(withdraw_log.get_all_entries())

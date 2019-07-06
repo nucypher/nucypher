@@ -56,7 +56,7 @@ contract StakingEscrow is Issuer {
     event ReStakeSet(address indexed staker, bool reStake);
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
-    event WorkMeasurementSet(address indexed miner, bool measureWork);
+    event WorkMeasurementSet(address indexed staker, bool measureWork);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -496,7 +496,7 @@ contract StakingEscrow is Issuer {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function deposit(address _staker, uint256 _value, uint16 _periods) public {
-        deposit(_miner, msg.sender, _value, _periods);
+        deposit(_staker, msg.sender, _value, _periods);
     }
 
     /**

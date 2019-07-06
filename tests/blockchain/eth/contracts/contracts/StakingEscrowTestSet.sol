@@ -188,18 +188,18 @@ contract Intermediary {
 
 
 /**
-* @notice Contract for testing miners escrow contract
+* @notice Contract for testing staking escrow contract
 **/
-contract WorkLockForMinersEscrowMock {
+contract WorkLockForStakingEscrowMock {
 
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
 
-    constructor(MinersEscrow _escrow) public {
+    constructor(StakingEscrow _escrow) public {
         escrow = _escrow;
     }
 
-    function setWorkMeasurement(address _miner, bool _measureWork) public returns (uint256) {
-        return escrow.setWorkMeasurement(_miner, _measureWork);
+    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+        return escrow.setWorkMeasurement(_staker, _measureWork);
     }
 }
 

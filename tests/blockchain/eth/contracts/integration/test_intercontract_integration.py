@@ -135,15 +135,15 @@ def adjudicator(testerchain, escrow, slashing_economics):
 @pytest.fixture()
 def worklock(testerchain, token, escrow):
     escrow, _ = escrow
-    creator = testerchain.interface.w3.eth.accounts[0]
+    creator = testerchain.w3.eth.accounts[0]
 
     # Creator deploys the worklock using test values
-    now = testerchain.interface.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     start_bid_date = ((now + 3600) // 3600 + 1) * 3600  # beginning of the next hour plus 1 hour
     end_bid_date = start_bid_date + 3600
     deposit_rate = 2
     refund_rate = deposit_rate
-    contract, _ = testerchain.interface.deploy_contract(
+    contract, _ = testerchain.deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
         _escrow=escrow.address,
@@ -276,8 +276,8 @@ def test_all(testerchain,
     tx = testerchain.client.send_transaction(
         {'from': testerchain.client.coinbase, 'to': alice2, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
-    tx = testerchain.interface.w3.eth.sendTransaction(
-        {'from': testerchain.interface.w3.eth.coinbase, 'to': ursula2, 'value': 10 ** 10})
+    tx = testerchain.w3.eth.sendTransaction(
+        {'from': testerchain.w3.eth.coinbase, 'to': ursula2, 'value': 10 ** 10})
     testerchain.wait_for_receipt(tx)
 
     # Give Ursula and Alice some coins
@@ -336,12 +336,12 @@ def test_all(testerchain,
     # Ursula does bid
     assert worklock.functions.allClaimedTokens().call() == 0
     assert worklock.functions.workInfo(ursula2).call()[0] == 0
-    assert testerchain.interface.w3.eth.getBalance(worklock.address) == 0
+    assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': deposited_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.allClaimedTokens().call() == 1000
     assert worklock.functions.workInfo(ursula2).call()[0] == deposited_eth
-    assert testerchain.interface.w3.eth.getBalance(worklock.address) == deposited_eth
+    assert testerchain.w3.eth.getBalance(worklock.address) == deposited_eth
 
     # Can't claim while bidding phase
     with pytest.raises((TransactionFailed, ValueError)):
@@ -361,20 +361,23 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
-    assert 1000 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
+    assert 1000 == escrow.functions.getAllTokens(ursula2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 6).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 7).call()
     assert 0 == escrow.functions.getWorkDone(ursula2).call()
 
+    tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+
     # Ursula prolongs lock duration
-    tx = escrow.functions.prolongStake(0, 4).transact({'from': ursula2, 'gas_price': 0})
+    tx = escrow.functions.prolongStake(0, 3).transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
-    assert 1000 == escrow.functions.getLockedTokens(ursula2, 10).call()
-    assert 0 == escrow.functions.getLockedTokens(ursula2, 11).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2, 9).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 10).call()
     assert 0 == escrow.functions.getWorkDone(ursula2).call()
 
     # Can't claim more than once
@@ -1069,13 +1072,13 @@ def test_all(testerchain,
     remaining_work = worklock.functions.getRemainingWork(ursula2).call()
     assert 0 < remaining_work
     assert deposited_eth == worklock.functions.workInfo(ursula2).call()[0]
-    ursula2_balance = testerchain.interface.w3.eth.getBalance(ursula2)
+    ursula2_balance = testerchain.w3.eth.getBalance(ursula2)
     tx = worklock.functions.refund().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     refund = new_work_done // refund_rate
     assert deposited_eth - refund == worklock.functions.workInfo(ursula2).call()[0]
-    assert refund + ursula2_balance == testerchain.interface.w3.eth.getBalance(ursula2)
+    assert refund + ursula2_balance == testerchain.w3.eth.getBalance(ursula2)
     assert remaining_work == worklock.functions.getRemainingWork(ursula2).call()
-    assert deposited_eth - refund == testerchain.interface.w3.eth.getBalance(worklock.address)
+    assert deposited_eth - refund == testerchain.w3.eth.getBalance(worklock.address)
     assert 0 == escrow.functions.getWorkDone(ursula1).call()
     assert 0 == escrow.functions.getWorkDone(user_escrow_1.address).call()

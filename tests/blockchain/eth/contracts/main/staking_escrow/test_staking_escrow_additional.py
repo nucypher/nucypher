@@ -89,8 +89,8 @@ def test_upgrading(testerchain, token):
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
     testerchain.wait_for_receipt(tx)
-    worklock, _ = testerchain.interface.deploy_contract(
-        'WorkLockForMinersEscrowMock', contract.address
+    worklock, _ = testerchain.deploy_contract(
+        'WorkLockForStakingEscrowMock', contract.address
     )
     tx = contract.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
@@ -108,7 +108,7 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = worklock.functions.setWorkMeasurement(miner, True).transact()
+    tx = worklock.functions.setWorkMeasurement(staker, True).transact()
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
@@ -533,11 +533,6 @@ def test_worker(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Worker can't be a staker
-    tx = token.functions.approve(escrow.address, sub_stake).transact()
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
-        testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(worker1, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -631,12 +626,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
     # The first worker is free and can deposit tokens and become a staker
-    tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
-    testerchain.wait_for_receipt(tx)
     tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
-    assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
+    assert sub_stake == escrow.functions.getAllTokens(worker1).call()
     assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
     assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
 
@@ -705,7 +698,7 @@ def test_worker(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_measure_work(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
-    creator, ursula, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, ursula, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
@@ -715,7 +708,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock
-    worklock, _ = testerchain.interface.deploy_contract('WorkLockForMinersEscrowMock', escrow.address)
+    worklock, _ = testerchain.deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
     tx = escrow.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -728,6 +721,8 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(stake, duration).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
     assert escrow.functions.getWorkDone(ursula).call() == 0
 
     # Confirm activity and mint to check that work is not measured by default
@@ -736,18 +731,18 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=2)
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.minerInfo(ursula).call()[VALUE_FIELD] > stake
+    assert escrow.functions.getAllTokens(ursula).call() > stake
     assert escrow.functions.getWorkDone(ursula).call() == 0
 
     # Start work measurement
-    stake = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
+    stake = escrow.functions.getAllTokens(ursula).call()
     tx = worklock.functions.setWorkMeasurement(ursula, True).transact()
     testerchain.wait_for_receipt(tx)
 
     events = work_measurement_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula == event_args['miner']
+    assert ursula == event_args['staker']
     assert event_args['measureWork']
 
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
@@ -755,24 +750,24 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=2)
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    reward = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD] - stake
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
     assert escrow.functions.getWorkDone(ursula).call() == reward
 
     # Mint again and check work done
-    stake = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
+    stake = escrow.functions.getAllTokens(ursula).call()
     work_done = escrow.functions.getWorkDone(ursula).call()
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=2)
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    reward = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD] - stake
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
     assert escrow.functions.getWorkDone(ursula).call() == work_done + reward
 
     # Stop work measurement
-    stake = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
+    stake = escrow.functions.getAllTokens(ursula).call()
     work_done = escrow.functions.getWorkDone(ursula).call()
     tx = worklock.functions.setWorkMeasurement(ursula, False).transact()
     testerchain.wait_for_receipt(tx)
@@ -780,7 +775,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     events = work_measurement_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula == event_args['miner']
+    assert ursula == event_args['staker']
     assert not event_args['measureWork']
 
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
@@ -788,7 +783,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=2)
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    reward = escrow.functions.minerInfo(ursula).call()[VALUE_FIELD] - stake
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
     assert escrow.functions.getWorkDone(ursula).call() == work_done
 

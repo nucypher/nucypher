@@ -3,7 +3,7 @@ pragma solidity ^0.5.3;
 
 import "zeppelin/math/SafeMath.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/MinersEscrow.sol";
+import "contracts/StakingEscrow.sol";
 
 
 /**
@@ -12,9 +12,9 @@ import "contracts/MinersEscrow.sol";
 contract WorkLock {
     using SafeMath for uint256;
 
-    event Bid(address indexed miner, uint256 depositedETH, uint256 claimedTokens);
-    event Claimed(address indexed miner, uint256 claimedTokens);
-    event Refund(address indexed miner, uint256 refundETH, uint256 workDone);
+    event Bid(address indexed staker, uint256 depositedETH, uint256 claimedTokens);
+    event Claimed(address indexed staker, uint256 claimedTokens);
+    event Refund(address indexed staker, uint256 refundETH, uint256 workDone);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -23,7 +23,7 @@ contract WorkLock {
     }
 
     NuCypherToken public token;
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
     uint256 public startBidDate;
     uint256 public endBidDate;
     // ETH -> NU
@@ -47,7 +47,7 @@ contract WorkLock {
     **/
     constructor(
         NuCypherToken _token,
-        MinersEscrow _escrow,
+        StakingEscrow _escrow,
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _depositRate,
@@ -93,7 +93,7 @@ contract WorkLock {
     }
 
     /**
-    * @notice Claimed tokens will be deposited and locked as stake in the MinersEscrow contract.
+    * @notice Claimed tokens will be deposited and locked as stake in the StakingEscrow contract.
     **/
     function claim() public returns (uint256 claimedTokens) {
         require(block.timestamp >= endBidDate, "Claiming tokens allowed after bidding is over");
@@ -134,9 +134,9 @@ contract WorkLock {
     /**
     * @notice Get remaining work to full refund
     **/
-    function getRemainingWork(address _miner) public view returns (uint256) {
-        WorkInfo storage info = workInfo[_miner];
-        uint256 workDone = escrow.getWorkDone(_miner).sub(info.workDone);
+    function getRemainingWork(address _staker) public view returns (uint256) {
+        WorkInfo storage info = workInfo[_staker];
+        uint256 workDone = escrow.getWorkDone(_staker).sub(info.workDone);
         uint256 remainingWork = info.depositedETH.mul(refundRate);
         if (remainingWork <= workDone) {
             return 0;

@@ -7,9 +7,9 @@ import "contracts/NuCypherToken.sol";
 /**
 * @notice Contract for using in WorkLock tests
 **/
-contract MinersEscrowForWorkLockMock {
+contract StakingEscrowForWorkLockMock {
 
-    struct MinerInfo {
+    struct StakerInfo {
         uint256 value;
         bool measureWork;
         uint256 workDone;
@@ -21,7 +21,7 @@ contract MinersEscrowForWorkLockMock {
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
     uint16 public minLockedPeriods;
-    mapping (address => MinerInfo) public minerInfo;
+    mapping (address => StakerInfo) public stakerInfo;
 
     constructor(
         NuCypherToken _token,
@@ -37,23 +37,23 @@ contract MinersEscrowForWorkLockMock {
         minLockedPeriods = _minLockedPeriods;
     }
 
-    function getWorkDone(address _miner) public view returns (uint256) {
-        return minerInfo[_miner].workDone;
+    function getWorkDone(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].workDone;
     }
 
-    function setWorkMeasurement(address _miner, bool _measureWork) public returns (uint256) {
-        minerInfo[_miner].measureWork = _measureWork;
-        return minerInfo[_miner].workDone;
+    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+        stakerInfo[_staker].measureWork = _measureWork;
+        return stakerInfo[_staker].workDone;
     }
 
-    function deposit(address _miner, uint256 _value, uint16 _periods) public {
-        minerInfo[_miner].value = _value;
-        minerInfo[_miner].periods = _periods;
+    function deposit(address _staker, uint256 _value, uint16 _periods) public {
+        stakerInfo[_staker].value = _value;
+        stakerInfo[_staker].periods = _periods;
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function setWorkDone(address _miner, uint256 _workDone) public {
-        minerInfo[_miner].workDone = _workDone;
+    function setWorkDone(address _staker, uint256 _workDone) public {
+        stakerInfo[_staker].workDone = _workDone;
     }
 
 }
