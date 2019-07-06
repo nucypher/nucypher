@@ -171,10 +171,13 @@ class BlockchainInterface:
         return r
 
     @classmethod
-    def from_dict(cls, payload: dict) -> 'BlockchainInterface':
+    def from_dict(cls, payload: dict, **overrides) -> 'BlockchainInterface':
+
+        # Apply overrides
+        payload.update({k: v for k, v in overrides.items() if v is not None})
+
         registry = EthereumContractRegistry(registry_filepath=payload['registry_filepath'])
-        blockchain = cls(provider_uri=payload['provider_uri'],
-                         registry=registry)
+        blockchain = cls(provider_uri=payload['provider_uri'], registry=registry)
         return blockchain
 
     def to_dict(self) -> dict:

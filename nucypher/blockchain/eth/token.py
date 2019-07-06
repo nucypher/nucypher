@@ -281,12 +281,7 @@ class Stake:
         rulebook = (
 
             (self.minimum_nu <= self.value,
-             'Stake amount too low; ({amount}) must be at least {minimum}'
-             .format(minimum=self.minimum_nu, amount=self.value)),
-
-            (self.maximum_nu >= self.value,
-             'Stake amount too high; ({amount}) must be no more than {maximum}.'
-             .format(maximum=self.maximum_nu, amount=self.value)),
+             f'Stake amount too low; ({self.minimum_nu}) must be at least {self.value}'),
         )
 
         if raise_on_fail is True:
