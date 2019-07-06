@@ -5,6 +5,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import StakeHolder, Worker
 from nucypher.blockchain.eth.agents import Agency, StakingEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -141,20 +142,28 @@ def test_set_worker(staking_software_stakeholder, manual_worker):
     assert staking_agent.get_worker_from_staker(staker_address=staker.checksum_address) == manual_worker
 
 
-@pytest.mark.skip(reason="TODO: Integrate Worker-Ursula Configuration")
-def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker):
+def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker, testerchain):
 
+    # Get stake
     stake = staking_software_stakeholder.stakes[0]
-    worker_config = staking_software_stakeholder.create_worker_configuration(staking_address=stake.owner_address,
-                                                                             worker_address=manual_worker,
-                                                                             password=INSECURE_DEVELOPMENT_PASSWORD)
+    blockchain = staking_software_stakeholder.blockchain
 
-    worker = worker_config.produce(password=INSECURE_DEVELOPMENT_PASSWORD)
+    # Make assigned Worker
+    worker = Worker(is_me=True,
+                    worker_address=manual_worker,
+                    checksum_address=stake.owner_address,
+                    start_working_loop=False,
+                    blockchain=blockchain)
+
+    # Wait out stake duration, manually confirming activity once per period.
     for period in range(stake.periods_remaining):
         worker.confirm_activity()
         staking_software_stakeholder.blockchain.time_travel(periods=1)
 
+    # Collect the staking reward in NU.
     result = staking_software_stakeholder.collect_rewards(staker_address=stake.owner_address,
+                                                          staking=True,  # collect only inflation reward.
+                                                          policy=False,
                                                           password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    assert False
+    assert result
