@@ -6,8 +6,9 @@ import datetime
 import maya
 import pytest
 
-from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.actors import Staker, StakeHolder, Worker
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, Agency
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
@@ -20,13 +21,19 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH,
     TEMPORARY_DOMAIN,
-)
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.fixture(scope='module')
-def configuration_file_location(custom_filepath):
+def worker_configuration_file_location(custom_filepath):
     _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, UrsulaConfiguration.generate_filename())
+    return _configuration_file_location
+
+
+@pytest.fixture(scope='module')
+def staker_configuration_file_location(custom_filepath):
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolder.generate_filename())
     return _configuration_file_location
 
 
@@ -51,7 +58,7 @@ def charlie_blockchain_test_config(blockchain_ursulas, agency):
 
 
 @pytest.fixture(scope='module')
-def mock_registry_filepath(testerchain):
+def mock_registry_filepath(testerchain, agency):
 
     registry = testerchain.registry
 
@@ -65,15 +72,48 @@ def mock_registry_filepath(testerchain):
         os.remove(MOCK_REGISTRY_FILEPATH)
 
 
-def test_initialize_system_blockchain_configuration(click_runner,
-                                                    custom_filepath,
-                                                    mock_registry_filepath,
-                                                    staking_participant):
+def test_new_stakeholder(click_runner,
+                         custom_filepath,
+                         mock_registry_filepath,
+                         staking_participant,
+                         testerchain):
+
+    init_args = ('stake', 'new-stakeholder',
+                 '--poa',
+                 '--funding-address', testerchain.etherbase_account,
+                 '--config-root', custom_filepath,
+                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--registry-filepath', mock_registry_filepath)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Files and Directories
+    assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
+
+    custom_config_filepath = os.path.join(custom_filepath, StakeHolder.generate_filename())
+    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+
+    with open(custom_config_filepath, 'r') as config_file:
+        raw_config_data = config_file.read()
+        config_data = json.loads(raw_config_data)
+        assert len(config_data['stakers']) == NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+        assert config_data['blockchain']['provider_uri'] == TEST_PROVIDER_URI
+
+
+def test_ursula_init(click_runner,
+                     custom_filepath,
+                     mock_registry_filepath,
+                     staking_participant,
+                     testerchain):
 
     init_args = ('ursula', 'init',
                  '--poa',
                  '--network', TEMPORARY_DOMAIN,
-                 '--checksum-address', staking_participant.checksum_address,
+                 '--staker-address', testerchain.etherbase_account,
+                 '--worker-address', staking_participant.checksum_address,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
@@ -99,45 +139,67 @@ def test_initialize_system_blockchain_configuration(click_runner,
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
-        assert config_data['checksum_address'] == staking_participant.checksum_address
+        assert config_data['checksum_address'] == testerchain.etherbase_account
         assert TEMPORARY_DOMAIN in config_data['domains']
 
 
-@pytest.mark.skip(reason="Wait for #1056")
-def test_init_ursula_stake(click_runner,
-                           configuration_file_location,
-                           funded_blockchain,
-                           stake_value,
-                           token_economics):
+def test_stake_init(click_runner,
+                    staker_configuration_file_location,
+                    funded_blockchain,
+                    stake_value,
+                    mock_registry_filepath,
+                    token_economics,
+                    testerchain,
+                    agency):
+
+    # Simulate "Reconnection"
+    cached_blockchain = BlockchainInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_registry_filepath
+
+    def from_dict(*args, **kwargs):
+        return testerchain
+    BlockchainInterface.from_dict = from_dict
 
     stake_args = ('stake', 'init',
-                  '--config-file', configuration_file_location,
-                  '--value', stake_value.to_tokens(),
+                  '--config-file', staker_configuration_file_location,
+                  '--registry-filepath', mock_registry_filepath,
+                  '--value', stake_value.to_nunits(),
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
 
-    result = click_runner.invoke(nucypher_cli, stake_args, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
+    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    with open(configuration_file_location, 'r') as config_file:
+    with open(staker_configuration_file_location, 'r') as config_file:
         config_data = json.loads(config_file.read())
 
     # Verify the stake is on-chain
-    staking_agent = StakingEscrowAgent()
-    stakes = list(staking_agent.get_all_stakes(staker_address=config_data['checksum_address']))
+    staking_agent = Agency.get_agent(StakingEscrowAgent)
+    stakes = list(staking_agent.get_all_stakes(staker_address=testerchain.etherbase_account))
     assert len(stakes) == 1
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
 
 
-@pytest.mark.skip(reason="Wait for #1056")
-def test_list_ursula_stakes(click_runner,
-                            funded_blockchain,
-                            configuration_file_location,
-                            stake_value):
-    stake_args = ('stake', 'list',
-                  '--config-file', configuration_file_location,
-                  '--poa')
+def test_stake_list(click_runner,
+                    funded_blockchain,
+                    staker_configuration_file_location,
+                    stake_value,
+                    mock_registry_filepath,
+                    testerchain):
+
+    # Simulate "Reconnection"
+    cached_blockchain = BlockchainInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_registry_filepath
+
+    def from_dict(*args, **kwargs):
+        return testerchain
+    BlockchainInterface.from_dict = from_dict
+
+    stake_args = ('stake', 'list', '--config-file', staker_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -145,12 +207,15 @@ def test_list_ursula_stakes(click_runner,
     assert str(stake_value) in result.output
 
 
-@pytest.mark.skip(reason="Wait for #1056")
-def test_ursula_divide_stakes(click_runner, configuration_file_location, token_economics):
+def test_ursula_divide_stakes(click_runner,
+                              staker_configuration_file_location,
+                              token_economics,
+                              testerchain):
 
     divide_args = ('stake', 'divide',
-                   '--config-file', configuration_file_location,
+                   '--config-file', staker_configuration_file_location,
                    '--force',
+                   '--staking-address', testerchain.etherbase_account,
                    '--index', 0,
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--duration', 10)
@@ -162,7 +227,7 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
     assert result.exit_code == 0
 
     stake_args = ('stake', 'list',
-                  '--config-file', configuration_file_location,
+                  '--config-file', staker_configuration_file_location,
                   '--poa')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
@@ -171,14 +236,16 @@ def test_ursula_divide_stakes(click_runner, configuration_file_location, token_e
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
-@pytest.mark.skip(reason="Wait for #1056")
-def test_run_blockchain_ursula(click_runner,
-                               configuration_file_location,
-                               staking_participant):
-    # Now start running your Ursula!
-    init_args = ('ursula', 'run',
-                 '--dry-run',
-                 '--config-file', configuration_file_location)
+def test_stake_set_worker(click_runner,
+                          testerchain,
+                          staker_configuration_file_location,
+                          staking_participant):
+
+    init_args = ('stake', 'set-worker',
+                 '--config-file', staker_configuration_file_location,
+                 '--staking-address', testerchain.etherbase_account,
+                 '--worker-address', testerchain.etherbase_account,  # TODO: Use Manual Worker
+                 '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli,
@@ -188,9 +255,25 @@ def test_run_blockchain_ursula(click_runner,
     assert result.exit_code == 0
 
 
-@pytest.mark.skip(reason="Wait for #1056")
+def test_run_blockchain_ursula(click_runner,
+                               worker_configuration_file_location,
+                               staking_participant):
+    # Now start running your Ursula!
+    init_args = ('ursula', 'run',
+                 '--dry-run',
+                 '--config-file', worker_configuration_file_location)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+
 def test_collect_rewards_integration(click_runner,
-                                     configuration_file_location,
+                                     testerchain,
+                                     staker_configuration_file_location,
                                      blockchain_alice,
                                      blockchain_bob,
                                      random_policy_label,
@@ -199,27 +282,30 @@ def test_collect_rewards_integration(click_runner,
                                      policy_value,
                                      policy_rate):
 
-    blockchain = staking_participant.blockchain
-
     half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
     staker = Staker(is_me=True,
-                    checksum_address=staking_participant.checksum_address,
-                    blockchain=blockchain)
+                    checksum_address=testerchain.etherbase_account,
+                    blockchain=testerchain)
 
     # The staker is staking.
     assert staker.stakes
     assert staker.is_staking
     pre_stake_token_balance = staker.token_balance
 
+    worker = Worker(is_me=True,
+                    worker_address=testerchain.etherbase_account,
+                    checksum_address=testerchain.etherbase_account,  # TODO: Use another account
+                    blockchain=testerchain)
+
     # Confirm for half the first stake duration
     for _ in range(half_stake_time):
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        blockchain.time_travel(periods=1)
-        staker.confirm_activity()
+        testerchain.time_travel(periods=1)
+        worker.confirm_activity()
 
     # Alice creates a policy and grants Bob access
     blockchain_alice.selection_buffer = 1
@@ -263,31 +349,32 @@ def test_collect_rewards_integration(click_runner,
         assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing
-        blockchain.time_travel(periods=1)
-        staker.confirm_activity()
+        testerchain.time_travel(periods=1)
+        worker.confirm_activity()
         current_period += 1
 
     # Finish the passage of time for the first Stake
     for _ in range(5):  # plus the extended periods from stake division
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        blockchain.time_travel(periods=1)
-        staker.confirm_activity()
+        testerchain.time_travel(periods=1)
+        worker.confirm_activity()
 
     #
     # WHERES THE MONEY URSULA?? - Collecting Rewards
     #
 
     # The address the client wants Ursula to send rewards to
-    burner_wallet = blockchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
+    burner_wallet = testerchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
 
     # The rewards wallet is initially empty, because it is freshly created
-    assert blockchain.client.get_balance(burner_wallet.address) == 0
+    assert testerchain.client.get_balance(burner_wallet.address) == 0
 
     # Snag a random teacher from the fleet
     collection_args = ('--mock-networking',
-                       'ursula', 'collect-reward',
-                       '--config-file', configuration_file_location,
+                       'stake', 'collect-reward',
+                       '--config-file', staker_configuration_file_location,
+                       '--staking-address', testerchain.etherbase_account,
                        '--withdraw-address', burner_wallet.address,
                        '--force')
 
@@ -298,7 +385,7 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # Policy Reward
-    collected_policy_reward = blockchain.client.get_balance(burner_wallet.address)
+    collected_policy_reward = testerchain.client.get_balance(burner_wallet.address)
     expected_collection = policy_rate * 30
     assert collected_policy_reward == expected_collection
 
@@ -307,8 +394,8 @@ def test_collect_rewards_integration(click_runner,
     for _ in range(9):
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
-        blockchain.time_travel(periods=1)
-        staker.confirm_activity()
+        testerchain.time_travel(periods=1)
+        worker.confirm_activity()
 
     # Staking Reward
     calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.checksum_address)

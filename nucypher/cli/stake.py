@@ -101,6 +101,8 @@ def stake(click_config,
     #
 
     STAKEHOLDER = StakeHolder.from_configuration_file(filepath=config_file,
+                                                      provider_uri=provider_uri,
+                                                      registry_filepath=registry_filepath,
                                                       offline=offline)
     #
     # Eager Actions
@@ -172,7 +174,10 @@ def stake(click_config,
                                     confirmation_prompt=False)
 
         if not pre_funded:
-            fund_now = click.confirm("Fund staking account with funding account?", abort=False, default=True)
+            if force:
+                fund_now = True
+            else:
+                fund_now = click.confirm("Fund staking account with funding account?", abort=False, default=True)
         else:
             # TODO: Validate the balance of self-manged funders.
             fund_now = False
@@ -235,7 +240,11 @@ def stake(click_config,
     elif action == 'divide':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        current_stake = select_stake(stakeholder=STAKEHOLDER)
+        if staking_address and index is not None:
+            staker = STAKEHOLDER.get_active_staker(address=staking_address)
+            current_stake = staker.stakes[index]
+        else:
+            current_stake = select_stake(stakeholder=STAKEHOLDER)
 
         #
         # Stage Stake
@@ -280,6 +289,8 @@ def stake(click_config,
             click.confirm(f"Send {STAKEHOLDER.calculate_reward()} to {STAKEHOLDER.funding_account}?")
 
         password = get_password(confirm=False)
-        STAKEHOLDER.collect_rewards(staker_address=staking_address, password=password)
+        STAKEHOLDER.collect_rewards(staker_address=staking_address,
+                                    withdraw_address=withdraw_address,
+                                    password=password)
 
     return  # Exit

@@ -745,10 +745,6 @@ class StakeHolder(BaseConfiguration):
         self.funding_power.activate()
         self.__funding_account = funding_account
 
-        self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
-        self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-        self.economics = TokenEconomics()
-
         self.__accounts = list()
         self.__stakers = dict()
         self.__transacting_powers = dict()
@@ -782,7 +778,8 @@ class StakeHolder(BaseConfiguration):
     @classmethod
     def from_configuration_file(cls,
                                 filepath: str = None,
-                                blockchain = None,
+                                provider_uri: str = None,
+                                registry_filepath: str = None,
                                 **overrides) -> 'StakeHolder':
 
         filepath = filepath or cls.default_filepath()
@@ -790,8 +787,11 @@ class StakeHolder(BaseConfiguration):
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
-        if not blockchain:
-            blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
+        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload,
+                                                   provider_uri=provider_uri,
+                                                   registry_filepath=registry_filepath)
+
+        blockchain.connect()
         instance = cls(filepath=filepath,
                        blockchain=blockchain,
                        **payload, **overrides)
@@ -1039,19 +1039,26 @@ class StakeHolder(BaseConfiguration):
     def collect_rewards(self,
                         staker_address: str,
                         password: str,
+                        withdraw_address: str = None,
                         staking: bool = True,
                         policy: bool = True) -> Dict[str, dict]:
 
         if not staking and not policy:
             raise ValueError("Either staking or policy must be True in order to collect rewards")
 
-        staker = self.get_active_staker(address=staker_address)
+        try:
+            staker = self.get_active_staker(address=staker_address)
+        except self.NoStakes:
+            staker = Staker(is_me=True, checksum_address=staker_address, blockchain=self.blockchain)
+
         self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
 
         receipts = dict()
         if staking:
             receipts['staking_reward'] = staker.collect_staking_reward()
         if policy:
-            receipts['policy_reward'] = staker.collect_policy_reward(collector_address=self.funding_account)
+            withdraw_address = withdraw_address or self.funding_account
+            receipts['policy_reward'] = staker.collect_policy_reward(collector_address=withdraw_address)
+
         self.to_configuration_file(override=True)
         return receipts
