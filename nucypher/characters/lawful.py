@@ -43,9 +43,10 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
@@ -118,7 +119,15 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
+            PolicyAuthor.__init__(self,
+                                  blockchain=self.blockchain,
+                                  policy_agent=policy_agent,
+                                  checksum_address=checksum_address)
+
+            # TODO: #1092 - TransactingPower
+            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+            self._crypto_power.consume_power_up(blockchain_power)
+            self.blockchain.transacting_power = blockchain_power  # TODO: Embed in Powerups
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -234,7 +243,7 @@ class Alice(Character, PolicyAuthor):
                 duration = calculate_period_duration(future_time=expiration)
             else:
                 duration = duration or self.duration
-                expiration = datetime_at_period(self.miner_agent.get_current_period() + duration)
+                expiration = datetime_at_period(self.staking_agent.get_current_period() + duration)
 
             if not value and not rate:
                 value = int(self.rate * duration)
@@ -314,6 +323,7 @@ class Alice(Character, PolicyAuthor):
                 number_of_ursulas_needed = params['n'] - len(handpicked_ursulas)
                 new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
+                # TODO: new_ursulas can overlap with handpicked_ursulas, so we may still don't have n
 
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  value=params['value'],
@@ -647,6 +657,7 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
             ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
@@ -682,6 +693,8 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
+        # Try our best to get an UmbralPublicKey from input
+        alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
 
@@ -711,7 +724,7 @@ class Bob(Character):
             work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
             the_airing_of_grievances = []
 
-        # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
+            # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
             for work_order in work_orders.values():
                 try:
                     cfrags = self.get_reencrypted_cfrags(work_order)
@@ -792,7 +805,7 @@ class Bob(Character):
         return controller
 
 
-class Ursula(Teacher, Character, Miner):
+class Ursula(Teacher, Character, Worker):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -801,7 +814,7 @@ class Ursula(Teacher, Character, Miner):
     # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    class NotEnoughUrsulas(Learner.NotEnoughTeachers, MinerAgent.NotEnoughMiners):
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.
@@ -826,7 +839,9 @@ class Ursula(Teacher, Character, Miner):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_address: str = None,
+                 checksum_address: str = None,  # Staker address
+                 worker_address: str = None,
+                 stake_tracker: StakeTracker = None,
 
                  # Character
                  password: str = None,
@@ -846,8 +861,8 @@ class Ursula(Teacher, Character, Miner):
 
         if domains is None:
             # TODO: Clean up imports
-            from nucypher.config.node import NodeConfiguration
-            domains = (NodeConfiguration.DEFAULT_DOMAIN,)
+            from nucypher.config.node import CharacterConfiguration
+            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
         self._work_orders = list()
         Character.__init__(self,
@@ -864,21 +879,28 @@ class Ursula(Teacher, Character, Miner):
         #
         # Self-Ursula
         #
-        if is_me is True:  # TODO: 340
+        # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
+
+        if is_me is True:  # TODO: #340
             self._stored_treasure_maps = dict()
 
             #
-            # Staking Ursula
+            # Ursula is a Decentralized Worker
             #
             if not federated_only:
-                Miner.__init__(self, is_me=is_me, checksum_address=checksum_address)
+                Worker.__init__(self,
+                                is_me=is_me,
+                                blockchain=self.blockchain,
+                                checksum_address=checksum_address,
+                                worker_address=worker_address,
+                                stake_tracker=stake_tracker)
 
-                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
+                # Access to worker's ETH client via node's transacting keys
+                # TODO: #1092 - TransactingPower
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=worker_address)
                 self._crypto_power.consume_power_up(blockchain_power)
-
-                # Use blockchain power to substantiate stamp, instead of signing key
-                self.substantiate_stamp(client_password=password)  # TODO: Derive from keyring
+                self.blockchain.transacting_power = blockchain_power  # TODO: Embed in powerups
+                self.substantiate_stamp(client_password=password)  # TODO: Use PowerUp / Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -944,6 +966,7 @@ class Ursula(Teacher, Character, Miner):
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
                          password=password,
+                         worker_address=worker_address,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
@@ -975,8 +998,12 @@ class Ursula(Teacher, Character, Miner):
             hosting_power.keypair.pubkey
         )
 
+    @property
+    def rest_interface(self):
+        return self.rest_server.rest_interface
+
     def get_deployer(self):
-        port = self.rest_information()[0].port
+        port = self.rest_interface.port
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
@@ -986,7 +1013,7 @@ class Ursula(Teacher, Character, Miner):
     def __bytes__(self):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
-        interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
+        interface_info = VariableLengthBytestring(bytes(self.rest_interface))
         decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
 
         certificate = self.rest_server_certificate()

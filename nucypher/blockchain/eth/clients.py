@@ -160,18 +160,49 @@ class Web3Client(object):
 
     @property
     def etherbase(self):
-        return self.w3.eth.accounts[0]
+        return self.accounts[0]
 
     @property
     def accounts(self):
         return self.w3.eth.accounts
 
-    def get_balance(self, address):
-        return self.w3.eth.getBalance(address)
+    def get_balance(self, account):
+        return self.w3.eth.getBalance(account)
+
+    def inject_middleware(self, middleware, **kwargs):
+        self.w3.middleware_onion.inject(middleware, **kwargs)
 
     @property
-    def chain_id(self):
+    def chain_id(self) -> str:
         return self.w3.net.version
+
+    def get_contract(self, **kwargs):
+        return self.w3.eth.contract(**kwargs)
+
+    @property
+    def gas_price(self):
+        return self.w3.eth.gasPrice
+
+    @property
+    def block_number(self) -> int:
+        return self.w3.eth.blockNumber
+
+    @property
+    def coinbase(self) -> str:
+        return self.w3.eth.coinbase
+
+    def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
+        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
+        return receipt
+
+    def get_transaction(self, transaction_hash) -> str:
+        return self.w3.eth.getTransaction(transaction_hash)
+
+    def send_transaction(self, transaction: dict) -> str:
+        return self.w3.eth.sendTransaction(transaction)
+
+    def send_raw_transaction(self, transaction: bytes) -> str:
+        return self.w3.eth.sendRawTransaction(transaction)
 
     def sync(self,
              timeout: int = 120,
@@ -268,10 +299,21 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
+    def sign_transaction(self, account: str, transaction: dict):
+        # Get signing key of test account
+        address = to_canonical_address(account)
+        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
+
+        # Sign using a local private key
+        signed_transaction = self.w3.eth.account.sign_transaction(transaction, private_key=signing_key)
+        rlp_transaction = signed_transaction.rawTransaction
+
+        return rlp_transaction
+
     def sign_message(self, account: str, message: bytes) -> str:
         # Get signing key of test account
         address = to_canonical_address(account)
-        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]
+        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
         # Sign, EIP-191 (Geth) Style
         signable_message = encode_defunct(primitive=message)

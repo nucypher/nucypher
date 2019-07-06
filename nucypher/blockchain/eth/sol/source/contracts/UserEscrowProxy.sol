@@ -1,9 +1,9 @@
 pragma solidity ^0.5.3;
 
 
-import "./UserEscrow.sol";
+import "contracts/UserEscrow.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/MinersEscrow.sol";
+import "contracts/StakingEscrow.sol";
 import "contracts/PolicyManager.sol";
 
 
@@ -14,19 +14,19 @@ import "contracts/PolicyManager.sol";
 **/
 contract UserEscrowProxy {
 
-    event DepositedAsMiner(address indexed owner, uint256 value, uint16 periods);
-    event WithdrawnAsMiner(address indexed owner, uint256 value);
-    event Locked(address indexed owner, uint256 value, uint16 periods);
-    event Divided(address indexed owner, uint256 index, uint256 newValue, uint16 periods);
-    event ActivityConfirmed(address indexed owner);
-    event Mined(address indexed owner);
-    event PolicyRewardWithdrawn(address indexed owner, uint256 value);
-    event MinRewardRateSet(address indexed owner, uint256 value);
-    event ReStakeSet(address indexed owner, bool reStake);
-    event ReStakeLocked(address indexed owner, uint16 lockUntilPeriod);
+    event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
+    event WithdrawnAsStaker(address indexed sender, uint256 value);
+    event Locked(address indexed sender, uint256 value, uint16 periods);
+    event Divided(address indexed sender, uint256 index, uint256 newValue, uint16 periods);
+    event Mined(address indexed sender);
+    event PolicyRewardWithdrawn(address indexed sender, uint256 value);
+    event MinRewardRateSet(address indexed sender, uint256 value);
+    event ReStakeSet(address indexed sender, bool reStake);
+    event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
+    event WorkerSet(address indexed sender, address worker);
 
     NuCypherToken public token;
-    MinersEscrow public escrow;
+    StakingEscrow public escrow;
     PolicyManager public policyManager;
 
     /**
@@ -37,7 +37,7 @@ contract UserEscrowProxy {
     **/
     constructor(
         NuCypherToken _token,
-        MinersEscrow _escrow,
+        StakingEscrow _escrow,
         PolicyManager _policyManager
     )
         public
@@ -61,7 +61,16 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Set `reStake` parameter in the miners escrow
+    * @notice Set `worker` parameter in the staking escrow
+    * @param _worker Worker address
+    **/
+    function setWorker(address _worker) public {
+        getStateContract().escrow().setWorker(_worker);
+        emit WorkerSet(msg.sender, _worker);
+    }
+
+    /**
+    * @notice Set `reStake` parameter in the staking escrow
     * @param _reStake Value for parameter
     **/
     function setReStake(bool _reStake) public {
@@ -70,7 +79,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Lock `reStake` parameter in the miners escrow
+    * @notice Lock `reStake` parameter in the staking escrow
     * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
     **/
     function lockReStake(uint16 _lockReStakeUntilPeriod) public {
@@ -79,31 +88,31 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Deposit tokens to the miners escrow
+    * @notice Deposit tokens to the staking escrow
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function depositAsMiner(uint256 _value, uint16 _periods) public {
+    function depositAsStaker(uint256 _value, uint16 _periods) public {
         UserEscrowProxy state = getStateContract();
         NuCypherToken tokenFromState = state.token();
         require(tokenFromState.balanceOf(address(this)) > _value);
-        MinersEscrow escrowFromState = state.escrow();
+        StakingEscrow escrowFromState = state.escrow();
         tokenFromState.approve(address(escrowFromState), _value);
         escrowFromState.deposit(_value, _periods);
-        emit DepositedAsMiner(msg.sender, _value, _periods);
+        emit DepositedAsStaker(msg.sender, _value, _periods);
     }
 
     /**
-    * @notice Withdraw available amount of tokens from the miners escrow to the user escrow
+    * @notice Withdraw available amount of tokens from the staking escrow to the user escrow
     * @param _value Amount of token to withdraw
     **/
-    function withdrawAsMiner(uint256 _value) public {
+    function withdrawAsStaker(uint256 _value) public {
         getStateContract().escrow().withdraw(_value);
-        emit WithdrawnAsMiner(msg.sender, _value);
+        emit WithdrawnAsStaker(msg.sender, _value);
     }
 
     /**
-    * @notice Lock some tokens or increase lock in the miners escrow
+    * @notice Lock some tokens or increase lock in the staking escrow
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     **/
@@ -130,15 +139,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Confirm activity for future period in the miners escrow
-    **/
-    function confirmActivity() external {
-        getStateContract().escrow().confirmActivity();
-        emit ActivityConfirmed(msg.sender);
-    }
-
-    /**
-    * @notice Mint tokens in the miners escrow
+    * @notice Mint tokens in the staking escrow
     **/
     function mint() external {
         getStateContract().escrow().mint();
@@ -154,7 +155,7 @@ contract UserEscrowProxy {
     }
 
     /**
-    * @notice Set the minimum reward that the miner will take in the policy manager
+    * @notice Set the minimum reward that the staker will take in the policy manager
     **/
     function setMinRewardRate(uint256 _minRewardRate) public {
         getStateContract().policyManager().setMinRewardRate(_minRewardRate);

@@ -27,19 +27,14 @@ import time
 from mock import Mock
 from os.path import abspath, dirname
 
-from eth_utils import to_canonical_address
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
-from zope.interface import provider
-
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, MiningAdjudicatorAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.utils import get_coordinates_as_bytes
 from nucypher.policy.models import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
@@ -121,33 +116,21 @@ class AnalyzeGas:
         globalLogPublisher.addObserver(self)
 
 
-def mock_ursula_with_stamp():
+def mock_ursula(testerchain, account):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp)
+
+    signed_stamp = testerchain.client.sign_message(account=account,
+                                                   message=bytes(ursula_stamp))
+
+    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
 
 
-def sha256_hash(data):
-    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    hash_ctx.update(data)
-    digest = hash_ctx.finalize()
-    return digest
-
-
-def generate_args_for_slashing(testerchain, ursula, account, corrupt_cfrag: bool = True):
+def generate_args_for_slashing(ursula, corrupt_cfrag: bool = True):
     evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=corrupt_cfrag)
-
-    # Sign Umbral public key using eth-key
-    miner_umbral_public_key_hash = sha256_hash(get_coordinates_as_bytes(ursula.stamp))
-    provider = testerchain.interface.provider
-    address = to_canonical_address(account)
-    sig_key = provider.ethereum_tester.backend._key_lookup[address]
-    signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
-
     args = list(evidence.evaluation_arguments())
-    args[-2] = signed_miner_umbral_public_key  # FIXME  #962
     return args
 
 
@@ -171,22 +154,22 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Blockchain
     testerchain, agents = TesterBlockchain.bootstrap_network()
-    web3 = testerchain.interface.w3
+    web3 = testerchain.w3
 
     # Accounts
-    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
+    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.client.accounts
 
-    ursula_with_stamp = mock_ursula_with_stamp()
+    ursula_with_stamp = mock_ursula(testerchain, ursula1)
 
     # Contracts
     token_agent = NucypherTokenAgent(blockchain=testerchain)
-    miner_agent = MinerAgent(blockchain=testerchain)
+    staking_agent = StakingEscrowAgent(blockchain=testerchain)
     policy_agent = PolicyAgent(blockchain=testerchain)
-    adjudicator_agent = MiningAdjudicatorAgent()
+    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
 
     # Contract Callers
     token_functions = token_agent.contract.functions
-    miner_functions = miner_agent.contract.functions
+    staker_functions = staking_agent.contract.functions
     policy_functions = policy_agent.contract.functions
     adjudicator_functions = adjudicator_agent.contract.functions
 
@@ -196,9 +179,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Pre deposit tokens
     #
-    tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
-    log.info("Pre-deposit tokens for 5 owners = " + str(miner_functions.preDeposit(everyone_else[0:5],
+    log.info("Pre-deposit tokens for 5 owners = " + str(staker_functions.preDeposit(everyone_else[0:5],
                                                                                    [MIN_ALLOWED_LOCKED] * 5,
                                                                                    [MIN_LOCKED_PERIODS] * 5)
                                                         .estimateGas({'from': origin})))
@@ -220,27 +203,41 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     log.info("Approving transfer = "
              + str(
-        token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
-    tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
+        token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).estimateGas({'from': ursula1})))
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = token_functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula3})
+    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
-    log.info("First initial deposit tokens = " + str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+    log.info("First initial deposit tokens = " + str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second initial deposit tokens = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula2})
+             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third initial deposit tokens = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula3})
+             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    tx = staker_functions.setWorker(ursula1).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = staker_functions.setWorker(ursula2).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = staker_functions.setWorker(ursula3).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -248,43 +245,43 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     log.info("First confirm activity = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    log.info("First mining (1 stake) = " + str(miner_functions.mint().estimateGas({'from': ursula1})))
-    tx = miner_functions.mint().transact({'from': ursula1})
+    log.info("First mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
+    tx = staker_functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second mining (1 stake) = " + str(miner_functions.mint().estimateGas({'from': ursula2})))
-    tx = miner_functions.mint().transact({'from': ursula2})
+    log.info("Second mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
+    tx = staker_functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    log.info("Third/last mining (1 stake) = " + str(miner_functions.mint().estimateGas({'from': ursula3})))
-    tx = miner_functions.mint().transact({'from': ursula3})
+    log.info("Third/last mining (1 stake) = " + str(staker_functions.mint().estimateGas({'from': ursula3})))
+    tx = staker_functions.mint().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     log.info("First confirm activity again = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity again = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity again = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -292,65 +289,65 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
     log.info("First confirm activity + mint = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity + mint = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity + mint = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Get locked tokens
     #
-    log.info("Getting locked tokens = " + str(miner_functions.getLockedTokens(ursula1).estimateGas()))
+    log.info("Getting locked tokens = " + str(staker_functions.getLockedTokens(ursula1).estimateGas()))
 
     #
     # Wait 1 period and withdraw tokens
     #
     testerchain.time_travel(periods=1)
-    log.info("First withdraw = " + str(miner_functions.withdraw(1).estimateGas({'from': ursula1})))
-    tx = miner_functions.withdraw(1).transact({'from': ursula1})
+    log.info("First withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula1})))
+    tx = staker_functions.withdraw(1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second withdraw = " + str(miner_functions.withdraw(1).estimateGas({'from': ursula2})))
-    tx = miner_functions.withdraw(1).transact({'from': ursula2})
+    log.info("Second withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula2})))
+    tx = staker_functions.withdraw(1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    log.info("Third withdraw = " + str(miner_functions.withdraw(1).estimateGas({'from': ursula3})))
-    tx = miner_functions.withdraw(1).transact({'from': ursula3})
+    log.info("Third withdraw = " + str(staker_functions.withdraw(1).estimateGas({'from': ursula3})))
+    tx = staker_functions.withdraw(1).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Confirm activity with re-stake
     #
-    tx = miner_functions.setReStake(True).transact({'from': ursula1})
+    tx = staker_functions.setReStake(True).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.setReStake(True).transact({'from': ursula2})
+    tx = staker_functions.setReStake(True).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.setReStake(True).transact({'from': ursula3})
+    tx = staker_functions.setReStake(True).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     log.info("First confirm activity + mint with re-stake = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity + mint with re-stake  = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity + mint with re-stake  = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
-    tx = miner_functions.setReStake(False).transact({'from': ursula1})
+    tx = staker_functions.setReStake(False).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.setReStake(False).transact({'from': ursula2})
+    tx = staker_functions.setReStake(False).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.setReStake(False).transact({'from': ursula3})
+    tx = staker_functions.setReStake(False).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -358,46 +355,46 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=2)
     log.info("First confirm activity after downtime = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second confirm activity after downtime  = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula2})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third confirm activity after downtime  = " +
-             str(miner_functions.confirmActivity().estimateGas({'from': ursula3})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+             str(staker_functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Ursula and Alice deposit some tokens to the escrow again
     #
     log.info("First deposit tokens again = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second deposit tokens again = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula2})
+             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third deposit tokens again = " +
-             str(miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula3})
+             str(staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Wait 1 period and mint tokens
     #
     testerchain.time_travel(periods=1)
-    log.info("First mining again = " + str(miner_functions.mint().estimateGas({'from': ursula1})))
-    tx = miner_functions.mint().transact({'from': ursula1})
+    log.info("First mining again = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
+    tx = staker_functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second mining again = " + str(miner_functions.mint().estimateGas({'from': ursula2})))
-    tx = miner_functions.mint().transact({'from': ursula2})
+    log.info("Second mining again = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
+    tx = staker_functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    log.info("Third/last mining again = " + str(miner_functions.mint().estimateGas({'from': ursula3})))
-    tx = miner_functions.mint().transact({'from': ursula3})
+    log.info("Third/last mining again = " + str(staker_functions.mint().estimateGas({'from': ursula3})))
+    tx = staker_functions.mint().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -459,17 +456,17 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Mine and revoke policy
     #
     testerchain.time_travel(periods=10)
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(periods=1)
-    log.info("First mining after downtime = " + str(miner_functions.mint().estimateGas({'from': ursula1})))
-    tx = miner_functions.mint().transact({'from': ursula1})
+    log.info("First mining after downtime = " + str(staker_functions.mint().estimateGas({'from': ursula1})))
+    tx = staker_functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    log.info("Second mining after downtime = " + str(miner_functions.mint().estimateGas({'from': ursula2})))
-    tx = miner_functions.mint().transact({'from': ursula2})
+    log.info("Second mining after downtime = " + str(staker_functions.mint().estimateGas({'from': ursula2})))
+    tx = staker_functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(periods=10)
@@ -515,35 +512,35 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     for index in range(5):
-        tx = miner_functions.confirmActivity().transact({'from': ursula1})
+        tx = staker_functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
-        tx = miner_functions.confirmActivity().transact({'from': ursula2})
+        tx = staker_functions.confirmActivity().transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
-        tx = miner_functions.confirmActivity().transact({'from': ursula3})
+        tx = staker_functions.confirmActivity().transact({'from': ursula3})
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(periods=1)
 
-    tx = miner_functions.mint().transact({'from': ursula1})
+    tx = staker_functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.mint().transact({'from': ursula2})
+    tx = staker_functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.mint().transact({'from': ursula3})
+    tx = staker_functions.mint().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Check regular deposit
     #
     log.info("First deposit tokens = " + str(
-        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second deposit tokens = " + str(
-        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
+        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third deposit tokens = " + str(
-        miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = miner_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
+        staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+    tx = staker_functions.deposit(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
@@ -551,33 +548,33 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
 
-    tx = miner_functions.mint().transact({'from': ursula1})
+    tx = staker_functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.mint().transact({'from': ursula2})
+    tx = staker_functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.mint().transact({'from': ursula3})
+    tx = staker_functions.mint().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     log.info("First approveAndCall = " +
-             str(token_functions.approveAndCall(miner_agent.contract_address,
+             str(token_functions.approveAndCall(staking_agent.contract_address,
                                                 MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula1})))
-    tx = token_functions.approveAndCall(miner_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second approveAndCall = " +
-             str(token_functions.approveAndCall(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 2,
+             str(token_functions.approveAndCall(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula2})))
-    tx = token_functions.approveAndCall(miner_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third approveAndCall = " +
-             str(token_functions.approveAndCall(miner_agent.contract_address,
+             str(token_functions.approveAndCall(staking_agent.contract_address,
                                                 MIN_ALLOWED_LOCKED * 2,
                                                 web3.toBytes(MIN_LOCKED_PERIODS)).estimateGas({'from': ursula3})))
-    tx = token_functions.approveAndCall(miner_agent.contract_address,
+    tx = token_functions.approveAndCall(staking_agent.contract_address,
                                         MIN_ALLOWED_LOCKED * 2,
                                         web3.toBytes(MIN_LOCKED_PERIODS)).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
@@ -587,135 +584,128 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     testerchain.time_travel(periods=1)
 
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.confirmActivity().transact({'from': ursula2})
+    tx = staker_functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = miner_functions.confirmActivity().transact({'from': ursula3})
+    tx = staker_functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     log.info("First locking tokens = " +
-             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
-    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula1})))
+    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second locking tokens = " +
-             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
-    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
+             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula2})))
+    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     log.info("Third locking tokens = " +
-             str(miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
-    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
+             str(staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).estimateGas({'from': ursula3})))
+    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     #
     # Divide stake
     #
     log.info("First divide stake = " + str(
-        miner_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = miner_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
+        staker_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    tx = staker_functions.divideStake(1, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Second divide stake = " + str(
-        miner_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = miner_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
+        staker_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    tx = staker_functions.divideStake(3, MIN_ALLOWED_LOCKED, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
     #
     # Divide almost finished stake
     #
     testerchain.time_travel(periods=1)
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
     log.info("Divide stake (next period is not confirmed) = " + str(
-        miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+        staker_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Divide stake (next period is confirmed) = " + str(
-        miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+        staker_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
 
     #
     # Slashing tests
     #
-    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    tx = staker_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
-    # Deploy adjudicator to estimate slashing method in MinersEscrow contract
-    adjudicator, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator', miner_agent.contract.address, ALGORITHM_SHA256, MIN_ALLOWED_LOCKED - 1, 0, 2, 2
-    )
-    tx = miner_functions.setMiningAdjudicator(adjudicator.address).transact()
-    testerchain.wait_for_receipt(tx)
-    adjudicator_functions = adjudicator.functions
 
     #
     # Slashing
     #
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Slash just value = " + str(
         adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    deposit = miner_functions.minerInfo(ursula1).call()[0]
-    unlocked = deposit - miner_functions.getLockedTokens(ursula1).call()
-    tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
+    deposit = staker_functions.stakerInfo(ursula1).call()[0]
+    unlocked = deposit - staker_functions.getLockedTokens(ursula1).call()
+    tx = staker_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("First slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Second slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Third slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
     for index in range(18):
-        tx = miner_functions.confirmActivity().transact({'from': ursula1})
+        tx = staker_functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(periods=1)
 
-    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+    tx = staker_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    deposit = miner_functions.minerInfo(ursula1).call()[0]
-    unlocked = deposit - miner_functions.getLockedTokens(ursula1, 1).call()
-    tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
+    deposit = staker_functions.stakerInfo(ursula1).call()[0]
+    unlocked = deposit - staker_functions.getLockedTokens(ursula1, 1).call()
+    tx = staker_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    sub_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1)
+    sub_stakes_length = str(staker_functions.getSubStakesLength(ursula1).call())
+    slashing_args = generate_args_for_slashing(ursula_with_stamp)
     log.info("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes) = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})
     testerchain.wait_for_receipt(tx)
 
-    slashing_args = generate_args_for_slashing(testerchain, ursula_with_stamp, ursula1, corrupt_cfrag=False)
+    slashing_args = generate_args_for_slashing(ursula_with_stamp, corrupt_cfrag=False)
     log.info("Evaluating correct CFrag = " +
              str(adjudicator_functions.evaluateCFrag(*slashing_args).estimateGas({'from': alice1})))
     tx = adjudicator_functions.evaluateCFrag(*slashing_args).transact({'from': alice1})

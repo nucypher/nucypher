@@ -19,11 +19,12 @@ from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, DispatcherDeployer
+from nucypher.crypto.powers import BlockchainPower
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
     token_deployer.deploy()
@@ -41,9 +42,9 @@ def test_token_properties(agent):
 
     # Cannot transfer any ETH to token contract
     with pytest.raises((TransactionFailed, ValueError)):
-        origin = testerchain.interface.w3.eth.coinbase
+        origin = testerchain.client.coinbase
         payload = {'from': origin, 'to': agent.contract_address, 'value': 1}
-        tx = testerchain.interface.w3.eth.sendTransaction(payload)
+        tx = testerchain.client.send_transaction(payload)
         testerchain.wait_for_receipt(tx)
 
     assert len(agent.contract_address) == 42
@@ -54,7 +55,7 @@ def test_token_properties(agent):
 
 def test_get_balance(agent, token_economics):
     testerchain = agent.blockchain
-    deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer, someone, *everybody_else = testerchain.client.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
@@ -63,30 +64,32 @@ def test_get_balance(agent, token_economics):
 
 def test_approve_transfer(agent, token_economics):
     testerchain = agent.blockchain
-    deployer, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    deployer, someone, *everybody_else = testerchain.client.accounts
+
+    # Mock Powerup consumption
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=someone)
 
     # Approve
-    txhash = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
-                                    target_address=agent.contract_address,
-                                    sender_address=someone)
+    receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
+                                     target_address=agent.contract_address,
+                                     sender_address=someone)
 
-    # Check the receipt for the contract address success code
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 def test_transfer(agent, token_economics):
     testerchain = agent.blockchain
-    origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, someone, *everybody_else = testerchain.client.accounts
+
+    # Mock Powerup consumption (Deployer)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=origin)
 
     old_balance = agent.get_balance(someone)
-    txhash = agent.transfer(amount=token_economics.minimum_allowed_locked,
-                            target_address=someone,
-                            sender_address=origin)
+    receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
+                             target_address=someone,
+                             sender_address=origin)
 
-    # Check the receipt for the contract address success code
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 

@@ -69,6 +69,7 @@ class TokenEconomics:
     seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
 
     # Time Constraints
+    minimum_worker_periods = 2
     minimum_locked_periods = 30  # 720 Hours minimum
 
     # Value Constraints
@@ -163,14 +164,19 @@ class TokenEconomics:
             # Constraints
             self.minimum_locked_periods,      # Min amount of periods during which tokens can be locked
             self.minimum_allowed_locked,      # Min amount of tokens that can be locked
-            self.maximum_allowed_locked       # Max amount of tokens that can be locked
+            self.maximum_allowed_locked,      # Max amount of tokens that can be locked
+            self.minimum_worker_periods       # Min amount of periods while a worker can't be changed
         )
         return tuple(map(int, deploy_parameters))
 
 
 class SlashingEconomics:
 
-    algorithm_sha256 = 1
+    HASH_ALGORITHM_KECCAK256 = 0
+    HASH_ALGORITHM_SHA256 = 1
+    HASH_ALGORITHM_RIPEMD160 = 2
+
+    hash_algorithm = HASH_ALGORITHM_SHA256
     base_penalty = 100
     penalty_history_coefficient = 10
     percentage_penalty_coefficient = 8
@@ -181,7 +187,7 @@ class SlashingEconomics:
         """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
 
         deployment_parameters = [
-            self.algorithm_sha256,
+            self.hash_algorithm,
             self.base_penalty,
             self.penalty_history_coefficient,
             self.percentage_penalty_coefficient,

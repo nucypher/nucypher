@@ -17,19 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
+from eth_utils import keccak
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, Agency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               MinerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               ContractDeployer, DispatcherDeployer)
+                                               AdjudicatorDeployer,
+                                               ContractDeployer,
+                                               DispatcherDeployer)
 
 
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain):
 
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
 
     #
     # Nucypher Token
@@ -54,30 +57,29 @@ def test_deploy_ethereum_contracts(testerchain):
     assert another_token_agent.contract_address == token_deployer.contract_address == token_agent.contract_address
 
     #
-    # Miner Escrow
+    # StakingEscrow
     #
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
+    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    staking_escrow_deployer = StakingEscrowDeployer(
         blockchain=testerchain,
         deployer_address=origin)
-
-    assert miner_escrow_deployer.deployer_address == origin
+    assert staking_escrow_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
-        assert miner_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not miner_escrow_deployer.is_deployed
+        assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not staking_escrow_deployer.is_deployed
 
-    miner_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
-    assert miner_escrow_deployer.is_deployed
-    assert len(miner_escrow_deployer.contract_address) == 42
+    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
+    assert staking_escrow_deployer.is_deployed
+    assert len(staking_escrow_deployer.contract_address) == 42
 
-    miner_agent = MinerAgent(blockchain=testerchain)
-    assert len(miner_agent.contract_address) == 42
-    assert miner_agent.contract_address == miner_escrow_deployer.contract_address
+    staking_agent = StakingEscrowAgent(blockchain=testerchain)
+    assert len(staking_agent.contract_address) == 42
+    assert staking_agent.contract_address == staking_escrow_deployer.contract_address
 
-    another_miner_agent = miner_escrow_deployer.make_agent()
-    assert len(another_miner_agent.contract_address) == 42
-    assert another_miner_agent.contract_address == miner_escrow_deployer.contract_address == miner_agent.contract_address
+    another_staking_agent = staking_escrow_deployer.make_agent()
+    assert len(another_staking_agent.contract_address) == 42
+    assert another_staking_agent.contract_address == staking_escrow_deployer.contract_address == staking_agent.contract_address
 
 
     #
@@ -94,7 +96,7 @@ def test_deploy_ethereum_contracts(testerchain):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed
 
-    policy_manager_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    policy_manager_deployer.deploy(secret_hash=keccak(policy_manager_secret))
     assert policy_manager_deployer.is_deployed
     assert len(policy_manager_deployer.contract_address) == 42
 
@@ -105,3 +107,30 @@ def test_deploy_ethereum_contracts(testerchain):
     another_policy_agent = policy_manager_deployer.make_agent()
     assert len(another_policy_agent.contract_address) == 42
     assert another_policy_agent.contract_address == policy_manager_deployer.contract_address == policy_agent.contract_address
+
+
+    #
+    # Adjudicator
+    #
+    adjudicator_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    adjudicator_deployer = AdjudicatorDeployer(
+        blockchain=testerchain,
+        deployer_address=origin)
+
+    assert adjudicator_deployer.deployer_address == origin
+
+    with pytest.raises(ContractDeployer.ContractDeploymentError):
+        assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not adjudicator_deployer.is_deployed
+
+    adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret))
+    assert adjudicator_deployer.is_deployed
+    assert len(adjudicator_deployer.contract_address) == 42
+
+    adjudicator_agent = adjudicator_deployer.make_agent()
+    assert len(adjudicator_agent.contract_address) == 42
+    assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
+
+    another_adjudicator_agent = adjudicator_deployer.make_agent()
+    assert len(another_adjudicator_agent.contract_address) == 42
+    assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address

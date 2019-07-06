@@ -81,15 +81,13 @@ def bob(click_config,
         new_bob_config = BobConfiguration.generate(password=click_config.get_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
                                                    checksum_address=pay_with,
-                                                   rest_host="localhost",
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
                                                    download_registry=click_config.no_registry,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
-        return painting.paint_new_installation_help(new_configuration=new_bob_config,
-                                                    config_file=config_file)
+        return painting.paint_new_installation_help(new_configuration=new_bob_config)
 
     # TODO
     # elif action == "view":

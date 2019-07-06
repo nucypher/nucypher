@@ -24,6 +24,7 @@ from constant_sorrow import constants
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -86,8 +87,26 @@ def keccak_digest(*messages: bytes) -> bytes:
     """
     _hash = sha3.keccak_256()
     for message in messages:
-        _hash.update(message)
-    return _hash.digest()
+        _hash.update(bytes(message))
+    digest = _hash.digest()
+    return digest
+
+
+def sha256_digest(*messages: bytes) -> bytes:
+    """
+    Accepts an iterable containing bytes and digests it returning a
+    SHA256 digest of 32 bytes
+
+    :param bytes: Data to hash
+
+    :rtype: bytes
+    :return: bytestring of digested data
+    """
+    _hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    for message in messages:
+        _hash_ctx.update(bytes(message))
+    digest = _hash_ctx.finalize()
+    return digest
 
 
 def ecdsa_sign(message: bytes,
@@ -106,14 +125,21 @@ def ecdsa_sign(message: bytes,
     return signature_der_bytes
 
 
-def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+def recover_address_eip_191(message: bytes, signature: bytes) -> str:
     """
-    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    Recover checksum address from EIP-191 signature
     """
     signable_message = encode_defunct(primitive=message)
     recovery = Account.recover_message(signable_message=signable_message, signature=signature)
     recovered_address = to_checksum_address(recovery)
+    return recovered_address
 
+
+def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+    """
+    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    """
+    recovered_address = recover_address_eip_191(message=message, signature=signature)
     signature_is_valid = recovered_address == to_checksum_address(address)
     return signature_is_valid
 

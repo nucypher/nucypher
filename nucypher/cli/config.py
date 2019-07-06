@@ -26,9 +26,8 @@ from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
@@ -76,24 +75,11 @@ class NucypherClickConfig:
         self.accounts = NO_BLOCKCHAIN_CONNECTION
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
 
-    def connect_to_blockchain(self, character_configuration, recompile_contracts: bool = False, full_sync: bool = True):
-        try:
-            character_configuration.connect_to_blockchain(recompile_contracts=recompile_contracts, full_sync=full_sync)
-            character_configuration.connect_to_contracts()
-
-        except EthereumContractRegistry.NoRegistry:
-            _registry_filepath = EthereumContractRegistry.from_latest_publication()
-
-        except Exception as e:
-            if self.debug:
-                raise
-            click.secho(str(e), fg='red', bold=True)
-            raise click.Abort()
-
-        # Success
-        else:
-            self.blockchain = character_configuration.blockchain
-            self.accounts = self.blockchain.interface.w3.eth.accounts
+    def connect_to_blockchain(self, character_configuration, sync_now: bool = True):
+        character_configuration.connect_to_blockchain(sync_now=sync_now)
+        character_configuration.connect_to_contracts()
+        self.blockchain = character_configuration.blockchain
+        self.accounts = self.blockchain.client.accounts
 
     def get_password(self, confirm: bool = False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
@@ -107,7 +93,7 @@ class NucypherClickConfig:
 
     def unlock_keyring(self,
                        password: str,
-                       character_configuration: NodeConfiguration,
+                       character_configuration: CharacterConfiguration,
                        unlock_wallet: bool = True):
 
         if not self.quiet:
@@ -118,6 +104,7 @@ class NucypherClickConfig:
 
         # NuCypher
         try:
+            character_configuration.attach_keyring()
             character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise character_configuration.keyring.AuthenticationFailed
@@ -125,7 +112,7 @@ class NucypherClickConfig:
         # Ethereum Client  # TODO : Integrate with Powers API
         if not character_configuration.federated_only and unlock_wallet:
             self.emit(message='Decrypting Ethereum Node Keyring...', color='yellow')
-            character_configuration.blockchain.interface.unlock_account(address=character_configuration.checksum_address,
+            character_configuration.blockchain.client.unlock_account(address=character_configuration.checksum_address,
                                                                         password=password)
 
     @classmethod
@@ -139,7 +126,7 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    __secrets = ('miner_secret', 'policy_secret', 'escrow_proxy_secret', 'mining_adjudicator_secret')
+    __secrets = ('staker_secret', 'policy_secret', 'escrow_proxy_secret', 'adjudicator_secret')
     Secrets = collections.namedtuple('Secrets', __secrets)
 
     def __init__(self, *args, **kwargs):
@@ -148,16 +135,15 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
     def collect_deployment_secrets(self) -> Secrets:
 
         # Deployment Environment Variables
-        self.miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINERS_ESCROW_SECRET")
+        self.staking_escrow_deployment_secret = os.environ.get("NUCYPHER_STAKING_ESCROW_SECRET")
         self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
         self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
-        self.mining_adjudicator_deployment_secret = os.environ.get("NUCYPHER_MINING_ADJUDICATOR_SECRET")
+        self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_ADJUDICATOR_SECRET")
 
-        if not self.miner_escrow_deployment_secret:
-            self.miner_escrow_deployment_secret = click.prompt('Enter MinerEscrow Deployment Secret',
-                                                               hide_input=True,
-                                                               confirmation_prompt=True)
-
+        if not self.staking_escrow_deployment_secret:
+            self.staking_escrow_deployment_secret = click.prompt('Enter StakingEscrow Deployment Secret',
+                                                                 hide_input=True,
+                                                                 confirmation_prompt=True)
         if not self.policy_manager_deployment_secret:
             self.policy_manager_deployment_secret = click.prompt('Enter PolicyManager Deployment Secret',
                                                                  hide_input=True,
@@ -168,15 +154,15 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
                                                                     hide_input=True,
                                                                     confirmation_prompt=True)
 
-        if not self.mining_adjudicator_deployment_secret:
-            self.mining_adjudicator_deployment_secret = click.prompt('Enter MiningAdjudicator Deployment Secret',
-                                                                     hide_input=True,
-                                                                     confirmation_prompt=True)
+        if not self.adjudicator_deployment_secret:
+            self.adjudicator_deployment_secret = click.prompt('Enter Adjudicator Deployment Secret',
+                                                              hide_input=True,
+                                                              confirmation_prompt=True)
 
-        secrets = self.Secrets(miner_secret=self.miner_escrow_deployment_secret,                    # type: str
+        secrets = self.Secrets(staker_secret=self.staking_escrow_deployment_secret,                    # type: str
                                policy_secret=self.policy_manager_deployment_secret,                 # type: str
                                escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,        # type: str
-                               mining_adjudicator_secret=self.mining_adjudicator_deployment_secret  # type: str
+                               adjudicator_secret=self.adjudicator_deployment_secret  # type: str
                                )
         return secrets
 

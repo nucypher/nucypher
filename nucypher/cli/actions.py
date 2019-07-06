@@ -49,11 +49,13 @@ Delete {}?'''
 
 CHARACTER_DESTRUCTION = '''
 Delete all {name} character files including:
-    - Private and Public Keys
-    - Known Nodes
-    - Node Configuration File
+    - Private and Public Keys ({keystore})
+    - Known Nodes             ({nodestore})
+    - Node Configuration File ({config})
 
 Delete {root}?'''
+
+SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
 
 
 LOG = Logger('cli.actions')
@@ -74,8 +76,8 @@ def load_seednodes(min_stake: int,
 
     # Set domains
     if network_domains is None:
-        from nucypher.config.node import NodeConfiguration
-        network_domains = {NodeConfiguration.DEFAULT_DOMAIN, }
+        from nucypher.config.node import CharacterConfiguration
+        network_domains = {CharacterConfiguration.DEFAULT_DOMAIN, }
 
     teacher_nodes = list()  # Ursula
     if teacher_uris is None:
@@ -151,23 +153,16 @@ def determine_external_ip_address(force: bool = False) -> str:
 
 
 def destroy_configuration(character_config, force: bool = False) -> None:
-
     if not force:
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
-                                                   root=character_config.config_root), abort=True)
-
-    try:
-        character_config.destroy()
-
-    except FileNotFoundError:
-        message = 'Failed: No nucypher files found at {}'.format(character_config.config_root)
-        console_emitter(message=message, color='red')
-        character_config.log.debug(message)
-        raise click.Abort()
-    else:
-        message = "Deleted configuration files at {}".format(character_config.config_root)
-        console_emitter(message=message, color='green')
-        character_config.log.debug(message)
+                                                   root=character_config.config_root,
+                                                   keystore=character_config.keyring_root,
+                                                   nodestore=character_config.node_storage.root_dir,
+                                                   config=character_config.filepath), abort=True)
+    character_config.destroy()
+    SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
+    console_emitter(message=SUCCESSFUL_DESTRUCTION, color='green')
+    character_config.log.debug(SUCCESSFUL_DESTRUCTION)
 
 
 def forget(configuration):
@@ -231,9 +226,7 @@ def make_cli_character(character_config,
                        dev: bool = False,
                        teacher_uri: str = None,
                        min_stake: int = 0,
-                       enode: str = None,
                        sync: bool = True,
-                       recompile_contracts: bool = False,
                        **config_args):
 
     #
@@ -242,12 +235,11 @@ def make_cli_character(character_config,
 
     # Handle Blockchain
     if not character_config.federated_only:
-        click_config.connect_to_blockchain(character_configuration=character_config,
-                                           full_sync=sync,
-                                           recompile_contracts=recompile_contracts)
+        click_config.connect_to_blockchain(character_configuration=character_config, sync_now=sync)
 
     # Handle Keyring
     if not dev:
+        character_config.attach_keyring()
         click_config.unlock_keyring(character_configuration=character_config,
                                     password=click_config.get_password(confirm=False))
 
@@ -280,12 +272,5 @@ def make_cli_character(character_config,
     # Federated
     if character_config.federated_only:
         click_config.emit(message="WARNING: Running in Federated mode", color='yellow')
-
-    # Decentralized
-    else:
-        # Manual ethereum peer
-        if enode:
-            character_config.blockchain.interface.client.add_peer(enode)
-            click.secho(f"Added ethereum peer {enode}")
 
     return CHARACTER

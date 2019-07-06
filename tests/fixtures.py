@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import os
+import random
 import tempfile
 
 import maya
@@ -30,14 +31,14 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.agents import Agency
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.agents import Agency, NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               MinerEscrowDeployer,
+                                               StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
-                                               MiningAdjudicatorDeployer)
+                                               AdjudicatorDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -45,7 +46,8 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
+from nucypher.crypto.powers import BlockchainPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -65,8 +67,7 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
                                                make_federated_ursulas,
                                                start_pytest_ursula_services)
 
-TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-NodeConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
+CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
 
 #
@@ -93,9 +94,9 @@ def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
-    default_node_config = NodeConfiguration(dev_mode=True,
-                                            config_root=temp_dir_path,
-                                            download_registry=False)
+    default_node_config = CharacterConfiguration(dev_mode=True,
+                                                 config_root=temp_dir_path,
+                                                 download_registry=False)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
@@ -124,7 +125,6 @@ def certificates_tempdir():
 def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
-                                        is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True,
@@ -138,7 +138,6 @@ def ursula_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config():
     ursula_config = UrsulaConfiguration(dev_mode=True,
-                                        is_me=True,
                                         provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
@@ -155,7 +154,6 @@ def ursula_decentralized_test_config():
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(dev_mode=True,
-                                is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
@@ -169,11 +167,10 @@ def alice_federated_test_config(federated_ursulas):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain):
     config = AliceConfiguration(dev_mode=True,
-                                is_me=True,
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
-                                known_nodes=blockchain_ursulas[:-1],  # TODO: 1035
+                                known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 download_registry=False,
                                 save_metadata=False,
@@ -201,7 +198,7 @@ def bob_blockchain_test_config(blockchain_ursulas, testerchain):
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_address=testerchain.bob_account,
                               network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas[:-1],  # TODO: #1035
+                              known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
@@ -245,8 +242,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
 
-    responses = idle_federated_policy.enact(
-        network_middleware)  # REST call happens here, as does population of TreasureMap.
+    # REST call happens here, as does population of TreasureMap.
+    responses = idle_federated_policy.enact(network_middleware)
 
     return idle_federated_policy
 
@@ -362,65 +359,62 @@ def slashing_economics():
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
+    compiler = SolidityCompiler()
     yield compiler
 
 
 @pytest.fixture(scope='module')
-def testerchain(solidity_compiler):
+def testerchain():
     """
-    https: // github.com / ethereum / eth - tester     # available-backends
+    https://github.com/ethereum/eth-tester     # available-backends
     """
-    memory_registry = InMemoryEthereumContractRegistry()
-
-    # Use the the custom provider and registrar to init an interface
-
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=memory_registry,
-                                                     provider_uri=TEST_PROVIDER_URI)
-
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface,
-                                   eth_airdrop=True,
-                                   free_transactions=True,
-                                   poa=True)
+    testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
 
-    # Set the deployer address from a freshly created test account
-    deployer_interface.deployer_address = testerchain.etherbase_account
-
+    # TODO: TransactingPower
+    # Mock TransactingPower Consumption
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.deployer_address = testerchain.etherbase_account
     yield testerchain
-    deployer_interface.disconnect()
-    testerchain.sever_connection()
+    testerchain.disconnect()
 
 
 @pytest.fixture(scope='module')
-def three_agents(testerchain):
+def agency(testerchain):
     """
-    Musketeers, if you will.
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
-
-    """Launch all Nucypher ethereum contracts"""
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.deploy()
 
-    miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
-    miner_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
+    staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
     policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    token_agent = token_deployer.make_agent()  # 1: Token
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
-    policy_agent = policy_manager_deployer.make_agent()  # 3 Policy Agent
-
-    adjudicator_deployer = MiningAdjudicatorDeployer(deployer_address=origin)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    yield token_agent, miner_agent, policy_agent
+    token_agent = token_deployer.make_agent()             # 1: Token
+    staking_agent = staking_escrow_deployer.make_agent()  # 2 Miner Escrow
+    policy_agent = policy_manager_deployer.make_agent()   # 3 Policy Agent
+    adjudicator_agent = adjudicator_deployer.make_agent()  # 4
+
+    # TODO: Perhaps we should get rid of returning these agents here.
+    # What's important is deploying and creating the first agent for each contract,
+    # and since agents are singletons, in tests it's only necessary to call the agent
+    # constructor again to receive the existing agent. For example:
+    #     staking_agent = StakingEscrowAgent()
+    # This is more clear than how we currently obtain an agent instance in tests:
+    #     _, staking_agent, _ = agency
+    # Other advantages is that it's closer to how agents should be use (i.e., there
+    # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
+
+    yield token_agent, staking_agent, policy_agent
     Agency.clear()
 
 
@@ -431,38 +425,88 @@ def clear_out_agency():
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-    token_agent, _miner_agent, _policy_agent = three_agents
+def stakers(agency, token_economics):
+    token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
+    # Mock Powerup consumption (Deployer)
+    blockchain.transacting_power = BlockchainPower(blockchain=blockchain,
+                                                   account=blockchain.etherbase_account)
+
     token_airdrop(origin=blockchain.etherbase_account,
-                  addresses=blockchain.ursulas_accounts,
+                  addresses=blockchain.stakers_accounts,
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    # Leave out the last Ursula for manual stake testing
-    *all_but_the_last_ursula, the_last_ursula = blockchain.ursulas_accounts
+    stakers = list()
+    for index, account in enumerate(blockchain.stakers_accounts):
+        staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
 
-    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          ether_addresses=all_but_the_last_ursula,
-                                          stake=True)
+        # Mock TransactingPower consumption (Ursula-Staker)
+        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain,
+                                                              account=staker.checksum_address)
+
+        min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
+        amount = random.randint(min_stake, balance)
+
+        # for a random lock duration
+        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
+        periods = random.randint(min_locktime, max_locktime)
+
+        staker.initialize_stake(amount=amount, lock_periods=periods)
+
+        # We assume that the staker knows in advance the account of her worker
+        worker_address = blockchain.ursula_account(index)
+        staker.set_worker(worker_address=worker_address)
+
+        stakers.append(staker)
 
     # Stake starts next period (or else signature validation will fail)
     blockchain.time_travel(periods=1)
+
+    yield stakers
+
+
+@pytest.fixture(scope="module")
+def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+
+    # Leave out the last Ursula for manual stake testing
+    _ursulas = make_decentralized_ursulas(blockchain=testerchain,
+                                          ursula_config=ursula_decentralized_test_config,
+                                          stakers_addresses=testerchain.stakers_accounts,
+                                          workers_addresses=testerchain.ursulas_accounts,
+                                          confirm_activity=True)
+
+    testerchain.time_travel(periods=1)
 
     # Bootstrap the network
     for ursula_to_teach in _ursulas:
         for ursula_to_learn_about in _ursulas:
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
-    # TODO: #1035 - Move non-staking Ursulas to a new fixture
-    # This one is not going to stake
-    _non_staking_ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                                     ether_addresses=[the_last_ursula],
-                                                     stake=False)
-
-    _ursulas.extend(_non_staking_ursula)
     yield _ursulas
+
+
+@pytest.fixture(scope="module")
+def idle_staker(testerchain, agency):
+    token_agent, _staking_agent, _policy_agent = agency
+
+    idle_staker_account = testerchain.unassigned_accounts[-2]
+
+    # Mock Powerup consumption (Deployer)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
+                                                    account=testerchain.etherbase_account)
+
+    token_airdrop(origin=testerchain.etherbase_account,
+                  addresses=[idle_staker_account],
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+
+    # Prepare idle staker
+    idle_staker = Staker(is_me=True,
+                         checksum_address=idle_staker_account,
+                         blockchain=testerchain)
+    yield idle_staker
 
 
 @pytest.fixture(scope='module')
@@ -484,10 +528,10 @@ def policy_value(token_economics, policy_rate):
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, three_agents, token_economics):
+def funded_blockchain(testerchain, agency, token_economics):
 
     # Who are ya'?
-    deployer_address, *everyone_else, staking_participant = testerchain.interface.w3.eth.accounts
+    deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
     # Free ETH!!!
     testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
@@ -540,7 +584,11 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     alice_address = canonical_address_from_umbral_key(signing_pubkey)
     blockhash = bytes(32)
 
-    specification = bytes(capsule) + bytes(ursula_pubkey) + alice_address + blockhash
+    specification = b''.join((bytes(capsule),
+                              bytes(ursula_pubkey),
+                              bytes(ursula.decentralized_identity_evidence),
+                              alice_address,
+                              blockhash))
 
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer(specification))

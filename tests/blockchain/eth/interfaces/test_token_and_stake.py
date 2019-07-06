@@ -70,7 +70,7 @@ def test_NU(token_economics):
     result = difference + one_nu_wei
     assert result == NU(2041592650000000001, 'NuNit')
 
-    # Similar to stake read + metadata operations in Miner
+    # Similar to stake read + metadata operations in Staker
     collection = [one_hundred_nu, two_hundred_nu, three_hundred_nu]
     assert sum(collection) == NU('600', 'NU') == NU(600, 'NU') == NU(600.0, 'NU') == NU(600e+18, 'NuNit')
 
@@ -99,20 +99,20 @@ def test_NU(token_economics):
         _nan = NU(float('NaN'), 'NU')
 
 
-def test_stake(testerchain, three_agents):
+def test_stake(testerchain, agency):
 
     class FakeUrsula:
-        token_agent, miner_agent, _policy_agent = three_agents
+        token_agent, staking_agent, _policy_agent = agency
 
         burner_wallet = Web3().eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
         checksum_address = burner_wallet.address
-        miner_agent = miner_agent
+        staking_agent = staking_agent
         token_agent = token_agent
         blockchain = testerchain
         economics = TokenEconomics()
 
     ursula = FakeUrsula()
-    stake = Stake(miner=ursula,
+    stake = Stake(checksum_address=ursula.checksum_address,
                   start_period=1,
                   end_period=100,
                   value=NU(100, 'NU'),
@@ -125,14 +125,17 @@ def test_stake(testerchain, three_agents):
     assert isinstance(slang_remaining, str)
 
 
-def test_stake_integration(blockchain_ursulas):
-    staking_ursula = list(blockchain_ursulas)[1]
-    stakes = staking_ursula.stakes
+def test_stake_integration(stakers):
+    staker = list(stakers)[1]
+    stakes = staker.stakes
     assert stakes
 
     stake = stakes[0]
-    blockchain_stakes = staking_ursula.miner_agent.get_all_stakes(miner_address=staking_ursula.checksum_address)
+    stake.sync()
+
+    blockchain_stakes = staker.staking_agent.get_all_stakes(staker_address=staker.checksum_address)
 
     stake_info = (stake.start_period, stake.end_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]
-    assert stake_info == published_stake_info == stake.to_stake_info()
+    assert stake_info == published_stake_info
+    assert stake_info == stake.to_stake_info()

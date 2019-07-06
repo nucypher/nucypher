@@ -54,18 +54,17 @@ class Vladimir(Ursula):
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
-                       rest_host=target_ursula.rest_information()[0].host,
-                       rest_port=target_ursula.rest_information()[0].port,
+                       rest_host=target_ursula.rest_interface.host,
+                       rest_port=target_ursula.rest_interface.port,
                        certificate=target_ursula.rest_server_certificate(),
                        network_middleware=cls.network_middleware,
-                       checksum_address = cls.fraud_address,
+                       checksum_address=cls.fraud_address,
+                       worker_address=cls.fraud_address,
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
                        interface_signature=target_ursula._interface_signature,
-                       ######### 
+                       #########
                        )
-
-        cls.attach_transacting_key(blockchain=target_ursula.blockchain)
 
         return vladimir
 
@@ -76,10 +75,10 @@ class Vladimir(Ursula):
         """
         try:
             password = INSECURE_DEVELOPMENT_PASSWORD
-            blockchain.interface.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
+            blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError, ):
             # check if Vlad's key is already on the keyring...
-            if cls.fraud_address in blockchain.interface.w3.eth.accounts:
+            if cls.fraud_address in blockchain.client.accounts:
                 return True
             else:
                 raise

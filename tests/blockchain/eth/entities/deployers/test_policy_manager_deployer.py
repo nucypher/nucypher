@@ -17,50 +17,48 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
-    MinerEscrowDeployer,
+    StakingEscrowDeployer,
     PolicyManagerDeployer,
     DispatcherDeployer
 )
 
 
 def test_policy_manager_deployer(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    origin, *everybody_else = testerchain.client.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()  # 1: Token
+    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
-    miners_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(deployer_address=origin)
-
-    miner_escrow_deployer.deploy(secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
-
-    miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
+    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
 
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    deployer = PolicyManagerDeployer(deployer_address=origin)
+    deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
 
-    deployment_txhashes = deployer.deploy(secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
+    deployment_txhashes = deployer.deploy(secret_hash=keccak(policy_manager_secret))
     assert len(deployment_txhashes) == 3
 
     for title, txhash in deployment_txhashes.items():
         receipt = testerchain.wait_for_receipt(txhash=txhash)
         assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
-    # Create a token instance
+    # Create a PolicyAgent
     policy_agent = deployer.make_agent()
-    policy_manager_contract = policy_agent.contract
 
-    # Retrieve the token from the blockchain
+    # TODO: #1102 - Check that StakingEscrow contract address and public parameters are correct
+
+    # Retrieve the PolicyAgent singleton
     some_policy_agent = PolicyAgent()
-    assert some_policy_agent.contract.address == policy_manager_contract.address
+    assert policy_agent == some_policy_agent  # __eq__
 
     # Compare the contract address for equality
     assert policy_agent.contract_address == some_policy_agent.contract_address
-    assert policy_agent == some_policy_agent  # __eq__
+

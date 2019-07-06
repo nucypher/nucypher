@@ -40,7 +40,7 @@ from nacl.secret import SecretBox
 from twisted.logger import Logger
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
@@ -51,6 +51,8 @@ from nucypher.crypto.powers import (
     DerivedKeyBasedPower,
     BlockchainPower
 )
+
+from constant_sorrow.constants import FEDERATED_ADDRESS
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
@@ -385,15 +387,6 @@ class NucypherKeyring:
         return to_checksum_address(self.__account)
 
     @property
-    def federated_address(self) -> str:
-        signature_pubkey = self.signing_public_key
-        uncompressed_bytes = signature_pubkey.to_bytes(is_compressed=False)
-        without_prefix = uncompressed_bytes[1:]
-        verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-        address = verifying_key_as_eth_key.to_checksum_address()
-        return to_checksum_address(address)
-
-    @property
     def signing_public_key(self):
         signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, deserializer=None)
         signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes)
@@ -507,7 +500,8 @@ class NucypherKeyring:
             new_cryptopower = power_class(keying_material=keying_material)
 
         elif power_class is BlockchainPower:
-            new_cryptopower = power_class(blockchain=Blockchain.connect(), account=self.checksum_address)
+            # new_cryptopower = power_class(account=self.checksum_address)
+            pass  # TODO: Needs refactoring with TransactingPower
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
@@ -525,8 +519,9 @@ class NucypherKeyring:
                  rest: bool,
                  host: str = None,
                  curve: EllipticCurve = None,
+                 federated: bool = False,
+                 checksum_address: str = None,
                  keyring_root: str = None,
-                 checksum_address: str = None
                  ) -> 'NucypherKeyring':
         """
         Generates new encrypting, signing, and wallet keys encrypted with the password,
@@ -545,19 +540,9 @@ class NucypherKeyring:
         if curve is None:
             curve = cls.__DEFAULT_TLS_CURVE
 
-        if checksum_address and not is_checksum_address(checksum_address):
-            raise ValueError(f"{checksum_address} is not a valid ethereum checksum address")
-
         _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
         _public_key_dir = _base_filepaths['public_key_dir']
         _private_key_dir = _base_filepaths['private_key_dir']
-
-        # Write to disk
-        if not os.path.isdir(_public_key_dir):
-            os.mkdir(_public_key_dir, mode=0o744)   # public dir
-
-        if not os.path.isdir(_private_key_dir):
-            os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
         #
         # Generate New Keypairs
@@ -565,14 +550,26 @@ class NucypherKeyring:
 
         keyring_args = dict()
 
+        if checksum_address:
+            # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
+            checksum_address = to_checksum_address(checksum_address)
+
         if encrypting is True:
             signing_private_key, signing_public_key = _generate_signing_keys()
 
-            if checksum_address is None:
+            if federated and not checksum_address:
                 uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
                 without_prefix = uncompressed_bytes[1:]
                 verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
                 checksum_address = verifying_key_as_eth_key.to_checksum_address()
+
+        else:
+            # TODO: Consider a "Repair" mode here
+            # signing_private_key, signing_public_key = ...
+            pass
+
+        if not checksum_address:
+            raise ValueError("Checksum address must be provided for non-federated keyring generation")
 
         __key_filepaths = cls._generate_key_filepaths(account=checksum_address,
                                                       private_key_dir=_private_key_dir,
@@ -606,7 +603,19 @@ class NucypherKeyring:
                                                          master_salt=password_salt,
                                                          wrap_salt=delegating_salt)
 
-            # Write Private Keys
+            #
+            # Write Keys
+            #
+
+            if not os.path.isdir(keyring_root):
+                os.mkdir(keyring_root, mode=0o700)  # TODO: Keyring backend entry point - COS
+
+            if not os.path.isdir(_public_key_dir):
+                os.mkdir(_public_key_dir, mode=0o744)  # public dir
+
+            if not os.path.isdir(_private_key_dir):
+                os.mkdir(_private_key_dir, mode=0o700)  # private dir
+
             rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
                                                   key_data=encrypting_key_metadata,
                                                   serializer=cls._private_key_serializer)

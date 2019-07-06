@@ -27,7 +27,8 @@ def test_initialize_alice_defaults(click_runner, mocker):
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_mocked(click_runner, mocker):
+def test_alice_control_starts_with_mocked_keyring(click_runner, mocker):
+
     class MockKeyring:
         is_unlocked = False
 
@@ -36,8 +37,8 @@ def test_alice_control_starts_mocked(click_runner, mocker):
             assert password == INSECURE_DEVELOPMENT_PASSWORD
             cls.is_unlocked = True
 
+    mocker.patch.object(AliceConfiguration, "attach_keyring", return_value=None)
     good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring)
-
     mocker.patch.object(AliceConfiguration, "from_configuration_file", return_value=good_enough_config)
     init_args = ('alice', 'run', '-x')
 
@@ -68,7 +69,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Auth
@@ -78,7 +79,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
 
 def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
 
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.CONFIG_FILENAME)
+    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
 
     init_args = ('alice', 'run',
                  '--dry-run',

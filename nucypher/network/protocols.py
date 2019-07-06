@@ -84,3 +84,6 @@ class InterfaceInfo:
 
     def __radd__(self, other):
         return bytes(other) + bytes(self)
+
+    def __repr__(self):
+        return self.uri

@@ -25,14 +25,15 @@ from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.crypto.powers import BlockchainPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
     USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
-    MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+    ADJUDICATOR_DEPLOYMENT_SECRET,
     POLICY_MANAGER_DEPLOYMENT_SECRET,
-    MINERS_ESCROW_DEPLOYMENT_SECRET,
+    STAKING_ESCROW_DEPLOYMENT_SECRET,
     NUMBER_OF_ALLOCATIONS_IN_TESTS,
     TEST_PROVIDER_URI)
 
@@ -40,22 +41,21 @@ from nucypher.utilities.sandbox.constants import (
 @pytest.mark.slow()
 def test_rapid_deployment(token_economics):
     compiler = SolidityCompiler()
-    registry = InMemoryEthereumContractRegistry()
     allocation_registry = InMemoryAllocationRegistry()
-    interface = BlockchainDeployerInterface(compiler=compiler,
-                                            registry=registry,
-                                            provider_uri=TEST_PROVIDER_URI)
 
-    blockchain = _TesterBlockchain(interface=interface, eth_airdrop=False, test_accounts=4)
+    blockchain = _TesterBlockchain(eth_airdrop=False,
+                                   test_accounts=4,
+                                   compiler=compiler)
+
+    # TODO: #1092 - TransactingPower
+    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=blockchain.etherbase_account)
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
-    # The Big Three (+ Dispatchers)
-    # Deploy User Escrow, too (+ Linker)
-    deployer.deploy_network_contracts(miner_secret=MINERS_ESCROW_DEPLOYMENT_SECRET,
+    deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
                                       policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                      adjudicator_secret=MINING_ADJUDICATOR_DEPLOYMENT_SECRET,
+                                      adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
                                       user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
 
     all_yall = blockchain.unassigned_accounts

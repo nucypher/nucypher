@@ -45,9 +45,10 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest, verify_eip_191, verify_ecdsa
+from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -400,6 +401,7 @@ class Learner:
             return False
 
         # First, determine if this is an outdated representation of an already known node.
+        # TODO: #1032
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
@@ -739,11 +741,10 @@ class Learner:
         # Deserialize
         #
 
-        # TODO #1039 - Causes protocol versioning checks to fail in-test when using an unsigned Response
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
         except BytestringSplittingError as e:
-            self.log.warn(e.args[0])
+            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
             return
 
         try:
@@ -782,6 +783,7 @@ class Learner:
                 continue  # This node is not serving any of our domains.
 
             # First, determine if this is an outdated representation of an already known node.
+            # TODO: #1032
             with suppress(KeyError):
                 already_known_node = self.known_nodes[node.checksum_address]
                 if not node.timestamp > already_known_node.timestamp:
@@ -818,11 +820,16 @@ class Learner:
 
             except node.NotStaking:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has no active stakes in the current period ({self.miner_agent.get_current_period()}')
+                              f'{node} has no active stakes in the current period '
+                              f'({self.staking_agent.get_current_period()}')
 
-            except node.InvalidWalletSignature:
+            except node.InvalidWorkerSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{node} has an invalid wallet signature for {node.checksum_public_address}')
+                              f'{node} has an invalid wallet signature for {node.decentralized_identity_evidence}')
+
+            except node.DetachedWorker:
+                self.log.warn(f'Verification Failed - '
+                              f'{node} is not bonded to a Staker.')
 
             except node.InvalidNode:
                 self.log.warn(node.invalid_metadata_message.format(node))
@@ -866,6 +873,7 @@ class Teacher:
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
+                 worker_address: str,
                  domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
@@ -904,8 +912,10 @@ class Teacher:
         self.verified_worker = False
         self.verified_interface = False
         self.verified_node = False
+        self.__worker_address = None
 
         if substantiate_immediately:
+            # TODO: #1091
             self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
@@ -917,11 +927,14 @@ class Teacher:
     class StampNotSigned(InvalidStamp):
         """Raised when a node does not have a stamp signature when one is required for verification"""
 
-    class InvalidWalletSignature(InvalidStamp):
-        """Raised when a stamp fails signature verification or recovers an unexpected wallet address"""
+    class InvalidWorkerSignature(InvalidStamp):
+        """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
 
     class NotStaking(InvalidStamp):
         """Raised when a node fails verification because it is not currently staking"""
+
+    class DetachedWorker(InvalidNode):
+        """Raised when a node fails verification because it is not bonded to a Staker"""
 
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
@@ -974,26 +987,40 @@ class Teacher:
     # Stamp
     #
 
-    def _stamp_has_valid_wallet_signature(self) -> bool:
-        """Off-chain Signature Verification of ethereum client signature of stamp"""
+    def _stamp_has_valid_signature_by_worker(self) -> bool:
+        """
+        Off-chain Signature Verification of stamp signature by Worker's ETH account.
+        Note that this only "certifies" the stamp with the worker's account,
+        so it can be seen like a self certification. For complete assurance,
+        it's necessary to validate on-chain the Staker-Worker relation.
+        """
         if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
                                             signature=self.__decentralized_identity_evidence,
-                                            address=self.checksum_address)
+                                            address=self.worker_address)
         return signature_is_valid
 
-    def _is_valid_worker(self) -> bool:
+    def _worker_is_bonded_to_staker(self) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, validate the Staker and Worker on-chain.
-
-        TODO: #1033 - Verify Staker <-> Worker relationship on-chain
+        As a follow-up, this checks that the worker is linked to a staker, but it may be
+        the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
         """
-        locked_tokens = self.miner_agent.get_locked_tokens(miner_address=self.checksum_address)
-        return locked_tokens > 0
+        staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
+        if staker_address == BlockchainInterface.NULL_ADDRESS:
+            raise self.DetachedWorker
+        return staker_address == self.checksum_address
 
-    def validate_stamp(self, verify_staking: bool = True) -> None:
+    def _staker_is_really_staking(self) -> bool:
+        """
+        This method assumes the stamp's signature is valid and accurate.
+        As a follow-up, this checks that the staker is, indeed, staking.
+        """
+        locked_tokens = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address)
+        return locked_tokens > 0  # TODO: Consider min stake size #1115
+
+    def validate_worker(self, verify_staking: bool = True) -> None:
 
         # Federated
         if self.federated_only:
@@ -1009,12 +1036,15 @@ class Teacher:
                 raise self.StampNotSigned
 
             # Off-chain signature verification
-            if not self._stamp_has_valid_wallet_signature():
-                raise self.InvalidWalletSignature
+            if not self._stamp_has_valid_signature_by_worker():
+                raise self.InvalidWorkerSignature
 
             # On-chain staking check
             if verify_staking:
-                if self._is_valid_worker():  # <-- Blockchain CALL
+                if not self._worker_is_bonded_to_staker():  # <-- Blockchain CALL
+                    raise self.DetachedWorker
+
+                if self._staker_is_really_staking():  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
                     raise self.NotStaking
@@ -1035,7 +1065,7 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_stamp(verify_staking=verify_staking)
+            self.validate_worker(verify_staking=verify_staking)
         except self.WrongMode:
             if not accept_federated_only:
                 raise
@@ -1060,8 +1090,13 @@ class Teacher:
 
         """
 
-        # Only perform this check once per object
-        if not force and self.verified_node:
+        if force:
+            self.verified_interface = False
+            self.verified_node = False
+            self.verified_stamp = False
+            self.verified_worker = False
+
+        if self.verified_node:
             return True
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
@@ -1074,8 +1109,8 @@ class Teacher:
             else:
                 certificate_filepath = self.certificate_filepath
 
-        response_data = network_middleware.node_information(host=self.rest_information()[0].host,
-                                                            port=self.rest_information()[0].port,
+        response_data = network_middleware.node_information(host=self.rest_interface.host,
+                                                            port=self.rest_interface.port,
                                                             certificate_filepath=certificate_filepath)
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
@@ -1105,11 +1140,22 @@ class Teacher:
     def decentralized_identity_evidence(self):
         return self.__decentralized_identity_evidence
 
+    @property
+    def worker_address(self):
+        if not self.__worker_address:
+            if self.decentralized_identity_evidence is NOT_SIGNED:
+                raise self.StampNotSigned  # TODO: Find a better exception
+            self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
+                                                            signature=self.decentralized_identity_evidence)
+        return self.__worker_address
+
     def substantiate_stamp(self, client_password: str):
+        # TODO: #1092 - TransactingPower
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
         blockchain_power.unlock_account(password=client_password)  # TODO: #349
-        signature = blockchain_power.sign_message(bytes(self.stamp))
+        signature = blockchain_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
+        self.__worker_address = blockchain_power.account
 
     #
     # Interface
@@ -1129,7 +1175,7 @@ class Teacher:
             raise self.InvalidNode
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_information()[0]
+        message = self.canonical_public_address + self.rest_interface
         return message
 
     def _sign_and_date_interface_info(self):

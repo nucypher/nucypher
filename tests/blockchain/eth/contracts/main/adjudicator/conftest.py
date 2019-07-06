@@ -21,28 +21,31 @@ import pytest
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.deployers import DispatcherDeployer
+from nucypher.crypto.powers import BlockchainPower
 
 
 @pytest.fixture()
 def escrow(testerchain):
-    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    # Mock Powerup consumption (Deployer)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 
 
 @pytest.fixture(params=[False, True])
-def adjudicator_contract(testerchain, escrow, request, slashing_economics):
-    contract, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicator',
+def adjudicator(testerchain, escrow, request, slashing_economics):
+    contract, _ = testerchain.deploy_contract(
+        'Adjudicator',
         escrow.address,
         *slashing_economics.deployment_parameters)
 
     if request.param:
         secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-        secret_hash = testerchain.interface.w3.keccak(secret)
-        dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
+        secret_hash = testerchain.w3.keccak(secret)
+        dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
-        contract = testerchain.interface.w3.eth.contract(
+        contract = testerchain.client.get_contract(
             abi=contract.abi,
             address=dispatcher.address,
             ContractFactoryClass=Contract)

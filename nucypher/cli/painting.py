@@ -36,11 +36,11 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration, federated_only: bool = False, config_root=None, config_file=None):
+def paint_new_installation_help(new_configuration):
     character_config_class = new_configuration.__class__
     character_name = character_config_class._NAME.lower()
 
-    emitter(message="Generated keyring {}".format(new_configuration.keyring_dir), color='green')
+    emitter(message="Generated keyring {}".format(new_configuration.keyring_root), color='green')
     emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
 
     # Felix
@@ -51,21 +51,17 @@ def paint_new_installation_help(new_configuration, federated_only: bool = False,
         emitter(message=f'\n\'{suggested_db_command}\'', color='green')
 
     # Ursula
-    elif character_name == 'ursula' and not federated_only:
+    elif character_name == 'ursula' and not new_configuration.federated_only:
         suggested_staking_command = f'nucypher ursula stake'
         how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
         emitter(message=how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
-    vowles = ('a', 'e', 'i', 'o', 'u')
-    character_name_starts_with_vowel = character_name[0].lower() in vowles
+    vowels = ('a', 'e', 'i', 'o', 'u')
+    character_name_starts_with_vowel = character_name[0].lower() in vowels
     adjective = 'an' if character_name_starts_with_vowel else 'a'
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
-
-    if config_root is not None:
-        config_file_location = os.path.join(config_root, config_file or character_config_class.CONFIG_FILENAME)
-        suggested_command += ' --config-file {}'.format(config_file_location)
 
     return emitter(message=how_to_run_message.format(suggested_command), color='green')
 
@@ -121,7 +117,7 @@ def paint_node_status(ursula, start_time):
         total_staked = f'Total Staked ........ {ursula.current_stake} NU-wei'
         stats.append(total_staked)
 
-        current_period = f'Current Period ...... {ursula.miner_agent.get_current_period()}'
+        current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
         stats.append(current_period)
 
     click.echo('\n' + '\n'.join(stats) + '\n')
@@ -183,15 +179,15 @@ Provider URI ............. {provider_uri}
 Registry Path ............ {registry_filepath}
 
 NucypherToken ............ {token}
-MinerEscrow .............. {escrow}
+StakingEscrow ............ {escrow}
 PolicyManager ............ {manager}
 
-    """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
-               registry_filepath=ursula_config.blockchain.interface.registry.filepath,
+    """.format(provider_uri=ursula_config.blockchain.provider_uri,
+               registry_filepath=ursula_config.blockchain.registry.filepath,
                token=ursula_config.token_agent.contract_address,
-               escrow=ursula_config.miner_agent.contract_address,
+               escrow=ursula_config.staking_agent.contract_address,
                manager=ursula_config.policy_agent.contract_address,
-               period=ursula_config.miner_agent.get_current_period())
+               period=ursula_config.staking_agent.get_current_period())
     click.secho(contract_payload)
 
     network_payload = """
@@ -201,9 +197,9 @@ Current Period ........... {period}
 Gas Price ................ {gas_price}
 Active Staking Ursulas ... {ursulas}
 
-    """.format(period=ursula_config.miner_agent.get_current_period(),
-               gas_price=ursula_config.blockchain.interface.w3.eth.gasPrice,
-               ursulas=ursula_config.miner_agent.get_miner_population())
+    """.format(period=ursula_config.staking_agent.get_current_period(),
+               gas_price=ursula_config.blockchain.client.gasPrice,
+               ursulas=ursula_config.staking_agent.get_staker_population())
     click.secho(network_payload)
 
 
@@ -232,7 +228,7 @@ def paint_staged_stake(ursula,
 
 
 def paint_staking_confirmation(ursula, transactions):
-    click.secho(f'\nEscrow Address ... {ursula.miner_agent.contract_address}', fg='blue')
+    click.secho(f'\nEscrow Address ... {ursula.staking_agent.contract_address}', fg='blue')
     for tx_name, txhash in transactions.items():
         click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
     click.secho(f'''

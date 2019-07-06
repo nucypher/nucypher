@@ -55,7 +55,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
-@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
@@ -87,7 +86,6 @@ def ursula(click_config,
            lonely,
            network,
            teacher_uri,
-           enode,
            min_stake,
            rest_host,
            rest_port,
@@ -196,10 +194,7 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        painting.paint_new_installation_help(new_configuration=ursula_config,
-                                             config_root=config_root,
-                                             config_file=config_file,
-                                             federated_only=federated_only)
+        painting.paint_new_installation_help(new_configuration=ursula_config)
         return
 
     #
@@ -260,8 +255,6 @@ def ursula(click_config,
 
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
-                                        recompile_contracts=recompile_solidity,
-                                        enode=enode,
                                         sync=sync,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
@@ -334,11 +327,11 @@ def ursula(click_config,
         if not URSULA.federated_only:
             click.secho("BLOCKCHAIN ----------\n")
             painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
-            current_block = URSULA.blockchain.interface.w3.eth.blockNumber
+            current_block = URSULA.blockchain.w3.eth.blockNumber
             click.secho(f'Block # {current_block}')
             click.secho(f'NU Balance: {URSULA.token_balance}')
             click.secho(f'ETH Balance: {URSULA.eth_balance}')
-            click.secho(f'Current Gas Price {URSULA.blockchain.interface.w3.eth.gasPrice}')
+            click.secho(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
 
         click.secho("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
@@ -434,7 +427,7 @@ def ursula(click_config,
             click.echo(message)
         if not duration:
             duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=STAKE_DURATION)
-        start_period = URSULA.miner_agent.get_current_period()
+        start_period = URSULA.staking_agent.get_current_period()
         end_period = start_period + duration
 
         # Review
@@ -453,6 +446,8 @@ def ursula(click_config,
             click.confirm("Publish staged stake to the blockchain?", abort=True)
 
         stake = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
+        # TODO temporary fix to not break backward compatibility
+        URSULA.set_worker(worker_address=URSULA.checksum_address)
         painting.paint_staking_confirmation(ursula=URSULA, transactions=stake.transactions)
         return
 
@@ -460,7 +455,7 @@ def ursula(click_config,
         if not URSULA.stakes:
             click.secho("There are no active stakes for {}".format(URSULA.checksum_address))
             return
-        URSULA.miner_agent.confirm_activity(node_address=URSULA.checksum_address)
+        URSULA.staking_agent.confirm_activity(node_address=URSULA.checksum_address)
         return
 
     elif action == 'collect-reward':

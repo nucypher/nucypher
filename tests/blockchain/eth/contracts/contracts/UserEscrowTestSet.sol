@@ -7,7 +7,7 @@ import "contracts/NuCypherToken.sol";
 /**
 * @notice Contract for using in UserEscrow tests
 **/
-contract MinersEscrowForUserEscrowMock {
+contract StakingEscrowForUserEscrowMock {
 
     NuCypherToken token;
     uint32 public secondsPerPeriod = 1;
@@ -15,10 +15,10 @@ contract MinersEscrowForUserEscrowMock {
     uint256 public value;
     uint256 public lockedValue;
     uint16 public periods;
-    uint16 public confirmedPeriod;
     uint256 public index;
     bool public reStake;
     uint16 public lockReStakeUntilPeriod;
+    address public worker;
 
     constructor(NuCypherToken _token) public {
         token = _token;
@@ -52,10 +52,6 @@ contract MinersEscrowForUserEscrowMock {
         withdraw(value);
     }
 
-    function confirmActivity() external {
-        confirmedPeriod += 1;
-    }
-
     function mint() external {
         value += 1000;
     }
@@ -66,6 +62,10 @@ contract MinersEscrowForUserEscrowMock {
 
     function lockReStake(uint16 _lockReStakeUntilPeriod) public {
         lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
+    }
+
+    function setWorker(address _worker) public {
+        worker = _worker;
     }
 }
 

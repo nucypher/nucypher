@@ -38,10 +38,10 @@ from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.control.controllers import JSONRPCController
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -74,10 +74,10 @@ class Character(Learner):
                  domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 blockchain: Blockchain = None,
+                 blockchain: BlockchainInterface = None,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
-                 keyring_dir: str = None,
+                 keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  *args, **kwargs
@@ -126,22 +126,22 @@ class Character(Learner):
 
         # Fleet and Blockchain Connection (Everyone)
         if not domains:
-            domains = (NodeConfiguration.DEFAULT_DOMAIN, )
+            domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
         # Needed for on-chain verification
         if not self.federated_only:
-            self.blockchain = blockchain or Blockchain.connect()
-            self.miner_agent = MinerAgent(blockchain=blockchain)
+            self.blockchain = blockchain
+            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
         else:
             self.blockchain = FEDERATED_ONLY
-            self.miner_agent = FEDERATED_ONLY
+            self.staking_agent = FEDERATED_ONLY
 
         #
         # Self-Character
         #
         if is_me is True:
 
-            self.keyring_dir = keyring_dir  # type: str
+            self.keyring_root = keyring_root  # type: str
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
@@ -169,7 +169,7 @@ class Character(Learner):
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stranger-Character.")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
-            self.keyring_dir = STRANGER
+            self.keyring_root = STRANGER
             self.network_middleware = STRANGER
 
         #
@@ -237,10 +237,6 @@ class Character(Learner):
     @property
     def name(self):
         return self.__class__.__name__
-
-    @property
-    def rest_interface(self):
-        return self.rest_server.rest_url()
 
     @property
     def stamp(self):

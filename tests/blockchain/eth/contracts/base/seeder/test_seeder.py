@@ -20,18 +20,18 @@ import pytest
 
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRESS_2, MAX_TEST_SEEDER_ENTRIES, \
     MOCK_URSULA_STARTING_PORT
 
 
 @pytest.mark.slow()
 def test_seeder(testerchain):
-    origin, seed_address, another_seed_address, *everyone_else = testerchain.interface.w3.eth.accounts
+    origin, seed_address, another_seed_address, *everyone_else = testerchain.client.accounts
     seed = (MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT)
     another_seed = (MOCK_IP_ADDRESS_2, MOCK_URSULA_STARTING_PORT + 1)
 
-    contract, _txhash = testerchain.interface.deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
+    contract, _txhash = testerchain.deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
 
     assert contract.functions.getSeedArrayLength().call() == MAX_TEST_SEEDER_ENTRIES
     assert contract.functions.owner().call() == origin
@@ -47,13 +47,13 @@ def test_seeder(testerchain):
     testerchain.wait_for_receipt(txhash)
     assert contract.functions.seeds(seed_address).call() == [*seed]
     assert contract.functions.seedArray(0).call() == seed_address
-    assert contract.functions.seedArray(1).call() == Blockchain.NULL_ADDRESS
+    assert contract.functions.seedArray(1).call() == BlockchainInterface.NULL_ADDRESS
     txhash = contract.functions.enroll(another_seed_address, *another_seed).transact({'from': origin})
     testerchain.wait_for_receipt(txhash)
     assert contract.functions.seeds(another_seed_address).call() == [*another_seed]
     assert contract.functions.seedArray(0).call() == seed_address
     assert contract.functions.seedArray(1).call() == another_seed_address
-    assert contract.functions.seedArray(2).call() == Blockchain.NULL_ADDRESS
+    assert contract.functions.seedArray(2).call() == BlockchainInterface.NULL_ADDRESS
 
     txhash = contract.functions.refresh(*another_seed).transact({'from': seed_address})
     testerchain.wait_for_receipt(txhash)

@@ -36,7 +36,7 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
+def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
     # Setup the policy details
     n = 3
@@ -248,6 +248,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     )
 
     # Alice unlocks her restored keyring from disk
+    new_alice_config.attach_keyring()
     new_alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     new_alice = new_alice_config()
 

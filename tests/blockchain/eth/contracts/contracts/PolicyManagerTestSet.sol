@@ -2,7 +2,7 @@ pragma solidity ^0.5.3;
 
 
 import "contracts/PolicyManager.sol";
-import "contracts/MinersEscrow.sol";
+import "contracts/StakingEscrow.sol";
 
 
 /**
@@ -10,7 +10,7 @@ import "contracts/MinersEscrow.sol";
 **/
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
     }
 
     function getNodeRewardDelta(address, uint16) public view returns (int256)
@@ -27,7 +27,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) public PolicyManager(_escrow) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -44,7 +44,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 /**
 * @notice Contract for using in PolicyManager tests
 **/
-contract MinersEscrowForPolicyMock {
+contract StakingEscrowForPolicyMock {
 
     struct Downtime {
         uint16 startPeriod;

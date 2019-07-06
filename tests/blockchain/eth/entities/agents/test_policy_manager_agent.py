@@ -20,52 +20,55 @@ import collections
 import pytest
 from eth_utils import is_checksum_address
 
+from nucypher.crypto.powers import BlockchainPower
 
 MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
 
 @pytest.fixture(scope='function')
 @pytest.mark.usefixtures('blockchain_ursulas')
-def policy_meta(testerchain, three_agents, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+def policy_meta(testerchain, agency, token_economics):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
     _policy_id = os.urandom(16)
-    node_addresses = list(miner_agent.sample(quantity=3, duration=1))
+    staker_addresses = list(staking_agent.sample(quantity=3, duration=1))
     _txhash = agent.create_policy(policy_id=_policy_id,
+                                  author_address=testerchain.alice_account,
+                                  value=token_economics.minimum_allowed_locked,
+                                  periods=10,
+                                  initial_reward=20,
+                                  node_addresses=staker_addresses)
+
+    return MockPolicyMetadata(_policy_id, testerchain.alice_account, staker_addresses)
+
+
+@pytest.mark.slow()
+@pytest.mark.usefixtures('blockchain_ursulas')
+def test_create_policy(testerchain, agency, token_economics):
+    token_agent, staking_agent, policy_agent = agency
+    agent = policy_agent
+
+    # Mock Powerup consumption
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.alice_account)
+
+    policy_id = os.urandom(16)
+    node_addresses = list(staking_agent.sample(quantity=3, duration=1))
+    receipt = agent.create_policy(policy_id=policy_id,
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
                                   periods=10,
                                   initial_reward=20,
                                   node_addresses=node_addresses)
 
-    return MockPolicyMetadata(_policy_id, testerchain.alice_account, node_addresses)
-
-
-@pytest.mark.slow()
-@pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, three_agents, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
-    agent = policy_agent
-
-    policy_id = os.urandom(16)
-    node_addresses = list(miner_agent.sample(quantity=3, duration=1))
-    txhash = agent.create_policy(policy_id=policy_id,
-                                 author_address=testerchain.alice_account,
-                                 value=token_economics.minimum_allowed_locked,
-                                 periods=10,
-                                 initial_reward=20,
-                                 node_addresses=node_addresses)
-
-    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_fetch_policy_arrangements(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_fetch_policy_arrangements(agency, policy_meta):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
     arrangements = list(agent.fetch_policy_arrangements(policy_id=policy_meta.policy_id))
@@ -77,75 +80,83 @@ def test_fetch_policy_arrangements(three_agents, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_revoke_arrangement(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_revoke_arrangement(agency, policy_meta):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    txhash = agent.revoke_arrangement(policy_id=policy_meta.policy_id,
-                                      author_address=policy_meta.author,
-                                      node_address=policy_meta.addresses[0])
-    testerchain = agent.blockchain
-    receipt = testerchain.wait_for_receipt(txhash)
+    receipt = agent.revoke_arrangement(policy_id=policy_meta.policy_id,
+                                       author_address=policy_meta.author,
+                                       node_address=policy_meta.addresses[0])
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_revoke_policy(three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_revoke_policy(agency, policy_meta):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    txhash = agent.revoke_policy(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
-    testerchain = agent.blockchain
-    receipt = testerchain.wait_for_receipt(txhash)
+    receipt = agent.revoke_policy(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_calculate_refund(testerchain, three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_calculate_refund(testerchain, agency, policy_meta):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    ursula = policy_meta.addresses[-1]
+    staker = policy_meta.addresses[-1]
+    worker = staking_agent.get_worker_from_staker(staker)
+
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
     testerchain.time_travel(hours=9)
-    _txhash = miner_agent.confirm_activity(node_address=ursula)
-    txhash = agent.calculate_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
-    testerchain = agent.blockchain
-    receipt = testerchain.wait_for_receipt(txhash)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
+
+    # Mock Powerup consumption (Alice)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.alice_account)
+
+    receipt = agent.calculate_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_refund(testerchain, three_agents, policy_meta):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_collect_refund(testerchain, agency, policy_meta):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
     testerchain.time_travel(hours=9)
-    txhash = agent.collect_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
-    testerchain = agent.blockchain
-    receipt = testerchain.wait_for_receipt(txhash)
+    receipt = agent.collect_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, three_agents, policy_meta, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics):
+    token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    ursula = policy_meta.addresses[-1]
-    old_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(ursula)
+    staker = policy_meta.addresses[-1]
+    worker = staking_agent.get_worker_from_staker(staker)
+
+    # Mock Powerup consumption (Ursula-Worker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=worker)
+
+    old_eth_balance = token_agent.blockchain.client.get_balance(staker)
 
     for _ in range(token_economics.minimum_locked_periods):
-        _txhash = miner_agent.confirm_activity(node_address=ursula)
+        _receipt = staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
 
-    txhash = agent.collect_policy_reward(collector_address=ursula, miner_address=ursula)
-    receipt = testerchain.wait_for_receipt(txhash)
+    # Mock Powerup consumption (Ursula-Staker)
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=staker)
+
+    receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
-    new_eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(ursula)
+    new_eth_balance = token_agent.blockchain.client.get_balance(staker)
     assert new_eth_balance > old_eth_balance

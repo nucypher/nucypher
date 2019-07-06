@@ -24,23 +24,23 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 
 
 @pytest.fixture(scope='function')
-def user_escrow_proxy(three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
+def user_escrow_proxy(agency):
+    token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer)
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, blockchain=testerchain)
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
-    testerchain.interface.registry.clear()
-    testerchain.sever_connection()
+    testerchain.registry.clear()
+    testerchain.disconnect()
 
 
 @pytest.mark.slow()
-def test_deploy_and_allocate(three_agents, user_escrow_proxy, token_economics):
-    token_agent, miner_agent, policy_agent = three_agents
+def test_deploy_and_allocate(agency, user_escrow_proxy, token_economics):
+    token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
 
@@ -50,7 +50,7 @@ def test_deploy_and_allocate(three_agents, user_escrow_proxy, token_economics):
 
     _last_deployment_address = None
     for index in range(number_of_deployments):
-        escrow_deployer = UserEscrowDeployer(deployer_address=origin)
+        escrow_deployer = UserEscrowDeployer(deployer_address=origin, blockchain=testerchain)
 
         _deployment_txhashes = escrow_deployer.deploy()
 
@@ -71,18 +71,14 @@ def test_deploy_and_allocate(three_agents, user_escrow_proxy, token_economics):
     assert token_agent.get_balance(address=origin) > 1
 
     # Start allocating tokens
-    deposit_txhashes, approve_hashes = dict(), dict()
+    deposit_receipts, approve_hashes = list(), dict()
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_txhash = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
-        receipt = testerchain.wait_for_receipt(txhash=deposit_txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}".format(deposit_txhash)
-        deposit_txhashes[address] = deposit_txhash
+        deposit_receipt = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
+        deposit_receipts.append(deposit_receipt)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)
-        assignment_txhash = deployer.assign_beneficiary(beneficiary)
-        receipt = testerchain.wait_for_receipt(txhash=assignment_txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}".format(assignment_txhash)
+        _assign_receipt = deployer.assign_beneficiary(beneficiary)
 
-    assert len(deposit_txhashes) == number_of_deployments == len(deployments)
+    assert len(deposit_receipts) == number_of_deployments == len(deployments)

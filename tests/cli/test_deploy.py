@@ -8,17 +8,15 @@ import pytest
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
-    MinerAgent,
+    StakingEscrowAgent,
     UserEscrowAgent,
     PolicyAgent,
-    MiningAdjudicatorAgent,
-    Agency)
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+    Agency, AdjudicatorAgent)
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.powers import BlockchainPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -39,25 +37,14 @@ PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
-def make_testerchain(provider_uri, solidity_compiler):
-
-    # Destroy existing blockchain
-    BlockchainInterface.disconnect()
-    _TesterBlockchain.sever_connection()
-
-    registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,
-                                                     registry=registry,
-                                                     provider_uri=provider_uri)
+def make_testerchain():
 
     # Create new blockchain
-    testerchain = _TesterBlockchain(interface=deployer_interface,
-                                   eth_airdrop=True,
-                                   free_transactions=False,
-                                   poa=True)
+    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=False)
 
     # Set the deployer address from a freshly created test account
-    deployer_interface.deployer_address = testerchain.etherbase_account
+    testerchain.deployer_address = testerchain.etherbase_account
+    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
     return testerchain
 
 
@@ -66,14 +53,16 @@ def pyevm_testerchain():
 
 
 def geth_poa_devchain():
-    _testerchain = make_testerchain(provider_uri='tester://geth', solidity_compiler=SolidityCompiler())
-    return f'ipc://{_testerchain.interface.provider.ipc_path}'
+    _testerchain = make_testerchain()
+    return f'ipc://{_testerchain.provider.ipc_path}'
 
 
 def test_nucypher_deploy_contracts(click_runner,
                                    mock_primary_registry_filepath,
                                    mock_allocation_infile,
                                    token_economics):
+
+    Agency.clear()
 
     #
     # Setup
@@ -120,44 +109,56 @@ def test_nucypher_deploy_contracts(click_runner,
         # Read several records
         token_record, escrow_record, dispatcher_record, *other_records = registry_data
         registered_name, registered_address, registered_abi = token_record
-        token_agent = NucypherTokenAgent()
-        assert token_agent.contract_name == registered_name
-        assert token_agent.registry_contract_name == registered_name
-        assert token_agent.contract_address == registered_address
+
+    #
+    # Agency
+    #
+
+    token_agent = NucypherTokenAgent()
+    assert token_agent.contract_name == registered_name
+    assert token_agent.registry_contract_name == registered_name
+    assert token_agent.contract_address == registered_address
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    miner_agent = MinerAgent()
-    assert miner_agent.get_current_period()
+    staking_agent = StakingEscrowAgent()
+    assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated
     assert PolicyAgent()
-    assert MiningAdjudicatorAgent()
+    # assert AdjudicatorAgent(blockchain=testerchain)  # TODO: #931
 
 
-def test_upgrade_contracts(click_runner):
+def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
 
     #
     # Setup
     #
 
-    # Connect to the blockchain with a blank temporary file-based registry
-    mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = Blockchain.connect(registry=mock_temporary_registry)
+    # Simulate "Reconnection"
+    real_attach_provider = BlockchainDeployerInterface._attach_provider
+    cached_blockchain = BlockchainDeployerInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_primary_registry_filepath
+
+    def attach_cached_provider(interface, *args, **kwargs):
+        cached_provider = cached_blockchain.provider
+        real_attach_provider(interface, provider=cached_provider)
+    BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_registrations = 9
-    with open(MOCK_REGISTRY_FILEPATH, 'r') as file:
+    expected_enrollments = 9
+    with open(mock_primary_registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
-        assert len(registry_data) == expected_registrations
+        assert len(registry_data) == expected_enrollments
 
     #
     # Input Components
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', MOCK_REGISTRY_FILEPATH, '--provider-uri', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', mock_primary_registry_filepath, '--provider-uri', TEST_PROVIDER_URI, '--poa')
 
     # Generate user inputs
     yes = 'Y\n'  # :-)
@@ -178,21 +179,21 @@ def test_upgrade_contracts(click_runner):
     # Stage Upgrades
     #
 
-    contracts_to_upgrade = ('MinersEscrow',       # v1 -> v2
+    contracts_to_upgrade = ('StakingEscrow',      # v1 -> v2
                             'PolicyManager',      # v1 -> v2
-                            'MiningAdjudicator',  # v1 -> v2
+                            'Adjudicator',        # v1 -> v2
                             'UserEscrowProxy',    # v1 -> v2
 
-                            'MinersEscrow',       # v2 -> v3
-                            'MinersEscrow',       # v3 -> v4
+                            'StakingEscrow',      # v2 -> v3
+                            'StakingEscrow',      # v3 -> v4
 
-                            'MiningAdjudicator',  # v2 -> v3
+                            'Adjudicator',        # v2 -> v3
                             'PolicyManager',      # v2 -> v3
                             'UserEscrowProxy',    # v2 -> v3
 
                             'UserEscrowProxy',    # v3 -> v4
                             'PolicyManager',      # v3 -> v4
-                            'MiningAdjudicator',  # v3 -> v4
+                            'Adjudicator',        # v3 -> v4
 
                             )  # NOTE: Keep all versions the same in this test (all version 4, for example)
 
@@ -219,34 +220,36 @@ def test_upgrade_contracts(click_runner):
 
         # Mutate the version tracking
         version_tracker[contract_name] += 1
-        expected_registrations += 1
+        expected_enrollments += 1
 
         # Verify the registry is updated (Potatoes)
-        with open(MOCK_REGISTRY_FILEPATH, 'r') as file:
+        with open(mock_primary_registry_filepath, 'r') as file:
 
             # Read the registry file directly, bypassing its interfaces
             raw_registry_data = file.read()
             registry_data = json.loads(raw_registry_data)
-            assert len(registry_data) == expected_registrations
+            assert len(registry_data) == expected_enrollments, f'Unexpected number of enrollments for {contract_name}'
 
             # Check that there is more than one entry, since we've deployed a "version 2"
-            expected_enrollments = current_version + 1
+            expected_contract_enrollments = current_version + 1
 
             registered_names = [r[0] for r in registry_data]
-            enrollments = registered_names.count(contract_name)
+            contract_enrollments = registered_names.count(contract_name)
 
-            assert enrollments > 1, f"New contract is not enrolled in {MOCK_REGISTRY_FILEPATH}"
-            assert enrollments == expected_enrollments, f"Incorrect number of records enrolled for {contract_name}. " \
-                                                        f"Expected {expected_enrollments} got {enrollments}."
+            assert contract_enrollments > 1, f"New contract is not enrolled in {MOCK_REGISTRY_FILEPATH}"
+            error = f"Incorrect number of records enrolled for {contract_name}. " \
+                    f"Expected {expected_contract_enrollments} got {contract_enrollments}."
+            assert contract_enrollments == expected_contract_enrollments, error
 
         # Ensure deployments are different addresses
-        records = blockchain.interface.registry.search(contract_name=contract_name)
-        assert len(records) == expected_enrollments
+        cached_blockchain = BlockchainDeployerInterface.reconnect()
+        records = cached_blockchain.registry.search(contract_name=contract_name)
+        assert len(records) == contract_enrollments, error
 
         old, new = records[-2:]            # Get the last two entries
         old_name, old_address, *abi = old  # Previous version
         new_name, new_address, *abi = new  # New version
-        assert old_name == new_name        # TODO: Inspect ABI?
+        assert old_name == new_name        # TODO: Inspect ABI / Move to different test.
         assert old_address != new_address
 
         # Select proxy (Dispatcher vs Linker)
@@ -256,17 +259,25 @@ def test_upgrade_contracts(click_runner):
             proxy_name = 'Dispatcher'
 
         # Ensure the proxy targets the new deployment
-        proxy = blockchain.interface.get_proxy(target_address=new_address, proxy_name=proxy_name)
+        proxy = cached_blockchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
 
 
-def test_rollback(click_runner):
+def test_rollback(click_runner, mock_primary_registry_filepath):
     """Roll 'em all back!"""
 
-    mock_temporary_registry = EthereumContractRegistry(registry_filepath=MOCK_REGISTRY_FILEPATH)
-    blockchain = Blockchain.connect(registry=mock_temporary_registry)
+    # Simulate "Reconnection"
+    real_attach_provider = BlockchainDeployerInterface._attach_provider
+    cached_blockchain = BlockchainDeployerInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_primary_registry_filepath
+
+    def attach_cached_provider(interface, *args, **kwargs):
+        cached_provider = cached_blockchain.provider
+        real_attach_provider(interface, provider=cached_provider)
+    BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     # Input Components
     yes = 'Y\n'
@@ -276,9 +287,9 @@ def test_rollback(click_runner):
     rollback_secret = generate_insecure_secret()
     user_input = '0\n' + yes + old_secret + rollback_secret + rollback_secret
 
-    contracts_to_rollback = ('MinersEscrow',       # v4 -> v3
-                             'PolicyManager',      # v4 -> v3
-                             'MiningAdjudicator',  # v4 -> v3
+    contracts_to_rollback = ('StakingEscrow',  # v4 -> v3
+                             'PolicyManager',  # v4 -> v3
+                             'Adjudicator',    # v4 -> v3
                              )
     # Execute Rollbacks
     for contract_name in contracts_to_rollback:
@@ -292,7 +303,8 @@ def test_rollback(click_runner):
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        records = blockchain.interface.registry.search(contract_name=contract_name)
+        blockchain = BlockchainDeployerInterface.reconnect()
+        records = blockchain.registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
@@ -304,9 +316,9 @@ def test_rollback(click_runner):
 
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.interface.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
+            blockchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
 
-        proxy = blockchain.interface.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
+        proxy = blockchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()
@@ -320,28 +332,16 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               mock_primary_registry_filepath,
                                               mock_allocation_infile,
                                               token_economics):
+    # Simulate "Reconnection"
+    real_attach_provider = BlockchainDeployerInterface._attach_provider
+    cached_blockchain = BlockchainDeployerInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_primary_registry_filepath
 
-    _TesterBlockchain.sever_connection()
-    Agency.clear()
-
-    if os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH):
-        os.remove(MOCK_ALLOCATION_REGISTRY_FILEPATH)
-    assert not os.path.isfile(MOCK_ALLOCATION_REGISTRY_FILEPATH)
-
-    # We start with a blockchain node, and nothing else...
-    if os.path.isfile(mock_primary_registry_filepath):
-        os.remove(mock_primary_registry_filepath)
-    assert not os.path.isfile(mock_primary_registry_filepath)
-
-    command = ['contracts',
-               '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', TEST_PROVIDER_URI,
-               '--poa',
-               '--no-sync']
-
-    user_input = deploy_user_input
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    def attach_cached_provider(interface, *args, **kwargs):
+        cached_provider = cached_blockchain.provider
+        real_attach_provider(interface, provider=cached_provider)
+    BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     #
     # Main
@@ -351,7 +351,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
                       '--allocation-infile', mock_allocation_infile.filepath,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
-                      '--provider-uri', 'tester://pyevm',
+                      '--provider-uri', TEST_PROVIDER_URI,
                       '--poa')
 
     account_index = '0\n'
@@ -366,9 +366,11 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     assert result.exit_code == 0
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
-    beneficiary = testerchain.interface.w3.eth.accounts[-1]
+    beneficiary = testerchain.client.accounts[-1]
     allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary, allocation_registry=allocation_registry)
+    user_escrow_agent = UserEscrowAgent(blockchain=cached_blockchain,
+                                        beneficiary=beneficiary,
+                                        allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
 
     #
@@ -376,7 +378,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     #
 
     # Destroy existing blockchain
-    BlockchainInterface.disconnect()
+    testerchain.disconnect()
 
 
 def test_destroy_registry(click_runner, mock_primary_registry_filepath):

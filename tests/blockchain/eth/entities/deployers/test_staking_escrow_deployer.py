@@ -16,40 +16,38 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 
-from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, DispatcherDeployer
 
 
-def test_token_deployer_and_agent(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+def test_staking_escrow_deployer_and_agent(testerchain):
+    origin, *everybody_else = testerchain.client.accounts
 
     # The big day...
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-
     token_deployer.deploy()
 
-    secret_hash = os.urandom(32)
-    deployer = MinerEscrowDeployer(blockchain=testerchain,
-                                   deployer_address=origin)
-
+    secret_hash = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    deployer = StakingEscrowDeployer(blockchain=testerchain,
+                                     deployer_address=origin)
     deployment_txhashes = deployer.deploy(secret_hash=secret_hash)
+
+    assert len(deployment_txhashes) == 4
 
     for title, txhash in deployment_txhashes.items():
         receipt = testerchain.wait_for_receipt(txhash=txhash)
         assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
-    # Create a token instance
-    miner_agent = deployer.make_agent()
-    miner_escrow_contract = miner_agent.contract
+    # Create a StakingEscrowAgent instance
+    staking_agent = deployer.make_agent()
 
-    expected_token_supply = miner_escrow_contract.functions.totalSupply().call()
-    assert expected_token_supply == miner_agent.contract.functions.totalSupply().call()
+    # TODO: #1102 - Check that token contract address and staking parameters are correct
 
-    # Retrieve the token from the blockchain
-    same_miner_agent = MinerAgent()
+    # Retrieve the StakingEscrowAgent singleton
+    same_staking_agent = StakingEscrowAgent()
+    assert staking_agent == same_staking_agent
 
     # Compare the contract address for equality
-    assert miner_agent.contract_address == same_miner_agent.contract_address
-    assert miner_agent == same_miner_agent  # __eq__
+    assert staking_agent.contract_address == same_staking_agent.contract_address
 
-    testerchain.interface.registry.clear()
+    testerchain.registry.clear()

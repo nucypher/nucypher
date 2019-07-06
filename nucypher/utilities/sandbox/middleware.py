@@ -34,7 +34,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         return response
 
     def _get_mock_client_by_ursula(self, ursula):
-        port = ursula.rest_information()[0].port
+        port = ursula.rest_interface.port
         return self._get_mock_client_by_port(port)
 
     def _get_mock_client_by_url(self, url):
@@ -128,10 +128,10 @@ class NodeIsDownMiddleware(MockRestMiddleware):
         self.ports_that_are_down = []
 
     def node_is_down(self, node):
-        self.client.ports_that_are_down.add(node.rest_information()[0].port)
+        self.client.ports_that_are_down.add(node.rest_interface.port)
 
     def node_is_up(self, node):
-        self.client.ports_that_are_down.remove(node.rest_information()[0].port)
+        self.client.ports_that_are_down.remove(node.rest_interface.port)
 
 
 class EvilMiddleWare(MockRestMiddleware):

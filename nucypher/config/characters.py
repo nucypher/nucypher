@@ -21,26 +21,48 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
 
+from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import NodeConfiguration
+from nucypher.config.node import CharacterConfiguration
 
 
-class UrsulaConfiguration(NodeConfiguration):
+class UrsulaConfiguration(CharacterConfiguration):
+
     from nucypher.characters.lawful import Ursula
+    CHARACTER_CLASS = Ursula
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    _CHARACTER_CLASS = Ursula
-    _NAME = _CHARACTER_CLASS.__name__.lower()
-
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+    DEFAULT_REST_HOST = '127.0.0.1'
+    DEFAULT_REST_PORT = 9151
+    DEFAULT_DEVELOPMENT_REST_PORT = 10151
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
 
     def __init__(self,
                  dev_mode: bool = False,
                  db_filepath: str = None,
+                 rest_host: str = None,
+                 rest_port: int = None,
+                 tls_curve: EllipticCurve = None,
+                 certificate: Certificate = None,
+                 stake_tracker: StakeTracker = None,
                  *args, **kwargs) -> None:
+
+        if not rest_port:
+            if dev_mode:
+                rest_port = self.DEFAULT_DEVELOPMENT_REST_PORT
+            else:
+                rest_port = self.DEFAULT_REST_PORT
+        self.rest_port = rest_port
+        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
+        self.certificate = certificate
+        self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
@@ -50,14 +72,13 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    @property
     def static_payload(self) -> dict:
         payload = dict(
-         rest_host=self.rest_host,
-         rest_port=self.rest_port,
-         db_filepath=self.db_filepath,
+            rest_host=self.rest_host,
+            rest_port=self.rest_port,
+            db_filepath=self.db_filepath,
         )
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     @property
     def dynamic_payload(self) -> dict:
@@ -67,6 +88,7 @@ class UrsulaConfiguration(NodeConfiguration):
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None,
+            stake_tracker=self.stake_tracker
         )
         return {**super().dynamic_payload, **payload}
 
@@ -74,7 +96,7 @@ class UrsulaConfiguration(NodeConfiguration):
         """Produce a new Ursula from configuration"""
 
         merged_parameters = self.generate_parameters(**overrides)
-        ursula = self._CHARACTER_CLASS(**merged_parameters)
+        ursula = self.CHARACTER_CLASS(**merged_parameters)
 
         if self.dev_mode:
             class MockDatastoreThreadPool(object):
@@ -99,22 +121,20 @@ class UrsulaConfiguration(NodeConfiguration):
         super().destroy()
 
 
-class AliceConfiguration(NodeConfiguration):
+class AliceConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Alice
 
-    _CHARACTER_CLASS = Alice
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Alice
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_CONTROLLER_PORT = 8151
 
     # TODO: Best (Sane) Defaults
     DEFAULT_M = 2
     DEFAULT_N = 3
-    DEFAULT_RATE = int(1e14)  # wei
+    DEFAULT_RATE = int(1e14)          # wei
     DEFAULT_FIRST_PERIOD_RATE = 0.25  # % of calculated rate per period
-    DEFAULT_DURATION = 3  # periods
+    DEFAULT_DURATION = 3              # periods
 
     def __init__(self,
                  m: int = None,
@@ -123,88 +143,83 @@ class AliceConfiguration(NodeConfiguration):
                  first_period_rate: float = None,
                  duration: int = None,
                  *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
         self.m = m or self.DEFAULT_M
         self.n = n or self.DEFAULT_N
         self.rate = rate or self.DEFAULT_RATE
         self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
         self.duration = duration or self.DEFAULT_DURATION
+        super().__init__(*args, **kwargs)
 
-    @property
     def static_payload(self) -> dict:
         payload = dict(m=self.m,
                        n=self.n,
                        rate=self.rate,
                        first_period_rate=self.first_period_rate,
                        duration=self.duration)
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
                                      **generation_kwargs)
 
 
-class BobConfiguration(NodeConfiguration):
+class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
 
-    _CHARACTER_CLASS = Bob
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Bob
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_CONTROLLER_PORT = 7151
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
-                                     wallet=False,
                                      **generation_kwargs)
 
 
-class FelixConfiguration(NodeConfiguration):
+class FelixConfiguration(CharacterConfiguration):
     from nucypher.characters.chaotic import Felix
 
-    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
-
-        # Character
-        super().__init__(*args, **kwargs)
-
-        # Felix
-        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
-
     # Character
-    _CHARACTER_CLASS = Felix
-    _NAME = _CHARACTER_CLASS.__name__.lower()
+    CHARACTER_CLASS = Felix
+    _NAME = CHARACTER_CLASS.__name__.lower()
 
-    # Configuration File
-    CONFIG_FILENAME = '{}.config'.format(_NAME)
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
-
-    # Database
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
-
-    # Network
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
+    DEFAULT_REST_HOST = '127.0.0.1'
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
 
-    @property
+    def __init__(self,
+                 db_filepath: str = None,
+                 rest_host: str = None,
+                 rest_port: int = None,
+                 tls_curve: EllipticCurve = None,
+                 certificate: Certificate = None,
+                 *args, **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+        if not rest_port:
+            rest_port = self.DEFAULT_REST_PORT
+        self.rest_port = rest_port or self.DEFAULT_REST_PORT
+        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
+        self.certificate = certificate
+        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
+
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_filepath=self.db_filepath,
         )
-        return {**super().static_payload, **payload}
+        return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-
         return super().write_keyring(password=password,
                                      encrypting=True,  # TODO: #668
                                      rest=True,

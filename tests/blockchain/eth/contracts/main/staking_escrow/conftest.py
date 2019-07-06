@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from web3.contract import Contract
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.token import NU
 
@@ -29,7 +30,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
-    token, _ = testerchain.interface.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = testerchain.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 
@@ -37,29 +38,30 @@ def token(testerchain):
 def escrow_contract(testerchain, token, request):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
-        _mining_coefficient = 2 * 10 ** 7
-        contract, _ = testerchain.interface.deploy_contract(
-            contract_name='MinersEscrow',
+        _staking_coefficient = 2 * 10 ** 7
+        contract, _ = testerchain.deploy_contract(
+            contract_name='StakingEscrow',
             _token=token.address,
             _hoursPerPeriod=1,
-            _miningCoefficient=4 * _mining_coefficient,
+            _miningCoefficient=4 * _staking_coefficient,
             _lockedPeriodsCoefficient=4,
             _rewardedPeriods=4,
             _minLockedPeriods=2,
             _minAllowableLockedTokens=100,
-            _maxAllowableLockedTokens=max_allowed_locked_tokens
+            _maxAllowableLockedTokens=max_allowed_locked_tokens,
+            _minWorkerPeriods=1
         )
 
         if request.param:
-            secret_hash = testerchain.interface.w3.keccak(secret)
-            dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
-            contract = testerchain.interface.w3.eth.contract(
+            secret_hash = keccak(secret)
+            dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
+            contract = testerchain.client.get_contract(
                 abi=contract.abi,
                 address=dispatcher.address,
                 ContractFactoryClass=Contract)
 
-        policy_manager, _ = testerchain.interface.deploy_contract(
-            'PolicyManagerForMinersEscrowMock', token.address, contract.address
+        policy_manager, _ = testerchain.deploy_contract(
+            'PolicyManagerForStakingEscrowMock', token.address, contract.address
         )
         tx = contract.functions.setPolicyManager(policy_manager.address).transact()
         testerchain.wait_for_receipt(tx)
