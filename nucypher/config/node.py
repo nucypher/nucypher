@@ -178,15 +178,13 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def get_blockchain_interface(self, sync_now: bool = False) -> None:
+    def get_blockchain_interface(self) -> None:
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
         self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
                                               poa=self.poa,
-                                              fetch_registry=True,
-                                              provider_process=self.provider_process,
-                                              sync_now=sync_now)
+                                              provider_process=self.provider_process)
 
     def acquire_agency(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)

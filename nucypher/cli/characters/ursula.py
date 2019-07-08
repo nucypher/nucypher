@@ -251,7 +251,6 @@ def ursula(click_config,
 
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
-                                        sync=sync,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
                                         dev=dev,

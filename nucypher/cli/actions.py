@@ -230,7 +230,6 @@ def make_cli_character(character_config,
                        dev: bool = False,
                        teacher_uri: str = None,
                        min_stake: int = 0,
-                       sync: bool = True,
                        **config_args):
 
     #
@@ -239,7 +238,7 @@ def make_cli_character(character_config,
 
     # Handle Blockchain
     if not character_config.federated_only:
-        character_config.get_blockchain_interface(sync_now=sync)
+        character_config.get_blockchain_interface()
 
     # Handle Keyring
     if not dev:

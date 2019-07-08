@@ -31,10 +31,12 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
+from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract, ConciseContract, ContractFunction
-from web3.exceptions import TimeExhausted
+from web3.contract import ConciseContract
+from web3.contract import Contract, ContractFunction, ContractConstructor
+from web3.exceptions import TimeExhausted, ValidationError
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import Web3Client, NuCypherGethProcess
@@ -83,13 +85,11 @@ class BlockchainInterface:
 
     def __init__(self,
                  poa: bool = True,
-                 sync_now: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  transacting_power: TransactingPower = READ_ONLY_INTERFACE,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
-                 registry: EthereumContractRegistry = None,
-                 fetch_registry: bool = True):
+                 registry: EthereumContractRegistry = None):
 
         """
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
@@ -306,7 +306,21 @@ class BlockchainInterface:
                         'from': sender_address,
                         'gasPrice': self.client.w3.eth.gasPrice})
 
-        unsigned_transaction = transaction_function.buildTransaction(payload)
+        # Get interface name
+        try:
+            transaction_name = transaction_function.fn_name.upper()
+        except AttributeError:
+            if isinstance(transaction_function, ContractConstructor):
+                transaction_name = 'DEPLOY'
+            else:
+                transaction_name = 'UNKNOWN'
+
+        # Build transaction payload
+        try:
+            unsigned_transaction = transaction_function.buildTransaction(payload)
+        except ValidationError:
+            # TODO: Handle validation failures for gas limits, invalid fields, etc.
+            pass
 
         #
         # Broadcast
@@ -314,11 +328,15 @@ class BlockchainInterface:
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        self.log.debug(f"[TX-{transaction_name}] | {to_checksum_address(payload['from'])}")
 
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
+            # TODO: Handle transaction timeout
             raise
+        else:
+            self.log.debug(f"[RECEIPT-{transaction_name}] | {receipt['transactionHash'].hex()}")
 
         #
         # Confirm

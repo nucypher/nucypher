@@ -173,8 +173,7 @@ def alice(click_config,
                                        click_config=click_config,
                                        dev=dev,
                                        teacher_uri=teacher_uri,
-                                       min_stake=min_stake,
-                                       sync=sync)
+                                       min_stake=min_stake)
 
     #
     # Admin Actions

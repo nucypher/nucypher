@@ -105,9 +105,7 @@ def deploy(click_config,
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
                                              registry=registry,
-                                             compiler=SolidityCompiler(),
-                                             fetch_registry=False,
-                                             sync_now=sync)
+                                             compiler=SolidityCompiler())
 
     blockchain.connect(fetch_registry=False, sync_now=sync)
 
