@@ -481,11 +481,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def _setup_solidity(self, compiler: SolidityCompiler = None):
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
-        recompile = True if compiler is not None else False
-        self.__recompile = recompile
         self.__sol_compiler = compiler
-
-        if self.__recompile is True:
+        if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry
             interfaces = self.__sol_compiler.compile()
