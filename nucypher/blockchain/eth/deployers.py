@@ -106,15 +106,14 @@ class ContractDeployer:
         ]
 
         disqualifications = list()
-        for failed_rule, failure_reason in rules:
-            if failed_rule is False:                           # If this rule fails...
+        for rule_is_satisfied, failure_reason in rules:
+            if not rule_is_satisfied:                        # If this rule fails...
                 if fail is True:
                     raise self.ContractDeploymentError(failure_reason)
                 else:
                     disqualifications.append(failure_reason)   # ... here's why
-                    continue
 
-        is_ready = True if len(disqualifications) == 0 else False
+        is_ready = len(disqualifications) == 0
         return is_ready, disqualifications
 
     def _ensure_contract_deployment(self) -> bool:
