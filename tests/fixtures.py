@@ -392,7 +392,22 @@ def _session_testerchain():  # ... boring name...BOOH!
 def session_testerchain(_session_testerchain):
     testerchain = _session_testerchain
     testerchain.registry.clear()
-    # TODO: Check also that there's enough ETH/NU for everyone
+
+    coinbase, *addresses = testerchain.client.accounts
+
+    for address in addresses:
+        balance = testerchain.client.get_balance(address)
+        spent = DEVELOPMENT_ETH_AIRDROP_AMOUNT - balance
+        if spent > 0:
+            tx = {'to': address,
+                  'from': coinbase,
+                  'value': spent}
+
+            txhash = testerchain.w3.eth.sendTransaction(tx)
+
+            _receipt = testerchain.wait_for_receipt(txhash)
+            eth_amount = Web3().fromWei(spent, 'ether')
+            testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
     yield testerchain
     testerchain.registry.clear()
 
