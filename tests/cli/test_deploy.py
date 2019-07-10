@@ -11,6 +11,7 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     UserEscrowAgent,
     PolicyManagerAgent,
+    AdjudicatorAgent,
     Agency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -125,7 +126,10 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # and at least the others can be instantiated
     assert PolicyManagerAgent()
-    # assert AdjudicatorAgent(blockchain=testerchain)  # TODO: #931
+
+    # This agent wasn't instantiated before, so we have to supply the blockchain
+    blockchain = staking_agent.blockchain
+    assert AdjudicatorAgent(blockchain=blockchain)
 
 
 def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
