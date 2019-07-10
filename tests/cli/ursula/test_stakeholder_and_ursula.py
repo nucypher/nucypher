@@ -13,6 +13,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
@@ -112,7 +113,7 @@ def test_ursula_init(click_runner,
     init_args = ('ursula', 'init',
                  '--poa',
                  '--network', TEMPORARY_DOMAIN,
-                 '--staker-address', testerchain.etherbase_account,
+                 '--staker-address', testerchain.etherbase_account,  # TODO: This is confusing.
                  '--worker-address', staking_participant.checksum_address,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
@@ -139,7 +140,7 @@ def test_ursula_init(click_runner,
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
-        assert config_data['checksum_address'] == testerchain.etherbase_account
+        assert config_data['checksum_address'] == staking_participant.checksum_address
         assert TEMPORARY_DOMAIN in config_data['domains']
 
 
@@ -244,7 +245,7 @@ def test_stake_set_worker(click_runner,
     init_args = ('stake', 'set-worker',
                  '--config-file', staker_configuration_file_location,
                  '--staking-address', testerchain.etherbase_account,
-                 '--worker-address', testerchain.etherbase_account,  # TODO: Use Manual Worker
+                 '--worker-address', testerchain.etherbase_account,
                  '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
@@ -286,8 +287,11 @@ def test_collect_rewards_integration(click_runner,
     logger = staking_participant.log  # Enter the Teacher's Logger, and
     current_period = 1  # State the initial period for incrementing
 
+    staker_address = staking_participant.checksum_address
+    worker_address = staking_participant.worker_address
+
     staker = Staker(is_me=True,
-                    checksum_address=testerchain.etherbase_account,
+                    checksum_address=staker_address,
                     blockchain=testerchain)
 
     # The staker is staking.
@@ -295,10 +299,16 @@ def test_collect_rewards_integration(click_runner,
     assert staker.is_staking
     pre_stake_token_balance = staker.token_balance
 
+    assert staker.worker_address == worker_address
+
     worker = Worker(is_me=True,
-                    worker_address=testerchain.etherbase_account,
-                    checksum_address=testerchain.etherbase_account,  # TODO: Use another account
+                    worker_address=worker_address,
+                    checksum_address=staker_address,
                     blockchain=testerchain)
+
+    # Mock TransactingPower consumption (Worker-Ursula)
+    worker.blockchain.transacting_power = TransactingPower(account=worker_address, blockchain=testerchain)
+    worker.blockchain.transacting_power.activate()
 
     # Confirm for half the first stake duration
     for _ in range(half_stake_time):
@@ -374,7 +384,7 @@ def test_collect_rewards_integration(click_runner,
     collection_args = ('--mock-networking',
                        'stake', 'collect-reward',
                        '--config-file', staker_configuration_file_location,
-                       '--staking-address', testerchain.etherbase_account,
+                       '--staking-address', staker_address,
                        '--withdraw-address', burner_wallet.address,
                        '--force')
 
@@ -398,6 +408,6 @@ def test_collect_rewards_integration(click_runner,
         worker.confirm_activity()
 
     # Staking Reward
-    calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.checksum_address)
+    calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.worker_address)
     assert calculated_reward
     assert staker.token_balance > pre_stake_token_balance

@@ -116,11 +116,18 @@ def ursula(click_config,
     # Validate
     #
 
-    if federated_only and geth:
-        raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+    if federated_only:
+        if geth:
+            raise click.BadOptionUsage(option_name="--geth",
+                                       message="Federated only cannot be used with the --geth flag")
+
+        if staker_address:
+            raise click.BadOptionUsage(option_name='--federated-only',
+                                       message="Staking address canot be used in federated mode.")
 
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
+
 
     # Banner
     if not click_config.json_ipc and not click_config.quiet:
@@ -156,20 +163,21 @@ def ursula(click_config,
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
-        if not staker_address:
+        if not staker_address and not federated_only:
             staker_address = click.prompt("Enter staker checksum address", type=EIP55_CHECKSUM_ADDRESS)
 
-        # TODO: Restore Federated Only Operation
         if not worker_address:
 
-            # Blockchain
-            registry = None
-            if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=False)
+            if not federated_only:
 
-            worker_address = select_client_account(blockchain=blockchain)
+                # Blockchain
+                registry = None
+                if registry_filepath:
+                    registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+                blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+                blockchain.connect(fetch_registry=False)
+
+                worker_address = select_client_account(blockchain=blockchain)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
