@@ -206,8 +206,8 @@ def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker, 
     # Wait out stake duration, manually confirming activity once per period.
     periods_remaining = stake.end_period - worker.staking_agent.get_current_period()
     for period in range(periods_remaining):
-        testerchain.time_travel(periods=1)
         worker.confirm_activity()
+        testerchain.time_travel(periods=1)
 
     # Mock TransactingPower consumption (Staker-Ursula)
     worker.blockchain.transacting_power = TransactingPower(account=testerchain.etherbase_account, blockchain=testerchain)

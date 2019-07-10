@@ -413,9 +413,9 @@ class CharacterConfiguration(BaseConfiguration):
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         if self.federated_only:
-            checksum_address = FEDERATED_ADDRESS
+            generation_kwargs['checksum_address'] = FEDERATED_ADDRESS
 
-        else:
+        elif 'checksum_address' not in generation_kwargs:
             # Note: It is assumed the blockchain interface is not yet connected.
             if self.provider_process:
 
@@ -433,10 +433,10 @@ class CharacterConfiguration(BaseConfiguration):
                 raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
 
             checksum_address = self.checksum_address
+            generation_kwargs['checksum_address'] = checksum_address
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
-                                                checksum_address=checksum_address,
                                                 **generation_kwargs)
 
         self.checksum_address = self.keyring.account

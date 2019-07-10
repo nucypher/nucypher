@@ -6,6 +6,7 @@ from nucypher.cli import deploy
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration, UrsulaConfiguration, AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.network.nodes import Teacher
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -25,25 +26,19 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
     assert f'"{ursula_file_location}" does not exist.' in result.output
 
 
-@pytest.mark.skip(reason="Skip until we have CLI for stakers (#1056)")
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    mock_primary_registry_filepath,
                                    testerchain,
-                                   deploy_user_input):
+                                   agency):
+    #
+    # Setup
+    #
 
     # Parse node addresses
-    deployer, alice, ursula, another_ursula, *all_yall = testerchain.client.accounts
+    alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
-
-               # Upgradeable Contracts
-               'NUCYPHER_STAKING_ESCROW_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_POLICY_MANAGER_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_ADJUDICATOR_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_USER_ESCROW_PROXY_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
-
-               # Auxiliary
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
 
     # Future configuration filepaths for assertions...
@@ -54,19 +49,6 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isdir(public_keys_dir)
     assert not os.path.isfile(known_nodes_dir)
 
-    # Deploy contracts
-    deploy_args = ('contracts',
-                   '--registry-outfile', mock_primary_registry_filepath,
-                   '--provider-uri', TEST_PROVIDER_URI,
-                   '--config-root', custom_filepath,
-                   '--poa')
-
-    result = click_runner.invoke(deploy.deploy,
-                                 deploy_args,
-                                 input=f'0\nY\nDEPLOY',
-                                 catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
-
     # No keys have been generated...
     with pytest.raises(FileNotFoundError):
         assert len(os.listdir(public_keys_dir)) == 0
@@ -75,10 +57,15 @@ def test_coexisting_configurations(click_runner,
     with pytest.raises(FileNotFoundError):
         assert len(os.listdir(known_nodes_dir)) == 0
 
-    # Just the configuration root...
-    assert os.path.isdir(custom_filepath)
+    # Not the configuration root...
+    assert not os.path.isdir(custom_filepath)
 
-    # and the fresh registry.
+    # And not the customs registry.
+    assert not os.path.isfile(mock_primary_registry_filepath)
+
+    # Create filesystem registry
+    filepath = testerchain.registry.commit(filepath=mock_primary_registry_filepath)
+    assert filepath == mock_primary_registry_filepath
     assert os.path.isfile(mock_primary_registry_filepath)
 
     #
@@ -96,13 +83,17 @@ def test_coexisting_configurations(click_runner,
                        '--config-root', custom_filepath,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider-uri', TEST_PROVIDER_URI,
-                       '--checksum-address', deployer,
+                       '--checksum-address', felix,
                        '--registry-filepath', mock_primary_registry_filepath
                        )
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+
+    # All configuration files still exist.
+    assert os.path.isdir(custom_filepath)
     assert os.path.isfile(felix_file_location)
+    assert os.path.isdir(public_keys_dir)
     assert len(os.listdir(public_keys_dir)) == 3
 
     # Use a custom local filepath to init a persistent Alice
@@ -115,6 +106,9 @@ def test_coexisting_configurations(click_runner,
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+
+    # All configuration files still exist.
+    assert os.path.isfile(felix_file_location)
     assert os.path.isfile(alice_file_location)
     assert len(os.listdir(public_keys_dir)) == 5
 
@@ -122,20 +116,26 @@ def test_coexisting_configurations(click_runner,
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--provider-uri', TEST_PROVIDER_URI,
-                 '--checksum-address', ursula,
+                 '--worker-address', ursula,
+                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
+
+    # All configuration files still exist.
     assert len(os.listdir(public_keys_dir)) == 8
+    assert os.path.isfile(felix_file_location)
+    assert os.path.isfile(alice_file_location)
     assert os.path.isfile(ursula_file_location)
 
     # Use the same local filepath to init another persistent Ursula
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--checksum-address', another_ursula,
+                 '--worker-address', another_ursula,
+                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', mock_primary_registry_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
@@ -144,9 +144,11 @@ def test_coexisting_configurations(click_runner,
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
+    # All configuration files still exist.
+    assert os.path.isfile(felix_file_location)
+    assert os.path.isfile(alice_file_location)
     assert os.path.isfile(another_ursula_configuration_file_location)
     assert os.path.isfile(ursula_file_location)
-
     assert len(os.listdir(public_keys_dir)) == 11
 
     #
@@ -154,12 +156,23 @@ def test_coexisting_configurations(click_runner,
     #
 
     # Run an Ursula amidst the other configuration files
-    run_args = ('ursula', 'run', '--dry-run', '--interactive',
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--interactive',
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
-    result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
+    with pytest.raises(Teacher.DetachedWorker):
+        # Worker init success, but unassigned.
+        result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # All configuration files still exist.
+    assert os.path.isfile(felix_file_location)
+    assert os.path.isfile(alice_file_location)
+    assert os.path.isfile(another_ursula_configuration_file_location)
+    assert os.path.isfile(ursula_file_location)
+    assert len(os.listdir(public_keys_dir)) == 11
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
@@ -195,19 +208,20 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isfile(felix_file_location)
 
 
-@pytest.mark.skip(reason="Skip until we have CLI for stakers (#1056)")
 def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
-    deployer, alice, ursula, another_ursula, *all_yall = testerchain.client.accounts
+    alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     init_args = ('ursula', 'init',
                  '--provider-uri', TEST_PROVIDER_URI,
-                 '--checksum-address', ursula,
+                 '--worker-address', another_ursula,
+                 '--staker-address', staker,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath)
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': ''}
+
     with pytest.raises(NucypherKeyring.AuthenticationFailed):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
         assert result.exit_code != 0
@@ -226,7 +240,8 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--provider-uri', TEST_PROVIDER_URI,
-                 '--checksum-address', ursula,
+                 '--worker-address', another_ursula,
+                 '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
                  '--config-root', custom_filepath)

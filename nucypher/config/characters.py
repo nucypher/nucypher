@@ -116,6 +116,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                                      rest=True,
                                      host=self.rest_host,
                                      curve=self.tls_curve,
+                                     checksum_address=self.worker_address,
                                      **generation_kwargs)
 
     def destroy(self) -> None:
