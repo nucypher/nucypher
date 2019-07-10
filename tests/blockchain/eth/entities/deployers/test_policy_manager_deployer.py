@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import PolicyManagerAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     DispatcherDeployer
@@ -47,8 +47,6 @@ def test_policy_manager_deployment(session_testerchain, policy_manager_deployer,
     staking_escrow_address = policy_manager_deployer.contract.functions.escrow().call()
     assert staking_escrow_deployer.contract_address == staking_escrow_address
 
-    # TODO: #1102 - Check that StakingEscrow contract address and public parameters are correct
-
 
 def test_make_agent(policy_manager_deployer):
 
@@ -61,6 +59,16 @@ def test_make_agent(policy_manager_deployer):
 
     # Compare the contract address for equality
     assert policy_agent.contract_address == some_policy_agent.contract_address
+
+
+def test_deployment_parameters(policy_manager_deployer, staking_escrow_deployer):
+
+    escrow_address = policy_manager_deployer.contract.functions.escrow().call()
+    assert staking_escrow_deployer.contract_address == escrow_address
+
+    staking_agent = StakingEscrowAgent()
+    seconds_per_period = staking_agent.staking_parameters()[0]
+    assert seconds_per_period == policy_manager_deployer.contract.functions.secondsPerPeriod().call()
 
 
 def test_policy_manager_has_dispatcher(policy_manager_deployer, session_testerchain):

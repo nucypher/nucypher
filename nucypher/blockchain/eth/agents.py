@@ -286,6 +286,29 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
                                                    sender_address=staker_address)
         return receipt
 
+    def staking_parameters(self) -> Tuple:
+        parameter_signatures = (
+            # Period
+            'secondsPerPeriod',  # Seconds in single period  # FIXME: StakingEscrow says hoursPerPeriod
+
+            # Coefficients
+            'miningCoefficient',         # Staking coefficient (k2) # FIXME: Still says "mining"
+            'lockedPeriodsCoefficient',  # Locked periods coefficient (k1)
+            'rewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
+
+            # Constraints
+            'minLockedPeriods',          # Min amount of periods during which tokens can be locked
+            'minAllowableLockedTokens',  # Min amount of tokens that can be locked
+            'maxAllowableLockedTokens',  # Max amount of tokens that can be locked
+            'minWorkerPeriods'           # Min amount of periods while a worker can't be changed
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return staking_parameters
+
     #
     # Contract Utilities
     #
