@@ -727,6 +727,9 @@ class Investigator(NucypherTokenActor):
                                                         sender_address=self.checksum_address)
         return receipt
 
+    def was_this_evidence_evaluated(self, evidence):
+        return self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+
 
 class StakeHolder(BaseConfiguration):
 

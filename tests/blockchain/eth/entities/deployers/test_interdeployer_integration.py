@@ -132,6 +132,6 @@ def test_deploy_ethereum_contracts(session_testerchain):
     assert len(adjudicator_agent.contract_address) == 42
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
 
-    another_adjudicator_agent = adjudicator_deployer.make_agent()
+    another_adjudicator_agent = AdjudicatorAgent()
     assert len(another_adjudicator_agent.contract_address) == 42
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
