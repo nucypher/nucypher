@@ -41,18 +41,19 @@ def mock_ursula(testerchain, account):
 
 
 @pytest.mark.slow()
-def test_investigator_requests_slashing(agency,
-                                        testerchain,
+def test_investigator_requests_slashing(session_testerchain,
+                                        session_agency,
                                         mock_ursula_reencrypts,
                                         token_economics,
                                         slashing_economics):
+    testerchain = session_testerchain
 
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
 
     ##### STAKING ESCROW STUFF #####
 
-    token_agent, staking_agent, _policy_agent = agency
+    token_agent, staking_agent, _policy_agent = session_agency
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
