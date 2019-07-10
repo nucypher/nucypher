@@ -49,6 +49,7 @@ from nucypher.crypto.powers import BlockchainPower
 @click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--amount', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
+@click.option('--gas-limit', help="Gas limit for transactions", type=click.INT)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -67,6 +68,7 @@ def deploy(click_config,
            registry_outfile,
            no_compile,
            amount,
+           gas_limit,
            recipient_address,
            config_root,
            sync,
@@ -243,7 +245,9 @@ def deploy(click_config,
         txhashes, deployers = deployer.deploy_network_contracts(staker_secret=secrets.staker_secret,
                                                                 policy_secret=secrets.policy_secret,
                                                                 adjudicator_secret=secrets.adjudicator_secret,
-                                                                user_escrow_proxy_secret=secrets.escrow_proxy_secret)
+                                                                user_escrow_proxy_secret=secrets.escrow_proxy_secret,
+                                                                gas_limit=gas_limit,
+                                                                )
 
         # Success
         __deployment_transactions.update(txhashes)

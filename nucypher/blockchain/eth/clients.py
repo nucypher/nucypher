@@ -7,7 +7,7 @@ from typing import Union
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_account import Account
-from eth_account.messages import encode_defunct
+from eth_account.messages import encode_defunct, HexBytes
 from eth_utils import to_canonical_address
 from eth_utils import to_checksum_address
 from geth import LoggingMixin
@@ -250,6 +250,21 @@ class Web3Client(object):
         """
         return self.w3.eth.sign(account, data=message)
 
+    def get_signing_key(self, account):
+
+        raise NotImplementedError
+
+    def sign_transaction(self, account: str, transaction: dict):
+
+        # Get signing key
+        signing_key = self.get_signing_key(account)
+
+        # Sign using a local private key
+        signed_transaction = self.w3.eth.account.sign_transaction(transaction, private_key=signing_key)
+        rlp_transaction = signed_transaction.rawTransaction
+
+        return rlp_transaction
+
 
 class GethClient(Web3Client):
 
@@ -288,6 +303,13 @@ class GanacheClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
+    def get_signing_key(self, account):
+
+        signing_key = os.getenv("NUCYPHER_GANACHE_ACCT_PRIVATE_KEY")
+        if not signing_key:
+            raise AttributeError("You must set the envvar 'NUCYPHER_GANACHE_ACCT_PRIVATE_KEY' with the private key of the Ganache account you are using.")
+        return HexBytes(signing_key)
+
 
 class EthereumTesterClient(Web3Client):
 
@@ -299,16 +321,10 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
-    def sign_transaction(self, account: str, transaction: dict):
+    def get_signing_key(self, account):
         # Get signing key of test account
         address = to_canonical_address(account)
-        signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
-
-        # Sign using a local private key
-        signed_transaction = self.w3.eth.account.sign_transaction(transaction, private_key=signing_key)
-        rlp_transaction = signed_transaction.rawTransaction
-
-        return rlp_transaction
+        return self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
     def sign_message(self, account: str, message: bytes) -> str:
         # Get signing key of test account

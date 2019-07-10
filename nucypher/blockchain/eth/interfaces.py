@@ -257,10 +257,10 @@ class BlockchainInterface:
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
 
-        if not provider_uri and not provider:
+        if not provider_uri and provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("No URI or provider instances supplied.")
 
-        if provider_uri and not provider:
+        if provider_uri and provider is NO_BLOCKCHAIN_CONNECTION:
             uri_breakdown = urlparse(provider_uri)
 
             if uri_breakdown.scheme == 'tester':
@@ -473,7 +473,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
         # Build the deployment transaction #
         #
-
         deploy_transaction = {'gasPrice': self.client.gas_price}
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})

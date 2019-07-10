@@ -246,12 +246,13 @@ class Deployer(NucypherTokenActor):
                                  policy_secret: str,
                                  adjudicator_secret: str,
                                  user_escrow_proxy_secret: str,
+                                 gas_limit: int,
                                  ) -> Tuple[dict, dict]:
         """
         Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
         """
 
-        token_txs, token_deployer = self.deploy_contract(contract_name='NuCypherToken')
+        token_txs, token_deployer = self.deploy_contract(contract_name='NuCypherToken', gas_limit=gas_limit)
         staking_txs, staking_deployer = self.deploy_contract(contract_name='StakingEscrow', plaintext_secret=staker_secret)
         policy_txs, policy_deployer = self.deploy_contract(contract_name='PolicyManager', plaintext_secret=policy_secret)
         adjudicator_txs, adjudicator_deployer = self.deploy_contract(contract_name='Adjudicator', plaintext_secret=adjudicator_secret)
