@@ -41,7 +41,7 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
-    PolicyAgent,
+    PolicyManagerAgent,
     AdjudicatorAgent,
     EthereumContractAgent
 )
@@ -169,7 +169,7 @@ class DeployerActor(NucypherTokenActor):
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
             self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
-            self.policy_agent = PolicyAgent(blockchain=blockchain)
+            self.policy_agent = PolicyManagerAgent(blockchain=blockchain)
             self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
@@ -564,9 +564,9 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyAgent = None):
+    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyManagerAgent = None):
         """Collect rewarded ETH"""
-        policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
+        policy_agent = policy_agent or PolicyManagerAgent(blockchain=self.blockchain)
         withdraw_address = collector_address or self.checksum_address
         receipt = policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                      staker_address=self.checksum_address)
@@ -659,7 +659,7 @@ class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, checksum_address: str,
-                 policy_agent: PolicyAgent = None,
+                 policy_agent: PolicyManagerAgent = None,
                  economics: TokenEconomics = None,
                  *args, **kwargs) -> None:
         """
@@ -674,7 +674,7 @@ class PolicyAuthor(NucypherTokenActor):
         if not policy_agent:
             self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
             self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-            self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+            self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
 
         # Injected
         else:

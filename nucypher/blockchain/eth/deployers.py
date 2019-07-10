@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
     NucypherTokenAgent,
-    PolicyAgent,
+    PolicyManagerAgent,
     UserEscrowAgent,
     AdjudicatorAgent)
 from nucypher.blockchain.eth.decorators import validate_secret
@@ -391,7 +391,7 @@ class PolicyManagerDeployer(ContractDeployer):
     Depends on StakingEscrow and NucypherTokenAgent
     """
 
-    agency = PolicyAgent
+    agency = PolicyManagerAgent
     contract_name = agency.registry_contract_name
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
@@ -537,7 +537,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
 
     def _deploy_essential(self, gas_limit: int = None):
         constructor_args = (self.token_agent.contract_address,
@@ -620,7 +620,7 @@ class UserEscrowDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
         self.__beneficiary_address = NO_BENEFICIARY
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
 
