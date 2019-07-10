@@ -16,32 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                DispatcherDeployer)
-from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.sandbox.blockchain import STAKING_ESCROW_DEPLOYMENT_SECRET
-
-
-@pytest.fixture(scope="module")
-def staking_escrow_deployer(session_testerchain):
-    testerchain = session_testerchain
-
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain,
-                                           deployer_address=testerchain.etherbase_account)
-    token_deployer.deploy()
-
-    deployer = StakingEscrowDeployer(blockchain=testerchain,
-                                     deployer_address=testerchain.etherbase_account)
-    return deployer
 
 
 def test_staking_escrow_deployment(session_testerchain, staking_escrow_deployer):
     testerchain = session_testerchain
 
-    secret_hash = keccak_digest(bytes(STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8'))
+    secret_hash = keccak(text=STAKING_ESCROW_DEPLOYMENT_SECRET)
     deployment_receipts = staking_escrow_deployer.deploy(secret_hash=secret_hash)
 
     assert len(deployment_receipts) == 4
@@ -84,7 +71,7 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, session_testerch
 def test_upgrade(session_testerchain):
     wrong_secret = b"on second thoughts..."
     old_secret = bytes(STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
-    new_secret_hash = keccak_digest(b'new'+old_secret)
+    new_secret_hash = keccak(b'new'+old_secret)
 
     deployer = StakingEscrowDeployer(blockchain=session_testerchain,
                                      deployer_address=session_testerchain.etherbase_account)
@@ -103,7 +90,7 @@ def test_upgrade(session_testerchain):
 
 def test_rollback(session_testerchain):
     old_secret = bytes('new'+STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
-    new_secret_hash = keccak_digest(b"third time's the charm")
+    new_secret_hash = keccak(text="third time's the charm")
 
     deployer = StakingEscrowDeployer(blockchain=session_testerchain,
                                      deployer_address=session_testerchain.etherbase_account)
@@ -130,7 +117,7 @@ def test_rollback(session_testerchain):
 
     # OK, *now* is time for rollback
     old_secret = b"third time's the charm"
-    new_secret_hash = keccak_digest(b"...maybe not.")
+    new_secret_hash = keccak(text="...maybe not.")
     txhash = deployer.rollback(existing_secret_plaintext=old_secret,
                                new_secret_hash=new_secret_hash)
 
