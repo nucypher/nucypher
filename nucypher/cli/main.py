@@ -25,8 +25,6 @@ from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmi
 from nucypher.cli import status
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
 from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
-from nucypher.cli.device.actions import DEVICE_ACTIONS
-from nucypher.cli.hardware.backends import Trezor
 from nucypher.cli.painting import echo_version
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalConsoleLogger, getJsonFileObserver, SimpleObserver, logToSentry
