@@ -19,8 +19,7 @@ import pytest
 from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
+from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
 from nucypher.utilities.sandbox.blockchain import STAKING_ESCROW_DEPLOYMENT_SECRET
 
@@ -36,8 +35,6 @@ def test_staking_escrow_deployment(session_testerchain, staking_escrow_deployer)
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1
 
-    # TODO: #1102 - Check that token contract address and staking parameters are correct
-
 
 def test_make_agent(staking_escrow_deployer):
     # Create a StakingEscrowAgent instance
@@ -49,6 +46,17 @@ def test_make_agent(staking_escrow_deployer):
 
     # Compare the contract address for equality
     assert staking_agent.contract_address == same_staking_agent.contract_address
+
+
+def test_deployment_parameters(staking_escrow_deployer, token_deployer, token_economics):
+
+    token_address = staking_escrow_deployer.contract.functions.token().call()
+    assert token_deployer.contract_address == token_address
+
+    staking_agent = StakingEscrowAgent()
+    params = staking_agent.staking_parameters()
+    assert token_economics.staking_deployment_parameters[1:] == params[1:]
+    assert token_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
 
 
 def test_staking_escrow_has_dispatcher(staking_escrow_deployer, session_testerchain):
