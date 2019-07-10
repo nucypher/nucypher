@@ -33,7 +33,7 @@ from umbral.signing import Signer
 from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.models import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
@@ -164,7 +164,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Contracts
     token_agent = NucypherTokenAgent(blockchain=testerchain)
     staking_agent = StakingEscrowAgent(blockchain=testerchain)
-    policy_agent = PolicyAgent(blockchain=testerchain)
+    policy_agent = PolicyManagerAgent(blockchain=testerchain)
     adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
 
     # Contract Callers

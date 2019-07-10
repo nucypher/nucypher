@@ -33,7 +33,7 @@ from constant_sorrow.constants import (
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.base import BaseConfiguration
@@ -195,7 +195,7 @@ class CharacterConfiguration(BaseConfiguration):
     def acquire_agency(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
         self.log.debug("Established connection to nucypher contracts")
 
     @property

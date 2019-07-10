@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import PolicyAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent
 from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     DispatcherDeployer
@@ -52,11 +52,11 @@ def test_policy_manager_deployment(session_testerchain, policy_manager_deployer,
 
 def test_make_agent(policy_manager_deployer):
 
-    # Create a PolicyAgent
+    # Create a PolicyManagerAgent
     policy_agent = policy_manager_deployer.make_agent()
 
-    # Retrieve the PolicyAgent singleton
-    some_policy_agent = PolicyAgent()
+    # Retrieve the PolicyManagerAgent singleton
+    some_policy_agent = PolicyManagerAgent()
     assert policy_agent == some_policy_agent  # __eq__
 
     # Compare the contract address for equality
@@ -72,7 +72,7 @@ def test_policy_manager_has_dispatcher(policy_manager_deployer, session_testerch
 
     # This contract shouldn't be accessible directly through the deployer or the agent
     assert policy_manager_deployer.contract_address != existing_bare_contract.address
-    policy_manager_agent = PolicyAgent()
+    policy_manager_agent = PolicyManagerAgent()
     assert policy_manager_agent.contract_address != existing_bare_contract
 
     # The wrapped contract, on the other hand, points to the bare one.
@@ -107,7 +107,7 @@ def test_rollback(session_testerchain):
     deployer = PolicyManagerDeployer(blockchain=session_testerchain,
                                      deployer_address=session_testerchain.etherbase_account)
 
-    policy_manager_agent = PolicyAgent()
+    policy_manager_agent = PolicyManagerAgent()
     current_target = policy_manager_agent.contract.functions.target().call()
 
     # Let's do one more upgrade

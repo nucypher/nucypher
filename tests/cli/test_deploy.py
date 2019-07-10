@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     UserEscrowAgent,
-    PolicyAgent,
+    PolicyManagerAgent,
     Agency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -124,7 +124,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated
-    assert PolicyAgent()
+    assert PolicyManagerAgent()
     # assert AdjudicatorAgent(blockchain=testerchain)  # TODO: #931
 
 

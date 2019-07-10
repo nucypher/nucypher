@@ -337,7 +337,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyAgent(EthereumContractAgent, metaclass=Agency):
+class PolicyManagerAgent(EthereumContractAgent, metaclass=Agency):
 
     registry_contract_name = "PolicyManager"
     _proxy_name = "Dispatcher"
