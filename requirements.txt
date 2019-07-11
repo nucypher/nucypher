@@ -7,8 +7,8 @@ attrs==19.1.0
 autobahn==19.6.2
 automat==0.7.0
 base58==1.0.3
-boto3==1.9.163
-botocore==1.12.163
+boto3==1.9.167
+botocore==1.12.167
 bytestring-splitter==1.0.0a4
 certifi==2019.3.9
 cffi==1.12.3
@@ -27,11 +27,11 @@ eth-account==0.4.0
 eth-bloom==1.0.3
 eth-hash[pycryptodome,pysha3]==0.2.0
 eth-keyfile==0.5.1
-eth-keys==0.2.2
+eth-keys==0.2.4
 eth-rlp==0.1.2
 eth-tester==0.1.0b39
 eth-typing==2.1.0
-eth-utils==1.6.0
+eth-utils==1.6.1
 ethpm==0.1.4a19
 flask-limiter==1.0.1
 flask-sqlalchemy==2.4.0
@@ -76,13 +76,13 @@ pytest-ethereum==0.1.3a6
 python-dateutil==2.8.0 ; python_version >= '2.7'
 pytz==2019.1
 pytzdata==2019.1
-pyyaml==5.1
-regex==2019.6.5
+pyyaml==5.1.1
+regex==2019.6.8
 requests==2.22.0
 rlp==1.1.0
 s3transfer==0.2.1
 semantic-version==2.6.0
-sentry-sdk==0.5.2
+sentry-sdk==0.9.0
 service-identity==18.1.0
 six==1.12.0
 snaptime==0.2.4
