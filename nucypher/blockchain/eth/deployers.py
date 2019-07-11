@@ -204,7 +204,7 @@ class DispatcherDeployer(ContractDeployer):
 
         origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
-        upgrade_receipt = self.blockchain.send_transaction(transaction_function=upgrade_function,
+        upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
                                                            payload=origin_args)
         return upgrade_receipt
@@ -212,7 +212,7 @@ class DispatcherDeployer(ContractDeployer):
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes) -> dict:
         origin_args = {'from': self.deployer_address, 'gasPrice': self.blockchain.client.gas_price}  # TODO: Gas management
         rollback_function = self._contract.functions.rollback(existing_secret_plaintext, new_secret_hash)
-        rollback_receipt = self.blockchain.send_transaction(transaction_function=rollback_function,
+        rollback_receipt = self.blockchain.send_transaction(contract_function=rollback_function,
                                                             sender_address=self.deployer_address,
                                                             payload=origin_args)
         return rollback_receipt
@@ -294,7 +294,7 @@ class StakingEscrowDeployer(ContractDeployer):
         reward_function = self.token_agent.contract.functions.transfer(the_escrow_contract.address,
                                                                        self.__economics.erc20_reward_supply)
 
-        reward_receipt = self.blockchain.send_transaction(transaction_function=reward_function,
+        reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
                                                           sender_address=self.deployer_address,
                                                           payload=origin_args)
 
@@ -304,7 +304,7 @@ class StakingEscrowDeployer(ContractDeployer):
         # 4 - Initialize the Staker Escrow contract
         init_function = the_escrow_contract.functions.initialize()
 
-        init_receipt = self.blockchain.send_transaction(transaction_function=init_function,
+        init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
                                                         payload=origin_args)
 
@@ -418,7 +418,7 @@ class PolicyManagerDeployer(ContractDeployer):
         if gas_limit:
             tx_args.update({'gas': gas_limit})
         set_policy_manager_function = self.staking_agent.contract.functions.setPolicyManager(policy_manager_contract.address)
-        set_policy_manager_receipt = self.blockchain.send_transaction(transaction_function=set_policy_manager_function,
+        set_policy_manager_receipt = self.blockchain.send_transaction(contract_function=set_policy_manager_function,
                                                                       sender_address=self.deployer_address,
                                                                       payload=tx_args)
 
@@ -505,7 +505,7 @@ class LibraryLinkerDeployer(ContractDeployer):
 
         origin_args = {'from': self.deployer_address}  # TODO: Gas management
         retarget_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
-        retarget_receipt = self.blockchain.send_transaction(transaction_function=retarget_function,
+        retarget_receipt = self.blockchain.send_transaction(contract_function=retarget_function,
                                                             sender_address=self.deployer_address,
                                                             payload=origin_args)
         return retarget_receipt
@@ -636,7 +636,7 @@ class UserEscrowDeployer(ContractDeployer):
         # TODO: #413, #842 - Gas Management
         payload = {'from': self.deployer_address, 'gas': 500_000, 'gasPrice': self.blockchain.client.gas_price}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
-        transfer_owner_receipt = self.blockchain.send_transaction(transaction_function=transfer_owner_function,
+        transfer_owner_receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
                                                                   payload=payload,
                                                                   sender_address=self.deployer_address)
         self.__beneficiary_address = beneficiary_address
@@ -657,7 +657,7 @@ class UserEscrowDeployer(ContractDeployer):
                 'gasPrice': self.blockchain.client.gas_price,
                 'gas': 200_000}
         deposit_function = self.contract.functions.initialDeposit(value, duration)
-        deposit_receipt = self.blockchain.send_transaction(transaction_function=deposit_function,
+        deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,
                                                            sender_address=self.deployer_address,
                                                            payload=args)
 
@@ -748,7 +748,7 @@ class AdjudicatorDeployer(ContractDeployer):
         if gas_limit:
             tx_args.update({'gas': gas_limit})
         set_adjudicator_function = self.staking_agent.contract.functions.setAdjudicator(adjudicator_contract.address)
-        set_adjudicator_receipt = self.blockchain.send_transaction(transaction_function=set_adjudicator_function,
+        set_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_adjudicator_function,
                                                                    sender_address=self.deployer_address,
                                                                    payload=tx_args)
 

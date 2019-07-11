@@ -52,7 +52,7 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
         args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
         for address in addresses:
             contract_function = token_agent.contract.functions.transfer(address, int(amount))
-            _receipt = token_agent.blockchain.send_transaction(transaction_function=contract_function,
+            _receipt = token_agent.blockchain.send_transaction(contract_function=contract_function,
                                                                sender_address=origin,
                                                                payload=args)
             yield _receipt

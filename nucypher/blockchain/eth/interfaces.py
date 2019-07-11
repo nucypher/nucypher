@@ -285,7 +285,7 @@ class BlockchainInterface:
             self._provider = provider
 
     def send_transaction(self,
-                         transaction_function: ContractFunction,
+                         contract_function: ContractFunction,
                          sender_address: str,
                          payload: dict = None,
                          ) -> dict:
@@ -308,9 +308,9 @@ class BlockchainInterface:
 
         # Get interface name
         try:
-            transaction_name = transaction_function.fn_name.upper()
+            transaction_name = contract_function.fn_name.upper()
         except AttributeError:
-            if isinstance(transaction_function, ContractConstructor):
+            if isinstance(contract_function, ContractConstructor):
                 transaction_name = 'DEPLOY'
             else:
                 transaction_name = 'UNKNOWN'
@@ -500,7 +500,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Transmit the deployment tx #
         #
 
-        receipt = self.send_transaction(transaction_function=transaction_function,
+        receipt = self.send_transaction(contract_function=transaction_function,
                                         sender_address=self.deployer_address,
                                         payload=deploy_transaction)
 
