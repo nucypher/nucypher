@@ -318,7 +318,7 @@ class BlockchainInterface:
         payload.update({'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address,
-                        'gasPrice': self.client.w3.eth.gasPrice,
+                        'gasPrice': self.client.gas_price,
                         # 'gas': 0,  # TODO: Gas Management
                         })
 

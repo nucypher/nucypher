@@ -126,7 +126,7 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
     def increase_allowance(self, sender_address: str, target_address: str, increase: int):
         contract_function = self.contract.functions.increaseAllowance(target_address, increase)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
         return receipt
 
