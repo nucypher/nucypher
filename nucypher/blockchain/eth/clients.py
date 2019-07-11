@@ -6,6 +6,7 @@ from typing import Union
 
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
+from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_canonical_address
@@ -199,6 +200,9 @@ class Web3Client:
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
         return receipt
 
+    def sign_transaction(self, transaction: dict):
+        raise NotImplementedError
+
     def get_transaction(self, transaction_hash) -> str:
         return self.w3.eth.getTransaction(transaction_hash)
 
@@ -268,6 +272,19 @@ class GethClient(Web3Client):
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 
+    def sign_transaction(self, transaction: dict) -> bytes:
+
+        # Do not include a 'to' field for contract creation.
+        if transaction['to'] == b'':
+            transaction = dissoc(transaction, 'to')
+
+        # Sign
+        result = self.w3.eth.signTransaction(transaction=transaction)
+
+        # Return RLP bytes
+        rlp_encoded_transaction = result.raw
+        return rlp_encoded_transaction
+
 
 class ParityClient(Web3Client):
 
@@ -306,9 +323,9 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
-    def sign_transaction(self, account: str, transaction: dict):
+    def sign_transaction(self, transaction: dict):
         # Get signing key of test account
-        address = to_canonical_address(account)
+        address = to_canonical_address(transaction['from'])
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
         # Sign using a local private key
