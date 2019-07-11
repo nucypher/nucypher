@@ -41,7 +41,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--sync/--no-sync', default=True)
-@click.option('--device/--no-device', default=True)
+@click.option('--device/--no-device', default=False)  # TODO: Make True by default.
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
