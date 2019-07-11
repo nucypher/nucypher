@@ -397,7 +397,7 @@ jobs:
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
           command: |
-            pipenv run pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   network:
