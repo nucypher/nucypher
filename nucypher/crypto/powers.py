@@ -183,20 +183,7 @@ class TransactingPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-
-        # Note: This check is also performed client-side.
-        sender_address = unsigned_transaction['from']
-        if sender_address != self.account:
-            raise PowerUpError(f"'from' field must match key's {self.account}, but it was {sender_address}")
-
-        try:
-            transaction_fields = dissoc(unsigned_transaction, 'from')
-            assert_valid_fields(transaction_fields)
-        except TypeError as e:
-            raise self.InvalidSigningRequest(f"Invalid Transaction: '{str(e)}'")
-
-        signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction,
-                                                                         account=self.account)
+        signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction)
         return signed_raw_transaction
 
 

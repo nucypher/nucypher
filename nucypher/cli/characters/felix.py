@@ -3,7 +3,6 @@ import os
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_password, unlock_nucypher_keyring
@@ -11,7 +10,6 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()
@@ -119,11 +117,6 @@ def felix(click_config,
                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
 
-    transacting_power = TransactingPower(account=felix_config.checksum_address,
-                                         device=False,
-                                         password=get_password(confirm=False),
-                                         blockchain=felix_config.blockchain)
-
     try:
 
         # Connect to Blockchain
@@ -140,9 +133,7 @@ def felix(click_config,
                                                network_middleware=click_config.middleware)
 
         # Produce Felix
-        FELIX = felix_config.produce(domains=network,
-                                     known_nodes=teacher_nodes,
-                                     additional_power=[transacting_power])
+        FELIX = felix_config.produce(domains=network, known_nodes=teacher_nodes)
         FELIX.make_web_app()  # attach web application, but dont start service
 
     except Exception as e:

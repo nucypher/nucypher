@@ -31,7 +31,7 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
-from eth_utils import to_checksum_address
+from eth_utils import to_checksum_address, to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import ConciseContract
@@ -317,10 +317,10 @@ class BlockchainInterface:
 
         # Build transaction payload
         try:
-            unsigned_transaction = transaction_function.buildTransaction(payload)
+            unsigned_transaction = contract_function.buildTransaction(payload)
         except ValidationError:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
-            pass
+            raise
 
         #
         # Broadcast
@@ -439,8 +439,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
         super().__init__(*args, **kwargs)
 
         self.compiler = compiler or SolidityCompiler()
-        self._setup_solidity(compiler=self.compiler)
         self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
+
+    def connect(self, *args, **kwargs):
+        super().connect(*args, **kwargs)
+        self._setup_solidity(compiler=self.compiler)
+        return self.is_connected
 
     @property
     def deployer_address(self):
