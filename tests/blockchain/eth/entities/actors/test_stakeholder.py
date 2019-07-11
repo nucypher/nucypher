@@ -92,7 +92,6 @@ def test_software_stakeholder_configuration(testerchain,
 
     # Check attributes can be successfully read
     assert stakeholder.total_stake
-    assert stakeholder.trezor is False
     assert stakeholder.stakes
     assert stakeholder.accounts
 
@@ -162,7 +161,9 @@ def test_initialize_stake_with_new_account(staking_software_stakeholder, stake_v
 def test_divide_stake(staking_software_stakeholder, token_economics):
     stake = staking_software_stakeholder.stakes[1]
 
-    target_value = token_economics.minimum_allowed_locked * 2
+    target_value = token_economics.minimum_allowed_locked
+    pre_divide_stake_value = stake.value
+
     original_stake, new_stake = staking_software_stakeholder.divide_stake(address=stake.owner_address,
                                                                           password=INSECURE_DEVELOPMENT_PASSWORD,
                                                                           index=0,
@@ -173,6 +174,7 @@ def test_divide_stake(staking_software_stakeholder, token_economics):
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
     assert len(stakes) == 2
     assert new_stake.value == target_value
+    assert original_stake.value == (pre_divide_stake_value - target_value)
 
 
 def test_set_worker(staking_software_stakeholder, manual_worker):

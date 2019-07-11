@@ -273,8 +273,6 @@ class GethClient(Web3Client):
         return self.w3.geth.admin.peers()
 
     def unlock_account(self, address, password):
-        # if self.is_local:
-        #     return True
         return self.w3.geth.personal.unlockAccount(address, password)
 
     def sign_transaction(self, transaction: dict) -> bytes:
@@ -329,7 +327,8 @@ class EthereumTesterClient(Web3Client):
         return True
 
     def new_account(self, password: str):
-        insecure_account = self.w3.provider.ethereum_tester.add_account(os.urandom(32).hex(), password=password)
+        insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),
+                                                                        password=password)
         return insecure_account
 
     def sign_transaction(self, transaction: dict):

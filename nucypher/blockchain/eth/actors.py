@@ -381,6 +381,22 @@ class Staker(NucypherTokenActor):
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.economics = economics or TokenEconomics()
         self.is_me = is_me
+        self.__worker_address = None
+
+    def to_dict(self) -> dict:
+        stake_info = [stake.to_stake_info() for stake in self.stakes]
+        worker_address = self.worker_address or NO_WORKER_ASSIGNED
+        staker_funds = {'ETH': int(self.eth_balance), 'NU': int(self.token_balance)}
+        staker_payload = {'staker': self.checksum_address,
+                          'balances': staker_funds,
+                          'worker': worker_address,
+                          'stakes': stake_info}
+        return staker_payload
+
+    @classmethod
+    def from_dict(cls, staker_payload: dict) -> 'Staker':
+        staker = Staker(is_me=True, checksum_address=staker_payload['checksum_address'])
+        return staker
 
     @property
     def stakes(self) -> List[Stake]:
@@ -489,16 +505,21 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def set_worker(self, worker_address: str) -> str:
         # TODO: Set a Worker for this staker, not just in StakingEscrow
-        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
-                                                worker_address=worker_address)
+        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address, worker_address=worker_address)
+        self.__worker_address = worker_address
         return receipt
 
     @property
     def worker_address(self) -> str:
-        worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
-        if worker_address is BlockchainInterface.NULL_ADDRESS:
+        if self.__worker_address:
+            return self.__worker_address
+        else:
+            worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
+            self.__worker_address = worker_address
+
+        if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
             return NO_WORKER_ASSIGNED
-        return worker_address
+        return self.__worker_address
 
     @only_me
     @save_receipt
@@ -746,7 +767,7 @@ class StakeHolder(BaseConfiguration):
                        blockchain=self.blockchain.to_dict(),
                        funding_account=self.funding_account,
                        accounts=self.__accounts,
-                       stakers=self.__serialize_stake_info())
+                       stakers=self.__serialize_stakers())
         return payload
 
     @classmethod
@@ -861,20 +882,13 @@ class StakeHolder(BaseConfiguration):
         balances = dict()
         for staker in self.stakers:
             staker_funds = {'ETH': staker.eth_balance, 'NU': staker.token_balance}
-            balances = {staker.checksum_address: staker_funds}
+            balances[staker.checksum_address] = {staker.checksum_address: staker_funds}
         return balances
 
-    def __serialize_stake_info(self) -> list:
+    def __serialize_stakers(self) -> list:
         payload = list()
         for staker in self.stakers:
-            stake_info = [stake.to_stake_info() for stake in staker.stakes]
-            worker_address = staker.worker_address or NO_WORKER_ASSIGNED
-            staker_funds = {'ETH': int(staker.eth_balance), 'NU': int(staker.token_balance)}
-            staker_payload = {'staker': staker.checksum_address,
-                              'balances': staker_funds,
-                              'worker': worker_address,
-                              'stakes': stake_info}
-            payload.append(staker_payload)
+            payload.append(staker.to_dict())
         return payload
 
     def get_active_staker(self, address: str) -> Staker:
@@ -887,7 +901,7 @@ class StakeHolder(BaseConfiguration):
 
     def __create_staker(self, password: str = None) -> Staker:
         """Create a new account and return it as a Staker instance."""
-        if self.device:
+        if self.funding_power.device:
             # TODO: More formal check for wallet here?
             # With devices, the last account is is always an unsed one.
             new_account = self.blockchain.client.accounts[-1]
@@ -927,7 +941,8 @@ class StakeHolder(BaseConfiguration):
         """Creates a new ethereum account, then transfers it ETH and NU for staking."""
         if self.funding_tokens < amount:
             delta = amount - staker.token_balance
-            raise self.ConfigurationError(f"{self.funding_account} Insufficient NU (need {delta} more).")
+            message = f"{self.funding_account} Insufficient NU (need {delta} more to transfer a total of {amount})."
+            raise self.ConfigurationError(message)
         if not self.funding_eth:
             raise self.ConfigurationError(f"{self.funding_account} has no ETH")
 
@@ -935,10 +950,9 @@ class StakeHolder(BaseConfiguration):
         self.funding_power.activate()
 
         # Send new staker account ETH
-        tx = {'to': staker.checksum_address,
-              'from': self.funding_account,
-              'value': self.eth_funding}
-        _ether_transfer_receipt = self.blockchain.client.send_transaction(transaction=tx)
+        tx = {'to': staker.checksum_address, 'from': self.funding_account, 'value': self.eth_funding}
+        txhash = self.blockchain.client.send_transaction(transaction=tx)
+        _ether_transfer_receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=120)  # TODO: Include in config?
 
         # Send new staker account NU
         _result = self.token_agent.transfer(amount=amount.to_nunits(),
