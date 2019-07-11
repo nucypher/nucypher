@@ -213,8 +213,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())
-        power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
-        power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+        power = TransactingPower(blockchain=testerchain,
+                                 password=INSECURE_DEVELOPMENT_PASSWORD,
+                                 account=testerchain.etherbase_account)
+        power.activate()
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase

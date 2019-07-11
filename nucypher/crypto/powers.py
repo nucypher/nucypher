@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from typing import List, Tuple, Optional
 
-from constant_sorrow.constants import NO_STAKING_DEVICE, NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from cytoolz.dicttoolz import dissoc
 from eth_account._utils.transactions import assert_valid_fields
 from hexbytes import HexBytes
@@ -116,25 +116,18 @@ class TransactingPower(CryptoPowerUp):
     def __init__(self,
                  blockchain,
                  account: str,
-                 password: str = None,
-                 device=NO_STAKING_DEVICE):
+                 password: str = None):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        if password and (device is not NO_STAKING_DEVICE):
-            raise ValueError(f"Cannot create a {self.__class__.__name__} with both a client and an device signer.")
-
         self.blockchain = blockchain
-
         if blockchain.is_connected:
             self.client = blockchain.client
         else:
             self.client = NO_BLOCKCHAIN_CONNECTION
 
         self.account = account
-        self.device = device
-
-        self.__activated = False
+        self.device = True if not password else False
         self.__password = password
         self.__unlocked = False
 
@@ -157,30 +150,22 @@ class TransactingPower(CryptoPowerUp):
         self.unlock_account(password=password)     # Unlock
         self.blockchain.transacting_power = self   # Attach
         self.__password = None                     # Discard
-        self.__activated = True                    # Remember
 
     def lock_account(self):
-        if self.device is not NO_STAKING_DEVICE:
-            # TODO: Implement TrustedDevice
-            _result = self.device.lock()
+        if self.device:
+            # TODO: Force Disconnect Devices
+            pass
         else:
             _result = self.client.lock_account(address=self.account)
         self.__unlocked = False
 
     def unlock_account(self, password: str = None):
-        if self.device is not NO_STAKING_DEVICE:
-            # TODO: Embed in TrustedDevice
-            ping = 'PING|PONG'
-            pong = self.device.client.ping(ping)
-            if not ping == pong:
-                raise self.device.NoDeviceDetected
+        if self.device:
             unlocked = True
-
         else:
             if self.client is NO_BLOCKCHAIN_CONNECTION:
                 raise self.NoBlockchainConnection
             unlocked = self.client.unlock_account(address=self.account, password=password)
-
         self.__unlocked = unlocked
 
     def sign_message(self, message: bytes) -> bytes:
@@ -189,16 +174,7 @@ class TransactingPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-
-        # Hardware Wallet
-        if self.device is not NO_STAKING_DEVICE:
-            # TODO: Use a common message signature type from clients and devices
-            signature = self.device.sign_message(checksum_address=self.account, message=message)
-            signature = signature.signature
-
-        # Software Wallet
-        else:
-            signature = self.client.sign_message(account=self.account, message=message)
+        signature = self.client.sign_message(account=self.account, message=message)
         return signature
 
     def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:
@@ -219,15 +195,8 @@ class TransactingPower(CryptoPowerUp):
         except TypeError as e:
             raise self.InvalidSigningRequest(f"Invalid Transaction: '{str(e)}'")
 
-        # HW Signer
-        if self.device is not NO_STAKING_DEVICE:
-            # TODO: Use a common tx_sign return type from clients and devices
-            signed_raw_transaction = self.device.sign_eth_transaction(unsigned_transaction=unsigned_transaction,
-                                                                      checksum_address=self.account)
-        # Web3 Signer
-        else:
-            signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction,
-                                                                             account=self.account)
+        signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction,
+                                                                         account=self.account)
         return signed_raw_transaction
 
 

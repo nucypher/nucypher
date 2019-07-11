@@ -48,8 +48,10 @@ def test_rapid_deployment(token_economics):
                                    compiler=compiler)
 
     # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = TransactingPower(blockchain=blockchain, account=blockchain.etherbase_account)
-    blockchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                    account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

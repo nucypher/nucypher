@@ -26,7 +26,6 @@ import maya
 from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
     NO_DEPLOYER_ADDRESS,
-    NO_STAKING_DEVICE,
     WORKER_NOT_RUNNING
 )
 from eth_tester.exceptions import TransactionFailed
@@ -141,7 +140,6 @@ class Deployer(NucypherTokenActor):
     def __init__(self,
                  blockchain: BlockchainInterface,
                  deployer_address: str = None,
-                 device = NO_STAKING_DEVICE,
                  client_password: str = None,
                  bare: bool = True
                  ) -> None:
@@ -162,8 +160,7 @@ class Deployer(NucypherTokenActor):
 
         blockchain.transacting_power = TransactingPower(blockchain=blockchain,
                                                         account=deployer_address,
-                                                        password=client_password,
-                                                        device=device)
+                                                        password=client_password)
         blockchain.transacting_power.activate()
         self.log = Logger("Deployment-Actor")
 

@@ -293,7 +293,6 @@ def capsule_side_channel(enacted_federated_policy):
             self.messages = []
             self()
 
-
     return _CapsuleSideChannel()
 
 
@@ -313,8 +312,12 @@ def federated_alice(alice_federated_test_config):
 
 
 @pytest.fixture(scope="module")
-def blockchain_alice(alice_blockchain_test_config):
-    _alice = alice_blockchain_test_config.produce()
+def blockchain_alice(alice_blockchain_test_config, testerchain):
+    transacting_power = TransactingPower(blockchain=testerchain,
+                                         account=alice_blockchain_test_config.checksum_address,
+                                         password=INSECURE_DEVELOPMENT_PASSWORD)
+    transacting_power.activate()
+    _alice = alice_blockchain_test_config.produce(additional_powers=[transacting_power])
     return _alice
 
 
@@ -325,8 +328,11 @@ def federated_bob(bob_federated_test_config):
 
 
 @pytest.fixture(scope="module")
-def blockchain_bob(bob_blockchain_test_config):
-    _bob = bob_blockchain_test_config.produce()
+def blockchain_bob(bob_blockchain_test_config, testerchain):
+    transacting_power = TransactingPower(blockchain=testerchain,
+                                         account=bob_blockchain_test_config.checksum_address,
+                                         password=INSECURE_DEVELOPMENT_PASSWORD)
+    _bob = bob_blockchain_test_config.produce(additional_powers=[transacting_power])
     return _bob
 
 
@@ -370,8 +376,10 @@ def testerchain():
 
     # Mock TransactingPower Consumption (Deployer)
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.deployer_address)
-    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=testerchain.deployer_address)
+    testerchain.transacting_power.activate()
 
     yield testerchain
     testerchain.disconnect()

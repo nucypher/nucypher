@@ -23,11 +23,12 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-    MOCK_URSULA_DB_FILEPATH)
+    MOCK_URSULA_DB_FILEPATH, INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,

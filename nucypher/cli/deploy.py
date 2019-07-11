@@ -19,7 +19,6 @@ import time
 
 import click
 import maya
-from constant_sorrow.constants import NO_STAKING_DEVICE
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
@@ -42,6 +41,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--sync/--no-sync', default=True)
+@click.option('--device/--no-device', default=True)
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -70,6 +70,7 @@ def deploy(click_config,
            recipient_address,
            config_root,
            sync,
+           device,
            force):
     """Manage contract and registry deployment"""
 
@@ -100,7 +101,6 @@ def deploy(click_config,
     if registry_filepath is not None:
         registry = EthereumContractRegistry(registry_filepath=registry_filepath)
 
-    # TODO: Move to Deployer with TransactingPower
     # Deployment-tuned blockchain connection
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
@@ -124,9 +124,12 @@ def deploy(click_config,
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
+    password = None
+    if not device:
+        password = get_password(confirm=False)
+
     deployer = Deployer(blockchain=blockchain,
-                        device=NO_STAKING_DEVICE,
-                        client_password=get_password(confirm=False),
+                        client_password=password,
                         deployer_address=deployer_address)
 
     # Verify ETH Balance

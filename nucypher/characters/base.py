@@ -80,6 +80,7 @@ class Character(Learner):
                  keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
+                 additional_powers: List[CryptoPower] = None,
                  *args, **kwargs
                  ) -> None:
 

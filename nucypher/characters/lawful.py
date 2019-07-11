@@ -28,8 +28,7 @@ import requests
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE, \
-    NO_STAKING_DEVICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -90,7 +89,6 @@ class Alice(Character, PolicyAuthor):
                  network_middleware=None,
                  controller=True,
                  policy_agent=None,
-                 device = NO_STAKING_DEVICE,
                  client_password: str = None,
                  *args, **kwargs) -> None:
 
@@ -122,9 +120,9 @@ class Alice(Character, PolicyAuthor):
 
         if is_me and not federated_only:  # TODO: #289
             transacting_power = TransactingPower(account=self.checksum_address,
-                                                 device=device,
+                                                 password=client_password,
                                                  blockchain=self.blockchain)
-            self._crypto_power.consume_power_up(transacting_power, password=client_password)
+            self._crypto_power.consume_power_up(transacting_power)
 
             PolicyAuthor.__init__(self,
                                   blockchain=self.blockchain,
@@ -844,8 +842,6 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  stake_tracker: StakeTracker = None,
-                 staking_agent: StakingEscrowAgent = None,
-                 device = NO_STAKING_DEVICE,
                  client_password: str = None,
 
                  # Character
@@ -895,8 +891,10 @@ class Ursula(Teacher, Character, Worker):
             if not federated_only:
 
                 # Access staking node via node's transacting keys
-                transacting_power = TransactingPower(account=worker_address, device=device, blockchain=self.blockchain)
-                self._crypto_power.consume_power_up(transacting_power, client_password)
+                transacting_power = TransactingPower(account=worker_address,
+                                                     password=client_password,
+                                                     blockchain=self.blockchain)
+                self._crypto_power.consume_power_up(transacting_power)
 
                 # Use blockchain power to substantiate stamp
                 self.substantiate_stamp(client_password=password)

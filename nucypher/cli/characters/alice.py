@@ -1,12 +1,15 @@
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_password
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
+from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()
@@ -24,6 +27,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--sync/--no-sync', default=True)
+@click.option('--device/--no-device', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
@@ -68,6 +72,7 @@ def alice(click_config,
           poa,
           no_registry,
           registry_filepath,
+          device,
 
           # Alice
           bob_encrypting_key,
@@ -79,7 +84,7 @@ def alice(click_config,
           rate,
           duration,
           expiration,
-          message_kit
+          message_kit,
 
           ):
 
@@ -168,7 +173,7 @@ def alice(click_config,
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)
-
+    
     ALICE = actions.make_cli_character(character_config=alice_config,
                                        click_config=click_config,
                                        dev=dev,

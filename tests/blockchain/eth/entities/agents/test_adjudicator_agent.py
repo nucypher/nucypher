@@ -59,7 +59,9 @@ def test_adjudicator_slashes(agency,
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
 
     # The staker receives an initial amount of tokens
@@ -68,7 +70,9 @@ def test_adjudicator_slashes(agency,
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=staker_account)
     testerchain.transacting_power.activate()
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
@@ -100,7 +104,9 @@ def test_adjudicator_slashes(agency,
     bobby_old_balance = bobby.token_balance
 
     # Mock Powerup consumption (Bob)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=bob_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=bob_account)
     testerchain.transacting_power.activate()
 
     adjudicator_agent.evaluate_cfrag(evidence=evidence, sender_address=bob_account)

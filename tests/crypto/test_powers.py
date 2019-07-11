@@ -14,7 +14,9 @@ def test_transacting_power_sign_message(testerchain):
     # Manually create a TransactingPower
     testerchain.connect()
     eth_address = testerchain.etherbase_account
-    power = TransactingPower(blockchain=testerchain, account=eth_address)
+    power = TransactingPower(blockchain=testerchain,
+                             password=INSECURE_DEVELOPMENT_PASSWORD,
+                             account=eth_address)
 
     # The default state of the account is locked.
     # Test a signature without unlocking the account

@@ -68,8 +68,10 @@ def test_approve_transfer(agent, token_economics):
     deployer, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=someone)
-    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=someone)
+    testerchain.transacting_power.activate()
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
@@ -85,8 +87,10 @@ def test_transfer(agent, token_economics):
     origin, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=origin)
-    testerchain.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=origin)
+    testerchain.transacting_power.activate()
 
     old_balance = agent.get_balance(someone)
     receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
