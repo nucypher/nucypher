@@ -88,7 +88,7 @@ def test_transacting_power_sign_transaction(testerchain):
     # Try signing with missing transaction fields
     del transaction_dict['gas']
     del transaction_dict['nonce']
-    with pytest.raises(TransactingPower.InvalidSigningRequest):
+    with pytest.raises(TypeError):
         power.sign_transaction(unsigned_transaction=transaction_dict)
 
     # Try signing with a re-locked account.
