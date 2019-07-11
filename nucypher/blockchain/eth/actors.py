@@ -246,7 +246,7 @@ class Deployer(NucypherTokenActor):
                                  policy_secret: str,
                                  adjudicator_secret: str,
                                  user_escrow_proxy_secret: str,
-                                 gas_limit: int,
+                                 gas_limit: int = None,
                                  ) -> Tuple[dict, dict]:
         """
         Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
