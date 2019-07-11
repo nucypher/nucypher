@@ -23,7 +23,7 @@ from collections import namedtuple
 class TrustedDevice(ABC):
     """
     An Abstract Base Class for implementing wallet-like functions for stakers
-    utilizing trusted hardware devices (e.g. trezor).
+    utilizing trusted hardware devices.
     This class specifies a few basic functions required for staking on the
     NuCypher network.
 

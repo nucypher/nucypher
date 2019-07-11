@@ -105,8 +105,7 @@ BENCHMARKS_REQUIRE = [
 EXTRAS_REQUIRE = {'development': TESTS_REQUIRE,
                   'deployment': DEPLOY_REQUIRES,
                   'docs': DOCS_REQUIRE,
-                  'benchmark': BENCHMARKS_REQUIRE,
-                  'trezor': ['trezor[ethereum]']}
+                  'benchmark': BENCHMARKS_REQUIRE}
 
 setup(name=ABOUT['__title__'],
       url=ABOUT['__url__'],
