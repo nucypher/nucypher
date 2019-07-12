@@ -483,6 +483,11 @@ def test_staking(testerchain, token, escrow_contract):
     assert 200 == escrow.functions.getLockedTokens(ursula2, 3).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
 
+    # Check overflow in prolong stake
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.prolongStake(2, MAX_UINT16).transact({'from': ursula2})
+        testerchain.wait_for_receipt(tx)
+
     events = lock_log.get_all_entries()
     assert 12 == len(events)
     event_args = events[11]['args']

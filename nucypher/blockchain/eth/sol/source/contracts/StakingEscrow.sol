@@ -535,8 +535,8 @@ contract StakingEscrow is Issuer {
             stakers.push(_staker);
             policyManager.register(_staker, getCurrentPeriod());
         }
-        info.value = info.value.add(_value);
         token.safeTransferFrom(_payer, address(this), _value);
+        info.value += _value;
         lock(_staker, _value, _periods);
         emit Deposited(_staker, _value, _periods);
     }
@@ -572,7 +572,7 @@ contract StakingEscrow is Issuer {
         } else {
             // next period is confirmed
             saveSubStake(info, nextPeriod, 0, _periods - 1, _value);
-            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_value);
+            lockedPerPeriod[nextPeriod] += _value;
             emit ActivityConfirmed(_staker, nextPeriod, _value);
         }
 
@@ -659,7 +659,7 @@ contract StakingEscrow is Issuer {
         if (lastPeriod == startPeriod) {
             subStake.lastPeriod = 0;
         }
-        require(lastPeriod.add16(_periods).sub16(currentPeriod) >= minLockedPeriods,
+        require(uint32(lastPeriod - currentPeriod) + _periods >= minLockedPeriods,
             "The extended sub stake must not be less than the minimum value");
         emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
     }
@@ -704,7 +704,7 @@ contract StakingEscrow is Issuer {
 
         uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
         require(lockedTokens > 0);
-        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(lockedTokens);
+        lockedPerPeriod[nextPeriod] += lockedTokens;
 
         if (info.confirmedPeriod1 == EMPTY_CONFIRMED_PERIOD) {
             info.confirmedPeriod1 = nextPeriod;
@@ -789,15 +789,15 @@ contract StakingEscrow is Issuer {
         }
         if (info.confirmedPeriod2 <= previousPeriod &&
             info.confirmedPeriod2 > info.confirmedPeriod1) {
-            reward = reward.add(mint(_staker, info, 2, currentPeriod, startPeriod));
+            reward += mint(_staker, info, 2, currentPeriod, startPeriod);
         } else if (info.confirmedPeriod1 <= previousPeriod &&
             info.confirmedPeriod1 > info.confirmedPeriod2) {
-            reward = reward.add(mint(_staker, info, 1, currentPeriod, startPeriod));
+            reward += mint(_staker, info, 1, currentPeriod, startPeriod);
         }
 
-        info.value = info.value.add(reward);
+        info.value += reward;
         if (info.measureWork) {
-            info.completedWork = info.completedWork.add(reward);
+            info.completedWork += reward;
         }
         emit Mined(_staker, previousPeriod, reward);
     }
@@ -829,9 +829,9 @@ contract StakingEscrow is Issuer {
                     subStake.lockedValue,
                     lockedPerPeriod[mintingPeriod],
                     lastPeriod.sub16(mintingPeriod));
-                reward = reward.add(subStakeReward);
+                reward += subStakeReward;
                 if (_info.reStake) {
-                    subStake.lockedValue = subStake.lockedValue.add(subStakeReward);
+                    subStake.lockedValue += subStakeReward;
                 }
             }
         }
@@ -846,10 +846,10 @@ contract StakingEscrow is Issuer {
         }
         if (_confirmedPeriodNumber == 1 &&
             _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
-            lockedPerPeriod[_info.confirmedPeriod2] = lockedPerPeriod[_info.confirmedPeriod2].add(reward);
+            lockedPerPeriod[_info.confirmedPeriod2] += reward;
         } else if (_confirmedPeriodNumber == 2 &&
             _info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD) {
-            lockedPerPeriod[_info.confirmedPeriod1] = lockedPerPeriod[_info.confirmedPeriod1].add(reward);
+            lockedPerPeriod[_info.confirmedPeriod1] += reward;
         }
     }
 
@@ -948,15 +948,15 @@ contract StakingEscrow is Issuer {
             }
             if (subStake.firstPeriod <= _currentPeriod &&
                 lastPeriod >= _nextPeriod) {
-                currentAndNextLock = currentAndNextLock.add(subStake.lockedValue);
+                currentAndNextLock += subStake.lockedValue;
             } else if (subStake.firstPeriod <= _currentPeriod &&
                 lastPeriod >= _currentPeriod) {
-                currentLock = currentLock.add(subStake.lockedValue);
+                currentLock += subStake.lockedValue;
             } else if (subStake.firstPeriod <= _nextPeriod &&
                 lastPeriod >= _nextPeriod) {
-                nextLock = nextLock.add(subStake.lockedValue);
+                nextLock += subStake.lockedValue;
             }
-            uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
+            uint16 duration = lastPeriod - subStake.firstPeriod;
             if (subStake.firstPeriod <= _currentPeriod &&
                 lastPeriod >= _currentPeriod &&
                 (lastPeriod < minLastPeriod ||
@@ -993,7 +993,7 @@ contract StakingEscrow is Issuer {
             if (_shortestSubStakeIndex < MAX_SUB_STAKES) {
                 shortestSubStake = _info.subStakes[_shortestSubStakeIndex];
                 minSubStakeLastPeriod = getLastPeriodOfSubStake(shortestSubStake, _startPeriod);
-                minSubStakeDuration = minSubStakeLastPeriod.sub16(shortestSubStake.firstPeriod);
+                minSubStakeDuration = minSubStakeLastPeriod - shortestSubStake.firstPeriod;
                 _shortestSubStakeIndex = MAX_SUB_STAKES;
             } else {
                 (shortestSubStake, minSubStakeDuration, minSubStakeLastPeriod) =
@@ -1054,7 +1054,7 @@ contract StakingEscrow is Issuer {
             if (lastPeriod < subStake.firstPeriod) {
                 continue;
             }
-            uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
+            uint16 duration = lastPeriod - subStake.firstPeriod;
             if (subStake.firstPeriod <= _currentPeriod &&
                 lastPeriod >= _currentPeriod &&
                 (lastPeriod < minSubStakeLastPeriod ||
@@ -1094,7 +1094,7 @@ contract StakingEscrow is Issuer {
             return;
         }
         // Try to find already existent proper old sub stake
-        uint16 previousPeriod = _currentPeriod.sub16(1);
+        uint16 previousPeriod = _currentPeriod - 1;
         bool createNew = true;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
