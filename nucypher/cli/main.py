@@ -107,6 +107,7 @@ def nucypher_cli(click_config,
         click_config.emit(message="Verbose mode is enabled", color='blue')
 
 
+
 #
 # Character CLI Entry Points (Fan Out Input)
 #
