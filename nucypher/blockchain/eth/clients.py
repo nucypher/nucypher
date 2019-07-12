@@ -277,6 +277,8 @@ class GethClient(Web3Client):
         return self.w3.geth.admin.peers()
 
     def unlock_account(self, address, password):
+        if self.is_local:
+            return True
         return self.w3.geth.personal.unlockAccount(address, password)
 
     def sign_transaction(self, account: str, transaction: dict) -> bytes:

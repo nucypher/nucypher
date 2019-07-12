@@ -67,7 +67,7 @@ class BlockchainInterface:
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = ConciseContract
+    _contract_factory = Contract
 
     class InterfaceError(Exception):
         pass
