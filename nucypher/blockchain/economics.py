@@ -219,7 +219,8 @@ class StandardTokenEconomics(TokenEconomics):
                  initial_inflation: int = __default_initial_inflation,
                  halving_delay: int = __default_token_halving,
                  reward_saturation: int = __default_reward_saturation,
-                 small_stake_multiplier: Decimal = __default_small_stake_multiplier
+                 small_stake_multiplier: Decimal = __default_small_stake_multiplier,
+                 **kwargs
                  ):
         """
         :param initial_supply: Tokens at t=0
@@ -261,7 +262,8 @@ class StandardTokenEconomics(TokenEconomics):
             total_supply,
             staking_coefficient,
             locked_periods_coefficient,
-            maximum_rewarded_periods
+            maximum_rewarded_periods,
+            **kwargs
         )
 
     def token_supply_at_period(self, period: int) -> int:
