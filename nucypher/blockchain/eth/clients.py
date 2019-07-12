@@ -279,6 +279,19 @@ class GethClient(Web3Client):
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 
+    def sign_transaction(self, account: str, transaction: dict) -> bytes:
+
+        # Do not include a 'to' field for contract creation.
+        if transaction['to'] == b'':
+            transaction.pop('to')
+
+        # Sign
+        result = self.w3.eth.signTransaction(transaction=transaction)
+
+        # Return RLP bytes
+        rlp_encoded_transaction = result.raw
+        return rlp_encoded_transaction
+
 
 class ParityClient(Web3Client):
 
