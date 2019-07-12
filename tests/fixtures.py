@@ -313,11 +313,7 @@ def federated_alice(alice_federated_test_config):
 
 @pytest.fixture(scope="module")
 def blockchain_alice(alice_blockchain_test_config, testerchain):
-    transacting_power = TransactingPower(blockchain=testerchain,
-                                         account=alice_blockchain_test_config.checksum_address,
-                                         password=INSECURE_DEVELOPMENT_PASSWORD)
-    transacting_power.activate()
-    _alice = alice_blockchain_test_config.produce(additional_powers=[transacting_power])
+    _alice = alice_blockchain_test_config.produce()
     return _alice
 
 
@@ -329,10 +325,7 @@ def federated_bob(bob_federated_test_config):
 
 @pytest.fixture(scope="module")
 def blockchain_bob(bob_blockchain_test_config, testerchain):
-    transacting_power = TransactingPower(blockchain=testerchain,
-                                         account=bob_blockchain_test_config.checksum_address,
-                                         password=INSECURE_DEVELOPMENT_PASSWORD)
-    _bob = bob_blockchain_test_config.produce(additional_powers=[transacting_power])
+    _bob = bob_blockchain_test_config.produce()
     return _bob
 
 

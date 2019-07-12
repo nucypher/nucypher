@@ -172,7 +172,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         except KeyError:
             continue
         #             addr-----secret----new deploy secret (2x for confirmation)
-        user_input = '0\n' + yes + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + old_secret + (new_secret * 2)
+        user_input = '0\n' + yes + old_secret + (new_secret * 2)
         upgrade_inputs[next_version] = user_input
 
     #

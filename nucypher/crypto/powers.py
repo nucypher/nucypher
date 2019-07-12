@@ -222,10 +222,8 @@ class KeyPairBasedPower(CryptoPowerUp):
             try:
                 return getattr(self.keypair, item)
             except AttributeError:
-                raise PowerUpError(
-                    "This {} has a keypair, {}, which doesn't provide {}.".format(self.__class__,
-                                                                                   self.keypair.__class__,
-                                                                                   item))
+                message = f"This {self.__class__} has a keypair, {self.keypair.__class__}, which doesn't provide {item}."
+                raise PowerUpError(message)
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
