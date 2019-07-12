@@ -125,7 +125,7 @@ def deploy(click_config,
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
     password = None
-    if not device:
+    if not device and not blockchain.client.is_local:
         password = get_password(confirm=False)
 
     deployer = Deployer(blockchain=blockchain,

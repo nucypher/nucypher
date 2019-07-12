@@ -147,7 +147,7 @@ class TransactingPower(CryptoPowerUp):
         """Be Consumed"""
         self.blockchain.connect()
         self.client = self.blockchain.client       # Connect
-        self.unlock_account(password=password)     # Unlock
+        self.unlock_account(password=password or self.__password)
         self.blockchain.transacting_power = self   # Attach
         self.__password = None                     # Discard
 
