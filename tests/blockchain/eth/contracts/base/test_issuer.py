@@ -24,7 +24,8 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.token import NU
 
 SECRET_LENGTH = 32
-TOTAL_SUPPLY = 2 * 10 ** 40
+INITIAL_SUPPLY = 10 ** 26
+TOTAL_SUPPLY = 2 * 10 ** 36
 
 
 @pytest.fixture()
@@ -36,9 +37,9 @@ def token(testerchain, deploy_contract):
 
 @pytest.mark.slow
 def test_issuer(testerchain, token, deploy_contract):
-    economics = TokenEconomics(initial_supply=10 ** 30,
+    economics = TokenEconomics(initial_supply=INITIAL_SUPPLY,
                                total_supply=TOTAL_SUPPLY,
-                               staking_coefficient=10 ** 43,
+                               staking_coefficient=10 ** 39,
                                locked_periods_coefficient=10 ** 4,
                                maximum_rewarded_periods=10 ** 4,
                                hours_per_period=1)
@@ -130,9 +131,9 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     During one period inflation rate must be the same
     """
 
-    economics = TokenEconomics(initial_supply=10 ** 30,
+    economics = TokenEconomics(initial_supply=INITIAL_SUPPLY,
                                total_supply=TOTAL_SUPPLY,
-                               staking_coefficient=2 * 10 ** 19,
+                               staking_coefficient=2 * 10 ** 15,
                                locked_periods_coefficient=1,
                                maximum_rewarded_periods=1,
                                hours_per_period=1)
@@ -262,7 +263,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.rewardedPeriods().call()
     assert period == contract.functions.currentMintingPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
+    assert TOTAL_SUPPLY == contract.functions.totalSupply().call()
     # Check method from new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -296,7 +297,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.rewardedPeriods().call()
     assert period == contract.functions.currentMintingPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
+    assert TOTAL_SUPPLY == contract.functions.totalSupply().call()
     # After rollback can't use new ABI
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})

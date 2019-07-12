@@ -56,11 +56,20 @@ contract Issuer is Upgradeable {
     )
         public
     {
-        require(_token.totalSupply() > 0 &&
+        totalSupply = _token.totalSupply();
+        require(totalSupply > 0 &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
             _rewardedPeriods != 0);
+        uint256 maxLockedPeriods = _rewardedPeriods + _lockedPeriodsCoefficient;
+        require(maxLockedPeriods > _rewardedPeriods &&
+            // worst case for `totalLockedValue * k2`, when totalLockedValue == totalSupply
+            totalSupply * miningCoefficient / totalSupply == miningCoefficient &&
+            // worst case for `(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods)`,
+            // when currentSupply == 0, lockedValue == totalSupply
+            totalSupply * totalSupply * maxLockedPeriods / totalSupply / totalSupply == maxLockedPeriods,
+            "Specified parameters cause overflow");
         token = _token;
         miningCoefficient = _miningCoefficient;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
@@ -90,9 +99,8 @@ contract Issuer is Upgradeable {
     function initialize() public onlyOwner {
         require(currentSupply1 == 0);
         currentMintingPeriod = getCurrentPeriod();
-        totalSupply = token.totalSupply();
         uint256 reservedReward = token.balanceOf(address(this));
-        uint256 currentTotalSupply = totalSupply.sub(reservedReward);
+        uint256 currentTotalSupply = totalSupply - reservedReward;
         currentSupply1 = currentTotalSupply;
         currentSupply2 = currentTotalSupply;
         emit Initialized(reservedReward);
@@ -117,36 +125,36 @@ contract Issuer is Upgradeable {
         if (currentSupply1 == totalSupply || currentSupply2 == totalSupply) {
             return 0;
         }
-        uint256 currentSupply = _currentPeriod <= currentMintingPeriod ?
-            Math.min(currentSupply1, currentSupply2) :
-            Math.max(currentSupply1, currentSupply2);
+
+        uint256 maxReward = getReservedReward();
+        uint256 currentReward = _currentPeriod <= currentMintingPeriod ?
+            totalSupply - Math.min(currentSupply1, currentSupply2) : maxReward;
 
         //(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
-        uint256 allLockedPeriods = uint256(_allLockedPeriods <= rewardedPeriods ?
-            _allLockedPeriods : rewardedPeriods)
-            .add(lockedPeriodsCoefficient);
-        uint256 denominator = _totalLockedValue.mul(miningCoefficient);
-        amount = totalSupply.sub(currentSupply)
-                            .mul(_lockedValue)
-                            .mul(allLockedPeriods)
-                            .div(denominator);
+        uint256 allLockedPeriods =
+            AdditionalMath.min16(_allLockedPeriods, rewardedPeriods) + lockedPeriodsCoefficient;
+        amount = (currentReward * _lockedValue * allLockedPeriods) /
+            (_totalLockedValue * miningCoefficient);
+
         // rounding the last reward
         if (amount == 0) {
             amount = 1;
+        } else if (amount > maxReward) {
+            amount = maxReward;
         }
 
         if (_currentPeriod <= currentMintingPeriod) {
             if (currentSupply1 > currentSupply2) {
-                currentSupply1 = currentSupply1.add(amount);
+                currentSupply1 += amount;
             } else {
-                currentSupply2 = currentSupply2.add(amount);
+                currentSupply2 += amount;
             }
         } else {
             currentMintingPeriod = _currentPeriod;
             if (currentSupply1 > currentSupply2) {
-                currentSupply2 = currentSupply1.add(amount);
+                currentSupply2 = currentSupply1 + amount;
             } else {
-                currentSupply1 = currentSupply2.add(amount);
+                currentSupply1 = currentSupply2 + amount;
             }
         }
     }
@@ -156,8 +164,8 @@ contract Issuer is Upgradeable {
     * @param _amount Amount of tokens
     **/
     function unMint(uint256 _amount) internal {
-        currentSupply1 = currentSupply1.sub(_amount);
-        currentSupply2 = currentSupply2.sub(_amount);
+        currentSupply1 = currentSupply1 - _amount;
+        currentSupply2 = currentSupply2 - _amount;
     }
 
     /**
@@ -185,6 +193,7 @@ contract Issuer is Upgradeable {
     function finishUpgrade(address _target) public {
         super.finishUpgrade(_target);
         Issuer issuer = Issuer(_target);
+        totalSupply = issuer.totalSupply();
         token = issuer.token();
         miningCoefficient = issuer.miningCoefficient();
         secondsPerPeriod = issuer.secondsPerPeriod();

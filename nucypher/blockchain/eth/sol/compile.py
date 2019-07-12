@@ -105,12 +105,13 @@ class SolidityCompiler:
 
         self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
 
-        optimization_runs = 10  # TODO: Move..?
+        optimization_runs = 200  # TODO: Move..?
         try:
             compiled_sol = compile_files(source_files=source_paths,
                                          import_remappings=remappings,
                                          allow_paths=project_root,
-                                         optimize=optimization_runs)
+                                         optimize=True,
+                                         optimize_runs=optimization_runs)
 
             self.log.info("Successfully compiled {} contracts with {} optimization runs".format(len(compiled_sol),
                                                                                                 optimization_runs))

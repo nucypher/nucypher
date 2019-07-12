@@ -300,7 +300,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Get locked tokens
     #
-    log.info("Getting locked tokens = " + str(staker_functions.getLockedTokens(ursula1).estimateGas()))
+    log.info("Getting locked tokens = " + str(staker_functions.getLockedTokens(ursula1, 0).estimateGas()))
 
     #
     # Wait 1 period and withdraw tokens
@@ -643,7 +643,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.wait_for_receipt(tx)
 
     deposit = staker_functions.stakerInfo(ursula1).call()[0]
-    unlocked = deposit - staker_functions.getLockedTokens(ursula1).call()
+    unlocked = deposit - staker_functions.getLockedTokens(ursula1, 0).call()
     tx = staker_functions.withdraw(unlocked).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 

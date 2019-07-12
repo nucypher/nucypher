@@ -221,7 +221,7 @@ contract StakingEscrow is Issuer {
     {
         // if the next period (after current) is confirmed
         if (_info.confirmedPeriod1 > _currentPeriod || _info.confirmedPeriod2 > _currentPeriod) {
-            return _currentPeriod.add16(1);
+            return _currentPeriod + 1;
         }
         return _currentPeriod;
     }
@@ -234,7 +234,14 @@ contract StakingEscrow is Issuer {
     function getLastPeriodOfSubStake(SubStakeInfo storage _subStake, uint16 _startPeriod)
         internal view returns (uint16)
     {
-        return _subStake.lastPeriod != 0 ? _subStake.lastPeriod : _startPeriod.add16(_subStake.periods);
+        if (_subStake.lastPeriod != 0) {
+            return _subStake.lastPeriod;
+        }
+        uint32 lastPeriod = uint32(_startPeriod) + _subStake.periods;
+        if (lastPeriod > MAX_UINT16) {
+            return MAX_UINT16;
+        }
+        return uint16(lastPeriod);
     }
 
     /**
@@ -246,7 +253,6 @@ contract StakingEscrow is Issuer {
         public view returns (uint16)
     {
         StakerInfo storage info = stakerInfo[_staker];
-        require(_index < info.subStakes.length);
         SubStakeInfo storage subStake = info.subStakes[_index];
         uint16 startPeriod = getStartPeriod(info, getCurrentPeriod());
         return getLastPeriodOfSubStake(subStake, startPeriod);
@@ -268,7 +274,7 @@ contract StakingEscrow is Issuer {
             SubStakeInfo storage subStake = _info.subStakes[i];
             if (subStake.firstPeriod <= _period &&
                 getLastPeriodOfSubStake(subStake, startPeriod) >= _period) {
-                lockedValue = lockedValue.add(subStake.lockedValue);
+                lockedValue += subStake.lockedValue;
             }
         }
     }
@@ -300,16 +306,6 @@ contract StakingEscrow is Issuer {
         uint16 currentPeriod = getCurrentPeriod();
         uint16 previousPeriod = currentPeriod.sub16(_periods);
         return getLockedTokens(info, currentPeriod, previousPeriod);
-    }
-
-    /**
-    * @notice Get the value of locked tokens for a staker in the current period
-    * @param _staker Staker
-    **/
-    function getLockedTokens(address _staker)
-        public view returns (uint256)
-    {
-        return getLockedTokens(_staker, 0);
     }
 
     /**
@@ -361,7 +357,7 @@ contract StakingEscrow is Issuer {
             if (lockedTokens != 0) {
                 activeStakers[resultIndex][0] = uint256(staker);
                 activeStakers[resultIndex++][1] = lockedTokens;
-                allLockedTokens = allLockedTokens.add(lockedTokens);
+                allLockedTokens += lockedTokens;
             }
         }
         assembly {
@@ -561,16 +557,15 @@ contract StakingEscrow is Issuer {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(address _staker, uint256 _value, uint16 _periods) internal {
-        require(_value <= token.balanceOf(address(this)) &&
-            _value >= minAllowableLockedTokens &&
+        require(_value >= minAllowableLockedTokens &&
             _periods >= minLockedPeriods);
 
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(1);
         StakerInfo storage info = stakerInfo[_staker];
         uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
-        require(_value.add(lockedTokens) <= info.value &&
-            _value.add(lockedTokens) <= maxAllowableLockedTokens);
+        uint256 requestedLockedTokens = _value.add(lockedTokens);
+        require(requestedLockedTokens <= info.value && requestedLockedTokens <= maxAllowableLockedTokens);
 
         if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
             saveSubStake(info, nextPeriod, 0, _periods, _value);
@@ -629,9 +624,7 @@ contract StakingEscrow is Issuer {
     **/
     function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_newValue >= minAllowableLockedTokens &&
-            _periods > 0 &&
-            _index < info.subStakes.length);
+        require(_newValue >= minAllowableLockedTokens && _periods > 0);
         SubStakeInfo storage subStake = info.subStakes[_index];
         uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
@@ -641,9 +634,10 @@ contract StakingEscrow is Issuer {
         uint256 oldValue = subStake.lockedValue;
         subStake.lockedValue = oldValue.sub(_newValue);
         require(subStake.lockedValue >= minAllowableLockedTokens);
-        saveSubStake(info, subStake.firstPeriod, 0, subStake.periods.add16(_periods), _newValue);
+        uint16 requestedPeriods = subStake.periods.add16(_periods);
+        saveSubStake(info, subStake.firstPeriod, 0, requestedPeriods, _newValue);
         emit Divided(msg.sender, oldValue, lastPeriod, _newValue, _periods);
-        emit Locked(msg.sender, _newValue, subStake.firstPeriod, subStake.periods + _periods);
+        emit Locked(msg.sender, _newValue, subStake.firstPeriod, requestedPeriods);
     }
 
     /**
@@ -682,8 +676,7 @@ contract StakingEscrow is Issuer {
         // but when the staker locks more then we should use the next period
         uint256 lockedTokens = Math.max(getLockedTokens(info, currentPeriod, nextPeriod),
             getLockedTokens(info, currentPeriod, currentPeriod));
-        require(_value <= token.balanceOf(address(this)) &&
-            _value <= info.value.sub(lockedTokens));
+        require(_value <= info.value.sub(lockedTokens));
         info.value -= _value;
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
@@ -694,12 +687,12 @@ contract StakingEscrow is Issuer {
     **/
     function confirmActivity() external {
         address staker = getStakerFromWorker(msg.sender);
-        require(stakerInfo[staker].value > 0, "Staker must have a stake to confirm activity");
+        StakerInfo storage info = stakerInfo[staker];
+        require(info.value > 0, "Staker must have a stake to confirm activity");
         require(msg.sender == tx.origin, "Only worker with real address can confirm activity");
 
         uint16 lastActivePeriod = getLastActivePeriod(staker);
         mint(staker);
-        StakerInfo storage info = stakerInfo[staker];
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod.add16(1);
 
@@ -744,7 +737,7 @@ contract StakingEscrow is Issuer {
         // because we won't be able to calculate last active period
         // see getLastActivePeriod(address)
         StakerInfo storage info = stakerInfo[msg.sender];
-        uint16 previousPeriod = getCurrentPeriod().sub16(1);
+        uint16 previousPeriod = getCurrentPeriod() - 1;
         if (info.confirmedPeriod1 <= previousPeriod &&
             info.confirmedPeriod2 <= previousPeriod &&
             (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
@@ -761,7 +754,7 @@ contract StakingEscrow is Issuer {
     **/
     function mint(address _staker) internal {
         uint16 currentPeriod = getCurrentPeriod();
-        uint16 previousPeriod = currentPeriod.sub16(1);
+        uint16 previousPeriod = currentPeriod  - 1;
         StakerInfo storage info = stakerInfo[_staker];
 
         if (info.confirmedPeriod1 > previousPeriod &&
@@ -789,10 +782,10 @@ contract StakingEscrow is Issuer {
         uint256 reward = 0;
         if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
             info.confirmedPeriod1 < info.confirmedPeriod2) {
-            reward = reward.add(mint(_staker, info, 1, currentPeriod, startPeriod));
+            reward = mint(_staker, info, 1, currentPeriod, startPeriod);
         } else if (info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
             info.confirmedPeriod2 < info.confirmedPeriod1) {
-            reward = reward.add(mint(_staker, info, 2, currentPeriod, startPeriod));
+            reward = mint(_staker, info, 2, currentPeriod, startPeriod);
         }
         if (info.confirmedPeriod2 <= previousPeriod &&
             info.confirmedPeriod2 > info.confirmedPeriod1) {
@@ -1015,7 +1008,7 @@ contract StakingEscrow is Issuer {
                 saveOldSubStake(_info, shortestSubStake.firstPeriod, _penalty, _decreasePeriod);
                 _penalty = 0;
             } else {
-                shortestSubStake.lastPeriod = _decreasePeriod.sub16(1);
+                shortestSubStake.lastPeriod = _decreasePeriod - 1;
                 _penalty -= shortestSubStake.lockedValue;
                 appliedPenalty = shortestSubStake.lockedValue;
             }
