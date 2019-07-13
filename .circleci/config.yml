@@ -311,7 +311,7 @@ commands:
           command: mkdir ~/docker-dev
       - run:
           name: save Docker Image
-          command: docker save dev:nucypher -o ~/docker-dev/dev-docker-build.tar
+          command: docker save circle:nucypher -o ~/docker-dev/dev-docker-build.tar
       - persist_to_workspace:
           root: ~/docker-dev
           paths:

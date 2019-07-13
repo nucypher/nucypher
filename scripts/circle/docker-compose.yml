@@ -10,7 +10,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: dev:nucypher
+    image: circle:nucypher
     container_name: nucypher-circle-dev
     working_dir: /code/examples/
     networks:
@@ -19,8 +19,8 @@ services:
   circleusula1:
     ports:
       - 11500
-    image: dev:nucypher
-    command: nucypher --debug ursula run --dev --federated-only --rest-host 172.29.1.1 --rest-port 11500
+    image: circle:nucypher
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.1 --rest-port 11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.1
@@ -28,10 +28,10 @@ services:
   circleusula2:
     ports:
       - 11500
-    image: dev:nucypher
+    image: circle:nucypher
     depends_on:
       - circleusula1
-    command: nucypher --debug ursula run --dev --federated-only --rest-host 172.29.1.2 --rest-port 11500 --teacher-uri 172.29.1.1:11500
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.2 --rest-port 11500 --teacher-uri 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.2
@@ -39,10 +39,10 @@ services:
   circleusula3:
     ports:
       - 11500
-    image: dev:nucypher
+    image: circle:nucypher
     depends_on:
       - circleusula1
-    command: nucypher --debug ursula run --dev --federated-only --rest-host 172.29.1.3 --rest-port 11500 --teacher-uri 172.29.1.1:11500
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.3 --rest-port 11500 --teacher-uri 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.3
@@ -50,10 +50,10 @@ services:
   circleusula4:
     ports:
       - 11500
-    image: dev:nucypher
+    image: circle:nucypher
     depends_on:
       - circleusula1
-    command: nucypher --debug ursula run --dev --federated-only --rest-host 172.29.1.4 --rest-port 11500 --teacher-uri 172.29.1.1:11500
+    command: nucypher  ursula run --dev --federated-only --rest-host 172.29.1.4 --rest-port 11500 --teacher-uri 172.29.1.1:11500
     networks:
       nucypher_circle_net:
         ipv4_address: 172.29.1.4
