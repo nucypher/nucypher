@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
-from nucypher.crypto.powers import SigningPower, BlockchainPower
+from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 
@@ -161,6 +161,7 @@ class Felix(Character, NucypherTokenActor):
                  db_filepath: str,
                  rest_host: str,
                  rest_port: int,
+                 client_password: str = None,
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
                  distribute_ether: bool = True,
@@ -182,9 +183,10 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
-        self._crypto_power.consume_power_up(blockchain_power)
-        # blockchain_power.unlock_account(password=None)  # TODO: TransactingPower
+        transacting_power = TransactingPower(blockchain=self.blockchain,
+                                             password=client_password,
+                                             account=self.checksum_address)
+        self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]

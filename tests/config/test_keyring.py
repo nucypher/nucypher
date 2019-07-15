@@ -5,17 +5,18 @@ from umbral.signing import Signer
 
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DelegatingPower, DecryptingPower
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from constant_sorrow.constants import FEDERATED_ADDRESS
 
 
 def test_generate_alice_keyring(tmpdir):
-    password = 'x' * 16
 
     keyring = NucypherKeyring.generate(
-        password=password,
+        checksum_address=FEDERATED_ADDRESS,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,
         rest=False,
-        keyring_root=tmpdir,
-        federated=True
+        keyring_root=tmpdir
     )
 
     enc_pubkey = keyring.encrypting_public_key
@@ -24,7 +25,7 @@ def test_generate_alice_keyring(tmpdir):
     with pytest.raises(NucypherKeyring.KeyringLocked):
         _dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
 
-    keyring.unlock(password)
+    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
 
     assert enc_pubkey == dec_keypair.pubkey

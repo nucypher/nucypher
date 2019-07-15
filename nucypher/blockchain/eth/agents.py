@@ -118,7 +118,7 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
         """Approve the transfer of token from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
         contract_function = self.contract.functions.approve(target_address, amount)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
                                                    sender_address=sender_address)
         return receipt
@@ -126,7 +126,7 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
     def transfer(self, amount: int, target_address: str, sender_address: str):
         self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
         contract_function = self.contract.functions.transfer(target_address, amount)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=sender_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
 
 
@@ -186,13 +186,13 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
         """Send tokens to the escrow from the staker's address"""
         contract_function = self.contract.functions.deposit(amount, lock_periods)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
         return receipt
 
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int):
         contract_function = self.contract.functions.divideStake(stake_index, target_value, periods)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     def get_last_active_period(self, address: str) -> int:
@@ -209,7 +209,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
 
     def set_worker(self, staker_address: str, worker_address: str):
         contract_function = self.contract.functions.setWorker(worker_address)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     def release_worker(self, staker_address: str):
@@ -220,7 +220,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         For each period that the worker confirms activity, the staker is rewarded.
         """
         contract_function = self.contract.functions.confirmActivity()
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=worker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=worker_address)
         return receipt
 
     def mint(self, staker_address: str):
@@ -230,7 +230,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         when you intend to withdraw 100% of tokens.
         """
         contract_function = self.contract.functions.mint()
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     @validate_checksum_address
@@ -252,7 +252,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         """Withdraw tokens"""
         payload = {'gas': 500_000}  # TODO: #842 Gas Management
         contract_function = self.contract.functions.withdraw(amount)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
                                                    sender_address=staker_address)
         return receipt
@@ -322,7 +322,7 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
 
         payload = {'value': value}
         contract_function = self.contract.functions.createPolicy(policy_id, periods, initial_reward, node_addresses)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
                                                    sender_address=author_address)
         return receipt
@@ -335,13 +335,13 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
     def revoke_policy(self, policy_id: bytes, author_address: str):
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
         contract_function = self.contract.functions.revokePolicy(policy_id)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
     def collect_policy_reward(self, collector_address: str, staker_address: str):
         """Collect rewarded ETH"""
         contract_function = self.contract.functions.withdraw(collector_address)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
     def fetch_policy_arrangements(self, policy_id):
@@ -352,17 +352,17 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
 
     def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
         contract_function = self.contract.functions.revokeArrangement(policy_id, node_address)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
     def calculate_refund(self, policy_id: str, author_address: str):
         contract_function = self.contract.functions.calculateRefundValue(policy_id)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
     def collect_refund(self, policy_id: str, author_address: str):
         contract_function = self.contract.functions.refund(policy_id)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
 
@@ -455,47 +455,47 @@ class UserEscrowAgent(EthereumContractAgent):
 
     def lock(self, amount: int, periods: int):
         contract_function = self.__proxy_contract.functions.lock(amount, periods)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def withdraw_tokens(self, value: int):
         contract_function = self.principal_contract.functions.withdrawTokens(value)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def withdraw_eth(self):
         contract_function = self.principal_contract.functions.withdrawETH()
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def deposit_as_staker(self, value: int, periods: int):
         contract_function = self.__proxy_contract.functions.depositAsStaker(value, periods)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def withdraw_as_staker(self, value: int):
         contract_function = self.__proxy_contract.functions.withdrawAsStaker(value)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def set_worker(self, worker_address: str):
         contract_function = self.__proxy_contract.functions.setWorker(worker_address)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def mint(self):
         contract_function = self.__proxy_contract.functions.mint()
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def collect_policy_reward(self):
         contract_function = self.__proxy_contract.functions.withdrawPolicyReward()
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
     def set_min_reward_rate(self, rate: int):
         contract_function = self.__proxy_contract.functions.setMinRewardRate(rate)
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function, sender_address=self.__beneficiary)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
 
@@ -513,7 +513,7 @@ class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
         """
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
         contract_function = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
-        receipt = self.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address,
                                                    payload=payload)
         return receipt

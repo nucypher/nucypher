@@ -11,12 +11,12 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     UserEscrowAgent,
     PolicyAgent,
-    Agency, AdjudicatorAgent)
+    Agency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -44,7 +44,7 @@ def make_testerchain():
 
     # Set the deployer address from a freshly created test account
     testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
     return testerchain
 
 
@@ -356,8 +356,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     account_index = '0\n'
     yes = 'Y\n'
-    node_password = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-    user_input = account_index + yes + node_password + yes
+    user_input = account_index + yes + yes
 
     result = click_runner.invoke(deploy,
                                  deploy_command,
@@ -379,24 +378,3 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     # Destroy existing blockchain
     testerchain.disconnect()
-
-
-def test_destroy_registry(click_runner, mock_primary_registry_filepath):
-
-    #   ... I changed my mind, destroy the registry!
-    destroy_command = ('destroy-registry',
-                       '--registry-infile', mock_primary_registry_filepath,
-                       '--provider-uri', TEST_PROVIDER_URI,
-                       '--poa')
-
-    # TODO: #1036 - Providers and unlocking are not needed for this command
-    account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
-
-    result = click_runner.invoke(deploy, destroy_command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert mock_primary_registry_filepath in result.output
-    assert DEFAULT_CONFIG_ROOT not in result.output, 'WARNING: Deploy CLI tests are using default config root dir!'
-    assert f'Successfully destroyed {mock_primary_registry_filepath}' in result.output
-    assert not os.path.isfile(mock_primary_registry_filepath)

@@ -28,8 +28,7 @@ import requests
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import FEDERATED_POLICY, STRANGER_ALICE
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -60,7 +59,7 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower, PowerUpError
+from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -90,6 +89,7 @@ class Alice(Character, PolicyAuthor):
                  network_middleware=None,
                  controller=True,
                  policy_agent=None,
+                 client_password: str = None,
                  *args, **kwargs) -> None:
 
         #
@@ -119,15 +119,15 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
+            transacting_power = TransactingPower(account=self.checksum_address,
+                                                 password=client_password,
+                                                 blockchain=self.blockchain)
+            self._crypto_power.consume_power_up(transacting_power)
+
             PolicyAuthor.__init__(self,
                                   blockchain=self.blockchain,
                                   policy_agent=policy_agent,
                                   checksum_address=checksum_address)
-
-            # TODO: #1092 - TransactingPower
-            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_address)
-            self._crypto_power.consume_power_up(blockchain_power)
-            self.blockchain.transacting_power = blockchain_power  # TODO: Embed in Powerups
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -842,6 +842,7 @@ class Ursula(Teacher, Character, Worker):
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  stake_tracker: StakeTracker = None,
+                 client_password: str = None,
 
                  # Character
                  password: str = None,
@@ -888,6 +889,16 @@ class Ursula(Teacher, Character, Worker):
             # Ursula is a Decentralized Worker
             #
             if not federated_only:
+
+                # Access staking node via node's transacting keys
+                transacting_power = TransactingPower(account=worker_address,
+                                                     password=client_password,
+                                                     blockchain=self.blockchain)
+                self._crypto_power.consume_power_up(transacting_power)
+
+                # Use blockchain power to substantiate stamp
+                self.substantiate_stamp(client_password=password)
+
                 Worker.__init__(self,
                                 is_me=is_me,
                                 blockchain=self.blockchain,
@@ -895,17 +906,10 @@ class Ursula(Teacher, Character, Worker):
                                 worker_address=worker_address,
                                 stake_tracker=stake_tracker)
 
-                # Access to worker's ETH client via node's transacting keys
-                # TODO: #1092 - TransactingPower
-                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=worker_address)
-                self._crypto_power.consume_power_up(blockchain_power)
-                self.blockchain.transacting_power = blockchain_power  # TODO: Embed in powerups
-                self.substantiate_stamp(client_password=password)  # TODO: Use PowerUp / Derive from keyring
-
         #
-        # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
+        # ProxyRESTServer and TLSHostingPower #
         #
-        if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
+        if not crypto_power or (TLSHostingPower not in crypto_power):
 
             #
             # Ephemeral Self-Ursula
@@ -966,15 +970,16 @@ class Ursula(Teacher, Character, Worker):
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
                          password=password,
-                         worker_address=worker_address,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence,
+
+                         # TODO: #1091 When is_me and not federated_only, the stamp is substantiated twice
+                         worker_address=worker_address,
                          substantiate_immediately=is_me and not federated_only,
-                         # FIXME: When is_me and not federated_only, the stamp is substantiated twice
                          )
 
         #

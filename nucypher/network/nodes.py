@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
-from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
+from nucypher.crypto.powers import TransactingPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -915,7 +915,7 @@ class Teacher:
         self.__worker_address = None
 
         if substantiate_immediately:
-            # TODO: #1091
+            # TODO: #1091 When is_me and not federated_only, the stamp is substantiated twice
             self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
@@ -1149,13 +1149,12 @@ class Teacher:
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
 
-    def substantiate_stamp(self, client_password: str):
-        # TODO: #1092 - TransactingPower
-        blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=client_password)  # TODO: #349
-        signature = blockchain_power.sign_message(message=bytes(self.stamp))
+    def substantiate_stamp(self, client_password: str = None):
+        transacting_power = self._crypto_power.power_ups(TransactingPower)
+        transacting_power.unlock_account(password=client_password)  # TODO: #349
+        signature = transacting_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
-        self.__worker_address = blockchain_power.account
+        self.__worker_address = transacting_power.account
 
     #
     # Interface

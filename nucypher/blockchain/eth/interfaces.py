@@ -31,10 +31,12 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
+from eth_utils import to_checksum_address, to_canonical_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract, ConciseContract, ContractFunction
-from web3.exceptions import TimeExhausted
+from web3.contract import ConciseContract
+from web3.contract import Contract, ContractFunction, ContractConstructor
+from web3.exceptions import TimeExhausted, ValidationError
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import Web3Client, NuCypherGethProcess
@@ -49,7 +51,7 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -83,13 +85,11 @@ class BlockchainInterface:
 
     def __init__(self,
                  poa: bool = True,
-                 sync_now: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 transacting_power: BlockchainPower = READ_ONLY_INTERFACE,
+                 transacting_power: TransactingPower = READ_ONLY_INTERFACE,
                  provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
-                 registry: EthereumContractRegistry = None,
-                 fetch_registry: bool = True):
+                 registry: EthereumContractRegistry = None):
 
         """
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
@@ -164,11 +164,6 @@ class BlockchainInterface:
         self.transacting_power = transacting_power
         self.registry = registry
 
-        self.connect(provider=provider,
-                     provider_uri=provider_uri,
-                     fetch_registry=fetch_registry,
-                     sync_now=sync_now)
-
         BlockchainInterface._instance = self
 
     def __repr__(self):
@@ -188,6 +183,8 @@ class BlockchainInterface:
         """
         https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
         """
+        if self.client is NO_BLOCKCHAIN_CONNECTION:
+            return False
         return self.client.is_connected
 
     def disconnect(self):
@@ -208,21 +205,18 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self,
-                provider: Web3Providers = None,
-                provider_uri: str = None,
-                fetch_registry: bool = True,
-                sync_now: bool = True):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = True):
 
         # Spawn child process
         if self._provider_process:
             self._provider_process.start()
             provider_uri = self._provider_process.provider_uri(scheme='file')
         else:
-            self.log.info(f"Using external Web3 Provider '{provider_uri}'")
+            provider_uri = self.provider_uri
+            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
-        self._attach_provider(provider=provider, provider_uri=provider_uri)
+        self._attach_provider(provider=self._provider, provider_uri=provider_uri)
         self.log.info("Connecting to {}".format(self.provider_uri))
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
@@ -291,7 +285,7 @@ class BlockchainInterface:
             self._provider = provider
 
     def send_transaction(self,
-                         transaction_function: ContractFunction,
+                         contract_function: ContractFunction,
                          sender_address: str,
                          payload: dict = None,
                          ) -> dict:
@@ -312,7 +306,21 @@ class BlockchainInterface:
                         'from': sender_address,
                         'gasPrice': self.client.w3.eth.gasPrice})
 
-        unsigned_transaction = transaction_function.buildTransaction(payload)
+        # Get interface name
+        try:
+            transaction_name = contract_function.fn_name.upper()
+        except AttributeError:
+            if isinstance(contract_function, ContractConstructor):
+                transaction_name = 'DEPLOY'
+            else:
+                transaction_name = 'UNKNOWN'
+
+        # Build transaction payload
+        try:
+            unsigned_transaction = contract_function.buildTransaction(payload)
+        except ValidationError:
+            # TODO: Handle validation failures for gas limits, invalid fields, etc.
+            raise
 
         #
         # Broadcast
@@ -320,11 +328,15 @@ class BlockchainInterface:
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
+        self.log.debug(f"[TX-{transaction_name}] | {to_checksum_address(payload['from'])}")
 
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
+            # TODO: Handle transaction timeout
             raise
+        else:
+            self.log.debug(f"[RECEIPT-{transaction_name}] | {receipt['transactionHash'].hex()}")
 
         #
         # Confirm
@@ -427,8 +439,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
         super().__init__(*args, **kwargs)
 
         self.compiler = compiler or SolidityCompiler()
-        self._setup_solidity(compiler=self.compiler)
         self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
+
+    def connect(self, *args, **kwargs):
+        super().connect(*args, **kwargs)
+        self._setup_solidity(compiler=self.compiler)
+        return self.is_connected
 
     @property
     def deployer_address(self):
@@ -488,7 +504,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Transmit the deployment tx #
         #
 
-        receipt = self.send_transaction(transaction_function=transaction_function,
+        receipt = self.send_transaction(contract_function=transaction_function,
                                         sender_address=self.deployer_address,
                                         payload=deploy_transaction)
 

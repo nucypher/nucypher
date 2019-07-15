@@ -24,9 +24,9 @@ import os
 import re
 import sys
 import time
-from mock import Mock
 from os.path import abspath, dirname
 
+from mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer

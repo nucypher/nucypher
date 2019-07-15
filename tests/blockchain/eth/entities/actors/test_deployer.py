@@ -22,10 +22,9 @@ import pytest
 from web3.auto import w3
 
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -35,7 +34,8 @@ from nucypher.utilities.sandbox.constants import (
     POLICY_MANAGER_DEPLOYMENT_SECRET,
     STAKING_ESCROW_DEPLOYMENT_SECRET,
     NUMBER_OF_ALLOCATIONS_IN_TESTS,
-    TEST_PROVIDER_URI)
+    INSECURE_DEVELOPMENT_PASSWORD
+)
 
 
 @pytest.mark.slow()
@@ -48,7 +48,10 @@ def test_rapid_deployment(token_economics):
                                    compiler=compiler)
 
     # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=blockchain.etherbase_account)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                    account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)

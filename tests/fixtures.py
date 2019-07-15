@@ -39,15 +39,12 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
-from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import CharacterConfiguration
-from nucypher.crypto.powers import BlockchainPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -59,8 +56,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   MOCK_URSULA_STARTING_PORT,
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEMPORARY_DOMAIN,
-                                                  TEST_PROVIDER_URI
-                                                  )
+                                                  TEST_PROVIDER_URI,
+                                                  INSECURE_DEVELOPMENT_PASSWORD)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
@@ -296,7 +293,6 @@ def capsule_side_channel(enacted_federated_policy):
             self.messages = []
             self()
 
-
     return _CapsuleSideChannel()
 
 
@@ -316,7 +312,7 @@ def federated_alice(alice_federated_test_config):
 
 
 @pytest.fixture(scope="module")
-def blockchain_alice(alice_blockchain_test_config):
+def blockchain_alice(alice_blockchain_test_config, testerchain):
     _alice = alice_blockchain_test_config.produce()
     return _alice
 
@@ -328,7 +324,7 @@ def federated_bob(bob_federated_test_config):
 
 
 @pytest.fixture(scope="module")
-def blockchain_bob(bob_blockchain_test_config):
+def blockchain_bob(bob_blockchain_test_config, testerchain):
     _bob = bob_blockchain_test_config.produce()
     return _bob
 
@@ -371,20 +367,21 @@ def testerchain():
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
 
-    # TODO: TransactingPower
-    # Mock TransactingPower Consumption
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    # Mock TransactingPower Consumption (Deployer)
     testerchain.deployer_address = testerchain.etherbase_account
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=testerchain.deployer_address)
+    testerchain.transacting_power.activate()
+
     yield testerchain
     testerchain.disconnect()
 
 
 @pytest.fixture(scope='module')
 def agency(testerchain):
-    """
-    Launch the big three contracts on provided chain,
-    make agents for each and return them.
-    """
+    """Launch all Nucypher ethereum contracts"""
+
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -399,18 +396,22 @@ def agency(testerchain):
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    token_agent = token_deployer.make_agent()             # 1: Token
-    staking_agent = staking_escrow_deployer.make_agent()  # 2 Miner Escrow
-    policy_agent = policy_manager_deployer.make_agent()   # 3 Policy Agent
-    adjudicator_agent = adjudicator_deployer.make_agent()  # 4
+    token_agent = token_deployer.make_agent()              # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()   # 2 Miner Escrow
+    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
 
     # TODO: Perhaps we should get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
     # and since agents are singletons, in tests it's only necessary to call the agent
-    # constructor again to receive the existing agent. For example:
+    # constructor again to receive the existing agent.
+    #
+    # For example:
     #     staking_agent = StakingEscrowAgent()
+    #
     # This is more clear than how we currently obtain an agent instance in tests:
     #     _, staking_agent, _ = agency
+    #
     # Other advantages is that it's closer to how agents should be use (i.e., there
     # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
 
@@ -425,13 +426,15 @@ def clear_out_agency():
 
 
 @pytest.fixture(scope="module")
-def stakers(agency, token_economics):
+def stakers(testerchain, agency, token_economics):
     token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
     # Mock Powerup consumption (Deployer)
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain,
-                                                   account=blockchain.etherbase_account)
+    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                    account=blockchain.etherbase_account)
+    blockchain.transacting_power.activate()
 
     token_airdrop(origin=blockchain.etherbase_account,
                   addresses=blockchain.stakers_accounts,
@@ -442,9 +445,11 @@ def stakers(agency, token_economics):
     for index, account in enumerate(blockchain.stakers_accounts):
         staker = Staker(is_me=True, checksum_address=account, blockchain=blockchain)
 
-        # Mock TransactingPower consumption (Ursula-Staker)
-        staker.blockchain.transacting_power = BlockchainPower(blockchain=staker.blockchain,
-                                                              account=staker.checksum_address)
+        # Mock TransactingPower consumption
+        staker.blockchain.transacting_power = TransactingPower(blockchain=blockchain,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                               account=account)
+        staker.blockchain.transacting_power.activate()
 
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
@@ -494,8 +499,8 @@ def idle_staker(testerchain, agency):
     idle_staker_account = testerchain.unassigned_accounts[-2]
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain,
-                                                    account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     account=testerchain.etherbase_account)
 
     token_airdrop(origin=testerchain.etherbase_account,
                   addresses=[idle_staker_account],

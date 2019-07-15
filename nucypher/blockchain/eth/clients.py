@@ -6,6 +6,7 @@ from typing import Union
 
 import maya
 from constant_sorrow.constants import NOT_RUNNING, UNKNOWN_DEVELOPMENT_CHAIN_ID
+from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_canonical_address
@@ -59,7 +60,7 @@ LOCAL_CHAINS = {1337: "GethDev",
                 5777: "Ganache/TestRPC"}
 
 
-class Web3Client(object):
+class Web3Client:
 
     is_local = False
 
@@ -151,6 +152,10 @@ class Web3Client(object):
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
+    def lock_account(self, address):
+        if not self.is_local:
+            return self.lock_account(address=address)
+
     def unlock_account(self, address, password) -> bool:
         if not self.is_local:
             return self.unlock_account(address, password)
@@ -194,6 +199,9 @@ class Web3Client(object):
     def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
         receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
         return receipt
+
+    def sign_transaction(self, transaction: dict):
+        raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> str:
         return self.w3.eth.getTransaction(transaction_hash)
@@ -264,6 +272,19 @@ class GethClient(Web3Client):
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 
+    def sign_transaction(self, transaction: dict) -> bytes:
+
+        # Do not include a 'to' field for contract creation.
+        if transaction['to'] == b'':
+            transaction = dissoc(transaction, 'to')
+
+        # Sign
+        result = self.w3.eth.signTransaction(transaction=transaction)
+
+        # Return RLP bytes
+        rlp_encoded_transaction = result.raw
+        return rlp_encoded_transaction
+
 
 class ParityClient(Web3Client):
 
@@ -293,15 +314,18 @@ class EthereumTesterClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password):
-        return True
+    def unlock_account(self, address, password) -> bool:
+        """Returns True if the testing backend keyring has control of the given address."""
+        address = to_canonical_address(address)
+        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
+        return address in keystore
 
     def sync(self, *args, **kwargs):
         return True
 
-    def sign_transaction(self, account: str, transaction: dict):
+    def sign_transaction(self, transaction: dict):
         # Get signing key of test account
-        address = to_canonical_address(account)
+        address = to_canonical_address(transaction['from'])
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
 
         # Sign using a local private key

@@ -14,11 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import eth_utils
-import pytest
 
+
+import pytest
 from constant_sorrow import constants
 from cryptography.exceptions import InvalidSignature
+from eth_account._utils.transactions import Transaction
+from eth_utils import to_checksum_address
 
 from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.characters.lawful import Enrico
@@ -27,8 +29,8 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (CryptoPower,
                                     SigningPower,
                                     NoSigningPower,
-                                    BlockchainPower,
-                                    PowerUpError)
+                                    TransactingPower)
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 """
 Chapter 1: SIGNING
@@ -116,39 +118,51 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_blockchain_power(testerchain, agency):
-    # TODO: Handle multiple providers
-    eth_address = testerchain.client.accounts[0]
-    canonical_address = eth_utils.to_canonical_address(eth_address)
-    sig_privkey = testerchain.provider.ethereum_tester.backend._key_lookup[canonical_address]
+def test_character_transacting_power_signing(testerchain, agency):
 
+    # Pretend to be a character.
+    eth_address = testerchain.etherbase_account
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
-    signer._crypto_power.consume_power_up(BlockchainPower(blockchain=testerchain, account=eth_address))
 
-    # Due to testing backend, the account is already unlocked.
-    power = signer._crypto_power.power_ups(BlockchainPower)
-    power.is_unlocked = True
-    # power.unlock_account('this-is-not-a-secure-password')
+    # Manually consume the power up
+    transacting_power = TransactingPower(blockchain=testerchain,
+                                         password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         account=eth_address)
 
-    data_to_sign = b'What does Ursula look like?!?'
-    sig = power.sign_message(message=data_to_sign)
+    assert testerchain.transacting_power != transacting_power
+    signer._crypto_power.consume_power_up(transacting_power)
 
-    is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=sig)
+    # Retrieve the power up
+    power = signer._crypto_power.power_ups(TransactingPower)
+
+    assert power == transacting_power
+    assert testerchain.transacting_power == power
+
+    assert power.is_active is True
+    assert power.is_unlocked is True
+    assert testerchain.transacting_power.is_unlocked is True
+
+    # Sign Message
+    data_to_sign = b'Premium Select Luxury Pencil Holder'
+    signature = power.sign_message(message=data_to_sign)
+    is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=signature)
     assert is_verified is True
 
-    # Test a bad address/pubkey pair
-    is_verified = verify_eip_191(address=testerchain.client.accounts[1],
-                                 message=data_to_sign,
-                                 signature=sig)
-    assert is_verified is False
+    # Sign Transaction
+    transaction_dict = {'nonce': testerchain.client.w3.eth.getTransactionCount(eth_address),
+                        'gasPrice': testerchain.client.w3.eth.gasPrice,
+                        'gas': 100000,
+                        'from': eth_address,
+                        'to': testerchain.unassigned_accounts[1],
+                        'value': 1,
+                        'data': b''}
 
-    # Test a signature without unlocking the account
-    power.is_unlocked = False
-    with pytest.raises(PowerUpError):
-        power.sign_message(message=b'test')
+    signed_transaction = power.sign_transaction(unsigned_transaction=transaction_dict)
 
-    # Test lockAccount call
-    del power
+    # Demonstrate that the transaction is valid RLP encoded.
+    restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)
+    restored_dict = restored_transaction.as_dict()
+    assert to_checksum_address(restored_dict['to']) == transaction_dict['to']
 
 
 """
@@ -174,7 +188,7 @@ def test_anybody_can_encrypt():
 def test_node_deployer(federated_ursulas):
     for ursula in federated_ursulas:
         deployer = ursula.get_deployer()
-        assert deployer.options['https_port'] == ursula.rest_interface.port
+        assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
 
 

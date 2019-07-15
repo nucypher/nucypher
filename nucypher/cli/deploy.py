@@ -19,19 +19,18 @@ import time
 
 import click
 import maya
-from web3.exceptions import TimeExhausted
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
+from nucypher.cli.actions import get_password
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import BlockchainPower
 
 
 @click.command()
@@ -42,6 +41,7 @@ from nucypher.crypto.powers import BlockchainPower
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--sync/--no-sync', default=True)
+@click.option('--device/--no-device', default=False)  # TODO: Make True by default.
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -70,6 +70,7 @@ def deploy(click_config,
            recipient_address,
            config_root,
            sync,
+           device,
            force):
     """Manage contract and registry deployment"""
 
@@ -104,9 +105,9 @@ def deploy(click_config,
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
                                              registry=registry,
-                                             compiler=SolidityCompiler(),
-                                             fetch_registry=False,
-                                             sync_now=sync)
+                                             compiler=SolidityCompiler())
+
+    blockchain.connect(fetch_registry=False, sync_now=sync)
 
     #
     # Deployment Actor
@@ -123,20 +124,19 @@ def deploy(click_config,
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
-    # TODO: Integrate with Deployer Actor (Character)
-    blockchain.transacting_power = BlockchainPower(blockchain=blockchain, account=deployer_address)
-    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+    password = None
+    if not device and not blockchain.client.is_local:
+        password = get_password(confirm=False)
+
+    deployer = Deployer(blockchain=blockchain,
+                        client_password=password,
+                        deployer_address=deployer_address)
 
     # Verify ETH Balance
     click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
     if deployer.eth_balance == 0:
         click.secho("Deployer address has no ETH.", fg='red', bold=True)
         raise click.Abort()
-
-    if not blockchain.client.is_local:
-        # (~ dev mode; Assume accounts are already unlocked)
-        password = click.prompt("Enter ETH node password", hide_input=True)
-        blockchain.client.unlockAccount(deployer_address, password)
 
     # Add ETH Bootnode or Peer
     if enode:
@@ -296,12 +296,6 @@ def deploy(click_config,
         click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
         txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
         click.secho(f"OK | {txhash}")
-
-    elif action == "destroy-registry":
-        registry_filepath = deployer.blockchain.registry.filepath
-        click.confirm(f"Are you absolutely sure you want to destroy the contract registry at {registry_filepath}?", abort=True)
-        os.remove(registry_filepath)
-        click.secho(f"Successfully destroyed {registry_filepath}", fg='red')
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")

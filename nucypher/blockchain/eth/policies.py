@@ -285,7 +285,7 @@ class BlockchainPolicy(Policy):
 
         # Transact
         contract_function = self.author.policy_agent.contract.functions.createPolicy(*policy_args)
-        receipt = self.author.blockchain.send_transaction(transaction_function=contract_function,
+        receipt = self.author.blockchain.send_transaction(contract_function=contract_function,
                                                           sender_address=self.author.checksum_address,
                                                           payload=payload)
         txhash = receipt['transactionHash']

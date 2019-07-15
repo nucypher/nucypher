@@ -22,6 +22,7 @@ import stat
 from json import JSONDecodeError
 from typing import ClassVar, Tuple, Callable, Union, Dict, List
 
+from constant_sorrow.constants import FEDERATED_ADDRESS
 from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -34,13 +35,12 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, is_checksum_address
+from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from twisted.logger import Logger
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.constants import BLAKE2B
@@ -49,10 +49,8 @@ from nucypher.crypto.powers import (
     DecryptingPower,
     KeyPairBasedPower,
     DerivedKeyBasedPower,
-    BlockchainPower
+    TransactingPower
 )
-
-from constant_sorrow.constants import FEDERATED_ADDRESS
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
@@ -499,10 +497,6 @@ class NucypherKeyring:
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 
-        elif power_class is BlockchainPower:
-            # new_cryptopower = power_class(account=self.checksum_address)
-            pass  # TODO: Needs refactoring with TransactingPower
-
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
             raise ValueError(failure_message)
@@ -514,13 +508,12 @@ class NucypherKeyring:
     #
     @classmethod
     def generate(cls,
+                 checksum_address: str,
                  password: str,
                  encrypting: bool,
                  rest: bool,
                  host: str = None,
                  curve: EllipticCurve = None,
-                 federated: bool = False,
-                 checksum_address: str = None,
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
         """
@@ -550,14 +543,14 @@ class NucypherKeyring:
 
         keyring_args = dict()
 
-        if checksum_address:
+        if checksum_address is not FEDERATED_ADDRESS:
             # Addresses read from some node keyrings (clients) are *not* returned in checksum format.
             checksum_address = to_checksum_address(checksum_address)
 
         if encrypting is True:
             signing_private_key, signing_public_key = _generate_signing_keys()
 
-            if federated and not checksum_address:
+            if checksum_address is FEDERATED_ADDRESS:
                 uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
                 without_prefix = uncompressed_bytes[1:]
                 verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)

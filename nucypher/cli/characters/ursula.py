@@ -18,16 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
-import socket
-
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess, NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import UnknownIPAddress
+from nucypher.cli.actions import get_password
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -36,8 +33,7 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     STAKE_DURATION,
     STAKE_EXTENSION,
-    STAKE_VALUE,
-    IPV4_ADDRESS)
+    STAKE_VALUE)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -66,9 +62,9 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--sync/--no-sync', default=True)
+@click.option('--device/--no-device', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--recompile-solidity', help="Compile solidity from source when making a web3 connection", is_flag=True)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Token value of stake", type=click.INT)
@@ -98,7 +94,6 @@ def ursula(click_config,
            config_file,
            provider_uri,
            geth,
-           recompile_solidity,
            no_registry,
            registry_filepath,
            value,
@@ -107,6 +102,7 @@ def ursula(click_config,
            list_,
            divide,
            sync,
+           device,
            interactive,
 
            ) -> None:
@@ -178,9 +174,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(force=force)
 
-        new_password = click_config.get_password(confirm=True)
-
-        ursula_config = UrsulaConfiguration.generate(password=new_password,
+        ursula_config = UrsulaConfiguration.generate(password=get_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
@@ -248,14 +242,12 @@ def ursula(click_config,
             raise click.BadOptionUsage(option_name='--dev', message=message)
         return actions.destroy_configuration(character_config=ursula_config, force=force)
 
-
     #
     # Make Ursula
     #
 
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
-                                        sync=sync,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
                                         dev=dev,

@@ -38,8 +38,8 @@ def status(click_config, config_file):
     #
     ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
     if not ursula_config.federated_only:
-        ursula_config.connect_to_blockchain(provider_uri=ursula_config.provider_uri)
-        ursula_config.connect_to_contracts()
+        ursula_config.get_blockchain_interface(provider_uri=ursula_config.provider_uri)
+        ursula_config.acquire_agency()
 
         # Contracts
         paint_contract_status(ursula_config=ursula_config, click_config=click_config)
