@@ -212,6 +212,7 @@ commands:
       - run:
           name: Install Python Dependencies with Pipenv
           command: |
+            sudo apt update -y && sudo apt install python3-dev -y
             pipenv sync --dev
       - run:
           name: Install Solidity Compiler (Pipenv Entrypoint)
@@ -311,7 +312,7 @@ commands:
           command: mkdir ~/docker-dev
       - run:
           name: save Docker Image
-          command: docker save dev:nucypher -o ~/docker-dev/dev-docker-build.tar
+          command: docker save circle:nucypher -o ~/docker-dev/dev-docker-build.tar
       - persist_to_workspace:
           root: ~/docker-dev
           paths:
