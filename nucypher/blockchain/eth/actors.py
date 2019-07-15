@@ -783,6 +783,8 @@ class StakeHolder(BaseConfiguration):
         # Sub config
         blockchain_payload = payload.pop('blockchain')
         blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
+        blockchain.connect()  # TODO: Leave this here?
+
         payload.update(dict(blockchain=blockchain))
 
         payload.update(overrides)

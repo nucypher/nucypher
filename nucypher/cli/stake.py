@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting
-from nucypher.cli.actions import confirm_staged_stake, get_password, select_stake
+from nucypher.cli.actions import confirm_staged_stake, get_password, select_stake, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -17,7 +17,6 @@ from nucypher.cli.types import (
     STAKE_DURATION,
     STAKE_EXTENSION,
     EXISTING_READABLE_FILE)
-from nucypher.utilities.sandbox.hardware import MockTrezor
 
 
 @click.command()
@@ -78,6 +77,10 @@ def stake(click_config,
 
     if action == 'new-stakeholder':
 
+        if not provider_uri:
+            raise click.BadOptionUsage(option_name='--provider-uri',
+                                       message="--provider-uri is required to create a new stakeholder.")
+
         registry = None
         if registry_filepath:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
@@ -85,6 +88,10 @@ def stake(click_config,
         blockchain = BlockchainInterface(provider_uri=provider_uri,
                                          registry=registry,
                                          poa=poa)
+        blockchain.connect()  # TODO: Leave this here?
+
+        if not funding_address:
+            funding_address = select_client_account(blockchain=blockchain)
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       funding_account=funding_address,

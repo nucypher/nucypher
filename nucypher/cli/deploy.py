@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.actions import get_password
+from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -37,7 +37,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--sync/--no-sync', default=True)
@@ -49,6 +48,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--amount', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
+@click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -65,13 +65,13 @@ def deploy(click_config,
            allocation_outfile,
            registry_infile,
            registry_outfile,
-           no_compile,
            amount,
            recipient_address,
            config_root,
            sync,
            device,
-           force):
+           force,
+           dev):
     """Manage contract and registry deployment"""
 
     ETH_NODE = None
@@ -99,24 +99,28 @@ def deploy(click_config,
     # Establish a contract registry from disk if specified
     registry_filepath = registry_outfile or registry_infile
 
+    # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
+    if dev:
+        registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
+
     # Deployment-tuned blockchain connection
     blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
                                              poa=poa,
                                              compiler=SolidityCompiler(),
                                              registry=EthereumContractRegistry(registry_filepath=registry_filepath))
 
-    blockchain.connect(fetch_registry=False, sync_now=sync)
+    try:
+        blockchain.connect(fetch_registry=False, sync_now=sync)
+    except BlockchainDeployerInterface.ConnectionFailed as e:
+        click.secho(str(e), fg='red', bold=True)
+        raise click.Abort()
 
     #
     # Deployment Actor
     #
 
     if not deployer_address:
-        for index, address in enumerate(blockchain.client.accounts):
-            click.secho(f"{index} --- {address}")
-        choices = click.IntRange(0, len(blockchain.client.accounts))
-        deployer_address_index = click.prompt("Select deployer address", default=0, type=choices)
-        deployer_address = blockchain.client.accounts[deployer_address_index]
+        deployer_address = select_client_account(blockchain=blockchain)
 
     # Verify Address
     if not force:
