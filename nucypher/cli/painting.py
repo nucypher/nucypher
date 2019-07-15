@@ -296,3 +296,23 @@ def paint_staged_stake_division(ursula,
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)
+
+
+def paint_contract_deployment(contract_name: str, contract_address: str, receipts: dict):
+
+    # Paint heading
+    heading = '\n{} ({})'.format(contract_name, contract_address)
+    click.secho(heading, bold=True)
+    click.echo('*' * (42 + 3 + len(contract_name)))
+
+    # Paint Transactions
+    for tx_name, receipt in receipts.items():
+        click.secho("OK", fg='green', nl=False, bold=True)
+        click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
+        try:
+            click.secho(" | {}".format(receipt['transactionHash'].hex()), fg='yellow', nl=False)
+        except KeyError:
+            breakpoint()
+
+        click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
+        click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))

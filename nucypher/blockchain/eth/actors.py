@@ -23,6 +23,7 @@ from decimal import Decimal
 from json import JSONDecodeError
 from typing import Tuple, List, Dict, Union
 
+import click
 import maya
 from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
@@ -59,6 +60,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.cli.painting import paint_contract_deployment
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
@@ -248,39 +250,54 @@ class Deployer(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self,
-                                 staker_secret: str,
-                                 policy_secret: str,
-                                 adjudicator_secret: str,
-                                 user_escrow_proxy_secret: str,
-                                 ) -> Tuple[dict, dict]:
-        """
-        Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
-        """
+    def deploy_network_contracts(self, secrets) -> dict:
 
-        token_txs, token_deployer = self.deploy_contract(contract_name='NuCypherToken')
-        staking_txs, staking_deployer = self.deploy_contract(contract_name='StakingEscrow', plaintext_secret=staker_secret)
-        policy_txs, policy_deployer = self.deploy_contract(contract_name='PolicyManager', plaintext_secret=policy_secret)
-        adjudicator_txs, adjudicator_deployer = self.deploy_contract(contract_name='Adjudicator', plaintext_secret=adjudicator_secret)
-        user_escrow_proxy_txs, user_escrow_proxy_deployer = self.deploy_contract(contract_name='UserEscrowProxy', plaintext_secret=user_escrow_proxy_secret)
+        deployment_receipts = dict()
 
-        deployers = (token_deployer,
-                     staking_deployer,
-                     policy_deployer,
-                     adjudicator_deployer,
-                     user_escrow_proxy_deployer,
-                     )
+        # NuCypherToken
+        token_receipts, token_deployer = self.deploy_contract(contract_name=NucypherTokenDeployer.contract_name)
+        paint_contract_deployment(contract_name=NucypherTokenDeployer.contract_name,
+                                  receipts=token_receipts,
+                                  contract_address=token_deployer.contract_address)
+        deployment_receipts[NucypherTokenDeployer.contract_name] = token_receipts
+        click.pause(info="Press any key to continue")
 
-        txhashes = {
-            NucypherTokenDeployer.contract_name: token_txs,
-            StakingEscrowDeployer.contract_name: staking_txs,
-            PolicyManagerDeployer.contract_name: policy_txs,
-            AdjudicatorDeployer.contract_name: adjudicator_txs,
-            UserEscrowProxyDeployer.contract_name: user_escrow_proxy_txs,
-        }
+        # StakingEscrow
+        staking_receipts, staking_deployer = self.deploy_contract(contract_name=StakingEscrowDeployer.contract_name,
+                                                                  plaintext_secret=secrets.staker_secret)
+        paint_contract_deployment(contract_name=StakingEscrowDeployer.contract_name,
+                                  receipts=staking_receipts,
+                                  contract_address=staking_deployer.contract_address)
+        deployment_receipts[StakingEscrowDeployer.contract_name] = staking_receipts
+        click.pause(info="Press any key to continue")
 
-        deployers = {deployer.contract_name: deployer for deployer in deployers}
-        return txhashes, deployers
+        # PolicyManager
+        policy_receipts, policy_deployer = self.deploy_contract(contract_name=PolicyManagerDeployer.contract_name,
+                                                                plaintext_secret=secrets.policy_secret)
+        paint_contract_deployment(contract_name=PolicyManagerDeployer.contract_name,
+                                  receipts=policy_receipts,
+                                  contract_address=policy_deployer.contract_address)
+        deployment_receipts[PolicyManagerDeployer.contract_name] = policy_receipts
+        click.pause(info="Press any key to continue")
+
+        # Adjudicator
+        adjudicator_receipts, adjudicator_deployer = self.deploy_contract(contract_name=AdjudicatorDeployer.contract_name,
+                                                                          plaintext_secret=secrets.adjudicator_secret)
+        paint_contract_deployment(contract_name=AdjudicatorDeployer.contract_name,
+                                  receipts=adjudicator_receipts,
+                                  contract_address=adjudicator_deployer.contract_address)
+        deployment_receipts[AdjudicatorDeployer.contract_name] = adjudicator_receipts
+        click.pause(info="Press any key to continue")
+
+        # UserEscrowProxy
+        user_escrow_proxy_receipts, user_escrow_proxy_deployer = self.deploy_contract(contract_name=UserEscrowProxyDeployer.contract_name,
+                                                                                      plaintext_secret=secrets.user_escrow_proxy_secret)
+        paint_contract_deployment(contract_name=UserEscrowProxyDeployer.contract_name,
+                                  receipts=user_escrow_proxy_receipts,
+                                  contract_address=user_escrow_proxy_deployer.contract_address)
+        deployment_receipts[UserEscrowProxyDeployer.contract_name] = user_escrow_proxy_receipts
+
+        return deployment_receipts
 
     def deploy_beneficiary_contracts(self,
                                      allocations: List[Dict[str, Union[str, int]]],
@@ -343,19 +360,19 @@ class Deployer(NucypherTokenActor):
         txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
         return txhashes
 
-    def save_deployment_receipts(self, transactions: dict) -> str:
+    def save_deployment_receipts(self, receipts: dict) -> str:
         filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
         filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
         # TODO: Do not assume default config root
         os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
-            for contract_name, transactions in transactions.items():
+            for contract_name, receipts in receipts.items():
                 contract_records = dict()
-                for tx_name, txhash in transactions.items():
-                    receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=self.blockchain.TIMEOUT)
+                for tx_name, receipt in receipts.items():
+                    # Formatting
                     receipt = {item: str(result) for item, result in receipt.items()}
-                    contract_records.update({tx_name: receipt for tx_name in transactions})
+                    contract_records.update({tx_name: receipt for tx_name in receipts})
                 data[contract_name] = contract_records
             data = json.dumps(data, indent=4)
             file.write(data)

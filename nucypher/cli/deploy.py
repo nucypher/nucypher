@@ -23,12 +23,15 @@ import maya
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
+    AdjudicatorDeployer, UserEscrowProxyDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.config import nucypher_deployer_config
+from nucypher.cli.painting import paint_contract_deployment
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -204,15 +207,11 @@ def deploy(click_config,
         # Stage Deployment
         #
 
-        # Track tx hashes, and new agents
-        __deployment_transactions = dict()
-        __deployment_agents = dict()
-
         secrets = click_config.collect_deployment_secrets()
+
         click.clear()
         click.secho(NU_BANNER)
 
-        w3 = deployer.blockchain.w3
         click.secho(f"Current Time ........ {maya.now().iso8601()}")
         click.secho(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
         click.secho(f"Block ............... {deployer.blockchain.client.block_number}")
@@ -239,51 +238,22 @@ def deploy(click_config,
         click.secho(f"Deploying...", bold=True)
 
         #
-        # DEPLOY < -------
+        # DEPLOY
         #
+        deployment_receipts = deployer.deploy_network_contracts(secrets=secrets)
 
-        txhashes, deployers = deployer.deploy_network_contracts(staker_secret=secrets.staker_secret,
-                                                                policy_secret=secrets.policy_secret,
-                                                                adjudicator_secret=secrets.adjudicator_secret,
-                                                                user_escrow_proxy_secret=secrets.escrow_proxy_secret)
-
+        #
         # Success
-        __deployment_transactions.update(txhashes)
-
         #
-        # Paint
-        #
-
-        total_gas_used = 0  # TODO: may be faulty
-        for contract_name, transactions in __deployment_transactions.items():
-
-            # Paint heading
-            heading = '\n{} ({})'.format(contract_name, deployers[contract_name].contract_address)
-            click.secho(heading, bold=True)
-            click.echo('*'*(42+3+len(contract_name)))
-
-            for tx_name, txhash in transactions.items():
-
-                # Wait for inclusion in the blockchain
-                receipt = deployer.blockchain.w3.eth.waitForTransactionReceipt(txhash)
-                click.secho("OK", fg='green', nl=False, bold=True)
-
-                # Accumulate gas
-                total_gas_used += int(receipt['gasUsed'])
-
-                # Paint
-                click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
-                click.secho(" | {}".format(txhash.hex()), fg='yellow', nl=False)
-                click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
-                click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
 
         # Paint outfile paths
-        click.secho("Cumulative Gas Consumption: {} gas".format(total_gas_used), bold=True, fg='blue')
+        # TODO: Echo total gas used.
+        # click.secho("Cumulative Gas Consumption: {} gas".format(total_gas_used), bold=True, fg='blue')
         registry_outfile = deployer.blockchain.registry.filepath
         click.secho('Generated registry {}'.format(registry_outfile), bold=True, fg='blue')
 
         # Save transaction metadata
-        receipts_filepath = deployer.save_deployment_receipts(transactions=__deployment_transactions)
+        receipts_filepath = deployer.save_deployment_receipts(receipts=deployment_receipts)
         click.secho(f"Saved deployment receipts to {receipts_filepath}", fg='blue', bold=True)
 
     elif action == "allocations":
