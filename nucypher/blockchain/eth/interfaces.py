@@ -326,10 +326,12 @@ class BlockchainInterface:
                         })
 
         # Get interface name
+        deployment = True if isinstance(contract_function, ContractConstructor) else False
+
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
-            if isinstance(contract_function, ContractConstructor):
+            if deployment:
                 transaction_name = 'DEPLOY'
             else:
                 transaction_name = 'UNKNOWN'
@@ -340,6 +342,9 @@ class BlockchainInterface:
         except ValidationError:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
             raise
+        else:
+            if deployment:
+                self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
 
         #
         # Broadcast
@@ -495,7 +500,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         enroll: bool = True,
                         gas_limit: int = None,
                         **kwargs
-                        ) -> Tuple[Contract, str]:
+                        ) -> Tuple[Contract, dict]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -515,7 +520,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
         transaction_function = contract_factory.constructor(*constructor_args, **kwargs)
-        # self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(transaction['data'])))
 
         #
         # Transmit the deployment tx #
@@ -528,7 +532,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
         # Verify deployment success
         #
-        txhash = receipt['transactionHash']
 
         # Success
         address = receipt['contractAddress']
@@ -545,7 +548,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                  contract_address=contract.address,
                                  contract_abi=contract_factory.abi)
 
-        return contract, txhash  # receipt
+        return contract, receipt  # receipt
 
     def get_contract_factory(self, contract_name: str) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
