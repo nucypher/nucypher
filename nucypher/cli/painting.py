@@ -235,8 +235,8 @@ def paint_staking_confirmation(ursula, transactions):
 
 Successfully transmitted stake initialization transactions.
 
-View your active stakes by running 'nucypher ursula stake --list'
-or start your Ursula node by running 'nucypher ursula run'.
+View your stakes by running 'nucypher stake list'
+or set your Ursula worker node address by running 'nucypher stake set-worker'.
 ''', fg='green')
 
 
