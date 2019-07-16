@@ -31,7 +31,6 @@ from nucypher.blockchain.eth.deployers import (
 @pytest.mark.slow()
 def test_adjudicator_deployer(session_testerchain, slashing_economics):
     testerchain = session_testerchain
-
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)

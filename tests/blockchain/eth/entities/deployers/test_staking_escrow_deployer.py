@@ -24,9 +24,7 @@ from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
 from nucypher.utilities.sandbox.blockchain import STAKING_ESCROW_DEPLOYMENT_SECRET
 
 
-def test_staking_escrow_deployment(session_testerchain, staking_escrow_deployer):
-    testerchain = session_testerchain
-
+def test_staking_escrow_deployment(staking_escrow_deployer):
     secret_hash = keccak(text=STAKING_ESCROW_DEPLOYMENT_SECRET)
     deployment_receipts = staking_escrow_deployer.deploy(secret_hash=secret_hash)
 
@@ -91,9 +89,8 @@ def test_upgrade(session_testerchain):
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
 
-    for title, txhash in receipts.items():
-        receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
 
 
 def test_rollback(session_testerchain):
@@ -109,9 +106,8 @@ def test_rollback(session_testerchain):
     # Let's do one more upgrade
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
-    for title, txhash in receipts.items():
-        receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
 
     old_target = current_target
     current_target = staking_agent.contract.functions.target().call()
@@ -126,11 +122,10 @@ def test_rollback(session_testerchain):
     # OK, *now* is time for rollback
     old_secret = b"third time's the charm"
     new_secret_hash = keccak(text="...maybe not.")
-    txhash = deployer.rollback(existing_secret_plaintext=old_secret,
-                               new_secret_hash=new_secret_hash)
+    receipt = deployer.rollback(existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret_hash)
 
-    receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-    assert receipt['status'] == 1, "Transaction Rejected:{}".format(txhash)
+    assert receipt['status'] == 1
 
     new_target = staking_agent.contract.functions.target().call()
     assert new_target != current_target

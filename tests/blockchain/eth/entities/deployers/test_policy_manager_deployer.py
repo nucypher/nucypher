@@ -37,7 +37,8 @@ def policy_manager_deployer(staking_escrow_deployer, session_testerchain):
     return policy_manager_deployer
 
 
-def test_policy_manager_deployment(session_testerchain, policy_manager_deployer, staking_escrow_deployer):
+def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer):
+
     deployment_receipts = policy_manager_deployer.deploy(secret_hash=keccak(text=POLICY_MANAGER_DEPLOYMENT_SECRET))
     assert len(deployment_receipts) == 3
 
@@ -103,9 +104,8 @@ def test_upgrade(session_testerchain):
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
 
-    for title, txhash in receipts.items():
-        receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
 
 
 def test_rollback(session_testerchain):
@@ -121,9 +121,8 @@ def test_rollback(session_testerchain):
     # Let's do one more upgrade
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
-    for title, txhash in receipts.items():
-        receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
 
     old_target = current_target
     current_target = policy_manager_agent.contract.functions.target().call()
@@ -138,11 +137,9 @@ def test_rollback(session_testerchain):
     # OK, *now* is time for rollback
     old_secret = b"third time's the charm"
     new_secret_hash = keccak(text="...maybe not.")
-    txhash = deployer.rollback(existing_secret_plaintext=old_secret,
-                               new_secret_hash=new_secret_hash)
-
-    receipt = session_testerchain.wait_for_receipt(txhash=txhash)
-    assert receipt['status'] == 1, "Transaction Rejected:{}".format(txhash)
+    receipt = deployer.rollback(existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret_hash)
+    assert receipt['status'] == 1
 
     new_target = policy_manager_agent.contract.functions.target().call()
     assert new_target != current_target

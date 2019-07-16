@@ -252,7 +252,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
     def _deploy_essential(self, gas_limit: int = None):
         escrow_constructor_args = (self.token_agent.contract_address,
-                                  *self.__economics.staking_deployment_parameters)
+                                   *self.__economics.staking_deployment_parameters)
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(self.contract_name,
                                                                               *escrow_constructor_args,
                                                                               gas_limit=gas_limit)
@@ -347,7 +347,7 @@ class StakingEscrowDeployer(ContractDeployer):
                                                  bare=True)  # acquire agency for the dispatcher itself.
 
         # 2 - Deploy new version #
-        new_escrow_contract, deploy_txhash = self._deploy_essential(gas_limit=gas_limit)
+        new_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
 
         # 3 - Wrap the escrow contract #
         wrapped_escrow_contract = self.blockchain._wrap_contract(wrapper_contract=dispatcher_deployer.contract,
@@ -360,7 +360,7 @@ class StakingEscrowDeployer(ContractDeployer):
                                                        gas_limit=gas_limit)
 
         # Respond
-        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
+        upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
         # Switch the contract for the wrapped one
         self._contract = wrapped_escrow_contract
         return upgrade_transaction
@@ -378,8 +378,7 @@ class StakingEscrowDeployer(ContractDeployer):
                                                         new_secret_hash=new_secret_hash,
                                                         gas_limit=gas_limit)
 
-        txhash = rollback_receipt['transactionHash']
-        return txhash
+        return rollback_receipt
 
     def make_agent(self) -> EthereumContractAgent:
         #self.__check_policy_manager()  # Ensure the PolicyManager contract has already been initialized
@@ -475,7 +474,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self._contract = self.blockchain._wrap_contract(proxy_deployer.contract,
                                                         target_contract=policy_manager_contract)
 
-        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt['transactionHash']}
+        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt}
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
@@ -491,8 +490,7 @@ class PolicyManagerDeployer(ContractDeployer):
                                                         new_secret_hash=new_secret_hash,
                                                         gas_limit=gas_limit)
 
-        rollback_txhash = rollback_receipt['transactionHash']
-        return rollback_txhash
+        return rollback_receipt
 
 
 class LibraryLinkerDeployer(ContractDeployer):
@@ -697,13 +695,11 @@ class UserEscrowDeployer(ContractDeployer):
     def deploy(self, gas_limit: int = None) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
         self.check_deployment_readiness()
-        deployment_receipts = dict()
         linker_contract = self.blockchain.get_contract_by_name(name=self.__linker_deployer.contract_name)
         args = (self.contract_name, linker_contract.address, self.token_agent.contract_address)
-        user_escrow_contract, deploy_txhash = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
-        deployment_receipts['deployment'] = deploy_txhash
+        user_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
         self._contract = user_escrow_contract
-        return deployment_receipts
+        return deploy_receipt
 
 
 class AdjudicatorDeployer(ContractDeployer):
