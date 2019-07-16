@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import collections
 import json
 import os
 from datetime import datetime
@@ -138,10 +137,15 @@ class Deployer(NucypherTokenActor):
         AdjudicatorDeployer,
         UserEscrowProxyDeployer,
     )
+    __interface_class = BlockchainDeployerInterface
+
+    __secrets = ('staker_secret',
+                 'policy_secret',
+                 'user_escrow_proxy_secret',
+                 'adjudicator_secret')
+    Secrets = collections.namedtuple('Secrets', __secrets)
 
     contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
-
-    __interface_class = BlockchainDeployerInterface
 
     class UnknownContract(ValueError):
         pass

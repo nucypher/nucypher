@@ -70,12 +70,16 @@ class EthereumContractAgent:
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface,
+                 blockchain: BlockchainInterface = None,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
 
         self.log = Logger(self.__class__.__name__)
+
+        # TODO: Move this to agency class?
+        if not blockchain:
+            raise ValueError("Blockchain is required to connect a new agent.")
         self.blockchain = blockchain
 
         if contract is None:  # Fetch the contract
