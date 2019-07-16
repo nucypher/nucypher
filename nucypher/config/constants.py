@@ -51,3 +51,6 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 
 # Web
 TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
+STATICS_DIR = os.getenv(
+    'NUCYPHER_STATICS_DIR') or os.path.join(
+    abspath(dirname(cli.__file__)), 'statics')

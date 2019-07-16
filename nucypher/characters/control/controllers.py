@@ -25,6 +25,7 @@ from nucypher.characters.control.serializers import (
 from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.utilities.controllers import JSONRPCTestClient
+from nucypher.network.protocols import HendrixDeployWithStatics, get_statics
 
 
 class CharacterControllerBase(ABC):
@@ -388,7 +389,8 @@ class WebController(CharacterControlServer):
             return
 
         # TODO #845: Make non-blocking web control startup
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": self._transport, "http_port": http_port})
+        hx_deployer = HendrixDeployWithStatics(action="start", options={"wsgi": self._transport, "http_port": http_port})
+        hx_deployer.resources = get_statics()
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
     def __call__(self, *args, **kwargs):

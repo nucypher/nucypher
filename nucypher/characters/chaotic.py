@@ -17,7 +17,6 @@ from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 
-from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
@@ -30,6 +29,7 @@ from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.protocols import get_statics, HendrixDeployWithStatics
 
 
 class Moe(Character):
@@ -108,7 +108,9 @@ class Moe(Character):
         # Server
         #
 
-        deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
+        deployer = HendrixDeployWithStatics(action="start", options={"wsgi": rest_app, "http_port": http_port})
+        deployer.resources = get_statics()
+
         deployer.add_non_tls_websocket_service(websocket_service)
 
         if not dry_run:
@@ -265,7 +267,6 @@ class Felix(Character, NucypherTokenActor):
         #
 
         @rest_app.route("/", methods=['GET'])
-        @limiter.limit("100/day;20/hour;1/minute")
         def home():
             rendering = render_template(self.TEMPLATE_NAME)
             return rendering
@@ -327,7 +328,9 @@ class Felix(Character, NucypherTokenActor):
 
         self.start_time = maya.now()
         payload = {"wsgi": self.rest_app, "http_port": port}
-        deployer = HendrixDeploy(action="start", options=payload)
+        deployer = HendrixDeployWithStatics(action="start", options=payload)
+        deployer.resources = get_statics()
+        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
 
         if distribution is True:
             self.start_distribution()
