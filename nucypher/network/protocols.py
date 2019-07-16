@@ -15,12 +15,29 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
 
 from urllib.parse import urlparse
 
 from eth_utils import is_checksum_address
 
 from bytestring_splitter import VariableLengthBytestring
+
+from twisted.internet import reactor
+from twisted.application import internet, service
+from twisted.python.threadpool import ThreadPool
+from twisted.web.static import File
+from twisted.web import server
+from twisted.internet import ssl
+
+from hendrix.deploy.base import HendrixDeploy
+from hendrix.deploy.tls import HendrixDeployTLS
+from hendrix.facilities.services import HendrixTCPServiceWithTLS, HendrixService, ThreadPoolService, HendrixTCPService
+from hendrix.facilities.resources import HendrixResource, NamedResource
+
+
+
+from nucypher.config.constants import STATICS_DIR
 
 
 class SuspiciousActivity(RuntimeError):
@@ -85,5 +102,126 @@ class InterfaceInfo:
     def __radd__(self, other):
         return bytes(other) + bytes(self)
 
-    def __repr__(self):
-        return self.uri
+
+class HendrixResourceWithStatics(HendrixResource):
+
+    def getChild(self, name, request):
+
+        path = name.decode('utf-8')
+        if path in self.children:
+            return self.children[path]
+
+        return super().getChild(name, request)
+
+
+class HendrixTCPServiceWithTLSAndStatics(HendrixTCPServiceWithTLS):
+
+    def __init__(self, port, private_key, cert,
+        context_factory=None,
+        context_factory_kwargs=None,
+        application=None,
+        threadpool=None
+    ):
+        hxresource = HendrixResourceWithStatics(
+
+            reactor, threadpool, application)
+
+        child = File(STATICS_DIR)
+        child.namespace = 'statics'
+        hxresource.putNamedChild(child)
+        site = server.Site(hxresource)
+
+        context_factory = context_factory or ssl.DefaultOpenSSLContextFactory
+        context_factory_kwargs = context_factory_kwargs or {}
+
+        self.tls_context = context_factory(
+            private_key,
+            cert,
+            **context_factory_kwargs
+        )
+        internet.SSLServer.__init__(
+            self,
+            port,  # integer port
+            site,  # our site object, see the web howto
+            contextFactory=self.tls_context
+        )
+
+
+class HendrixServiceWithStatics(HendrixService):
+
+    def __init__(
+            self,
+            application,
+            threadpool=None,
+            resources=None,
+            services=None,
+            loud=False):
+        service.MultiService.__init__(self)
+
+        # Create, start and add a thread pool service, which is made available
+        # to our WSGIResource within HendrixResource
+        if not threadpool:
+            self.threadpool = ThreadPool(name="HendrixService")
+        else:
+            self.threadpool = threadpool
+
+        reactor.addSystemEventTrigger('after', 'shutdown', self.threadpool.stop)
+        ThreadPoolService(self.threadpool).setServiceParent(self)
+
+        # create the base resource and add any additional static resources
+        resource = HendrixResourceWithStatics(reactor, self.threadpool, application, loud=loud)
+        if resources:
+            resources = sorted(resources, key=lambda r: r.namespace)
+            for res in resources:
+                if hasattr(res, 'get_resources'):
+                    for sub_res in res.get_resources():
+                        resource.putNamedChild(sub_res)
+                else:
+                    resource.putNamedChild(res)
+
+        self.site = server.Site(resource)
+
+
+class HendrixDeployWithStatics(HendrixDeploy):
+
+    def addHendrix(self):
+        '''
+        Instantiates a HendrixService with this object's threadpool.
+        It will be added as a service later.
+        '''
+        self.hendrix = HendrixServiceWithStatics(
+            self.application,
+            threadpool=self.getThreadPool(),
+            resources=self.resources,
+            services=self.services,
+            loud=self.options['loud']
+        )
+        if self.options["https_only"] is not True:
+            self.hendrix.spawn_new_server(self.options['http_port'], HendrixTCPService)
+
+
+class DeployTLSWithStatics(HendrixDeployTLS):
+
+    def __init__(self, *args, **kwargs):
+        self.wsgi_application = kwargs.get('options').get('wsgi')
+        super().__init__(*args, **kwargs)
+
+    def addSSLService(self):
+        "adds a SSLService to the instaitated HendrixService"
+        https_port = self.options['https_port']
+        self.tls_service = HendrixTCPServiceWithTLSAndStatics(
+            https_port, self.key, self.cert,
+            context_factory=self.context_factory,
+            context_factory_kwargs=self.context_factory_kwargs,
+            application=self.wsgi_application,
+            threadpool=self.hendrix.threadpool
+        )
+
+        self.tls_service.setServiceParent(self.hendrix)
+
+
+def get_statics(filepath=None, namespace=None):
+
+    child = File(filepath or STATICS_DIR)
+    child.namespace = namespace or 'statics'
+    return [child]
