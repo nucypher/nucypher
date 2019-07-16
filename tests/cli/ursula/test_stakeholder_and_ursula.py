@@ -1,15 +1,15 @@
+import datetime
 import json
 import os
 import random
 
-import datetime
 import maya
 import pytest
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.actors import Staker, StakeHolder, Worker
+from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, Agency
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
@@ -23,7 +23,9 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH,
     TEMPORARY_DOMAIN,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, select_test_port, MOCK_KNOWN_URSULAS_CACHE)
+    MOCK_KNOWN_URSULAS_CACHE,
+    select_test_port,
+)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -34,7 +36,7 @@ def worker_configuration_file_location(custom_filepath):
 
 
 @pytest.fixture(scope='module')
-def staker_configuration_file_location(custom_filepath):
+def stakeholder_configuration_file_location(custom_filepath):
     _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolder.generate_filename())
     return _configuration_file_location
 
@@ -104,6 +106,142 @@ def test_new_stakeholder(click_runner,
         assert config_data['blockchain']['provider_uri'] == TEST_PROVIDER_URI
 
 
+def test_stake_init(click_runner,
+                    stakeholder_configuration_file_location,
+                    stake_value,
+                    mock_registry_filepath,
+                    token_economics,
+                    testerchain,
+                    agency,
+                    staking_participant):
+
+    # Simulate "Reconnection"
+    cached_blockchain = BlockchainInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_registry_filepath
+
+    def from_dict(*args, **kwargs):
+        return testerchain
+    BlockchainInterface.from_dict = from_dict
+
+    # Staker address has not stakes
+    staking_agent = Agency.get_agent(StakingEscrowAgent)
+    stakes = list(staking_agent.get_all_stakes(staker_address=staking_participant))
+    assert not stakes
+
+    stake_args = ('stake', 'init',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--registry-filepath', mock_registry_filepath,
+                  '--staking-address', staking_participant,
+                  '--value', stake_value.to_nunits(),
+                  '--duration', token_economics.minimum_locked_periods,
+                  '--force')
+
+    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Test integration with BaseConfiguration
+    with open(stakeholder_configuration_file_location, 'r') as config_file:
+        _config_data = json.loads(config_file.read())
+
+    # Verify the stake is on-chain
+    # Test integration with Agency
+    stakes = list(staking_agent.get_all_stakes(staker_address=staking_participant))
+    assert len(stakes) == 1
+
+    # Test integration with NU
+    start_period, end_period, value = stakes[0]
+    assert NU(int(value), 'NuNit') == stake_value
+    assert (end_period - start_period) == token_economics.minimum_locked_periods - 1
+
+    # Test integration with Stake
+    stake = Stake.from_stake_info(index=0,
+                                  checksum_address=staking_participant,
+                                  stake_info=stakes[0])
+    assert stake.value == stake_value
+    assert stake.duration == token_economics.minimum_locked_periods
+
+
+def test_stake_list(click_runner,
+                    funded_blockchain,
+                    stakeholder_configuration_file_location,
+                    stake_value,
+                    mock_registry_filepath,
+                    testerchain):
+
+    # Simulate "Reconnection"
+    cached_blockchain = BlockchainInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_registry_filepath
+
+    def from_dict(*args, **kwargs):
+        return testerchain
+    BlockchainInterface.from_dict = from_dict
+
+    stake_args = ('stake', 'list', '--config-file', stakeholder_configuration_file_location)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert str(stake_value) in result.output
+
+
+def test_ursula_divide_stakes(click_runner,
+                              stakeholder_configuration_file_location,
+                              token_economics,
+                              staking_participant,
+                              testerchain):
+
+    divide_args = ('stake', 'divide',
+                   '--config-file', stakeholder_configuration_file_location,
+                   '--force',
+                   '--staking-address', staking_participant,
+                   '--index', 0,
+                   '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
+                   '--duration', 10)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 divide_args,
+                                 catch_exceptions=False,
+                                 env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
+    assert result.exit_code == 0
+
+    stake_args = ('stake', 'list',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--poa')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
+
+
+def test_stake_set_worker(click_runner,
+                          testerchain,
+                          stakeholder_configuration_file_location,
+                          staking_participant):
+
+    init_args = ('stake', 'set-worker',
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--staking-address', staking_participant,
+                 '--worker-address', staking_participant,  # TODO: Use another account
+                 '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    staker = Staker(is_me=True,
+                    checksum_address=staking_participant,
+                    blockchain=testerchain)
+
+    assert staker.worker_address == staking_participant  # TODO: Use separate accounts.
+
+
 def test_ursula_init(click_runner,
                      custom_filepath,
                      mock_registry_filepath,
@@ -142,138 +280,7 @@ def test_ursula_init(click_runner,
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
         assert config_data['checksum_address'] == staking_participant
         assert TEMPORARY_DOMAIN in config_data['domains']
-
-
-def test_stake_init(click_runner,
-                    staker_configuration_file_location,
-                    funded_blockchain,
-                    stake_value,
-                    mock_registry_filepath,
-                    token_economics,
-                    testerchain,
-                    agency):
-
-    # Simulate "Reconnection"
-    cached_blockchain = BlockchainInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_registry_filepath
-
-    def from_dict(*args, **kwargs):
-        return testerchain
-    BlockchainInterface.from_dict = from_dict
-
-    # Staker address has not stakes
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
-    staker_address = testerchain.unassigned_accounts[-1]
-    stakes = list(staking_agent.get_all_stakes(staker_address=staker_address))
-    assert not stakes
-
-    stake_args = ('stake', 'init',
-                  '--config-file', staker_configuration_file_location,
-                  '--registry-filepath', mock_registry_filepath,
-                  '--staking-address', staker_address,
-                  '--value', stake_value.to_nunits(),
-                  '--duration', token_economics.minimum_locked_periods,
-                  '--force')
-
-    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
-    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Test integration with BaseConfiguration
-    with open(staker_configuration_file_location, 'r') as config_file:
-        _config_data = json.loads(config_file.read())
-
-    # Verify the stake is on-chain
-    # Test integration with Agency
-    stakes = list(staking_agent.get_all_stakes(staker_address=staker_address))
-    assert len(stakes) == 1
-
-    # Test integration with NU
-    start_period, end_period, value = stakes[0]
-    assert NU(int(value), 'NuNit') == stake_value
-    assert (end_period - start_period) == token_economics.minimum_locked_periods - 1
-
-    # Test integration with Stake
-    stake = Stake.from_stake_info(index=0,
-                                  checksum_address=staker_address,
-                                  stake_info=stakes[0])
-    assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
-
-
-def test_stake_list(click_runner,
-                    funded_blockchain,
-                    staker_configuration_file_location,
-                    stake_value,
-                    mock_registry_filepath,
-                    testerchain):
-
-    # Simulate "Reconnection"
-    cached_blockchain = BlockchainInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_registry_filepath
-
-    def from_dict(*args, **kwargs):
-        return testerchain
-    BlockchainInterface.from_dict = from_dict
-
-    stake_args = ('stake', 'list', '--config-file', staker_configuration_file_location)
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
-    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert str(stake_value) in result.output
-
-
-def test_ursula_divide_stakes(click_runner,
-                              staker_configuration_file_location,
-                              token_economics,
-                              staking_participant,
-                              testerchain):
-
-    divide_args = ('stake', 'divide',
-                   '--config-file', staker_configuration_file_location,
-                   '--force',
-                   '--staking-address', staking_participant,
-                   '--index', 0,
-                   '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
-                   '--duration', 10)
-
-    result = click_runner.invoke(nucypher_cli,
-                                 divide_args,
-                                 catch_exceptions=False,
-                                 env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
-    assert result.exit_code == 0
-
-    stake_args = ('stake', 'list',
-                  '--config-file', staker_configuration_file_location,
-                  '--poa')
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
-    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
-
-
-def test_stake_set_worker(click_runner,
-                          testerchain,
-                          staker_configuration_file_location,
-                          staking_participant):
-
-    init_args = ('stake', 'set-worker',
-                 '--config-file', staker_configuration_file_location,
-                 '--staking-address', staking_participant,
-                 '--worker-address', staking_participant,  # TODO: Use another account
-                 '--force')
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
-    result = click_runner.invoke(nucypher_cli,
-                                 init_args,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-
+        
 
 def test_run_blockchain_ursula(click_runner,
                                worker_configuration_file_location,
@@ -293,7 +300,7 @@ def test_run_blockchain_ursula(click_runner,
 
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
-                                     staker_configuration_file_location,
+                                     stakeholder_configuration_file_location,
                                      blockchain_alice,
                                      blockchain_bob,
                                      random_policy_label,
@@ -304,7 +311,7 @@ def test_collect_rewards_integration(click_runner,
 
     half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
-    current_period = 1  # State the initial period for incrementing
+    current_period = 0  # State the initial period for incrementing
 
     # TODO: Use separate accounts
     staker_address = staking_participant
@@ -412,13 +419,15 @@ def test_collect_rewards_integration(click_runner,
     current_period += 1
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
-    # Tokens are unlocked.
-    assert staker.locked_tokens() == 0
+    # Half of the tokens are unlocked.
+    assert staker.locked_tokens() == token_economics.minimum_allowed_locked
 
-    # Snag a random teacher from the fleet
+    # Collect Policy Reward
     collection_args = ('--mock-networking',
                        'stake', 'collect-reward',
-                       '--config-file', staker_configuration_file_location,
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--policy-reward,'
+                       '--no-staking-reward',
                        '--staking-address', staker_address,
                        '--withdraw-address', burner_wallet.address,
                        '--force')
@@ -441,6 +450,22 @@ def test_collect_rewards_integration(click_runner,
         current_period += 1
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         testerchain.time_travel(periods=1)
+
+    # Collect Inflation Reward
+    collection_args = ('--mock-networking',
+                       'stake', 'collect-reward',
+                       '--config-file', stakeholder_configuration_file_location,
+                       '--no-policy-reward,'
+                       '--staking-reward',
+                       '--staking-address', staker_address,
+                       '--withdraw-address', burner_wallet.address,
+                       '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
 
     # Staking Reward
     calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.worker_address)
