@@ -43,12 +43,11 @@ def test_policy_manager_deployer(testerchain):
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(deployer_address=origin, blockchain=testerchain)
 
-    deployment_txhashes = deployer.deploy(secret_hash=keccak(policy_manager_secret))
-    assert len(deployment_txhashes) == 3
+    deployment_receipts = deployer.deploy(secret_hash=keccak(policy_manager_secret))
+    assert len(deployment_receipts) == 3
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
     # Create a PolicyAgent
     policy_agent = deployer.make_agent()

@@ -42,13 +42,12 @@ def test_adjudicator_deployer(testerchain, slashing_economics):
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
-    deployment_txhashes = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    assert len(deployment_txhashes) == 3
+    assert len(deployment_receipts) == 3
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
     # Create an AdjudicatorAgent instance
     adjudicator_agent = deployer.make_agent()

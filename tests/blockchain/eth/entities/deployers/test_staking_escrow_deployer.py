@@ -30,13 +30,12 @@ def test_staking_escrow_deployer_and_agent(testerchain):
     secret_hash = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     deployer = StakingEscrowDeployer(blockchain=testerchain,
                                      deployer_address=origin)
-    deployment_txhashes = deployer.deploy(secret_hash=secret_hash)
+    deployment_receipts = deployer.deploy(secret_hash=secret_hash)
 
-    assert len(deployment_txhashes) == 4
+    assert len(deployment_receipts) == 4
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
     # Create a StakingEscrowAgent instance
     staking_agent = deployer.make_agent()

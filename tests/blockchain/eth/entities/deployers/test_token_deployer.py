@@ -31,11 +31,10 @@ def test_token_deployer_and_agent(testerchain):
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
-    deployment_txhashes = deployer.deploy()
+    deployment_receipts = deployer.deploy()
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
     # Create a token instance
     token_agent = deployer.make_agent()

@@ -56,12 +56,15 @@ def test_rapid_deployment(token_economics):
 
     deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
 
-    deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                                      policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                      adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                                      user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+    secrets = Deployer.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
+                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                               adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
+                               user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+
+    deployer.deploy_network_contracts(secrets=secrets)
 
     all_yall = blockchain.unassigned_accounts
+
     # Start with some hard-coded cases...
     allocation_data = [{'address': all_yall[1],
                         'amount': token_economics.maximum_allowed_locked,

@@ -46,11 +46,10 @@ def test_user_escrow_deployer(agency, testerchain):
 
     deployer = UserEscrowDeployer(deployer_address=deployer, blockchain=testerchain)
 
-    deployment_txhashes = deployer.deploy()
+    deployment_receipts = deployer.deploy()
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
 
 @pytest.mark.slow()

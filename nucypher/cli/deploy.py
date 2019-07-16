@@ -186,7 +186,7 @@ def deploy(click_config,
         #
 
         if contract_name:
-            # TODO: Handle secret collection for single contract deployment
+            deployment_secret = click.prompt(f"Enter deployment secret for {contract_name}", confirmation_prompt=True)
 
             try:
                 deployer_func = deployer.deployers[contract_name]
@@ -196,9 +196,10 @@ def deploy(click_config,
                 raise click.Abort()
             else:
                 # Deploy single contract
-                _txs, _agent = deployer_func()
-
-            # TODO: Painting for single contract deployment
+                receipts, agent = deployer_func(secret=deployment_secret)
+                paint_contract_deployment(contract_name=contract_name,
+                                          contract_address=agent.contract_address,
+                                          receipts=receipts)
             if ETH_NODE:
                 ETH_NODE.stop()
             return
@@ -222,10 +223,15 @@ def deploy(click_config,
         click.secho(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
         click.secho(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
 
-        # Ask - Last chance to gracefully abort
-        if not force:
-            click.secho("\nDeployment successfully staged. Take a deep breath. \n", fg='green')
-            if click.prompt("Type 'DEPLOY' to continue") != 'DEPLOY':
+        # Ask - Last chance to gracefully abort. This step cannot be forced.
+        click.secho("\nDeployment successfully staged. Take a deep breath. \n", fg='green')
+
+        # Trigger Deployment
+        if deployer.blockchain.client.chain_id == 'UNKNOWN':
+            if click.prompt("Type 'DEPLOY' to continue.") != 'DEPLOY':
+                raise click.Abort()
+        else:
+            if click.prompt("Enter the Chain ID to confirm deployment") != str(deployer.blockchain.client.chain_id):
                 raise click.Abort()
 
         # Delay - Last chance to crash and abort
