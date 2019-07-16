@@ -299,3 +299,17 @@ def select_client_account(blockchain, prompt: str = None, default=0) -> str:
     return chosen_account
 
 
+def confirm_deployment(deployer) -> bool:
+    if deployer.blockchain.client.chain_id == 'UNKNOWN' or deployer.blockchain.client.is_local:
+        if click.prompt("Type 'DEPLOY' to continue.") != 'DEPLOY':
+            click.secho("Aborting Deployment", fg='red', bold=True)
+            raise click.Abort()
+    else:
+        confirmed_chain_id = int(click.prompt("Enter the Chain ID to confirm deployment", type=click.INT))
+        expected_chain_id = int(deployer.blockchain.client.chain_id)
+        if confirmed_chain_id != expected_chain_id:
+            click.secho(f"Chain ID not a match ({confirmed_chain_id} != {expected_chain_id}) Aborting Deployment",
+                        fg='red',
+                        bold=True)
+            raise click.Abort()
+    return True

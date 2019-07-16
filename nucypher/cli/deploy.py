@@ -29,6 +29,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
+from nucypher.cli import actions
 from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.painting import paint_contract_deployment
@@ -227,12 +228,8 @@ def deploy(click_config,
         click.secho("\nDeployment successfully staged. Take a deep breath. \n", fg='green')
 
         # Trigger Deployment
-        if deployer.blockchain.client.chain_id == 'UNKNOWN':
-            if click.prompt("Type 'DEPLOY' to continue.") != 'DEPLOY':
-                raise click.Abort()
-        else:
-            if click.prompt("Enter the Chain ID to confirm deployment") != str(deployer.blockchain.client.chain_id):
-                raise click.Abort()
+        if not actions.confirm_deployment(deployer=deployer):
+            raise click.Abort()
 
         # Delay - Last chance to crash and abort
         click.secho(f"Starting deployment in 3 seconds...", fg='red')

@@ -25,7 +25,7 @@ from nucypher.cli.types import (
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
-@click.option('--trezor', help="Use the NuCypher Trezor Staking CLI", is_flag=True)
+@click.option('--device/-no-device', help="Use a hardware wallet for staking operations", is_flag=True, default=False)  # TODO: Make True or deprecate.
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--offline', help="Operate in offline mode", is_flag=True)
@@ -34,6 +34,8 @@ from nucypher.cli.types import (
 @click.option('--pre-funded', help="Do not fund new stake's accounts", is_flag=True, default=False)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--staking-reward/--no-staking-reward', is_flag=True, default=True)
+@click.option('--policy-reward/--no-policy-reward', is_flag=True, default=True)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--duration', help="Period duration of stake", type=click.INT)
@@ -49,7 +51,7 @@ def stake(click_config,
           force,
           quiet,
           offline,
-          trezor,
+          device,
 
           # Blockchain
           poa,
@@ -64,7 +66,9 @@ def stake(click_config,
           value,
           duration,
           index,
-          pre_funded
+          pre_funded,
+          policy_reward,
+          staking_reward,
 
           ) -> None:
 
@@ -72,8 +76,6 @@ def stake(click_config,
     if not quiet:
         click.clear()
         click.secho(NU_BANNER)
-
-    device = NO_STAKING_DEVICE
 
     if action == 'new-stakeholder':
 
@@ -96,7 +98,6 @@ def stake(click_config,
         new_stakeholder = StakeHolder(config_root=config_root,
                                       funding_account=funding_address,
                                       offline_mode=offline,
-                                      device=device,
                                       blockchain=blockchain)
 
         filepath = new_stakeholder.to_configuration_file()
@@ -142,9 +143,11 @@ def stake(click_config,
         if not worker_address:
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
 
-        staker_password = get_password(confirm=False)
+        password = None
+        if not device:
+            password = get_password(confirm=False)
         STAKEHOLDER.set_worker(staker_address=staking_address,
-                               password=staker_password,
+                               password=password,
                                worker_address=worker_address)
 
         click.secho("OK!", fg='green')
@@ -276,7 +279,9 @@ def stake(click_config,
             click.confirm("Is this correct?", abort=True)
 
         # Execute
-        password = get_password(confirm=False)
+        password = None
+        if not device:
+            password = get_password(confirm=False)
         modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
                                                              index=current_stake.index,
                                                              value=value,
@@ -292,12 +297,13 @@ def stake(click_config,
     
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
-        if not force:
-            click.confirm(f"Send {STAKEHOLDER.calculate_reward()} to {STAKEHOLDER.funding_account}?")
-
-        password = get_password(confirm=False)
+        password = None
+        if not device:
+            password = get_password(confirm=False)
         STAKEHOLDER.collect_rewards(staker_address=staking_address,
                                     withdraw_address=withdraw_address,
-                                    password=password)
+                                    password=password,
+                                    staking=staking_reward,
+                                    policy=policy_reward)
 
     return  # Exit
