@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 import os
 from datetime import datetime
@@ -26,11 +27,15 @@ import maya
 from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
     NO_DEPLOYER_ADDRESS,
-    WORKER_NOT_RUNNING
+    WORKER_NOT_RUNNING,
+    NO_WORKER_ASSIGNED,
+    NO_FUNDING_ACCOUNT
 )
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import is_checksum_address
 from eth_utils import keccak
 from twisted.logger import Logger
+from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
@@ -40,6 +45,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent
 )
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -53,6 +59,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 
@@ -138,7 +145,7 @@ class Deployer(NucypherTokenActor):
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface,
+                 blockchain: BlockchainDeployerInterface,
                  deployer_address: str = None,
                  client_password: str = None,
                  bare: bool = True
@@ -163,6 +170,12 @@ class Deployer(NucypherTokenActor):
                                                         password=client_password)
         blockchain.transacting_power.activate()
         self.log = Logger("Deployment-Actor")
+
+        # TODO: Does this class want to be a Character implementing PowerUp consumption?
+        self.transacting_power = TransactingPower(blockchain=blockchain,
+                                                  password=client_password,
+                                                  account=deployer_address)
+        self.transacting_power.activate()
 
     def __repr__(self):
         r = '{name}({blockchain}, {deployer_address})'.format(name=self.__class__.__name__,
@@ -368,6 +381,22 @@ class Staker(NucypherTokenActor):
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
         self.economics = economics or TokenEconomics()
         self.is_me = is_me
+        self.__worker_address = None
+
+    def to_dict(self) -> dict:
+        stake_info = [stake.to_stake_info() for stake in self.stakes]
+        worker_address = self.worker_address or NO_WORKER_ASSIGNED
+        staker_funds = {'ETH': int(self.eth_balance), 'NU': int(self.token_balance)}
+        staker_payload = {'staker': self.checksum_address,
+                          'balances': staker_funds,
+                          'worker': worker_address,
+                          'stakes': stake_info}
+        return staker_payload
+
+    @classmethod
+    def from_dict(cls, staker_payload: dict) -> 'Staker':
+        staker = Staker(is_me=True, checksum_address=staker_payload['checksum_address'])
+        return staker
 
     @property
     def stakes(self) -> List[Stake]:
@@ -476,9 +505,21 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def set_worker(self, worker_address: str) -> str:
         # TODO: Set a Worker for this staker, not just in StakingEscrow
-        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
-                                                worker_address=worker_address)
+        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address, worker_address=worker_address)
+        self.__worker_address = worker_address
         return receipt
+
+    @property
+    def worker_address(self) -> str:
+        if self.__worker_address:
+            return self.__worker_address
+        else:
+            worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
+            self.__worker_address = worker_address
+
+        if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
+            return NO_WORKER_ASSIGNED
+        return self.__worker_address
 
     @only_me
     @save_receipt
@@ -514,7 +555,7 @@ class Staker(NucypherTokenActor):
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
         receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
-                                                        amount=int(amount))
+                                              amount=int(amount))
         return receipt
 
 
@@ -656,3 +697,342 @@ class Investigator(NucypherTokenActor):
         receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence,
                                                         sender_address=self.checksum_address)
         return receipt
+
+
+class StakeHolder(BaseConfiguration):
+
+    _NAME = 'stakeholder'
+    TRANSACTION_GAS = {}
+
+    class NoFundingAccount(BaseConfiguration.ConfigurationError):
+        pass
+
+    class NoStakes(BaseConfiguration.ConfigurationError):
+        pass
+
+    def __init__(self,
+                 blockchain: BlockchainInterface,
+                 funding_account: str,
+                 funding_password: str = None,
+                 offline_mode: bool = False,
+                 sync_now: bool = True,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        self.log = Logger(f"stakeholder")
+        self.blockchain = blockchain
+        self.offline_mode = offline_mode
+        self.eth_funding = Web3.toWei('0.1', 'ether')  # TODO: How much ETH to use while funding new stakes.
+
+        # Setup
+        if funding_account is not NO_FUNDING_ACCOUNT:
+            if not is_checksum_address(funding_account):
+                raise ValueError(f"{funding_account} is not a valid EIP-55 checksum address.")
+
+        self.funding_power = TransactingPower(blockchain=blockchain,
+                                              account=funding_account,
+                                              password=funding_password)
+        self.funding_power.activate()
+        self.__funding_account = funding_account
+
+        self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+        self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+        self.economics = TokenEconomics()
+
+        self.__accounts = list()
+        self.__stakers = dict()
+        self.__transacting_powers = dict()
+
+        self.__get_accounts()
+
+        if sync_now and not offline_mode:
+            self.read_onchain_stakes()  # Stakes
+
+    def __str__(self) -> str:
+        r = f'{self.__class__.__name__}(funding_account={self.funding_account})'
+        return r
+
+    def __repr__(self) -> str:
+        r = f'{self.__class__.__name__}(funding_account={self.funding_account})'
+        return r
+
+    #
+    # Configuration
+    #
+
+    def static_payload(self) -> dict:
+        """Values to read/write from stakeholder JSON configuration files"""
+        payload = dict(provider_uri=self.blockchain.provider_uri,
+                       blockchain=self.blockchain.to_dict(),
+                       funding_account=self.funding_account,
+                       accounts=self.__accounts,
+                       stakers=self.__serialize_stakers())
+        return payload
+
+    @classmethod
+    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
+        filepath = filepath or cls.default_filepath()
+        payload = cls._read_configuration_file(filepath=filepath)
+
+        # Sub config
+        blockchain_payload = payload.pop('blockchain')
+        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
+        payload.update(dict(blockchain=blockchain))
+
+        payload.update(overrides)
+        instance = cls(filepath=filepath, **payload)
+        return instance
+
+    @validate_checksum_address
+    def attach_transacting_power(self, checksum_address: str, password: str = None) -> None:
+        try:
+            transacting_power = self.__transacting_powers[checksum_address]
+        except KeyError:
+            transacting_power = TransactingPower(blockchain=self.blockchain, account=checksum_address)
+            self.__transacting_powers[checksum_address] = transacting_power
+        transacting_power.activate(password=password)
+
+    def to_configuration_file(self, *args, **kwargs) -> str:
+        filepath = super().to_configuration_file(modifier=self.funding_account, *args, **kwargs)
+        return filepath
+
+    def connect(self, blockchain: BlockchainInterface = None) -> None:
+        """Go Online"""
+        if not self.staking_agent:
+            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+        if not self.token_agent:
+            self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+        self.blockchain = self.token_agent.blockchain
+
+    #
+    # Account Utilities
+    #
+
+    @property
+    def accounts(self) -> list:
+        return self.__accounts
+
+    def __get_accounts(self) -> None:
+        accounts = self.blockchain.client.accounts
+        self.__accounts.extend(accounts)
+
+    def set_funding_account(self, address: str):
+        self.__funding_account = address
+
+    @property
+    def funding_account(self) -> str:
+        if self.__funding_account is NO_FUNDING_ACCOUNT:
+            raise self.NoFundingAccount
+        return self.__funding_account
+
+    @property
+    def funding_tokens(self) -> NU:
+        nunits = self.token_agent.get_balance(address=self.funding_account)
+        return NU.from_nunits(nunits)
+
+    @property
+    def funding_eth(self) -> Decimal:
+        ethers = self.blockchain.client.get_balance(self.funding_account)
+        return ethers
+
+    #
+    # Staking Utilities
+    #
+
+    def read_onchain_stakes(self, account: str = None) -> None:
+        if account:
+            accounts = [account]
+        else:
+            accounts = self.__accounts
+
+        for account in accounts:
+            stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
+            if stakes:
+                staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
+                self.__stakers[staker] = staker.stakes
+
+    @property
+    def total_stake(self) -> NU:
+        total = sum(staker.locked_tokens() for staker in self.stakers)
+        return total
+
+    @property
+    def stakers(self) -> List[Staker]:
+        return list(self.__stakers.keys())
+
+    @property
+    def stakes(self) -> list:
+        payload = list()
+        for staker in self.__stakers:
+            payload.extend(staker.stakes)
+        return payload
+
+    @property
+    def account_balances(self) -> dict:
+        balances = dict()
+        for account in self.__accounts:
+            funds = {'ETH': self.blockchain.client.get_balance(account),
+                     'NU': self.token_agent.get_balance(account)}
+            balances.update({account: funds})
+        return balances
+
+    @property
+    def staker_balances(self) -> dict:
+        balances = dict()
+        for staker in self.stakers:
+            staker_funds = {'ETH': staker.eth_balance, 'NU': staker.token_balance}
+            balances[staker.checksum_address] = {staker.checksum_address: staker_funds}
+        return balances
+
+    def __serialize_stakers(self) -> list:
+        payload = list()
+        for staker in self.stakers:
+            payload.append(staker.to_dict())
+        return payload
+
+    def get_active_staker(self, address: str) -> Staker:
+        self.read_onchain_stakes(account=address)
+        for staker in self.__stakers:
+            if staker.checksum_address == address:
+                return staker
+        else:
+            raise self.NoStakes(f"{address} does not have any stakes.")
+
+    def __create_staker(self, password: str = None) -> Staker:
+        """Create a new account and return it as a Staker instance."""
+        if self.funding_power.device:
+            # TODO: More formal check for wallet here?
+            # With devices, the last account is is always an unsed one.
+            new_account = self.blockchain.client.accounts[-1]
+        else:
+            if not password:
+                raise self.ConfigurationError("No password supplied to create new staking account.")
+            new_account = self.blockchain.client.new_account(password=password)
+        self.__accounts.append(new_account)
+        staker = Staker(blockchain=self.blockchain, is_me=True, checksum_address=new_account)
+        return staker
+
+    def create_worker_configuration(self, worker_address: str, password: str, **configuration) -> str:
+        """Generates a worker JSON configuration file for a given staking address."""
+        from nucypher.config.characters import UrsulaConfiguration
+        worker_configuration = UrsulaConfiguration.generate(worker_address=worker_address,
+                                                            password=password,
+                                                            config_root=self.config_root,
+                                                            federated_only=False,
+                                                            provider_uri=self.blockchain.provider_uri,
+                                                            **configuration)
+        return worker_configuration
+
+    #
+    # Actions
+    #
+
+    def set_worker(self, staker_address: str, worker_address: str, password: str = None):
+        self.attach_transacting_power(checksum_address=staker_address, password=password)
+        staker = self.get_active_staker(address=staker_address)
+        result = self.staking_agent.set_worker(staker_address=staker.checksum_address,
+                                               worker_address=worker_address)
+
+        self.to_configuration_file(override=True)
+        return result
+
+    def __prepare_new_staker(self, staker: Staker, amount: NU):
+        """Creates a new ethereum account, then transfers it ETH and NU for staking."""
+        if self.funding_tokens < amount:
+            delta = amount - staker.token_balance
+            message = f"{self.funding_account} Insufficient NU (need {delta} more to transfer a total of {amount})."
+            raise self.ConfigurationError(message)
+        if not self.funding_eth:
+            raise self.ConfigurationError(f"{self.funding_account} has no ETH")
+
+        # Transfer NU
+        self.funding_power.activate()
+
+        # Send new staker account ETH
+        tx = {'to': staker.checksum_address, 'from': self.funding_account, 'value': self.eth_funding}
+        txhash = self.blockchain.client.send_transaction(transaction=tx)
+        _ether_transfer_receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=120)  # TODO: Include in config?
+
+        # Send new staker account NU
+        _result = self.token_agent.transfer(amount=amount.to_nunits(),
+                                            sender_address=self.funding_account,
+                                            target_address=staker.checksum_address,
+                                            auto_approve=True)
+        return staker
+
+    def initialize_stake(self,
+                         amount: NU,
+                         duration: int,
+                         checksum_address: str = None,
+                         password: str = None,
+                         fund_now: bool = True
+                         ) -> Stake:
+
+        if password and not checksum_address:
+            staker = self.__create_staker(password=password)
+        else:
+            staker = Staker(is_me=True, checksum_address=checksum_address, blockchain=self.blockchain)
+
+        if fund_now:
+            self.__prepare_new_staker(staker=staker, amount=amount)
+
+        self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
+        new_stake = staker.initialize_stake(amount=amount, lock_periods=duration)
+        self.to_configuration_file(override=True)
+        return new_stake
+
+    def divide_stake(self,
+                     address: str,
+                     password: str,
+                     index: int,
+                     value: NU,
+                     duration: int):
+
+        staker = self.get_active_staker(address=address)
+        if not staker.is_staking:
+            raise Stake.StakingError(f"{staker.checksum_address} has no published stakes.")
+
+        self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
+        result = staker.divide_stake(stake_index=index,
+                                     additional_periods=duration,
+                                     target_value=value)
+        self.to_configuration_file(override=True)
+        return result
+
+    def sweep(self) -> dict:
+        """Collect all rewards from all staking accounts"""
+        receipts = dict()
+        for staker in self.stakers:
+            self.attach_transacting_power(checksum_address=staker.checksum_address)
+            receipt = self.collect_rewards(staker_address=staker.checksum_address)
+            receipts[staker.checksum_address] = receipt
+        self.to_configuration_file(override=True)
+        return receipts
+
+    def calculate_rewards(self) -> dict:
+        rewards = dict()
+        for staker in self.stakers:
+            reward = staker.calculate_reward()
+            rewards[staker.checksum_address] = reward
+        return rewards
+
+    def collect_rewards(self,
+                        staker_address: str,
+                        password: str,
+                        staking: bool = True,
+                        policy: bool = True) -> Dict[str, dict]:
+
+        if not staking and not policy:
+            raise ValueError("Either staking or policy must be True in order to collect rewards")
+
+        staker = self.get_active_staker(address=staker_address)
+        self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
+
+        receipts = dict()
+        if staking:
+            receipts['staking_reward'] = staker.collect_staking_reward()
+        if policy:
+            receipts['policy_reward'] = staker.collect_policy_reward(collector_address=self.funding_account)
+        self.to_configuration_file(override=True)
+        return receipts

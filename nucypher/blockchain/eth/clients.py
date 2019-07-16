@@ -197,20 +197,20 @@ class Web3Client:
         return self.w3.eth.coinbase
 
     def wait_for_receipt(self, transaction_hash: str, timeout: int) -> dict:
-        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash, timeout=timeout)
+        receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash, timeout=timeout)
         return receipt
 
     def sign_transaction(self, transaction: dict):
         raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> str:
-        return self.w3.eth.getTransaction(transaction_hash)
+        return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
 
     def send_transaction(self, transaction: dict) -> str:
-        return self.w3.eth.sendTransaction(transaction)
+        return self.w3.eth.sendTransaction(transaction=transaction)
 
     def send_raw_transaction(self, transaction: bytes) -> str:
-        return self.w3.eth.sendRawTransaction(transaction)
+        return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
 
     def sync(self,
              timeout: int = 120,
@@ -258,6 +258,9 @@ class Web3Client:
         """
         return self.w3.eth.sign(account, data=message)
 
+    def sign_transaction(self, transaction: dict) -> bytes:
+        raise NotImplementedError
+
 
 class GethClient(Web3Client):
 
@@ -268,6 +271,10 @@ class GethClient(Web3Client):
     @property
     def peers(self):
         return self.w3.geth.admin.peers()
+
+    def new_account(self, password: str) -> str:
+        new_account = self.w3.geth.personal.newAccount(password)
+        return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
@@ -294,6 +301,10 @@ class ParityClient(Web3Client):
         TODO: Look for web3.py support for Parity Peers endpoint
         """
         return self.w3.manager.request_blocking("parity_netPeers", [])
+
+    def new_account(self, password: str) -> str:
+        new_account = self.w3.parity.personal.newAccount(password)
+        return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password):
         return self.w3.parity.unlockAccount.unlockAccount(address, password)
@@ -322,6 +333,11 @@ class EthereumTesterClient(Web3Client):
 
     def sync(self, *args, **kwargs):
         return True
+
+    def new_account(self, password: str):
+        insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),
+                                                                        password=password)
+        return insecure_account
 
     def sign_transaction(self, transaction: dict):
         # Get signing key of test account
@@ -410,17 +426,20 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
         self.data_dir = get_chain_data_dir(base_dir=base_dir, name=self._CHAIN_NAME)
 
         ipc_path = os.path.join(self.data_dir, 'geth.ipc')
-        self.geth_kwargs = {'ipc_path': ipc_path}
-        super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
-        self.geth_kwargs.update({'dev': True})
+        self.geth_kwargs = {'ipc_path': ipc_path,
+                            'data_dir': self.data_dir}
 
+        super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
         self.command = [*self.command, '--dev']
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
-        self.LOG.info("STARTING GETH DEV NOW")
-        BaseGethProcess.start(self)  # <--- START GETH
-        time.sleep(extra_delay)  # give it a second
-        self.wait_for_ipc(timeout=timeout)
+        if not self.is_running:
+            self.LOG.info("STARTING GETH DEV PROCESS NOW")
+            BaseGethProcess.start(self)  # <--- START GETH
+            time.sleep(extra_delay)  # give it a second
+            self.wait_for_ipc(timeout=timeout)
+        else:
+            self.LOG.info("RECONNECTING TO GETH DEV PROCESS")
 
 
 class NuCypherGethDevnetProcess(NuCypherGethProcess):

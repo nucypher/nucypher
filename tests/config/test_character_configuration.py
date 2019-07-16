@@ -8,6 +8,7 @@ from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Ursula
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -99,7 +100,7 @@ def test_default_character_configuration_preservation(configuration_class):
             contents = f.read()
 
         # Deserialize
-        serialized_payload = json.dumps(character_config.static_payload(), indent=4)
+        serialized_payload = json.dumps(character_config.static_payload(), indent=BaseConfiguration.INDENTATION)
         assert contents == serialized_payload
 
         # Restore from JSON file
