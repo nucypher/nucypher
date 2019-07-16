@@ -113,6 +113,10 @@ class NucypherTokenActor:
         r = r.format(class_name, self.checksum_address)
         return r
 
+    def __eq__(self, other) -> bool:
+        """Actors are equal if they have the same address."""
+        return bool(self.checksum_address == other.checksum_address)
+
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
@@ -753,16 +757,16 @@ class StakeHolder(BaseConfiguration):
         if not offline_mode:
             self.connect(blockchain=blockchain)
         self.offline_mode = offline_mode
-        self.eth_funding = Web3.toWei('0.1', 'ether')  # TODO: How much ETH to use while funding new stakes.
+
+        # TODO: How much ETH to use while funding new stakes.
+        self.eth_funding = Web3.toWei('0.1', 'ether')
 
         # Setup
         if funding_account is not NO_FUNDING_ACCOUNT:
             if not is_checksum_address(funding_account):
                 raise ValueError(f"{funding_account} is not a valid EIP-55 checksum address.")
 
-        self.funding_power = TransactingPower(blockchain=blockchain,
-                                              account=funding_account,
-                                              password=funding_password)
+        self.funding_power = TransactingPower(blockchain=blockchain, account=funding_account, password=funding_password)
         self.funding_power.activate()
         self.__funding_account = funding_account
 
@@ -878,7 +882,7 @@ class StakeHolder(BaseConfiguration):
             stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
             if stakes:
                 staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
-                self.__stakers[staker] = staker.stakes
+                self.__stakers[account] = staker
 
     @property
     def total_stake(self) -> NU:
@@ -887,12 +891,12 @@ class StakeHolder(BaseConfiguration):
 
     @property
     def stakers(self) -> List[Staker]:
-        return list(self.__stakers.keys())
+        return list(self.__stakers.values())
 
     @property
     def stakes(self) -> list:
         payload = list()
-        for staker in self.__stakers:
+        for staker in self.__stakers.values():
             payload.extend(staker.stakes)
         return payload
 
@@ -921,24 +925,31 @@ class StakeHolder(BaseConfiguration):
 
     def get_active_staker(self, address: str) -> Staker:
         self.read_onchain_stakes(account=address)
-        for staker in self.__stakers:
-            if staker.checksum_address == address:
-                return staker
-        else:
+        try:
+            return self.__stakers[address]
+        except KeyError:
             raise self.NoStakes(f"{address} does not have any stakes.")
 
     def __create_staker(self, password: str = None) -> Staker:
         """Create a new account and return it as a Staker instance."""
+
+        # HW Wallet
         if self.funding_power.device:
-            # TODO: More formal check for wallet here?
-            # With devices, the last account is is always an unsed one.
+            # The last account is is always an unused one when.
             new_account = self.blockchain.client.accounts[-1]
+
+        # Software Wallet
         else:
             if not password:
                 raise self.ConfigurationError("No password supplied to create new staking account.")
             new_account = self.blockchain.client.new_account(password=password)
-        self.__accounts.append(new_account)
+
+        # New Staker
         staker = Staker(blockchain=self.blockchain, is_me=True, checksum_address=new_account)
+
+        # Update local cache
+        self.__accounts.append(new_account)
+        self.__stakers[new_account] = staker
         return staker
 
     def create_worker_configuration(self,
@@ -1003,25 +1014,50 @@ class StakeHolder(BaseConfiguration):
                          fund_now: bool = True
                          ) -> Stake:
 
-        if password and not checksum_address:
-            staker = self.__create_staker(password=password)
+        # Existing Staker address
+        if checksum_address:
+            if not is_checksum_address(checksum_address):
+                raise ValueError(f"{checksum_address} is an invalid EIP-55 checksum address.")
+
+            try:
+                staker = self.__stakers[checksum_address]
+            except KeyError:
+                if checksum_address not in self.__accounts:
+                    raise ValueError(f"{checksum_address} is an unknown wallet address.")
+                else:
+                    staker = Staker(is_me=True, checksum_address=checksum_address, blockchain=self.blockchain)
+
+        # New Staker address (no address passed)
         else:
-            staker = Staker(is_me=True, checksum_address=checksum_address, blockchain=self.blockchain)
+            if not password:
+                raise ValueError(f'No checksum address or password supplied to initialize new stake.')
+            staker = self.__create_staker(password=password)
+            checksum_address = staker.checksum_address
 
         if fund_now:
+            # If True, Transfer ETH and NU from the funding account to the staker's account.
+            # If False, we expect the user to handle "pre-funding" the staker account with
+            # a sufficient amount of NU and ETH for staking operations.
             self.__prepare_new_staker(staker=staker, amount=amount)
 
+        # Don the transacting power for the staker's account.
         self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
         new_stake = staker.initialize_stake(amount=amount, lock_periods=duration)
+
+        # Update local cache and save to disk.
+        self.__stakers[checksum_address] = staker
+        staker.stake_tracker.refresh(checksum_addresses=[staker.checksum_address])
         self.to_configuration_file(override=True)
+
         return new_stake
 
     def divide_stake(self,
                      address: str,
-                     password: str,
                      index: int,
                      value: NU,
-                     duration: int):
+                     duration: int,
+                     password: str = None,
+                     ):
 
         staker = self.get_active_staker(address=address)
         if not staker.is_staking:
@@ -1031,18 +1067,10 @@ class StakeHolder(BaseConfiguration):
         result = staker.divide_stake(stake_index=index,
                                      additional_periods=duration,
                                      target_value=value)
+
+        # Save results to disk
         self.to_configuration_file(override=True)
         return result
-
-    def sweep(self) -> dict:
-        """Collect all rewards from all staking accounts"""
-        receipts = dict()
-        for staker in self.stakers:
-            self.attach_transacting_power(checksum_address=staker.checksum_address)
-            receipt = self.collect_rewards(staker_address=staker.checksum_address)
-            receipts[staker.checksum_address] = receipt
-        self.to_configuration_file(override=True)
-        return receipts
 
     def calculate_rewards(self) -> dict:
         rewards = dict()

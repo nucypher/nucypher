@@ -2,11 +2,11 @@ import json
 import os
 
 import pytest
+from constant_sorrow.constants import NO_STAKES
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Worker
 from nucypher.blockchain.eth.agents import Agency, StakingEscrowAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -15,21 +15,22 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 @pytest.fixture(scope='session')
 def stakeholder_config_file_location():
     path = os.path.join('/', 'tmp', 'nucypher-test-stakeholder.json')
-    return path
+    if os.path.exists(path):
+        os.remove(path)
+    yield path
+    if os.path.exists(path):
+        os.remove(path)
 
 
 @pytest.fixture(scope='module')
-def staking_software_stakeholder(testerchain,
-                                 agency,
-                                 blockchain_ursulas,
-                                 stakeholder_config_file_location):
+def staking_software_stakeholder(testerchain, agency, stakeholder_config_file_location):
 
     # Setup
     path = stakeholder_config_file_location
     if os.path.exists(path):
         os.remove(path)
 
-    # stakeholder_address = 0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
+    #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
     stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
     address = testerchain.provider.ethereum_tester.add_account(stakeholder_private_key,
                                                                password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -91,8 +92,8 @@ def test_software_stakeholder_configuration(testerchain,
     path = stakeholder_config_file_location
 
     # Check attributes can be successfully read
-    assert stakeholder.total_stake
-    assert stakeholder.stakes
+    assert stakeholder.total_stake == 0
+    assert not stakeholder.stakes
     assert stakeholder.accounts
 
     # Save the stakeholder JSON config
@@ -121,41 +122,86 @@ def test_software_stakeholder_configuration(testerchain,
     assert first_config_contents == second_config_contents
 
 
-def test_initialize_stake_with_existing_staking_account(staking_software_stakeholder, stake_value, token_economics):
+def test_initialize_stake_with_new_software_wallet_account(staking_software_stakeholder,
+                                                           testerchain,
+                                                           stake_value,
+                                                           token_economics):
 
-    stake = staking_software_stakeholder.stakes[0]
+    # There are no stakers and not stakes
+    assert len(staking_software_stakeholder.stakers) == 0
+    with pytest.raises(IndexError):
+        _stake = staking_software_stakeholder.stakes[0]
 
-    # Stake, deriving a new account, using tokens and ethers from the funding account
-    stake = staking_software_stakeholder.initialize_stake(checksum_address=stake.owner_address,
-                                                          amount=stake_value,
-                                                          duration=token_economics.minimum_locked_periods)
-
-    assert stake.blockchain == staking_software_stakeholder.blockchain
-    assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
-    assert stake.owner_address != staking_software_stakeholder.funding_account
-
-    staking_software_stakeholder.blockchain.time_travel(periods=1)  # Wait for stake to begin
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
-    stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 2
-
-
-def test_initialize_stake_with_new_account(staking_software_stakeholder, stake_value, token_economics):
+    # Record the number of accounts before staking.
+    number_of_accounts = len(staking_software_stakeholder.accounts)
 
     # Stake, deriving a new account, using tokens and ethers from the funding account
     stake = staking_software_stakeholder.initialize_stake(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                           amount=stake_value,
                                                           duration=token_economics.minimum_locked_periods)
 
+    # A new account was derived for the new staker.
+    assert len(staking_software_stakeholder.accounts) == number_of_accounts + 1
+
+    # Wait for the stake to begin (+1 Period from init)
+    testerchain.time_travel(periods=1)
+
+    # Ensure the stakeholder is tracking the new staker and stake.
+    assert len(staking_software_stakeholder.stakers) == 1
+    assert len(staking_software_stakeholder.stakes) == 1
+
+    # Ensure the stakeholder and stakes agree on staking metadata
+    assert stake.blockchain == staking_software_stakeholder.blockchain
+    assert stake.owner_address != staking_software_stakeholder.funding_account
+    assert stake.value == stake_value
+    assert stake.duration == token_economics.minimum_locked_periods
+
+    # Lookup the new staker by address
+    staker = staking_software_stakeholder.get_active_staker(address=stake.owner_address)
+    assert len(staker.stakes) == 1
+    assert staker.stakes[0] == stake
+
+    # Ensure stake is on-chain via agency
+    staking_agent = Agency.get_agent(StakingEscrowAgent)
+    stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
+    assert len(stakes) == 1
+
+
+def test_initialize_stake_with_existing_staking_account(staking_software_stakeholder, stake_value, token_economics):
+
+    # There is one staker and one stake.
+    assert len(staking_software_stakeholder.stakers) == 1
+    assert len(staking_software_stakeholder.stakes) == 1
+
+    stake = staking_software_stakeholder.stakes[0]
+
+    # Really... there is one stake.
+    staking_agent = Agency.get_agent(StakingEscrowAgent)
+    stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
+    assert len(stakes) == 1
+
+    # Stake, deriving a new account with a password,
+    # sending tokens and ethers from the funding account
+    # to the staker's account, then initializing a new stake.
+    stake = staking_software_stakeholder.initialize_stake(checksum_address=stake.owner_address,
+                                                          amount=stake_value,
+                                                          duration=token_economics.minimum_locked_periods)
+
+    # Wait for stake to begin
+    staking_software_stakeholder.blockchain.time_travel(periods=1)
+
+    # Ensure the stakeholder is tracking the new staker and stake.
+    assert len(staking_software_stakeholder.stakers) == 1
+    assert len(staking_software_stakeholder.stakes) == 2
+
+    # Ensure common stake perspective between stakeholder and stake
     assert stake.blockchain == staking_software_stakeholder.blockchain
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
     assert stake.owner_address != staking_software_stakeholder.funding_account
 
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 1
+    assert len(stakes) == 2
 
 
 def test_divide_stake(staking_software_stakeholder, token_economics):
@@ -172,13 +218,14 @@ def test_divide_stake(staking_software_stakeholder, token_economics):
 
     staking_agent = Agency.get_agent(StakingEscrowAgent)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 2
+    assert len(stakes) == 3
     assert new_stake.value == target_value
     assert original_stake.value == (pre_divide_stake_value - target_value)
 
 
 def test_set_worker(staking_software_stakeholder, manual_worker):
-    stake = staking_software_stakeholder.stakes[0]
+    stake = staking_software_stakeholder.stakes[1]
+
     staker = staking_software_stakeholder.get_active_staker(stake.owner_address)
     staking_agent = Agency.get_agent(StakingEscrowAgent)
 
@@ -205,6 +252,7 @@ def test_collect_inflation_rewards(staking_software_stakeholder, manual_worker, 
 
     # Wait out stake duration, manually confirming activity once per period.
     periods_remaining = stake.end_period - worker.staking_agent.get_current_period()
+
     for period in range(periods_remaining):
         worker.confirm_activity()
         testerchain.time_travel(periods=1)
