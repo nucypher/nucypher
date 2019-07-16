@@ -336,15 +336,22 @@ class BlockchainInterface:
             else:
                 transaction_name = 'UNKNOWN'
 
+        payload_pprint = dict(payload)
+        payload_pprint['from'] = to_checksum_address(payload['from'])
+        payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in payload_pprint.items())
+        self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
+
         # Build transaction payload
         try:
             unsigned_transaction = contract_function.buildTransaction(payload)
-        except ValidationError:
+        except ValidationError as e:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
+            self.log.warn(f"Validation error: {e}")
             raise
         else:
             if deployment:
                 self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
+
 
         #
         # Broadcast
@@ -352,7 +359,7 @@ class BlockchainInterface:
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
-        self.log.debug(f"[TX-{transaction_name}] | {to_checksum_address(payload['from'])}")
+
 
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
@@ -360,7 +367,7 @@ class BlockchainInterface:
             # TODO: Handle transaction timeout
             raise
         else:
-            self.log.debug(f"[RECEIPT-{transaction_name}] | {receipt['transactionHash'].hex()}")
+            self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
 
         #
         # Confirm
@@ -509,11 +516,15 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        deploy_transaction = {'gasPrice': self.client.gas_price}
+        deploy_transaction = dict()
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 
-        self.log.info("Deployer address is {}".format(self.deployer_address))
+        pprint_args = str(tuple(constructor_args))
+        pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
+        self.log.info(f"Deploying contract {contract_name} with "
+                      f"deployer address {self.deployer_address} "
+                      f"and parameters {pprint_args}")
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
         transaction_function = contract_factory.constructor(*constructor_args, **kwargs)
