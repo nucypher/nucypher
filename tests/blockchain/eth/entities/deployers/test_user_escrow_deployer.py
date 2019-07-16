@@ -26,6 +26,7 @@ from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SE
 
 
 user_escrow_contracts = list()
+NUMBER_OF_USERS = 50
 
 
 @pytest.fixture(scope='module')
@@ -48,10 +49,8 @@ def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_p
     deployer = UserEscrowDeployer(deployer_address=deployer_account,
                                   blockchain=testerchain)
 
-    deployment_receipts = deployer.deploy()
-
-    for title, receipt in deployment_receipts.items():
-        assert receipt['status'] == 1
+    receipt = deployer.deploy()
+    assert receipt['status'] == 1
 
 
 @pytest.mark.slow()
@@ -65,15 +64,11 @@ def test_deploy_multiple(session_testerchain, session_agency, user_escrow_proxy_
                                             bare=True)
     linker_address = linker_deployer.contract_address
 
-    number_of_deployments = 50
-
-    for index in range(number_of_deployments):
+    for index in range(NUMBER_OF_USERS):
         deployer = UserEscrowDeployer(deployer_address=deployer_account, blockchain=testerchain)
 
-        deployment_receipts = deployer.deploy()
-
-        for title, receipt in deployment_receipts.items():
-            assert receipt['status'] == 1
+        deployment_receipt = deployer.deploy()
+        assert deployment_receipt['status'] == 1
 
         user_escrow_contract = deployer.contract
         linker = user_escrow_contract.functions.linker().call()
@@ -85,6 +80,8 @@ def test_deploy_multiple(session_testerchain, session_agency, user_escrow_proxy_
         if index % 5 == 0:
             testerchain.w3.eth.web3.testing.mine(1)
             testerchain.time_travel(seconds=5)
+
+    assert len(user_escrow_contracts) == NUMBER_OF_USERS
 
 
 @pytest.mark.slow()
@@ -109,10 +106,8 @@ def test_upgrade_user_escrow_proxy(session_testerchain, session_agency, user_esc
 
     assert len(receipts) == 2
 
-    receipt = testerchain.wait_for_receipt(txhash=receipts['deployment_txhash'])
-    assert receipt['status'] == 1, "Failed deployment: {}".format(receipts['deployment_txhash'])
-    # TODO: This is a mess: Sometimes you get a receipt, sometimes a txhash.
-    assert receipts['linker_retarget']['status'] == 1, "Failed retargeting: {}".format(receipts['linker_retarget'])
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
 
     for user_escrow_contract in user_escrow_contracts:
         linker = user_escrow_contract.functions.linker().call()
