@@ -553,13 +553,8 @@ def funded_blockchain(testerchain, agency, token_economics):
 
 @pytest.fixture(scope='module')
 def staking_participant(funded_blockchain, blockchain_ursulas):
-
-    # Start up the local fleet
-    for teacher in blockchain_ursulas:
-        start_pytest_ursula_services(ursula=teacher)
-
-    teachers = list(blockchain_ursulas)
-    staking_participant = teachers[-1]  # TODO: # 1035
+    testerchain, deployer_address = funded_blockchain
+    staking_participant = testerchain.unassigned_accounts[-1]
     return staking_participant
 
 

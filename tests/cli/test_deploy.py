@@ -266,7 +266,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
 
 
 def test_rollback(click_runner, mock_primary_registry_filepath):
-    """Roll 'em all back!"""
+    """Roll 'em back!"""
 
     # Simulate "Reconnection"
     real_attach_provider = BlockchainDeployerInterface._attach_provider
