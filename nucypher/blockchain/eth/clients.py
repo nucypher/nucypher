@@ -272,6 +272,10 @@ class GethClient(Web3Client):
     def peers(self):
         return self.w3.geth.admin.peers()
 
+    def new_account(self, password: str) -> str:
+        new_account = self.w3.geth.personal.newAccount(password)
+        return to_checksum_address(new_account)  # cast and validate
+
     def unlock_account(self, address, password):
         return self.w3.geth.personal.unlockAccount(address, password)
 
@@ -297,6 +301,10 @@ class ParityClient(Web3Client):
         TODO: Look for web3.py support for Parity Peers endpoint
         """
         return self.w3.manager.request_blocking("parity_netPeers", [])
+
+    def new_account(self, password: str) -> str:
+        new_account = self.w3.parity.personal.newAccount(password)
+        return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password):
         return self.w3.parity.unlockAccount.unlockAccount(address, password)
