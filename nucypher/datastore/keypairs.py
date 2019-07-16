@@ -21,7 +21,6 @@ from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
-from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from typing import Union
 from umbral import pre
@@ -33,6 +32,7 @@ from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from nucypher.network.protocols import DeployTLSWithStatics
 
 
 class Keypair(object):
@@ -190,7 +190,7 @@ class HostingKeypair(Keypair):
         self.certificate_filepath = certificate_filepath
 
     def get_deployer(self, rest_app, port):
-        return HendrixDeployTLS("start",
+        return DeployTLSWithStatics("start",
                                 key=self._privkey,
                                 cert=X509.from_cryptography(self.certificate),
                                 context_factory=ExistingKeyTLSContextFactory,
