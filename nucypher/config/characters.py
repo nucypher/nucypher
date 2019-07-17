@@ -110,15 +110,12 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def attach_keyring(self, worker_address: str = None, *args, **kwargs) -> None:
-        account = worker_address or self.worker_address
-        if not account:
-            raise self.ConfigurationError("No account specified to unlock keyring")
-        if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != account:
-                raise self.ConfigurationError("There is already a keyring attached to this configuration.")
-            return
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
+    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
+        if self.federated_only:
+            account = checksum_address or self.checksum_address
+        else:
+            account = checksum_address or self.worker_address
+        return super().attach_keyring(checksum_address=account)
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
         keyring = super().write_keyring(password=password,

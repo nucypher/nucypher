@@ -329,7 +329,10 @@ class EthereumTesterClient(Web3Client):
         """Returns True if the testing backend keyring has control of the given address."""
         address = to_canonical_address(address)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        return address in keystore
+        if address in keystore:
+            return True
+        else:
+            return self.w3.provider.ethereum_tester.unlock_account(account=address, password=password)
 
     def sync(self, *args, **kwargs):
         return True
