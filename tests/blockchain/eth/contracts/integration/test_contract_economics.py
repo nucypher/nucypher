@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
+from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 # Experimental max error
-from nucypher.crypto.powers import BlockchainPower
-
 MAX_ERROR = 0.0004751
 MAX_PERIODS = 100
 
@@ -36,7 +36,10 @@ def test_reward(testerchain, agency, token_economics):
     _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
                                    target_address=ursula,
                                    sender_address=origin)
-    testerchain.transacting_power = BlockchainPower(blockchain=testerchain, account=ursula)
+    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     account=ursula)
+    testerchain.transacting_power.activate()
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                            target_address=staking_agent.contract_address,
                                            sender_address=ursula)

@@ -80,6 +80,7 @@ class ContractDeployer:
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
         self.__ready_to_deploy = False
+        self.__economics = economics or StandardTokenEconomics()
 
     @property
     def economics(self) -> TokenEconomics:
@@ -100,6 +101,10 @@ class ContractDeployer:
     @property
     def contract(self):
         return self._contract
+
+    @property
+    def economics(self):
+        return self.__economics
 
     @property
     def dispatcher(self):
@@ -272,11 +277,8 @@ class StakingEscrowDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self,  economics: TokenEconomics = None, *args, **kwargs):
+    def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not economics:
-            economics = StandardTokenEconomics()
-        self.__economics = economics
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
@@ -289,7 +291,7 @@ class StakingEscrowDeployer(ContractDeployer):
             raise RuntimeError("PolicyManager contract is not initialized.")
 
     def _deploy_essential(self, gas_limit: int = None):
-        escrow_constructor_args = (self.token_contract.address, *self.__economics.staking_deployment_parameters)
+        escrow_constructor_args = (self.token_contract.address, *self.economics.staking_deployment_parameters)
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             self.deployer_address,
             self.registry,
@@ -352,7 +354,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # 3 - Transfer the reward supply tokens to StakingEscrow #
         reward_function = self.token_contract.functions.transfer(the_escrow_contract.address,
-                                                                 self.__economics.erc20_reward_supply)
+                                                                 self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??
         reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
@@ -812,19 +814,11 @@ class AdjudicatorDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, economics: TokenEconomics = None, *args, **kwargs):
-        if not economics:
-            economics = StandardTokenEconomics()
-        super().__init__(*args, economics=economics, **kwargs)
-        staking_contract_name = StakingEscrowDeployer.contract_name
-        proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
-        self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     name=staking_contract_name,
-                                                                     proxy_name=proxy_name)
+    def __init__(self, *args, **kwargs):
 
     def _deploy_essential(self, gas_limit: int = None):
         constructor_args = (self.staking_contract.address,
-                            *self.__economics.slashing_deployment_parameters)
+                            *self.economics.slashing_deployment_parameters)
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                self.registry,
                                                                                self.contract_name,
