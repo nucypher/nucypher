@@ -405,7 +405,7 @@ class CharacterConfiguration(BaseConfiguration):
     def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
 
         if self.federated_only:
-            generation_kwargs['checksum_address'] = FEDERATED_ADDRESS
+            checksum_address = FEDERATED_ADDRESS
 
         elif not checksum_address:
 

@@ -419,7 +419,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
     _CHAIN_NAME = 'poa-development'
 
-    def __init__(self, config_root: str = None, block_time: int = None, *args, **kwargs):
+    def __init__(self, config_root: str = None, *args, **kwargs):
 
         base_dir = config_root if config_root else DEFAULT_CONFIG_ROOT
         base_dir = os.path.join(base_dir, '.ethereum')
@@ -430,12 +430,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
                             'data_dir': self.data_dir}
 
         super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
-
         self.command = [*self.command, '--dev']
-
-        self.block_time = int(block_time)
-        if self.block_time:
-            self.command.append(f'--dev.period {self.block_time}')
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
         if not self.is_running:

@@ -339,8 +339,6 @@ def test_collect_rewards_integration(click_runner,
     # The staker is staking.
     assert staker.stakes
     assert staker.is_staking
-    pre_stake_token_balance = staker.token_balance
-
     assert staker.worker_address == worker_address
 
     ursula_port = select_test_port()
@@ -500,7 +498,5 @@ def test_collect_rewards_integration(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    # Staking Reward
-    calculated_reward = staker.staking_agent.calculate_staking_reward(staker_address=staker.worker_address)
-    assert calculated_reward
-    assert staker.token_agent.get_balance(address=burner_wallet) == calculated_reward
+    # The burner wallet has the reward ethers
+    assert staker.token_agent.get_balance(address=burner_wallet.address)
