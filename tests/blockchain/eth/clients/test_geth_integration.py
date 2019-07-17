@@ -17,14 +17,14 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_geth_EIP_191_client_signature_integration(geth_dev_node):
+def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
     # TODO: Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
     # Start a geth process
-    blockchain = BlockchainInterface(provider_process=geth_dev_node)
+    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
     blockchain.connect(fetch_registry=False, sync_now=False)
 
     # Sign a message (RPC) and verify it.
@@ -37,29 +37,29 @@ def test_geth_EIP_191_client_signature_integration(geth_dev_node):
     assert is_valid
 
 
-def test_geth_create_new_account(geth_dev_node):
+def test_geth_create_new_account(instant_geth_dev_node):
 
     # TODO: Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
-    blockchain = BlockchainInterface(provider_process=geth_dev_node)
+    blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
     blockchain.connect(fetch_registry=False, sync_now=False)
     new_account = blockchain.client.new_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(new_account)
 
 
-def test_geth_deploy(geth_dev_node):
+def test_geth_deployment_integration(instant_geth_dev_node):
 
     # TODO: Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
     memory_registry = InMemoryEthereumContractRegistry()
-    blockchain = BlockchainDeployerInterface(provider_process=geth_dev_node, registry=memory_registry)
+    blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, registry=memory_registry)
 
     # Make Deployer
-    etherbase = to_checksum_address(geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
+    etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
     deployer = Deployer(blockchain=blockchain,
                         deployer_address=etherbase,
                         client_password=None)  # dev accounts have no password.
@@ -67,7 +67,10 @@ def test_geth_deploy(geth_dev_node):
     assert int(deployer.blockchain.client.chain_id) == 1337
 
     # Deploy
-    deployer.deploy_network_contracts(staker_secret=INSECURE_DEVELOPMENT_PASSWORD,
-                                      policy_secret=INSECURE_DEVELOPMENT_PASSWORD,
-                                      adjudicator_secret=INSECURE_DEVELOPMENT_PASSWORD,
-                                      user_escrow_proxy_secret=INSECURE_DEVELOPMENT_PASSWORD)
+    secrets = Deployer.Secrets(staker_secret=INSECURE_DEVELOPMENT_PASSWORD,
+                               policy_secret=INSECURE_DEVELOPMENT_PASSWORD,
+                               adjudicator_secret=INSECURE_DEVELOPMENT_PASSWORD,
+                               user_escrow_proxy_secret=INSECURE_DEVELOPMENT_PASSWORD)
+
+    deployer.deploy_network_contracts(secrets=secrets)
+

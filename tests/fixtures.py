@@ -616,7 +616,7 @@ def mock_ursula_reencrypts():
 
 
 @pytest.fixture(scope='session')
-def geth_dev_node():
+def instant_geth_dev_node():
     geth = NuCypherGethDevProcess()
     try:
         yield geth

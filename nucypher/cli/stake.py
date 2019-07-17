@@ -262,7 +262,8 @@ def stake(click_config,
 
         # Value
         if not value:
-            value = click.prompt(f"Enter target value (must be less than {str(current_stake.value)})", type=STAKE_VALUE)
+            value = click.prompt(f"Enter target value (must be less than  or equal to {str(current_stake.value)})",
+                                 type=STAKE_VALUE)
         value = NU(value, 'NU')
 
         # Duration
