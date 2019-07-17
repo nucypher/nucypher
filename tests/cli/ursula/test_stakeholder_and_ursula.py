@@ -10,6 +10,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, Agency
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
@@ -292,6 +293,13 @@ def test_ursula_run(click_runner,
 
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
 
+    # Simulate "Reconnection" within the CLI process to the testerchain
+    def connect(self, *args, **kwargs):
+        self._attach_provider(testerchain.provider)
+        self.w3 = self.Web3(provider=self._provider)
+        self.client = Web3Client.from_w3(w3=self.w3)
+    BlockchainInterface.connect = connect
+
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
                  '--dry-run',
@@ -434,9 +442,18 @@ def test_collect_rewards_integration(click_runner,
     # Half of the tokens are unlocked.
     assert staker.locked_tokens() == token_economics.minimum_allowed_locked
 
-    def from_dict(*args, **kwargs):
-        return testerchain
-    BlockchainInterface.from_dict = from_dict
+    # Simulate "Reconnection" within the CLI process to the testerchain
+    def connect(self, *args, **kwargs):
+        self._attach_provider(testerchain.provider)
+        self.w3 = self.Web3(provider=self._provider)
+        self.client = Web3Client.from_w3(w3=self.w3)
+    BlockchainInterface.connect = connect
+
+    # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
+    testerchain.transacting_power = TransactingPower(account=staker_address,
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                     blockchain=testerchain)
+    testerchain.transacting_power.activate()
 
     # Collect Policy Reward
     collection_args = ('--mock-networking',
@@ -484,6 +501,6 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # Staking Reward
-    calculated_reward = staker.staking_agent.calculate_staking_reward(checksum_address=staker.worker_address)
+    calculated_reward = staker.staking_agent.calculate_staking_reward(staker_address=staker.worker_address)
     assert calculated_reward
-    assert staker.token_balance > pre_stake_token_balance
+    assert staker.token_agent.get_balance(address=burner_wallet) == calculated_reward
