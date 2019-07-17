@@ -6,6 +6,7 @@ import random
 import maya
 import pytest
 from twisted.logger import Logger
+from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, Agency
@@ -79,7 +80,6 @@ def mock_registry_filepath(testerchain, agency):
 def test_new_stakeholder(click_runner,
                          custom_filepath,
                          mock_registry_filepath,
-                         staking_participant,
                          testerchain):
 
     init_args = ('stake', 'new-stakeholder',
@@ -113,7 +113,7 @@ def test_stake_init(click_runner,
                     token_economics,
                     testerchain,
                     agency,
-                    staking_participant):
+                    manual_staker,):
 
     # Simulate "Reconnection"
     cached_blockchain = BlockchainInterface.reconnect()
@@ -126,13 +126,13 @@ def test_stake_init(click_runner,
 
     # Staker address has not stakes
     staking_agent = Agency.get_agent(StakingEscrowAgent)
-    stakes = list(staking_agent.get_all_stakes(staker_address=staking_participant))
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 
     stake_args = ('stake', 'init',
                   '--config-file', stakeholder_configuration_file_location,
                   '--registry-filepath', mock_registry_filepath,
-                  '--staking-address', staking_participant,
+                  '--staking-address', manual_staker,
                   '--value', stake_value.to_nunits(),
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
@@ -147,7 +147,7 @@ def test_stake_init(click_runner,
 
     # Verify the stake is on-chain
     # Test integration with Agency
-    stakes = list(staking_agent.get_all_stakes(staker_address=staking_participant))
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert len(stakes) == 1
 
     # Test integration with NU
@@ -157,14 +157,13 @@ def test_stake_init(click_runner,
 
     # Test integration with Stake
     stake = Stake.from_stake_info(index=0,
-                                  checksum_address=staking_participant,
+                                  checksum_address=manual_staker,
                                   stake_info=stakes[0])
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
 
 
 def test_stake_list(click_runner,
-                    funded_blockchain,
                     stakeholder_configuration_file_location,
                     stake_value,
                     mock_registry_filepath,
@@ -190,13 +189,13 @@ def test_stake_list(click_runner,
 def test_ursula_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
                               token_economics,
-                              staking_participant,
+                              manual_staker,
                               testerchain):
 
     divide_args = ('stake', 'divide',
                    '--config-file', stakeholder_configuration_file_location,
                    '--force',
-                   '--staking-address', staking_participant,
+                   '--staking-address', manual_staker,
                    '--index', 0,
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--duration', 10)
@@ -219,13 +218,14 @@ def test_ursula_divide_stakes(click_runner,
 
 def test_stake_set_worker(click_runner,
                           testerchain,
-                          stakeholder_configuration_file_location,
-                          staking_participant):
+                          manual_staker,
+                          manual_worker,
+                          stakeholder_configuration_file_location):
 
     init_args = ('stake', 'set-worker',
                  '--config-file', stakeholder_configuration_file_location,
-                 '--staking-address', staking_participant,
-                 '--worker-address', staking_participant,  # TODO: Use another account
+                 '--staking-address', manual_staker,
+                 '--worker-address', manual_worker,
                  '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
@@ -236,23 +236,24 @@ def test_stake_set_worker(click_runner,
     assert result.exit_code == 0
 
     staker = Staker(is_me=True,
-                    checksum_address=staking_participant,
+                    checksum_address=manual_staker,
                     blockchain=testerchain)
 
-    assert staker.worker_address == staking_participant  # TODO: Use separate accounts.
+    assert staker.worker_address == manual_worker
 
 
 def test_ursula_init(click_runner,
                      custom_filepath,
                      mock_registry_filepath,
-                     staking_participant,
+                     manual_staker,
+                     manual_worker,
                      testerchain):
 
     init_args = ('ursula', 'init',
                  '--poa',
                  '--network', TEMPORARY_DOMAIN,
-                 '--staker-address', staking_participant,
-                 '--worker-address', staking_participant,  # TODO: use another account
+                 '--staker-address', manual_staker,
+                 '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
@@ -278,17 +279,23 @@ def test_ursula_init(click_runner,
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
-        assert config_data['checksum_address'] == staking_participant
+        assert config_data['worker_address'] == manual_worker
+        assert config_data['checksum_address'] == manual_staker
         assert TEMPORARY_DOMAIN in config_data['domains']
         
 
-def test_run_blockchain_ursula(click_runner,
-                               worker_configuration_file_location,
-                               staking_participant):
+def test_ursula_run(click_runner,
+                    manual_worker,
+                    manual_staker,
+                    custom_filepath,
+                    testerchain):
+
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
                  '--dry-run',
-                 '--config-file', worker_configuration_file_location)
+                 '--config-file', custom_config_filepath)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli,
@@ -304,7 +311,8 @@ def test_collect_rewards_integration(click_runner,
                                      blockchain_alice,
                                      blockchain_bob,
                                      random_policy_label,
-                                     staking_participant,
+                                     manual_staker,
+                                     manual_worker,
                                      token_economics,
                                      policy_value,
                                      policy_rate):
@@ -313,9 +321,8 @@ def test_collect_rewards_integration(click_runner,
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
     current_period = 0  # State the initial period for incrementing
 
-    # TODO: Use separate accounts
-    staker_address = staking_participant
-    worker_address = staking_participant
+    staker_address = manual_staker
+    worker_address = manual_worker
 
     staker = Staker(is_me=True,
                     checksum_address=staker_address,
@@ -336,10 +343,15 @@ def test_collect_rewards_integration(click_runner,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
                     network_middleware=MockRestMiddleware())
+
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
+    assert ursula.worker_address == worker_address
+    assert ursula.checksum_address == staker_address
 
     # Mock TransactingPower consumption (Worker-Ursula)
-    ursula.blockchain.transacting_power = TransactingPower(account=worker_address, blockchain=testerchain)
+    ursula.blockchain.transacting_power = TransactingPower(account=worker_address,
+                                                           password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                           blockchain=testerchain)
     ursula.blockchain.transacting_power.activate()
 
     # Confirm for half the first stake duration
@@ -421,6 +433,10 @@ def test_collect_rewards_integration(click_runner,
 
     # Half of the tokens are unlocked.
     assert staker.locked_tokens() == token_economics.minimum_allowed_locked
+
+    def from_dict(*args, **kwargs):
+        return testerchain
+    BlockchainInterface.from_dict = from_dict
 
     # Collect Policy Reward
     collection_args = ('--mock-networking',

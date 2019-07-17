@@ -14,12 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
-import json
+
+
 import os
 
 from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION
+    UNINITIALIZED_CONFIGURATION,
+    NO_KEYRING_ATTACHED
 )
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -109,15 +110,25 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def attach_keyring(self, worker_address: str = None, *args, **kwargs) -> None:
+        account = worker_address or self.worker_address
+        if not account:
+            raise self.ConfigurationError("No account specified to unlock keyring")
+        if self.keyring is not NO_KEYRING_ATTACHED:
+            if self.keyring.checksum_address != account:
+                raise self.ConfigurationError("There is already a keyring attached to this configuration.")
+            return
+        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
 
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=True,
-                                     host=self.rest_host,
-                                     curve=self.tls_curve,
-                                     checksum_address=self.worker_address,
-                                     **generation_kwargs)
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+        keyring = super().write_keyring(password=password,
+                                        encrypting=True,
+                                        rest=True,
+                                        host=self.rest_host,
+                                        curve=self.tls_curve,
+                                        checksum_address=self.worker_address,
+                                        **generation_kwargs)
+        return keyring
 
     def destroy(self) -> None:
         if os.path.isfile(self.db_filepath):

@@ -31,7 +31,7 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import Agency, NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -551,13 +551,6 @@ def funded_blockchain(testerchain, agency, token_economics):
     yield testerchain, deployer_address
 
 
-@pytest.fixture(scope='module')
-def staking_participant(funded_blockchain, blockchain_ursulas):
-    testerchain, deployer_address = funded_blockchain
-    staking_participant = testerchain.unassigned_accounts[-1]
-    return staking_participant
-
-
 #
 # Re-Encryption
 #
@@ -624,3 +617,91 @@ def instant_geth_dev_node():
         if geth.is_running:
             geth.stop()
             assert not geth.is_running
+
+
+@pytest.fixture(scope='session')
+def stakeholder_config_file_location():
+    path = os.path.join('/', 'tmp', 'nucypher-test-stakeholder.json')
+    if os.path.exists(path):
+        os.remove(path)
+    yield path
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture(scope='module')
+def software_stakeholder(testerchain, agency, stakeholder_config_file_location):
+
+    # Setup
+    path = stakeholder_config_file_location
+    if os.path.exists(path):
+        os.remove(path)
+
+    #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
+    stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
+    address = testerchain.provider.ethereum_tester.add_account(stakeholder_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    testerchain.provider.ethereum_tester.unlock_account(address, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+
+    # Mock TransactingPower consumption (Etherbase)
+    transacting_power = TransactingPower(account=testerchain.etherbase_account,
+                                         password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         blockchain=testerchain)
+    transacting_power.activate()
+
+    token_agent = Agency.get_agent(NucypherTokenAgent)
+    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+                         sender_address=testerchain.etherbase_account,
+                         target_address=address)
+
+    # Create stakeholder from on-chain values given accounts over a web3 provider
+    stakeholder = StakeHolder(blockchain=testerchain,
+                              funding_account=address,
+                              funding_password=INSECURE_DEVELOPMENT_PASSWORD,
+                              trezor=False)
+
+    assert stakeholder.funding_power.is_unlocked is True
+
+    # Teardown
+    yield stakeholder
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture(scope='module')
+def manual_staker(testerchain):
+    # 0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075
+    staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
+    address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+    yield address
+
+
+@pytest.fixture(scope='module')
+def manual_worker(testerchain):
+    worker_private_key = '4115115f4159db59a06327aa29544c417c52ddb80a4a26517367ff4514e0f694'
+    address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+    yield address

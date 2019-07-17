@@ -164,20 +164,19 @@ def ursula(click_config,
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
-        if not staker_address and not federated_only:
-            staker_address = click.prompt("Enter staker checksum address", type=EIP55_CHECKSUM_ADDRESS)
+        if (not staker_address or not worker_address) and not federated_only:
 
-        if not worker_address:
+            # Connect to Blockchain
+            registry = None
+            if registry_filepath:
+                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+            blockchain.connect(fetch_registry=False)
 
-            if not federated_only:
+            if not staker_address:
+                staker_address = select_client_account(blockchain=blockchain)
 
-                # Blockchain
-                registry = None
-                if registry_filepath:
-                    registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-                blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-                blockchain.connect(fetch_registry=False)
-
+            if not worker_address:
                 worker_address = select_client_account(blockchain=blockchain)
 
         if not config_root:                         # Flag

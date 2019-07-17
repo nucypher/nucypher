@@ -306,7 +306,7 @@ class ParityClient(Web3Client):
         new_account = self.w3.parity.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address, password) -> bool:
         return self.w3.parity.unlockAccount.unlockAccount(address, password)
 
 
@@ -314,10 +314,10 @@ class GanacheClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address, password) -> bool:
         return True
 
-    def sync(self, *args, **kwargs):
+    def sync(self, *args, **kwargs) -> bool:
         return True
 
 
@@ -334,12 +334,12 @@ class EthereumTesterClient(Web3Client):
     def sync(self, *args, **kwargs):
         return True
 
-    def new_account(self, password: str):
+    def new_account(self, password: str) -> str:
         insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),
                                                                         password=password)
         return insecure_account
 
-    def sign_transaction(self, transaction: dict):
+    def sign_transaction(self, transaction: dict) -> bytes:
         # Get signing key of test account
         address = to_canonical_address(transaction['from'])
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key
@@ -419,7 +419,7 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
 
     _CHAIN_NAME = 'poa-development'
 
-    def __init__(self, config_root: str = None, *args, **kwargs):
+    def __init__(self, config_root: str = None, block_time: int = None, *args, **kwargs):
 
         base_dir = config_root if config_root else DEFAULT_CONFIG_ROOT
         base_dir = os.path.join(base_dir, '.ethereum')
@@ -430,7 +430,12 @@ class NuCypherGethDevProcess(NuCypherGethProcess):
                             'data_dir': self.data_dir}
 
         super().__init__(geth_kwargs=self.geth_kwargs, *args, **kwargs)
+
         self.command = [*self.command, '--dev']
+
+        self.block_time = int(block_time)
+        if self.block_time:
+            self.command.append(f'--dev.period {self.block_time}')
 
     def start(self, timeout: int = 30, extra_delay: int = 1):
         if not self.is_running:
