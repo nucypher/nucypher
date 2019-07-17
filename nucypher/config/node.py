@@ -432,6 +432,9 @@ class CharacterConfiguration(BaseConfiguration):
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
 
+        if self.federated_only:
+            self.checksum_address = self.keyring.checksum_address
+
         return self.keyring
 
     @classmethod
