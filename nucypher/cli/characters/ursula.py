@@ -61,7 +61,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--sync/--no-sync', default=True)
-@click.option('--device/--no-device', default=False)
+@click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
@@ -85,7 +85,7 @@ def ursula(click_config,
            federated_only,
            poa,
            sync,
-           device,
+           hw_wallet,
            config_root,
            config_file,
            provider_uri,
