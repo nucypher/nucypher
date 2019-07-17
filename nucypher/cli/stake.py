@@ -170,7 +170,8 @@ def stake(click_config,
             choice = click.prompt("Select staking account, or enter 'c' to derive a new one", default='c')
             if choice == 'c':
                 click.confirm("Create new ethereum account for staking?", abort=True)
-                password = click.prompt("Enter new account password", hide_input=True, confirmation_prompt=True)
+                if not device:
+                    password = click.prompt("Enter new account password", hide_input=True, confirmation_prompt=True)
                 staking_address = None  # signals to create an account later
             else:
                 try:
@@ -178,7 +179,7 @@ def stake(click_config,
                 except KeyError:
                     raise click.BadParameter(f"'{choice}' is not a valid command.")
 
-        if not password:
+        if not password and not device:
             password = click.prompt(f"Enter password to unlock {staking_address}",
                                     hide_input=True,
                                     confirmation_prompt=False)

@@ -277,6 +277,10 @@ class GethClient(Web3Client):
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password):
+        if self.is_local:
+            # TODO: Is there a more formalized check here for geth --dev mode?
+            # Geth --dev accounts are unlocked by default.
+            return True
         return self.w3.geth.personal.unlockAccount(address, password)
 
     def sign_transaction(self, transaction: dict) -> bytes:

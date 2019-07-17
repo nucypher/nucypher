@@ -824,7 +824,7 @@ class StakeHolder(BaseConfiguration):
                                                  password=password,
                                                  account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
-        transacting_power.activate()
+        transacting_power.activate(password=password)
 
     def to_configuration_file(self, *args, **kwargs) -> str:
         filepath = super().to_configuration_file(modifier=self.funding_account, *args, **kwargs)
