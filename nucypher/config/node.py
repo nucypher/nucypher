@@ -380,14 +380,6 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Development
         if self.dev_mode:
-            if password is DEVELOPMENT_CONFIGURATION:
-                self.abort_on_learning_error = True
-                self.save_metadata = False
-                self.reload_metadata = False
-                alphabet = string.ascii_letters + string.digits
-                password = ''.join(secrets.choice(alphabet) for _ in range(32))
-            else:
-                raise self.ConfigurationError("Password cannot be specified for development configurations.")
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
 
@@ -410,12 +402,13 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
 
         if self.federated_only:
             generation_kwargs['checksum_address'] = FEDERATED_ADDRESS
 
-        elif 'checksum_address' not in generation_kwargs:
+        elif not checksum_address:
+
             # Note: It is assumed the blockchain interface is not yet connected.
             if self.provider_process:
 
@@ -433,13 +426,12 @@ class CharacterConfiguration(BaseConfiguration):
                 raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
 
             checksum_address = self.checksum_address
-            generation_kwargs['checksum_address'] = checksum_address
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
+                                                checksum_address=checksum_address,
                                                 **generation_kwargs)
 
-        self.checksum_address = self.keyring.account
         return self.keyring
 
     @classmethod

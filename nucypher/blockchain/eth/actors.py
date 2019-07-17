@@ -562,7 +562,6 @@ class Staker(NucypherTokenActor):
     def collect_policy_reward(self, collector_address=None, policy_agent: PolicyAgent = None):
         """Collect rewarded ETH"""
         policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
-
         withdraw_address = collector_address or self.checksum_address
         receipt = policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                      staker_address=self.checksum_address)
