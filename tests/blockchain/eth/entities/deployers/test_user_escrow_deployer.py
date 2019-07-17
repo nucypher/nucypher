@@ -44,7 +44,11 @@ def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_p
     testerchain = session_testerchain
     deployer_account = testerchain.etherbase_account
     secret_hash = keccak_digest(USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode())
-    _escrow_proxy_deployments_txhashes = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash)
+    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash)
+
+    assert len(user_escrow_proxy_receipts) == 2
+    for title, receipt in user_escrow_proxy_receipts.items():
+        assert receipt['status'] == 1
 
     deployer = UserEscrowDeployer(deployer_address=deployer_account,
                                   blockchain=testerchain)

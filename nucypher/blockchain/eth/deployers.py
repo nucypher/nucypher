@@ -547,28 +547,28 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                                        gas_limit=gas_limit)
         return contract, deployment_receipt
 
-    def deploy(self, secret_hash: bytes, existing_secret_plaintext: bytes = None, gas_limit: int = None) -> dict:
+    def deploy(self, secret_hash: bytes, gas_limit: int = None) -> dict:
         """
         Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
         This is meant to be called only once per general deployment.
         """
 
-        deployment_receipts = dict()
+        receipts = dict()
 
         # UserEscrowProxy
         user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
-        deployment_receipts['deployment'] = deployment_receipts
+        receipts['deployment'] = deployment_receipt
 
         # UserEscrowLibraryLinker
         linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
                                                  deployer_address=self.deployer_address,
                                                  target_contract=user_escrow_proxy_contract)
 
-        linker_deployment_txhash = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        linker_deployment_receipt = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
 
-        deployment_receipts['linker_deployment'] = linker_deployment_txhash['txhash']
+        receipts['linker_deployment'] = linker_deployment_receipt['txhash']
         self._contract = user_escrow_proxy_contract
-        return deployment_receipts
+        return receipts
 
     @classmethod
     def get_latest_version(cls, blockchain) -> Contract:
