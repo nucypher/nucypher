@@ -499,4 +499,4 @@ def test_collect_rewards_integration(click_runner,
     assert result.exit_code == 0
 
     # The burner wallet has the reward ethers
-    assert staker.token_agent.get_balance(address=burner_wallet.address)
+    assert staker.token_agent.get_balance(address=staker_address)
