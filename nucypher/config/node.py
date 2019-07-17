@@ -168,7 +168,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
-        node_config.to_configuration_file(modifier=node_config.checksum_address)
+        node_config.to_configuration_file()
         return node_config
 
     def cleanup(self) -> None:
