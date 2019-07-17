@@ -282,8 +282,7 @@ def make_cli_character(character_config,
 def select_stake(stakeholder) -> Stake:
     enumerated_stakes = dict(enumerate(stakeholder.stakes))
     painting.paint_stakes(stakes=stakeholder.stakes)
-    choice = click.prompt("Select Stake",
-                          type=click.IntRange(min=0, max=len(enumerated_stakes)))
+    choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
 
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
@@ -294,7 +293,7 @@ def select_client_account(blockchain, prompt: str = None, default=0) -> str:
     for index, account in enumerated_accounts.items():
         click.secho(f"{index} | {account}")
     prompt = prompt or "Select Account"
-    choice = click.prompt(prompt, type=click.IntRange(min=0, max=len(enumerated_accounts)), default=default)
+    choice = click.prompt(prompt, type=click.IntRange(min=0, max=len(enumerated_accounts)-1), default=default)
     chosen_account = enumerated_accounts[choice]
     return chosen_account
 

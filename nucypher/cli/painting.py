@@ -309,10 +309,6 @@ def paint_contract_deployment(contract_name: str, contract_address: str, receipt
     for tx_name, receipt in receipts.items():
         click.secho("OK", fg='green', nl=False, bold=True)
         click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
-        try:
-            click.secho(" | {}".format(receipt['transactionHash'].hex()), fg='yellow', nl=False)
-        except KeyError:
-            breakpoint()
-
+        click.secho(" | {}".format(receipt['transactionHash'].hex()), fg='yellow', nl=False)
         click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
         click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))

@@ -410,7 +410,7 @@ class Staker(NucypherTokenActor):
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
-        worker_address = self.worker_address or NO_WORKER_ASSIGNED
+        worker_address = self.worker_address or BlockchainInterface.NULL_ADDRESS
         staker_funds = {'ETH': int(self.eth_balance), 'NU': int(self.token_balance)}
         staker_payload = {'staker': self.checksum_address,
                           'balances': staker_funds,
@@ -543,7 +543,7 @@ class Staker(NucypherTokenActor):
             self.__worker_address = worker_address
 
         if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
-            return NO_WORKER_ASSIGNED
+            return NO_WORKER_ASSIGNED.bool_value(False)
         return self.__worker_address
 
     @only_me
@@ -1099,6 +1099,7 @@ class StakeHolder(BaseConfiguration):
         receipts = dict()
         if staking:
             receipts['staking_reward'] = staker.collect_staking_reward()
+
         if policy:
             withdraw_address = withdraw_address or self.funding_account
             receipts['policy_reward'] = staker.collect_policy_reward(collector_address=withdraw_address)
