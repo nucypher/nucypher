@@ -120,7 +120,7 @@ def test_geth_web3_client():
     assert interface.client.backend == 'go1.7'
 
     assert interface.client.is_local is False
-    assert interface.client.chain_id == '5'  # Hardcoded above
+    assert interface.client.chain_id == 5  # Hardcoded above
 
 
 def test_infura_web3_client():
@@ -128,31 +128,15 @@ def test_infura_web3_client():
     interface.connect(fetch_registry=False, sync_now=False)
 
     assert isinstance(interface.client, InfuraClient)
-    assert interface.node_technology == 'Geth'
-    assert interface.node_version == 'v1.8.23-omnibus-2ad89aaa'
-    assert interface.platform == 'linux-amd64'
-    assert interface.backend == 'go1.11.1'
 
-    assert interface.is_local is False
-    assert interface.chain_id == 5
+    assert interface.client.node_technology == 'Geth'
+    assert interface.client.node_version == 'v1.8.23-omnibus-2ad89aaa'
+    assert interface.client.platform == 'linux-amd64'
+    assert interface.client.backend == 'go1.11.1'
+    assert interface.client.is_local is False
+    assert interface.client.chain_id == 5
 
-    assert interface.unlock_account('address', 'password')  # should return True
-
-
-def test_infura_web3_client():
-    interface = GethClientTestBlockchain(
-        provider_uri='infura://1234567890987654321abcdef'
-    )
-    assert isinstance(interface.client, InfuraClient)
-    assert interface.node_technology == 'Geth'
-    assert interface.node_version == 'v1.8.23-omnibus-2ad89aaa'
-    assert interface.platform == 'linux-amd64'
-    assert interface.backend == 'go1.11.1'
-
-    assert interface.is_local is False
-    assert interface.chain_id == 5
-
-    assert interface.unlock_account('address', 'password')  # should return True
+    assert interface.client.unlock_account('address', 'password')  # Returns True on success
 
 
 def test_parity_web3_client():

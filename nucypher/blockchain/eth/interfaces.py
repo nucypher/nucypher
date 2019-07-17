@@ -240,7 +240,7 @@ class BlockchainInterface:
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
-        # Connect Web3 Instance
+        # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
             self.client = Web3Client.from_w3(w3=self.w3)
