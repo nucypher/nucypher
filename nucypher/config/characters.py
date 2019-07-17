@@ -75,6 +75,10 @@ class UrsulaConfiguration(CharacterConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
+    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
+        filepath = super().generate_filepath(modifier=modifier or self.worker_address, *args, **kwargs)
+        return filepath
+
     def static_payload(self) -> dict:
         payload = dict(
             worker_address=self.worker_address,
