@@ -25,11 +25,11 @@ from nucypher.cli.types import (
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
-@click.option('--device/-no-device', help="Use a hardware wallet for staking operations", is_flag=True, default=False)  # TODO: Make True or deprecate.
+@click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--offline', help="Operate in offline mode", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--provider-uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
 @click.option('--funding-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--pre-funded', help="Do not fund new stake's accounts", is_flag=True, default=False)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
@@ -51,7 +51,7 @@ def stake(click_config,
           force,
           quiet,
           offline,
-          device,
+          hw_wallet,
 
           # Blockchain
           poa,
@@ -144,7 +144,7 @@ def stake(click_config,
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
 
         password = None
-        if not device:
+        if not hw_wallet:
             password = get_password(confirm=False)
         STAKEHOLDER.set_worker(staker_address=staking_address,
                                password=password,
@@ -170,7 +170,7 @@ def stake(click_config,
             choice = click.prompt("Select staking account, or enter 'c' to derive a new one", default='c')
             if choice == 'c':
                 click.confirm("Create new ethereum account for staking?", abort=True)
-                if not device:
+                if not hw_wallet:
                     password = click.prompt("Enter new account password", hide_input=True, confirmation_prompt=True)
                 staking_address = None  # signals to create an account later
             else:
@@ -179,7 +179,7 @@ def stake(click_config,
                 except KeyError:
                     raise click.BadParameter(f"'{choice}' is not a valid command.")
 
-        if not password and not device:
+        if not password and not hw_wallet:
             password = click.prompt(f"Enter password to unlock {staking_address}",
                                     hide_input=True,
                                     confirmation_prompt=False)
@@ -207,11 +207,11 @@ def stake(click_config,
 
         if not value:
             min_locked = STAKEHOLDER.economics.minimum_allowed_locked
-            value = click.prompt(f"Enter stake value in NuNits", type=STAKE_VALUE, default=min_locked)
-        value = NU.from_nunits(int(value))
+            value = click.prompt(f"Enter stake value in NU", type=STAKE_VALUE, default=NU.from_nunits(min_locked).to_tokens())
+        value = NU.from_tokens(value)
 
         if not duration:
-            prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} period min)"
+            prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
             duration = click.prompt(prompt, type=STAKE_DURATION)
 
         start_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -232,7 +232,7 @@ def stake(click_config,
 
         # Last chance to bail
         target = staking_address or "derived account"
-        message = f"Transfer {value.to_nunits()} NuNits and {STAKEHOLDER.eth_funding} wei to {target}?"
+        message = f"Transfer {value} and {Web3.fromWei(STAKEHOLDER.eth_funding, 'ether')} ETH to {target}?"
         if not force:
             if fund_now:
                 click.confirm(message, abort=True)
@@ -263,7 +263,7 @@ def stake(click_config,
 
         # Value
         if not value:
-            value = click.prompt(f"Enter target value (must be less than  or equal to {str(current_stake.value)})",
+            value = click.prompt(f"Enter target value (must be less than or equal to {str(current_stake.value)})",
                                  type=STAKE_VALUE)
         value = NU(value, 'NU')
 
@@ -282,7 +282,7 @@ def stake(click_config,
 
         # Execute
         password = None
-        if not device:
+        if not hw_wallet:
             password = get_password(confirm=False)
         modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
                                                              index=current_stake.index,
@@ -300,7 +300,7 @@ def stake(click_config,
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
         password = None
-        if not device:
+        if not hw_wallet:
             password = get_password(confirm=False)
         STAKEHOLDER.collect_rewards(staker_address=staking_address,
                                     withdraw_address=withdraw_address,

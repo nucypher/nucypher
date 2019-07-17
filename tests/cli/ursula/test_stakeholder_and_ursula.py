@@ -134,7 +134,7 @@ def test_stake_init(click_runner,
                   '--config-file', stakeholder_configuration_file_location,
                   '--registry-filepath', mock_registry_filepath,
                   '--staking-address', manual_staker,
-                  '--value', stake_value.to_nunits(),
+                  '--value', stake_value.to_tokens(),
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
 
