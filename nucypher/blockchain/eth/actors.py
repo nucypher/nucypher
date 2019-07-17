@@ -1099,6 +1099,15 @@ class StakeHolder(BaseConfiguration):
         if staking:
             receipts['staking_reward'] = staker.collect_staking_reward()
 
+            # TODO: Do we need an option to skip this step?
+            # Send ether rewards to the funding or withdraw account.
+            tx = {'to': withdraw_address or self.funding_account,
+                  'from': staker.checksum_address,
+                  'value': self.eth_funding}
+
+            txhash = self.blockchain.client.send_transaction(transaction=tx)
+            _ether_transfer_receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=120)  # TODO: Include in config?
+
         if policy:
             withdraw_address = withdraw_address or self.funding_account
             receipts['policy_reward'] = staker.collect_policy_reward(collector_address=withdraw_address)
