@@ -820,9 +820,11 @@ class StakeHolder(BaseConfiguration):
         try:
             transacting_power = self.__transacting_powers[checksum_address]
         except KeyError:
-            transacting_power = TransactingPower(blockchain=self.blockchain, account=checksum_address)
+            transacting_power = TransactingPower(blockchain=self.blockchain,
+                                                 password=password,
+                                                 account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
-        transacting_power.activate(password=password)
+        transacting_power.activate()
 
     def to_configuration_file(self, *args, **kwargs) -> str:
         filepath = super().to_configuration_file(modifier=self.funding_account, *args, **kwargs)
@@ -1080,7 +1082,7 @@ class StakeHolder(BaseConfiguration):
 
     def collect_rewards(self,
                         staker_address: str,
-                        password: str,
+                        password: str = None,
                         withdraw_address: str = None,
                         staking: bool = True,
                         policy: bool = True) -> Dict[str, dict]:

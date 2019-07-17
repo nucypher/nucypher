@@ -186,7 +186,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
         testerchain.time_travel(periods=1)
 
     # Mock TransactingPower consumption (Staker-Ursula)
-    worker.blockchain.transacting_power = TransactingPower(account=testerchain.etherbase_account, blockchain=testerchain)
+    worker.blockchain.transacting_power = TransactingPower(account=stake.owner_address, blockchain=testerchain)
     worker.blockchain.transacting_power.activate()
 
     # Collect the staking reward in NU.
