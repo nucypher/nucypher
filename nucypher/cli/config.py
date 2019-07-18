@@ -24,6 +24,8 @@ import click
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.deployers import ContractDeployer
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import (
     logToSentry,
@@ -76,8 +78,7 @@ class NucypherClickConfig:
 
 class NucypherDeployerClickConfig(NucypherClickConfig):
 
-    __secrets = ('staker_secret', 'policy_secret', 'escrow_proxy_secret', 'adjudicator_secret')
-    Secrets = collections.namedtuple('Secrets', __secrets)
+    Secrets = Deployer.Secrets
 
     def collect_deployment_secrets(self) -> Secrets:
 
@@ -106,10 +107,10 @@ class NucypherDeployerClickConfig(NucypherClickConfig):
                                                               hide_input=True,
                                                               confirmation_prompt=True)
 
-        secrets = self.Secrets(staker_secret=self.staking_escrow_deployment_secret,           # type: str
-                               policy_secret=self.policy_manager_deployment_secret,           # type: str
-                               escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,  # type: str
-                               adjudicator_secret=self.adjudicator_deployment_secret          # type: str
+        secrets = self.Secrets(staker_secret=self.staking_escrow_deployment_secret,                # type: str
+                               policy_secret=self.policy_manager_deployment_secret,                # type: str
+                               user_escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,  # type: str
+                               adjudicator_secret=self.adjudicator_deployment_secret               # type: str
                                )
         return secrets
 

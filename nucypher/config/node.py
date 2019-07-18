@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 import secrets
 import string
@@ -167,7 +168,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
-        node_config.to_configuration_file(modifier=node_config.checksum_address)
+        node_config.to_configuration_file()
         return node_config
 
     def cleanup(self) -> None:
@@ -182,8 +183,13 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
+        registry = None
+        if self.registry_filepath:
+            registry = EthereumContractRegistry(registry_filepath=self.registry_filepath)
+
         self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
                                               poa=self.poa,
+                                              registry=registry,
                                               provider_process=self.provider_process)
 
     def acquire_agency(self) -> None:
@@ -319,6 +325,7 @@ class CharacterConfiguration(BaseConfiguration):
                        crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
             self.get_blockchain_interface()
+            self.blockchain.connect()  # TODO: This makes blockchain connection more eager than transacting power acivation
             payload.update(blockchain=self.blockchain)
         return payload
 
@@ -373,14 +380,6 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Development
         if self.dev_mode:
-            if password is DEVELOPMENT_CONFIGURATION:
-                self.abort_on_learning_error = True
-                self.save_metadata = False
-                self.reload_metadata = False
-                alphabet = string.ascii_letters + string.digits
-                password = ''.join(secrets.choice(alphabet) for _ in range(32))
-            else:
-                raise self.ConfigurationError("Password cannot be specified for development configurations.")
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
 
@@ -403,12 +402,13 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
 
         if self.federated_only:
             checksum_address = FEDERATED_ADDRESS
 
-        else:
+        elif not checksum_address:
+
             # Note: It is assumed the blockchain interface is not yet connected.
             if self.provider_process:
 
@@ -432,7 +432,9 @@ class CharacterConfiguration(BaseConfiguration):
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
 
-        self.checksum_address = self.keyring.account
+        if self.federated_only:
+            self.checksum_address = self.keyring.checksum_address
+
         return self.keyring
 
     @classmethod

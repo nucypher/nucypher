@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import shutil
 from typing import List
 
 import click
@@ -28,11 +27,12 @@ from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
+from nucypher.cli import painting
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.types import IPV4_ADDRESS
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
@@ -178,18 +178,17 @@ def forget(configuration):
     click.secho(message=message, fg='red')
 
 
-def confirm_staged_stake(ursula, value, duration):
+def confirm_staged_stake(stakeholder, value, duration):
     click.confirm(f"""
 * Ursula Node Operator Notice *
 -------------------------------
 
-By agreeing to stake {str(value)}: 
+By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits): 
 
 - Staked tokens will be locked, and unavailable for transactions for the stake duration.
 
-- You are obligated to maintain a networked and available Ursula node with the 
-  ETH address {ursula.checksum_address} for the duration 
-  of the stake(s) ({duration} periods)
+- You are obligated to maintain a networked and available Ursula-Worker node with the 
+  for the duration of the stake(s) ({duration} periods)
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference. 
@@ -201,7 +200,7 @@ Keeping your Ursula node online during the staking period and successfully
 performing accurate re-encryption work orders will result in rewards 
 paid out in ETH retro-actively, on-demand.
 
-Accept node operator obligation?""", abort=True)
+Accept ursula node operator obligation?""", abort=True)
 
 
 def handle_missing_configuration_file(character_config_class, config_file: str = None):
@@ -278,3 +277,38 @@ def make_cli_character(character_config,
         console_emitter(message="WARNING: Running in Federated mode", color='yellow')
 
     return CHARACTER
+
+
+def select_stake(stakeholder) -> Stake:
+    enumerated_stakes = dict(enumerate(stakeholder.stakes))
+    painting.paint_stakes(stakes=stakeholder.stakes)
+    choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
+
+    chosen_stake = enumerated_stakes[choice]
+    return chosen_stake
+
+
+def select_client_account(blockchain, prompt: str = None, default=0) -> str:
+    enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    for index, account in enumerated_accounts.items():
+        click.secho(f"{index} | {account}")
+    prompt = prompt or "Select Account"
+    choice = click.prompt(prompt, type=click.IntRange(min=0, max=len(enumerated_accounts)-1), default=default)
+    chosen_account = enumerated_accounts[choice]
+    return chosen_account
+
+
+def confirm_deployment(deployer) -> bool:
+    if deployer.blockchain.client.chain_id == 'UNKNOWN' or deployer.blockchain.client.is_local:
+        if click.prompt("Type 'DEPLOY' to continue.") != 'DEPLOY':
+            click.secho("Aborting Deployment", fg='red', bold=True)
+            raise click.Abort()
+    else:
+        confirmed_chain_id = int(click.prompt("Enter the Chain ID to confirm deployment", type=click.INT))
+        expected_chain_id = int(deployer.blockchain.client.chain_id)
+        if confirmed_chain_id != expected_chain_id:
+            click.secho(f"Chain ID not a match ({confirmed_chain_id} != {expected_chain_id}) Aborting Deployment",
+                        fg='red',
+                        bold=True)
+            raise click.Abort()
+    return True

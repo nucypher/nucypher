@@ -15,15 +15,14 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
+
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
-    MOCK_ALLOCATION_REGISTRY_FILEPATH,
-    INSECURE_DEVELOPMENT_PASSWORD
+    MOCK_ALLOCATION_REGISTRY_FILEPATH
 )
 
 
@@ -266,7 +265,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
 
 
 def test_rollback(click_runner, mock_primary_registry_filepath):
-    """Roll 'em all back!"""
+    """Roll 'em back!"""
 
     # Simulate "Reconnection"
     real_attach_provider = BlockchainDeployerInterface._attach_provider

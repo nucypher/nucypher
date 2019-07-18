@@ -70,12 +70,16 @@ class EthereumContractAgent:
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface,
+                 blockchain: BlockchainInterface = None,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
 
         self.log = Logger(self.__class__.__name__)
+
+        # TODO: Move this to agency class?
+        if not blockchain:
+            raise ValueError("Blockchain is required to connect a new agent.")
         self.blockchain = blockchain
 
         if contract is None:  # Fetch the contract
@@ -269,6 +273,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     def collect_staking_reward(self, staker_address: str):
         """Withdraw tokens rewarded for staking."""
         reward_amount = self.calculate_staking_reward(staker_address=staker_address)
+        self.log.debug(f"Withdrawing staking reward, {reward_amount}, to {staker_address}")
         return self.withdraw(staker_address=staker_address, amount=reward_amount)
 
     @validate_checksum_address

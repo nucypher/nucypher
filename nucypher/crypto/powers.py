@@ -125,6 +125,8 @@ class TransactingPower(CryptoPowerUp):
             self.client = NO_BLOCKCHAIN_CONNECTION
 
         self.__account = account
+
+        # TODO: Is there a better way to design this Flag?
         self.device = True if not password else False
 
         self.__password = password

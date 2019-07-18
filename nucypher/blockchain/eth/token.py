@@ -279,14 +279,10 @@ class Stake:
         """Validate a single staking value against pre-defined requirements"""
 
         rulebook = (
-
             (self.minimum_nu <= self.value,
-             'Stake amount too low; ({amount}) must be at least {minimum}'
-             .format(minimum=self.minimum_nu, amount=self.value)),
+             f'Stake amount too low; ({self.value}) must be at least {self.minimum_nu}'),
 
-            (self.maximum_nu >= self.value,
-             'Stake amount too high; ({amount}) must be no more than {maximum}.'
-             .format(maximum=self.maximum_nu, amount=self.value)),
+            # Add any additional rules here following the above format...
         )
 
         if raise_on_fail is True:

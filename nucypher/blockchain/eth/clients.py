@@ -277,6 +277,10 @@ class GethClient(Web3Client):
         return to_checksum_address(new_account)  # cast and validate
 
     def unlock_account(self, address, password):
+        if self.is_local:
+            # TODO: Is there a more formalized check here for geth --dev mode?
+            # Geth --dev accounts are unlocked by default.
+            return True
         return self.w3.geth.personal.unlockAccount(address, password)
 
     def sign_transaction(self, transaction: dict) -> bytes:
@@ -306,7 +310,7 @@ class ParityClient(Web3Client):
         new_account = self.w3.parity.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address, password) -> bool:
         return self.w3.parity.unlockAccount.unlockAccount(address, password)
 
 
@@ -314,10 +318,10 @@ class GanacheClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address, password) -> bool:
         return True
 
-    def sync(self, *args, **kwargs):
+    def sync(self, *args, **kwargs) -> bool:
         return True
 
 
@@ -329,17 +333,20 @@ class EthereumTesterClient(Web3Client):
         """Returns True if the testing backend keyring has control of the given address."""
         address = to_canonical_address(address)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
-        return address in keystore
+        if address in keystore:
+            return True
+        else:
+            return self.w3.provider.ethereum_tester.unlock_account(account=address, password=password)
 
     def sync(self, *args, **kwargs):
         return True
 
-    def new_account(self, password: str):
+    def new_account(self, password: str) -> str:
         insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),
                                                                         password=password)
         return insecure_account
 
-    def sign_transaction(self, transaction: dict):
+    def sign_transaction(self, transaction: dict) -> bytes:
         # Get signing key of test account
         address = to_canonical_address(transaction['from'])
         signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[address]._raw_key

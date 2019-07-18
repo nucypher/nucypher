@@ -21,19 +21,18 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password
+from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,
-    EXISTING_READABLE_FILE,
-    STAKE_DURATION,
-    STAKE_EXTENSION,
-    STAKE_VALUE)
+    EXISTING_READABLE_FILE
+)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
@@ -54,24 +53,19 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--staker-address', help="Run on behalf of a specified staking account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--interactive', '-I', help="Launch command interface after connecting to seednodes.", is_flag=True, default=False)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--sync/--no-sync', default=True)
-@click.option('--device/--no-device', default=False)
+@click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-@click.option('--value', help="Token value of stake", type=click.INT)
-@click.option('--duration', help="Period duration of stake", type=click.INT)
-@click.option('--index', help="A specific stake index to resume", type=click.INT)
-@click.option('--list', '-l', 'list_', help="List all blockchain stakes", is_flag=True)
-@click.option('--divide', '-d', help="Divide an existing stake into sub-stakes.", is_flag=True)
 @nucypher_click_config
 def ursula(click_config,
            action,
@@ -86,25 +80,19 @@ def ursula(click_config,
            rest_host,
            rest_port,
            db_filepath,
-           checksum_address,
-           withdraw_address,
+           staker_address,
+           worker_address,
            federated_only,
            poa,
+           sync,
+           hw_wallet,
            config_root,
            config_file,
            provider_uri,
            geth,
            no_registry,
            registry_filepath,
-           value,
-           duration,
-           index,
-           list_,
-           divide,
-           sync,
-           device,
            interactive,
-
            ) -> None:
     """
     Manage and run an "Ursula" PRE node.
@@ -129,15 +117,22 @@ def ursula(click_config,
     # Validate
     #
 
-    if federated_only and geth:
-        raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
+    if federated_only:
+        if geth:
+            raise click.BadOptionUsage(option_name="--geth",
+                                       message="Federated only cannot be used with the --geth flag")
+
+        if staker_address:
+            raise click.BadOptionUsage(option_name='--federated-only',
+                                       message="Staking address canot be used in federated mode.")
 
     if click_config.debug and quiet:
         raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
 
+
     # Banner
     if not click_config.json_ipc and not click_config.quiet:
-        click.secho(URSULA_BANNER.format(checksum_address or ''))
+        click.secho(URSULA_BANNER.format(worker_address or ''))
 
     #
     # Pre-Launch Warnings
@@ -158,6 +153,7 @@ def ursula(click_config,
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
+
     #
     # Eager Actions
     #
@@ -167,6 +163,21 @@ def ursula(click_config,
 
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
+
+        if (not staker_address or not worker_address) and not federated_only:
+
+            # Connect to Blockchain
+            registry = None
+            if registry_filepath:
+                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+            blockchain.connect(fetch_registry=False)
+
+            if not staker_address:
+                staker_address = select_client_account(blockchain=blockchain)
+
+            if not worker_address:
+                worker_address = select_client_account(blockchain=blockchain)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -181,7 +192,8 @@ def ursula(click_config,
                                                      db_filepath=db_filepath,
                                                      domains={network} if network else None,
                                                      federated_only=federated_only,
-                                                     checksum_address=checksum_address,
+                                                     checksum_address=staker_address,
+                                                     worker_address=worker_address,
                                                      download_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
@@ -203,7 +215,8 @@ def ursula(click_config,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
-                                            checksum_address=checksum_address,
+                                            checksum_address=staker_address,
+                                            worker_address=worker_address,
                                             federated_only=federated_only,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
@@ -274,11 +287,10 @@ def ursula(click_config,
                 color='green',
                 bold=True)
 
-            if not URSULA.federated_only and URSULA.stakes:
-                click_config.emit(
-                    message=f"Staking {str(URSULA.current_stake)} ~ Keep Ursula Online!",
-                    color='blue',
-                    bold=True)
+            click_config.emit(
+                message=f"Working ~ Keep Ursula Online!",
+                color='blue',
+                bold=True)
 
             if interactive:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
@@ -333,131 +345,12 @@ def ursula(click_config,
         actions.forget(configuration=ursula_config)
         return
 
-    elif action == 'stake':
-
-        # List Only
-        if list_:
-            if not URSULA.stakes:
-                click.echo(f"There are no active stakes for {URSULA.checksum_address}")
-            else:
-                painting.paint_stakes(stakes=URSULA.stakes)
-            return
-
-        # Divide Only
-        if divide:
-            """Divide an existing stake by specifying the new target value and end period"""
-
-            # Validate
-            if not URSULA.stakes:
-                click.echo(f"There are no active stakes for {URSULA.checksum_address}")
-                return
-
-            # Selection
-            if index is None:
-                painting.paint_stakes(stakes=URSULA.stakes)
-                index = click.prompt("Select a stake to divide", type=click.IntRange(min=0, max=len(URSULA.stakes)-1))
-
-            # Lookup the stake
-            current_stake = URSULA.stakes[index]
-
-            # Value
-            if not value:
-                value = click.prompt(f"Enter target value (must be less than {str(current_stake.value)})", type=STAKE_VALUE)
-            value = NU(value, 'NU')
-
-            # Duration
-            if not duration:
-                extension = click.prompt("Enter number of periods to extend", type=STAKE_EXTENSION)
-            else:
-                extension = duration
-
-            if not force:
-                painting.paint_staged_stake_division(ursula=URSULA,
-                                                     original_index=index,
-                                                     original_stake=current_stake,
-                                                     target_value=value,
-                                                     extension=extension)
-
-                click.confirm("Is this correct?", abort=True)
-
-            modified_stake, new_stake = URSULA.divide_stake(stake_index=index,
-                                                            target_value=value,
-                                                            additional_periods=extension)
-
-            if not quiet:
-                click.secho('Successfully divided stake', fg='green')
-                click.secho(f'Transaction Hash ........... {new_stake.receipt}')
-
-            # Show the resulting stake list
-            painting.paint_stakes(stakes=URSULA.stakes)
-
-            return
-
-        # Confirm new stake init
-        if not force:
-            click.confirm("Stage a new stake?", abort=True)
-
-        # Validate balance
-        balance = URSULA.token_balance
-        if balance == 0:
-            click.secho(f"{URSULA.checksum_address} has 0 NU.")
-            raise click.Abort
-        if not quiet:
-            click.echo(f"Current balance: {balance}")
-
-        # Gather stake value
-        if not value:
-            min_locked = NU(URSULA.economics.minimum_allowed_locked, 'NuNit')
-            value = click.prompt(f"Enter stake value", type=STAKE_VALUE, default=min_locked)
-        else:
-            value = NU(int(value), 'NU')
-
-        # Duration
-        if not quiet:
-            message = f"Minimum duration: {URSULA.economics.minimum_allowed_locked} | " \
-                      f"Maximum Duration: {URSULA.economics.maximum_allowed_locked}"
-            click.echo(message)
-        if not duration:
-            duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=STAKE_DURATION)
-        start_period = URSULA.staking_agent.get_current_period()
-        end_period = start_period + duration
-
-        # Review
-        if not force:
-            painting.paint_staged_stake(ursula=URSULA,
-                                        stake_value=value,
-                                        duration=duration,
-                                        start_period=start_period,
-                                        end_period=end_period)
-
-            if not dev:
-                actions.confirm_staged_stake(ursula=URSULA, value=value, duration=duration)
-
-        # Last chance to bail
-        if not force:
-            click.confirm("Publish staged stake to the blockchain?", abort=True)
-
-        stake = URSULA.initialize_stake(amount=int(value), lock_periods=duration)
-        # TODO temporary fix to not break backward compatibility
-        URSULA.set_worker(worker_address=URSULA.checksum_address)
-        painting.paint_staking_confirmation(ursula=URSULA, transactions=stake.transactions)
-        return
-
     elif action == 'confirm-activity':
         if not URSULA.stakes:
             click.secho("There are no active stakes for {}".format(URSULA.checksum_address))
             return
         URSULA.staking_agent.confirm_activity(node_address=URSULA.checksum_address)
         return
-
-    elif action == 'collect-reward':
-        """Withdraw staking reward to the specified wallet address"""
-        if not force:
-            click.confirm(f"Send {URSULA.calculate_reward()} to {URSULA.checksum_address}?")
-        inflation_reward = URSULA.calculate_reward()
-        if inflation_reward:
-            URSULA.collect_staking_reward()
-        URSULA.collect_policy_reward(collector_address=withdraw_address or checksum_address)
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))

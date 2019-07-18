@@ -153,7 +153,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    testerchain, agents = TesterBlockchain.bootstrap_network()
+    testerchain = TesterBlockchain.bootstrap_network()
     web3 = testerchain.w3
 
     # Accounts

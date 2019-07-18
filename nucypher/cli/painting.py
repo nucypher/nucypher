@@ -21,6 +21,7 @@ import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -113,12 +114,10 @@ def paint_node_status(ursula, start_time):
              'Work Orders ......... {}'.format(len(ursula._work_orders)),
              teacher]
 
-    if not ursula.federated_only and ursula.stakes:
-        total_staked = f'Total Staked ........ {ursula.current_stake} NU-wei'
-        stats.append(total_staked)
-
+    if not ursula.federated_only:
+        staking_address = 'Worker Address ...... {}'.format(ursula.worker_address)
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
-        stats.append(current_period)
+        stats.extend([current_period, staking_address])
 
     click.echo('\n' + '\n'.join(stats) + '\n')
 
@@ -218,7 +217,8 @@ def paint_staged_stake(ursula,
 
     click.echo(f"""
 {ursula}
-~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNit)
+~ Chain      -> ID # {ursula.blockchain.client.chain_id} | {ursula.blockchain.client.chain_name}
+~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
@@ -229,41 +229,55 @@ def paint_staged_stake(ursula,
 
 def paint_staking_confirmation(ursula, transactions):
     click.secho(f'\nEscrow Address ... {ursula.staking_agent.contract_address}', fg='blue')
-    for tx_name, txhash in transactions.items():
-        click.secho(f'{tx_name.capitalize()} .......... {txhash.hex()}', fg='green')
+    for tx_name, receipt in transactions.items():
+        click.secho(f'{tx_name.capitalize()} .......... {receipt["transactionHash"].hex()}', fg='green')
     click.secho(f'''
 
 Successfully transmitted stake initialization transactions.
 
-View your active stakes by running 'nucypher ursula stake --list'
-or start your Ursula node by running 'nucypher ursula run'.
+View your stakes by running 'nucypher stake list'
+or set your Ursula worker node address by running 'nucypher stake set-worker'.
 ''', fg='green')
 
 
-def prettify_stake(stake_index: int, stake) -> str:
+def prettify_stake(stake, index: int = None) -> str:
 
     start_datetime = str(stake.start_datetime.slang_date())
     expiration_datetime = str(stake.end_datetime.slang_date())
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
-    pretty = f'| {stake_index} | {pretty_periods} | {start_datetime} .. | {expiration_datetime} ... | {str(stake.value)}'
+
+    pretty = f'| {index if index is not None else "-"} ' \
+             f'| {stake.owner_address[:6]} ' \
+             f'| {stake.worker_address[:6]} ' \
+             f'| {stake.index} ' \
+             f'| {str(stake.value)} ' \
+             f'| {pretty_periods} ' \
+             f'| {start_datetime} - {expiration_datetime} ' \
+
     return pretty
 
 
 def paint_stakes(stakes):
-    header = f'| # | Duration     | Enact       | Expiration | Value '
-    breaky = f'| - | ------------ | ----------- | -----------| ----- '
+
+    title = "=========================== Active Stakes ==============================\n"
+
+    header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
+    breaky = f'|   | ------ | ------ | - | -------- | ------------ | ------------------ '
+
+    click.secho(title)
     click.secho(header, bold=True)
     click.secho(breaky, bold=True)
     for index, stake in enumerate(stakes):
-        row = prettify_stake(stake_index=index, stake=stake)
-        click.echo(row)
+        row = prettify_stake(stake=stake, index=index)
+        row_color = 'yellow' if stake.worker_address == BlockchainInterface.NULL_ADDRESS else 'white'
+        click.secho(row, fg=row_color)
+    click.secho('')  # newline
     return
 
 
 def paint_staged_stake_division(ursula,
-                                original_index,
                                 original_stake,
                                 target_value,
                                 extension):
@@ -273,7 +287,7 @@ def paint_staged_stake_division(ursula,
 
     division_message = f"""
 {ursula}
-~ Original Stake: {prettify_stake(stake_index=original_index, stake=original_stake)}
+~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
     paint_staged_stake(ursula=ursula,
@@ -282,3 +296,19 @@ def paint_staged_stake_division(ursula,
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)
+
+
+def paint_contract_deployment(contract_name: str, contract_address: str, receipts: dict):
+
+    # Paint heading
+    heading = '\n{} ({})'.format(contract_name, contract_address)
+    click.secho(heading, bold=True)
+    click.echo('*' * (42 + 3 + len(contract_name)))
+
+    # Paint Transactions
+    for tx_name, receipt in receipts.items():
+        click.secho("OK", fg='green', nl=False, bold=True)
+        click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
+        click.secho(" | {}".format(receipt['transactionHash'].hex()), fg='yellow', nl=False)
+        click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
+        click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
