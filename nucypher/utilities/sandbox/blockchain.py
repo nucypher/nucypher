@@ -209,7 +209,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
+    def bootstrap_network(cls) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())
@@ -221,11 +221,12 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         origin = testerchain.client.etherbase
         deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
-        _txhashes, agents = deployer.deploy_network_contracts(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                                                              policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                                              adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                                                              user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
-        return testerchain, agents
+        secrets = Deployer.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
+                                   policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                   adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
+                                   user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+        _receipts = deployer.deploy_network_contracts(secrets=secrets, interactive=False)
+        return testerchain
 
     @property
     def etherbase_account(self):

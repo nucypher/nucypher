@@ -258,7 +258,7 @@ class Deployer(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self, secrets) -> dict:
+    def deploy_network_contracts(self, secrets: 'Secrets', interactive: bool = True) -> dict:
 
         deployment_receipts = dict()
 
@@ -268,7 +268,9 @@ class Deployer(NucypherTokenActor):
                                   receipts=token_receipts,
                                   contract_address=token_deployer.contract_address)
         deployment_receipts[NucypherTokenDeployer.contract_name] = token_receipts
-        click.pause(info="Press any key to continue")
+
+        if interactive:
+            click.pause(info="Press any key to continue")
 
         # StakingEscrow
         staking_receipts, staking_deployer = self.deploy_contract(contract_name=StakingEscrowDeployer.contract_name,
@@ -277,7 +279,8 @@ class Deployer(NucypherTokenActor):
                                   receipts=staking_receipts,
                                   contract_address=staking_deployer.contract_address)
         deployment_receipts[StakingEscrowDeployer.contract_name] = staking_receipts
-        click.pause(info="Press any key to continue")
+        if interactive:
+            click.pause(info="Press any key to continue")
 
         # PolicyManager
         policy_receipts, policy_deployer = self.deploy_contract(contract_name=PolicyManagerDeployer.contract_name,
@@ -286,7 +289,8 @@ class Deployer(NucypherTokenActor):
                                   receipts=policy_receipts,
                                   contract_address=policy_deployer.contract_address)
         deployment_receipts[PolicyManagerDeployer.contract_name] = policy_receipts
-        click.pause(info="Press any key to continue")
+        if interactive:
+            click.pause(info="Press any key to continue")
 
         # Adjudicator
         adjudicator_receipts, adjudicator_deployer = self.deploy_contract(contract_name=AdjudicatorDeployer.contract_name,
@@ -295,7 +299,8 @@ class Deployer(NucypherTokenActor):
                                   receipts=adjudicator_receipts,
                                   contract_address=adjudicator_deployer.contract_address)
         deployment_receipts[AdjudicatorDeployer.contract_name] = adjudicator_receipts
-        click.pause(info="Press any key to continue")
+        if interactive:
+            click.pause(info="Press any key to continue")
 
         # UserEscrowProxy
         user_escrow_proxy_receipts, user_escrow_proxy_deployer = self.deploy_contract(contract_name=UserEscrowProxyDeployer.contract_name,
