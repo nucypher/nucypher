@@ -948,3 +948,39 @@ class AdjudicatorAgent(EthereumContractAgent):
 
         staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
         return staking_parameters
+
+
+class WorkLockAgent(EthereumContractAgent):
+
+    registry_contract_name = "WorkLock"
+
+    def bid(self, amount: int, sender_address: str) -> dict:
+        """
+        Bid for tokens with ETH.
+        """
+        contract_function = self.contract.functions.bid({'value': amount})
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return receipt
+
+    def claim(self, sender_address: str) -> dict:
+        """
+        Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
+        """
+        contract_function = self.contract.functions.claim()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return receipt
+
+    def refund(self, sender_address: str) -> dict:
+        """
+        Refund ETH for completed work.
+        """
+        contract_function = self.contract.functions.refund()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return receipt
+
+    def get_remaining_work(self, target_address: str) -> int:
+        """
+        Get remaining work periods until full refund for the target address.
+        """
+        result = self.contract.functions.getRemainingWork(target_address).call()
+        return result
