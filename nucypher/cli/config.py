@@ -20,15 +20,10 @@ import os
 
 import click
 from twisted.logger import Logger
-from twisted.logger import globalLogPublisher
 
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.utilities.logging import (
-    logToSentry,
-    getTextFileObserver,
-    initialize_sentry,
-    getJsonFileObserver
-)
+from nucypher.config.node import CharacterConfiguration
+from nucypher.utilities.logging import GlobalLoggerSettings
 
 
 class NucypherClickConfig:
@@ -48,13 +43,12 @@ class NucypherClickConfig:
 
         # Sentry Logging
         if self.log_to_sentry is True:
-            initialize_sentry(dsn=NUCYPHER_SENTRY_ENDPOINT)
-            globalLogPublisher.addObserver(logToSentry)
+            GlobalLoggerSettings.start_sentry_logging(self.sentry_endpoint)
 
         # File Logging
         if self.log_to_file is True:
-            globalLogPublisher.addObserver(getTextFileObserver())
-            globalLogPublisher.addObserver(getJsonFileObserver())
+            GlobalLoggerSettings.start_text_file_logging()
+            GlobalLoggerSettings.start_json_file_logging()
 
         # You guessed it
         self.debug = False

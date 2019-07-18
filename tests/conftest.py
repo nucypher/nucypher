@@ -17,21 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
-from twisted.logger import globalLogPublisher
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
-from nucypher.utilities.logging import GlobalConsoleLogger, logToSentry
+from nucypher.utilities.logging import GlobalLoggerSettings
 # Logger Configuration
 #
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 # Disable click sentry and file logging
-globalLogPublisher.removeObserver(logToSentry)
 NucypherClickConfig.log_to_sentry = False
-
-# Log to files
 NucypherClickConfig.log_to_file = True
 
 # Crash on server error by default
@@ -106,4 +102,6 @@ def pytest_collection_modifyitems(config, items):
 
     log_level_name = config.getoption("--log-level", "info", skip=True)
 
-    GlobalConsoleLogger.set_log_level(log_level_name)
+    GlobalLoggerSettings.set_log_level(log_level_name)
+    GlobalLoggerSettings.start_text_file_logging()
+    GlobalLoggerSettings.start_json_file_logging()

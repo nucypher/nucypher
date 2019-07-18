@@ -3,13 +3,12 @@ import sys
 
 import datetime
 import maya
-from twisted.logger import globalLogPublisher
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import SimpleObserver, GlobalConsoleLogger
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 ######################
@@ -24,8 +23,8 @@ BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
 NUMBER_OF_LINES_TO_REENCRYPT = 25
 
 # Twisted Logger
-globalLogPublisher.addObserver(SimpleObserver())
-GlobalConsoleLogger.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.start_console_logging()
 
 
 #######################################

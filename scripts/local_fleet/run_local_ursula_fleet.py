@@ -26,7 +26,6 @@ import os
 
 from twisted.internet import protocol
 from twisted.internet import reactor
-from twisted.logger import globalLogPublisher
 
 from nucypher.utilities.logging import SimpleObserver
 
