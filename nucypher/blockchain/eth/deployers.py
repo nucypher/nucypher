@@ -1013,7 +1013,7 @@ class WorklockDeployer(BaseContractDeployer):
         self.refund_rate = refund_rate
         self.locked_periods = locked_periods
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None) -> Dict[str, str]:
+    def deploy(self, gas_limit: int = None) -> Dict[str, str]:
         """
 
         Worklock Constructor Parameters (Ordered)
