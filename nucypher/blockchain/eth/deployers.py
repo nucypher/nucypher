@@ -38,6 +38,8 @@ from nucypher.blockchain.eth.decorators import validate_secret, validate_checksu
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory, \
     VersionedContract
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
 class BaseContractDeployer:
@@ -1063,3 +1065,65 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         self._contract = adjudicator_contract
 
         return deployment_receipts
+
+
+class WorklockDeployer(BaseContractDeployer):
+
+    agency = WorkLockAgent
+    contract_name = agency.registry_contract_name
+    _upgradeable = False
+    __proxy_deployer = NotImplemented
+
+    def __init__(self,
+                 start_date: int,
+                 end_date: int,
+                 deposit_rate: int,
+                 refund_rate: int,
+                 locked_periods: int,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
+
+        # Worklock constructor params.
+        # TODO: Do these want to be in an "economics" class?
+        self.start_date = start_date
+        self.end_date = end_date
+        self.deposit_rate = deposit_rate
+        self.refund_rate = refund_rate
+        self.locked_periods = locked_periods
+
+    def deploy(self, secret_hash: bytes, gas_limit: int = None) -> Dict[str, str]:
+        """
+
+        Worklock Constructor Parameters (Ordered)
+        ============================================================================
+        _token Token contract
+        _escrow Escrow contract
+        _startBidDate Timestamp when bidding starts
+        _endBidDate Timestamp when bidding will end
+        _depositRate ETH -> NU rate
+        _refundRate Work -> ETH rate
+        _lockedPeriods Number of periods during which claimed tokens will be locked
+
+
+        """
+        self.check_deployment_readiness()
+
+        # Deploy
+        worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
+                                                                           self.token_agent.contract_address,
+                                                                           self.staking_agent.contract_address,
+                                                                           self.start_date,
+                                                                           self.end_date,
+                                                                           self.deposit_rate,
+                                                                           self.refund_rate,
+                                                                           self.locked_periods,
+                                                                           gas_limit=gas_limit)
+
+        # Gather the transaction hashes
+        deployment_transactions = {'deployment': deploy_txhash}
+        self.deployment_transactions = deployment_transactions
+        self._contract = worklock_contract
+        return deployment_transactions
