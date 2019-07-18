@@ -7,8 +7,6 @@ import maya
 import traceback
 from timeit import default_timer as timer
 
-from twisted.logger import globalLogPublisher
-
 from nucypher.characters.lawful import Bob, Ursula, Enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -17,10 +15,11 @@ from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey
 
-from nucypher.utilities.logging import SimpleObserver
+from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
-globalLogPublisher.addObserver(SimpleObserver())
+
+GlobalLoggerSettings.start_console_logging()
 
 ######################
 # Boring setup stuff #

@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from functools import lru_cache
 import pathlib
 
 from sentry_sdk import capture_exception, add_breadcrumb
@@ -22,12 +23,11 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
 from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
-from twisted.logger import globalLogPublisher
+from twisted.logger import globalLogPublisher, globalLogBeginner
 from twisted.python.logfile import DailyLogFile
-from zope.interface import provider
 
 import nucypher
-from nucypher.config.constants import USER_LOG_DIR
+from nucypher.config.constants import USER_LOG_DIR, NUCYPHER_SENTRY_ENDPOINT
 
 
 def initialize_sentry(dsn: str):
@@ -63,8 +63,67 @@ def initialize_sentry(dsn: str):
     )
 
 
-def logToSentry(event):
+class GlobalLoggerSettings:
 
+    log_level = LogLevel.levelWithName("info")
+
+    @classmethod
+    def set_log_level(cls, log_level_name):
+        cls.log_level = LogLevel.levelWithName(log_level_name)
+
+    @classmethod
+    def start_console_logging(cls):
+        globalLogPublisher.addObserver(console_observer)
+
+    @classmethod
+    def stop_console_logging(cls):
+        globalLogPublisher.removeObserver(console_observer)
+
+    @classmethod
+    def start_text_file_logging(cls):
+        globalLogPublisher.addObserver(get_text_file_observer())
+
+    @classmethod
+    def stop_text_file_logging(cls):
+        globalLogPublisher.removeObserver(get_text_file_observer())
+
+    @classmethod
+    def start_json_file_logging(cls):
+        globalLogPublisher.addObserver(get_json_file_observer())
+
+    @classmethod
+    def stop_json_file_logging(cls):
+        globalLogPublisher.removeObserver(get_json_file_observer())
+
+    @classmethod
+    def start_sentry_logging(cls, dsn: str):
+        _SentryInitGuard.init(dsn)
+        globalLogPublisher.addObserver(sentry_observer)
+
+    @classmethod
+    def stop_sentry_logging(cls):
+        globalLogPublisher.removeObserver(sentry_observer)
+
+
+def console_observer(event):
+    if event['log_level'] >= GlobalLoggerSettings.log_level:
+        print(formatEvent(event))
+
+
+class _SentryInitGuard:
+
+    initialized = False
+    dsn = None
+
+    @classmethod
+    def init(cls, dsn: str = NUCYPHER_SENTRY_ENDPOINT):
+        if not cls.initialized:
+            initialize_sentry(dsn)
+        else:
+            raise ValueError(f"Sentry has been already initialized with DSN {cls.dsn}")
+
+
+def sentry_observer(event):
     # Handle breadcrumbs...
     if not event.get('isError') or 'failure' not in event:
         add_breadcrumb(level=event.get('log_level').name,
@@ -77,50 +136,21 @@ def logToSentry(event):
     capture_exception((f.type, f.value, f.getTracebackObject()))
 
 
-def _get_or_create_user_log_dir():
-    return pathlib.Path(USER_LOG_DIR).mkdir(parents=True, exist_ok=True)
+def _ensure_dir_exists(path):
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
-def getJsonFileObserver(name="nucypher.log.json", path=USER_LOG_DIR):  # TODO: More configurable naming here?
-    _get_or_create_user_log_dir()
+@lru_cache()
+def get_json_file_observer(name="nucypher.log.json", path=USER_LOG_DIR):  # TODO: More configurable naming here?
+    _ensure_dir_exists(path)
     logfile = DailyLogFile(name, path)
     observer = jsonFileLogObserver(outFile=logfile)
     return observer
 
 
-def getTextFileObserver(name="nucypher.log", path=USER_LOG_DIR):
-    _get_or_create_user_log_dir()
+@lru_cache()
+def get_text_file_observer(name="nucypher.log", path=USER_LOG_DIR):
+    _ensure_dir_exists(path)
     logfile = DailyLogFile(name, path)
     observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
     return observer
-
-
-class SimpleObserver:
-
-    @provider(ILogObserver)
-    def __call__(self, event):
-        if event['log_level'] >= GlobalConsoleLogger.log_level:
-            event['log_format'] = event['log_format']
-            print(formatEvent(event))
-
-
-class GlobalConsoleLogger:
-
-    log_level = LogLevel.levelWithName("info")
-    started = False
-
-    @classmethod
-    def set_log_level(cls, log_level_name):
-        cls.log_level = LogLevel.levelWithName(log_level_name)
-        if not cls.started:
-            cls.start()
-
-    @classmethod
-    def start(cls):
-        globalLogPublisher.addObserver(getTextFileObserver())
-        cls.started = True
-
-    @classmethod
-    def start_if_not_started(cls):
-        if not cls.started:
-            cls.start()
