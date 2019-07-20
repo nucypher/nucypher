@@ -390,7 +390,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     @validate_checksum_address
     def calculate_staking_reward(self, staker_address: str) -> int:
         token_amount = self.owned_tokens(staker_address)
-        staked_amount = max(self.contract.functions.getLockedTokens(staker_address).call(),
+        staked_amount = max(self.contract.functions.getLockedTokens(staker_address, 0).call(),
                             self.contract.functions.getLockedTokens(staker_address, 1).call())
         reward_amount = token_amount - staked_amount
         return reward_amount

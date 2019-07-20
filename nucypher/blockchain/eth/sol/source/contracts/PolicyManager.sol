@@ -159,9 +159,9 @@ contract PolicyManager is Upgradeable {
         Policy storage policy = policies[_policyId];
         policy.client = msg.sender;
         uint16 currentPeriod = getCurrentPeriod();
-        policy.startPeriod = currentPeriod.add16(1);
+        policy.startPeriod = currentPeriod + 1;
         policy.lastPeriod = currentPeriod.add16(_numberOfPeriods);
-        policy.rewardRate = msg.value.div(_nodes.length).sub(_firstPartialReward).div(_numberOfPeriods);
+        policy.rewardRate = msg.value.div(_nodes.length).sub(_firstPartialReward) / _numberOfPeriods;
         policy.firstPartialReward = _firstPartialReward;
         require(policy.rewardRate > _firstPartialReward &&
             (_firstPartialReward + policy.rewardRate * _numberOfPeriods) * _nodes.length  == msg.value);
@@ -173,10 +173,11 @@ contract PolicyManager is Upgradeable {
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
             require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
-            nodeInfo.rewardDelta[currentPeriod] = nodeInfo.rewardDelta[currentPeriod].add(_firstPartialReward);
-            nodeInfo.rewardDelta[policy.startPeriod] = nodeInfo.rewardDelta[policy.startPeriod]
-                .add(startReward);
-            nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].sub(policy.rewardRate);
+            // Overflow protection removed, because ETH total supply less than half of uint256
+            nodeInfo.rewardDelta[currentPeriod] += int256(_firstPartialReward);
+            nodeInfo.rewardDelta[policy.startPeriod] += int256(startReward);
+            nodeInfo.rewardDelta[endPeriod] -= int256(policy.rewardRate);
+            // TODO get all values in one call
             policy.arrangements.push(ArrangementInfo(node, escrow.getPastDowntimeLength(node), 0));
         }
 
@@ -197,7 +198,7 @@ contract PolicyManager is Upgradeable {
             node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
         }
         node.lastMinedPeriod = _period;
-        node.reward = node.reward.add(node.rewardRate);
+        node.reward += node.rewardRate;
     }
 
     /**
@@ -244,10 +245,8 @@ contract PolicyManager is Upgradeable {
             } else if (endPeriod < minPeriod) {
                 continue;
             }
-            downtimePeriods = downtimePeriods.add16(
-                AdditionalMath.min16(maxPeriod, endPeriod)
-                .sub16(AdditionalMath.max16(minPeriod, startPeriod))
-                .add16(1));
+            downtimePeriods += AdditionalMath.min16(maxPeriod, endPeriod)
+                .sub16(AdditionalMath.max16(minPeriod, startPeriod)) + 1;
             if (maxPeriod <= endPeriod) {
                 break;
             }
@@ -255,9 +254,9 @@ contract PolicyManager is Upgradeable {
 
         uint16 lastActivePeriod = escrow.getLastActivePeriod(_arrangement.node);
         if (indexOfDowntimePeriods == length && lastActivePeriod < maxPeriod) {
-            downtimePeriods = downtimePeriods.add16(
-                maxPeriod.sub16(AdditionalMath.max16(
-                    minPeriod.sub16(1), lastActivePeriod)));
+            // Overflow protection removed:
+            // lastActivePeriod < maxPeriod and minPeriod <= maxPeriod + 1
+            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastActivePeriod);
         }
 
         // check activity for the first period
@@ -272,8 +271,8 @@ contract PolicyManager is Upgradeable {
                 }
             }
         }
-        refundValue = refundValue.add(_policy.rewardRate.mul(downtimePeriods));
-        lastRefundedPeriod = maxPeriod.add16(1);
+        refundValue += _policy.rewardRate * downtimePeriods;
+        lastRefundedPeriod = maxPeriod + 1;
     }
 
     /**
@@ -287,7 +286,7 @@ contract PolicyManager is Upgradeable {
     {
         Policy storage policy = policies[_policyId];
         require(policy.client == msg.sender && !policy.disabled);
-        uint16 endPeriod = policy.lastPeriod.add16(1);
+        uint16 endPeriod = policy.lastPeriod + 1;
         uint256 numberOfActive = policy.arrangements.length;
         uint256 i = 0;
         for (; i < policy.arrangements.length; i++) {
@@ -302,11 +301,9 @@ contract PolicyManager is Upgradeable {
                 calculateRefundValue(policy, arrangement);
             if (_forceRevoke) {
                 NodeInfo storage nodeInfo = nodes[node];
-                nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] =
-                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod].sub(policy.rewardRate);
-                nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].add(policy.rewardRate);
-                nodeRefundValue = nodeRefundValue.add(
-                    uint256(endPeriod.sub16(arrangement.lastRefundedPeriod)).mul(policy.rewardRate));
+                nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] -= int256(policy.rewardRate);
+                nodeInfo.rewardDelta[endPeriod] += int256(policy.rewardRate);
+                nodeRefundValue += uint256(endPeriod - arrangement.lastRefundedPeriod) * policy.rewardRate;
             }
             if (_forceRevoke || arrangement.lastRefundedPeriod > policy.lastPeriod) {
                 arrangement.node = RESERVED_NODE;
@@ -316,7 +313,7 @@ contract PolicyManager is Upgradeable {
                 emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
             }
 
-            refundValue = refundValue.add(nodeRefundValue);
+            refundValue += nodeRefundValue;
             if (_node != RESERVED_NODE) {
                break;
             }
@@ -354,7 +351,7 @@ contract PolicyManager is Upgradeable {
                 continue;
             }
             (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
-            refundValue = refundValue.add(nodeRefundValue);
+            refundValue += nodeRefundValue;
             if (_node != RESERVED_NODE) {
                break;
             }
