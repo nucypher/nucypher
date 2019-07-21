@@ -101,7 +101,7 @@ def validate_secret(func: Callable) -> Callable:
         if is_valid_secret:  # Yay!  \ (•◡•) /
             return func(self, *args, **kwargs)
         else:
-            message = f"The secret for upgrade/rollback {self.contract_name} is not {secret}."
+            message = f"The secret provided for upgrade/rollback {self.contract_name} is not valid."
             raise self.ContractDeploymentError(message)
 
     return wrapped
