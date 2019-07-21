@@ -12,7 +12,7 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    Agency)
+    Agency, EthereumContractAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
@@ -87,7 +87,8 @@ def test_nucypher_deploy_contracts(click_runner,
     assert result.exit_code == 0
 
     # Ensure there is a report on each contract
-    for registry_name in DeployerActor.contract_names:
+    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    for registry_name in contract_names:
         assert registry_name in result.output
 
     # Check that the primary contract registry was written
@@ -97,7 +98,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
         # Ensure every contract's name was written to the file, somehow
         raw_registry_data = file.read()
-        for registry_name in DeployerActor.contract_names:
+        for registry_name in contract_names:
             assert registry_name in raw_registry_data
 
         # Ensure the Registry is JSON deserializable

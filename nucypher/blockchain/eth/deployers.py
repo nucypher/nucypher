@@ -29,6 +29,7 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     UserEscrowAgent,
     AdjudicatorAgent)
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, EthereumContractRegistry
@@ -178,7 +179,7 @@ class DispatcherDeployer(ContractDeployer):
     used as a means of "dispatching" the correct version of the contract to the client
     """
 
-    contract_name = 'Dispatcher'
+    contract_name = DISPATCHER_CONTRACT_NAME
     _upgradeable = False
 
     DISPATCHER_SECRET_LENGTH = 32

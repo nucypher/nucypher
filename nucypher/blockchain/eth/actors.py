@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import collections
 import json
 import os
 from datetime import datetime
@@ -42,9 +41,10 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     PolicyManagerAgent,
-    AdjudicatorAgent,
-    EthereumContractAgent
+    AdjudicatorAgent
 )
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME, \
+    USER_ESCROW_PROXY_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
@@ -133,23 +133,24 @@ class NucypherTokenActor:
 
 class DeployerActor(NucypherTokenActor):
 
-    # Registry of deployer classes
-    deployer_classes = (
-        NucypherTokenDeployer,
-        StakingEscrowDeployer,
-        PolicyManagerDeployer,
-        AdjudicatorDeployer,
-        UserEscrowProxyDeployer,
-    )
     __interface_class = BlockchainDeployerInterface
 
-    __secrets = ('staker_secret',
-                 'policy_secret',
-                 'user_escrow_proxy_secret',
-                 'adjudicator_secret')
-    Secrets = collections.namedtuple('Secrets', __secrets)
+    #
+    # Deployer classes sorted by deployment dependency order.
+    #
 
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    standard_deployer_classes = (
+        NucypherTokenDeployer,
+    )
+
+    upgradeable_deployer_classes = (
+        StakingEscrowDeployer,
+        PolicyManagerDeployer,
+        UserEscrowProxyDeployer,
+        AdjudicatorDeployer,
+    )
+
+    deployer_classes = (*standard_deployer_classes, *upgradeable_deployer_classes)
 
     class UnknownContract(ValueError):
         pass
@@ -216,6 +217,19 @@ class DeployerActor(NucypherTokenActor):
             raise self.UnknownContract(contract_name)
         return Deployer
 
+    @staticmethod
+    def __collect_deployment_secret(deployer) -> str:
+        secret = click.prompt(f'Enter {deployer.contract_name} Deployment Secret',
+                              hide_input=True,
+                              confirmation_prompt=True)
+        return secret
+
+    def collect_deployment_secrets(self) -> dict:
+        secrets = dict()
+        for deployer in self.upgradeable_deployer_classes:
+            secrets[deployer.contract_name] = self.__collect_deployment_secret(deployer)
+        return secrets
+
     def deploy_contract(self,
                         contract_name: str,
                         gas_limit: int = None,
@@ -258,63 +272,31 @@ class DeployerActor(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self, secrets: 'Secrets', interactive: bool = True) -> dict:
+    def deploy_network_contracts(self, secrets: dict, interactive: bool = True) -> dict:
 
         deployment_receipts = dict()
-        gas_limit = 8_000_000  # TODO: Gas management
+        gas_limit = None  # TODO: Gas management
 
         # NuCypherToken
-        token_receipts, token_deployer = self.deploy_contract(contract_name=NucypherTokenDeployer.contract_name,
+        token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                                               gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=NucypherTokenDeployer.contract_name,
+        paint_contract_deployment(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                   receipts=token_receipts,
                                   contract_address=token_deployer.contract_address)
-        deployment_receipts[NucypherTokenDeployer.contract_name] = token_receipts
-
+        deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
         if interactive:
             click.pause(info="Press any key to continue")
 
-        # StakingEscrow
-        staking_receipts, staking_deployer = self.deploy_contract(contract_name=StakingEscrowDeployer.contract_name,
-                                                                  plaintext_secret=secrets.staker_secret,
-                                                                  gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=StakingEscrowDeployer.contract_name,
-                                  receipts=staking_receipts,
-                                  contract_address=staking_deployer.contract_address)
-        deployment_receipts[StakingEscrowDeployer.contract_name] = staking_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # PolicyManager
-        policy_receipts, policy_deployer = self.deploy_contract(contract_name=PolicyManagerDeployer.contract_name,
-                                                                plaintext_secret=secrets.policy_secret,
-                                                                gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=PolicyManagerDeployer.contract_name,
-                                  receipts=policy_receipts,
-                                  contract_address=policy_deployer.contract_address)
-        deployment_receipts[PolicyManagerDeployer.contract_name] = policy_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # Adjudicator
-        adjudicator_receipts, adjudicator_deployer = self.deploy_contract(contract_name=AdjudicatorDeployer.contract_name,
-                                                                          plaintext_secret=secrets.adjudicator_secret,
-                                                                          gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=AdjudicatorDeployer.contract_name,
-                                  receipts=adjudicator_receipts,
-                                  contract_address=adjudicator_deployer.contract_address)
-        deployment_receipts[AdjudicatorDeployer.contract_name] = adjudicator_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # UserEscrowProxy
-        user_escrow_proxy_receipts, user_escrow_proxy_deployer = self.deploy_contract(contract_name=UserEscrowProxyDeployer.contract_name,
-                                                                                      plaintext_secret=secrets.user_escrow_proxy_secret,
-                                                                                      gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=UserEscrowProxyDeployer.contract_name,
-                                  receipts=user_escrow_proxy_receipts,
-                                  contract_address=user_escrow_proxy_deployer.contract_address)
-        deployment_receipts[UserEscrowProxyDeployer.contract_name] = user_escrow_proxy_receipts
+        for contract_deployer in self.upgradeable_deployer_classes:
+            receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
+                                                      plaintext_secret=secrets[contract_deployer.contract_name],
+                                                      gas_limit=gas_limit)
+            paint_contract_deployment(contract_name=contract_deployer.contract_name,
+                                      receipts=receipts,
+                                      contract_address=deployer.contract_address)
+            deployment_receipts[contract_deployer.contract_name] = receipts
+            if interactive:
+                click.pause(info="Press any key to continue")
 
         return deployment_receipts
 

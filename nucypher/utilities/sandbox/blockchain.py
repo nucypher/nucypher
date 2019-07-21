@@ -222,10 +222,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         origin = testerchain.client.etherbase
         deployer = DeployerActor(blockchain=testerchain, deployer_address=origin, bare=True)
-        secrets = DeployerActor.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                                        policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                        adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                                        user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+        secrets = dict()
+        for deployer_class in deployer.upgradeable_deployer_classes:
+            secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
         _receipts = deployer.deploy_network_contracts(secrets=secrets, interactive=False)
         return testerchain
 

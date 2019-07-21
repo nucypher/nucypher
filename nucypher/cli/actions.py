@@ -300,7 +300,7 @@ def select_client_account(blockchain, prompt: str = None, default=0) -> str:
 
 def confirm_deployment(deployer) -> bool:
     if deployer.blockchain.client.chain_id == 'UNKNOWN' or deployer.blockchain.client.is_local:
-        if click.prompt("Type 'DEPLOY' to continue.") != 'DEPLOY':
+        if click.prompt("Type 'DEPLOY' to continue") != 'DEPLOY':
             click.secho("Aborting Deployment", fg='red', bold=True)
             raise click.Abort()
     else:

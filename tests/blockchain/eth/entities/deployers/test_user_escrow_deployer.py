@@ -26,7 +26,7 @@ from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SE
 
 
 user_escrow_contracts = list()
-NUMBER_OF_USERS = 50
+NUMBER_OF_PREALLOCATIONS = 50
 
 
 @pytest.fixture(scope='module')
@@ -68,7 +68,7 @@ def test_deploy_multiple(session_testerchain, session_agency, user_escrow_proxy_
                                             bare=True)
     linker_address = linker_deployer.contract_address
 
-    for index in range(NUMBER_OF_USERS):
+    for index in range(NUMBER_OF_PREALLOCATIONS):
         deployer = UserEscrowDeployer(deployer_address=deployer_account, blockchain=testerchain)
 
         deployment_receipt = deployer.deploy()
@@ -85,7 +85,7 @@ def test_deploy_multiple(session_testerchain, session_agency, user_escrow_proxy_
             testerchain.w3.eth.web3.testing.mine(1)
             testerchain.time_travel(seconds=5)
 
-    assert len(user_escrow_contracts) == NUMBER_OF_USERS
+    assert len(user_escrow_contracts) == NUMBER_OF_PREALLOCATIONS
 
 
 @pytest.mark.slow()
