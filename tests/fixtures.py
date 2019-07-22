@@ -722,8 +722,6 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location):
                               funding_password=INSECURE_DEVELOPMENT_PASSWORD,
                               trezor=False)
 
-    assert stakeholder.funding_power.is_unlocked is True
-
     # Teardown
     yield stakeholder
     if os.path.exists(path):
@@ -743,6 +741,12 @@ def manual_staker(testerchain):
 
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
+
+    token_agent = Agency.get_agent(NucypherTokenAgent)
+    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+                         sender_address=testerchain.etherbase_account,
+                         target_address=address)
+
     yield address
 
 

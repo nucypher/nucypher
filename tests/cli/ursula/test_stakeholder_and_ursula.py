@@ -85,7 +85,6 @@ def test_new_stakeholder(click_runner,
 
     init_args = ('stake', 'new-stakeholder',
                  '--poa',
-                 '--funding-address', testerchain.etherbase_account,
                  '--config-root', custom_filepath,
                  '--provider-uri', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath)
@@ -114,7 +113,7 @@ def test_stake_init(click_runner,
                     token_economics,
                     testerchain,
                     agency,
-                    manual_staker,):
+                    manual_staker):
 
     # Simulate "Reconnection"
     cached_blockchain = BlockchainInterface.reconnect()

@@ -50,68 +50,25 @@ def test_software_stakeholder_configuration(testerchain,
     assert first_config_contents == second_config_contents
 
 
-def test_initialize_stake_with_new_software_wallet_account(software_stakeholder,
-                                                           testerchain,
-                                                           stake_value,
-                                                           token_economics):
-
-    # There are no stakers and not stakes
-    assert len(software_stakeholder.stakers) == 0
-    with pytest.raises(IndexError):
-        _stake = software_stakeholder.stakes[0]
-
-    # Record the number of accounts before staking.
-    number_of_accounts = len(software_stakeholder.accounts)
-
-    # Stake, deriving a new account, using tokens and ethers from the funding account
-    stake = software_stakeholder.initialize_stake(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                  amount=stake_value,
-                                                  duration=token_economics.minimum_locked_periods)
-
-    # A new account was derived for the new staker.
-    assert len(software_stakeholder.accounts) == number_of_accounts + 1
-
-    # Wait for the stake to begin (+1 Period from init)
-    testerchain.time_travel(periods=1)
-
-    # Ensure the stakeholder is tracking the new staker and stake.
-    assert len(software_stakeholder.stakers) == 1
-    assert len(software_stakeholder.stakes) == 1
-
-    # Ensure the stakeholder and stakes agree on staking metadata
-    assert stake.blockchain == software_stakeholder.blockchain
-    assert stake.owner_address != software_stakeholder.funding_account
-    assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
-
-    # Lookup the new staker by address
-    staker = software_stakeholder.get_active_staker(address=stake.owner_address)
-    assert len(staker.stakes) == 1
-    assert staker.stakes[0] == stake
-
-    # Ensure stake is on-chain via agency
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
-    stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 1
-
-
-def test_initialize_stake_with_existing_staking_account(software_stakeholder, stake_value, token_economics):
+def test_initialize_stake_with_existing_account(software_stakeholder, stake_value, token_economics):
 
     # There is one staker and one stake.
-    assert len(software_stakeholder.stakers) == 1
-    assert len(software_stakeholder.stakes) == 1
+    assert len(software_stakeholder.stakers) == 0
+    assert len(software_stakeholder.stakes) == 0
 
-    stake = software_stakeholder.stakes[0]
+    # No Stakes
+    with pytest.raises(IndexError):
+        stake = software_stakeholder.stakes[0]
 
-    # Really... there is one stake.
+    # Really... there are no stakes.
     staking_agent = Agency.get_agent(StakingEscrowAgent)
-    stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 1
+    stakes = list(staking_agent.get_all_stakes(staker_address=software_stakeholder.accounts[0]))
+    assert len(stakes) == 0
 
     # Stake, deriving a new account with a password,
     # sending tokens and ethers from the funding account
     # to the staker's account, then initializing a new stake.
-    stake = software_stakeholder.initialize_stake(checksum_address=stake.owner_address,
+    stake = software_stakeholder.initialize_stake(checksum_address=software_stakeholder.accounts[0],
                                                   amount=stake_value,
                                                   duration=token_economics.minimum_locked_periods)
 
@@ -120,20 +77,19 @@ def test_initialize_stake_with_existing_staking_account(software_stakeholder, st
 
     # Ensure the stakeholder is tracking the new staker and stake.
     assert len(software_stakeholder.stakers) == 1
-    assert len(software_stakeholder.stakes) == 2
+    assert len(software_stakeholder.stakes) == 1
 
     # Ensure common stake perspective between stakeholder and stake
     assert stake.blockchain == software_stakeholder.blockchain
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
-    assert stake.owner_address != software_stakeholder.funding_account
 
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 2
+    assert len(stakes) == 1
 
 
 def test_divide_stake(software_stakeholder, token_economics):
-    stake = software_stakeholder.stakes[1]
+    stake = software_stakeholder.stakes[0]
 
     target_value = token_economics.minimum_allowed_locked
     pre_divide_stake_value = stake.value
@@ -146,7 +102,7 @@ def test_divide_stake(software_stakeholder, token_economics):
 
     staking_agent = Agency.get_agent(StakingEscrowAgent)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
-    assert len(stakes) == 3
+    assert len(stakes) == 2
     assert new_stake.value == target_value
     assert original_stake.value == (pre_divide_stake_value - target_value)
 

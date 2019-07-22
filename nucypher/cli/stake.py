@@ -30,8 +30,6 @@ from nucypher.cli.types import (
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--offline', help="Operate in offline mode", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
-@click.option('--funding-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--pre-funded', help="Do not fund new stake's accounts", is_flag=True, default=False)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=True)
@@ -59,14 +57,12 @@ def stake(click_config,
           provider_uri,
 
           # Stake
-          funding_address,
           staking_address,
           worker_address,
           withdraw_address,
           value,
           duration,
           index,
-          pre_funded,
           policy_reward,
           staking_reward,
 
@@ -92,15 +88,11 @@ def stake(click_config,
                                          poa=poa)
         blockchain.connect()  # TODO: Leave this here?
 
-        if not funding_address:
-            funding_address = select_client_account(blockchain=blockchain)
-
         new_stakeholder = StakeHolder(config_root=config_root,
-                                      funding_account=funding_address,
                                       offline_mode=offline,
                                       blockchain=blockchain)
 
-        filepath = new_stakeholder.to_configuration_file()
+        filepath = new_stakeholder.to_configuration_file(override=force)
         click.secho(f"Wrote new stakeholder configuration to {filepath}", fg='green')
         return  # Exit
 
@@ -118,7 +110,7 @@ def stake(click_config,
 
     if action == 'list':
         if not STAKEHOLDER.stakes:
-            click.echo(f"There are no active stakes for {STAKEHOLDER.funding_account}")
+            click.echo(f"There are no active stakes")
         else:
             painting.paint_stakes(stakes=STAKEHOLDER.stakes)
         return
@@ -162,45 +154,12 @@ def stake(click_config,
 
         password = None
         if not staking_address:
-            enumerated_accounts = dict(enumerate(STAKEHOLDER.accounts))
-            click.secho(f"c | CREATE NEW ACCOUNT ")
-            for index, account in enumerated_accounts.items():
-                click.secho(f"{index} | {account}")
+            staking_address = select_client_account(blockchain=STAKEHOLDER.blockchain, prompt="Select staking account")
 
-            choice = click.prompt("Select staking account, or enter 'c' to derive a new one", default='c')
-            if choice == 'c':
-                click.confirm("Create new ethereum account for staking?", abort=True)
-                if not hw_wallet:
-                    password = click.prompt("Enter new account password", hide_input=True, confirmation_prompt=True)
-                staking_address = None  # signals to create an account later
-            else:
-                try:
-                    staking_address = enumerated_accounts[int(choice)]
-                except KeyError:
-                    raise click.BadParameter(f"'{choice}' is not a valid command.")
-
-        if not password and not hw_wallet:
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:  # TODO: encapsulate/recycle in function?
             password = click.prompt(f"Enter password to unlock {staking_address}",
                                     hide_input=True,
                                     confirmation_prompt=False)
-
-        if not pre_funded:
-            if force:
-                fund_now = True
-            else:
-                fund_now = click.confirm("Fund staking account with funding account?", abort=False, default=True)
-        else:
-            # TODO: Validate the balance of self-manged funders.
-            fund_now = False
-
-        # Validate balance
-        if STAKEHOLDER.funding_tokens == 0 and fund_now:
-            click.secho(f"{STAKEHOLDER.funding_account} has 0 NU.")
-            raise click.Abort
-        if not quiet:
-            click.echo(f"Funding account balance | {STAKEHOLDER.funding_tokens} | {STAKEHOLDER.funding_eth} ETH")
-
-
         #
         # Stage Stake
         #
@@ -231,19 +190,13 @@ def stake(click_config,
             confirm_staged_stake(stakeholder=STAKEHOLDER, value=value, duration=duration)
 
         # Last chance to bail
-        target = staking_address or "derived account"
-        message = f"Transfer {value} and {Web3.fromWei(STAKEHOLDER.eth_funding, 'ether')} ETH to {target}?"
-        if not force:
-            if fund_now:
-                click.confirm(message, abort=True)
-            click.confirm("Publish staged stake to the blockchain?", abort=True)
+        click.confirm("Publish staged stake to the blockchain?", abort=True)
 
         # Execute
         new_stake = STAKEHOLDER.initialize_stake(amount=value,
                                                  duration=duration,
                                                  checksum_address=staking_address,
-                                                 password=password,
-                                                 fund_now=fund_now)
+                                                 password=password)
 
         painting.paint_staking_confirmation(ursula=STAKEHOLDER, transactions=new_stake.transactions)
         return  # Exit
