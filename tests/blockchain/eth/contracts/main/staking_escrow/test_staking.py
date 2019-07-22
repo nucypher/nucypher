@@ -75,6 +75,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
 
     # Ursula and Ursula(2) transfer some tokens to the escrow and lock them
+    current_period = escrow.functions.getCurrentPeriod().call()
     ursula1_stake = 1000
     ursula2_stake = 500
     tx = escrow.functions.deposit(ursula1_stake, 2).transact({'from': ursula1})
@@ -87,10 +88,13 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
+    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 1).call()
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
+    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 1).call()
     # Check parameters in call of the policy manager mock
-    current_period = escrow.functions.getCurrentPeriod().call()
     assert 1 == policy_manager.functions.getPeriodsLength(ursula1).call()
     assert 1 == policy_manager.functions.getPeriodsLength(ursula2).call()
     assert current_period == policy_manager.functions.getPeriod(ursula1, 0).call()
@@ -301,7 +305,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     event_args = events[4]['args']
     assert ursula2 == event_args['staker']
     assert ursula2_reward == event_args['value']
-    assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
+    assert current_period - 1 == event_args['period']
 
     # Ursula(2) confirms activity for remaining periods
     testerchain.time_travel(hours=1)
@@ -331,6 +335,20 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     assert 6 == len(lock_log.get_all_entries())
     assert 1 == len(divides_log.get_all_entries())
     assert 10 == len(activity_log.get_all_entries())
+
+    # Check searching downtime index
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, 0).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 14).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 13).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 11).call()
+    assert 2 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 10).call()
+    assert 2 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 9).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 8).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 4).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period - 3).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(ursula2, current_period + 100).call()
 
 
 @pytest.mark.slow

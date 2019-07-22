@@ -402,6 +402,21 @@ contract StakingEscrow is Issuer {
         return stakerInfo[_staker].completedWork;
     }
 
+    /**
+    * @notice Find index of downtime structure that includes specified period
+    * @dev If specified period is outside all downtime periods, the length of the array will be returned
+    * @param _staker Staker
+    * @param _period Specified period number
+    **/
+    function findIndexOfPastDowntime(address _staker, uint16 _period) external view returns (uint256 index) {
+        StakerInfo storage info = stakerInfo[_staker];
+        for (index = 0; index < info.pastDowntime.length; index++) {
+            if (_period <= info.pastDowntime[index].endPeriod) {
+                return index;
+            }
+        }
+    }
+
     //------------------------Main methods------------------------
     /**
     * @notice Start or stop measuring the work of a staker
