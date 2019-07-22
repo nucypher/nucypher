@@ -21,7 +21,8 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
-def test_token_deployer_and_agent(testerchain):
+def test_token_deployer_and_agent(session_testerchain):
+    testerchain = session_testerchain
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails

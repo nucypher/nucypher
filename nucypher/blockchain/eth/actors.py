@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import collections
 import json
 import os
 from datetime import datetime
@@ -41,10 +40,11 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
-    PolicyAgent,
-    AdjudicatorAgent,
-    EthereumContractAgent
+    PolicyManagerAgent,
+    AdjudicatorAgent
 )
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME, \
+    USER_ESCROW_PROXY_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
@@ -131,25 +131,26 @@ class NucypherTokenActor:
         return nu_balance
 
 
-class Deployer(NucypherTokenActor):
+class DeployerActor(NucypherTokenActor):
 
-    # Registry of deployer classes
-    deployer_classes = (
-        NucypherTokenDeployer,
-        StakingEscrowDeployer,
-        PolicyManagerDeployer,
-        AdjudicatorDeployer,
-        UserEscrowProxyDeployer,
-    )
     __interface_class = BlockchainDeployerInterface
 
-    __secrets = ('staker_secret',
-                 'policy_secret',
-                 'user_escrow_proxy_secret',
-                 'adjudicator_secret')
-    Secrets = collections.namedtuple('Secrets', __secrets)
+    #
+    # Deployer classes sorted by deployment dependency order.
+    #
 
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    standard_deployer_classes = (
+        NucypherTokenDeployer,
+    )
+
+    upgradeable_deployer_classes = (
+        StakingEscrowDeployer,
+        PolicyManagerDeployer,
+        UserEscrowProxyDeployer,
+        AdjudicatorDeployer,
+    )
+
+    deployer_classes = (*standard_deployer_classes, *upgradeable_deployer_classes)
 
     class UnknownContract(ValueError):
         pass
@@ -169,7 +170,7 @@ class Deployer(NucypherTokenActor):
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
             self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
-            self.policy_agent = PolicyAgent(blockchain=blockchain)
+            self.policy_agent = PolicyManagerAgent(blockchain=blockchain)
             self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
@@ -216,6 +217,19 @@ class Deployer(NucypherTokenActor):
             raise self.UnknownContract(contract_name)
         return Deployer
 
+    @staticmethod
+    def __collect_deployment_secret(deployer) -> str:
+        secret = click.prompt(f'Enter {deployer.contract_name} Deployment Secret',
+                              hide_input=True,
+                              confirmation_prompt=True)
+        return secret
+
+    def collect_deployment_secrets(self) -> dict:
+        secrets = dict()
+        for deployer in self.upgradeable_deployer_classes:
+            secrets[deployer.contract_name] = self.__collect_deployment_secret(deployer)
+        return secrets
+
     def deploy_contract(self,
                         contract_name: str,
                         gas_limit: int = None,
@@ -258,57 +272,31 @@ class Deployer(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self, secrets: 'Secrets', interactive: bool = True) -> dict:
+    def deploy_network_contracts(self, secrets: dict, interactive: bool = True) -> dict:
 
         deployment_receipts = dict()
+        gas_limit = None  # TODO: Gas management
 
         # NuCypherToken
-        token_receipts, token_deployer = self.deploy_contract(contract_name=NucypherTokenDeployer.contract_name)
-        paint_contract_deployment(contract_name=NucypherTokenDeployer.contract_name,
+        token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
+                                                              gas_limit=gas_limit)
+        paint_contract_deployment(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                   receipts=token_receipts,
                                   contract_address=token_deployer.contract_address)
-        deployment_receipts[NucypherTokenDeployer.contract_name] = token_receipts
-
+        deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
         if interactive:
             click.pause(info="Press any key to continue")
 
-        # StakingEscrow
-        staking_receipts, staking_deployer = self.deploy_contract(contract_name=StakingEscrowDeployer.contract_name,
-                                                                  plaintext_secret=secrets.staker_secret)
-        paint_contract_deployment(contract_name=StakingEscrowDeployer.contract_name,
-                                  receipts=staking_receipts,
-                                  contract_address=staking_deployer.contract_address)
-        deployment_receipts[StakingEscrowDeployer.contract_name] = staking_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # PolicyManager
-        policy_receipts, policy_deployer = self.deploy_contract(contract_name=PolicyManagerDeployer.contract_name,
-                                                                plaintext_secret=secrets.policy_secret)
-        paint_contract_deployment(contract_name=PolicyManagerDeployer.contract_name,
-                                  receipts=policy_receipts,
-                                  contract_address=policy_deployer.contract_address)
-        deployment_receipts[PolicyManagerDeployer.contract_name] = policy_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # Adjudicator
-        adjudicator_receipts, adjudicator_deployer = self.deploy_contract(contract_name=AdjudicatorDeployer.contract_name,
-                                                                          plaintext_secret=secrets.adjudicator_secret)
-        paint_contract_deployment(contract_name=AdjudicatorDeployer.contract_name,
-                                  receipts=adjudicator_receipts,
-                                  contract_address=adjudicator_deployer.contract_address)
-        deployment_receipts[AdjudicatorDeployer.contract_name] = adjudicator_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
-
-        # UserEscrowProxy
-        user_escrow_proxy_receipts, user_escrow_proxy_deployer = self.deploy_contract(contract_name=UserEscrowProxyDeployer.contract_name,
-                                                                                      plaintext_secret=secrets.user_escrow_proxy_secret)
-        paint_contract_deployment(contract_name=UserEscrowProxyDeployer.contract_name,
-                                  receipts=user_escrow_proxy_receipts,
-                                  contract_address=user_escrow_proxy_deployer.contract_address)
-        deployment_receipts[UserEscrowProxyDeployer.contract_name] = user_escrow_proxy_receipts
+        for contract_deployer in self.upgradeable_deployer_classes:
+            receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
+                                                      plaintext_secret=secrets[contract_deployer.contract_name],
+                                                      gas_limit=gas_limit)
+            paint_contract_deployment(contract_name=contract_deployer.contract_name,
+                                      receipts=receipts,
+                                      contract_address=deployer.contract_address)
+            deployment_receipts[contract_deployer.contract_name] = receipts
+            if interactive:
+                click.pause(info="Press any key to continue")
 
         return deployment_receipts
 
@@ -564,9 +552,9 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyAgent = None):
+    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyManagerAgent = None):
         """Collect rewarded ETH"""
-        policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
+        policy_agent = policy_agent or PolicyManagerAgent(blockchain=self.blockchain)
         withdraw_address = collector_address or self.checksum_address
         receipt = policy_agent.collect_policy_reward(collector_address=withdraw_address,
                                                      staker_address=self.checksum_address)
@@ -659,7 +647,7 @@ class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, checksum_address: str,
-                 policy_agent: PolicyAgent = None,
+                 policy_agent: PolicyManagerAgent = None,
                  economics: TokenEconomics = None,
                  *args, **kwargs) -> None:
         """
@@ -674,7 +662,7 @@ class PolicyAuthor(NucypherTokenActor):
         if not policy_agent:
             self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
             self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-            self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+            self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
 
         # Injected
         else:
@@ -726,6 +714,9 @@ class Investigator(NucypherTokenActor):
         receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence,
                                                         sender_address=self.checksum_address)
         return receipt
+
+    def was_this_evidence_evaluated(self, evidence):
+        return self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
 
 
 class StakeHolder(BaseConfiguration):

@@ -21,7 +21,7 @@ import string
 import pytest
 from web3.auto import w3
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.crypto.powers import TransactingPower
@@ -29,10 +29,6 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     ONE_YEAR_IN_SECONDS,
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
-    ADJUDICATOR_DEPLOYMENT_SECRET,
-    POLICY_MANAGER_DEPLOYMENT_SECRET,
-    STAKING_ESCROW_DEPLOYMENT_SECRET,
     NUMBER_OF_ALLOCATIONS_IN_TESTS,
     INSECURE_DEVELOPMENT_PASSWORD
 )
@@ -54,12 +50,11 @@ def test_rapid_deployment(token_economics):
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+    deployer = DeployerActor(blockchain=blockchain, deployer_address=deployer_address)
 
-    secrets = Deployer.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                               policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                               adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                               user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+    secrets = dict()
+    for deployer_class in deployer.upgradeable_deployer_classes:
+        secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
 
     deployer.deploy_network_contracts(secrets=secrets)
 

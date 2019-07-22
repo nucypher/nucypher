@@ -22,6 +22,9 @@ from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, \
+    POLICY_MANAGER_CONTRACT_NAME, USER_ESCROW_CONTRACT_NAME, USER_ESCROW_PROXY_CONTRACT_NAME, \
+    LIBRARY_LINKER_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -160,8 +163,8 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
 class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
 
-    registry_contract_name = "StakingEscrow"
-    _proxy_name = "Dispatcher"
+    registry_contract_name = STAKING_ESCROW_CONTRACT_NAME
+    _proxy_name = DISPATCHER_CONTRACT_NAME
 
     class NotEnoughStakers(Exception):
         pass
@@ -285,6 +288,30 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
                                                    payload=payload,
                                                    sender_address=staker_address)
         return receipt
+
+    def staking_parameters(self) -> Tuple:
+        parameter_signatures = (
+            # Period
+            'secondsPerPeriod',  # Seconds in single period  # FIXME: StakingEscrow says hoursPerPeriod
+
+            # Coefficients
+            'miningCoefficient',         # Staking coefficient (k2) # FIXME: Still says "mining"
+            'lockedPeriodsCoefficient',  # Locked periods coefficient (k1)
+            'rewardedPeriods',           # Max periods that will be additionally rewarded (awarded_periods)
+
+            # Constraints
+            'minLockedPeriods',          # Min amount of periods during which tokens can be locked
+            'minAllowableLockedTokens',  # Min amount of tokens that can be locked
+            'maxAllowableLockedTokens',  # Max amount of tokens that can be locked
+            'minWorkerPeriods'           # Min amount of periods while a worker can't be changed
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return staking_parameters
+
     #
     # Contract Utilities
     #
@@ -336,10 +363,10 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyAgent(EthereumContractAgent, metaclass=Agency):
+class PolicyManagerAgent(EthereumContractAgent, metaclass=Agency):
 
-    registry_contract_name = "PolicyManager"
-    _proxy_name = "Dispatcher"
+    registry_contract_name = POLICY_MANAGER_CONTRACT_NAME
+    _proxy_name = DISPATCHER_CONTRACT_NAME
 
     def create_policy(self,
                       policy_id: str,
@@ -397,14 +424,14 @@ class PolicyAgent(EthereumContractAgent, metaclass=Agency):
 
 class UserEscrowAgent(EthereumContractAgent):
 
-    registry_contract_name = "UserEscrow"
+    registry_contract_name = USER_ESCROW_CONTRACT_NAME
     _proxy_name = NotImplemented
     _forward_address = False
     __allocation_registry = AllocationRegistry
 
     class UserEscrowProxyAgent(EthereumContractAgent):
-        registry_contract_name = "UserEscrowProxy"
-        _proxy_name = "UserEscrowLibraryLinker"
+        registry_contract_name = USER_ESCROW_PROXY_CONTRACT_NAME
+        _proxy_name = LIBRARY_LINKER_CONTRACT_NAME
         _forward_address = False
 
         def _generate_beneficiary_agency(self, principal_address: str):
@@ -530,8 +557,8 @@ class UserEscrowAgent(EthereumContractAgent):
 
 class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
 
-    registry_contract_name = "Adjudicator"
-    _proxy_name = "Dispatcher"
+    registry_contract_name = ADJUDICATOR_CONTRACT_NAME
+    _proxy_name = DISPATCHER_CONTRACT_NAME
 
     def evaluate_cfrag(self, evidence, sender_address: str):
         """

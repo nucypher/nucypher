@@ -26,7 +26,7 @@ from typing import Set
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -60,7 +60,7 @@ class BlockchainArrangement(Arrangement):
 
         # The relationship exists between two addresses
         self.author = alice                     # type: PolicyAuthor
-        self.policy_agent = alice.policy_agent  # type: PolicyAgent
+        self.policy_agent = alice.policy_agent  # type: PolicyManagerAgent
 
         self.staker = ursula                     # type: Staker
 

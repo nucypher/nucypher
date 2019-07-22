@@ -38,22 +38,20 @@ def allocation_value(token_economics):
     return allocation
 
 
-@pytest.mark.usefixtures("agency")
 @pytest.fixture(scope='module')
-def proxy_deployer(testerchain) -> UserEscrowAgent:
+def proxy_deployer(testerchain, agency) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Proxy
     proxy_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address, blockchain=testerchain)
 
-    proxy_deployer.deploy( secret_hash=proxy_secret)
+    proxy_deployer.deploy(secret_hash=proxy_secret)
     yield proxy_deployer
 
 
-@pytest.mark.usefixtures(["agency", "proxy_deployer"])
 @pytest.fixture(scope='function')
-def agent(testerchain, proxy_deployer, allocation_value) -> UserEscrowAgent:
+def agent(testerchain, proxy_deployer, allocation_value, agency) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)

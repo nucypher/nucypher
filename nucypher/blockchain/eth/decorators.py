@@ -5,6 +5,7 @@ from typing import Callable
 import inspect
 import eth_utils
 
+from nucypher.crypto.api import keccak_digest
 
 VERIFIED_ADDRESSES = set()
 
@@ -62,11 +63,45 @@ def validate_checksum_address(func: Callable) -> Callable:
         if not isinstance(checksum_address, str):
             actual_type_name = checksum_address.__class__.__name__
             message = '{} is an invalid type for parameter "{}".'.format(actual_type_name, parameter_name)
+            log.debug(message)
             raise TypeError(message)
 
         # Invalid Value
         message = '"{}" is not a valid EIP-55 checksum address.'.format(checksum_address)
         log.debug(message)
         raise InvalidChecksumAddress(message)
+
+    return wrapped
+
+
+def validate_secret(func: Callable) -> Callable:
+    """Decorator to enforce correct upgrade/rollback secret in upgradeable contracts"""
+
+    parameter_name = 'existing_secret_plaintext'
+    log = Logger('Upgrade-Secret-Validator')
+
+    @functools.wraps(func)
+    def wrapped(self, *args, **kwargs):
+
+        # Check for the presence of a plaintext secret in this call
+        params = inspect.getcallargs(func, self, *args, **kwargs)
+        try:
+            secret = params[parameter_name]
+        except KeyError:  # No plaintext secret present in this call
+            found_params = ', '.join("'{}'".format(p) for p in params)
+            message = f"Incorrect use of decorator: '{parameter_name}' not found. " \
+                      f"Found parameters are: {found_params}"
+            log.debug(message)
+            raise TypeError(message)
+
+        # Validate
+        secret_hash = self.contract.functions.secretHash().call()
+        is_valid_secret = secret_hash == keccak_digest(secret)
+
+        if is_valid_secret:  # Yay!  \ (•◡•) /
+            return func(self, *args, **kwargs)
+        else:
+            message = f"The secret provided for upgrade/rollback {self.contract_name} is not valid."
+            raise self.ContractDeploymentError(message)
 
     return wrapped

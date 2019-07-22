@@ -16,16 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-
-import collections
 import os
 
 import click
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.deployers import ContractDeployer
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import (
     logToSentry,
@@ -76,45 +72,5 @@ class NucypherClickConfig:
         cls.__emitter(*args, **kwargs)
 
 
-class NucypherDeployerClickConfig(NucypherClickConfig):
-
-    Secrets = Deployer.Secrets
-
-    def collect_deployment_secrets(self) -> Secrets:
-
-        # Deployment Environment Variables
-        self.staking_escrow_deployment_secret = os.environ.get("NUCYPHER_STAKING_ESCROW_SECRET")
-        self.policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET")
-        self.user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET")
-        self.adjudicator_deployment_secret = os.environ.get("NUCYPHER_ADJUDICATOR_SECRET")
-
-        if not self.staking_escrow_deployment_secret:
-            self.staking_escrow_deployment_secret = click.prompt('Enter StakingEscrow Deployment Secret',
-                                                                 hide_input=True,
-                                                                 confirmation_prompt=True)
-        if not self.policy_manager_deployment_secret:
-            self.policy_manager_deployment_secret = click.prompt('Enter PolicyManager Deployment Secret',
-                                                                 hide_input=True,
-                                                                 confirmation_prompt=True)
-
-        if not self.user_escrow_proxy_deployment_secret:
-            self.user_escrow_proxy_deployment_secret = click.prompt('Enter UserEscrowProxy Deployment Secret',
-                                                                    hide_input=True,
-                                                                    confirmation_prompt=True)
-
-        if not self.adjudicator_deployment_secret:
-            self.adjudicator_deployment_secret = click.prompt('Enter Adjudicator Deployment Secret',
-                                                              hide_input=True,
-                                                              confirmation_prompt=True)
-
-        secrets = self.Secrets(staker_secret=self.staking_escrow_deployment_secret,                # type: str
-                               policy_secret=self.policy_manager_deployment_secret,                # type: str
-                               user_escrow_proxy_secret=self.user_escrow_proxy_deployment_secret,  # type: str
-                               adjudicator_secret=self.adjudicator_deployment_secret               # type: str
-                               )
-        return secrets
-
-
 # Register the above click configuration classes as a decorators
 nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
-nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)

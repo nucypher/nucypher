@@ -14,24 +14,23 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 import time
 
 import click
 import maya
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, StakingEscrowDeployer, PolicyManagerDeployer, \
-    AdjudicatorDeployer, UserEscrowProxyDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import actions
 from nucypher.cli.actions import get_password, select_client_account
-from nucypher.cli.config import nucypher_deployer_config
 from nucypher.cli.painting import paint_contract_deployment
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -56,9 +55,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
-@nucypher_deployer_config
-def deploy(click_config,
-           action,
+def deploy(action,
            poa,
            provider_uri,
            geth,
@@ -134,9 +131,9 @@ def deploy(click_config,
     if not hw_wallet and not blockchain.client.is_local:
         password = get_password(confirm=False)
 
-    deployer = Deployer(blockchain=blockchain,
-                        client_password=password,
-                        deployer_address=deployer_address)
+    deployer = DeployerActor(blockchain=blockchain,
+                             client_password=password,
+                             deployer_address=deployer_address)
 
     # Verify ETH Balance
     click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
@@ -190,14 +187,15 @@ def deploy(click_config,
             deployment_secret = click.prompt(f"Enter deployment secret for {contract_name}", confirmation_prompt=True)
 
             try:
-                deployer_func = deployer.deployers[contract_name]
+                deployer.deployers[contract_name]
             except KeyError:
                 message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
                 click.secho(message, fg='red', bold=True)
                 raise click.Abort()
             else:
                 # Deploy single contract
-                receipts, agent = deployer_func(secret=deployment_secret)
+                receipts, agent = deployer.deploy_contract(contract_name=contract_name,
+                                                           plaintext_secret=deployment_secret)
                 paint_contract_deployment(contract_name=contract_name,
                                           contract_address=agent.contract_address,
                                           receipts=receipts)
@@ -209,7 +207,7 @@ def deploy(click_config,
         # Stage Deployment
         #
 
-        secrets = click_config.collect_deployment_secrets()
+        secrets = deployer.collect_deployment_secrets()
 
         click.clear()
         click.secho(NU_BANNER)

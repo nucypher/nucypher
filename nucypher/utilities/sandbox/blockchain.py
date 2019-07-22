@@ -20,11 +20,12 @@ import os
 from typing import List, Tuple, Dict
 
 import maya
+from pytest_ethereum.deployer import Deployer
 from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, EthereumContractRegistry
@@ -220,11 +221,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
-        secrets = Deployer.Secrets(staker_secret=STAKING_ESCROW_DEPLOYMENT_SECRET,
-                                   policy_secret=POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                   adjudicator_secret=ADJUDICATOR_DEPLOYMENT_SECRET,
-                                   user_escrow_proxy_secret=USER_ESCROW_PROXY_DEPLOYMENT_SECRET)
+        deployer = DeployerActor(blockchain=testerchain, deployer_address=origin, bare=True)
+        secrets = dict()
+        for deployer_class in deployer.upgradeable_deployer_classes:
+            secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
         _receipts = deployer.deploy_network_contracts(secrets=secrets, interactive=False)
         return testerchain
 

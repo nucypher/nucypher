@@ -27,8 +27,7 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 
 
 @pytest.fixture(scope='function')
-@pytest.mark.usefixtures('blockchain_ursulas')
-def policy_meta(testerchain, agency, token_economics):
+def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 

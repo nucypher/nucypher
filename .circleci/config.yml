@@ -369,7 +369,7 @@ jobs:
 
   deployers:
     <<: *python_36_base
-    parallelism: 4
+    parallelism: 2
     steps:
       - prepare_environment
       - run:

@@ -30,7 +30,8 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 
 
 @pytest.mark.slow()
-def test_deploy_ethereum_contracts(testerchain):
+def test_deploy_ethereum_contracts(session_testerchain):
+    testerchain = session_testerchain
 
     origin, *everybody_else = testerchain.client.accounts
 
@@ -131,6 +132,6 @@ def test_deploy_ethereum_contracts(testerchain):
     assert len(adjudicator_agent.contract_address) == 42
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
 
-    another_adjudicator_agent = adjudicator_deployer.make_agent()
+    another_adjudicator_agent = AdjudicatorAgent()
     assert len(another_adjudicator_agent.contract_address) == 42
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address

@@ -5,13 +5,14 @@ from string import ascii_uppercase, digits
 
 import pytest
 
-from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     UserEscrowAgent,
-    PolicyAgent,
-    Agency)
+    PolicyManagerAgent,
+    AdjudicatorAgent,
+    Agency, EthereumContractAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
@@ -86,7 +87,8 @@ def test_nucypher_deploy_contracts(click_runner,
     assert result.exit_code == 0
 
     # Ensure there is a report on each contract
-    for registry_name in Deployer.contract_names:
+    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    for registry_name in contract_names:
         assert registry_name in result.output
 
     # Check that the primary contract registry was written
@@ -96,7 +98,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
         # Ensure every contract's name was written to the file, somehow
         raw_registry_data = file.read()
-        for registry_name in Deployer.contract_names:
+        for registry_name in contract_names:
             assert registry_name in raw_registry_data
 
         # Ensure the Registry is JSON deserializable
@@ -124,8 +126,11 @@ def test_nucypher_deploy_contracts(click_runner,
     assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated
-    assert PolicyAgent()
-    # assert AdjudicatorAgent(blockchain=testerchain)  # TODO: #931
+    assert PolicyManagerAgent()
+
+    # This agent wasn't instantiated before, so we have to supply the blockchain
+    blockchain = staking_agent.blockchain
+    assert AdjudicatorAgent(blockchain=blockchain)
 
 
 def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
