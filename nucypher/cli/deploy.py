@@ -171,6 +171,31 @@ def deploy(action,
 
     elif action == "contracts":
 
+        #
+        # Deploy Single Contract
+        #
+
+        if contract_name:
+            try:
+                contract_deployer = deployer.deployers[contract_name]
+            except KeyError:
+                message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
+                click.secho(message, fg='red', bold=True)
+                raise click.Abort()
+            else:
+                click.secho(f"Deploying {contract_name}")
+                if contract_deployer._upgradeable:
+                    secret = deployer.collect_deployment_secret(deployer=contract_deployer)
+                    receipts, agent = deployer.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
+                else:
+                    receipts, agent = deployer.deploy_contract(contract_name=contract_name)
+                paint_contract_deployment(contract_name=contract_name,
+                                          contract_address=agent.contract_address,
+                                          receipts=receipts)
+            if ETH_NODE:
+                ETH_NODE.stop()
+            return
+
         registry_filepath = deployer.blockchain.registry.filepath
         if os.path.isfile(registry_filepath):
             click.secho(f"\nThere is an existing contract registry at {registry_filepath}.\n"
@@ -178,30 +203,6 @@ def deploy(action,
             click.confirm("Optionally, destroy existing local registry and continue?", abort=True)
             click.confirm(f"Confirm deletion of contract registry '{registry_filepath}'?", abort=True)
             os.remove(registry_filepath)
-
-        #
-        # Deploy Single Contract
-        #
-
-        if contract_name:
-            deployment_secret = click.prompt(f"Enter deployment secret for {contract_name}", confirmation_prompt=True)
-
-            try:
-                deployer.deployers[contract_name]
-            except KeyError:
-                message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
-                click.secho(message, fg='red', bold=True)
-                raise click.Abort()
-            else:
-                # Deploy single contract
-                receipts, agent = deployer.deploy_contract(contract_name=contract_name,
-                                                           plaintext_secret=deployment_secret)
-                paint_contract_deployment(contract_name=contract_name,
-                                          contract_address=agent.contract_address,
-                                          receipts=receipts)
-            if ETH_NODE:
-                ETH_NODE.stop()
-            return
 
         #
         # Stage Deployment

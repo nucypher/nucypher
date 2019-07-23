@@ -455,6 +455,7 @@ class BlockchainInterface:
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
+    TIMEOUT = 600  # seconds
     _contract_factory = Contract
 
     class NoDeployerAddress(RuntimeError):
