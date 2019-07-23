@@ -282,7 +282,7 @@ def test_ursula_init(click_runner,
         assert config_data['worker_address'] == manual_worker
         assert config_data['checksum_address'] == manual_staker
         assert TEMPORARY_DOMAIN in config_data['domains']
-        
+
 
 def test_ursula_run(click_runner,
                     manual_worker,
@@ -453,8 +453,8 @@ def test_collect_rewards_integration(click_runner,
     testerchain.transacting_power.activate()
 
     # Collect Policy Reward
-    collection_args = ('--mock-networking',
-                       'stake', 'collect-reward',
+    collection_args = ('stake', 'collect-reward',
+                       '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--policy-reward',
                        '--no-staking-reward',
@@ -482,8 +482,8 @@ def test_collect_rewards_integration(click_runner,
         testerchain.time_travel(periods=1)
 
     # Collect Inflation Reward
-    collection_args = ('--mock-networking',
-                       'stake', 'collect-reward',
+    collection_args = ('stake', 'collect-reward',
+                       '--mock-networking',
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-reward',
                        '--staking-reward',

@@ -7,8 +7,7 @@ from io import StringIO
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.processes import UrsulaCommandProtocol
 
-# Disable click sentry and file logging
-
+# Override environment variables
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False
 

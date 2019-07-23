@@ -24,7 +24,6 @@ from nucypher.cli.types import (
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
-@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
 @click.option('--sync/--no-sync', default=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
@@ -48,7 +47,6 @@ def stake(click_config,
 
           # Mode
           force,
-          quiet,
           offline,
           hw_wallet,
 
@@ -71,7 +69,7 @@ def stake(click_config,
           ) -> None:
 
     # Banner
-    if not quiet:
+    if not click_config.quiet:
         click.clear()
         click.secho(NU_BANNER)
 
@@ -244,14 +242,14 @@ def stake(click_config,
                                                              value=value,
                                                              duration=extension,
                                                              password=password)
-        if not quiet:
+        if not click_config.quiet:
             click.secho('Successfully divided stake', fg='green')
             click.secho(f'Receipt ........... {new_stake.receipt}')
 
         # Show the resulting stake list
         painting.paint_stakes(stakes=STAKEHOLDER.stakes)
         return  # Exit
-    
+
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
         password = None

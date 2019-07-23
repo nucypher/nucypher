@@ -29,7 +29,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
@@ -51,7 +50,6 @@ def felix(click_config,
           poa,
           config_file,
           db_filepath,
-          no_registry,
           registry_filepath,
           dev,
           force):
@@ -80,7 +78,7 @@ def felix(click_config,
                                                            db_filepath=db_filepath,
                                                            domains={network} if network else None,
                                                            checksum_address=checksum_address,
-                                                           download_registry=not no_registry,
+                                                           download_registry=not click_config.no_registry,
                                                            registry_filepath=registry_filepath,
                                                            provider_uri=provider_uri,
                                                            provider_process=ETH_NODE,

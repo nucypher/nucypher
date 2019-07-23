@@ -42,7 +42,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.command()
 @click.argument('action')
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
@@ -64,13 +63,11 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
 def ursula(click_config,
            action,
            dev,
-           quiet,
            dry_run,
            force,
            lonely,
@@ -90,7 +87,6 @@ def ursula(click_config,
            config_file,
            provider_uri,
            geth,
-           no_registry,
            registry_filepath,
            interactive,
            ) -> None:
@@ -125,10 +121,6 @@ def ursula(click_config,
         if staker_address:
             raise click.BadOptionUsage(option_name='--federated-only',
                                        message="Staking address canot be used in federated mode.")
-
-    if click_config.debug and quiet:
-        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
-
 
     # Banner
     if not click_config.json_ipc and not click_config.quiet:
@@ -194,7 +186,7 @@ def ursula(click_config,
                                                      federated_only=federated_only,
                                                      checksum_address=staker_address,
                                                      worker_address=worker_address,
-                                                     download_registry=federated_only or no_registry,
+                                                     download_registry=federated_only or click_config.no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,
