@@ -16,14 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+import collections
+import functools
 import os
 
 import click
 from twisted.logger import Logger
 
+from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-from nucypher.config.node import CharacterConfiguration
+from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 class NucypherClickConfig:
@@ -41,21 +45,86 @@ class NucypherClickConfig:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Sentry Logging
-        if self.log_to_sentry is True:
+        # Logging
+        self.log = Logger(self.__class__.__name__)
+
+    def set_options(self,
+                    mock_networking,
+                    json_ipc,
+                    verbose,
+                    quiet,
+                    no_logs,
+                    debug,
+                    no_registry,
+                    log_level):
+
+        # Session Emitter for pre and post character control engagement.
+        if json_ipc:
+            emitter = JSONRPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+        else:
+            emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+
+        self.attach_emitter(emitter)
+
+        if debug and quiet:
+            raise click.BadOptionUsage(
+                option_name="quiet",
+                message="--debug and --quiet cannot be used at the same time.")
+
+        log_to_console = False
+        log_to_text_file = self.log_to_file
+        log_to_json_file = self.log_to_file
+        log_to_sentry = self.log_to_sentry
+
+        if debug:
+            log_to_console = True
+            log_to_json_file = True
+            log_to_text_file = True
+            log_to_sentry = False
+            log_level = 'debug'
+
+        elif quiet:  # Disable Logging
+            log_to_console = False
+            log_to_json_file = False
+            log_to_text_file = True
+            log_to_sentry = False
+
+        if no_logs:
+            log_to_console = False
+            log_to_json_file = False
+            log_to_text_file = False
+            log_to_sentry = False
+
+        if log_level:
+            GlobalLoggerSettings.set_log_level(log_level_name=log_level)
+        if log_to_console:
+            GlobalLoggerSettings.start_console_logging()
+        if log_to_text_file:
+            GlobalLoggerSettings.start_text_file_logging()
+        if log_to_json_file:
+            GlobalLoggerSettings.start_json_file_logging()
+        if log_to_sentry:
             GlobalLoggerSettings.start_sentry_logging(self.sentry_endpoint)
 
-        # File Logging
-        if self.log_to_file is True:
-            GlobalLoggerSettings.start_text_file_logging()
-            GlobalLoggerSettings.start_json_file_logging()
+        # CLI Session Configuration
+        self.verbose = verbose
+        self.mock_networking = mock_networking
+        self.json_ipc = json_ipc
+        self.quiet = quiet
+        self.no_registry = no_registry
+        self.debug = debug
 
-        # You guessed it
-        self.debug = False
+        # Only used for testing outputs;
+        # Redirects outputs to in-memory python containers.
+        if mock_networking:
+            self.emit(message="WARNING: Mock networking is enabled")
+            self.middleware = MockRestMiddleware()
+        else:
+            self.middleware = RestMiddleware()
 
-        # Logging
-        self.quiet = False
-        self.log = Logger(self.__class__.__name__)
+        # Global Warnings
+        if self.verbose:
+            self.emit(message="Verbose mode is enabled", color='blue')
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:
@@ -67,4 +136,43 @@ class NucypherClickConfig:
 
 
 # Register the above click configuration classes as a decorators
-nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
+_nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
+
+
+def nucypher_click_config(func):
+    @_nucypher_click_config
+    @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
+    @click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True)
+    @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
+    @click.option('-Q', '--quiet', help="Disable console printing", is_flag=True)
+    @click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
+    @click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
+    @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+    @click.option('--log-level', help="The log level for this process.  Is overridden by --debug.",
+                  type=click.Choice(['critical', 'error', 'warn', 'info', 'debug']),
+                  default='info')
+    @functools.wraps(func)
+    def wrapper(config,
+                *args,
+                mock_networking,
+                json_ipc,
+                verbose,
+                quiet,
+                no_logs,
+                debug,
+                no_registry,
+                log_level,
+                **kwargs):
+
+        config.set_options(
+            mock_networking,
+            json_ipc,
+            verbose,
+            quiet,
+            no_logs,
+            debug,
+            no_registry,
+            log_level)
+
+        return func(config, *args, **kwargs)
+    return wrapper

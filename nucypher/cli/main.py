@@ -19,93 +19,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli import status, stake
 from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
-from nucypher.cli.config import nucypher_click_config, NucypherClickConfig
 from nucypher.cli.painting import echo_version
-from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import GlobalLoggerSettings
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
-@click.option('-v', '--verbose', help="Specify verbosity level", count=True)
-@click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
-@click.option('-J', '--json-ipc', help="Send all output to stdout as JSON", is_flag=True)
-@click.option('-Q', '--quiet', help="Disable console printing", is_flag=True)
-@click.option('-L', '--no-logs', help="Disable all logging output", is_flag=True)
-@click.option('-D', '--debug', help="Enable debugging mode", is_flag=True)
-@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
-@click.option('--log-level', help="The log level for this process.  Is overridden by --debug.", type=click.STRING, default=False)
-@nucypher_click_config
-def nucypher_cli(click_config,
-                 verbose,
-                 mock_networking,
-                 json_ipc,
-                 no_logs,
-                 quiet,
-                 debug,
-                 no_registry,
-                 log_level):
-
-    # Session Emitter for pre and post character control engagement.
-    if json_ipc:
-        emitter = JSONRPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
-    else:
-        emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
-
-    click_config.attach_emitter(emitter)
-    if not json_ipc:
-        click_config.emit(message=NUCYPHER_BANNER)
-
-    if log_level:
-        GlobalConsoleLogger.set_log_level(log_level_name=log_level)
-        globalLogPublisher.addObserver(SimpleObserver())
-
-    if debug and quiet:
-        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
-
-    if debug:
-        click_config.log_to_sentry = False
-        click_config.log_to_file = True                 # File Logging
-        GlobalLoggerSettings.start_console_logging()
-        GlobalLoggerSettings.stop_sentry_logging()
-        GlobalLoggerSettings.set_log_level(log_level_name='debug')
-
-    elif quiet:  # Disable Logging
-        GlobalLoggerSettings.stop_sentry_logging()
-        GlobalLoggerSettings.stop_console_logging()
-        GlobalLoggerSettings.stop_json_file_logging()
-
-    # Logging
-    if not no_logs:
-        GlobalLoggerSettings.start_text_file_logging()
-
-    # CLI Session Configuration
-    click_config.verbose = verbose
-    click_config.mock_networking = mock_networking
-    click_config.json_ipc = json_ipc
-    click_config.no_logs = no_logs
-    click_config.quiet = quiet
-    click_config.no_registry = no_registry
-    click_config.debug = debug
-
-    # Only used for testing outputs;
-    # Redirects outputs to in-memory python containers.
-    if mock_networking:
-        click_config.emit(message="WARNING: Mock networking is enabled")
-        click_config.middleware = MockRestMiddleware()
-    else:
-        click_config.middleware = RestMiddleware()
-
-    # Global Warnings
-    if click_config.verbose:
-        click_config.emit(message="Verbose mode is enabled", color='blue')
-
+def nucypher_cli():
+    pass
 
 
 #
