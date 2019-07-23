@@ -206,7 +206,6 @@ def deploy(action,
         #
         # Stage Deployment
         #
-
         secrets = deployer.collect_deployment_secrets()
 
         click.clear()
