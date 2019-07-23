@@ -47,6 +47,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
+@click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -60,6 +61,7 @@ def deploy(action,
            provider_uri,
            geth,
            enode,
+           gas,
            deployer_address,
            contract_name,
            allocation_infile,
@@ -93,15 +95,15 @@ def deploy(action,
     if geth:
         # Spawn geth child process
         ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
-        ETH_NODE.ensure_account_exists(password=click_config.get_password(confirm=True))
+        ETH_NODE.ensure_account_exists(password=get_password(confirm=True))
         ETH_NODE.start()  # TODO: Graceful shutdown
         provider_uri = ETH_NODE.provider_uri
 
     # Establish a contract registry from disk if specified
     registry_filepath = registry_outfile or registry_infile
 
-    # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
     if dev:
+        # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
         registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
 
     # Deployment-tuned blockchain connection
@@ -143,11 +145,8 @@ def deploy(action,
 
     # Add ETH Bootnode or Peer
     if enode:
-        if geth:
-            blockchain.w3.geth.admin.addPeer(enode)
-            click.secho(f"Added ethereum peer {enode}")
-        else:
-            raise NotImplemented  # TODO: other backends
+        blockchain.client.add_peer(enode)
+        click.secho(f"Added ethereum peer {enode}")
 
     #
     # Action switch
@@ -188,7 +187,7 @@ def deploy(action,
                     secret = deployer.collect_deployment_secret(deployer=contract_deployer)
                     receipts, agent = deployer.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
                 else:
-                    receipts, agent = deployer.deploy_contract(contract_name=contract_name)
+                    receipts, agent = deployer.deploy_contract(contract_name=contract_name, gas_limit=gas)
                 paint_contract_deployment(contract_name=contract_name,
                                           contract_address=agent.contract_address,
                                           receipts=receipts)
