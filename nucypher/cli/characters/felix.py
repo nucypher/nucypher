@@ -54,10 +54,11 @@ def felix(click_config,
           dev,
           force):
 
+    emitter = click_config.emitter
+
     # Intro
-    click.clear()
-    if not click_config.quiet:
-        click.secho(FELIX_BANNER.format(checksum_address or ''))
+    emitter.clear()
+    emitter.banner(FELIX_BANNER.format(checksum_address or ''))
 
     ETH_NODE = NO_BLOCKCHAIN_CONNECTION
     if geth:
@@ -87,11 +88,11 @@ def felix(click_config,
             if click_config.debug:
                 raise
             else:
-                click.secho(str(e), fg='red', bold=True)
+                emitter.echo(str(e), color='red', bold=True)
                 raise click.Abort
 
         # Paint Help
-        painting.paint_new_installation_help(new_configuration=new_felix_config)
+        painting.paint_new_installation_help(emitter, new_configuration=new_felix_config)
 
         return  # <-- do not remove (conditional flow control)
 
@@ -111,8 +112,8 @@ def felix(click_config,
                                                                   poa=poa)
 
     except FileNotFoundError:
-        click.secho(f"No Felix configuration file found at {config_file}. "
-                    f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
+        emitter.echo(f"No Felix configuration file found at {config_file}. "
+                     f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
 
     try:
@@ -121,10 +122,13 @@ def felix(click_config,
         felix_config.get_blockchain_interface()
 
         # Authenticate
-        unlock_nucypher_keyring(character_configuration=felix_config, password=get_password(confirm=False))
+        unlock_nucypher_keyring(emitter,
+                                character_configuration=felix_config,
+                                password=get_password(confirm=False))
 
         # Produce Teacher Ursulas
-        teacher_nodes = actions.load_seednodes(teacher_uris=[teacher_uri] if teacher_uri else None,
+        teacher_nodes = actions.load_seednodes(emitter,
+                                               teacher_uris=[teacher_uri] if teacher_uri else None,
                                                min_stake=min_stake,
                                                federated_only=felix_config.federated_only,
                                                network_domains=felix_config.domains,
@@ -138,7 +142,7 @@ def felix(click_config,
         if click_config.debug:
             raise
         else:
-            click.secho(str(e), fg='red', bold=True)
+            emitter.echo(str(e), color='red', bold=True)
             raise click.Abort
 
     if action == "createdb":  # Initialize Database
@@ -146,15 +150,15 @@ def felix(click_config,
             if not force:
                 click.confirm("Overwrite existing database?", abort=True)
             os.remove(FELIX.db_filepath)
-            click.secho(f"Destroyed existing database {FELIX.db_filepath}")
+            emitter.echo(f"Destroyed existing database {FELIX.db_filepath}")
 
         FELIX.create_tables()
-        click.secho(f"\nCreated new database at {FELIX.db_filepath}", fg='green')
+        emitter.echo(f"\nCreated new database at {FELIX.db_filepath}", color='green')
 
     elif action == 'view':
         token_balance = FELIX.token_balance
         eth_balance = FELIX.eth_balance
-        click.secho(f"""
+        emitter.echo(f"""
 Address .... {FELIX.checksum_address}
 NU ......... {str(token_balance)}
 ETH ........ {str(eth_balance)}
@@ -163,17 +167,17 @@ ETH ........ {str(eth_balance)}
     elif action == "accounts":
         accounts = FELIX.blockchain.client.accounts
         for account in accounts:
-            click.secho(account)
+            emitter.echo(account)
 
     elif action == "destroy":
         """Delete all configuration files from the disk"""
-        actions.destroy_configuration(character_config=felix_config, force=force)
+        actions.destroy_configuration(emitter, character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
 
         try:
-            click.secho("Waiting for blockchain sync...", fg='yellow')
-            click_config.emit(message=f"Running Felix on {host}:{port}")
+            emitter.echo("Waiting for blockchain sync...", color='yellow')
+            emitter.message(f"Running Felix on {host}:{port}")
             FELIX.start(host=host,
                         port=port,
                         web_services=not dry_run,

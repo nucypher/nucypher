@@ -33,7 +33,6 @@ from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 class NucypherClickConfig:
 
     # Output Sinks
-    capture_stdout = False
     __emitter = None
 
     # Environment Variables
@@ -60,9 +59,9 @@ class NucypherClickConfig:
 
         # Session Emitter for pre and post character control engagement.
         if json_ipc:
-            emitter = JSONRPCStdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+            emitter = JSONRPCStdoutEmitter(quiet=quiet)
         else:
-            emitter = StdoutEmitter(quiet=quiet, capture_stdout=NucypherClickConfig.capture_stdout)
+            emitter = StdoutEmitter(quiet=quiet)
 
         self.attach_emitter(emitter)
 
@@ -117,22 +116,22 @@ class NucypherClickConfig:
         # Only used for testing outputs;
         # Redirects outputs to in-memory python containers.
         if mock_networking:
-            self.emit(message="WARNING: Mock networking is enabled")
+            self.emitter.message("WARNING: Mock networking is enabled")
             self.middleware = MockRestMiddleware()
         else:
             self.middleware = RestMiddleware()
 
         # Global Warnings
         if self.verbose:
-            self.emit(message="Verbose mode is enabled", color='blue')
+            self.emitter.message("Verbose mode is enabled", color='blue')
 
     @classmethod
     def attach_emitter(cls, emitter) -> None:
         cls.__emitter = emitter
 
-    @classmethod
-    def emit(cls, *args, **kwargs):
-        cls.__emitter(*args, **kwargs)
+    @property
+    def emitter(cls):
+        return cls.__emitter
 
 
 # Register the above click configuration classes as a decorators

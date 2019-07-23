@@ -1,6 +1,5 @@
 
 import click
-from constant_sorrow.constants import NO_STAKING_DEVICE
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -69,9 +68,9 @@ def stake(click_config,
           ) -> None:
 
     # Banner
-    if not click_config.quiet:
-        click.clear()
-        click.secho(NU_BANNER)
+    emitter = click_config.emitter
+    emitter.clear()
+    emitter.banner(NU_BANNER)
 
     if action == 'new-stakeholder':
 
@@ -93,7 +92,7 @@ def stake(click_config,
                                       blockchain=blockchain)
 
         filepath = new_stakeholder.to_configuration_file(override=force)
-        click.secho(f"Wrote new stakeholder configuration to {filepath}", fg='green')
+        emitter.echo(f"Wrote new stakeholder configuration to {filepath}", color='green')
         return  # Exit
 
     #
@@ -110,21 +109,21 @@ def stake(click_config,
 
     if action == 'list':
         if not STAKEHOLDER.stakes:
-            click.echo(f"There are no active stakes")
+            emitter.echo(f"There are no active stakes")
         else:
-            painting.paint_stakes(stakes=STAKEHOLDER.stakes)
+            painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
         return
 
     elif action == 'accounts':
         for address, balances in STAKEHOLDER.account_balances.items():
-            click.secho(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
+            emitter.echo(f"{address} | {Web3.fromWei(balances['ETH'], 'ether')} ETH | {NU.from_nunits(balances['NU'])}")
         return  # Exit
 
     elif action == 'sync':
-        click.secho("Reading on-chain stake data...")
+        emitter.echo("Reading on-chain stake data...")
         STAKEHOLDER.read_onchain_stakes()
         STAKEHOLDER.to_configuration_file(override=True)
-        click.secho("OK!", fg='green')
+        emitter.echo("OK!", color='green')
         return  # Exit
 
     elif action == 'set-worker':
@@ -142,7 +141,7 @@ def stake(click_config,
                                password=password,
                                worker_address=worker_address)
 
-        click.secho("OK!", fg='green')
+        emitter.echo("OK!", color='green')
         return  # Exit
 
     elif action == 'init':
@@ -181,7 +180,8 @@ def stake(click_config,
         #
 
         if not force:
-            painting.paint_staged_stake(ursula=STAKEHOLDER,
+            painting.paint_staged_stake(emitter=emitter,
+                                        ursula=STAKEHOLDER,
                                         stake_value=value,
                                         duration=duration,
                                         start_period=start_period,
@@ -198,7 +198,9 @@ def stake(click_config,
                                                  checksum_address=staking_address,
                                                  password=password)
 
-        painting.paint_staking_confirmation(ursula=STAKEHOLDER, transactions=new_stake.transactions)
+        painting.paint_staking_confirmation(emitter=emitter,
+                                            ursula=STAKEHOLDER,
+                                            transactions=new_stake.transactions)
         return  # Exit
 
     elif action == 'divide':
@@ -227,7 +229,8 @@ def stake(click_config,
             extension = duration
 
         if not force:
-            painting.paint_staged_stake_division(ursula=STAKEHOLDER,
+            painting.paint_staged_stake_division(emitter=emitter,
+                                                 ursula=STAKEHOLDER,
                                                  original_stake=current_stake,
                                                  target_value=value,
                                                  extension=extension)
@@ -243,11 +246,11 @@ def stake(click_config,
                                                              duration=extension,
                                                              password=password)
         if not click_config.quiet:
-            click.secho('Successfully divided stake', fg='green')
-            click.secho(f'Receipt ........... {new_stake.receipt}')
+            emitter.echo('Successfully divided stake', color='green')
+            emitter.echo(f'Receipt ........... {new_stake.receipt}')
 
         # Show the resulting stake list
-        painting.paint_stakes(stakes=STAKEHOLDER.stakes)
+        painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
         return  # Exit
 
     elif action == 'collect-reward':

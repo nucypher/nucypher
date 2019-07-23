@@ -94,9 +94,9 @@ def alice(click_config,
         raise click.BadOptionUsage(option_name="--geth", message="Federated only cannot be used with the --geth flag")
 
     # Banner
-    click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
-        click.secho(ALICE_BANNER)
+    emitter = click_config.emitter
+    emitter.clear()
+    emitter.banner(ALICE_BANNER)
 
     #
     # Managed Ethereum Client
@@ -135,15 +135,14 @@ def alice(click_config,
                                                        duration=duration,
                                                        rate=rate)
 
-        painting.paint_new_installation_help(new_configuration=new_alice_config)
+        painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
         return  # Exit
 
     elif action == "view":
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        click_config.emit(response)
-        return  # Exit
+        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and duration here?
 
     #
     # Make Alice
@@ -171,7 +170,7 @@ def alice(click_config,
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)
-    
+
     ALICE = actions.make_cli_character(character_config=alice_config,
                                        click_config=click_config,
                                        dev=dev,
@@ -194,7 +193,7 @@ def alice(click_config,
 
         # HTTP
         else:
-            ALICE.controller.emitter(message=f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
+            emitter.message(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
             controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
             ALICE.log.info('Starting HTTP Character Web Controller')
             return controller.start(http_port=controller_port, dry_run=dry_run)
@@ -204,7 +203,7 @@ def alice(click_config,
         if dev:
             message = "'nucypher alice destroy' cannot be used in --dev mode"
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(character_config=alice_config, force=force)
+        return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
 
     #
     # Alice API

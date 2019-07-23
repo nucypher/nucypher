@@ -42,7 +42,7 @@ def status(click_config, config_file):
         ursula_config.acquire_agency()
 
         # Contracts
-        paint_contract_status(ursula_config=ursula_config, click_config=click_config)
+        paint_contract_status(click_config.emitter, ursula_config=ursula_config, click_config=click_config)
 
     # Known Nodes
-    paint_known_nodes(ursula=ursula_config)
+    paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)
