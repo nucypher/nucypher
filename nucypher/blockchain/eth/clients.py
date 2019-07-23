@@ -160,6 +160,7 @@ class Web3Client:
         if not self.is_local:
             return self.unlock_account(address, password)
 
+    @property
     def is_connected(self):
         return self.w3.isConnected()
 
@@ -178,8 +179,12 @@ class Web3Client:
         self.w3.middleware_onion.inject(middleware, **kwargs)
 
     @property
-    def chain_id(self) -> str:
-        return self.w3.net.version
+    def chain_id(self) -> str:  # TODO : Make this return an integer?
+        return str(int(self.w3.eth.chainId, 16))
+
+    @property
+    def net_version(self) -> str:  # TODO : Make this return an integer?
+        return str(self.w3.net.version)
 
     def get_contract(self, **kwargs):
         return self.w3.eth.contract(**kwargs)
@@ -243,8 +248,6 @@ class Web3Client:
             check_for_timeout(t=120)
 
         while self.syncing:
-
-            # current =
             self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
             time.sleep(5)
 
@@ -257,9 +260,6 @@ class Web3Client:
         eth-tester signing interface to do so.
         """
         return self.w3.eth.sign(account, data=message)
-
-    def sign_transaction(self, transaction: dict) -> bytes:
-        raise NotImplementedError
 
 
 class GethClient(Web3Client):
@@ -394,7 +394,7 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
     def provider_uri(self, scheme: str = None) -> str:
         if not scheme:
             scheme = self.IPC_PROTOCOL
-        if scheme == 'file':
+        if scheme in ('file', 'ipc'):
             location = self.ipc_path
         elif scheme in ('http', 'ws'):
             location = f'{self.rpc_host}:{self.rpc_port}'

@@ -26,6 +26,7 @@ from nucypher.cli.types import (
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
+@click.option('--sync/--no-sync', default=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--offline', help="Operate in offline mode", is_flag=True)
@@ -55,6 +56,7 @@ def stake(click_config,
           poa,
           registry_filepath,
           provider_uri,
+          sync,
 
           # Stake
           staking_address,

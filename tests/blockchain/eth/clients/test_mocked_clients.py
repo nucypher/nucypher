@@ -24,9 +24,10 @@ class MockGanacheProvider:
 
 
 class ChainIdReporter:
+
     # Support older and newer versions of web3 py in-test
     version = 5
-    chainID = 5
+    chainId = hex(5)
 
 
 #
@@ -36,6 +37,7 @@ class ChainIdReporter:
 class MockWeb3:
 
     net = ChainIdReporter
+    eth = ChainIdReporter
 
     def __init__(self, provider):
         self.provider = provider
@@ -44,10 +46,14 @@ class MockWeb3:
     def clientVersion(self):
         return self.provider.clientVersion
 
+    @property
+    def isConnected(self):
+        return lambda: True
 
 #
 # Mock Blockchain
 #
+
 
 class BlockchainInterfaceTestBase(BlockchainInterface):
 
@@ -96,7 +102,7 @@ def test_geth_web3_client():
     assert interface.client.backend == 'go1.7'
 
     assert interface.client.is_local is False
-    assert interface.client.chain_id == 5
+    assert interface.client.chain_id == '5'  # Hardcoded above
 
 
 def test_parity_web3_client():

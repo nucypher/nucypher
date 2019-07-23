@@ -52,7 +52,7 @@ def test_software_stakeholder_configuration(testerchain,
 
 def test_initialize_stake_with_existing_account(software_stakeholder, stake_value, token_economics):
 
-    # There is one staker and one stake.
+    # There are no stakes.
     assert len(software_stakeholder.stakers) == 0
     assert len(software_stakeholder.stakes) == 0
 
