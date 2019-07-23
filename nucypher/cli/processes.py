@@ -35,10 +35,11 @@ class UrsulaCommandProtocol(LineReceiver):
     encoding = 'utf-8'
     delimiter = os.linesep.encode(encoding=encoding)
 
-    def __init__(self, ursula):
+    def __init__(self, ursula, emitter):
         super().__init__()
 
         self.ursula = ursula
+        self.emitter = emitter
         self.start_time = maya.now()
 
         self.__history = deque(maxlen=10)
@@ -78,11 +79,11 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         Display this help message.
         """
-        click.secho("\nUrsula Command Help\n===================\n")
+        self.emitter.echo("\nUrsula Command Help\n===================\n")
         for command, func in self.__commands.items():
             if '?' not in command:
                 try:
-                    click.secho(f'{command}\n{"-"*len(command)}\n{func.__doc__.lstrip()}')
+                    self.emitter.echo(f'{command}\n{"-"*len(command)}\n{func.__doc__.lstrip()}')
                 except AttributeError:
                     raise AttributeError("Ursula Command method is missing a docstring,"
                                          " which is required for generating help text.")
@@ -92,7 +93,7 @@ class UrsulaCommandProtocol(LineReceiver):
         Display a list of all known nucypher peers.
         """
         from nucypher.cli.painting import paint_known_nodes
-        paint_known_nodes(ursula=self.ursula)
+        paint_known_nodes(emitter=self.emitter, ursula=self.ursula)
 
     def paintStakes(self):
         """
@@ -100,23 +101,23 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         from nucypher.cli.painting import paint_stakes
         if self.ursula.stakes:
-            paint_stakes(stakes=self.ursula.stakes)
+            paint_stakes(self.emitter, stakes=self.ursula.stakes)
         else:
-            click.secho("No active stakes.")
+            self.emitter.echo("No active stakes.")
 
     def paintStatus(self):
         """
         Display the current status of the attached Ursula node.
         """
         from nucypher.cli.painting import paint_node_status
-        paint_node_status(ursula=self.ursula, start_time=self.start_time)
+        paint_node_status(emitter=self.emitter, ursula=self.ursula, start_time=self.start_time)
 
     def paintFleetState(self):
         """
         Display information about the network-wide fleet state as the attached Ursula node sees it.
         """
         line = '{}'.format(build_fleet_state_status(ursula=self.ursula))
-        click.secho(line)
+        self.emitter.echo(line)
 
     def connectionMade(self):
 
@@ -124,10 +125,10 @@ class UrsulaCommandProtocol(LineReceiver):
                    self.ursula.checksum_address,
                    self.ursula.rest_url())
 
-        click.secho(message, fg='green')
-        click.secho('{} | {}'.format(self.ursula.nickname_icon, self.ursula.nickname), fg='blue', bold=True)
+        self.emitter.echo(message, color='green')
+        self.emitter.echo('{} | {}'.format(self.ursula.nickname_icon, self.ursula.nickname), color='blue', bold=True)
 
-        click.secho("\nType 'help' or '?' for help")
+        self.emitter.echo("\nType 'help' or '?' for help")
         self.transport.write(self.prompt)
 
     def connectionLost(self, reason=connectionDone) -> None:
@@ -149,7 +150,7 @@ class UrsulaCommandProtocol(LineReceiver):
         # Print
         except KeyError:
             if line:  # allow for empty string
-                click.secho("Invalid input. Options are {}".format(', '.join(self.__commands.keys())))
+                self.emitter.echo("Invalid input. Options are {}".format(', '.join(self.__commands.keys())))
 
         else:
             self.__history.append(raw_line)

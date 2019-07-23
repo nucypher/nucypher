@@ -318,7 +318,7 @@ class JSONRPCController(CharacterControlServer):
 
         if not control_requests:
             e = self.emitter.InvalidRequest()
-            return self.emitter(e=e)
+            return self.emitter.error(e)
 
         batch_size = 0
         for request in control_requests:  # TODO: parallelism
@@ -332,7 +332,7 @@ class JSONRPCController(CharacterControlServer):
             control_request = json.loads(control_request)
         except JSONDecodeError:
             e = self.emitter.ParseError()
-            return self.emitter(e=e)
+            return self.emitter.error(e)
 
         # Handle batch of messages
         if isinstance(control_request, list):
@@ -343,12 +343,12 @@ class JSONRPCController(CharacterControlServer):
             return self.handle_message(message=control_request, *args, **kwargs)
 
         except self.emitter.JSONRPCError as e:
-            return self.emitter(e=e)
+            return self.emitter.error(e)
 
         except Exception as e:
             if self.crash_on_error:
                 raise
-            return self.emitter(e=e)
+            return self.emitter.error(e)
 
 
 class WebController(CharacterControlServer):

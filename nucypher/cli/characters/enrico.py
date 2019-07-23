@@ -28,9 +28,9 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
         raise click.BadArgumentUsage('--policy-encrypting-key is required to start Enrico.')
 
     # Banner
-    click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
-        click.secho(ENRICO_BANNER)
+    emitter = click_config.emitter
+    emitter.clear()
+    emitter.banner(ENRICO_BANNER)
 
     #
     # Make Enrico
@@ -38,8 +38,7 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
 
     policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
-    if click_config.json_ipc:
-        ENRICO.controller.emitter = JSONRPCStdoutEmitter(quiet=click_config.quiet)
+    ENRICO.controller.emitter = emitter # TODO: set it on object creation? Or not set at all?
 
     #
     # Actions

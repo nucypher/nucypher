@@ -109,6 +109,8 @@ def ursula(click_config,
 
     """
 
+    emitter = click_config.emitter
+
     #
     # Validate
     #
@@ -123,8 +125,7 @@ def ursula(click_config,
                                        message="Staking address canot be used in federated mode.")
 
     # Banner
-    if not click_config.json_ipc and not click_config.quiet:
-        click.secho(URSULA_BANNER.format(worker_address or ''))
+    emitter.banner(URSULA_BANNER.format(worker_address or ''))
 
     #
     # Pre-Launch Warnings
@@ -132,9 +133,9 @@ def ursula(click_config,
 
     if not click_config.quiet:
         if dev:
-            click.secho("WARNING: Running in Development mode", fg='yellow')
+            emitter.echo("WARNING: Running in Development mode", color='yellow')
         if force:
-            click.secho("WARNING: Force is enabled", fg='yellow')
+            emitter.echo("WARNING: Force is enabled", color='yellow')
 
     #
     # Internal Ethereum Client
@@ -166,16 +167,16 @@ def ursula(click_config,
             blockchain.connect(fetch_registry=False)
 
             if not staker_address:
-                staker_address = select_client_account(blockchain=blockchain)
+                staker_address = select_client_account(emitter=emitter, blockchain=blockchain)
 
             if not worker_address:
-                worker_address = select_client_account(blockchain=blockchain)
+                worker_address = select_client_account(emitter=emitter, blockchain=blockchain)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
         if not rest_host:
-            rest_host = actions.determine_external_ip_address(force=force)
+            rest_host = actions.determine_external_ip_address(emitter, force=force)
 
         ursula_config = UrsulaConfiguration.generate(password=get_password(confirm=True),
                                                      config_root=config_root,
@@ -192,7 +193,7 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        painting.paint_new_installation_help(new_configuration=ursula_config)
+        painting.paint_new_installation_help(emitter, new_configuration=ursula_config)
         return
 
     #
@@ -232,7 +233,7 @@ def ursula(click_config,
             if click_config.debug:
                 raise
             else:
-                click.secho(str(e), fg='red', bold=True)
+                emitter.echo(str(e), color='red', bold=True)
                 raise click.Abort
 
     #
@@ -245,7 +246,7 @@ def ursula(click_config,
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode - There is nothing to destroy."
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(character_config=ursula_config, force=force)
+        return actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
 
     #
     # Make Ursula
@@ -269,23 +270,23 @@ def ursula(click_config,
         try:
 
             # Ursula Deploy Warnings
-            click_config.emit(
-                message="Starting Ursula on {}".format(URSULA.rest_interface),
+            emitter.message(
+                f"Starting Ursula on {URSULA.rest_interface}",
                 color='green',
                 bold=True)
 
-            click_config.emit(
-                message="Connecting to {}".format(','.join(ursula_config.domains)),
+            emitter.message(
+                f"Connecting to {','.join(ursula_config.domains)}",
                 color='green',
                 bold=True)
 
-            click_config.emit(
-                message=f"Working ~ Keep Ursula Online!",
+            emitter.message(
+                "Working ~ Keep Ursula Online!",
                 color='blue',
                 bold=True)
 
             if interactive:
-                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
+                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA, emitter=emitter))
 
             if dry_run:
                 return  # <-- ABORT - (Last Chance)
@@ -299,47 +300,48 @@ def ursula(click_config,
         # Handle Crash
         except Exception as e:
             ursula_config.log.critical(str(e))
-            click_config.emit(
-                message="{} {}".format(e.__class__.__name__, str(e)),
+            emitter.message(
+                f"{e.__class__.__name__} {e}",
                 color='red',
                 bold=True)
             raise  # Crash :-(
 
         # Graceful Exit
         finally:
-            click_config.emit(message="Stopping Ursula", color='green')
+            emitter.message("Stopping Ursula", color='green')
             ursula_config.cleanup()
-            click_config.emit(message="Ursula Stopped", color='red')
+            emitter.message("Ursula Stopped", color='red')
         return
 
     elif action == "save-metadata":
         """Manually save a node self-metadata file"""
         metadata_path = ursula.write_node_metadata(node=URSULA)
-        return click_config.emit(message="Successfully saved node metadata to {}.".format(metadata_path), color='green')
+        emitter.message(f"Successfully saved node metadata to {metadata_path}.", color='green')
+        return
 
     elif action == "view":
         """Paint an existing configuration to the console"""
 
         if not URSULA.federated_only:
-            click.secho("BLOCKCHAIN ----------\n")
-            painting.paint_contract_status(click_config=click_config, ursula_config=ursula_config)
+            emitter.echo("BLOCKCHAIN ----------\n")
+            painting.paint_contract_status(emitter, ursula_config=ursula_config)
             current_block = URSULA.blockchain.w3.eth.blockNumber
-            click.secho(f'Block # {current_block}')
-            click.secho(f'NU Balance: {URSULA.token_balance}')
-            click.secho(f'ETH Balance: {URSULA.eth_balance}')
-            click.secho(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
+            emitter.echo(f'Block # {current_block}')
+            emitter.echo(f'NU Balance: {URSULA.token_balance}')
+            emitter.echo(f'ETH Balance: {URSULA.eth_balance}')
+            emitter.echo(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
 
-        click.secho("CONFIGURATION --------")
+        emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return click_config.emit(response=response)
+        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and duration here?
 
     elif action == "forget":
-        actions.forget(configuration=ursula_config)
+        actions.forget(emitter, configuration=ursula_config)
         return
 
     elif action == 'confirm-activity':
         if not URSULA.stakes:
-            click.secho("There are no active stakes for {}".format(URSULA.checksum_address))
+            emitter.echo(f"There are no active stakes for {URSULA.checksum_address}")
             return
         URSULA.staking_agent.confirm_activity(node_address=URSULA.checksum_address)
         return

@@ -24,10 +24,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import SEEDNODES
-
-emitter = StdoutEmitter()
 
 
 def echo_version(ctx, param, value):
@@ -37,25 +34,25 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(new_configuration):
+def paint_new_installation_help(emitter, new_configuration):
     character_config_class = new_configuration.__class__
     character_name = character_config_class._NAME.lower()
 
-    emitter(message="Generated keyring {}".format(new_configuration.keyring_root), color='green')
-    emitter(message="Saved configuration file {}".format(new_configuration.config_file_location), color='green')
+    emitter.message("Generated keyring {}".format(new_configuration.keyring_root), color='green')
+    emitter.message("Saved configuration file {}".format(new_configuration.config_file_location), color='green')
 
     # Felix
     if character_name == 'felix':
         suggested_db_command = 'nucypher felix createdb'
         how_to_proceed_message = f'\nTo initialize a new faucet database run:'
-        emitter(message=how_to_proceed_message, color='green')
-        emitter(message=f'\n\'{suggested_db_command}\'', color='green')
+        emitter.message(how_to_proceed_message, color='green')
+        emitter.message(f'\n\'{suggested_db_command}\'', color='green')
 
     # Ursula
     elif character_name == 'ursula' and not new_configuration.federated_only:
         suggested_staking_command = f'nucypher ursula stake'
         how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
-        emitter(message=how_to_stake_message, color='green')
+        emitter.message(how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
     vowels = ('a', 'e', 'i', 'o', 'u')
@@ -64,7 +61,7 @@ def paint_new_installation_help(new_configuration):
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
-    return emitter(message=how_to_run_message.format(suggested_command), color='green')
+    emitter.message(how_to_run_message.format(suggested_command), color='green')
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -84,7 +81,7 @@ def build_fleet_state_status(ursula) -> str:
     return fleet_state
 
 
-def paint_node_status(ursula, start_time):
+def paint_node_status(emitter, ursula, start_time):
 
     # Build Learning status line
     learning_status = "Unknown"
@@ -119,10 +116,10 @@ def paint_node_status(ursula, start_time):
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
         stats.extend([current_period, staking_address])
 
-    click.echo('\n' + '\n'.join(stats) + '\n')
+    emitter.echo('\n' + '\n'.join(stats) + '\n')
 
 
-def paint_known_nodes(ursula) -> None:
+def paint_known_nodes(emitter, ursula) -> None:
     # Gather Data
     known_nodes = ursula.known_nodes
     number_of_known_nodes = len(ursula.node_storage.all(federated_only=ursula.federated_only))
@@ -131,17 +128,17 @@ def paint_known_nodes(ursula) -> None:
     # Operating Mode
     federated_only = ursula.federated_only
     if federated_only:
-        click.secho("Configured in Federated Only mode", fg='green')
+        emitter.echo("Configured in Federated Only mode", color='green')
 
     # Heading
     label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
     heading = '\n' + label + " " * (45 - len(label))
-    click.secho(heading, bold=True, nl=True)
+    emitter.echo(heading, bold=True)
 
     # Build FleetState status line
     fleet_state = build_fleet_state_status(ursula=ursula)
     fleet_status_line = 'Fleet State {}'.format(fleet_state)
-    click.secho(fleet_status_line, fg='blue', bold=True, nl=True)
+    emitter.echo(fleet_status_line, color='blue', bold=True)
 
     # Legend
     color_index = {
@@ -152,8 +149,8 @@ def paint_known_nodes(ursula) -> None:
 
     # Ledgend
     # for node_type, color in color_index.items():
-    #     click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
-    # click.echo('\n')
+    #     emitter.echo('{0:<6} | '.format(node_type), color=color, nl=False)
+    # emitter.echo('\n')
 
     seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
 
@@ -166,10 +163,10 @@ def paint_known_nodes(ursula) -> None:
         elif node.checksum_address in seednode_addresses:
             node_type = 'seednode'
             row_template += ' ({})'.format(node_type)
-        click.secho(row_template.format(node.rest_url().ljust(20), node), fg=color_index[node_type])
+        emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(ursula_config, click_config):
+def paint_contract_status(emitter, ursula_config):
     contract_payload = """
 
 | NuCypher ETH Contracts |
@@ -187,7 +184,7 @@ PolicyManager ............ {manager}
                escrow=ursula_config.staking_agent.contract_address,
                manager=ursula_config.policy_agent.contract_address,
                period=ursula_config.staking_agent.get_current_period())
-    click.secho(contract_payload)
+    emitter.echo(contract_payload)
 
     network_payload = """
 | Blockchain Network |
@@ -199,10 +196,11 @@ Active Staking Ursulas ... {ursulas}
     """.format(period=ursula_config.staking_agent.get_current_period(),
                gas_price=ursula_config.blockchain.client.gasPrice,
                ursulas=ursula_config.staking_agent.get_staker_population())
-    click.secho(network_payload)
+    emitter.echo(network_payload)
 
 
-def paint_staged_stake(ursula,
+def paint_staged_stake(emitter,
+                       ursula,
                        stake_value,
                        duration,
                        start_period,
@@ -210,12 +208,12 @@ def paint_staged_stake(ursula,
                        division_message: str = None):
 
     if division_message:
-        click.secho(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
-        click.secho(division_message)
+        emitter.echo(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
+        emitter.echo(division_message)
 
-    click.secho(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
+    emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
 
-    click.echo(f"""
+    emitter.echo(f"""
 {ursula}
 ~ Chain      -> ID # {ursula.blockchain.client.chain_id} | {ursula.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
@@ -224,20 +222,20 @@ def paint_staged_stake(ursula,
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
     """)
 
-    click.secho('=========================================================================', bold=True)
+    emitter.echo('=========================================================================', bold=True)
 
 
-def paint_staking_confirmation(ursula, transactions):
-    click.secho(f'\nEscrow Address ... {ursula.staking_agent.contract_address}', fg='blue')
+def paint_staking_confirmation(emitter, ursula, transactions):
+    emitter.echo(f'\nEscrow Address ... {ursula.staking_agent.contract_address}', color='blue')
     for tx_name, receipt in transactions.items():
-        click.secho(f'{tx_name.capitalize()} .......... {receipt["transactionHash"].hex()}', fg='green')
-    click.secho(f'''
+        emitter.echo(f'{tx_name.capitalize()} .......... {receipt["transactionHash"].hex()}', color='green')
+    emitter.echo(f'''
 
 Successfully transmitted stake initialization transactions.
 
 View your stakes by running 'nucypher stake list'
 or set your Ursula worker node address by running 'nucypher stake set-worker'.
-''', fg='green')
+''', color='green')
 
 
 def prettify_stake(stake, index: int = None) -> str:
@@ -259,25 +257,25 @@ def prettify_stake(stake, index: int = None) -> str:
     return pretty
 
 
-def paint_stakes(stakes):
+def paint_stakes(emitter, stakes):
 
     title = "=========================== Active Stakes ==============================\n"
 
     header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
     breaky = f'|   | ------ | ------ | - | -------- | ------------ | ------------------ '
 
-    click.secho(title)
-    click.secho(header, bold=True)
-    click.secho(breaky, bold=True)
+    emitter.echo(title)
+    emitter.echo(header, bold=True)
+    emitter.echo(breaky, bold=True)
     for index, stake in enumerate(stakes):
         row = prettify_stake(stake=stake, index=index)
         row_color = 'yellow' if stake.worker_address == BlockchainInterface.NULL_ADDRESS else 'white'
-        click.secho(row, fg=row_color)
-    click.secho('')  # newline
-    return
+        emitter.echo(row, color=row_color)
+    emitter.echo('')  # newline
 
 
-def paint_staged_stake_division(ursula,
+def paint_staged_stake_division(emitter,
+                                ursula,
                                 original_stake,
                                 target_value,
                                 extension):
@@ -290,7 +288,8 @@ def paint_staged_stake_division(ursula,
 ~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
-    paint_staged_stake(ursula=ursula,
+    paint_staged_stake(emitter=emitter,
+                       ursula=ursula,
                        stake_value=target_value,
                        duration=new_duration,
                        start_period=original_stake.start_period,
@@ -299,6 +298,8 @@ def paint_staged_stake_division(ursula,
 
 
 def paint_contract_deployment(contract_name: str, contract_address: str, receipts: dict):
+
+    # TODO: switch to using an explicit emitter
 
     # Paint heading
     heading = '\n{} ({})'.format(contract_name, contract_address)

@@ -30,6 +30,7 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import actions
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import get_password, select_client_account
 from nucypher.cli.painting import paint_contract_deployment
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
@@ -79,6 +80,8 @@ def deploy(action,
 
     ETH_NODE = None
 
+    emitter = StdoutEmitter()
+
     #
     # Validate
     #
@@ -115,7 +118,7 @@ def deploy(action,
     try:
         blockchain.connect(fetch_registry=False, sync_now=sync)
     except BlockchainDeployerInterface.ConnectionFailed as e:
-        click.secho(str(e), fg='red', bold=True)
+        emitter.echo(str(e), color='red', bold=True)
         raise click.Abort()
 
     #
@@ -123,7 +126,7 @@ def deploy(action,
     #
 
     if not deployer_address:
-        deployer_address = select_client_account(blockchain=blockchain)
+        deployer_address = select_client_account(emitter=emitter, blockchain=blockchain)
 
     # Verify Address
     if not force:
@@ -138,9 +141,9 @@ def deploy(action,
                              deployer_address=deployer_address)
 
     # Verify ETH Balance
-    click.secho(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
+    emitter.echo(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
     if deployer.eth_balance == 0:
-        click.secho("Deployer address has no ETH.", fg='red', bold=True)
+        emitter.echo("Deployer address has no ETH.", color='red', bold=True)
         raise click.Abort()
 
     # Add ETH Bootnode or Peer
@@ -179,7 +182,7 @@ def deploy(action,
                 contract_deployer = deployer.deployers[contract_name]
             except KeyError:
                 message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
-                click.secho(message, fg='red', bold=True)
+                emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
             else:
                 click.secho(f"Deploying {contract_name}")
@@ -208,34 +211,33 @@ def deploy(action,
         #
         secrets = deployer.collect_deployment_secrets()
 
-        click.clear()
-        click.secho(NU_BANNER)
+        emitter.clear()
+        emitter.banner(NU_BANNER)
 
-        click.secho(f"Current Time ........ {maya.now().iso8601()}")
-        click.secho(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
-        click.secho(f"Block ............... {deployer.blockchain.client.block_number}")
-        click.secho(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
+        emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
+        emitter.echo(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
+        emitter.echo(f"Block ............... {deployer.blockchain.client.block_number}")
+        emitter.echo(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
 
-        click.secho(f"Deployer Address .... {deployer.checksum_address}")
-        click.secho(f"ETH ................. {deployer.eth_balance}")
-        click.secho(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
-        click.secho(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
+        emitter.echo(f"Deployer Address .... {deployer.checksum_address}")
+        emitter.echo(f"ETH ................. {deployer.eth_balance}")
+        emitter.echo(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
+        emitter.echo(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
 
         # Ask - Last chance to gracefully abort. This step cannot be forced.
-        click.secho("\nDeployment successfully staged. Take a deep breath. \n", fg='green')
-
+        emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')
         # Trigger Deployment
-        if not actions.confirm_deployment(deployer=deployer):
+        if not actions.confirm_deployment(emitter=emitter, deployer=deployer):
             raise click.Abort()
 
         # Delay - Last chance to crash and abort
-        click.secho(f"Starting deployment in 3 seconds...", fg='red')
+        emitter.echo(f"Starting deployment in 3 seconds...", color='red')
         time.sleep(1)
-        click.secho(f"2...", fg='yellow')
+        emitter.echo(f"2...", color='yellow')
         time.sleep(1)
-        click.secho(f"1...", fg='green')
+        emitter.echo(f"1...", color='green')
         time.sleep(1)
-        click.secho(f"Deploying...", bold=True)
+        emitter.echo(f"Deploying...", bold=True)
 
         #
         # DEPLOY
@@ -248,13 +250,14 @@ def deploy(action,
 
         # Paint outfile paths
         # TODO: Echo total gas used.
-        # click.secho("Cumulative Gas Consumption: {} gas".format(total_gas_used), bold=True, fg='blue')
+        # emitter.echo(f"Cumulative Gas Consumption: {total_gas_used} gas", bold=True, color='blue')
+
         registry_outfile = deployer.blockchain.registry.filepath
-        click.secho('Generated registry {}'.format(registry_outfile), bold=True, fg='blue')
+        emitter.echo('Generated registry {}'.format(registry_outfile), bold=True, color='blue')
 
         # Save transaction metadata
         receipts_filepath = deployer.save_deployment_receipts(receipts=deployment_receipts)
-        click.secho(f"Saved deployment receipts to {receipts_filepath}", fg='blue', bold=True)
+        emitter.echo(f"Saved deployment receipts to {receipts_filepath}", color='blue', bold=True)
 
     elif action == "allocations":
         if not allocation_infile:
@@ -267,7 +270,7 @@ def deploy(action,
         token_agent = NucypherTokenAgent(blockchain=blockchain)
         click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
         txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
-        click.secho(f"OK | {txhash}")
+        emitter.echo(f"OK | {txhash}")
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")

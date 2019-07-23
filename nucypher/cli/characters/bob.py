@@ -60,9 +60,9 @@ def bob(click_config,
     #
 
     # Banner
-    click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
-        click.secho(BOB_BANNER)
+    emitter = click_config.emitter
+    emitter.clear()
+    emitter.banner(BOB_BANNER)
 
     #
     # Eager Actions
@@ -86,13 +86,13 @@ def bob(click_config,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
-        return painting.paint_new_installation_help(new_configuration=new_bob_config)
+        return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
     # TODO
     # elif action == "view":
     #     """Paint an existing configuration to the console"""
     #     response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-    #     return BOB.controller.emitter(response=response)
+    #     return BOB.controller.emitter.ipc(response)
 
     #
     # Make Bob
@@ -132,7 +132,7 @@ def bob(click_config,
     if action == "run":
 
         # Echo Public Keys
-        click_config.emit(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
+        emitter.message(f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
 
         # RPC
         if click_config.json_ipc:
@@ -141,9 +141,9 @@ def bob(click_config,
             rpc_controller.start()
             return
 
-        click_config.emitter(message=f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
+        emitter.message(f"Bob Verifying Key {bytes(BOB.stamp).hex()}", color='green', bold=True)
         bob_encrypting_key = bytes(BOB.public_keys(DecryptingPower)).hex()
-        click_config.emit(message=f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
+        emitter.message(f"Bob Encrypting Key {bob_encrypting_key}", color="blue", bold=True)
 
         # Start Controller
         controller = BOB.make_control_transport()
@@ -159,7 +159,7 @@ def bob(click_config,
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
         # Request
-        return actions.destroy_configuration(character_config=bob_config)
+        return actions.destroy_configuration(emitter, character_config=bob_config)
 
     #
     # Bob API Actions
