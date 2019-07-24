@@ -122,12 +122,15 @@ def test_ursula_rest_host_determination(click_runner):
 
     # Patch the get_external_ip call
     original_call = actions.get_external_ip_from_centralized_source
+    original_save = UrsulaConfiguration.to_configuration_file
+
     try:
         actions.get_external_ip_from_centralized_source = lambda: '192.0.2.0'
+        UrsulaConfiguration.to_configuration_file = lambda s: None
 
         args = ('ursula', 'init',
                 '--federated-only',
-                '--network', TEMPORARY_DOMAIN
+                '--network', TEMPORARY_DOMAIN,
                 )
 
         user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
@@ -172,3 +175,4 @@ def test_ursula_rest_host_determination(click_runner):
     finally:
         # Unpatch call
         actions.get_external_ip_from_centralized_source = original_call
+        UrsulaConfiguration.to_configuration_file = original_save
