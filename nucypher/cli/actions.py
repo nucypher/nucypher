@@ -174,17 +174,18 @@ def forget(emitter, configuration):
     emitter.message(message, color='red')
 
 
-def confirm_staged_stake(stakeholder, value, duration):
+def confirm_staged_stake(staker_address, value, duration) -> None:
     click.confirm(f"""
 * Ursula Node Operator Notice *
 -------------------------------
 
 By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
 
-- Staked tokens will be locked, and unavailable for transactions for the stake duration.
+- Staked tokens will be locked for the stake duration.
 
-- You are obligated to maintain a networked and available Ursula-Worker node with the
-  for the duration of the stake(s) ({duration} periods)
+- You are obligated to maintain a networked and available Ursula-Worker node 
+  bonded to the staker address {staker_address} for the duration 
+  of the stake(s) ({duration} periods).
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference.
@@ -193,8 +194,8 @@ Failure to keep your node online, or violation of re-encryption work orders
 will result in the loss of staked tokens as described in the NuCypher slashing protocol.
 
 Keeping your Ursula node online during the staking period and successfully
-performing accurate re-encryption work orders will result in rewards
-paid out in ETH retro-actively, on-demand.
+producing correct re-encryption work orders will result in rewards
+paid out in ethers retro-actively and on-demand.
 
 Accept ursula node operator obligation?""", abort=True)
 
@@ -268,7 +269,7 @@ def make_cli_character(character_config,
     #
 
     if CHARACTER.controller is not NO_CONTROL_PROTOCOL:
-        CHARACTER.controller.emitter = emitter # TODO: set it on object creation? Or not set at all?
+        CHARACTER.controller.emitter = emitter  # TODO: set it on object creation? Or not set at all?
 
     # Federated
     if character_config.federated_only:
@@ -277,11 +278,10 @@ def make_cli_character(character_config,
     return CHARACTER
 
 
-def select_stake(stakeholder) -> Stake:
+def select_stake(stakeholder, emitter) -> Stake:
     enumerated_stakes = dict(enumerate(stakeholder.stakes))
-    painting.paint_stakes(stakes=stakeholder.stakes)
+    painting.paint_stakes(stakes=stakeholder.stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
-
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
 
@@ -305,8 +305,7 @@ def confirm_deployment(emitter, deployer) -> bool:
         confirmed_chain_id = int(click.prompt("Enter the Chain ID to confirm deployment", type=click.INT))
         expected_chain_id = int(deployer.blockchain.client.chain_id)
         if confirmed_chain_id != expected_chain_id:
-            emitter.echo(f"Chain ID not a match ({confirmed_chain_id} != {expected_chain_id}) Aborting Deployment",
-                        fg='red',
-                        bold=True)
+            abort_message = f"Chain ID not a match ({confirmed_chain_id} != {expected_chain_id}) Aborting Deployment"
+            emitter.echo(abort_message, fg='red', bold=True)
             raise click.Abort()
     return True

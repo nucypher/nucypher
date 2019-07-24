@@ -75,17 +75,14 @@ def stake(click_config,
     if action == 'new-stakeholder':
 
         if not provider_uri:
-            raise click.BadOptionUsage(option_name='--provider-uri',
-                                       message="--provider-uri is required to create a new stakeholder.")
+            raise click.BadOptionUsage(option_name='--provider',
+                                       message="--provider is required to create a new stakeholder.")
 
         registry = None
         if registry_filepath:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-
-        blockchain = BlockchainInterface(provider_uri=provider_uri,
-                                         registry=registry,
-                                         poa=poa)
-        blockchain.connect()  # TODO: Leave this here?
+        blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+        blockchain.connect()
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       offline_mode=offline,
@@ -129,7 +126,7 @@ def stake(click_config,
     elif action == 'set-worker':
 
         if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER).owner_address
+            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
 
         if not worker_address:
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
@@ -153,7 +150,9 @@ def stake(click_config,
 
         password = None
         if not staking_address:
-            staking_address = select_client_account(blockchain=STAKEHOLDER.blockchain, prompt="Select staking account")
+            staking_address = select_client_account(blockchain=STAKEHOLDER.blockchain,
+                                                    prompt="Select staking account",
+                                                    emitter=emitter)
 
         if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:  # TODO: encapsulate/recycle in function?
             password = click.prompt(f"Enter password to unlock {staking_address}",
@@ -187,7 +186,7 @@ def stake(click_config,
                                         start_period=start_period,
                                         end_period=end_period)
 
-            confirm_staged_stake(stakeholder=STAKEHOLDER, value=value, duration=duration)
+            confirm_staged_stake(staker_address=staking_address, value=value, duration=duration)
 
         # Last chance to bail
         click.confirm("Publish staged stake to the blockchain?", abort=True)
@@ -210,7 +209,7 @@ def stake(click_config,
             staker = STAKEHOLDER.get_active_staker(address=staking_address)
             current_stake = staker.stakes[index]
         else:
-            current_stake = select_stake(stakeholder=STAKEHOLDER)
+            current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
 
         #
         # Stage Stake
