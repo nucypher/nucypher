@@ -149,7 +149,7 @@ def deploy(action,
     # Add ETH Bootnode or Peer
     if enode:
         blockchain.client.add_peer(enode)
-        click.secho(f"Added ethereum peer {enode}")
+        emitter.echo(f"Added ethereum peer {enode}")
 
     #
     # Action switch
@@ -185,7 +185,7 @@ def deploy(action,
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
             else:
-                click.secho(f"Deploying {contract_name}")
+                emitter.echo(f"Deploying {contract_name}")
                 if contract_deployer._upgradeable:
                     secret = deployer.collect_deployment_secret(deployer=contract_deployer)
                     receipts, agent = deployer.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
@@ -193,15 +193,16 @@ def deploy(action,
                     receipts, agent = deployer.deploy_contract(contract_name=contract_name, gas_limit=gas)
                 paint_contract_deployment(contract_name=contract_name,
                                           contract_address=agent.contract_address,
-                                          receipts=receipts)
+                                          receipts=receipts,
+                                          emitter=emitter)
             if ETH_NODE:
                 ETH_NODE.stop()
             return
 
         registry_filepath = deployer.blockchain.registry.filepath
         if os.path.isfile(registry_filepath):
-            click.secho(f"\nThere is an existing contract registry at {registry_filepath}.\n"
-                        f"Did you mean 'nucypher-deploy upgrade'?\n", fg='yellow')
+            emitter.echo(f"\nThere is an existing contract registry at {registry_filepath}.\n"
+                         f"Did you mean 'nucypher-deploy upgrade'?\n", color='yellow')
             click.confirm("Optionally, destroy existing local registry and continue?", abort=True)
             click.confirm(f"Confirm deletion of contract registry '{registry_filepath}'?", abort=True)
             os.remove(registry_filepath)
@@ -242,7 +243,7 @@ def deploy(action,
         #
         # DEPLOY
         #
-        deployment_receipts = deployer.deploy_network_contracts(secrets=secrets)
+        deployment_receipts = deployer.deploy_network_contracts(secrets=secrets, emitter=emitter)
 
         #
         # Success

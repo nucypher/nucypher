@@ -24,6 +24,7 @@ from web3.auto import w3
 from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
@@ -56,7 +57,7 @@ def test_rapid_deployment(token_economics):
     for deployer_class in deployer.upgradeable_deployer_classes:
         secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
 
-    deployer.deploy_network_contracts(secrets=secrets)
+    deployer.deploy_network_contracts(secrets=secrets, emitter=StdoutEmitter())
 
     all_yall = blockchain.unassigned_accounts
 

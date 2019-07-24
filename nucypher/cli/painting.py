@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
+
 from decimal import Decimal
 
 import click
@@ -297,19 +297,19 @@ def paint_staged_stake_division(emitter,
                        division_message=division_message)
 
 
-def paint_contract_deployment(contract_name: str, contract_address: str, receipts: dict):
+def paint_contract_deployment(emitter, contract_name: str, contract_address: str, receipts: dict):
 
     # TODO: switch to using an explicit emitter
 
     # Paint heading
     heading = '\n{} ({})'.format(contract_name, contract_address)
-    click.secho(heading, bold=True)
-    click.echo('*' * (42 + 3 + len(contract_name)))
+    emitter.echo(heading, bold=True)
+    emitter.echo('*' * (42 + 3 + len(contract_name)))
 
     # Paint Transactions
     for tx_name, receipt in receipts.items():
-        click.secho("OK", fg='green', nl=False, bold=True)
-        click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
-        click.secho(" | {}".format(receipt['transactionHash'].hex()), fg='yellow', nl=False)
-        click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
-        click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
+        emitter.echo("OK", color='green', nl=False, bold=True)
+        emitter.echo(" | {}".format(tx_name), color='yellow', nl=False)
+        emitter.echo(" | {}".format(receipt['transactionHash'].hex()), color='yellow', nl=False)
+        emitter.echo(" ({} gas)".format(receipt['cumulativeGasUsed']))
+        emitter.echo("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))

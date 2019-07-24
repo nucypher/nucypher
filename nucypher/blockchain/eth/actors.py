@@ -59,6 +59,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.painting import paint_contract_deployment
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -272,7 +273,19 @@ class DeployerActor(NucypherTokenActor):
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
 
-    def deploy_network_contracts(self, secrets: dict, interactive: bool = True) -> dict:
+    def deploy_network_contracts(self,
+                                 secrets: dict, interactive: bool = True,
+                                 emitter: StdoutEmitter = None) -> dict:
+        """
+
+        :param secrets: Contract upgrade secrets dictionary
+        :param interactive: If True, wait for keypress after each contract deployment
+        :param emitter: A console output emitter instance. If emitter is None, no output will be echoed to the console.
+        :return: Returns a dictionary of deployment receipts keyed by contract name
+        """
+
+        if interactive and not emitter:
+            raise ValueError("'emitter' is a required keyword argument when interactive is True.")
 
         deployment_receipts = dict()
         gas_limit = None  # TODO: Gas management
@@ -280,9 +293,13 @@ class DeployerActor(NucypherTokenActor):
         # NuCypherToken
         token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                                               gas_limit=gas_limit)
-        paint_contract_deployment(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
-                                  receipts=token_receipts,
-                                  contract_address=token_deployer.contract_address)
+
+        if emitter:
+            paint_contract_deployment(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
+                                      receipts=token_receipts,
+                                      contract_address=token_deployer.contract_address,
+                                      emitter=emitter)
+
         deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
         if interactive:
             click.pause(info="Press any key to continue")
@@ -291,9 +308,12 @@ class DeployerActor(NucypherTokenActor):
             receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
                                                       plaintext_secret=secrets[contract_deployer.contract_name],
                                                       gas_limit=gas_limit)
-            paint_contract_deployment(contract_name=contract_deployer.contract_name,
-                                      receipts=receipts,
-                                      contract_address=deployer.contract_address)
+
+            if emitter:
+                paint_contract_deployment(contract_name=contract_deployer.contract_name,
+                                          receipts=receipts,
+                                          contract_address=deployer.contract_address,
+                                          emitter=emitter)
             deployment_receipts[contract_deployer.contract_name] = receipts
             if interactive:
                 click.pause(info="Press any key to continue")
