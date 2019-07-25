@@ -218,7 +218,7 @@ class DeployerActor(NucypherTokenActor):
         return Deployer
 
     @staticmethod
-    def __collect_deployment_secret(deployer) -> str:
+    def collect_deployment_secret(deployer) -> str:
         secret = click.prompt(f'Enter {deployer.contract_name} Deployment Secret',
                               hide_input=True,
                               confirmation_prompt=True)
@@ -227,7 +227,7 @@ class DeployerActor(NucypherTokenActor):
     def collect_deployment_secrets(self) -> dict:
         secrets = dict()
         for deployer in self.upgradeable_deployer_classes:
-            secrets[deployer.contract_name] = self.__collect_deployment_secret(deployer)
+            secrets[deployer.contract_name] = self.collect_deployment_secret(deployer)
         return secrets
 
     def deploy_contract(self,

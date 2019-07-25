@@ -318,7 +318,7 @@ class BlockchainInterface:
             payload = {}
 
         nonce = self.client.w3.eth.getTransactionCount(sender_address)
-        payload.update({'chainId': int(self.client.chain_id),
+        payload.update({'chainId': int(self.client.net_version),
                         'nonce': nonce,
                         'from': sender_address,
                         'gasPrice': self.client.gas_price,
@@ -455,6 +455,7 @@ class BlockchainInterface:
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
+    TIMEOUT = 600  # seconds
     _contract_factory = Contract
 
     class NoDeployerAddress(RuntimeError):
