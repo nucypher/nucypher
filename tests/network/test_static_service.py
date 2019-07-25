@@ -24,6 +24,7 @@ from twisted.internet import threads
 
 from nucypher.characters.lawful import Ursula
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
+from nucypher.config.constants import STATICS_DIR
 
 
 @pytest_twisted.inlineCallbacks
@@ -40,7 +41,10 @@ def test_ursula_serves_statics(ursula_federated_test_config):
 
     def check_static_service(node, cert_file):
 
-        response = requests.get("https://{}/statics/javascript/test.js".format(node.rest_url()), verify=cert_file)
+        response = requests.get(
+            "https://{}/statics/test-never-make-a-file-with-this-name.js".format(node.rest_url()),
+            verify=cert_file
+        )
         assert response.status_code == 200
         assert "I am Javascript" in response.text
 
@@ -49,13 +53,11 @@ def test_ursula_serves_statics(ursula_federated_test_config):
     try:
         with open("test-cert", "wb") as f:
             f.write(cert_bytes)
-        STATICS_DIR = tempfile.mkdtemp()
-        os.makedirs(os.path.join(STATICS_DIR, 'javascript'), exist_ok=True)
-        with open(os.path.join(STATICS_DIR, 'javascript', 'test.js'), 'w+') as fout:
+        os.makedirs(os.path.join(STATICS_DIR), exist_ok=True)
+        with open(os.path.join(STATICS_DIR, 'test-never-make-a-file-with-this-name.js'), 'w+') as fout:
             fout.write("console.log('I am Javascript')\n")
             fout.close()
         yield threads.deferToThread(check_static_service, node, "test-cert")
     finally:
         os.remove("test-cert")
-        os.remove(os.path.join(STATICS_DIR, 'javascript', 'test.js'))
-        os.removedirs(os.path.join(STATICS_DIR, 'javascript'))
+        os.remove(os.path.join(STATICS_DIR, 'test-never-make-a-file-with-this-name.js'))
