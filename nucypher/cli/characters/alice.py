@@ -19,7 +19,7 @@ from nucypher.config.characters import AliceConfiguration
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--controller-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT)
+@click.option('--controller-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT, default=AliceConfiguration.DEFAULT_CONTROLLER_PORT)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -84,6 +84,9 @@ def alice(click_config,
           message_kit,
 
           ):
+    """
+    "Alice the Policy Authority" management commands.
+    """
 
     #
     # Validate
@@ -212,26 +215,30 @@ def alice(click_config,
     if action == "run":
         """Start Alice Controller"""
 
-        # RPC
-        if click_config.json_ipc:
-            rpc_controller = ALICE.make_rpc_controller()
-            _transport = rpc_controller.make_control_transport()
-            rpc_controller.start()
+        try:
+
+            # RPC
+            if click_config.json_ipc:
+                rpc_controller = ALICE.make_rpc_controller()
+                _transport = rpc_controller.make_control_transport()
+                rpc_controller.start()
+                return
+
+            # HTTP
+            else:
+                emitter.message(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
+                controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
+                ALICE.log.info('Starting HTTP Character Web Controller')
+                emitter.message(f'Running HTTP Alice Controller at http://localhost:{controller_port}')
+                return controller.start(http_port=controller_port, dry_run=dry_run)
+
+        # Handle Crash
+        except Exception as e:
+            alice_config.log.critical(str(e))
+            emitter.message(f"{e.__class__.__name__} {e}", color='red', bold=True)
+            if click_config.debug:
+                raise  # Crash :-(
             return
-
-        # HTTP
-        else:
-            emitter.message(f"Alice Verifying Key {bytes(ALICE.stamp).hex()}", color="green", bold=True)
-            controller = ALICE.make_web_controller(crash_on_error=click_config.debug)
-            ALICE.log.info('Starting HTTP Character Web Controller')
-            return controller.start(http_port=controller_port, dry_run=dry_run)
-
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-        if dev:
-            message = "'nucypher alice destroy' cannot be used in --dev mode"
-            raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
 
     #
     # Alice API
@@ -270,7 +277,6 @@ def alice(click_config,
 
         if not ALICE.federated_only:
             grant_request.update({'value': value})
-
         return ALICE.controller.grant(request=grant_request)
 
     elif action == "revoke":

@@ -60,8 +60,6 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--sync/--no-sync', default=True)
-@click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
@@ -82,8 +80,6 @@ def ursula(click_config,
            worker_address,
            federated_only,
            poa,
-           sync,
-           hw_wallet,
            config_root,
            config_file,
            provider_uri,
@@ -92,7 +88,7 @@ def ursula(click_config,
            interactive,
            ) -> None:
     """
-    Manage and run an "Ursula" PRE node.
+    "Ursula the Untrusted" PRE Re-encryption node management commands.
 
     \b
     Actions

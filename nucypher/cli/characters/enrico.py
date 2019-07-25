@@ -16,7 +16,7 @@ from nucypher.cli.types import NETWORK_PORT
 @nucypher_click_config
 def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, message):
     """
-    Start and manage an "Enrico" character control HTTP server
+    "Enrico the Encryptor" management commands.
     """
 
     #

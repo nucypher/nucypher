@@ -53,6 +53,9 @@ def felix(click_config,
           registry_filepath,
           dev,
           force):
+    """
+    "Felix the Faucet" management commands.
+    """
 
     emitter = click_config.emitter
 

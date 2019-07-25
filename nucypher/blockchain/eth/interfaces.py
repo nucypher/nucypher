@@ -222,7 +222,7 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self, fetch_registry: bool = True, sync_now: bool = True):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = False):
 
         # Spawn child process
         if self._provider_process:

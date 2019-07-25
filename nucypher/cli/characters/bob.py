@@ -18,7 +18,7 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
+@click.option('--controller-port', help="The host port to run Bob HTTP services on", type=NETWORK_PORT, default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -100,12 +100,6 @@ def bob(click_config,
 
         return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
 
-    # TODO
-    # elif action == "view":
-    #     """Paint an existing configuration to the console"""
-    #     response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-    #     return BOB.controller.emitter.ipc(response)
-
     #
     # Make Bob
     #
@@ -158,7 +152,12 @@ def bob(click_config,
         # Start Controller
         controller = BOB.make_web_controller(crash_on_error=click_config.debug)
         BOB.log.info('Starting HTTP Character Web Controller')
-        return controller.start(http_port=http_port, dry_run=dry_run)
+        return controller.start(http_port=controller_port , dry_run=dry_run)
+
+    elif action == "view":
+        """Paint an existing configuration to the console"""
+        response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
+        return BOB.controller.emitter.ipc(response)
 
     elif action == "destroy":
         """Delete Bob's character configuration files from the disk"""

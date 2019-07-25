@@ -18,9 +18,8 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @nucypher_click_config
 def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
-
     """
-    "Moe" NuCypher node monitor CLI.
+    "Moe the Monitor" management commands.
     """
 
     emitter = click_config.emitter
