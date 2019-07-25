@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -178,7 +178,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
-        ursula_config = UrsulaConfiguration.generate(password=get_password(confirm=True),
+        ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,

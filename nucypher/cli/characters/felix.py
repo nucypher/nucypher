@@ -5,7 +5,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.banners import FELIX_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password, unlock_nucypher_keyring
+from nucypher.cli.actions import get_nucypher_password, unlock_nucypher_keyring
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import FelixConfiguration
@@ -72,7 +72,7 @@ def felix(click_config,
             config_root = DEFAULT_CONFIG_ROOT       # Envvar or init-only default
 
         try:
-            new_felix_config = FelixConfiguration.generate(password=get_password(confirm=True),
+            new_felix_config = FelixConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                            config_root=config_root,
                                                            rest_host=host,
                                                            rest_port=discovery_port,
@@ -124,7 +124,7 @@ def felix(click_config,
         # Authenticate
         unlock_nucypher_keyring(emitter,
                                 character_configuration=felix_config,
-                                password=get_password(confirm=False))
+                                password=get_nucypher_password(confirm=False))
 
         # Produce Teacher Ursulas
         teacher_nodes = actions.load_seednodes(emitter,

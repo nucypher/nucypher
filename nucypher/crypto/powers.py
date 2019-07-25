@@ -146,7 +146,7 @@ class TransactingPower(CryptoPowerUp):
 
     def activate(self, password: str = None):
         """Be Consumed"""
-        self.blockchain.connect(sync_now=False)
+        self.blockchain.connect(fetch_registry=True, sync_now=False)
         self.unlock_account(password=password or self.__password)
         self.__password = None
         self.blockchain.transacting_power = self

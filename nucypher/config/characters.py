@@ -19,8 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION,
-    NO_KEYRING_ATTACHED
+    UNINITIALIZED_CONFIGURATION
 )
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve

@@ -120,7 +120,12 @@ def test_cli_lifecycle(click_runner,
                        '--json-ipc',
                        '--config-file', alice_configuration_file_location)
 
-    alice_view_result = click_runner.invoke(nucypher_cli, alice_view_args, catch_exceptions=False, env=envvars)
+    alice_view_result = click_runner.invoke(nucypher_cli,
+                                            alice_view_args,
+                                            input=INSECURE_DEVELOPMENT_PASSWORD,
+                                            catch_exceptions=False,
+                                            env=envvars)
+
     assert alice_view_result.exit_code == 0
     alice_view_response = json.loads(alice_view_result.output)
 

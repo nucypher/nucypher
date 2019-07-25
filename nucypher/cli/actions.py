@@ -27,6 +27,7 @@ from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
@@ -65,10 +66,17 @@ class UnknownIPAddress(RuntimeError):
     pass
 
 
-def get_password(confirm: bool = False) -> str:
-    keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
+@validate_checksum_address
+def get_client_password(checksum_address) -> str:
+    prompt = f"Enter password to unlock account {checksum_address}"
+    keyring_password = click.prompt(prompt, hide_input=True)
+    return keyring_password
+
+
+def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
+    keyring_password = os.environ.get(envvar, NO_PASSWORD)
     if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
-        prompt = "Enter keyring password"
+        prompt = "Enter nucypher keyring password"
         keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
     return keyring_password
 
@@ -243,7 +251,7 @@ def make_cli_character(character_config,
         character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
-                                password=get_password(confirm=False))
+                                password=get_nucypher_password(confirm=False))
 
     # Handle Teachers
     teacher_nodes = None

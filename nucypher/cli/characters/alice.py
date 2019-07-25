@@ -5,11 +5,10 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
-from nucypher.cli.actions import get_password
+from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
-from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()
@@ -124,7 +123,15 @@ def alice(click_config,
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_alice_config = AliceConfiguration.generate(password=get_password(confirm=True),
+        if not pay_with and not federated_only:
+            registry = None
+            if registry_filepath:
+                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+            blockchain.connect(sync_now=sync, fetch_registry=False)
+            pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
+
+        new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,
@@ -175,11 +182,28 @@ def alice(click_config,
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)
 
+    if action == "destroy":
+        """Delete all configuration files from the disk"""
+        if dev:
+            message = "'nucypher alice destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+        return actions.destroy_configuration(emitter, character_config=alice_config, force=force)
+
+    #
+    # Produce Alice
+    #
+
+    # TODO: OH MY.
+    client_password = None
+    if not alice_config.federated_only:
+        if (not hw_wallet or not dev) and not click_config.json_ipc:
+            client_password = get_client_password(checksum_address=alice_config.checksum_address)
     ALICE = actions.make_cli_character(character_config=alice_config,
                                        click_config=click_config,
                                        dev=dev,
                                        teacher_uri=teacher_uri,
-                                       min_stake=min_stake)
+                                       min_stake=min_stake,
+                                       client_password=client_password)
 
     #
     # Admin Actions

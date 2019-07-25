@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import actions
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password, select_client_account
 from nucypher.cli.painting import paint_contract_deployment
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -134,7 +134,7 @@ def deploy(action,
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_password(confirm=False)
+        password = get_nucypher_password(confirm=False)
 
     deployer = DeployerActor(blockchain=blockchain,
                              client_password=password,

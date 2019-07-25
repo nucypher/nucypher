@@ -2,7 +2,6 @@ import click
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.banners import ENRICO_BANNER
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT

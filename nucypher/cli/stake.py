@@ -8,14 +8,15 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting
-from nucypher.cli.actions import confirm_staged_stake, get_password, select_stake, select_client_account
+from nucypher.cli.actions import confirm_staged_stake, get_client_password, select_stake, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     STAKE_VALUE,
     STAKE_DURATION,
     STAKE_EXTENSION,
-    EXISTING_READABLE_FILE)
+    EXISTING_READABLE_FILE
+)
 
 
 @click.command()
@@ -155,8 +156,8 @@ def stake(click_config,
             worker_address = BlockchainInterface.NULL_ADDRESS
 
         password = None
-        if not hw_wallet:
-            password = get_password(confirm=False)
+        if not hw_wallet and not STAKEHOLDER.blockchain.is_local:
+            password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.set_worker(staker_address=staking_address,
                                password=password,
                                worker_address=worker_address)
@@ -177,7 +178,7 @@ def stake(click_config,
                                                     prompt="Select staking account",
                                                     emitter=emitter)
 
-        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:  # TODO: encapsulate/recycle in function?
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = click.prompt(f"Enter password to unlock {staking_address}",
                                     hide_input=True,
                                     confirmation_prompt=False)
@@ -261,7 +262,7 @@ def stake(click_config,
         # Execute
         password = None
         if not hw_wallet:
-            password = get_password(confirm=False)
+            password = get_client_password(checksum_address=current_stake.owner_address)
         modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
                                                              index=current_stake.index,
                                                              value=value,
@@ -278,7 +279,7 @@ def stake(click_config,
         """Withdraw staking reward to the specified wallet address"""
         password = None
         if not hw_wallet:
-            password = get_password(confirm=False)
+            password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.collect_rewards(staker_address=staking_address,
                                     withdraw_address=withdraw_address,
                                     password=password,
