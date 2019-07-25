@@ -135,7 +135,7 @@ class HendrixTCPServiceWithTLSAndStatics(HendrixTCPServiceWithTLS):
         context_factory=None,
         context_factory_kwargs=None,
         application=None,
-        threadpool=None
+        threadpool=None,
     ):
         hxresource = HendrixResourceWithStatics(
 
