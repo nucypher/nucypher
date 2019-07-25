@@ -17,7 +17,7 @@ from nucypher.crypto.powers import TransactingPower
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
 @click.option('--controller-port', help="The host port to run Alice HTTP services on", type=NETWORK_PORT)
@@ -25,7 +25,7 @@ from nucypher.crypto.powers import TransactingPower
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--sync/--no-sync', default=True)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
@@ -116,6 +116,10 @@ def alice(click_config,
 
         if dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
+
+        if not provider_uri and not federated_only:
+            raise click.BadOptionUsage(option_name='--provider',
+                                       message="--provider is required to create a new decentralized alice.")
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar

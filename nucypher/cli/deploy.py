@@ -41,7 +41,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--sync/--no-sync', default=True)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True by default.

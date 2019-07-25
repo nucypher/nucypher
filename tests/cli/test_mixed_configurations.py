@@ -82,7 +82,7 @@ def test_coexisting_configurations(click_runner,
     felix_init_args = ('felix', 'init',
                        '--config-root', custom_filepath,
                        '--network', TEMPORARY_DOMAIN,
-                       '--provider-uri', TEST_PROVIDER_URI,
+                       '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
                        '--registry-filepath', mock_primary_registry_filepath
                        )
@@ -99,7 +99,7 @@ def test_coexisting_configurations(click_runner,
     # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
-                       '--provider-uri', TEST_PROVIDER_URI,
+                       '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
                        '--registry-filepath', mock_primary_registry_filepath,
                        '--config-root', custom_filepath)
@@ -115,7 +115,7 @@ def test_coexisting_configurations(click_runner,
     # Use the same local filepath to init a persistent Ursula
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--worker-address', ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
@@ -138,7 +138,7 @@ def test_coexisting_configurations(click_runner,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', mock_primary_registry_filepath,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -212,7 +212,7 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     init_args = ('ursula', 'init',
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--network', TEMPORARY_DOMAIN,
@@ -239,7 +239,7 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
     # Attempt installation again, with full args
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,

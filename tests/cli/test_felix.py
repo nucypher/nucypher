@@ -61,7 +61,7 @@ def test_run_felix(click_runner,
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
                  '--no-registry',
-                 '--provider-uri', TEST_PROVIDER_URI)
+                 '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -73,7 +73,7 @@ def test_run_felix(click_runner,
                '--debug',
                '--registry-filepath', mock_primary_registry_filepath,
                '--config-file', configuration_file_location,
-               '--provider-uri', TEST_PROVIDER_URI)
+               '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, db_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -84,7 +84,7 @@ def test_run_felix(click_runner,
                 '--debug',
                 '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', configuration_file_location,
-                '--provider-uri', TEST_PROVIDER_URI,
+                '--provider', TEST_PROVIDER_URI,
                 '--dry-run',
                 '--no-registry')
 

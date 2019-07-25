@@ -150,7 +150,7 @@ NuCypher is maintaining a purpose-built endpoint to initially connect to the tes
 
 .. code:: bash
 
-    $(nucypher) nucypher ursula run --network <NETWORK_DOMAIN> --teacher-uri <SEEDNODE_URI>
+    $(nucypher) nucypher ursula run --network <NETWORK_DOMAIN> --teacher <SEEDNODE_URI>
     ...
 
 2. Verify Connection
@@ -211,7 +211,7 @@ Use this template to create a file named ``ursula.service`` and place it in ``/e
     User=<YOUR USER>
     Type=simple
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --network <NETWORK_DOMAIN> --teacher-uri <SEEDNODE_URI>
+    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --network <NETWORK_DOMAIN> --teacher <SEEDNODE_URI>
     
     [Install]
     WantedBy=multi-user.target

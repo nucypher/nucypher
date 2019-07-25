@@ -12,8 +12,8 @@ from nucypher.crypto.powers import DecryptingPower
 
 @click.command()
 @click.argument('action')
-@click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
@@ -21,7 +21,8 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
@@ -35,24 +36,25 @@ def bob(click_config,
         action,
         teacher_uri,
         min_stake,
-        http_port,
+        controller_port,
         discovery_port,
         federated_only,
         network,
         config_root,
         config_file,
-        pay_with,
+        checksum_address ,
         provider_uri,
         registry_filepath,
         dev,
         force,
+        poa,
         dry_run,
         label,
         policy_encrypting_key,
         alice_verifying_key,
         message_kit):
     """
-    Start and manage a "Bob" character.
+    "Bob" management commands.
     """
 
     #
@@ -103,7 +105,7 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
-                                      checksum_address=pay_with,
+                                      checksum_address=checksum_address ,
                                       network_middleware=click_config.middleware)
     else:
 
@@ -111,7 +113,7 @@ def bob(click_config,
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
                 domains={network} if network else None,
-                checksum_address=pay_with,
+                checksum_address=checksum_address ,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)

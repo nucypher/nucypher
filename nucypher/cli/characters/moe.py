@@ -9,7 +9,7 @@ from nucypher.network.middleware import RestMiddleware
 
 
 @click.command()
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)

@@ -105,11 +105,10 @@ def test_cli_lifecycle(click_runner,
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--config-root', alice_config_root)
-
     if federated:
         alice_init_args += ('--federated-only', )
     else:
-        alice_init_args += ('--provider-uri', TEST_PROVIDER_URI,
+        alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -139,8 +138,8 @@ def test_cli_lifecycle(click_runner,
     if federated:
         bob_init_args += ('--federated-only', )
     else:
-        bob_init_args += ('--provider-uri', TEST_PROVIDER_URI,
-                          '--pay-with', testerchain.bob_account)
+        bob_init_args += ('--provider', TEST_PROVIDER_URI,
+                          '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0
@@ -268,7 +267,7 @@ def test_cli_lifecycle(click_runner,
                       '--mock-networking',
                       '--json-ipc',
                       '--network', TEMPORARY_DOMAIN,
-                      '--teacher-uri', teacher_uri,
+                      '--teacher', teacher_uri,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
@@ -281,7 +280,7 @@ def test_cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider-uri', TEST_PROVIDER_URI)
+            grant_args += ('--provider', TEST_PROVIDER_URI)
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0
@@ -310,7 +309,7 @@ def test_cli_lifecycle(click_runner,
         retrieve_args = ('bob', 'retrieve',
                          '--mock-networking',
                          '--json-ipc',
-                         '--teacher-uri', teacher_uri,
+                         '--teacher', teacher_uri,
                          '--config-file', bob_configuration_file_location,
                          '--message-kit', ciphertext_message_kit,
                          '--label', label,

@@ -23,7 +23,7 @@ def test_run_moe(click_runner, federated_ursulas):
     args = ('moe',
             '--ws-port', test_ws_port,
             '--network', ':fake-domain:',
-            '--teacher-uri', teacher_uri,
+            '--teacher', teacher_uri,
             '--http-port', MOCK_URSULA_STARTING_PORT,
             '--learn-on-launch',  # TODO: Dumb name.  Don't use this in production.
             '--dry-run')

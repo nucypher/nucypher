@@ -86,7 +86,7 @@ def test_new_stakeholder(click_runner,
     init_args = ('stake', 'new-stakeholder',
                  '--poa',
                  '--config-root', custom_filepath,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath)
 
     result = click_runner.invoke(nucypher_cli,
@@ -255,7 +255,7 @@ def test_ursula_init(click_runner,
                  '--staker-address', manual_staker,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
