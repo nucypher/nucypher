@@ -66,6 +66,23 @@ def stake(click_config,
           staking_reward,
 
           ) -> None:
+    """
+        Manage stakes and other staker-related operations
+
+        \b
+        Actions
+        -------------------------------------------------
+        \b
+        new-stakeholder  Create a new stakeholder configuration
+        list             List active stakes for current stakeholder
+        accounts         Show ETH and NU balances for stakeholder's accounts
+        sync             Synchronize stake data with on-chain information
+        set-worker       Bound a worker to a staker
+        init             Create a new stake
+        divide           Create a new stake from part of an existing one
+        collect-reward   Withdraw staking reward
+
+    """
 
     # Banner
     emitter = click_config.emitter

@@ -103,9 +103,7 @@ def ursula(click_config,
     save-metadata     Manually write node metadata to disk without running
     forget            Forget all known nodes.
     destroy           Delete Ursula node configuration.
-    stake             Manage stakes for this node.
     confirm-activity  Manually confirm-activity for the current period.
-    collect-reward    Withdraw staking reward.
 
     """
 
