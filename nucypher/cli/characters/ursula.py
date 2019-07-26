@@ -339,10 +339,13 @@ def ursula(click_config,
         return
 
     elif action == 'confirm-activity':
-        if not URSULA.stakes:
-            emitter.echo(f"There are no active stakes for {URSULA.checksum_address}")
-            return
-        URSULA.staking_agent.confirm_activity(node_address=URSULA.checksum_address)
+        receipt = URSULA.confirm_activity()
+
+        current_period = URSULA.staking_agent.get_current_period()
+        txhash = receipt["transactionHash"].hex()
+
+        emitter.echo(f'\nActivity confirmed for period #{current_period} !!', bold=True, color='blue')
+        emitter.echo(f'Receipt: {txhash}')
         return
 
     else:
