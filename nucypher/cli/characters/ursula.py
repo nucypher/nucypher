@@ -166,10 +166,12 @@ def ursula(click_config,
             blockchain.connect(fetch_registry=False)
 
             if not staker_address:
-                staker_address = select_client_account(emitter=emitter, blockchain=blockchain)
+                prompt = "Select staker account"
+                staker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
 
             if not worker_address:
-                worker_address = select_client_account(emitter=emitter, blockchain=blockchain)
+                prompt = "Select worker account"
+                worker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
