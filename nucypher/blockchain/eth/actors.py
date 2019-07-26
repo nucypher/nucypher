@@ -27,14 +27,12 @@ from constant_sorrow.constants import (
     CONTRACT_NOT_DEPLOYED,
     NO_DEPLOYER_ADDRESS,
     WORKER_NOT_RUNNING,
-    NO_WORKER_ASSIGNED,
-    NO_FUNDING_ACCOUNT
+    NO_WORKER_ASSIGNED
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address
 from eth_utils import keccak
 from twisted.logger import Logger
-from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
@@ -43,8 +41,6 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent
 )
-from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME, \
-    USER_ESCROW_PROXY_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
@@ -286,38 +282,30 @@ class DeployerActor(NucypherTokenActor):
         deployment_receipts = dict()
         gas_limit = None  # TODO: Gas management
 
-        # NuCypherToken
-        if emitter:
-            emitter.echo(f"\nDeploying {NUCYPHER_TOKEN_CONTRACT_NAME} ...")
+        # deploy contracts
+        with click.progressbar(self.deployer_classes, label="Deploying Contracts") as bar:
+            for deployer_class in bar:
+                if interactive:
+                    click.pause(info="\nPress any key to continue")
 
-        token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
+                if emitter:
+                    emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
+
+                if deployer_class in self.standard_deployer_classes:
+                    receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
+                                                              gas_limit=gas_limit)
+                else:
+                    receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
+                                                              plaintext_secret=secrets[deployer_class.contract_name],
                                                               gas_limit=gas_limit)
 
-        if emitter:
-            paint_contract_deployment(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
-                                      receipts=token_receipts,
-                                      contract_address=token_deployer.contract_address,
-                                      emitter=emitter)
+                if emitter:
+                    paint_contract_deployment(contract_name=deployer_class.contract_name,
+                                              receipts=receipts,
+                                              contract_address=deployer.contract_address,
+                                              emitter=emitter)
 
-        deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
-
-        for contract_deployer in self.upgradeable_deployer_classes:
-            if interactive:
-                click.pause(info="Press any key to continue")
-
-            if emitter:
-                emitter.echo(f"\nDeploying {contract_deployer.contract_name} ...")
-
-            receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
-                                                      plaintext_secret=secrets[contract_deployer.contract_name],
-                                                      gas_limit=gas_limit)
-
-            if emitter:
-                paint_contract_deployment(contract_name=contract_deployer.contract_name,
-                                          receipts=receipts,
-                                          contract_address=deployer.contract_address,
-                                          emitter=emitter)
-            deployment_receipts[contract_deployer.contract_name] = receipts
+                deployment_receipts[deployer_class.contract_name] = receipts
 
         return deployment_receipts
 

@@ -24,7 +24,7 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, \
     POLICY_MANAGER_CONTRACT_NAME, USER_ESCROW_CONTRACT_NAME, USER_ESCROW_PROXY_CONTRACT_NAME, \
-    LIBRARY_LINKER_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME
+    LIBRARY_LINKER_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME, NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -124,7 +124,7 @@ class EthereumContractAgent:
 
 class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
-    registry_contract_name = "NuCypherToken"
+    registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
     def get_balance(self, address: str = None) -> int:
         """Get the balance of a token address, or of this contract address"""
