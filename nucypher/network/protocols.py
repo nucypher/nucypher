@@ -36,8 +36,6 @@ from hendrix.facilities.services import HendrixTCPServiceWithTLS, HendrixService
 from eth_utils import is_checksum_address
 from hendrix.facilities.resources import HendrixResource, NamedResource
 
-
-
 from nucypher.config.constants import STATICS_DIR
 
 
@@ -116,6 +114,9 @@ class InterfaceInfo:
 
     def __radd__(self, other):
         return bytes(other) + bytes(self)
+
+    def __repr__(self):
+	    return self.uri
 
 
 class HendrixResourceWithStatics(HendrixResource):
@@ -222,7 +223,7 @@ class DeployTLSWithStatics(HendrixDeployTLS):
         super().__init__(*args, **kwargs)
 
     def addSSLService(self):
-        "adds a SSLService to the instaitated HendrixService"
+        "adds a SSLService to the instantiated HendrixService"
         https_port = self.options['https_port']
         self.tls_service = HendrixTCPServiceWithTLSAndStatics(
             https_port, self.key, self.cert,

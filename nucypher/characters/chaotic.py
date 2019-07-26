@@ -44,9 +44,10 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.threading import ThreadedSession
+from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.server import NonTLSHost
 
-
-class Felix(Character, NucypherTokenActor):
+class Felix(Character, NucypherTokenActor, NonTLSHost):
     """
     A NuCypher ERC20 faucet / Airdrop scheduler.
 
@@ -281,9 +282,7 @@ class Felix(Character, NucypherTokenActor):
 
         self.start_time = maya.now()
         payload = {"wsgi": self.rest_app, "http_port": port}
-        deployer = HendrixDeployWithStatics(action="start", options=payload)
-        deployer.resources = get_statics()
-        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
+        deployer = self.get_deployer(host, port, options=payload)
 
         if distribution is True:
             self.start_distribution()

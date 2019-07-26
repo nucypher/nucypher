@@ -41,7 +41,7 @@ from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.protocols import InterfaceInfo, get_statics, HendrixDeployWithStatics
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -476,3 +476,19 @@ class TLSHostingPower(KeyPairBasedPower):
         elif public_certificate_filepath:
             kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
         super().__init__(*args, **kwargs)
+
+
+class NonTLSHost():
+
+    def rest_url(self):
+        return "{}:{}".format(self.host, self.port)
+
+    def get_deployer(self, host: str, port: int, options: dict = None):
+        self.host = host
+        self.port = port
+        options = options or {}
+        options['http_port'] = self.port
+
+        deployer = HendrixDeployWithStatics(action="start", options=options)
+        deployer.resources = get_statics()
+        return deployer
