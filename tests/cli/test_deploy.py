@@ -391,7 +391,6 @@ def test_nucypher_deploy_status(click_runner, testerchain, test_registry, agency
                                  status_command,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert token_agent.owner_address in result.output
     assert staking_agent.owner_address in result.output
     assert policy_agent.owner_address in result.output
     assert adjudicator_agent.owner_address in result.output
@@ -404,7 +403,6 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
-    assert token_agent.owner_address == testerchain.deployer_address
     assert staking_agent.owner_address == testerchain.deployer_address
     assert policy_agent.owner_address == testerchain.deployer_address
     assert adjudicator_agent.owner_address == testerchain.deployer_address
@@ -427,7 +425,6 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    assert token_agent.owner_address == maclane
     assert staking_agent.owner_address == maclane
     assert policy_agent.owner_address == maclane
     assert adjudicator_agent.owner_address == maclane
@@ -450,3 +447,23 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
     assert result.exit_code == 0
     assert staking_agent.owner_address == maclane
     assert staking_agent.owner_address == michwill
+
+
+def test_transfer_tokens(click_runner, testerchain, agency):
+
+    maclane = testerchain.unassigned_accounts[0]
+
+    ownership_command = ('transfer-ownership',
+                         '--deployer-address', testerchain.deployer_address,
+                         '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
+                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                         '--provider-uri', TEST_PROVIDER_URI,
+                         '--checksum-address', maclane,
+                         '--poa')
+
+    user_input = 'Y\n'
+    result = click_runner.invoke(deploy,
+                                 ownership_command,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0

@@ -27,8 +27,10 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContract
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli import actions
 from nucypher.cli.actions import get_client_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password
+from nucypher.cli.actions import select_client_account
+from nucypher.cli.painting import paint_contract_deployment, paint_deployer_contract_status
 from nucypher.cli.painting import (
-    paint_contract_deployment,
     paint_staged_deployment,
     paint_deployment_delay
 )
@@ -47,9 +49,9 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
-@click.option('--amount', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
+@click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
@@ -65,8 +67,8 @@ def deploy(action,
            allocation_outfile,
            registry_infile,
            registry_outfile,
-           amount,
-           recipient_address,
+           value,
+           target_address,
            config_root,
            hw_wallet,
            force,
@@ -81,7 +83,8 @@ def deploy(action,
     allocations            Deploy pre-allocation contracts.
     upgrade                Upgrade NuCypher existing proxy contract deployments.
     rollback               Rollback a proxy contract's target.
-    transfer-tokens        Transfer tokens to another address.
+    status                 Echo owner information and bare contract metadata.
+    transfer-tokens        Transfer tokens from a contract to another address.
     transfer-ownership     Transfer ownership of contracts to another address.
     """
 
@@ -140,6 +143,10 @@ def deploy(action,
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
+    if action == "status":
+        deployer = ContractAdministrator(registry=registry, deployer_address=deployer_address)
+        paint_deployer_contract_status(emitter=emitter, deployer=deployer)
+        return  # Exit
     #
     # Make Authenticated Deployment Actor
     #
@@ -267,20 +274,45 @@ def deploy(action,
                                                       allocation_outfile=allocation_outfile)
         return  # Exit
 
-    elif action == "transfer":
+    elif action == "transfer-tokens":
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         missing_options = list()
-        if recipient_address is None:
+        if target_address is None:
             missing_options.append("--recipient-address")
-        if amount is None:
+        if value is None:
             missing_options.append("--amount")
         if missing_options:
             raise click.BadArgumentUsage(message=f"Need {' and '.join(missing_options)} to transfer tokens.")
 
-        click.confirm(f"Transfer {amount} from {deployer_address} to {recipient_address}?", abort=True)
-        receipt = token_agent.transfer(amount=amount, sender_address=deployer_address, target_address=recipient_address)
+        click.confirm(f"Transfer {value} from {token_agent.contract_address} to {target_address}?", abort=True)
+        receipt = token_agent.transfer(amount=value,
+                                       sender_address=token_agent.contract_address,
+                                       target_address=target_address)
         emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
+
         return  # Exit
+
+    elif action == "transfer-ownership":
+        if not target_address:
+            target_address = click.prompt("Enter new owner's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+
+        if contract_name:
+            try:
+                contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
+            except KeyError:
+                message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
+                emitter.echo(message, color='red', bold=True)
+                raise click.Abort()
+            else:
+                contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
+                                                            deployer_address=ADMINISTRATOR.deployer_address)
+                receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+                emitter.ipc(receipt, request_id=0, duration=0)  # TODO: eh?
+                return  # Exit
+        else:
+            receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
+            emitter.ipc(receipts, request_id=0, duration=0)  # TODO: eh?
+            return  # Exit
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")
