@@ -23,6 +23,7 @@ from twisted.internet import stdio
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_password, select_client_account
@@ -103,9 +104,7 @@ def ursula(click_config,
     save-metadata     Manually write node metadata to disk without running
     forget            Forget all known nodes.
     destroy           Delete Ursula node configuration.
-    stake             Manage stakes for this node.
     confirm-activity  Manually confirm-activity for the current period.
-    collect-reward    Withdraw staking reward.
 
     """
 
@@ -166,10 +165,12 @@ def ursula(click_config,
             blockchain.connect(fetch_registry=False)
 
             if not staker_address:
-                staker_address = select_client_account(emitter=emitter, blockchain=blockchain)
+                prompt = "Select staker account"
+                staker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
 
             if not worker_address:
-                worker_address = select_client_account(emitter=emitter, blockchain=blockchain)
+                prompt = "Select worker account"
+                worker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -339,10 +340,15 @@ def ursula(click_config,
         return
 
     elif action == 'confirm-activity':
-        if not URSULA.stakes:
-            emitter.echo(f"There are no active stakes for {URSULA.checksum_address}")
-            return
-        URSULA.staking_agent.confirm_activity(node_address=URSULA.checksum_address)
+        receipt = URSULA.confirm_activity()
+
+        confirmed_period = URSULA.staking_agent.get_current_period() + 1
+        txhash = receipt["transactionHash"].hex()
+        date = datetime_at_period(period=confirmed_period)
+
+        emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
+                     f'(starting at {date}) !!', bold=True, color='blue')
+        emitter.echo(f'Receipt: {txhash}')
         return
 
     else:

@@ -50,8 +50,7 @@ def paint_new_installation_help(emitter, new_configuration):
 
     # Ursula
     elif character_name == 'ursula' and not new_configuration.federated_only:
-        suggested_staking_command = f'nucypher ursula stake'
-        how_to_stake_message = f"\nTo initialize a NU stake, run '{suggested_staking_command}' or"
+        how_to_stake_message = f"\nIf you haven't done it already, initialize a NU stake with 'nucypher stake' or"
         emitter.message(how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
