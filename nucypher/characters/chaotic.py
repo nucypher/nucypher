@@ -29,10 +29,10 @@ from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
-from nucypher.network.protocols import get_statics, HendrixDeployWithStatics
+from nucypher.network.server import NonTLSHost
 
 
-class Moe(Character):
+class Moe(Character, NonTLSHost):
     """
     A monitor (lizard?)
     """
@@ -108,16 +108,16 @@ class Moe(Character):
         # Server
         #
 
-        deployer = HendrixDeployWithStatics(action="start", options={"wsgi": rest_app, "http_port": http_port})
-        deployer.resources = get_statics()
-
+        deployer = self.get_deployer(
+            '127.0.0.1', http_port,
+            options={"wsgi": rest_app, "http_port": http_port})
         deployer.add_non_tls_websocket_service(websocket_service)
 
         if not dry_run:
             deployer.run()
 
 
-class Felix(Character, NucypherTokenActor):
+class Felix(Character, NucypherTokenActor, NonTLSHost):
     """
     A NuCypher ERC20 faucet / Airdrop scheduler.
 
@@ -328,9 +328,7 @@ class Felix(Character, NucypherTokenActor):
 
         self.start_time = maya.now()
         payload = {"wsgi": self.rest_app, "http_port": port}
-        deployer = HendrixDeployWithStatics(action="start", options=payload)
-        deployer.resources = get_statics()
-        click.secho(f"Running {self.__class__.__name__} on {host}:{port}")
+        deployer = self.get_deployer(host, port, options=payload)
 
         if distribution is True:
             self.start_distribution()
