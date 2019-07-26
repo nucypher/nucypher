@@ -156,7 +156,7 @@ def stake(click_config,
             worker_address = BlockchainInterface.NULL_ADDRESS
 
         password = None
-        if not hw_wallet and not STAKEHOLDER.blockchain.is_local:
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.set_worker(staker_address=staking_address,
                                password=password,
@@ -261,7 +261,7 @@ def stake(click_config,
 
         # Execute
         password = None
-        if not hw_wallet:
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = get_client_password(checksum_address=current_stake.owner_address)
         modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
                                                              index=current_stake.index,
@@ -278,7 +278,7 @@ def stake(click_config,
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
         password = None
-        if not hw_wallet:
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.collect_rewards(staker_address=staking_address,
                                     withdraw_address=withdraw_address,

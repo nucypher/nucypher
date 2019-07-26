@@ -137,6 +137,7 @@ def test_stake_init(click_runner,
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
 
+    # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
