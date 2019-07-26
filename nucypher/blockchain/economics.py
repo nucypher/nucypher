@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from decimal import Decimal, localcontext
-from typing import Tuple
+from typing import Tuple, Union
 
 from math import log
 

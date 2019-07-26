@@ -101,7 +101,7 @@ class EthereumContractAgent:
 
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
-                                                                        self.contract_address,
+                                                                        self.contract.address,
                                                                         self.blockchain.provider_uri,
                                                                         self.registry))
 
@@ -111,7 +111,7 @@ class EthereumContractAgent:
         return r.format(class_name, self.registry, self.registry_contract_name)
 
     def __eq__(self, other):
-        return bool(self.contract_address == other.contract_address)
+        return bool(self.contract.address == other.contract.address)
 
     @property
     def contract(self):
@@ -124,6 +124,20 @@ class EthereumContractAgent:
     @property
     def contract_name(self) -> str:
         return self.registry_contract_name
+
+    def get_owner(self) -> str:
+        if not self._proxy_name:
+            # Only upgradeable + ownable contracts can implement ownership transference.
+            raise NotImplementedError
+        return self.contract.functions.owner().call()
+
+    @validate_checksum_address
+    def transfer_ownership(self, sender_address: str, checksum_address: str, transaction_gas_limit: int = None) -> dict:
+        contract_function = self.contract.functions.transferOwnership(checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address,
+                                                   transaction_gas_limit=transaction_gas_limit)
+        return receipt
 
 
 class NucypherTokenAgent(EthereumContractAgent):
