@@ -23,6 +23,7 @@ from twisted.internet import stdio
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_password, select_client_account
@@ -341,10 +342,12 @@ def ursula(click_config,
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()
 
-        current_period = URSULA.staking_agent.get_current_period()
+        confirmed_period = URSULA.staking_agent.get_current_period() + 1
         txhash = receipt["transactionHash"].hex()
+        date = datetime_at_period(period=confirmed_period)
 
-        emitter.echo(f'\nActivity confirmed for period #{current_period} !!', bold=True, color='blue')
+        emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
+                     f'(starting at {date}) !!', bold=True, color='blue')
         emitter.echo(f'Receipt: {txhash}')
         return
 
