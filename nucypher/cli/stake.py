@@ -78,6 +78,7 @@ def stake(click_config,
         accounts         Show ETH and NU balances for stakeholder's accounts
         sync             Synchronize stake data with on-chain information
         set-worker       Bound a worker to a staker
+        detach-worker    Detach worker currently bound to a staker
         init             Create a new stake
         divide           Create a new stake from part of an existing one
         collect-reward   Withdraw staking reward
@@ -140,13 +141,18 @@ def stake(click_config,
         emitter.echo("OK!", color='green')
         return  # Exit
 
-    elif action == 'set-worker':
+    elif action in ('set-worker', 'detach-worker'):
 
         if not staking_address:
             staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
 
-        if not worker_address:
-            worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
+        if action == 'set-worker':
+            if not worker_address:
+                worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
+        elif action == 'detach-worker':
+            if worker_address:
+                raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address option")
+            worker_address = BlockchainInterface.NULL_ADDRESS
 
         password = None
         if not hw_wallet:
