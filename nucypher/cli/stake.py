@@ -161,11 +161,11 @@ def stake(click_config,
         password = None
         if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = get_client_password(checksum_address=staking_address)
-        STAKEHOLDER.set_worker(staker_address=staking_address,
-                               password=password,
-                               worker_address=worker_address)
+        receipt = STAKEHOLDER.set_worker(staker_address=staking_address,
+                                         password=password,
+                                         worker_address=worker_address)
 
-        emitter.echo("OK!", color='green')
+        emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}", color='green')
         return  # Exit
 
     elif action == 'init':

@@ -930,11 +930,11 @@ class StakeHolder(BaseConfiguration):
     def set_worker(self, staker_address: str, worker_address: str, password: str = None):
         self.attach_transacting_power(checksum_address=staker_address, password=password)
         staker = self.get_active_staker(address=staker_address)
-        result = self.staking_agent.set_worker(staker_address=staker.checksum_address,
+        receipt = self.staking_agent.set_worker(staker_address=staker.checksum_address,
                                                worker_address=worker_address)
 
         self.to_configuration_file(override=True)
-        return result
+        return receipt
 
     def initialize_stake(self,
                          amount: NU,
