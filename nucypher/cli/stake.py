@@ -98,10 +98,12 @@ def stake(click_config,
                                        message="--provider is required to create a new stakeholder.")
 
         registry = None
+        fetch_registry = True
         if registry_filepath:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            fetch_registry = False
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-        blockchain.connect()
+        blockchain.connect(sync_now=sync, fetch_registry=fetch_registry)
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       offline_mode=offline,
