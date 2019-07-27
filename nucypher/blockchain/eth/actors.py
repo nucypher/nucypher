@@ -788,14 +788,14 @@ class StakeHolder(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
+    def from_configuration_file(cls, filepath: str = None, sync_now: bool = True, **overrides) -> 'StakeHolder':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
         blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
-        blockchain.connect()  # TODO: Leave this here?
+        blockchain.connect(sync_now=sync_now)  # TODO: Leave this here?
 
         payload.update(dict(blockchain=blockchain))
 

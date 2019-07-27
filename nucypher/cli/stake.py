@@ -118,7 +118,8 @@ def stake(click_config,
     STAKEHOLDER = StakeHolder.from_configuration_file(filepath=config_file,
                                                       provider_uri=provider_uri,
                                                       registry_filepath=registry_filepath,
-                                                      offline=offline)
+                                                      offline=offline,
+                                                      sync_now=sync)
     #
     # Eager Actions
     #
