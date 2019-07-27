@@ -163,6 +163,8 @@ class DeployerActor(NucypherTokenActor):
                  bare: bool = True
                  ) -> None:
 
+        self.log = Logger("Deployment-Actor")
+
         self.blockchain = blockchain
         self.__deployer_address = NO_DEPLOYER_ADDRESS
         self.deployer_address = deployer_address
@@ -177,13 +179,6 @@ class DeployerActor(NucypherTokenActor):
         self.user_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
-        blockchain.transacting_power = TransactingPower(blockchain=blockchain,
-                                                        account=deployer_address,
-                                                        password=client_password)
-        blockchain.transacting_power.activate()
-        self.log = Logger("Deployment-Actor")
-
-        # TODO: Does this class want to be a Character implementing PowerUp consumption?
         self.transacting_power = TransactingPower(blockchain=blockchain,
                                                   password=client_password,
                                                   account=deployer_address)
