@@ -132,7 +132,9 @@ def deploy(action,
 
     # Verify Address & collect password
     if not deployer_address:
-        deployer_address = select_client_account(emitter=emitter, blockchain=blockchain)
+        prompt = "Select deployer account"
+        deployer_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
@@ -166,6 +168,8 @@ def deploy(action,
         return  # Exit
 
     elif action == 'rollback':
+        if not contract_name:
+            raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
         DEPLOYER.rollback_contract(contract_name=contract_name,

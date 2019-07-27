@@ -269,7 +269,8 @@ class DeployerActor(NucypherTokenActor):
         return user_escrow_deployer
 
     def deploy_network_contracts(self,
-                                 secrets: dict, interactive: bool = True,
+                                 secrets: dict,
+                                 interactive: bool = True,
                                  emitter: StdoutEmitter = None) -> dict:
         """
 
@@ -286,6 +287,9 @@ class DeployerActor(NucypherTokenActor):
         gas_limit = None  # TODO: Gas management
 
         # NuCypherToken
+        if emitter:
+            emitter.echo(f"\nDeploying {NUCYPHER_TOKEN_CONTRACT_NAME} ...")
+
         token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                                               gas_limit=gas_limit)
 
@@ -296,10 +300,14 @@ class DeployerActor(NucypherTokenActor):
                                       emitter=emitter)
 
         deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
 
         for contract_deployer in self.upgradeable_deployer_classes:
+            if interactive:
+                click.pause(info="Press any key to continue")
+
+            if emitter:
+                emitter.echo(f"\nDeploying {contract_deployer.contract_name} ...")
+
             receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
                                                       plaintext_secret=secrets[contract_deployer.contract_name],
                                                       gas_limit=gas_limit)
@@ -310,8 +318,6 @@ class DeployerActor(NucypherTokenActor):
                                           contract_address=deployer.contract_address,
                                           emitter=emitter)
             deployment_receipts[contract_deployer.contract_name] = receipts
-            if interactive:
-                click.pause(info="Press any key to continue")
 
         return deployment_receipts
 

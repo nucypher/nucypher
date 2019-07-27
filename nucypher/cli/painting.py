@@ -337,4 +337,3 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
     for i in range(delay)[::-1]:
         emitter.echo(f"{i}...", color='yellow')
         time.sleep(1)
-    emitter.echo(f"Deploying...", bold=True)
