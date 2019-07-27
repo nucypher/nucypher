@@ -244,11 +244,17 @@ def deploy(action,
 
     elif action == "transfer":
         token_agent = NucypherTokenAgent(blockchain=blockchain)
-        click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
-        txhash = token_agent.transfer(amount=amount,
-                                      sender_address=token_agent.contract_address,
-                                      target_address=recipient_address)
-        emitter.echo(f"OK | {txhash}")
+        missing_options = list()
+        if recipient_address is None:
+            missing_options.append("--recipient-address")
+        if amount is None:
+            missing_options.append("--amount")
+        if missing_options:
+            raise click.BadOptionUsage(f"Need {' and '.join(missing_options)} to transfer tokens.")
+
+        click.confirm(f"Transfer {amount} from {deployer_address} to {recipient_address}?", abort=True)
+        receipt = token_agent.transfer(amount=amount, sender_address=deployer_address, target_address=recipient_address)
+        emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
         return  # Exit
 
     else:
