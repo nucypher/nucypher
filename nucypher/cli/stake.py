@@ -207,7 +207,8 @@ def stake(click_config,
 
         if not force:
             painting.paint_staged_stake(emitter=emitter,
-                                        ursula=STAKEHOLDER,
+                                        stakeholder=STAKEHOLDER,
+                                        staking_address=staking_address,
                                         stake_value=value,
                                         duration=duration,
                                         start_period=start_period,
@@ -256,7 +257,7 @@ def stake(click_config,
 
         if not force:
             painting.paint_staged_stake_division(emitter=emitter,
-                                                 ursula=STAKEHOLDER,
+                                                 stakeholder=STAKEHOLDER,
                                                  original_stake=current_stake,
                                                  target_value=value,
                                                  extension=extension)

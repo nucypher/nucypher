@@ -201,7 +201,8 @@ Active Staking Ursulas ... {ursulas}
 
 
 def paint_staged_stake(emitter,
-                       ursula,
+                       stakeholder,
+                       staking_address,
                        stake_value,
                        duration,
                        start_period,
@@ -215,8 +216,8 @@ def paint_staged_stake(emitter,
     emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
 
     emitter.echo(f"""
-{ursula}
-~ Chain      -> ID # {ursula.blockchain.client.chain_id} | {ursula.blockchain.client.chain_name}
+Staking address: {staking_address}
+~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
@@ -276,21 +277,23 @@ def paint_stakes(emitter, stakes):
 
 
 def paint_staged_stake_division(emitter,
-                                ursula,
+                                stakeholder,
                                 original_stake,
                                 target_value,
                                 extension):
 
     new_end_period = original_stake.end_period + extension
     new_duration = new_end_period - original_stake.start_period
+    staking_address = original_stake.checksum_address
 
     division_message = f"""
-{ursula}
+Staking address: {staking_address}
 ~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
     paint_staged_stake(emitter=emitter,
-                       ursula=ursula,
+                       stakeholder=stakeholder,
+                       staking_address=staking_address,
                        stake_value=target_value,
                        duration=new_duration,
                        start_period=original_stake.start_period,
