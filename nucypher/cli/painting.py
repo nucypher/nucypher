@@ -23,21 +23,21 @@ from decimal import Decimal
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
+from web3 import Web3
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent, \
-    ContractAgency
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.agents import UserEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.agents import UserEscrowAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent, \
-    NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, UserEscrowProxyDeployer, LibraryLinkerDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
-from nucypher.blockchain.eth.token import NU
-from web3 import Web3
 
 
 def echo_version(ctx, param, value):
@@ -239,19 +239,19 @@ NucypherToken ........... {token_agent.contract_address}
     emitter.echo(banner, nl=False)
 
     for contract_deployer_class in deployer.dispatched_upgradeable_deployer_classes:
+        try:
+            bare_contract = deployer.blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
+                                                                     proxy_name=DispatcherDeployer.contract_name,
+                                                                     use_proxy_address=False)
 
-        bare_contract = deployer.blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
-                                                                 proxy_name=DispatcherDeployer.contract_name,
-                                                                 use_proxy_address=False)
+            dispatcher_deployer = DispatcherDeployer(blockchain=deployer.blockchain,
+                                                     target_contract=bare_contract,
+                                                     deployer_address=deployer.deployer_address,
+                                                     bare=True)  # acquire agency for the dispatcher itself.
 
-        dispatcher_deployer = DispatcherDeployer(blockchain=deployer.blockchain,
-                                                 target_contract=bare_contract,
-                                                 deployer_address=deployer.deployer_address,
-                                                 bare=True)  # acquire agency for the dispatcher itself.
+            agent = contract_deployer_class.agency(blockchain=deployer.blockchain, contract=bare_contract)
 
-        agent = contract_deployer_class.agency(blockchain=deployer.blockchain, contract=bare_contract)
-
-        proxy_payload = f"""
+            proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
     ~ Ethers ............. {deployer.blockchain.client.get_balance(dispatcher_deployer.contract_address)} wei
@@ -261,29 +261,38 @@ NucypherToken ........... {token_agent.contract_address}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
         ~ Ethers ......... {deployer.blockchain.client.get_balance(dispatcher_deployer.contract_address)} wei
         ~ Tokens ......... {token_agent.get_balance(dispatcher_deployer.contract_address)} wei"""
-        emitter.echo(proxy_payload)
+            emitter.echo(proxy_payload)
 
-    #
-    # UserEscrowProxy
-    #
+        except BaseContractRegistry.UnknownContract:
+            message = f"{contract_deployer_class.contract_name} is not enrolled in {deployer.blockchain.registry.filepath}"
+            emitter.echo(message, color='yellow')
 
-    user_escrow_proxy_agent = UserEscrowAgent.UserEscrowProxyAgent(registry=deployer.registry)
-    bare_contract = deployer.blockchain.get_contract_by_name(name=user_escrow_proxy_agent.contract_name,
-                                                             proxy_name=LibraryLinkerDeployer.contract_name,
-                                                             use_proxy_address=False)
+    try:
 
-    linker_deployer = LibraryLinkerDeployer(blockchain=deployer.blockchain,
-                                            target_contract=bare_contract,
-                                            deployer_address=deployer.deployer_address,
-                                            bare=True)  # acquire agency for the dispatcher itself.
+        #
+        # UserEscrowProxy
+        #
 
-    user_escrow_payload = f"""
+        user_escrow_proxy_agent = UserEscrowAgent.UserEscrowProxyAgent(registry=deployer.registry)
+        bare_contract = deployer.blockchain.get_contract_by_name(name=user_escrow_proxy_agent.contract_name,
+                                                                 proxy_name=LibraryLinkerDeployer.contract_name,
+                                                                 use_proxy_address=False)
+
+        linker_deployer = LibraryLinkerDeployer(blockchain=deployer.blockchain,
+                                                target_contract=bare_contract,
+                                                deployer_address=deployer.deployer_address,
+                                                bare=True)  # acquire agency for the dispatcher itself.
+
+        user_escrow_payload = f"""
 UserEscrowProxy .......... {bare_contract.address}
     ~ LibraryLinker ...... {linker_deployer.contract.address}
         ~ Owner .......... {linker_deployer.contract.functions.owner().call()}
-        ~ Target ......... {linker_deployer.contract.functions.target().call()}
-    """
-    emitter.echo(user_escrow_payload)
+        ~ Target ......... {linker_deployer.contract.functions.target().call()}"""
+        emitter.echo(user_escrow_payload)
+
+    except BaseContractRegistry.UnknownContract:
+        message = f"UserEscrowProxy is not enrolled in {deployer.blockchain.registry.filepath}"
+        emitter.echo(message, color='yellow')
 
     return
 

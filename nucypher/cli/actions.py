@@ -38,7 +38,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
-from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.node import CharacterConfiguration
@@ -107,7 +106,8 @@ def load_seednodes(emitter,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
-                   ) -> List[Ursula]:
+                   ) -> List:
+    from nucypher.characters.lawful import Ursula
 
     # Set domains
     if network_domains is None:

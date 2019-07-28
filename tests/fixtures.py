@@ -40,9 +40,10 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
-                                               AdjudicatorDeployer)
+                                               AdjudicatorDeployer, UserEscrowProxyDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob, StakeHolder
@@ -426,12 +427,15 @@ def _make_agency(testerchain, test_registry):
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    token_agent = token_deployer.make_agent()              # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()   # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, blockchain=testerchain)
+    user_escrow_proxy_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
-    # TODO: Perhaps we should get rid of returning these agents here.
+    token_agent = token_deployer.make_agent()                           # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()                # 2 Miner Escrow
+    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+
+    # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
     # and since agents are singletons, in tests it's only necessary to call the agent
     # constructor again to receive the existing agent.
