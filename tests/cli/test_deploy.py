@@ -4,22 +4,20 @@ from random import SystemRandom
 from string import ascii_uppercase, digits
 
 import pytest
+from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     UserEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    Agency, EthereumContractAgent)
+    Agency,
+    EthereumContractAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.cli.deploy import deploy
-from nucypher.crypto.powers import TransactingPower
 
-# Prevents TesterBlockchain to be picked up by py.test as a test class
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
@@ -35,26 +33,6 @@ def generate_insecure_secret() -> str:
 
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
-
-
-def make_testerchain():
-
-    # Create new blockchain
-    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=False)
-
-    # Set the deployer address from a freshly created test account
-    testerchain.deployer_address = testerchain.etherbase_account
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
-    return testerchain
-
-
-def pyevm_testerchain():
-    return 'tester://pyevm'
-
-
-def geth_poa_devchain():
-    _testerchain = make_testerchain()
-    return f'ipc://{_testerchain.provider.ipc_path}'
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -131,6 +109,44 @@ def test_nucypher_deploy_contracts(click_runner,
     # This agent wasn't instantiated before, so we have to supply the blockchain
     blockchain = staking_agent.blockchain
     assert AdjudicatorAgent(blockchain=blockchain)
+
+
+def test_transfer_tokens(click_runner, mock_primary_registry_filepath):
+    #
+    # Setup
+    #
+
+    # Simulate "Reconnection"
+    real_attach_provider = BlockchainDeployerInterface._attach_provider
+    cached_blockchain = BlockchainDeployerInterface.reconnect()
+    registry = cached_blockchain.registry
+    assert registry.filepath == mock_primary_registry_filepath
+
+    def attach_cached_provider(interface, *args, **kwargs):
+        cached_provider = cached_blockchain.provider
+        real_attach_provider(interface, provider=cached_provider)
+
+    BlockchainDeployerInterface._attach_provider = attach_cached_provider
+
+    # Let's transfer some NU to a random stranger
+    recipient_address = to_checksum_address(os.urandom(20))
+
+    token_agent = NucypherTokenAgent()
+    assert token_agent.get_balance(address=recipient_address) == 0
+
+    command = ['transfer',
+               '--recipient-address', recipient_address,
+               '--amount', 42,
+               '--registry-infile', mock_primary_registry_filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa']
+
+    user_input = '0\n' + 'Y\n' + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Check that the NU has arrived to the recipient
+    assert token_agent.get_balance(address=recipient_address) == 42
 
 
 def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
@@ -332,7 +348,6 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
 
 def test_nucypher_deploy_allocation_contracts(click_runner,
                                               testerchain,
-                                              deploy_user_input,
                                               mock_primary_registry_filepath,
                                               mock_allocation_infile,
                                               token_economics):
