@@ -24,6 +24,7 @@ import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
@@ -167,30 +168,36 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(blockchain, click_config):
+def paint_contract_status(blockchain, emitter):
+
+    token_agent = NucypherTokenAgent(blockchain=blockchain)
+    staking_agent = StakingEscrowAgent(blockchain=blockchain)
+    policy_agent = PolicyManagerAgent(blockchain=blockchain)
+    adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
+
     contract_payload = f"""
 | NuCypher Contracts |
 
-Chain .....................{blockchain.interface.client.chain_name}
-Provider URI ............. {blockchain.interface.provider_uri}
-Registry Path ............ {blockchain.interface.registry.filepath}
+Chain .....................{blockchain.client.chain_name}
+Provider URI ............. {blockchain.provider_uri}
+Registry Path ............ {blockchain.registry.filepath}
 
-NucypherToken ............ {click_config.token_agent.contract_address}
-StakingEscrow ............ {click_config.miner_agent.contract_address}
-PolicyManager ............ {click_config.policy_agent.contract_address}
-Adjudicator .............. {click_config.adjudicator_agent.contract_address} 
+NucypherToken ............ {token_agent.contract_address}
+StakingEscrow ............ {staking_agent.contract_address}
+PolicyManager ............ {policy_agent.contract_address}
+Adjudicator .............. {adjudicator_agent.contract_address} 
     """
 
     network_payload = f"""
 | Staking |
 
-Current Period ........... {click_config.miner_agent.get_current_period()}
-Actively Staked Tokens.... {click_config.miner_agent.get_all_locked_tokens()}
-Published Stakes ......... {click_config.miner_agent.get_miner_population()}
-Gas Price ................ {blockchain.interface.w3.eth.gasPrice}
+Current Period ........... {staking_agent.get_current_period()}
+Actively Staked Tokens.... {staking_agent.get_all_locked_tokens()}
+Published Stakes ......... {staking_agent.get_staker_population()}
+Gas Price ................ {blockchain.client.gas_price}
     """
-    click.secho(contract_payload)
-    click.secho(network_payload)
+    emitter.echo(contract_payload)
+    emitter.echo(network_payload)
 
 
 def paint_staged_stake(emitter,

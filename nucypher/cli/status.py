@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
@@ -36,9 +35,11 @@ def status(click_config, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
+
+    emitter = click_config.emitter
     click.clear()
-    click_config.emit(message=NU_BANNER)
-    click_config.emit(message="Reading Latest Chaindata...")
+    emitter.banner(NU_BANNER)
+    emitter.echo(message="Reading Latest Chaindata...")
 
     try:
         ETH_NODE = None
@@ -46,7 +47,7 @@ def status(click_config, provider_uri, sync, geth, poa):
             ETH_NODE = get_provider_process()
         blockchain = BlockchainInterface(provider_uri=provider_uri, provider_process=ETH_NODE, poa=poa)
         blockchain.connect(sync_now=sync, fetch_registry=True)
-        paint_contract_status(blockchain=blockchain, click_config=click_config)
+        paint_contract_status(blockchain=blockchain, emitter=emitter)
         return  # Exit
 
     except Exception as e:
