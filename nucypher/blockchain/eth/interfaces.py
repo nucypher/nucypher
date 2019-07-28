@@ -473,8 +473,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.compiler = compiler or SolidityCompiler()
         self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
 
-    def connect(self, *args, **kwargs):
-        super().connect(*args, **kwargs)
+    def connect(self, fetch_registry: bool = False, *args, **kwargs):
+        super().connect(fetch_registry=fetch_registry, *args, **kwargs)
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 

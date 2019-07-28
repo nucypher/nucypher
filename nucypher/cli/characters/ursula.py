@@ -117,7 +117,7 @@ def ursula(click_config,
 
         if staker_address:
             raise click.BadOptionUsage(option_name='--federated-only',
-                                       message="Staking address canot be used in federated mode.")
+                                       message="Staking address cannot be used in federated mode.")
 
     # Banner
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
