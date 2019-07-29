@@ -1149,9 +1149,8 @@ class Teacher:
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
 
-    def substantiate_stamp(self, client_password: str = None):
+    def substantiate_stamp(self):
         transacting_power = self._crypto_power.power_ups(TransactingPower)
-        transacting_power.unlock_account(password=client_password)  # TODO: #349
         signature = transacting_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
         self.__worker_address = transacting_power.account

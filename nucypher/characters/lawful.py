@@ -890,14 +890,14 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
 
-                # Access staking node via node's transacting keys
+                # Prepare a TransactingPower from worker node's transacting keys
                 transacting_power = TransactingPower(account=worker_address,
                                                      password=client_password,
                                                      blockchain=self.blockchain)
                 self._crypto_power.consume_power_up(transacting_power)
 
-                # Use blockchain power to substantiate stamp
-                self.substantiate_stamp(client_password=password)
+                # Use this power to substantiate the stamp
+                self.substantiate_stamp()
 
                 Worker.__init__(self,
                                 is_me=is_me,

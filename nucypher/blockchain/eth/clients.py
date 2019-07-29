@@ -281,6 +281,10 @@ class GethClient(Web3Client):
             # TODO: Is there a more formalized check here for geth --dev mode?
             # Geth --dev accounts are unlocked by default.
             return True
+        debug_message = f"Unlocking account {address}"
+        if password is None:
+            debug_message += " without a password."
+        self.log.debug(debug_message)
         return self.w3.geth.personal.unlockAccount(address, password)
 
     def sign_transaction(self, transaction: dict) -> bytes:
