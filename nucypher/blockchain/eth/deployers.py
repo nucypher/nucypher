@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import time
 from typing import Tuple, Dict
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
@@ -172,7 +171,6 @@ class NucypherTokenDeployer(ContractDeployer):
                                                                        gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         self._contract = contract
         return {'txhash': deployment_receipt}
@@ -202,7 +200,7 @@ class DispatcherDeployer(ContractDeployer):
         dispatcher_contract, receipt = self.blockchain.deploy_contract(gas_limit=gas_limit, *args)
         if progress:
             progress.update(1)
-            time.sleep(3)
+
         self._contract = dispatcher_contract
         return {'deployment': receipt}
 
@@ -297,7 +295,6 @@ class StakingEscrowDeployer(ContractDeployer):
         the_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.blockchain,
@@ -307,7 +304,6 @@ class StakingEscrowDeployer(ContractDeployer):
         dispatcher_deploy_receipt = dispatcher_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Cache the dispatcher contract
         dispatcher_contract = dispatcher_deployer.contract
@@ -329,7 +325,6 @@ class StakingEscrowDeployer(ContractDeployer):
                                                           payload=origin_args)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Make a call.
         _escrow_balance = self.token_agent.get_balance(address=the_escrow_contract.address)
@@ -342,7 +337,6 @@ class StakingEscrowDeployer(ContractDeployer):
                                                         payload=origin_args)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Gather the transaction hashes
         deployment_receipts = {'deploy': deploy_receipt,
@@ -442,7 +436,6 @@ class PolicyManagerDeployer(ContractDeployer):
         policy_manager_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=policy_manager_contract,
@@ -451,7 +444,6 @@ class PolicyManagerDeployer(ContractDeployer):
         proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Cache the dispatcher contract
         proxy_contract = proxy_deployer.contract
@@ -471,7 +463,6 @@ class PolicyManagerDeployer(ContractDeployer):
                                                                       payload=tx_args)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Gather the transaction hashes
         deployment_receipts = {'deployment': deploy_receipt,
@@ -543,7 +534,7 @@ class LibraryLinkerDeployer(ContractDeployer):
         linker_contract, linker_deployment_txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *linker_args)
         if progress:
             progress.update(1)
-            time.sleep(3)
+
         self._contract = linker_contract
         return {'txhash': linker_deployment_txhash}
 
@@ -597,7 +588,7 @@ class UserEscrowProxyDeployer(ContractDeployer):
         user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
+
         receipts['deployment'] = deployment_receipt
 
         # UserEscrowLibraryLinker
@@ -608,7 +599,6 @@ class UserEscrowProxyDeployer(ContractDeployer):
         linker_deployment_receipt = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         receipts['linker_deployment'] = linker_deployment_receipt['txhash']
         self._contract = user_escrow_proxy_contract
@@ -745,7 +735,7 @@ class UserEscrowDeployer(ContractDeployer):
         user_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(*args, gas_limit=gas_limit, enroll=False)
         if progress:
             progress.update(1)
-            time.sleep(3)
+
         self._contract = user_escrow_contract
         return deploy_receipt
 
@@ -781,7 +771,6 @@ class AdjudicatorDeployer(ContractDeployer):
         adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         proxy_deployer = self.__proxy_deployer(blockchain=self.blockchain,
                                                target_contract=adjudicator_contract,
@@ -790,7 +779,6 @@ class AdjudicatorDeployer(ContractDeployer):
         proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         if progress:
             progress.update(1)
-            time.sleep(3)
 
         # Cache the dispatcher contract
         proxy_contract = proxy_deployer.contract
