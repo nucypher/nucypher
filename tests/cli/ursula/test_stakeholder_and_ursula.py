@@ -86,7 +86,7 @@ def test_new_stakeholder(click_runner,
     init_args = ('stake', 'new-stakeholder',
                  '--poa',
                  '--config-root', custom_filepath,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath)
 
     result = click_runner.invoke(nucypher_cli,
@@ -137,6 +137,7 @@ def test_stake_init(click_runner,
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
 
+    # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -255,7 +256,7 @@ def test_ursula_init(click_runner,
                  '--staker-address', manual_staker,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
-                 '--provider-uri', TEST_PROVIDER_URI,
+                 '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)

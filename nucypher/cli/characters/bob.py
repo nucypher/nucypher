@@ -1,8 +1,10 @@
 import click
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password
+from nucypher.cli.actions import get_nucypher_password, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import BobConfiguration
@@ -12,16 +14,17 @@ from nucypher.crypto.powers import DecryptingPower
 
 @click.command()
 @click.argument('action')
-@click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--discovery-port', help="The host port to run node discovery services on", type=NETWORK_PORT)
-@click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
+@click.option('--controller-port', help="The host port to run Bob HTTP services on", type=NETWORK_PORT, default=BobConfiguration.DEFAULT_CONTROLLER_PORT)
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--label', help="The label for a policy", type=click.STRING)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
@@ -35,24 +38,25 @@ def bob(click_config,
         action,
         teacher_uri,
         min_stake,
-        http_port,
+        controller_port,
         discovery_port,
         federated_only,
         network,
         config_root,
         config_file,
-        pay_with,
+        checksum_address ,
         provider_uri,
         registry_filepath,
         dev,
         force,
+        poa,
         dry_run,
         label,
         policy_encrypting_key,
         alice_verifying_key,
         message_kit):
     """
-    Start and manage a "Bob" character.
+    "Bob" management commands.
     """
 
     #
@@ -77,9 +81,17 @@ def bob(click_config,
         if not config_root:  # Flag
             config_root = click_config.config_file  # Envvar
 
-        new_bob_config = BobConfiguration.generate(password=get_password(confirm=True),
+        if not checksum_address and not federated_only:
+            registry = None
+            if registry_filepath:
+                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
+            blockchain.connect()
+            checksum_address = select_client_account(emitter=emitter, blockchain=blockchain)
+
+        new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
-                                                   checksum_address=pay_with,
+                                                   checksum_address=checksum_address,
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
                                                    download_registry=click_config.no_registry,
@@ -87,12 +99,6 @@ def bob(click_config,
                                                    provider_uri=provider_uri)
 
         return painting.paint_new_installation_help(emitter, new_configuration=new_bob_config)
-
-    # TODO
-    # elif action == "view":
-    #     """Paint an existing configuration to the console"""
-    #     response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-    #     return BOB.controller.emitter.ipc(response)
 
     #
     # Make Bob
@@ -103,7 +109,7 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
-                                      checksum_address=pay_with,
+                                      checksum_address=checksum_address ,
                                       network_middleware=click_config.middleware)
     else:
 
@@ -111,7 +117,7 @@ def bob(click_config,
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
                 domains={network} if network else None,
-                checksum_address=pay_with,
+                checksum_address=checksum_address ,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
                 network_middleware=click_config.middleware)
@@ -146,7 +152,12 @@ def bob(click_config,
         # Start Controller
         controller = BOB.make_web_controller(crash_on_error=click_config.debug)
         BOB.log.info('Starting HTTP Character Web Controller')
-        return controller.start(http_port=http_port, dry_run=dry_run)
+        return controller.start(http_port=controller_port , dry_run=dry_run)
+
+    elif action == "view":
+        """Paint an existing configuration to the console"""
+        response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
+        return BOB.controller.emitter.ipc(response)
 
     elif action == "destroy":
         """Delete Bob's character configuration files from the disk"""

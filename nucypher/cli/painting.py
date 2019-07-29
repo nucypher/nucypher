@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import time
 from decimal import Decimal
 
 import click
@@ -23,7 +25,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 
 
@@ -146,7 +148,7 @@ def paint_known_nodes(emitter, ursula) -> None:
         'seednode': 'blue'
     }
 
-    # Ledgend
+    # Legend
     # for node_type, color in color_index.items():
     #     emitter.echo('{0:<6} | '.format(node_type), color=color, nl=False)
     # emitter.echo('\n')
@@ -312,3 +314,27 @@ def paint_contract_deployment(emitter, contract_name: str, contract_address: str
         emitter.echo(" | {}".format(receipt['transactionHash'].hex()), color='yellow', nl=False)
         emitter.echo(" ({} gas)".format(receipt['cumulativeGasUsed']))
         emitter.echo("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
+
+
+def paint_staged_deployment(emitter, deployer) -> None:
+    emitter.clear()
+    emitter.banner(NU_BANNER)
+    emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
+    emitter.echo(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
+    emitter.echo(f"Block ............... {deployer.blockchain.client.block_number}")
+    emitter.echo(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
+    emitter.echo(f"Deployer Address .... {deployer.checksum_address}")
+    emitter.echo(f"ETH ................. {deployer.eth_balance}")
+    emitter.echo(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
+    emitter.echo(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
+
+    # Ask - Last chance to gracefully abort. This step cannot be forced.
+    emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')
+
+
+def paint_deployment_delay(emitter, delay: int = 3) -> None:
+    emitter.echo(f"Starting deployment in {delay} seconds...", color='red')
+    for i in range(delay)[::-1]:
+        emitter.echo(f"{i}...", color='yellow')
+        time.sleep(1)
+    emitter.echo(f"Deploying...", bold=True)

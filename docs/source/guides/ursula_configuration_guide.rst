@@ -27,7 +27,7 @@ If your installation in non-functional, be sure you have the latest version inst
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula init --provider-uri <YOUR PROVIDER URI> --network <NETWORK NAME>
+    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK NAME>
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
@@ -69,7 +69,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run --teacher-uri <SEEDNODE_URI>
+    (nucypher)$ nucypher ursula run --teacher <SEEDNODE_URI>
 
 
 6. Verify Node Connection

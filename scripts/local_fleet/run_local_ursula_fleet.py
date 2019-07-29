@@ -47,7 +47,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         args = ['nucypher', '--debug',
                 'ursula', 'run',
                 '--rest-port', port,
-                '--teacher-uri', TEACHER_URI,
+                '--teacher', TEACHER_URI,
                 '--federated-only',
                 '--dev',
                 '--config-root', 'demo-ursula-{}'.format(port)

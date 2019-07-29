@@ -79,7 +79,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
     command = ['contracts',
                '--registry-outfile', mock_primary_registry_filepath,
-               '--provider-uri', TEST_PROVIDER_URI,
+               '--provider', TEST_PROVIDER_URI,
                '--poa']
 
     user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
@@ -162,7 +162,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', mock_primary_registry_filepath, '--provider-uri', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', mock_primary_registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
 
     # Generate user inputs
     yes = 'Y\n'  # :-)
@@ -301,7 +301,7 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
         command = ('rollback',
                    '--contract-name', contract_name,
                    '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                   '--provider-uri', TEST_PROVIDER_URI,
+                   '--provider', TEST_PROVIDER_URI,
                    '--poa')
 
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -355,7 +355,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
                       '--allocation-infile', mock_allocation_infile.filepath,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
-                      '--provider-uri', TEST_PROVIDER_URI,
+                      '--provider', TEST_PROVIDER_URI,
                       '--poa')
 
     account_index = '0\n'

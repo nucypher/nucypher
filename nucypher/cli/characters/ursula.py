@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -48,7 +48,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 @click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
@@ -60,10 +60,8 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=None)
-@click.option('--sync/--no-sync', default=True)
-@click.option('--hw-wallet/--no-hw-wallet', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
 def ursula(click_config,
@@ -82,8 +80,6 @@ def ursula(click_config,
            worker_address,
            federated_only,
            poa,
-           sync,
-           hw_wallet,
            config_root,
            config_file,
            provider_uri,
@@ -92,7 +88,7 @@ def ursula(click_config,
            interactive,
            ) -> None:
     """
-    Manage and run an "Ursula" PRE node.
+    "Ursula the Untrusted" PRE Re-encryption node management commands.
 
     \b
     Actions
@@ -121,7 +117,7 @@ def ursula(click_config,
 
         if staker_address:
             raise click.BadOptionUsage(option_name='--federated-only',
-                                       message="Staking address canot be used in federated mode.")
+                                       message="Staking address cannot be used in federated mode.")
 
     # Banner
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
@@ -178,7 +174,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
-        ursula_config = UrsulaConfiguration.generate(password=get_password(confirm=True),
+        ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,

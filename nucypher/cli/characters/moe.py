@@ -9,7 +9,7 @@ from nucypher.network.middleware import RestMiddleware
 
 
 @click.command()
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
@@ -18,9 +18,8 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @nucypher_click_config
 def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
-
     """
-    "Moe" NuCypher node monitor CLI.
+    "Moe the Monitor" management commands.
     """
 
     emitter = click_config.emitter

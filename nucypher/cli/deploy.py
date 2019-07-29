@@ -17,22 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import time
 
 import click
-import maya
 
 from nucypher.blockchain.eth.actors import DeployerActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.clients import NuCypherGethDevnetProcess
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.banners import NU_BANNER
-from nucypher.cli import actions
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_password, select_client_account
-from nucypher.cli.painting import paint_contract_deployment
+from nucypher.cli import actions
+from nucypher.cli.actions import get_nucypher_password
+from nucypher.cli.actions import select_client_account
+from nucypher.cli.painting import (
+    paint_contract_deployment,
+    paint_staged_deployment,
+    paint_deployment_delay
+)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -41,11 +41,8 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
-@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
-@click.option('--sync/--no-sync', default=True)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True by default.
-@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
@@ -60,8 +57,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 def deploy(action,
            poa,
            provider_uri,
-           geth,
-           enode,
            gas,
            deployer_address,
            contract_name,
@@ -72,13 +67,23 @@ def deploy(action,
            amount,
            recipient_address,
            config_root,
-           sync,
            hw_wallet,
            force,
            dev):
-    """Manage contract and registry deployment"""
+    """
+    Manage contract and registry deployment.
 
-    ETH_NODE = None
+    \b
+    Actions
+    -----------------------------------------------------------------------------
+    contracts              Compile and deploy contracts.
+    allocations            Deploy pre-allocation contracts.
+    upgrade                Upgrade NuCypher existing proxy contract deployments.
+    rollback               Rollback a proxy contract's target.
+    status                 Echo owner information and bare contract metadata.
+    transfer-tokens        Transfer tokens to another address.
+    transfer-ownership     Transfer ownership of contracts to another address.
+    """
 
     emitter = StdoutEmitter()
 
@@ -92,64 +97,59 @@ def deploy(action,
         os.makedirs(config_root)
 
     #
-    # Connect to Blockchain
+    # Pre-Launch Warnings
     #
 
-    if geth:
-        # Spawn geth child process
-        ETH_NODE = NuCypherGethDevnetProcess(config_root=config_root)
-        ETH_NODE.ensure_account_exists(password=get_password(confirm=True))
-        ETH_NODE.start()  # TODO: Graceful shutdown
-        provider_uri = ETH_NODE.provider_uri
+    if not hw_wallet:
+        emitter.echo("WARNING: --no-hw-wallet is enabled.", color='yellow')
+
+    #
+    # Connect to Registry
+    #
 
     # Establish a contract registry from disk if specified
     registry_filepath = registry_outfile or registry_infile
-
     if dev:
         # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
         registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
+    registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+    emitter.echo(f"Using contract registry filepath {registry_filepath}")
 
-    # Deployment-tuned blockchain connection
-    blockchain = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                             poa=poa,
-                                             compiler=SolidityCompiler(),
-                                             registry=EthereumContractRegistry(registry_filepath=registry_filepath))
+    #
+    # Connect to Blockchain
+    #
 
+    blockchain = BlockchainDeployerInterface(provider_uri=provider_uri, poa=poa, registry=registry)
     try:
-        blockchain.connect(fetch_registry=False, sync_now=sync)
+        blockchain.connect(fetch_registry=False, sync_now=False)
     except BlockchainDeployerInterface.ConnectionFailed as e:
         emitter.echo(str(e), color='red', bold=True)
         raise click.Abort()
 
     #
-    # Deployment Actor
+    # Make Authenticated Deployment Actor
     #
 
+    # Verify Address & collect password
     if not deployer_address:
         deployer_address = select_client_account(emitter=emitter, blockchain=blockchain)
-
-    # Verify Address
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_password(confirm=False)
+        password = get_nucypher_password(confirm=False)
 
-    deployer = DeployerActor(blockchain=blockchain,
+    # Produce Actor
+    DEPLOYER = DeployerActor(blockchain=blockchain,
                              client_password=password,
                              deployer_address=deployer_address)
 
     # Verify ETH Balance
-    emitter.echo(f"\n\nDeployer ETH balance: {deployer.eth_balance}")
-    if deployer.eth_balance == 0:
+    emitter.echo(f"\n\nDeployer ETH balance: {DEPLOYER.eth_balance}")
+    if DEPLOYER.eth_balance == 0:
         emitter.echo("Deployer address has no ETH.", color='red', bold=True)
         raise click.Abort()
-
-    # Add ETH Bootnode or Peer
-    if enode:
-        blockchain.client.add_peer(enode)
-        emitter.echo(f"Added ethereum peer {enode}")
 
     #
     # Action switch
@@ -160,121 +160,96 @@ def deploy(action,
             raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        deployer.upgrade_contract(contract_name=contract_name,
+        DEPLOYER.upgrade_contract(contract_name=contract_name,
                                   existing_plaintext_secret=existing_secret,
                                   new_plaintext_secret=new_secret)
+        return  # Exit
 
     elif action == 'rollback':
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        deployer.rollback_contract(contract_name=contract_name,
+        DEPLOYER.rollback_contract(contract_name=contract_name,
                                    existing_plaintext_secret=existing_secret,
                                    new_plaintext_secret=new_secret)
+        return  # Exit
 
     elif action == "contracts":
 
         #
-        # Deploy Single Contract
+        # Deploy Single Contract (Amend Registry)
         #
 
         if contract_name:
             try:
-                contract_deployer = deployer.deployers[contract_name]
+                contract_deployer = DEPLOYER.deployers[contract_name]
             except KeyError:
-                message = f"No such contract {contract_name}. Available contracts are {deployer.deployers.keys()}"
+                message = f"No such contract {contract_name}. Available contracts are {DEPLOYER.deployers.keys()}"
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
             else:
                 emitter.echo(f"Deploying {contract_name}")
                 if contract_deployer._upgradeable:
-                    secret = deployer.collect_deployment_secret(deployer=contract_deployer)
-                    receipts, agent = deployer.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
+                    secret = DEPLOYER.collect_deployment_secret(deployer=contract_deployer)
+                    receipts, agent = DEPLOYER.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
                 else:
-                    receipts, agent = deployer.deploy_contract(contract_name=contract_name, gas_limit=gas)
+                    receipts, agent = DEPLOYER.deploy_contract(contract_name=contract_name, gas_limit=gas)
                 paint_contract_deployment(contract_name=contract_name,
                                           contract_address=agent.contract_address,
                                           receipts=receipts,
                                           emitter=emitter)
-            if ETH_NODE:
-                ETH_NODE.stop()
-            return
+            return  # Exit
 
-        registry_filepath = deployer.blockchain.registry.filepath
+        #
+        # Deploy Automated Series (Create Registry)
+        #
+
+        # Confirm filesystem registry writes.
+        registry_filepath = DEPLOYER.blockchain.registry.filepath
         if os.path.isfile(registry_filepath):
             emitter.echo(f"\nThere is an existing contract registry at {registry_filepath}.\n"
                          f"Did you mean 'nucypher-deploy upgrade'?\n", color='yellow')
-            click.confirm("Optionally, destroy existing local registry and continue?", abort=True)
-            click.confirm(f"Confirm deletion of contract registry '{registry_filepath}'?", abort=True)
+            click.confirm("*DESTROY* existing local registry and continue?", abort=True)
             os.remove(registry_filepath)
 
-        #
         # Stage Deployment
-        #
-        secrets = deployer.collect_deployment_secrets()
+        secrets = DEPLOYER.collect_deployment_secrets()
+        paint_staged_deployment(deployer=DEPLOYER, emitter=emitter)
 
-        emitter.clear()
-        emitter.banner(NU_BANNER)
-
-        emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
-        emitter.echo(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
-        emitter.echo(f"Block ............... {deployer.blockchain.client.block_number}")
-        emitter.echo(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
-
-        emitter.echo(f"Deployer Address .... {deployer.checksum_address}")
-        emitter.echo(f"ETH ................. {deployer.eth_balance}")
-        emitter.echo(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
-        emitter.echo(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
-
-        # Ask - Last chance to gracefully abort. This step cannot be forced.
-        emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')
-        # Trigger Deployment
-        if not actions.confirm_deployment(emitter=emitter, deployer=deployer):
+        # Confirm Trigger Deployment
+        if not actions.confirm_deployment(emitter=emitter, deployer=DEPLOYER):
             raise click.Abort()
 
-        # Delay - Last chance to crash and abort
-        emitter.echo(f"Starting deployment in 3 seconds...", color='red')
-        time.sleep(1)
-        emitter.echo(f"2...", color='yellow')
-        time.sleep(1)
-        emitter.echo(f"1...", color='green')
-        time.sleep(1)
-        emitter.echo(f"Deploying...", bold=True)
+        # Delay - Last chance to abort via KeyboardInterrupt
+        paint_deployment_delay(emitter=emitter)
 
-        #
-        # DEPLOY
-        #
-        deployment_receipts = deployer.deploy_network_contracts(secrets=secrets, emitter=emitter)
-
-        #
-        # Success
-        #
+        # Execute Deployment
+        deployment_receipts = DEPLOYER.deploy_network_contracts(secrets=secrets, emitter=emitter)
 
         # Paint outfile paths
-        # TODO: Echo total gas used.
-        # emitter.echo(f"Cumulative Gas Consumption: {total_gas_used} gas", bold=True, color='blue')
-
-        registry_outfile = deployer.blockchain.registry.filepath
+        registry_outfile = DEPLOYER.blockchain.registry.filepath
         emitter.echo('Generated registry {}'.format(registry_outfile), bold=True, color='blue')
 
         # Save transaction metadata
-        receipts_filepath = deployer.save_deployment_receipts(receipts=deployment_receipts)
+        receipts_filepath = DEPLOYER.save_deployment_receipts(receipts=deployment_receipts)
         emitter.echo(f"Saved deployment receipts to {receipts_filepath}", color='blue', bold=True)
+        return  # Exit
 
     elif action == "allocations":
         if not allocation_infile:
             allocation_infile = click.prompt("Enter allocation data filepath")
         click.confirm("Continue deploying and allocating?", abort=True)
-        deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
+        DEPLOYER.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                 allocation_outfile=allocation_outfile)
+        return  # Exit
 
     elif action == "transfer":
         token_agent = NucypherTokenAgent(blockchain=blockchain)
         click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
-        txhash = token_agent.transfer(amount=amount, sender_address=token_agent.contract_address, target_address=recipient_address)
+        txhash = token_agent.transfer(amount=amount,
+                                      sender_address=token_agent.contract_address,
+                                      target_address=recipient_address)
         emitter.echo(f"OK | {txhash}")
+        return  # Exit
 
     else:
         raise click.BadArgumentUsage(message=f"Unknown action '{action}'")
-
-    if ETH_NODE:
-        ETH_NODE.stop()

@@ -9,13 +9,13 @@ export NUCYPHER_USER_ESCROW_PROXY_SECRET='debuggerdebugger'
 export NUCYPHER_ADJUDICATOR_SECRET='debuggerdebugger'
 
 # Deploy Main Contracts
-nucypher-deploy contracts --provider-uri ipc:///tmp/geth.ipc --poa
+nucypher-deploy contracts --provider ipc:///tmp/geth.ipc --poa
 
 # Set Ursula Password
 export NUCYPHER_KEYRING_PASSWORD='debuggerdebuggerdebugger'
 
 # Initialize New Ursula
-nucypher ursula init --provider-uri ipc:///tmp/geth.ipc --poa --network TEMPORARY_DOMAIN --rest-host 0.0.0.0
+nucypher ursula init --provider ipc:///tmp/geth.ipc --poa --network TEMPORARY_DOMAIN --rest-host 0.0.0.0
 
 # Inline Staking
 nucypher ursula stake --value 15000 --duration 30 --force

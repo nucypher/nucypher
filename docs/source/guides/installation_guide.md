@@ -173,7 +173,7 @@ $ ./scripts/installation/install_solc.sh
     User=<YOUR USER>
     Type=simple
     Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --teacher-uri <SEEDNODE_URI>
+    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run --teacher <SEEDNODE_URI>
     
     [Install]
     WantedBy=multi-user.target

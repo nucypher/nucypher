@@ -79,7 +79,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
                 '--debug',                                  # Display log output; Do not attach console
                 '--federated-only',                         # Operating Mode
                 '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
-                '--teacher-uri', teacher_uri,
+                '--teacher', teacher_uri,
                 '--dev',                                    # Run in development mode (ephemeral node)
                 '--dry-run'                                 # Disable twisted reactor
                 )

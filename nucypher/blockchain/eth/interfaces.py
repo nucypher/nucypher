@@ -31,7 +31,7 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
-from eth_utils import to_checksum_address, to_canonical_address
+from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract, ContractFunction
@@ -222,7 +222,7 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self, fetch_registry: bool = True, sync_now: bool = True):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = False):
 
         # Spawn child process
         if self._provider_process:
@@ -473,8 +473,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.compiler = compiler or SolidityCompiler()
         self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
 
-    def connect(self, *args, **kwargs):
-        super().connect(*args, **kwargs)
+    def connect(self, fetch_registry: bool = False, *args, **kwargs):
+        super().connect(fetch_registry=fetch_registry, *args, **kwargs)
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 

@@ -8,14 +8,15 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting
-from nucypher.cli.actions import confirm_staged_stake, get_password, select_stake, select_client_account
+from nucypher.cli.actions import confirm_staged_stake, get_client_password, select_stake, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     STAKE_VALUE,
     STAKE_DURATION,
     STAKE_EXTENSION,
-    EXISTING_READABLE_FILE)
+    EXISTING_READABLE_FILE
+)
 
 
 @click.command()
@@ -28,7 +29,7 @@ from nucypher.cli.types import (
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--offline', help="Operate in offline mode", is_flag=True)
-@click.option('--provider-uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=True)
@@ -67,21 +68,21 @@ def stake(click_config,
 
           ) -> None:
     """
-        Manage stakes and other staker-related operations
+    Manage stakes and other staker-related operations
 
-        \b
-        Actions
-        -------------------------------------------------
-        \b
-        new-stakeholder  Create a new stakeholder configuration
-        list             List active stakes for current stakeholder
-        accounts         Show ETH and NU balances for stakeholder's accounts
-        sync             Synchronize stake data with on-chain information
-        set-worker       Bound a worker to a staker
-        detach-worker    Detach worker currently bound to a staker
-        init             Create a new stake
-        divide           Create a new stake from part of an existing one
-        collect-reward   Withdraw staking reward
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    new-stakeholder  Create a new stakeholder configuration
+    list             List active stakes for current stakeholder
+    accounts         Show ETH and NU balances for stakeholder's accounts
+    sync             Synchronize stake data with on-chain information
+    set-worker       Bound a worker to a staker
+    detach-worker    Detach worker currently bound to a staker
+    init             Create a new stake
+    divide           Create a new stake from part of an existing one
+    collect-reward   Withdraw staking reward
 
     """
 
@@ -155,8 +156,8 @@ def stake(click_config,
             worker_address = BlockchainInterface.NULL_ADDRESS
 
         password = None
-        if not hw_wallet:
-            password = get_password(confirm=False)
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
+            password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.set_worker(staker_address=staking_address,
                                password=password,
                                worker_address=worker_address)
@@ -177,7 +178,7 @@ def stake(click_config,
                                                     prompt="Select staking account",
                                                     emitter=emitter)
 
-        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:  # TODO: encapsulate/recycle in function?
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = click.prompt(f"Enter password to unlock {staking_address}",
                                     hide_input=True,
                                     confirmation_prompt=False)
@@ -260,8 +261,8 @@ def stake(click_config,
 
         # Execute
         password = None
-        if not hw_wallet:
-            password = get_password(confirm=False)
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
+            password = get_client_password(checksum_address=current_stake.owner_address)
         modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
                                                              index=current_stake.index,
                                                              value=value,
@@ -277,8 +278,8 @@ def stake(click_config,
     elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
         password = None
-        if not hw_wallet:
-            password = get_password(confirm=False)
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
+            password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.collect_rewards(staker_address=staking_address,
                                     withdraw_address=withdraw_address,
                                     password=password,
