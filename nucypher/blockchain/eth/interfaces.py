@@ -255,7 +255,7 @@ class BlockchainInterface:
 
         # Establish contact with NuCypher contracts
         if not self.registry:
-            self._configure_registry()
+            self._configure_registry(fetch_registry=fetch_registry)
 
         return self.is_connected
 

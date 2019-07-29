@@ -47,13 +47,13 @@ def paint_new_installation_help(emitter, new_configuration):
     if character_name == 'felix':
         suggested_db_command = 'nucypher felix createdb'
         how_to_proceed_message = f'\nTo initialize a new faucet database run:'
-        emitter.message(how_to_proceed_message, color='green')
-        emitter.message(f'\n\'{suggested_db_command}\'', color='green')
+        emitter.echo(how_to_proceed_message, color='green')
+        emitter.echo(f'\n\'{suggested_db_command}\'', color='green')
 
     # Ursula
     elif character_name == 'ursula' and not new_configuration.federated_only:
         how_to_stake_message = f"\nIf you haven't done it already, initialize a NU stake with 'nucypher stake' or"
-        emitter.message(how_to_stake_message, color='green')
+        emitter.echo(how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
     vowels = ('a', 'e', 'i', 'o', 'u')
@@ -62,7 +62,7 @@ def paint_new_installation_help(emitter, new_configuration):
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
-    emitter.message(how_to_run_message.format(suggested_command), color='green')
+    emitter.echo(how_to_run_message.format(suggested_command), color='green')
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -201,7 +201,8 @@ Active Staking Ursulas ... {ursulas}
 
 
 def paint_staged_stake(emitter,
-                       ursula,
+                       stakeholder,
+                       staking_address,
                        stake_value,
                        duration,
                        start_period,
@@ -215,8 +216,8 @@ def paint_staged_stake(emitter,
     emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
 
     emitter.echo(f"""
-{ursula}
-~ Chain      -> ID # {ursula.blockchain.client.chain_id} | {ursula.blockchain.client.chain_name}
+Staking address: {staking_address}
+~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {duration} Days ({duration} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
@@ -276,21 +277,23 @@ def paint_stakes(emitter, stakes):
 
 
 def paint_staged_stake_division(emitter,
-                                ursula,
+                                stakeholder,
                                 original_stake,
                                 target_value,
                                 extension):
 
     new_end_period = original_stake.end_period + extension
     new_duration = new_end_period - original_stake.start_period
+    staking_address = original_stake.checksum_address
 
     division_message = f"""
-{ursula}
+Staking address: {staking_address}
 ~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
     paint_staged_stake(emitter=emitter,
-                       ursula=ursula,
+                       stakeholder=stakeholder,
+                       staking_address=staking_address,
                        stake_value=target_value,
                        duration=new_duration,
                        start_period=original_stake.start_period,
@@ -337,4 +340,3 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
     for i in range(delay)[::-1]:
         emitter.echo(f"{i}...", color='yellow')
         time.sleep(1)
-    emitter.echo(f"Deploying...", bold=True)

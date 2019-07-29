@@ -68,12 +68,11 @@ def stake(click_config,
 
           ) -> None:
     """
-    Manage stakes and other staker-related operations
+    Manage stakes and other staker-related operations.
 
     \b
     Actions
     -------------------------------------------------
-    \b
     new-stakeholder  Create a new stakeholder configuration
     list             List active stakes for current stakeholder
     accounts         Show ETH and NU balances for stakeholder's accounts
@@ -98,10 +97,12 @@ def stake(click_config,
                                        message="--provider is required to create a new stakeholder.")
 
         registry = None
+        fetch_registry = True
         if registry_filepath:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            fetch_registry = False
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-        blockchain.connect()
+        blockchain.connect(sync_now=sync, fetch_registry=fetch_registry)
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       offline_mode=offline,
@@ -118,7 +119,8 @@ def stake(click_config,
     STAKEHOLDER = StakeHolder.from_configuration_file(filepath=config_file,
                                                       provider_uri=provider_uri,
                                                       registry_filepath=registry_filepath,
-                                                      offline=offline)
+                                                      offline=offline,
+                                                      sync_now=sync)
     #
     # Eager Actions
     #
@@ -158,11 +160,11 @@ def stake(click_config,
         password = None
         if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
             password = get_client_password(checksum_address=staking_address)
-        STAKEHOLDER.set_worker(staker_address=staking_address,
-                               password=password,
-                               worker_address=worker_address)
+        receipt = STAKEHOLDER.set_worker(staker_address=staking_address,
+                                         password=password,
+                                         worker_address=worker_address)
 
-        emitter.echo("OK!", color='green')
+        emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}", color='green')
         return  # Exit
 
     elif action == 'init':
@@ -204,7 +206,8 @@ def stake(click_config,
 
         if not force:
             painting.paint_staged_stake(emitter=emitter,
-                                        ursula=STAKEHOLDER,
+                                        stakeholder=STAKEHOLDER,
+                                        staking_address=staking_address,
                                         stake_value=value,
                                         duration=duration,
                                         start_period=start_period,
@@ -253,7 +256,7 @@ def stake(click_config,
 
         if not force:
             painting.paint_staged_stake_division(emitter=emitter,
-                                                 ursula=STAKEHOLDER,
+                                                 stakeholder=STAKEHOLDER,
                                                  original_stake=current_stake,
                                                  target_value=value,
                                                  extension=extension)

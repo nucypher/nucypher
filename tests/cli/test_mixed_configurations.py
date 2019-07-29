@@ -161,7 +161,7 @@ def test_coexisting_configurations(click_runner,
                 '--interactive',
                 '--config-file', another_ursula_configuration_file_location)
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
     with pytest.raises(Teacher.DetachedWorker):
         # Worker init success, but unassigned.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)

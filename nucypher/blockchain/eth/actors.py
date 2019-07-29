@@ -269,7 +269,8 @@ class DeployerActor(NucypherTokenActor):
         return user_escrow_deployer
 
     def deploy_network_contracts(self,
-                                 secrets: dict, interactive: bool = True,
+                                 secrets: dict,
+                                 interactive: bool = True,
                                  emitter: StdoutEmitter = None) -> dict:
         """
 
@@ -286,6 +287,9 @@ class DeployerActor(NucypherTokenActor):
         gas_limit = None  # TODO: Gas management
 
         # NuCypherToken
+        if emitter:
+            emitter.echo(f"\nDeploying {NUCYPHER_TOKEN_CONTRACT_NAME} ...")
+
         token_receipts, token_deployer = self.deploy_contract(contract_name=NUCYPHER_TOKEN_CONTRACT_NAME,
                                                               gas_limit=gas_limit)
 
@@ -296,10 +300,14 @@ class DeployerActor(NucypherTokenActor):
                                       emitter=emitter)
 
         deployment_receipts[NUCYPHER_TOKEN_CONTRACT_NAME] = token_receipts
-        if interactive:
-            click.pause(info="Press any key to continue")
 
         for contract_deployer in self.upgradeable_deployer_classes:
+            if interactive:
+                click.pause(info="Press any key to continue")
+
+            if emitter:
+                emitter.echo(f"\nDeploying {contract_deployer.contract_name} ...")
+
             receipts, deployer = self.deploy_contract(contract_name=contract_deployer.contract_name,
                                                       plaintext_secret=secrets[contract_deployer.contract_name],
                                                       gas_limit=gas_limit)
@@ -310,8 +318,6 @@ class DeployerActor(NucypherTokenActor):
                                           contract_address=deployer.contract_address,
                                           emitter=emitter)
             deployment_receipts[contract_deployer.contract_name] = receipts
-            if interactive:
-                click.pause(info="Press any key to continue")
 
         return deployment_receipts
 
@@ -788,14 +794,14 @@ class StakeHolder(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'StakeHolder':
+    def from_configuration_file(cls, filepath: str = None, sync_now: bool = True, **overrides) -> 'StakeHolder':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
         blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
-        blockchain.connect()  # TODO: Leave this here?
+        blockchain.connect(sync_now=sync_now)  # TODO: Leave this here?
 
         payload.update(dict(blockchain=blockchain))
 
@@ -924,11 +930,11 @@ class StakeHolder(BaseConfiguration):
     def set_worker(self, staker_address: str, worker_address: str, password: str = None):
         self.attach_transacting_power(checksum_address=staker_address, password=password)
         staker = self.get_active_staker(address=staker_address)
-        result = self.staking_agent.set_worker(staker_address=staker.checksum_address,
+        receipt = self.staking_agent.set_worker(staker_address=staker.checksum_address,
                                                worker_address=worker_address)
 
         self.to_configuration_file(override=True)
-        return result
+        return receipt
 
     def initialize_stake(self,
                          amount: NU,

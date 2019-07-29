@@ -113,7 +113,7 @@ def deploy(action,
         # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
         registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
     registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-    emitter.echo(f"Using contract registry filepath {registry_filepath}")
+    emitter.echo(f"Using contract registry filepath {registry.filepath}")
 
     #
     # Connect to Blockchain
@@ -132,7 +132,9 @@ def deploy(action,
 
     # Verify Address & collect password
     if not deployer_address:
-        deployer_address = select_client_account(emitter=emitter, blockchain=blockchain)
+        prompt = "Select deployer account"
+        deployer_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
@@ -166,6 +168,8 @@ def deploy(action,
         return  # Exit
 
     elif action == 'rollback':
+        if not contract_name:
+            raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
         DEPLOYER.rollback_contract(contract_name=contract_name,
@@ -244,11 +248,17 @@ def deploy(action,
 
     elif action == "transfer":
         token_agent = NucypherTokenAgent(blockchain=blockchain)
-        click.confirm(f"Transfer {amount} from {token_agent.contract_address} to {recipient_address}?", abort=True)
-        txhash = token_agent.transfer(amount=amount,
-                                      sender_address=token_agent.contract_address,
-                                      target_address=recipient_address)
-        emitter.echo(f"OK | {txhash}")
+        missing_options = list()
+        if recipient_address is None:
+            missing_options.append("--recipient-address")
+        if amount is None:
+            missing_options.append("--amount")
+        if missing_options:
+            raise click.BadOptionUsage(f"Need {' and '.join(missing_options)} to transfer tokens.")
+
+        click.confirm(f"Transfer {amount} from {deployer_address} to {recipient_address}?", abort=True)
+        receipt = token_agent.transfer(amount=amount, sender_address=deployer_address, target_address=recipient_address)
+        emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
         return  # Exit
 
     else:

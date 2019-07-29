@@ -187,7 +187,7 @@ def test_stake_list(click_runner,
     assert str(stake_value) in result.output
 
 
-def test_ursula_divide_stakes(click_runner,
+def test_staker_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
                               token_economics,
                               manual_staker,
@@ -305,7 +305,7 @@ def test_ursula_run(click_runner,
                  '--dry-run',
                  '--config-file', custom_config_filepath)
 
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
                                  input=user_input,

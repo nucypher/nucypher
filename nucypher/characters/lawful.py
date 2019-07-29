@@ -881,7 +881,7 @@ class Ursula(Teacher, Character, Worker):
         # Self-Ursula
         #
         # TODO: Better handle ephemeral staking self ursula <-- Is this still relevant?
-
+        self.log.debug(f"URSULA worker: {worker_address}, staker {checksum_address}")
         if is_me is True:  # TODO: #340
             self._stored_treasure_maps = dict()
 
@@ -889,15 +889,16 @@ class Ursula(Teacher, Character, Worker):
             # Ursula is a Decentralized Worker
             #
             if not federated_only:
-
-                # Access staking node via node's transacting keys
+                # Prepare a TransactingPower from worker node's transacting keys
                 transacting_power = TransactingPower(account=worker_address,
                                                      password=client_password,
                                                      blockchain=self.blockchain)
                 self._crypto_power.consume_power_up(transacting_power)
 
-                # Use blockchain power to substantiate stamp
-                self.substantiate_stamp(client_password=password)
+                # Use this power to substantiate the stamp
+                self.substantiate_stamp()
+                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+                decentralized_identity_evidence = self.decentralized_identity_evidence
 
                 Worker.__init__(self,
                                 is_me=is_me,
@@ -969,17 +970,12 @@ class Ursula(Teacher, Character, Worker):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
-                         password=password,
                          domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence,
-
-                         # TODO: #1091 When is_me and not federated_only, the stamp is substantiated twice
-                         worker_address=worker_address,
-                         substantiate_immediately=is_me and not federated_only,
                          )
 
         #

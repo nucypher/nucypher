@@ -128,9 +128,6 @@ class TransactingPower(CryptoPowerUp):
         self.__unlocked = False
         self.__activated = False
 
-    def __del__(self):
-        self.lock_account()
-
     @property
     def is_unlocked(self) -> bool:
         return self.__unlocked

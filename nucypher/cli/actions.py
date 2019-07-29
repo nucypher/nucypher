@@ -67,10 +67,10 @@ class UnknownIPAddress(RuntimeError):
 
 
 @validate_checksum_address
-def get_client_password(checksum_address) -> str:
+def get_client_password(checksum_address: str) -> str:
     prompt = f"Enter password to unlock account {checksum_address}"
-    keyring_password = click.prompt(prompt, hide_input=True)
-    return keyring_password
+    client_password = click.prompt(prompt, hide_input=True)
+    return client_password
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
