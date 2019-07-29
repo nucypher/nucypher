@@ -529,7 +529,6 @@ def stakers(testerchain, agency, token_economics):
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
 
-    # Leave out the last Ursula for manual stake testing
     _ursulas = make_decentralized_ursulas(blockchain=testerchain,
                                           ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,

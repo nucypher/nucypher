@@ -873,15 +873,12 @@ class Teacher:
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
-                 worker_address: str,
                  domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=NOT_SIGNED.bool_value(False),
                  timestamp=NOT_SIGNED,
                  decentralized_identity_evidence=NOT_SIGNED,
-                 substantiate_immediately=False,
-                 password=None,
                  ) -> None:
 
         #
@@ -913,10 +910,6 @@ class Teacher:
         self.verified_interface = False
         self.verified_node = False
         self.__worker_address = None
-
-        if substantiate_immediately:
-            # TODO: #1091 When is_me and not federated_only, the stamp is substantiated twice
-            self.substantiate_stamp(client_password=password)
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
