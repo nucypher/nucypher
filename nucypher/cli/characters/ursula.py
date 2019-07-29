@@ -26,7 +26,11 @@ from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, select_client_account
+from nucypher.cli.actions import (
+    get_nucypher_password,
+    select_client_account,
+    get_client_password
+)
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.cli.types import (
@@ -247,13 +251,18 @@ def ursula(click_config,
     #
     # Make Ursula
     #
-
+    # TODO: OH MY INDEED
+    client_password = None
+    if not ursula_config.federated_only:
+        if not dev and not click_config.json_ipc:
+            client_password = get_client_password(checksum_address=ursula_config.worker_address)
     URSULA = actions.make_cli_character(character_config=ursula_config,
                                         click_config=click_config,
                                         min_stake=min_stake,
                                         teacher_uri=teacher_uri,
                                         dev=dev,
-                                        lonely=lonely)
+                                        lonely=lonely,
+                                        client_password=client_password)
 
     #
     # Authenticated Action Switch
