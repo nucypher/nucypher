@@ -48,7 +48,7 @@ def test_adjudicator_deployer(session_testerchain, slashing_economics, deploymen
 
     assert len(deployment_receipts) == 3
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == deployer.num_deployment_steps
+    assert deployment_progress.num_steps == deployer.number_of_deployment_transactions
 
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1

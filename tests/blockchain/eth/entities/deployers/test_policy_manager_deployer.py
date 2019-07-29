@@ -42,7 +42,7 @@ def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deplo
                                                          progress=deployment_progress)
     assert len(deployment_receipts) == 3
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == policy_manager_deployer.num_deployment_steps
+    assert deployment_progress.num_steps == policy_manager_deployer.number_of_deployment_transactions
 
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1

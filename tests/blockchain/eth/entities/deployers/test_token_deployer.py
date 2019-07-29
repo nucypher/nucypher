@@ -38,7 +38,7 @@ def test_token_deployer_and_agent(session_testerchain, deployment_progress):
         assert receipt['status'] == 1
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == deployer.num_deployment_steps
+    assert deployment_progress.num_steps == deployer.number_of_deployment_transactions
 
     # Create a token instance
     token_agent = deployer.make_agent()

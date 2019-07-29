@@ -50,7 +50,7 @@ def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_p
 
     assert len(user_escrow_proxy_receipts) == 2
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == user_escrow_proxy_deployer.num_deployment_steps
+    assert deployment_progress.num_steps == user_escrow_proxy_deployer.number_of_deployment_transactions
 
     for title, receipt in user_escrow_proxy_receipts.items():
         assert receipt['status'] == 1

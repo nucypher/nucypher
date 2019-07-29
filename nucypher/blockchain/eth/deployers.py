@@ -38,7 +38,7 @@ class ContractDeployer:
 
     agency = NotImplemented
     contract_name = NotImplemented
-    num_deployment_steps = NotImplemented
+    number_of_deployment_transactions = NotImplemented
     _interface_class = BlockchainDeployerInterface
     _upgradeable = NotImplemented
     __linker_deployer = NotImplemented
@@ -142,7 +142,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
     agency = NucypherTokenAgent
     contract_name = agency.registry_contract_name
-    num_deployment_steps = 1
+    number_of_deployment_transactions = 1
     _upgradeable = False
 
     def __init__(self,
@@ -183,7 +183,7 @@ class DispatcherDeployer(ContractDeployer):
     """
 
     contract_name = DISPATCHER_CONTRACT_NAME
-    num_deployment_steps = 1
+    number_of_deployment_transactions = 1
     _upgradeable = False
 
     DISPATCHER_SECRET_LENGTH = 32
@@ -241,7 +241,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
     agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
-    num_deployment_steps = 4
+    number_of_deployment_transactions = 4
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
@@ -410,7 +410,7 @@ class PolicyManagerDeployer(ContractDeployer):
 
     agency = PolicyManagerAgent
     contract_name = agency.registry_contract_name
-    num_deployment_steps = 3
+    number_of_deployment_transactions = 3
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
@@ -520,7 +520,7 @@ class PolicyManagerDeployer(ContractDeployer):
 class LibraryLinkerDeployer(ContractDeployer):
 
     contract_name = 'UserEscrowLibraryLinker'
-    num_deployment_steps = 1
+    number_of_deployment_transactions = 1
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         self.target_contract = target_contract
@@ -558,7 +558,7 @@ class LibraryLinkerDeployer(ContractDeployer):
 class UserEscrowProxyDeployer(ContractDeployer):
 
     contract_name = 'UserEscrowProxy'
-    num_deployment_steps = 2
+    number_of_deployment_transactions = 2
     __linker_deployer = LibraryLinkerDeployer
 
     def __init__(self, *args, **kwargs):
@@ -645,7 +645,7 @@ class UserEscrowDeployer(ContractDeployer):
 
     agency = UserEscrowAgent
     contract_name = agency.registry_contract_name
-    num_deployment_steps = 1
+    number_of_deployment_transactions = 1
     _upgradeable = True
     __linker_deployer = LibraryLinkerDeployer
     __allocation_registry = AllocationRegistry
@@ -744,7 +744,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
     agency = AdjudicatorAgent
     contract_name = agency.registry_contract_name
-    num_deployment_steps = 3
+    number_of_deployment_transactions = 3
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
