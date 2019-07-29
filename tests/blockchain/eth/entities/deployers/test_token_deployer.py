@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
-def test_token_deployer_and_agent(session_testerchain):
+def test_token_deployer_and_agent(session_testerchain, deployment_progress):
     testerchain = session_testerchain
     origin = testerchain.etherbase_account
 
@@ -32,10 +32,13 @@ def test_token_deployer_and_agent(session_testerchain):
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
-    deployment_receipts = deployer.deploy()
+    deployment_receipts = deployer.deploy(progress=deployment_progress)
 
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1
+
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == deployer.num_deployment_steps
 
     # Create a token instance
     token_agent = deployer.make_agent()

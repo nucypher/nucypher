@@ -226,6 +226,7 @@ class DeployerActor(NucypherTokenActor):
                         contract_name: str,
                         gas_limit: int = None,
                         plaintext_secret: str = None,
+                        progress=None
                         ) -> Tuple[dict, ContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
@@ -234,9 +235,9 @@ class DeployerActor(NucypherTokenActor):
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
             secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
-            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit, progress=progress)
         else:
-            txhashes = deployer.deploy(gas_limit=gas_limit)
+            txhashes = deployer.deploy(gas_limit=gas_limit, progress=progress)
         return txhashes, deployer
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
@@ -283,8 +284,12 @@ class DeployerActor(NucypherTokenActor):
         gas_limit = None  # TODO: Gas management
 
         # deploy contracts
-        with click.progressbar(self.deployer_classes, label="Deploying Contracts") as bar:
-            for deployer_class in bar:
+        total_deployment_steps = 0
+        for deployer_class in self.deployer_classes:
+            total_deployment_steps += deployer_class.num_deployment_steps
+
+        with click.progressbar(length=total_deployment_steps, label="Deploying Contracts") as bar:
+            for deployer_class in self.deployer_classes:
                 if interactive:
                     click.pause(info="\nPress any key to continue")
 
@@ -293,11 +298,13 @@ class DeployerActor(NucypherTokenActor):
 
                 if deployer_class in self.standard_deployer_classes:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
-                                                              gas_limit=gas_limit)
+                                                              gas_limit=gas_limit,
+                                                              progress=bar)
                 else:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               plaintext_secret=secrets[deployer_class.contract_name],
-                                                              gas_limit=gas_limit)
+                                                              gas_limit=gas_limit,
+                                                              progress=bar)
 
                 if emitter:
                     paint_contract_deployment(contract_name=deployer_class.contract_name,
