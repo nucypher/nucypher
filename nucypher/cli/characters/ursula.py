@@ -343,7 +343,7 @@ def ursula(click_config,
         date = datetime_at_period(period=confirmed_period)
 
         emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
-                     f'(starting at {date}) !!', bold=True, color='blue')
+                     f'(starting at {date})', bold=True, color='blue')
         emitter.echo(f'Receipt: {txhash}')
         return
 

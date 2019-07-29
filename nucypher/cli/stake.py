@@ -68,12 +68,11 @@ def stake(click_config,
 
           ) -> None:
     """
-    Manage stakes and other staker-related operations
+    Manage stakes and other staker-related operations.
 
     \b
     Actions
     -------------------------------------------------
-    \b
     new-stakeholder  Create a new stakeholder configuration
     list             List active stakes for current stakeholder
     accounts         Show ETH and NU balances for stakeholder's accounts

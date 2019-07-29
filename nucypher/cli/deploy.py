@@ -113,7 +113,7 @@ def deploy(action,
         # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
         registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
     registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-    emitter.echo(f"Using contract registry filepath {registry_filepath}")
+    emitter.echo(f"Using contract registry filepath {registry.filepath}")
 
     #
     # Connect to Blockchain

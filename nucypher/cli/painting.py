@@ -47,13 +47,13 @@ def paint_new_installation_help(emitter, new_configuration):
     if character_name == 'felix':
         suggested_db_command = 'nucypher felix createdb'
         how_to_proceed_message = f'\nTo initialize a new faucet database run:'
-        emitter.message(how_to_proceed_message, color='green')
-        emitter.message(f'\n\'{suggested_db_command}\'', color='green')
+        emitter.echo(how_to_proceed_message, color='green')
+        emitter.echo(f'\n\'{suggested_db_command}\'', color='green')
 
     # Ursula
     elif character_name == 'ursula' and not new_configuration.federated_only:
         how_to_stake_message = f"\nIf you haven't done it already, initialize a NU stake with 'nucypher stake' or"
-        emitter.message(how_to_stake_message, color='green')
+        emitter.echo(how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
     vowels = ('a', 'e', 'i', 'o', 'u')
@@ -62,7 +62,7 @@ def paint_new_installation_help(emitter, new_configuration):
     suggested_command = f'nucypher {character_name} run'
     how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration filepath run: \n\n'{suggested_command}'\n"
 
-    emitter.message(how_to_run_message.format(suggested_command), color='green')
+    emitter.echo(how_to_run_message.format(suggested_command), color='green')
 
 
 def build_fleet_state_status(ursula) -> str:
