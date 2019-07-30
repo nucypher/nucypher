@@ -154,6 +154,9 @@ class BlockchainPolicy(Policy):
                                             value=rate*duration,   # TODO Check the math/types here
                                             lock_periods=duration,
                                             expiration=end_block)
+        # TODO: #1173 - This method is unused and seems broken.
+        # I think that something here will fail as the arrangement ID is not
+        # passed above to the constructor, so a new random ID will be created.
 
         arrangement.is_published = True
         return arrangement

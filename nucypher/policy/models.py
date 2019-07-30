@@ -20,7 +20,6 @@ from collections import OrderedDict
 
 import maya
 import msgpack
-import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from cryptography.hazmat.backends.openssl import backend
@@ -76,10 +75,14 @@ class Arrangement:
 
         Other params are hopefully self-evident.
         """
-        self.id = arrangement_id or secure_random(self.ID_LENGTH)
+        if arrangement_id:
+            if len(arrangement_id) != self.ID_LENGTH:
+                raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
+            self.id = arrangement_id
+        else:
+            self.id = secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
-        self.uuid = uuid.uuid4()
         self.value = value
 
         """
