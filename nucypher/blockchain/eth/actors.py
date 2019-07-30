@@ -288,13 +288,17 @@ class DeployerActor(NucypherTokenActor):
         for deployer_class in self.deployer_classes:
             total_deployment_transactions += deployer_class.number_of_deployment_transactions
 
-        with click.progressbar(length=total_deployment_transactions, label="Deploying Contracts") as bar:
+        first_iteration = True
+        with click.progressbar(length=total_deployment_transactions, label="Deployment progress") as bar:
+            bar.short_limit = 0
             for deployer_class in self.deployer_classes:
-                if interactive:
+                if interactive and not first_iteration:
                     click.pause(info="\nPress any key to continue")
 
                 if emitter:
                     emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
+                    bar._last_line = None
+                    bar.render_progress()
 
                 if deployer_class in self.standard_deployer_classes:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
@@ -313,6 +317,7 @@ class DeployerActor(NucypherTokenActor):
                                               emitter=emitter)
 
                 deployment_receipts[deployer_class.contract_name] = receipts
+                first_iteration = False
 
         return deployment_receipts
 
