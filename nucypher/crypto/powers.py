@@ -20,8 +20,6 @@ import inspect
 from typing import List, Tuple, Optional
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from cytoolz.dicttoolz import dissoc
-from eth_account._utils.transactions import assert_valid_fields
 from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
@@ -121,18 +119,14 @@ class TransactingPower(CryptoPowerUp):
         Instantiates a TransactingPower for the given checksum_address.
         """
         self.blockchain = blockchain
-        if blockchain.is_connected:
-            self.client = blockchain.client
-        else:
-            self.client = NO_BLOCKCHAIN_CONNECTION
+        self.__account = account
 
-        self.account = account
+        # TODO: Is there a better way to design this Flag?
         self.device = True if not password else False
+
         self.__password = password
         self.__unlocked = False
-
-    def __del__(self):
-        self.lock_account()
+        self.__activated = False
 
     @property
     def is_unlocked(self) -> bool:
@@ -143,29 +137,32 @@ class TransactingPower(CryptoPowerUp):
         """Returns True if the blockchain currently has this transacting power attached."""
         return self.blockchain.transacting_power == self
 
+    @property
+    def account(self) -> str:
+        return self.__account
+
     def activate(self, password: str = None):
         """Be Consumed"""
-        self.blockchain.connect()
-        self.client = self.blockchain.client       # Connect
+        self.blockchain.connect(fetch_registry=True, sync_now=False)
         self.unlock_account(password=password or self.__password)
-        self.blockchain.transacting_power = self   # Attach
-        self.__password = None                     # Discard
+        self.__password = None
+        self.blockchain.transacting_power = self
 
     def lock_account(self):
         if self.device:
-            # TODO: Force Disconnect Devices
+            # TODO: Force Disconnect Devices?
             pass
         else:
-            _result = self.client.lock_account(address=self.account)
+            _result = self.blockchain.client.lock_account(address=self.account)
         self.__unlocked = False
 
     def unlock_account(self, password: str = None):
         if self.device:
             unlocked = True
         else:
-            if self.client is NO_BLOCKCHAIN_CONNECTION:
+            if self.blockchain.client is NO_BLOCKCHAIN_CONNECTION:
                 raise self.NoBlockchainConnection
-            unlocked = self.client.unlock_account(address=self.account, password=password)
+            unlocked = self.blockchain.client.unlock_account(address=self.account, password=password)
         self.__unlocked = unlocked
 
     def sign_message(self, message: bytes) -> bytes:
@@ -174,7 +171,7 @@ class TransactingPower(CryptoPowerUp):
         """
         if not self.is_unlocked:
             raise self.AccountLocked("Failed to unlock account {}".format(self.account))
-        signature = self.client.sign_message(account=self.account, message=message)
+        signature = self.blockchain.client.sign_message(account=self.account, message=message)
         return signature
 
     def sign_transaction(self, unsigned_transaction: dict) -> HexBytes:

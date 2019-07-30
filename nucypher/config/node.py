@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 import secrets
 import string
@@ -32,7 +33,7 @@ from constant_sorrow.constants import (
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import PolicyAgent, StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.config.base import BaseConfiguration
@@ -167,7 +168,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
-        node_config.to_configuration_file(modifier=node_config.checksum_address)
+        node_config.to_configuration_file()
         return node_config
 
     def cleanup(self) -> None:
@@ -182,14 +183,19 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
+        registry = None
+        if self.registry_filepath:
+            registry = EthereumContractRegistry(registry_filepath=self.registry_filepath)
+
         self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
                                               poa=self.poa,
+                                              registry=registry,
                                               provider_process=self.provider_process)
 
     def acquire_agency(self) -> None:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
         self.log.debug("Established connection to nucypher contracts")
 
     @property
@@ -319,6 +325,7 @@ class CharacterConfiguration(BaseConfiguration):
                        crypto_power_ups=self.derive_node_power_ups())
         if not self.federated_only:
             self.get_blockchain_interface()
+            self.blockchain.connect()  # TODO: This makes blockchain connection more eager than transacting power acivation
             payload.update(blockchain=self.blockchain)
         return payload
 
@@ -368,35 +375,17 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def write_config_root(self):
-        try:
-            os.mkdir(self.config_root, mode=0o755)
-        except FileExistsError:
-            if os.listdir(self.config_root):
-                message = "There are existing files located at {}".format(self.config_root)
-                self.log.debug(message)
-        except FileNotFoundError:
-            os.makedirs(self.config_root, mode=0o755)
-
     def initialize(self, password: str) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
         if self.dev_mode:
-            if password is DEVELOPMENT_CONFIGURATION:
-                self.abort_on_learning_error = True
-                self.save_metadata = False
-                self.reload_metadata = False
-                alphabet = string.ascii_letters + string.digits
-                password = ''.join(secrets.choice(alphabet) for _ in range(32))
-            else:
-                raise self.ConfigurationError("Password cannot be specified for development configurations.")
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
 
         # Persistent
         else:
-            self.write_config_root()
+            self._ensure_config_root_exists()
             self.write_keyring(password=password)
 
         self._cache_runtime_filepaths()
@@ -413,12 +402,13 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
 
         if self.federated_only:
             checksum_address = FEDERATED_ADDRESS
 
-        else:
+        elif not checksum_address:
+
             # Note: It is assumed the blockchain interface is not yet connected.
             if self.provider_process:
 
@@ -442,7 +432,9 @@ class CharacterConfiguration(BaseConfiguration):
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
 
-        self.checksum_address = self.keyring.account
+        if self.federated_only:
+            self.checksum_address = self.keyring.checksum_address
+
         return self.keyring
 
     @classmethod

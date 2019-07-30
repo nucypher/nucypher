@@ -75,7 +75,6 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Sign
     power.activate()
-    assert power.is_active is True
     assert power.is_unlocked is True
     signed_transaction = power.sign_transaction(unsigned_transaction=transaction_dict)
 
@@ -111,7 +110,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency):
     token_agent = NucypherTokenAgent(blockchain=testerchain)
     contract_function = token_agent.contract.functions.approve(testerchain.etherbase_account, 100)
 
-    payload = {'chainId': int(testerchain.client.chain_id),
+    payload = {'chainId': int(testerchain.client.net_version),
                'nonce': testerchain.client.w3.eth.getTransactionCount(testerchain.etherbase_account),
                'from': testerchain.etherbase_account,
                'gasPrice': testerchain.client.gas_price}

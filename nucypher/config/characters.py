@@ -14,8 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
-import json
+
+
 import os
 
 from constant_sorrow.constants import (
@@ -45,6 +45,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def __init__(self,
                  dev_mode: bool = False,
+                 worker_address: str = None,
                  db_filepath: str = None,
                  rest_host: str = None,
                  rest_port: int = None,
@@ -64,6 +65,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.certificate = certificate
         self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
+        self.worker_address = worker_address
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
@@ -72,8 +74,13 @@ class UrsulaConfiguration(CharacterConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
+    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
+        filepath = super().generate_filepath(modifier=modifier or self.worker_address, *args, **kwargs)
+        return filepath
+
     def static_payload(self) -> dict:
         payload = dict(
+            worker_address=self.worker_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,
@@ -106,14 +113,22 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
+        if self.federated_only:
+            account = checksum_address or self.checksum_address
+        else:
+            account = checksum_address or self.worker_address
+        return super().attach_keyring(checksum_address=account)
 
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=True,
-                                     host=self.rest_host,
-                                     curve=self.tls_curve,
-                                     **generation_kwargs)
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+        keyring = super().write_keyring(password=password,
+                                        encrypting=True,
+                                        rest=True,
+                                        host=self.rest_host,
+                                        curve=self.tls_curve,
+                                        checksum_address=self.worker_address,
+                                        **generation_kwargs)
+        return keyring
 
     def destroy(self) -> None:
         if os.path.isfile(self.db_filepath):

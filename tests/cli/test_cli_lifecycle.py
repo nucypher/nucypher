@@ -105,11 +105,10 @@ def test_cli_lifecycle(click_runner,
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--config-root', alice_config_root)
-
     if federated:
         alice_init_args += ('--federated-only', )
     else:
-        alice_init_args += ('--provider-uri', TEST_PROVIDER_URI,
+        alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -117,11 +116,16 @@ def test_cli_lifecycle(click_runner,
 
     # Alice uses her configuration file to run the character "view" command
     alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.generate_filename())
-    alice_view_args = ('--json-ipc',
-                       'alice', 'public-keys',
+    alice_view_args = ('alice', 'public-keys',
+                       '--json-ipc',
                        '--config-file', alice_configuration_file_location)
 
-    alice_view_result = click_runner.invoke(nucypher_cli, alice_view_args, catch_exceptions=False, env=envvars)
+    alice_view_result = click_runner.invoke(nucypher_cli,
+                                            alice_view_args,
+                                            input=INSECURE_DEVELOPMENT_PASSWORD,
+                                            catch_exceptions=False,
+                                            env=envvars)
+
     assert alice_view_result.exit_code == 0
     alice_view_response = json.loads(alice_view_result.output)
 
@@ -139,16 +143,16 @@ def test_cli_lifecycle(click_runner,
     if federated:
         bob_init_args += ('--federated-only', )
     else:
-        bob_init_args += ('--provider-uri', TEST_PROVIDER_URI,
-                          '--pay-with', testerchain.bob_account)
+        bob_init_args += ('--provider', TEST_PROVIDER_URI,
+                          '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
     bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
-    bob_view_args = ('--json-ipc',
-                     'bob', 'public-keys',
+    bob_view_args = ('bob', 'public-keys',
+                     '--json-ipc',
                      '--config-file', bob_configuration_file_location)
 
     bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
@@ -167,9 +171,9 @@ def test_cli_lifecycle(click_runner,
 
     random_label = random_policy_label.decode()  # Unicode string
 
-    derive_args = ('--mock-networking',
+    derive_args = ('alice', 'derive-policy-pubkey',
+                   '--mock-networking',
                    '--json-ipc',
-                   'alice', 'derive-policy-pubkey',
                    '--config-file', alice_configuration_file_location,
                    '--label', random_label)
 
@@ -192,9 +196,9 @@ def test_cli_lifecycle(click_runner,
         # Fetch!
         policy = side_channel.fetch_policy()
 
-        enrico_args = ('--json-ipc',
-                       'enrico',
+        enrico_args = ('enrico',
                        'encrypt',
+                       '--json-ipc',
                        '--policy-encrypting-key', policy.encrypting_key,
                        '--message', PLAINTEXT)
 
@@ -217,9 +221,9 @@ def test_cli_lifecycle(click_runner,
         message_kit = encrypt_result['result']['message_kit']
 
         decrypt_args = (
+            'alice', 'decrypt',
             '--mock-networking',
             '--json-ipc',
-            'alice', 'decrypt',
             '--config-file', alice_configuration_file_location,
             '--message-kit', message_kit,
             '--label', policy.label,
@@ -264,11 +268,11 @@ def test_cli_lifecycle(click_runner,
         bob_encrypting_key = bob_keys.bob_encrypting_key
         bob_verifying_key = bob_keys.bob_verifying_key
 
-        grant_args = ('--mock-networking',
+        grant_args = ('alice', 'grant',
+                      '--mock-networking',
                       '--json-ipc',
-                      'alice', 'grant',
                       '--network', TEMPORARY_DOMAIN,
-                      '--teacher-uri', teacher_uri,
+                      '--teacher', teacher_uri,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
@@ -281,7 +285,7 @@ def test_cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider-uri', TEST_PROVIDER_URI)
+            grant_args += ('--provider', TEST_PROVIDER_URI)
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0
@@ -307,10 +311,10 @@ def test_cli_lifecycle(click_runner,
 
         alice_signing_key = side_channel.fetch_alice_pubkey()
 
-        retrieve_args = ('--mock-networking',
+        retrieve_args = ('bob', 'retrieve',
+                         '--mock-networking',
                          '--json-ipc',
-                         'bob', 'retrieve',
-                         '--teacher-uri', teacher_uri,
+                         '--teacher', teacher_uri,
                          '--config-file', bob_configuration_file_location,
                          '--message-kit', ciphertext_message_kit,
                          '--label', label,

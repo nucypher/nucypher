@@ -19,6 +19,7 @@ import datetime
 import os
 import random
 import tempfile
+import time
 
 import maya
 import pytest
@@ -31,7 +32,7 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.agents import Agency, NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -39,6 +40,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -359,8 +361,7 @@ def solidity_compiler():
     yield compiler
 
 
-@pytest.fixture(scope='module')
-def testerchain():
+def _make_testerchain():
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
@@ -373,15 +374,51 @@ def testerchain():
                                                      password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.deployer_address)
     testerchain.transacting_power.activate()
+    return testerchain
 
+
+@pytest.fixture(scope='module')
+def testerchain():
+    testerchain = _make_testerchain()
+    yield testerchain
+    testerchain.disconnect()
+
+@pytest.fixture(scope='session')
+def _session_testerchain():  # ... boring name...BOOH!
+    testerchain = _make_testerchain()
     yield testerchain
     testerchain.disconnect()
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain):
-    """Launch all Nucypher ethereum contracts"""
+def session_testerchain(_session_testerchain):
+    testerchain = _session_testerchain
+    testerchain.registry.clear()
 
+    coinbase, *addresses = testerchain.client.accounts
+
+    for address in addresses:
+        balance = testerchain.client.get_balance(address)
+        spent = DEVELOPMENT_ETH_AIRDROP_AMOUNT - balance
+        if spent > 0:
+            tx = {'to': address,
+                  'from': coinbase,
+                  'value': spent}
+
+            txhash = testerchain.w3.eth.sendTransaction(tx)
+
+            _receipt = testerchain.wait_for_receipt(txhash)
+            eth_amount = Web3().fromWei(spent, 'ether')
+            testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
+    yield testerchain
+    testerchain.registry.clear()
+
+
+def _make_agency(testerchain):
+    """
+    Launch the big three contracts on provided chain,
+    make agents for each and return them.
+    """
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -415,7 +452,24 @@ def agency(testerchain):
     # Other advantages is that it's closer to how agents should be use (i.e., there
     # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
 
-    yield token_agent, staking_agent, policy_agent
+    return token_agent, staking_agent, policy_agent
+
+
+@pytest.fixture(scope='module')
+def agency(testerchain):
+    agents = _make_agency(testerchain)
+    yield agents
+    testerchain.registry.clear()
+    Agency.clear()
+
+
+@pytest.fixture(scope='module')
+def session_agency(_session_testerchain):
+    testerchain = _session_testerchain
+    testerchain.registry.clear()
+    agents = _make_agency(testerchain)
+    yield agents
+    testerchain.registry.clear()
     Agency.clear()
 
 
@@ -475,7 +529,6 @@ def stakers(testerchain, agency, token_economics):
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
 
-    # Leave out the last Ursula for manual stake testing
     _ursulas = make_decentralized_ursulas(blockchain=testerchain,
                                           ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
@@ -551,18 +604,6 @@ def funded_blockchain(testerchain, agency, token_economics):
     yield testerchain, deployer_address
 
 
-@pytest.fixture(scope='module')
-def staking_participant(funded_blockchain, blockchain_ursulas):
-
-    # Start up the local fleet
-    for teacher in blockchain_ursulas:
-        start_pytest_ursula_services(ursula=teacher)
-
-    teachers = list(blockchain_ursulas)
-    staking_participant = teachers[-1]  # TODO: # 1035
-    return staking_participant
-
-
 #
 # Re-Encryption
 #
@@ -621,7 +662,7 @@ def mock_ursula_reencrypts():
 
 
 @pytest.fixture(scope='session')
-def geth_dev_node():
+def instant_geth_dev_node():
     geth = NuCypherGethDevProcess()
     try:
         yield geth
@@ -629,3 +670,95 @@ def geth_dev_node():
         if geth.is_running:
             geth.stop()
             assert not geth.is_running
+
+
+@pytest.fixture(scope='session')
+def stakeholder_config_file_location():
+    path = os.path.join('/', 'tmp', 'nucypher-test-stakeholder.json')
+    if os.path.exists(path):
+        os.remove(path)
+    yield path
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture(scope='module')
+def software_stakeholder(testerchain, agency, stakeholder_config_file_location):
+
+    # Setup
+    path = stakeholder_config_file_location
+    if os.path.exists(path):
+        os.remove(path)
+
+    #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
+    stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
+    address = testerchain.provider.ethereum_tester.add_account(stakeholder_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    testerchain.provider.ethereum_tester.unlock_account(address, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+
+    # Mock TransactingPower consumption (Etherbase)
+    transacting_power = TransactingPower(account=testerchain.etherbase_account,
+                                         password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         blockchain=testerchain)
+    transacting_power.activate()
+
+    token_agent = Agency.get_agent(NucypherTokenAgent)
+    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+                         sender_address=testerchain.etherbase_account,
+                         target_address=address)
+
+    # Create stakeholder from on-chain values given accounts over a web3 provider
+    stakeholder = StakeHolder(blockchain=testerchain,
+                              funding_account=address,
+                              funding_password=INSECURE_DEVELOPMENT_PASSWORD,
+                              trezor=False)
+
+    # Teardown
+    yield stakeholder
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture(scope='module')
+def manual_staker(testerchain):
+    # 0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075
+    staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
+    address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+
+    token_agent = Agency.get_agent(NucypherTokenAgent)
+    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+                         sender_address=testerchain.etherbase_account,
+                         target_address=address)
+
+    yield address
+
+
+@pytest.fixture(scope='module')
+def manual_worker(testerchain):
+    worker_private_key = '4115115f4159db59a06327aa29544c417c52ddb80a4a26517367ff4514e0f694'
+    address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
+                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    tx = {'to': address,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+    yield address

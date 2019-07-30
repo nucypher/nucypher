@@ -4,11 +4,11 @@ from contextlib import contextmanager
 import pytest
 from io import StringIO
 
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.cli.processes import UrsulaCommandProtocol
 
-# Disable click sentry and file logging
-
+# Override environment variables
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False
 
@@ -32,13 +32,15 @@ def ursula(federated_ursulas):
 
 @pytest.fixture(scope='module')
 def protocol(ursula):
-    protocol = UrsulaCommandProtocol(ursula=ursula)
+    emitter = StdoutEmitter()
+    protocol = UrsulaCommandProtocol(ursula=ursula, emitter=emitter)
     return protocol
 
 
 def test_ursula_command_protocol_creation(ursula):
 
-    protocol = UrsulaCommandProtocol(ursula=ursula)
+    emitter = StdoutEmitter()
+    protocol = UrsulaCommandProtocol(ursula=ursula, emitter=emitter)
 
     assert protocol.ursula == ursula
     assert b'Ursula' in protocol.prompt

@@ -29,7 +29,8 @@ from nucypher.blockchain.eth.deployers import (
 
 
 @pytest.mark.slow()
-def test_adjudicator_deployer(testerchain, slashing_economics):
+def test_adjudicator_deployer(session_testerchain, slashing_economics, deployment_progress):
+    testerchain = session_testerchain
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -42,13 +43,15 @@ def test_adjudicator_deployer(testerchain, slashing_economics):
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
-    deployment_txhashes = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH),
+                                          progress=deployment_progress)
 
-    assert len(deployment_txhashes) == 3
+    assert len(deployment_receipts) == 3
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == deployer.number_of_deployment_transactions
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
 
     # Create an AdjudicatorAgent instance
     adjudicator_agent = deployer.make_agent()

@@ -24,8 +24,8 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 
 
 @pytest.fixture(scope='function')
-def user_escrow_proxy(agency):
-    token_agent, staking_agent, policy_agent = agency
+def user_escrow_proxy(session_agency):
+    token_agent, staking_agent, policy_agent = session_agency
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
@@ -39,8 +39,8 @@ def user_escrow_proxy(agency):
 
 
 @pytest.mark.slow()
-def test_deploy_and_allocate(agency, user_escrow_proxy, token_economics):
-    token_agent, staking_agent, policy_agent = agency
+def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics):
+    token_agent, staking_agent, policy_agent = session_agency
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
 

@@ -13,81 +13,64 @@ class StdoutEmitter:
 
     transport_serializer = str
     default_color = 'white'
-    default_sink_callable = sys.stdout.write
 
-    __stdout_trap = list()
+    # sys.stdout.write() doesn't work well with click_runner's output capture
+    default_sink_callable = print
 
     def __init__(self,
                  sink: Callable = None,
-                 capture_stdout: bool = False,
-                 quiet: bool = False):
+                 verbosity: int = 1):
 
         self.name = self.__class__.__name__.lower()
         self.sink = sink or self.default_sink_callable
-        self.capture_stdout = capture_stdout
-        self.quiet = quiet
+        self.verbosity = verbosity
         self.log = Logger(self.name)
 
-        super().__init__()
+    def clear(self):
+        if self.verbosity >= 1:
+            click.clear()
 
-    def __call__(self, *args, **kwargs):
-        try:
-            return self._emit(*args, **kwargs)
-        except Exception:
-            self.log.debug("Error while emitting nucypher controller output")
-            raise
+    def message(self,
+                message: str,
+                color: str = None,
+                bold: bool = False,
+                verbosity: int = 1):
+        self.echo(message, color=color or self.default_color, bold=bold, verbosity=verbosity)
+        self.log.debug(message)
 
-    def trap_output(self, output) -> int:
-        self.__stdout_trap.append(output)
-        return len(bytes(output))  # number of bytes written
+    def echo(self,
+             message: str,
+             color: str = None,
+             bold: bool = False,
+             nl: bool = True,
+             verbosity: int = 0):
+        if verbosity <= self.verbosity:
+            click.secho(message=message, fg=color or self.default_color, bold=bold, nl=nl)
 
-    def _emit(self,
-              response: dict = None,
-              message: str = None,
-              color: str = None,
-              bold: bool = False,
-              ) -> None:
+    def banner(self, banner):
+        if self.verbosity >= 1:
+            click.echo(banner)
 
-        """
-        Write pretty messages to stdout.  For Human consumption only.
-        """
-        if response and message:
-            raise ValueError(f'{self.__class__.__name__} received both a response and a message.')
-
-        if self.quiet:
-            # reduces the number of CLI conditionals by
-            # wrapping console output functions
-            return
-
-        if self.capture_stdout:
-            self.trap_output(response or message)
-
-        elif response:
-            # WARNING: Do not log in this block
+    def ipc(self, response: dict, request_id: int, duration):
+        # WARNING: Do not log in this block
+        if self.verbosity >= 1:
             for k, v in response.items():
-                click.secho(message=f'{k} ...... {v}',
-                            fg=color or self.default_color,
-                            bold=bold)
+                click.secho(message=f'{k} ...... {v}', fg=self.default_color)
 
-        elif message:
-            # Most likely a message emitted without a character control instance
-            click.secho(message=message, fg=color or self.default_color, bold=bold)
-            self.log.debug(message)
-
-        else:
-            raise ValueError('Either "response" dict or "message" str is required, but got neither.')
+    def error(self, e):
+        if self.verbosity >= 1:
+            e_str = str(e)
+            click.echo(message=e_str)
+            self.log.info(e_str)
 
 
 class JSONRPCStdoutEmitter(StdoutEmitter):
 
     transport_serializer = json.dumps
-    default_sink_callable = print
     delimiter = '\n'
 
-    def __init__(self, sink: Callable = None, *args, **kwargs):
-        self.sink = sink or self.default_sink_callable
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.log = Logger("JSON-RPC-Emitter")
 
     class JSONRPCError(RuntimeError):
@@ -113,17 +96,6 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
     class InternalError(JSONRPCError):
         code = -32603
         message = "Internal JSON-RPC error."
-
-    def __call__(self, *args, **kwargs):
-        if 'response' in kwargs:
-            return self.__emit_rpc_response(*args, **kwargs)
-        elif 'message' in kwargs:
-            if not self.quiet:
-                self.log.info(*args, **kwargs)
-        elif 'e' in kwargs:
-            return self.__emit_rpc_error(*args, **kwargs)
-        else:
-            raise self.JSONRPCError("Internal Error")
 
     @staticmethod
     def assemble_response(response: dict, message_id: int) -> dict:
@@ -162,16 +134,34 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
 
         serialized_response = self.__serialize(data=data)
 
-        # Capture Message Output
-        if self.capture_stdout:
-            return self.trap_output(serialized_response)
-
         # Write to stdout file descriptor
-        else:
-            number_of_written_bytes = self.sink(serialized_response)  # < ------ OUTLET
-            return number_of_written_bytes
+        number_of_written_bytes = self.sink(serialized_response)  # < ------ OUTLET
+        return number_of_written_bytes
 
-    def __emit_rpc_error(self, e):
+    def clear(self):
+        pass
+
+    def message(self, message: str, **kwds):
+        self.log.debug(message)
+
+    def echo(self, *args, **kwds):
+        pass
+
+    def banner(self, banner):
+        pass
+
+    def ipc(self, response: dict, request_id: int, duration) -> int:
+        """
+        Write RPC response object to stdout and return the number of bytes written.
+        """
+
+        # Serialize JSON RPC Message
+        assembled_response = self.assemble_response(response=response, message_id=request_id)
+        size = self.__write(data=assembled_response)
+        self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
+        return size
+
+    def error(self, e):
         """
         Write RPC error object to stdout and return the number of bytes written.
         """
@@ -185,20 +175,7 @@ class JSONRPCStdoutEmitter(StdoutEmitter):
                 raise self.JSONRPCError
 
         size = self.__write(data=assembled_error)
-        # if not self.quiet:
-        #     self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
-        return size
-
-    def __emit_rpc_response(self, response: dict, request_id: int, duration) -> int:
-        """
-        Write RPC response object to stdout and return the number of bytes written.
-        """
-
-        # Serialize JSON RPC Message
-        assembled_response = self.assemble_response(response=response, message_id=request_id)
-        size = self.__write(data=assembled_response)
-        if not self.quiet:
-            self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
+        # self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
         return size
 
 
@@ -219,12 +196,6 @@ class WebEmitter:
 
         self.log = Logger('web-emitter')
 
-    def __call__(self, *args, **kwargs):
-        if 'response' in kwargs:
-            return self.__emit_http_response(*args, **kwargs)
-        else:
-            return self.__emit_exception(*args, **kwargs)
-
     @staticmethod
     def assemble_response(response: dict, request_id: int, duration) -> dict:
         response_data = {'result': response,
@@ -233,11 +204,11 @@ class WebEmitter:
                          'duration': str(duration)}
         return response_data
 
-    def __emit_exception(drone_character,
-                         e,
-                         error_message: str,
-                         log_level: str = 'info',
-                         response_code: int = 500):
+    def exception(drone_character,
+                  e,
+                  error_message: str,
+                  log_level: str = 'info',
+                  response_code: int = 500):
 
         message = f"{drone_character} [{str(response_code)} - {error_message}] | ERROR: {str(e)}"
         logger = getattr(drone_character.log, log_level)
@@ -246,7 +217,7 @@ class WebEmitter:
             raise e
         return drone_character.sink(str(e), status=response_code)
 
-    def __emit_http_response(drone_character, response, request_id, duration) -> Response:
+    def ipc(drone_character, response, request_id, duration) -> Response:
         assembled_response = drone_character.assemble_response(response=response,
                                                                request_id=request_id,
                                                                duration=duration)

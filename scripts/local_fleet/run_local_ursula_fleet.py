@@ -26,7 +26,6 @@ import os
 
 from twisted.internet import protocol
 from twisted.internet import reactor
-from twisted.logger import globalLogPublisher
 
 from nucypher.utilities.logging import SimpleObserver
 
@@ -48,7 +47,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         args = ['nucypher', '--debug',
                 'ursula', 'run',
                 '--rest-port', port,
-                '--teacher-uri', TEACHER_URI,
+                '--teacher', TEACHER_URI,
                 '--federated-only',
                 '--dev',
                 '--config-root', 'demo-ursula-{}'.format(port)

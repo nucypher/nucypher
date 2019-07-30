@@ -49,7 +49,7 @@ def character_control_interface(func):
         duration = responding - received
 
         # Emit
-        return instance.emitter(response=response, request_id=request_id, duration=duration)
+        return instance.emitter.ipc(response=response, request_id=request_id, duration=duration)
 
     return wrapped
 
@@ -76,7 +76,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
                       expiration: maya.MayaDT,
                       value: int = None,
                       ) -> dict:
-        
+
         from nucypher.characters.lawful import Bob
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
                                    verifying_key=bob_verifying_key)

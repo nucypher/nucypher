@@ -129,7 +129,6 @@ def test_character_transacting_power_signing(testerchain, agency):
                                          password=INSECURE_DEVELOPMENT_PASSWORD,
                                          account=eth_address)
 
-    assert testerchain.transacting_power != transacting_power
     signer._crypto_power.consume_power_up(transacting_power)
 
     # Retrieve the power up

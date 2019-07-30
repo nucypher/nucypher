@@ -9,7 +9,7 @@ from nucypher.network.middleware import RestMiddleware
 
 
 @click.command()
-@click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+@click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
@@ -18,19 +18,20 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @nucypher_click_config
 def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_port, learn_on_launch):
+    """
+    "Moe the Monitor" management commands.
+    """
 
-    """
-    "Moe" NuCypher node monitor CLI.
-    """
+    emitter = click_config.emitter
 
     # Banner
-    click.clear()
-    if not click_config.json_ipc and not click_config.quiet:
-        click.secho(MOE_BANNER)
+    emitter.clear()
+    emitter.banner(MOE_BANNER)
 
     # Teacher Ursula
     teacher_uris = [teacher_uri] if teacher_uri else None
-    teacher_nodes = actions.load_seednodes(teacher_uris=teacher_uris,
+    teacher_nodes = actions.load_seednodes(emitter,
+                                           teacher_uris=teacher_uris,
                                            min_stake=min_stake,
                                            federated_only=True,    # TODO: hardcoded for now.  Is Moe a Character?
                                            network_domains={network} if network else None,
@@ -44,4 +45,7 @@ def moe(click_config, teacher_uri, min_stake, network, ws_port, dry_run, http_po
 
     # Run
     MOE.start_learning_loop(now=learn_on_launch)
+
+    emitter.message(f"Running Moe on 127.0.0.1:{http_port}")
+
     MOE.start(http_port=http_port, ws_port=ws_port, dry_run=dry_run)

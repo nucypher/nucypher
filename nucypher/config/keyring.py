@@ -113,7 +113,7 @@ def _read_keyfile(keypath: str,
 
 def _write_private_keyfile(keypath: str,
                            key_data: Dict[str, bytes],
-                           serializer: Union[Callable, None]
+                           serializer: Union[Callable, None],
                            ) -> str:
     """
     Creates a permissioned keyfile and save it to the local filesystem.
@@ -616,6 +616,7 @@ class NucypherKeyring:
             sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
                                                  key_data=signing_key_metadata,
                                                  serializer=cls._private_key_serializer)
+
             delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
                                                          key_data=delegating_key_metadata,
                                                          serializer=cls._private_key_serializer)

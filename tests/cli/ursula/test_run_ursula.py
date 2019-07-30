@@ -37,8 +37,8 @@ from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('--debug',                                  # Display log output; Do not attach console
-            'ursula', 'run',                            # Stat Ursula Command
+    args = ('ursula', 'run',                            # Stat Ursula Command
+            '--debug',                                  # Display log output; Do not attach console
             '--federated-only',                         # Operating Mode
             '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
             '--dev',                                    # Run in development mode (ephemeral node)
@@ -75,11 +75,11 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
 
     def run_ursula(teacher_uri):
 
-        args = ('--debug',                                  # Display log output; Do not attach console
-                'ursula', 'run',
+        args = ('ursula', 'run',
+                '--debug',                                  # Display log output; Do not attach console
                 '--federated-only',                         # Operating Mode
                 '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
-                '--teacher-uri', teacher_uri,
+                '--teacher', teacher_uri,
                 '--dev',                                    # Run in development mode (ephemeral node)
                 '--dry-run'                                 # Disable twisted reactor
                 )
@@ -122,12 +122,15 @@ def test_ursula_rest_host_determination(click_runner):
 
     # Patch the get_external_ip call
     original_call = actions.get_external_ip_from_centralized_source
+    original_save = UrsulaConfiguration.to_configuration_file
+
     try:
         actions.get_external_ip_from_centralized_source = lambda: '192.0.2.0'
+        UrsulaConfiguration.to_configuration_file = lambda s: None
 
         args = ('ursula', 'init',
                 '--federated-only',
-                '--network', TEMPORARY_DOMAIN
+                '--network', TEMPORARY_DOMAIN,
                 )
 
         user_input = f'Y\n{INSECURE_DEVELOPMENT_PASSWORD}\n{INSECURE_DEVELOPMENT_PASSWORD}'
@@ -172,3 +175,4 @@ def test_ursula_rest_host_determination(click_runner):
     finally:
         # Unpatch call
         actions.get_external_ip_from_centralized_source = original_call
+        UrsulaConfiguration.to_configuration_file = original_save

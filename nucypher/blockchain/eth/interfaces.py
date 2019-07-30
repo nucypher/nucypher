@@ -31,12 +31,13 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
-from eth_utils import to_checksum_address, to_canonical_address
+from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import ConciseContract
-from web3.contract import Contract, ContractFunction, ContractConstructor
-from web3.exceptions import TimeExhausted, ValidationError
+from web3.contract import Contract, ContractFunction
+from web3.contract import ContractConstructor
+from web3.exceptions import TimeExhausted
+from web3.exceptions import ValidationError
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import Web3Client, NuCypherGethProcess
@@ -65,11 +66,11 @@ class BlockchainInterface:
     TIMEOUT = 180  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
 
-    _instance = NO_BLOCKCHAIN_CONNECTION
+    _instance = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
-    _contract_factory = ConciseContract
+    _contract_factory = Contract
 
     class InterfaceError(Exception):
         pass
@@ -163,20 +164,36 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = transacting_power
         self.registry = registry
-
         BlockchainInterface._instance = self
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
-    def _configure_registry(self, fetch_registry: bool = True):
+    @classmethod
+    def from_dict(cls, payload: dict, **overrides) -> 'BlockchainInterface':
+
+        # Apply overrides
+        payload.update({k: v for k, v in overrides.items() if v is not None})
+
+        registry = EthereumContractRegistry(registry_filepath=payload['registry_filepath'])
+        blockchain = cls(provider_uri=payload['provider_uri'], registry=registry)
+        return blockchain
+
+    def to_dict(self) -> dict:
+        payload = dict(provider_uri=self.provider_uri,
+                       poa=self.poa,
+                       registry_filepath=self.registry.filepath)
+        return payload
+
+    def _configure_registry(self, fetch_registry: bool = True) -> None:
         RegistryClass = EthereumContractRegistry._get_registry_class(local=self.client.is_local)
         if fetch_registry:
             registry = RegistryClass.from_latest_publication()
         else:
             registry = RegistryClass()
         self.registry = registry
+        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
     @property
     def is_connected(self) -> bool:
@@ -187,7 +204,7 @@ class BlockchainInterface:
             return False
         return self.client.is_connected
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         if self._provider_process:
             self._provider_process.stop()
         self._provider_process = NO_PROVIDER_PROCESS
@@ -205,7 +222,7 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self, fetch_registry: bool = True, sync_now: bool = True):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = False):
 
         # Spawn child process
         if self._provider_process:
@@ -232,13 +249,13 @@ class BlockchainInterface:
         else:
             self.attach_middleware()
 
-        # Establish contact with NuCypher contracts
-        if not self.registry:
-            self._configure_registry(fetch_registry=fetch_registry)
-
         # Wait for chaindata sync
         if sync_now:
             self.client.sync()
+
+        # Establish contact with NuCypher contracts
+        if not self.registry:
+            self._configure_registry(fetch_registry=fetch_registry)
 
         return self.is_connected
 
@@ -301,26 +318,40 @@ class BlockchainInterface:
             payload = {}
 
         nonce = self.client.w3.eth.getTransactionCount(sender_address)
-        payload.update({'chainId': int(self.client.chain_id),
+        payload.update({'chainId': int(self.client.net_version),
                         'nonce': nonce,
                         'from': sender_address,
-                        'gasPrice': self.client.w3.eth.gasPrice})
+                        'gasPrice': self.client.gas_price,
+                        # 'gas': 0,  # TODO: Gas Management
+                        })
 
         # Get interface name
+        deployment = True if isinstance(contract_function, ContractConstructor) else False
+
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
-            if isinstance(contract_function, ContractConstructor):
+            if deployment:
                 transaction_name = 'DEPLOY'
             else:
                 transaction_name = 'UNKNOWN'
 
+        payload_pprint = dict(payload)
+        payload_pprint['from'] = to_checksum_address(payload['from'])
+        payload_pprint = ', '.join("{}: {}".format(k, v) for k, v in payload_pprint.items())
+        self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
+
         # Build transaction payload
         try:
             unsigned_transaction = contract_function.buildTransaction(payload)
-        except ValidationError:
+        except ValidationError as e:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
+            self.log.warn(f"Validation error: {e}")
             raise
+        else:
+            if deployment:
+                self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
+
 
         #
         # Broadcast
@@ -328,7 +359,7 @@ class BlockchainInterface:
 
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
-        self.log.debug(f"[TX-{transaction_name}] | {to_checksum_address(payload['from'])}")
+
 
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
@@ -336,7 +367,7 @@ class BlockchainInterface:
             # TODO: Handle transaction timeout
             raise
         else:
-            self.log.debug(f"[RECEIPT-{transaction_name}] | {receipt['transactionHash'].hex()}")
+            self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
 
         #
         # Confirm
@@ -367,7 +398,7 @@ class BlockchainInterface:
                              ) -> Union[Contract, List[tuple]]:
         """
         Instantiate a deployed contract from registry data,
-        and assimilate it with it's proxy if it is upgradeable,
+        and assimilate it with its proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
         target_contract_records = self.registry.search(contract_name=name)
@@ -376,7 +407,7 @@ class BlockchainInterface:
             raise self.UnknownContract(f"No such contract records with name {name}.")
 
         if proxy_name:  # It's upgradeable
-            # Lookup proxies; Search fot a published proxy that targets this contract record
+            # Lookup proxies; Search for a published proxy that targets this contract record
 
             proxy_records = self.registry.search(contract_name=proxy_name)
 
@@ -386,7 +417,7 @@ class BlockchainInterface:
                                                              address=proxy_addr,
                                                              ContractFactoryClass=self._contract_factory)
 
-                # Read this dispatchers target address from the blockchain
+                # Read this dispatcher's target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
                 for target_name, target_addr, target_abi in target_contract_records:
 
@@ -424,6 +455,7 @@ class BlockchainInterface:
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
+    TIMEOUT = 600  # seconds
     _contract_factory = Contract
 
     class NoDeployerAddress(RuntimeError):
@@ -441,8 +473,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.compiler = compiler or SolidityCompiler()
         self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
 
-    def connect(self, *args, **kwargs):
-        super().connect(*args, **kwargs)
+    def connect(self, fetch_registry: bool = False, *args, **kwargs):
+        super().connect(fetch_registry=fetch_registry, *args, **kwargs)
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 
@@ -457,13 +489,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def _setup_solidity(self, compiler: SolidityCompiler = None):
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
-        recompile = True if compiler is not None else False
-        self.__recompile = recompile
         self.__sol_compiler = compiler
-
-        self.log.info("Using contract registry {}".format(self.registry.filepath))
-
-        if self.__recompile is True:
+        if compiler:
             # Execute the compilation if we're recompiling
             # Otherwise read compiled contract data from the registry
             interfaces = self.__sol_compiler.compile()
@@ -478,7 +505,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         enroll: bool = True,
                         gas_limit: int = None,
                         **kwargs
-                        ) -> Tuple[Contract, str]:
+                        ) -> Tuple[Contract, dict]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -490,15 +517,18 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Build the deployment transaction #
         #
 
-        deploy_transaction = {'gasPrice': self.client.gas_price}
+        deploy_transaction = dict()
         if gas_limit:
             deploy_transaction.update({'gas': gas_limit})
 
-        self.log.info("Deployer address is {}".format(self.deployer_address))
+        pprint_args = str(tuple(constructor_args))
+        pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
+        self.log.info(f"Deploying contract {contract_name} with "
+                      f"deployer address {self.deployer_address} "
+                      f"and parameters {pprint_args}")
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
         transaction_function = contract_factory.constructor(*constructor_args, **kwargs)
-        # self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(transaction['data'])))
 
         #
         # Transmit the deployment tx #
@@ -511,7 +541,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
         # Verify deployment success
         #
-        txhash = receipt['transactionHash']
 
         # Success
         address = receipt['contractAddress']
@@ -528,7 +557,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                  contract_address=contract.address,
                                  contract_abi=contract_factory.abi)
 
-        return contract, txhash  # receipt
+        return contract, receipt  # receipt
 
     def get_contract_factory(self, contract_name: str) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""

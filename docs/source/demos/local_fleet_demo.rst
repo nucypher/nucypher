@@ -83,7 +83,7 @@ Here is an example of connecting to a node in the local development fleet:
 
 .. code::
 
-    nucypher ursula run --dev --teacher-uri localhost:11501
+    nucypher ursula run --dev --teacher localhost:11501
 
 
 .. note::

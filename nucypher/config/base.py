@@ -67,7 +67,7 @@ class BaseConfiguration(ABC):
     _NAME = NotImplemented
     _CONFIG_FILE_EXTENSION = 'json'
 
-    INDENTATION = 4
+    INDENTATION = 2
     DEFAULT_CONFIG_ROOT = constants.DEFAULT_CONFIG_ROOT
 
     class ConfigurationError(RuntimeError):
@@ -176,8 +176,22 @@ class BaseConfiguration(ABC):
         self.filepath = filepath
         return filepath
 
+    def _ensure_config_root_exists(self) -> None:
+        """
+        Before writing to a configuration file, ensures that
+        self.config_root exists on the filesystem.
+
+        :return: None.
+        """
+        if not os.path.exists(self.config_root):
+            try:
+                os.mkdir(self.config_root, mode=0o755)
+            except FileNotFoundError:
+                os.makedirs(self.config_root, mode=0o755)
+
     def to_configuration_file(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
         filepath = self.generate_filepath(filepath=filepath, modifier=modifier, override=override)
+        self._ensure_config_root_exists()
         filepath = self._write_configuration_file(filepath=filepath, override=override)
         return filepath
 

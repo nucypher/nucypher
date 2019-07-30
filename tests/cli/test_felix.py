@@ -54,14 +54,14 @@ def test_run_felix(click_runner,
                'FLASK_DEBUG': '1'}
 
     # Felix creates a system configuration
-    init_args = ('--debug',
-                 'felix', 'init',
+    init_args = ('felix', 'init',
+                 '--debug',
                  '--registry-filepath', mock_primary_registry_filepath,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
                  '--no-registry',
-                 '--provider-uri', TEST_PROVIDER_URI)
+                 '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -69,22 +69,22 @@ def test_run_felix(click_runner,
     configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
 
     # Felix Creates a Database
-    db_args = ('--debug',
-               'felix', 'createdb',
+    db_args = ('felix', 'createdb',
+               '--debug',
                '--registry-filepath', mock_primary_registry_filepath,
                '--config-file', configuration_file_location,
-               '--provider-uri', TEST_PROVIDER_URI)
+               '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, db_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # Felix Runs Web Services
     def run_felix():
-        args = ('--debug',
-                'felix', 'run',
+        args = ('felix', 'run',
+                '--debug',
                 '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', configuration_file_location,
-                '--provider-uri', TEST_PROVIDER_URI,
+                '--provider', TEST_PROVIDER_URI,
                 '--dry-run',
                 '--no-registry')
 

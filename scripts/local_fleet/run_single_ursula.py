@@ -35,7 +35,7 @@ DEMO_FLEET_STARTING_PORT = 11500
 args = ['--debug',
         'ursula', 'run',
         '--federated-only',
-        '--teacher-uri', f'https://127.0.0.1:{DEMO_FLEET_STARTING_PORT}',
+        '--teacher', f'https://127.0.0.1:{DEMO_FLEET_STARTING_PORT}',
         '--rest-port', DEMO_NODE_PORT,
         '--dev'
         ]

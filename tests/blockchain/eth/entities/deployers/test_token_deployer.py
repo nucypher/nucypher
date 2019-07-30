@@ -21,7 +21,8 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
-def test_token_deployer_and_agent(testerchain):
+def test_token_deployer_and_agent(session_testerchain, deployment_progress):
+    testerchain = session_testerchain
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails
@@ -31,11 +32,13 @@ def test_token_deployer_and_agent(testerchain):
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
-    deployment_txhashes = deployer.deploy()
+    deployment_receipts = deployer.deploy(progress=deployment_progress)
 
-    for title, txhash in deployment_txhashes.items():
-        receipt = testerchain.wait_for_receipt(txhash=txhash)
-        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
+    for title, receipt in deployment_receipts.items():
+        assert receipt['status'] == 1
+
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == deployer.number_of_deployment_transactions
 
     # Create a token instance
     token_agent = deployer.make_agent()
