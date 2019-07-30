@@ -40,13 +40,18 @@ def user_escrow_proxy_deployer(session_testerchain, session_agency):
 
 
 @pytest.mark.slow()
-def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_proxy_deployer):
+def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_proxy_deployer, deployment_progress):
     testerchain = session_testerchain
     deployer_account = testerchain.etherbase_account
     secret_hash = keccak_digest(USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode())
-    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash)
+
+    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash,
+                                                                   progress=deployment_progress)
 
     assert len(user_escrow_proxy_receipts) == 2
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == user_escrow_proxy_deployer.number_of_deployment_transactions
+
     for title, receipt in user_escrow_proxy_receipts.items():
         assert receipt['status'] == 1
 

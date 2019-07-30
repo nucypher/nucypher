@@ -227,7 +227,9 @@ def deploy(action,
         paint_deployment_delay(emitter=emitter)
 
         # Execute Deployment
-        deployment_receipts = DEPLOYER.deploy_network_contracts(secrets=secrets, emitter=emitter)
+        deployment_receipts = DEPLOYER.deploy_network_contracts(secrets=secrets,
+                                                                emitter=emitter,
+                                                                interactive=not force)
 
         # Paint outfile paths
         registry_outfile = DEPLOYER.blockchain.registry.filepath

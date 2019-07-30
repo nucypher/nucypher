@@ -306,7 +306,7 @@ def paint_contract_deployment(emitter, contract_name: str, contract_address: str
     # TODO: switch to using an explicit emitter
 
     # Paint heading
-    heading = '\n{} ({})'.format(contract_name, contract_address)
+    heading = f'\r{" "*80}\n{contract_name} ({contract_address})'
     emitter.echo(heading, bold=True)
     emitter.echo('*' * (42 + 3 + len(contract_name)))
 

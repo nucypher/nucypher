@@ -35,3 +35,16 @@ def staking_escrow_deployer(session_testerchain, token_deployer):
     staking_escrow_deployer = StakingEscrowDeployer(blockchain=session_testerchain,
                                                     deployer_address=session_testerchain.etherbase_account)
     return staking_escrow_deployer
+
+
+@pytest.fixture(scope="function")
+def deployment_progress():
+    class DeploymentProgress:
+        num_steps = 0
+
+        def update(self, steps: int):
+            self.num_steps += steps
+
+    progress = DeploymentProgress()
+
+    return progress

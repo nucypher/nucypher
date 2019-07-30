@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 
 
 @pytest.mark.slow()
-def test_deploy_ethereum_contracts(session_testerchain):
+def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     testerchain = session_testerchain
 
     origin, *everybody_else = testerchain.client.accounts
@@ -45,7 +45,7 @@ def test_deploy_ethereum_contracts(session_testerchain):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not token_deployer.is_deployed
 
-    token_deployer.deploy()
+    token_deployer.deploy(progress=deployment_progress)
     assert token_deployer.is_deployed
     assert len(token_deployer.contract_address) == 42
 
@@ -70,7 +70,7 @@ def test_deploy_ethereum_contracts(session_testerchain):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed
 
-    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
+    staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret), progress=deployment_progress)
     assert staking_escrow_deployer.is_deployed
     assert len(staking_escrow_deployer.contract_address) == 42
 
@@ -97,7 +97,7 @@ def test_deploy_ethereum_contracts(session_testerchain):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed
 
-    policy_manager_deployer.deploy(secret_hash=keccak(policy_manager_secret))
+    policy_manager_deployer.deploy(secret_hash=keccak(policy_manager_secret), progress=deployment_progress)
     assert policy_manager_deployer.is_deployed
     assert len(policy_manager_deployer.contract_address) == 42
 
@@ -124,7 +124,7 @@ def test_deploy_ethereum_contracts(session_testerchain):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed
 
-    adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret))
+    adjudicator_deployer.deploy(secret_hash=keccak(adjudicator_secret), progress=deployment_progress)
     assert adjudicator_deployer.is_deployed
     assert len(adjudicator_deployer.contract_address) == 42
 
@@ -135,3 +135,9 @@ def test_deploy_ethereum_contracts(session_testerchain):
     another_adjudicator_agent = AdjudicatorAgent()
     assert len(another_adjudicator_agent.contract_address) == 42
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
+
+    # overall deployment steps must match aggregated individual expected number of steps
+    assert deployment_progress.num_steps == (token_deployer.number_of_deployment_transactions +
+                                             staking_escrow_deployer.number_of_deployment_transactions +
+                                             policy_manager_deployer.number_of_deployment_transactions +
+                                             adjudicator_deployer.number_of_deployment_transactions)

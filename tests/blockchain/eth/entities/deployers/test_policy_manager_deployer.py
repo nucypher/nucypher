@@ -37,10 +37,12 @@ def policy_manager_deployer(staking_escrow_deployer, session_testerchain):
     return policy_manager_deployer
 
 
-def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer):
-
-    deployment_receipts = policy_manager_deployer.deploy(secret_hash=keccak(text=POLICY_MANAGER_DEPLOYMENT_SECRET))
+def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
+    deployment_receipts = policy_manager_deployer.deploy(secret_hash=keccak(text=POLICY_MANAGER_DEPLOYMENT_SECRET),
+                                                         progress=deployment_progress)
     assert len(deployment_receipts) == 3
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == policy_manager_deployer.number_of_deployment_transactions
 
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1
