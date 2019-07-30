@@ -164,7 +164,8 @@ def stake(click_config,
                                          password=password,
                                          worker_address=worker_address)
 
-        emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}", color='green')
+        emitter.echo(f"Successfully bound worker {worker_address} to staker {staking_address}", color='green')
+        emitter.echo(f"Receipt ........... {receipt['transactionHash'].hex()}", color='green')
         return  # Exit
 
     elif action == 'init':
