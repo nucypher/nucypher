@@ -22,9 +22,9 @@ sleep 2
 
 # Connect Node #2 to Lonely Ursula
 echo "Starting Ursula #2..."
-nucypher --debug ursula run --dev --federated-only --teacher localhost:11500 --rest-port 11501 > /tmp/ursulas-logs/ursula-11501.txt 2>&1 &
+nucypher ursula run --debug --dev --federated-only --teacher localhost:11500 --rest-port 11501 > /tmp/ursulas-logs/ursula-11501.txt 2>&1 &
 sleep 1
 
 # Connect Node #3 to the local Fleet
 echo "Starting Ursula #3..."
-nucypher --debug ursula run --dev --federated-only --teacher localhost:11500 --rest-port 11502 > /tmp/ursulas-logs/ursula-11502.txt 2>&1 &
+nucypher ursula run --debug --dev --federated-only --teacher localhost:11500 --rest-port 11502 > /tmp/ursulas-logs/ursula-11502.txt 2>&1 &

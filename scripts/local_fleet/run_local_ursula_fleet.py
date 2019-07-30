@@ -27,8 +27,6 @@ import os
 from twisted.internet import protocol
 from twisted.internet import reactor
 
-from nucypher.utilities.logging import SimpleObserver
-
 
 FLEET_POPULATION = 5
 DEMO_NODE_STARTING_PORT = 11501
@@ -44,8 +42,9 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     ursula_processes = list()
     for index, port in enumerate(ports):
 
-        args = ['nucypher', '--debug',
+        args = ['nucypher',
                 'ursula', 'run',
+                '--debug',
                 '--rest-port', port,
                 '--teacher', TEACHER_URI,
                 '--federated-only',
