@@ -134,12 +134,13 @@ def alice(click_config,
             blockchain.connect(sync_now=sync, fetch_registry=False)
             pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
 
+        download_registry = not federated_only and not click_config.no_registry
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       download_registry=click_config.no_registry,
+                                                       download_registry=download_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,

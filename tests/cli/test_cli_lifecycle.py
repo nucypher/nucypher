@@ -109,6 +109,7 @@ def test_cli_lifecycle(click_runner,
         alice_init_args += ('--federated-only', )
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
+                            '--no-registry',
                             '--pay-with', testerchain.alice_account)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -144,6 +145,7 @@ def test_cli_lifecycle(click_runner,
         bob_init_args += ('--federated-only', )
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
+                          '--no-registry',
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
