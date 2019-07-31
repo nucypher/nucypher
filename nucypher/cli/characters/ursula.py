@@ -178,6 +178,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
+        download_registry = not federated_only and not click_config.no_registry
         ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
@@ -187,7 +188,7 @@ def ursula(click_config,
                                                      federated_only=federated_only,
                                                      checksum_address=staker_address,
                                                      worker_address=worker_address,
-                                                     download_registry=federated_only or click_config.no_registry,
+                                                     download_registry=download_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,

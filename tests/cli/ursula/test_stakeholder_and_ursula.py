@@ -258,6 +258,7 @@ def test_ursula_init(click_runner,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
+                 '--no-registry',
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
