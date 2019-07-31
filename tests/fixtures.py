@@ -40,7 +40,6 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -63,8 +62,7 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
-                                               make_federated_ursulas,
-                                               start_pytest_ursula_services)
+                                               make_federated_ursulas)
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
@@ -389,6 +387,7 @@ def testerchain():
     testerchain = _make_testerchain()
     yield testerchain
     testerchain.disconnect()
+
 
 @pytest.fixture(scope='session')
 def _session_testerchain():  # ... boring name...BOOH!
