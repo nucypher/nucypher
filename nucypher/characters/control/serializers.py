@@ -86,7 +86,7 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
                             label=request['label'].encode(),
                             m=request['m'],
                             n=request['n'],
-                            expiration=request['expiration'])
+                            expiration=maya.MayaDT.from_iso8601(iso8601_string=request['expiration']))
         return parsed_input
 
     @staticmethod
@@ -120,7 +120,7 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
                             label=request['label'].encode(),
                             m=request['m'],
                             n=request['n'],
-                            expiration=maya.MayaDT.from_iso8601(request['expiration']))
+                            expiration=maya.MayaDT.from_iso8601(iso8601_string=request['expiration']))
         return parsed_input
 
     @staticmethod

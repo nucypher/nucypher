@@ -368,7 +368,7 @@ def make_rest_app(
             do_store = treasure_map.public_id() == treasure_map_id
 
         if do_store:
-            log.info("{} storing TreasureMap {}".format(this_node.stamp, treasure_map_id))
+            log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
 
             # TODO 341 - what if we already have this TreasureMap?
             treasure_map_index = bytes.fromhex(treasure_map_id)

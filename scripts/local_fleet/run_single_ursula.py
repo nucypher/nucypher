@@ -32,8 +32,8 @@ click_runner = CliRunner()
 DEMO_NODE_PORT = select_test_port()
 DEMO_FLEET_STARTING_PORT = 11500
 
-args = ['--debug',
-        'ursula', 'run',
+args = ['ursula', 'run',
+        '--debug',
         '--federated-only',
         '--teacher', f'https://127.0.0.1:{DEMO_FLEET_STARTING_PORT}',
         '--rest-port', DEMO_NODE_PORT,

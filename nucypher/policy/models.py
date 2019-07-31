@@ -20,7 +20,6 @@ from collections import OrderedDict
 
 import maya
 import msgpack
-import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from cryptography.hazmat.backends.openssl import backend
@@ -37,7 +36,7 @@ from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice, Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
@@ -57,8 +56,9 @@ class Arrangement:
     federated = True
     ID_LENGTH = 32
 
-    splitter = key_splitter + BytestringSplitter((bytes, ID_LENGTH),
-                                                 (bytes, 27))
+    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
+                                  (bytes, ID_LENGTH),  # arrangement_ID
+                                  (bytes, VariableLengthBytestring))  # expiration
 
     def __init__(self,
                  alice: Alice,
@@ -75,10 +75,14 @@ class Arrangement:
 
         Other params are hopefully self-evident.
         """
-        self.id = arrangement_id or secure_random(self.ID_LENGTH)
+        if arrangement_id:
+            if len(arrangement_id) != self.ID_LENGTH:
+                raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
+            self.id = arrangement_id
+        else:
+            self.id = secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
-        self.uuid = uuid.uuid4()
         self.value = value
 
         """
@@ -89,13 +93,12 @@ class Arrangement:
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + self.expiration.iso8601().encode()
+        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
-        # TODO #148 - Still unclear how to arrive at the correct number of bytes to represent a deposit.
         alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
-        expiration = maya.parse(expiration_bytes.decode())
+        expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 

@@ -28,8 +28,8 @@ from nucypher.cli.main import nucypher_cli
 
 click_runner = CliRunner()
 
-args = ['--debug',             # Non-Interactive + Verbose
-        'ursula', 'run',
+args = ['ursula', 'run',
+        '--debug',             # Non-Interactive + Verbose
         '--rest-port', 11500,  # REST Server
         '--federated-only',    # Operating Mode
         '--dev',               # In-Memory
