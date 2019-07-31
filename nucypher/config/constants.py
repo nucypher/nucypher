@@ -51,10 +51,12 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 
 # Web
 TEMPLATES_DIR = os.path.join(abspath(dirname(cli.__file__)), 'templates')
-APPS_S3_PATH = "http://nucypher-faucet-dev.s3-website-us-east-1.amazonaws.com"
 
 # export NUCYPHER_CORS_ORIGINS=example.com,localhost,192.168.2.5:8080
 CORS_ORIGINS = os.getenv('NUCYPHER_CORS_ORIGINS', '').split(',') or [
     "127.0.0.1:8080",
     "localhost:8080"
 ]
+
+STATICS_DIR = os.getenv(
+    'NUCYPHER_STATICS_DIR') or os.path.join(BASE_DIR, 'apps', 'statics')
