@@ -225,7 +225,7 @@ class Felix(Character, NucypherTokenActor, NonTLSHost):
 
     def make_web_app(self):
         from flask import request
-        from flask_cors import CORS, cross_origin
+        # from flask_cors import CORS, cross_origin
         from flask_sqlalchemy import SQLAlchemy
 
         # WSGI/Flask Service
@@ -239,7 +239,7 @@ class Felix(Character, NucypherTokenActor, NonTLSHost):
 
         # TODO: this does not work.  Maybe a hendrix issue?  No cross-origin
         # headers are visible on response.
-        CORS(self.rest_app, resources={r"*": {"origins": CORS_ORIGINS}})
+        # CORS(self.rest_app, resources={r"*": {"origins": CORS_ORIGINS}})
 
         try:
             self.rest_app.secret_key = sha256(os.environ['NUCYPHER_FELIX_DB_SECRET'].encode())  # uses envvar
@@ -289,7 +289,7 @@ class Felix(Character, NucypherTokenActor, NonTLSHost):
             return rendering
 
         @rest_app.route("/register", methods=['POST'])
-        @cross_origin()
+        # @cross_origin()
         def register():
             """Handle new recipient registration via POST request."""
 
