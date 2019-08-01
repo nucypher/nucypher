@@ -96,12 +96,7 @@ contract StakingEscrow is Issuer {
         uint256 completedWork;
     }
 
-    /*
-    * Used as removed value for confirmedPeriod1(2).
-    * Non zero value decreases gas usage in some executions of confirmActivity() method
-    * but increases gas usage in mint() method. In both cases confirmActivity()
-    * with one execution of mint() method consume the same amount of gas
-    */
+    // Used as removed value for confirmedPeriod1(2)
     uint16 public constant EMPTY_CONFIRMED_PERIOD = 0;
     // used only for upgrading
     uint16 constant RESERVED_PERIOD = 0;
@@ -439,7 +434,7 @@ contract StakingEscrow is Issuer {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_worker != info.worker, "Specified worker is already set for this staker");
         uint16 currentPeriod = getCurrentPeriod();
-        if(info.worker != address(0)){ // If this staker had a worker ...
+        if (info.worker != address(0)) { // If this staker had a worker ...
             // Check that enough time has passed to change it
             require(currentPeriod >= info.workerStartPeriod.add16(minWorkerPeriods),
                 "Not enough time has passed since the previous setting worker");
@@ -447,7 +442,7 @@ contract StakingEscrow is Issuer {
             workerToStaker[info.worker] = address(0);
         }
 
-        if (_worker != address(0)){
+        if (_worker != address(0)) {
             require(workerToStaker[_worker] == address(0), "Specified worker is already in use");
             require(stakerInfo[_worker].subStakes.length == 0 || _worker == msg.sender,
                 "Specified worker is a staker");
@@ -732,11 +727,11 @@ contract StakingEscrow is Issuer {
 
         for (uint256 index = 0; index < info.subStakes.length; index++) {
             SubStakeInfo storage subStake = info.subStakes[index];
-            if (subStake.lastPeriod == 0 && subStake.periods > 1) {
+            if (subStake.lastPeriod == 0 && subStake.periods > 0) {
                 subStake.periods--;
-            } else if (subStake.lastPeriod == 0 && subStake.periods == 1) {
-                subStake.periods = 0;
-                subStake.lastPeriod = nextPeriod;
+                if (subStake.periods == 0) {
+                    subStake.lastPeriod = nextPeriod;
+                }
             }
         }
 
@@ -784,16 +779,6 @@ contract StakingEscrow is Issuer {
             info.confirmedPeriod1 == EMPTY_CONFIRMED_PERIOD &&
             info.confirmedPeriod2 == EMPTY_CONFIRMED_PERIOD) {
             return;
-        }
-
-        uint16 first;
-        uint16 last;
-        if (info.confirmedPeriod1 > info.confirmedPeriod2) {
-            last = info.confirmedPeriod1;
-            first = info.confirmedPeriod2;
-        } else {
-            first = info.confirmedPeriod1;
-            last = info.confirmedPeriod2;
         }
 
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
@@ -1113,7 +1098,6 @@ contract StakingEscrow is Issuer {
         }
         // Try to find already existent proper old sub stake
         uint16 previousPeriod = _currentPeriod - 1;
-        bool createNew = true;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
             if (subStake.lastPeriod == previousPeriod &&
@@ -1123,13 +1107,10 @@ contract StakingEscrow is Issuer {
                 (oldConfirmedPeriod2 && _info.confirmedPeriod2 >= subStake.firstPeriod))))
             {
                 subStake.lockedValue += _lockedValue;
-                createNew = false;
-                break;
+                return;
             }
         }
-        if (createNew) {
-            saveSubStake(_info, _firstPeriod, previousPeriod, 0, _lockedValue);
-        }
+        saveSubStake(_info, _firstPeriod, previousPeriod, 0, _lockedValue);
     }
 
     //-------------Additional getters for stakers info-------------

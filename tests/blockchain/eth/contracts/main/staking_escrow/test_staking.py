@@ -753,3 +753,16 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     assert 10 == event_args['penalty']
     assert investigator == event_args['investigator']
     assert 0 == event_args['reward']
+
+    # Next test: optimization does not brake the saving old sub stake
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
+    assert 50 == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
+    assert 140 == escrow.functions.getLockedTokens(ursula2, 0).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    tx = adjudicator.functions.slashStaker(ursula2, 10, investigator, 0).transact()
+    testerchain.wait_for_receipt(tx)
+    assert 50 == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
+    assert 130 == escrow.functions.getLockedTokens(ursula2, 0).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula2, 1).call()

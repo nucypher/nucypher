@@ -173,7 +173,7 @@ contract PolicyManager is Upgradeable {
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
             require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
-            // Overflow protection removed, because ETH total supply less than half of uint256
+            // Overflow protection removed, because ETH total supply less than uint255
             nodeInfo.rewardDelta[currentPeriod] += int256(_firstPartialReward);
             nodeInfo.rewardDelta[policy.startPeriod] += int256(startReward);
             nodeInfo.rewardDelta[endPeriod] -= int256(policy.rewardRate);
@@ -313,6 +313,8 @@ contract PolicyManager is Upgradeable {
             }
             if (_forceRevoke || arrangement.lastRefundedPeriod > policy.lastPeriod) {
                 arrangement.node = RESERVED_NODE;
+                arrangement.indexOfDowntimePeriods = 0;
+                arrangement.lastRefundedPeriod = 0;
                 numberOfActive--;
                 emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
             } else {

@@ -18,18 +18,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import io
 import json
 import os
-import re
 import sys
+
+import io
+import re
 import time
 from os.path import abspath, dirname
 from unittest.mock import Mock
 
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
@@ -37,6 +36,8 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgen
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
 sys.path.insert(0, abspath('tests'))
@@ -194,6 +195,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         log.info(f"{label} = {estimates}|{receipt['gasUsed']}")
 
     def transact(function, transaction):
+        transaction.update(gas=1000000)
         tx = function.transact(transaction)
         testerchain.wait_for_receipt(tx)
 
