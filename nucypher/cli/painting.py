@@ -24,6 +24,7 @@ import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
@@ -167,36 +168,35 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(emitter, ursula_config):
-    contract_payload = """
+def paint_contract_status(blockchain, emitter):
 
-| NuCypher ETH Contracts |
+    token_agent = NucypherTokenAgent(blockchain=blockchain)
+    staking_agent = StakingEscrowAgent(blockchain=blockchain)
+    policy_agent = PolicyManagerAgent(blockchain=blockchain)
+    adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
 
-Provider URI ............. {provider_uri}
-Registry Path ............ {registry_filepath}
+    contract_payload = f"""
+| NuCypher Contracts |
 
-NucypherToken ............ {token}
-StakingEscrow ............ {escrow}
-PolicyManager ............ {manager}
+Chain .....................{blockchain.client.chain_name}
+Provider URI ............. {blockchain.provider_uri}
+Registry Path ............ {blockchain.registry.filepath}
 
-    """.format(provider_uri=ursula_config.blockchain.provider_uri,
-               registry_filepath=ursula_config.blockchain.registry.filepath,
-               token=ursula_config.token_agent.contract_address,
-               escrow=ursula_config.staking_agent.contract_address,
-               manager=ursula_config.policy_agent.contract_address,
-               period=ursula_config.staking_agent.get_current_period())
+NucypherToken ............ {token_agent.contract_address}
+StakingEscrow ............ {staking_agent.contract_address}
+PolicyManager ............ {policy_agent.contract_address}
+Adjudicator .............. {adjudicator_agent.contract_address} 
+    """
+
+    network_payload = f"""
+| Staking |
+
+Current Period ........... {staking_agent.get_current_period()}
+Actively Staked Tokens.... {staking_agent.get_all_locked_tokens()}
+Published Stakes ......... {staking_agent.get_staker_population()}
+Gas Price ................ {blockchain.client.gas_price}
+    """
     emitter.echo(contract_payload)
-
-    network_payload = """
-| Blockchain Network |
-
-Current Period ........... {period}
-Gas Price ................ {gas_price}
-Active Staking Ursulas ... {ursulas}
-
-    """.format(period=ursula_config.staking_agent.get_current_period(),
-               gas_price=ursula_config.blockchain.client.gasPrice,
-               ursulas=ursula_config.staking_agent.get_staker_population())
     emitter.echo(network_payload)
 
 
