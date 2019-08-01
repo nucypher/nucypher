@@ -117,7 +117,7 @@ def test_run_felix(click_runner,
         # register a recipient by posting json
         response = test_client.post(
             '/register',
-            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[-2]}),
+            data=json.dumps({'address': felix.blockchain.client.accounts[-2]}),
             content_type='application/json'
         )
         assert response.status_code == 200
@@ -125,7 +125,7 @@ def test_run_felix(click_runner,
         # same address again should fail with 400
         response = test_client.post(
             '/register',
-            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[-2]}),
+            data=json.dumps({'address': felix.blockchain.client.accounts[-2]}),
             content_type='application/json'
         )
         assert response.status_code == 400
@@ -152,7 +152,7 @@ def test_run_felix(click_runner,
         # reserved address should fail
         response = test_client.post(
             '/register',
-            data=json.dumps({'address': felix.blockchain.interface.w3.eth.accounts[0]}),
+            data=json.dumps({'address': felix.blockchain.client.accounts[0]}),
             content_type='application/json'
         )
         assert response.status_code == 400
