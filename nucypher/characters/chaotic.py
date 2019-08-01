@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR, CORS_ORIGINS
-from nucypher.crypto.powers import SigningPower
+from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.network.server import NonTLSHost
