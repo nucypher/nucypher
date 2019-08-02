@@ -226,6 +226,22 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
 
     for contract_name in contracts_to_upgrade:
 
+        # Select proxy (Dispatcher vs Linker)
+        if contract_name == "UserEscrowProxy":
+            proxy_name = "UserEscrowLibraryLinker"
+        else:
+            proxy_name = 'Dispatcher'
+
+        cached_blockchain = BlockchainDeployerInterface.reconnect()
+        real_old_contract = cached_blockchain.get_contract_by_name(name=contract_name,
+                                                                   proxy_name=proxy_name,
+                                                                   use_proxy_address=False)
+
+        # Ensure the proxy targets the current deployed contract
+        proxy = cached_blockchain.get_proxy(target_address=real_old_contract.address, proxy_name=proxy_name)
+        targeted_address = proxy.functions.target().call()
+        assert targeted_address == real_old_contract.address
+
         # Assemble CLI command
         command = (cli_action, '--contract-name', contract_name, *base_command)
 
@@ -269,16 +285,12 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         old, new = records[-2:]            # Get the last two entries
         old_name, old_address, *abi = old  # Previous version
         new_name, new_address, *abi = new  # New version
+
+        assert old_address == real_old_contract.address
         assert old_name == new_name        # TODO: Inspect ABI / Move to different test.
         assert old_address != new_address
 
-        # Select proxy (Dispatcher vs Linker)
-        if contract_name == "UserEscrowProxy":
-            proxy_name = "UserEscrowLibraryLinker"
-        else:
-            proxy_name = 'Dispatcher'
-
-        # Ensure the proxy targets the new deployment
+        # Ensure the proxy now targets the new deployment
         proxy = cached_blockchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
