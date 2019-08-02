@@ -286,7 +286,7 @@ class DeployerActor(NucypherTokenActor):
         # deploy contracts
         total_deployment_transactions = 0
         for deployer_class in self.deployer_classes:
-            total_deployment_transactions += deployer_class.number_of_deployment_transactions
+            total_deployment_transactions += len(deployer_class.deployment_steps)
 
         first_iteration = True
         with click.progressbar(length=total_deployment_transactions,

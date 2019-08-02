@@ -48,12 +48,12 @@ def test_user_escrow_deployer(session_testerchain, session_agency, user_escrow_p
     user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash,
                                                                    progress=deployment_progress)
 
-    assert len(user_escrow_proxy_receipts) == 2
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == user_escrow_proxy_deployer.number_of_deployment_transactions
+    assert deployment_progress.num_steps == len(user_escrow_proxy_deployer.deployment_steps) == 2
+    assert len(user_escrow_proxy_receipts) == 2
 
-    for title, receipt in user_escrow_proxy_receipts.items():
-        assert receipt['status'] == 1
+    for step in user_escrow_proxy_deployer.deployment_steps:
+        assert user_escrow_proxy_receipts[step]['status'] == 1
 
     deployer = UserEscrowDeployer(deployer_address=deployer_account,
                                   blockchain=testerchain)
