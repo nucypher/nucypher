@@ -334,15 +334,15 @@ class Stake:
     def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
 
-        approve_txhash = staker.token_agent.approve_transfer(amount=amount,
-                                                             target_address=staker.staking_agent.contract_address,
-                                                             sender_address=staker.checksum_address)
+        approve_receipt = staker.token_agent.approve_transfer(amount=amount,
+                                                              target_address=staker.staking_agent.contract_address,
+                                                              sender_address=staker.checksum_address)
 
-        deposit_txhash = staker.staking_agent.deposit_tokens(amount=amount,
-                                                             lock_periods=lock_periods,
-                                                             sender_address=staker.checksum_address)
+        deposit_receipt = staker.staking_agent.deposit_tokens(amount=amount,
+                                                              lock_periods=lock_periods,
+                                                              sender_address=staker.checksum_address)
 
-        return approve_txhash, deposit_txhash
+        return approve_receipt, deposit_receipt
 
     def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
         """
@@ -425,12 +425,12 @@ class Stake:
         stake.validate_duration()
 
         # Transmit
-        approve_txhash, initial_deposit_txhash = stake.__deposit(amount=int(amount),
-                                                                 lock_periods=lock_periods,
-                                                                 staker=staker)
+        approve_receipt, initial_deposit_receipt = stake.__deposit(amount=int(amount),
+                                                                   lock_periods=lock_periods,
+                                                                   staker=staker)
 
         # Store the staking transactions on the instance
-        staking_transactions = dict(approve=approve_txhash, deposit=initial_deposit_txhash)
+        staking_transactions = dict(approve=approve_receipt, deposit=initial_deposit_receipt)
         stake.transactions = staking_transactions
 
         # Log and return Stake instance

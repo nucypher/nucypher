@@ -113,9 +113,9 @@ def paint_node_status(emitter, ursula, start_time):
              teacher]
 
     if not ursula.federated_only:
-        staking_address = 'Worker Address ...... {}'.format(ursula.worker_address)
+        worker_address = 'Worker Address ...... {}'.format(ursula.worker_address)
         current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
-        stats.extend([current_period, staking_address])
+        stats.extend([current_period, worker_address])
 
     emitter.echo('\n' + '\n'.join(stats) + '\n')
 

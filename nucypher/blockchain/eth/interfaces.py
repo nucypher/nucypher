@@ -425,7 +425,7 @@ class BlockchainInterface:
                         if use_proxy_address:
                             pair = (proxy_addr, target_abi)
                         else:
-                            pair = (proxy_live_target_address, target_abi)
+                            pair = (target_addr, target_abi)
                     else:
                         continue
 
