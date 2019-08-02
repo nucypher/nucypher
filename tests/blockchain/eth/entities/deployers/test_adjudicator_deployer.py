@@ -46,12 +46,11 @@ def test_adjudicator_deployer(session_testerchain, slashing_economics, deploymen
     deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH),
                                           progress=deployment_progress)
 
-    assert len(deployment_receipts) == 3
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == deployer.number_of_deployment_transactions
+    assert deployment_progress.num_steps == len(deployer.deployment_steps) == len(deployment_receipts) == 3
 
-    for title, receipt in deployment_receipts.items():
-        assert receipt['status'] == 1
+    for step in deployer.deployment_steps:
+        assert deployment_receipts[step]['status'] == 1
 
     # Create an AdjudicatorAgent instance
     adjudicator_agent = deployer.make_agent()

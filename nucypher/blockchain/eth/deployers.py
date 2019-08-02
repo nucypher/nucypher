@@ -38,7 +38,9 @@ class ContractDeployer:
 
     agency = NotImplemented
     contract_name = NotImplemented
-    number_of_deployment_transactions = NotImplemented
+    deployment_steps = NotImplemented
+    upgrade_steps = NotImplemented
+    rollback_steps = NotImplemented
     _interface_class = BlockchainDeployerInterface
     _upgradeable = NotImplemented
     __linker_deployer = NotImplemented
@@ -142,7 +144,7 @@ class NucypherTokenDeployer(ContractDeployer):
 
     agency = NucypherTokenAgent
     contract_name = agency.registry_contract_name
-    number_of_deployment_transactions = 1
+    deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
     def __init__(self,
@@ -173,7 +175,7 @@ class NucypherTokenDeployer(ContractDeployer):
             progress.update(1)
 
         self._contract = contract
-        return {'txhash': deployment_receipt}
+        return {self.deployment_steps[0]: deployment_receipt}
 
 
 class DispatcherDeployer(ContractDeployer):
@@ -183,7 +185,7 @@ class DispatcherDeployer(ContractDeployer):
     """
 
     contract_name = DISPATCHER_CONTRACT_NAME
-    number_of_deployment_transactions = 1
+    deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
     DISPATCHER_SECRET_LENGTH = 32
@@ -202,7 +204,7 @@ class DispatcherDeployer(ContractDeployer):
             progress.update(1)
 
         self._contract = dispatcher_contract
-        return {'deployment': receipt}
+        return {self.deployment_steps[0]: receipt}
 
     @validate_secret
     def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None) -> dict:
@@ -241,7 +243,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
     agency = StakingEscrowAgent
     contract_name = agency.registry_contract_name
-    number_of_deployment_transactions = 4
+    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
@@ -301,7 +303,8 @@ class StakingEscrowDeployer(ContractDeployer):
                                                  target_contract=the_escrow_contract,
                                                  deployer_address=self.deployer_address)
 
-        dispatcher_deploy_receipt = dispatcher_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        dispatcher_receipts = dispatcher_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        dispatcher_deploy_receipt = dispatcher_receipts[dispatcher_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
 
@@ -338,13 +341,11 @@ class StakingEscrowDeployer(ContractDeployer):
         if progress:
             progress.update(1)
 
-        # Gather the transaction hashes
-        deployment_receipts = {'deploy': deploy_receipt,
-                               'dispatcher_deploy': dispatcher_deploy_receipt['deployment'],
-                               'reward_transfer': reward_receipt,
-                               'initialize': init_receipt}
+        # Gather the transaction receipts
+        ordered_receipts = (deploy_receipt, dispatcher_deploy_receipt, reward_receipt, init_receipt)
+        deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
-        # Set the contract and transaction hashes #
+        # Set the contract and transaction receipts #
         self._contract = the_escrow_contract
         self.deployment_receipts = deployment_receipts
         return deployment_receipts
@@ -410,9 +411,11 @@ class PolicyManagerDeployer(ContractDeployer):
 
     agency = PolicyManagerAgent
     contract_name = agency.registry_contract_name
-    number_of_deployment_transactions = 3
+
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
+
+    deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
 
     def make_agent(self) -> EthereumContractAgent:
         agent = self.agency(blockchain=self.blockchain, contract=self._contract)
@@ -425,11 +428,11 @@ class PolicyManagerDeployer(ContractDeployer):
 
     def _deploy_essential(self, gas_limit: int = None):
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.contract_name,
-                                                                                 self.staking_agent.contract_address,
-                                                                                 gas_limit=gas_limit)
+                                                                                  self.staking_agent.contract_address,
+                                                                                  gas_limit=gas_limit)
         return policy_manager_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, str]:
+    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, dict]:
         self.check_deployment_readiness()
 
         # Creator deploys the policy manager
@@ -442,6 +445,7 @@ class PolicyManagerDeployer(ContractDeployer):
                                                deployer_address=self.deployer_address)
 
         proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        proxy_deploy_receipt = proxy_deploy_receipt[proxy_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
 
@@ -464,10 +468,9 @@ class PolicyManagerDeployer(ContractDeployer):
         if progress:
             progress.update(1)
 
-        # Gather the transaction hashes
-        deployment_receipts = {'deployment': deploy_receipt,
-                               'dispatcher_deployment': proxy_deploy_receipt['deployment'],
-                               'set_policy_manager': set_policy_manager_receipt}
+        # Gather the transaction receipts
+        ordered_receipts = (deploy_receipt, proxy_deploy_receipt, set_policy_manager_receipt)
+        deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         self.deployment_receipts = deployment_receipts
         self._contract = wrapped_contract
@@ -486,9 +489,10 @@ class PolicyManagerDeployer(ContractDeployer):
                                                deployer_address=self.deployer_address,
                                                bare=True)  # acquire agency for the dispatcher itself.
 
-        # Creator deploys the policy manager
-        policy_manager_contract, deploy_txhash = self._deploy_essential(gas_limit=gas_limit)
+        # Creator deploys new version of PolicyManager
+        policy_manager_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
 
+        # The proxy ("Dispatcher") updates its target.
         upgrade_receipt = proxy_deployer.retarget(new_target=policy_manager_contract.address,
                                                   existing_secret_plaintext=existing_secret_plaintext,
                                                   new_secret_hash=new_secret_hash,
@@ -498,7 +502,9 @@ class PolicyManagerDeployer(ContractDeployer):
         self._contract = self.blockchain._wrap_contract(proxy_deployer.contract,
                                                         target_contract=policy_manager_contract)
 
-        upgrade_transaction = {'deploy': deploy_txhash, 'retarget': upgrade_receipt}
+        # TODO: Contract ABI is not updated in Agents when upgrade/rollback #1184
+
+        upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
@@ -520,7 +526,7 @@ class PolicyManagerDeployer(ContractDeployer):
 class LibraryLinkerDeployer(ContractDeployer):
 
     contract_name = 'UserEscrowLibraryLinker'
-    number_of_deployment_transactions = 1
+    deployment_steps = ('contract_deployment', )
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         self.target_contract = target_contract
@@ -531,12 +537,12 @@ class LibraryLinkerDeployer(ContractDeployer):
 
     def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
         linker_args = (self.contract_name, self.target_contract.address, secret_hash)
-        linker_contract, linker_deployment_txhash = self.blockchain.deploy_contract(gas_limit=gas_limit, *linker_args)
+        linker_contract, receipt = self.blockchain.deploy_contract(gas_limit=gas_limit, *linker_args)
         if progress:
             progress.update(1)
 
         self._contract = linker_contract
-        return {'txhash': linker_deployment_txhash}
+        return {self.deployment_steps[0]: receipt}
 
     @validate_secret
     def retarget(self, new_target: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
@@ -558,7 +564,7 @@ class LibraryLinkerDeployer(ContractDeployer):
 class UserEscrowProxyDeployer(ContractDeployer):
 
     contract_name = 'UserEscrowProxy'
-    number_of_deployment_transactions = 2
+    deployment_steps = ('contract_deployment', 'linker_deployment')
     __linker_deployer = LibraryLinkerDeployer
 
     def __init__(self, *args, **kwargs):
@@ -581,28 +587,27 @@ class UserEscrowProxyDeployer(ContractDeployer):
         Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
         This is meant to be called only once per general deployment.
         """
-
-        receipts = dict()
-
-        # UserEscrowProxy
+        # 1 - UserEscrowProxy
         user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
-        receipts['deployment'] = deployment_receipt
-
-        # UserEscrowLibraryLinker
+        # 2 - UserEscrowLibraryLinker
         linker_deployer = self.__linker_deployer(blockchain=self.blockchain,
                                                  deployer_address=self.deployer_address,
                                                  target_contract=user_escrow_proxy_contract)
 
-        linker_deployment_receipt = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        linker_deployment_receipts = linker_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        linker_deployment_receipt = linker_deployment_receipts[linker_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
 
-        receipts['linker_deployment'] = linker_deployment_receipt['txhash']
+        # Gather the transaction receipts
+        ordered_receipts = (deployment_receipt, linker_deployment_receipt)
+        deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
+
         self._contract = user_escrow_proxy_contract
-        return receipts
+        return deployment_receipts
 
     @classmethod
     def get_latest_version(cls, blockchain) -> Contract:
@@ -636,6 +641,8 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                   new_secret_hash=new_secret_hash,
                                                   gas_limit=gas_limit)
 
+        # TODO: Contract ABI is not updated in Agents when upgrade/rollback #1184
+
         deployment_receipts['linker_retarget'] = linker_receipt
         self._contract = user_escrow_proxy_contract
         return deployment_receipts
@@ -645,7 +652,7 @@ class UserEscrowDeployer(ContractDeployer):
 
     agency = UserEscrowAgent
     contract_name = agency.registry_contract_name
-    number_of_deployment_transactions = 1
+    deployment_steps = ('contract_deployment', )
     _upgradeable = True
     __linker_deployer = LibraryLinkerDeployer
     __allocation_registry = AllocationRegistry
@@ -737,6 +744,7 @@ class UserEscrowDeployer(ContractDeployer):
             progress.update(1)
 
         self._contract = user_escrow_contract
+        # TODO: Homogenize with rest of deployer receipts
         return deploy_receipt
 
 
@@ -744,7 +752,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
     agency = AdjudicatorAgent
     contract_name = agency.registry_contract_name
-    number_of_deployment_transactions = 3
+    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'set_adjudicator')
     _upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
@@ -776,7 +784,8 @@ class AdjudicatorDeployer(ContractDeployer):
                                                target_contract=adjudicator_contract,
                                                deployer_address=self.deployer_address)
 
-        proxy_deploy_receipt = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        proxy_deploy_receipts = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
+        proxy_deploy_receipt = proxy_deploy_receipts[proxy_deployer.deployment_steps[0]]
         if progress:
             progress.update(1)
 
@@ -801,10 +810,9 @@ class AdjudicatorDeployer(ContractDeployer):
         if progress:
             progress.update(1)
 
-        # Gather the transaction hashes
-        deployment_receipts = {'deployment': deploy_receipt,
-                               'dispatcher_deployment': proxy_deploy_receipt['deployment'],
-                               'set_adjudicator': set_adjudicator_receipt}
+        # Gather the transaction receipts
+        ordered_receipts = (deploy_receipt, proxy_deploy_receipt, set_adjudicator_receipt)
+        deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         self.deployment_receipts = deployment_receipts
         self._contract = adjudicator_contract
@@ -837,6 +845,8 @@ class AdjudicatorDeployer(ContractDeployer):
 
         # Switch the contract for the wrapped one
         self._contract = wrapped_adjudicator_contract
+
+        # TODO: Contract ABI is not updated in Agents when upgrade/rollback #1184
 
         upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt['transactionHash']}
         return upgrade_transaction
