@@ -104,6 +104,11 @@ def test_upgrade(session_testerchain):
     deployer = PolicyManagerDeployer(blockchain=session_testerchain,
                                      deployer_address=session_testerchain.etherbase_account)
 
+    bare_contract = session_testerchain.get_contract_by_name(name=PolicyManagerDeployer.contract_name,
+                                                             proxy_name=DispatcherDeployer.contract_name,
+                                                             use_proxy_address=False)
+    old_address = bare_contract.address
+
     with pytest.raises(deployer.ContractDeploymentError):
         deployer.upgrade(existing_secret_plaintext=wrong_secret,
                          new_secret_hash=new_secret_hash)
@@ -111,8 +116,19 @@ def test_upgrade(session_testerchain):
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
 
-    for title, receipt in receipts.items():
-        assert receipt['status'] == 1
+    bare_contract = session_testerchain.get_contract_by_name(name=PolicyManagerDeployer.contract_name,
+                                                             proxy_name=DispatcherDeployer.contract_name,
+                                                             use_proxy_address=False)
+
+    new_address = bare_contract.address
+    assert old_address != new_address
+
+    # TODO: Contract ABI is not updated in Agents when upgrade/rollback #1184
+
+    transactions = ('deploy', 'retarget')
+    assert len(receipts) == len(transactions)
+    for tx in transactions:
+        assert receipts[tx]['status'] == 1
 
 
 def test_rollback(session_testerchain):
