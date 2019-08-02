@@ -289,7 +289,9 @@ class DeployerActor(NucypherTokenActor):
             total_deployment_transactions += deployer_class.number_of_deployment_transactions
 
         first_iteration = True
-        with click.progressbar(length=total_deployment_transactions, label="Deployment progress") as bar:
+        with click.progressbar(length=total_deployment_transactions,
+                               label="Deployment progress",
+                               show_eta=False) as bar:
             bar.short_limit = 0
             for deployer_class in self.deployer_classes:
                 if interactive and not first_iteration:
@@ -931,7 +933,7 @@ class StakeHolder(BaseConfiguration):
         self.attach_transacting_power(checksum_address=staker_address, password=password)
         staker = self.get_active_staker(address=staker_address)
         receipt = self.staking_agent.set_worker(staker_address=staker.checksum_address,
-                                               worker_address=worker_address)
+                                                worker_address=worker_address)
 
         self.to_configuration_file(override=True)
         return receipt
