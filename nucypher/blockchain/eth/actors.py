@@ -268,12 +268,14 @@ class DeployerActor(NucypherTokenActor):
     def deploy_network_contracts(self,
                                  secrets: dict,
                                  interactive: bool = True,
-                                 emitter: StdoutEmitter = None) -> dict:
+                                 emitter: StdoutEmitter = None,
+                                 etherscan: bool = False) -> dict:
         """
 
         :param secrets: Contract upgrade secrets dictionary
         :param interactive: If True, wait for keypress after each contract deployment
         :param emitter: A console output emitter instance. If emitter is None, no output will be echoed to the console.
+        :param etherscan: Open deployed contracts in Etherscan
         :return: Returns a dictionary of deployment receipts keyed by contract name
         """
 
@@ -316,7 +318,9 @@ class DeployerActor(NucypherTokenActor):
                     paint_contract_deployment(contract_name=deployer_class.contract_name,
                                               receipts=receipts,
                                               contract_address=deployer.contract_address,
-                                              emitter=emitter)
+                                              emitter=emitter,
+                                              chain_name=self.blockchain.client.chain_name,
+                                              open_in_browser=etherscan)
 
                 deployment_receipts[deployer_class.contract_name] = receipts
                 first_iteration = False
