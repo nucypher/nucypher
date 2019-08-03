@@ -19,12 +19,12 @@ import datetime
 import os
 import random
 import tempfile
-import time
 
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
+from twisted.logger import Logger
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
@@ -66,6 +66,7 @@ from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
+test_logger = Logger("test-logger")
 
 #
 # Temporary
@@ -764,3 +765,16 @@ def manual_worker(testerchain):
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
+
+
+#
+# Test logging
+#
+
+@pytest.fixture(autouse=True, scope='function')
+def log_in_and_out_of_test(request):
+    test_name = request.node.name
+    module_name = request.module.__name__
+    test_logger.info(f"Starting {module_name}.py::{test_name}")
+    yield
+    test_logger.info(f"Finalized {module_name}.py::{test_name}")
