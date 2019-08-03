@@ -295,7 +295,7 @@ class DeployerActor(NucypherTokenActor):
             bar.short_limit = 0
             for deployer_class in self.deployer_classes:
                 if interactive and not first_iteration:
-                    click.pause(info="\nPress any key to continue")
+                    click.pause(info=f"\nPress any key to continue with deployment of {deployer_class.contract_name}")
 
                 if emitter:
                     emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
