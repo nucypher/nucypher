@@ -60,6 +60,7 @@ class NucypherClickConfig:
     def set_options(self,
                     mock_networking,
                     no_registry,
+                    etherscan,
                     json_ipc,
                     verbose,
                     quiet,
@@ -133,6 +134,7 @@ class NucypherClickConfig:
         self.no_registry = no_registry
         self.debug = debug
         self.json_ipc = json_ipc
+        self.etherscan = etherscan
 
         # Only used for testing outputs;
         # Redirects outputs to in-memory python containers.
@@ -159,6 +161,7 @@ def nucypher_click_config(func):
     @_nucypher_click_config
     @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
     @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+    @click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
     @click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True)
     @click.option('-v', '--verbose', help="Verbose console messages", is_flag=True)
     @click.option('-Q', '--quiet', help="Disable console messages", is_flag=True)
@@ -188,6 +191,7 @@ def nucypher_click_config(func):
                 *args,
                 mock_networking,
                 no_registry,
+                etherscan,
                 json_ipc,
                 verbose,
                 quiet,
@@ -202,6 +206,7 @@ def nucypher_click_config(func):
         config.set_options(
             mock_networking,
             no_registry,
+            etherscan,
             json_ipc,
             verbose,
             quiet,

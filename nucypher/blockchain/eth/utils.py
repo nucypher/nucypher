@@ -16,6 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import maya
+from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
+from eth_utils import is_address, to_checksum_address, is_hex
 
 
 def epoch_to_period(epoch: int) -> int:
@@ -54,3 +56,28 @@ def calculate_period_duration(future_time: maya.MayaDT) -> int:
     current_period = datetime_to_period(datetime=maya.now())
     periods = future_period - current_period
     return periods
+
+
+def etherscan_url(item, network: str, is_token=False) -> str:
+    if network is None or network is UNKNOWN_DEVELOPMENT_CHAIN_ID:
+        raise ValueError("A network must be provided")
+    elif network == 'mainnet':
+        domain = "https://etherscan.io"
+    else:
+        network = network.lower()
+        testnets_supported_by_etherscan = ('ropsten', 'goerli', 'rinkeby', 'kovan')
+        if network in testnets_supported_by_etherscan:
+            domain = f"https://{network}.etherscan.io"
+        else:
+            raise ValueError(f"'{network}' network not supported by Etherscan")
+
+    if is_address(item):
+        item_type = 'address' if not is_token else 'token'
+        item = to_checksum_address(item)
+    elif is_hex(item) and len(item) == 2 + 32*2:  # If it's a hash...
+        item_type = 'tx'
+    else:
+        raise ValueError(f"Cannot construct etherscan URL for {item}")
+
+    url = f"{domain}/{item_type}/{item}"
+    return url

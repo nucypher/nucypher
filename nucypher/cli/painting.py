@@ -17,14 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import time
+import webbrowser
 from decimal import Decimal
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 
+from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
 
@@ -301,22 +303,51 @@ Staking address: {staking_address}
                        division_message=division_message)
 
 
-def paint_contract_deployment(emitter, contract_name: str, contract_address: str, receipts: dict):
+def paint_contract_deployment(emitter,
+                              contract_name: str,
+                              contract_address: str,
+                              receipts: dict,
+                              chain_name: str = None,
+                              open_in_browser: bool = False):
 
     # TODO: switch to using an explicit emitter
+
+    is_token_contract = contract_name == NUCYPHER_TOKEN_CONTRACT_NAME
 
     # Paint heading
     heading = f'\r{" "*80}\n{contract_name} ({contract_address})'
     emitter.echo(heading, bold=True)
     emitter.echo('*' * (42 + 3 + len(contract_name)))
+    try:
+        url = etherscan_url(item=contract_address, network=chain_name, is_token=is_token_contract)
+    except ValueError as e:
+        emitter.log.info("Failed Etherscan URL construction: " + str(e))
+    else:
+        emitter.echo(f" See {url}\n")
 
     # Paint Transactions
     for tx_name, receipt in receipts.items():
+        tx_hash = receipt['transactionHash'].hex()
         emitter.echo("OK", color='green', nl=False, bold=True)
-        emitter.echo(" | {}".format(tx_name), color='yellow', nl=False)
-        emitter.echo(" | {}".format(receipt['transactionHash'].hex()), color='yellow', nl=False)
-        emitter.echo(" ({} gas)".format(receipt['cumulativeGasUsed']))
-        emitter.echo("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
+        emitter.echo(f" | {tx_name} | {tx_hash}", color='yellow', nl=False)
+        emitter.echo(f" ({receipt['gasUsed']} gas)")
+        emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
+        try:
+            url = etherscan_url(item=tx_hash, network=chain_name)
+        except ValueError as e:
+            emitter.log.info("Failed Etherscan URL construction: " + str(e))
+        else:
+            emitter.echo(f" See {url}\n")
+
+    if open_in_browser:
+        try:
+            url = etherscan_url(item=contract_address,
+                                network=chain_name,
+                                is_token=is_token_contract)
+        except ValueError as e:
+            emitter.log.info("Failed Etherscan URL construction: " + str(e))
+        else:
+            webbrowser.open_new_tab(url)
 
 
 def paint_staged_deployment(emitter, deployer) -> None:

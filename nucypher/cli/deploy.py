@@ -41,6 +41,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
+@click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True by default.
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
@@ -56,6 +57,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
 def deploy(action,
            poa,
+           etherscan,
            provider_uri,
            gas,
            deployer_address,
@@ -102,6 +104,15 @@ def deploy(action,
 
     if not hw_wallet:
         emitter.echo("WARNING: --no-hw-wallet is enabled.", color='yellow')
+
+    if etherscan:
+        emitter.echo("WARNING: --etherscan is enabled. "
+                     "A browser tab will be opened with deployed contracts and TXs as provided by Etherscan.",
+                     color='yellow')
+    else:
+        emitter.echo("WARNING: --etherscan is disabled. "
+                     "If you want to see deployed contracts and TXs in your browser, activate --etherscan.",
+                     color='yellow')
 
     #
     # Connect to Registry
@@ -200,7 +211,9 @@ def deploy(action,
                 paint_contract_deployment(contract_name=contract_name,
                                           contract_address=agent.contract_address,
                                           receipts=receipts,
-                                          emitter=emitter)
+                                          emitter=emitter,
+                                          chain_name=blockchain.client.chain_name,
+                                          open_in_browser=etherscan)
             return  # Exit
 
         #
@@ -229,7 +242,8 @@ def deploy(action,
         # Execute Deployment
         deployment_receipts = DEPLOYER.deploy_network_contracts(secrets=secrets,
                                                                 emitter=emitter,
-                                                                interactive=not force)
+                                                                interactive=not force,
+                                                                etherscan=etherscan)
 
         # Paint outfile paths
         registry_outfile = DEPLOYER.blockchain.registry.filepath
