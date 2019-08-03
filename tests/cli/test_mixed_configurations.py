@@ -199,8 +199,8 @@ def test_coexisting_configurations(click_runner,
     assert len(os.listdir(public_keys_dir)) == 5
     assert not os.path.isfile(ursula_file_location)
 
-    felix_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
-    result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
+    alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
+    result = click_runner.invoke(nucypher_cli, alice_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 3
     assert not os.path.isfile(alice_file_location)
