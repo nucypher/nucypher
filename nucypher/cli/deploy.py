@@ -26,8 +26,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli import actions
-from nucypher.cli.actions import get_nucypher_password
-from nucypher.cli.actions import select_client_account
+from nucypher.cli.actions import get_client_password, select_client_account
 from nucypher.cli.painting import (
     paint_contract_deployment,
     paint_staged_deployment,
@@ -151,7 +150,7 @@ def deploy(action,
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_nucypher_password(confirm=False)
+        password = get_client_password(confirm=False)
 
     # Produce Actor
     DEPLOYER = DeployerActor(blockchain=blockchain,
