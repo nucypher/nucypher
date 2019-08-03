@@ -22,7 +22,12 @@ from typing import List
 
 import click
 import requests
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD, NO_CONTROL_PROTOCOL
+from constant_sorrow.constants import (
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_PASSWORD,
+    NO_CONTROL_PROTOCOL,
+    UNKNOWN_DEVELOPMENT_CHAIN_ID
+)
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
@@ -305,15 +310,13 @@ def select_client_account(emitter, blockchain, prompt: str = None, default=0) ->
 
 
 def confirm_deployment(emitter, deployer) -> bool:
-    if deployer.blockchain.client.chain_id == 'UNKNOWN' or deployer.blockchain.client.is_local:
-        if click.prompt("Type 'DEPLOY' to continue") != 'DEPLOY':
-            emitter.echo("Aborting Deployment", fg='red', bold=True)
-            raise click.Abort()
+    if deployer.blockchain.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer.blockchain.client.is_local:
+        expected_chain_name = 'DEPLOY'
     else:
-        confirmed_chain_id = int(click.prompt("Enter the Chain ID to confirm deployment", type=click.INT))
-        expected_chain_id = int(deployer.blockchain.client.chain_id)
-        if confirmed_chain_id != expected_chain_id:
-            abort_message = f"Chain ID not a match ({confirmed_chain_id} != {expected_chain_id}) Aborting Deployment"
-            emitter.echo(abort_message, fg='red', bold=True)
-            raise click.Abort()
+        expected_chain_name = deployer.blockchain.client.chain_name
+
+    if click.prompt(f"Type '{expected_chain_name}' to continue") != expected_chain_name:
+        emitter.echo("Aborting Deployment", fg='red', bold=True)
+        raise click.Abort()
+
     return True
