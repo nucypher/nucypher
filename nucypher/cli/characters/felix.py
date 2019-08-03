@@ -119,6 +119,14 @@ def felix(click_config,
                      f"Check the filepath or run 'nucypher felix init' to create a new system configuration.")
         raise click.Abort
 
+    if action == "destroy":
+        """Delete all configuration files from the disk"""
+        if dev:
+            message = "'nucypher felix destroy' cannot be used in --dev mode"
+            raise click.BadOptionUsage(option_name='--dev', message=message)
+        actions.destroy_configuration(emitter, character_config=felix_config, force=force)
+        return
+
     try:
 
         # Connect to Blockchain
@@ -171,10 +179,6 @@ ETH ........ {str(eth_balance)}
         accounts = FELIX.blockchain.client.accounts
         for account in accounts:
             emitter.echo(account)
-
-    elif action == "destroy":
-        """Delete all configuration files from the disk"""
-        actions.destroy_configuration(emitter, character_config=felix_config, force=force)
 
     elif action == 'run':     # Start web services
 
