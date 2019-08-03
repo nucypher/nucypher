@@ -298,6 +298,14 @@ commands:
       - codecov
       - store_test_results:
           path: reports
+      - run:
+          name: Prepare test logs for storage as artifacts
+          command: |
+            mkdir -p ~/test-logs/
+            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
+      - store_artifacts:
+          path: ~/test-logs/
+
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
