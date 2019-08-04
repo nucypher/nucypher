@@ -303,6 +303,23 @@ Staking address: {staking_address}
                        division_message=division_message)
 
 
+def paint_receipt_summary(emitter, receipt, chain_name, transaction_type=None):
+    tx_hash = receipt['transactionHash'].hex()
+    emitter.echo("OK", color='green', nl=False, bold=True)
+    if transaction_type:
+        emitter.echo(f" | {transaction_type} | {tx_hash}", color='yellow', nl=False)
+    else:
+        emitter.echo(f" | {tx_hash}", color='yellow', nl=False)
+    emitter.echo(f" ({receipt['gasUsed']} gas)")
+    emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
+    try:
+        url = etherscan_url(item=tx_hash, network=chain_name)
+    except ValueError as e:
+        emitter.log.info("Failed Etherscan URL construction: " + str(e))
+    else:
+        emitter.echo(f" See {url}\n")
+
+
 def paint_contract_deployment(emitter,
                               contract_name: str,
                               contract_address: str,
@@ -327,17 +344,10 @@ def paint_contract_deployment(emitter,
 
     # Paint Transactions
     for tx_name, receipt in receipts.items():
-        tx_hash = receipt['transactionHash'].hex()
-        emitter.echo("OK", color='green', nl=False, bold=True)
-        emitter.echo(f" | {tx_name} | {tx_hash}", color='yellow', nl=False)
-        emitter.echo(f" ({receipt['gasUsed']} gas)")
-        emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
-        try:
-            url = etherscan_url(item=tx_hash, network=chain_name)
-        except ValueError as e:
-            emitter.log.info("Failed Etherscan URL construction: " + str(e))
-        else:
-            emitter.echo(f" See {url}\n")
+        paint_receipt_summary(emitter=emitter,
+                              receipt=receipt,
+                              chain_name=chain_name,
+                              transaction_type=tx_name)
 
     if open_in_browser:
         try:
