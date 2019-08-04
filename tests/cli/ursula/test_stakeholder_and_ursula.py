@@ -518,7 +518,7 @@ def test_stake_detach_worker(click_runner,
     init_args = ('stake', 'detach-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
-                 '--force')
+                 )
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli,
