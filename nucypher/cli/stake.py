@@ -1,3 +1,20 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 
 import click
 from web3 import Web3
@@ -6,10 +23,12 @@ from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting
 from nucypher.cli.actions import confirm_staged_stake, get_client_password, select_stake, select_client_account
 from nucypher.cli.config import nucypher_click_config
+from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     STAKE_VALUE,
@@ -113,7 +132,7 @@ def stake(click_config,
         return  # Exit
 
     #
-    # Make Staker
+    # Make Stakeholder
     #
 
     STAKEHOLDER = StakeHolder.from_configuration_file(filepath=config_file,
@@ -144,18 +163,15 @@ def stake(click_config,
         emitter.echo("OK!", color='green')
         return  # Exit
 
-    elif action in ('set-worker', 'detach-worker'):
+    elif action == 'set-worker':
 
         if not staking_address:
             staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
 
-        if action == 'set-worker':
-            if not worker_address:
-                worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
-        elif action == 'detach-worker':
-            if worker_address:
-                raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address option")
-            worker_address = BlockchainInterface.NULL_ADDRESS
+        if not worker_address:
+            worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
+
+        # TODO: Check preconditions (e.g., minWorkerPeriods, already in use, etc)
 
         password = None
         if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
@@ -164,8 +180,54 @@ def stake(click_config,
                                          password=password,
                                          worker_address=worker_address)
 
+        # TODO: Double-check dates
+        current_period = STAKEHOLDER.staking_agent.get_current_period()
+        bounded_date = datetime_at_period(period=current_period)
+        min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
+        release_period = current_period + min_worker_periods
+        release_date = datetime_at_period(period=release_period)
+
         emitter.echo(f"Successfully bound worker {worker_address} to staker {staking_address}", color='green')
-        emitter.echo(f"Receipt ........... {receipt['transactionHash'].hex()}", color='green')
+        paint_receipt_summary(emitter=emitter,
+                              receipt=receipt,
+                              chain_name=STAKEHOLDER.blockchain.client.chain_name,
+                              transaction_type='set_worker')
+        emitter.echo(f"Bounded at period #{current_period} ({bounded_date})", color='green')
+        emitter.echo(f"This worker can be replaced or detached after period "
+                     f"#{release_period} ({release_date})", color='green')
+        return  # Exit
+
+    elif action == 'detach-worker':
+
+        if not staking_address:
+            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
+
+        if worker_address:
+            raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address")
+
+        # TODO: Check preconditions (e.g., minWorkerPeriods)
+
+        worker_address = STAKEHOLDER.staking_agent.get_worker_from_staker(staking_address)
+
+        password = None
+        if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
+            password = get_client_password(checksum_address=staking_address)
+
+        # TODO: Create Stakeholder.detach_worker() and use it here
+        receipt = STAKEHOLDER.set_worker(staker_address=staking_address,
+                                         password=password,
+                                         worker_address=BlockchainInterface.NULL_ADDRESS)
+
+        # TODO: Double-check dates
+        current_period = STAKEHOLDER.staking_agent.get_current_period()
+        bounded_date = datetime_at_period(period=current_period)
+
+        emitter.echo(f"Successfully detached worker {worker_address} from staker {staking_address}", color='green')
+        paint_receipt_summary(emitter=emitter,
+                              receipt=receipt,
+                              chain_name=STAKEHOLDER.blockchain.client.chain_name,
+                              transaction_type='detach_worker')
+        emitter.echo(f"Detached at period #{current_period} ({bounded_date})", color='green')
         return  # Exit
 
     elif action == 'init':
