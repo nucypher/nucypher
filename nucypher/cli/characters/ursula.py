@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -40,6 +39,7 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -231,12 +231,10 @@ def ursula(click_config,
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                              config_file=config_file)
-        except Exception as e:
-            if click_config.debug:
-                raise
-            else:
-                emitter.echo(str(e), color='red', bold=True)
-                raise click.Abort
+        except NucypherKeyring.AuthenticationFailed as e:
+            emitter.echo(str(e), color='red', bold=True)
+            click.get_current_context().exit(1)
+            # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Configured Pre-Authentication Actions
@@ -266,12 +264,10 @@ def ursula(click_config,
                                             dev=dev,
                                             lonely=lonely,
                                             client_password=client_password)
-    except Exception as e:
-        if click_config.debug:
-            raise
-        else:
-            emitter.echo(str(e)+"\n", color='red', bold=True)
-            raise click.Abort
+    except NucypherKeyring.AuthenticationFailed as e:
+        emitter.echo(str(e), color='red', bold=True)
+        click.get_current_context().exit(1)
+        # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Authenticated Action Switch

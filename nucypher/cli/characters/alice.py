@@ -9,6 +9,7 @@ from nucypher.cli.actions import get_nucypher_password, select_client_account, g
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.keyring import NucypherKeyring
 
 
 @click.command()
@@ -225,12 +226,10 @@ def alice(click_config,
                                            teacher_uri=teacher_uri,
                                            min_stake=min_stake,
                                            client_password=client_password)
-    except Exception as e:
-        if click_config.debug:
-            raise
-        else:
-            emitter.echo(str(e)+"\n", color='red', bold=True)
-            raise click.Abort
+    except NucypherKeyring.AuthenticationFailed as e:
+        emitter.echo(str(e), color='red', bold=True)
+        click.get_current_context().exit(1)
+        # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Admin Actions
