@@ -57,6 +57,18 @@ def bob(click_config,
         message_kit):
     """
     "Bob" management commands.
+
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    init         Create a brand new persistent Bob
+    view         View existing Bob's configuration.
+    run          Start Bob's controller.
+    destroy      Delete existing Bob's configuration.
+    public-keys  Obtain Bob's public verification and encryption keys.
+    retrieve     Obtain plaintext from encrypted data, if access was granted.
+
     """
 
     #
