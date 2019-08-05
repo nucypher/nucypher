@@ -616,6 +616,8 @@ class Bob(Character):
             for capsule in capsules:
                 if not capsule in self._saved_work_orders[node_id]:
                     capsules_to_include.append(capsule)
+                else:
+                    self.log.debug("This capsule already has a saved WorkOrder.")
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
