@@ -86,6 +86,21 @@ def alice(click_config,
           ):
     """
     "Alice the Policy Authority" management commands.
+
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    init                  Create a brand new persistent Alice
+    view                  View existing Alice's configuration.
+    run                   Start Alice's controller.
+    destroy               Delete existing Alice's configuration.
+    public-keys           Obtain Alice's public verification and encryption keys.
+    derive-policy-pubkey  Get a policy public key from a policy label.
+    grant                 Create and enact an access policy for some Bob.
+    revoke                Revoke a policy.
+    decrypt               Decrypt data encrypted under an Alice's policy public key.
+
     """
 
     #
