@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -252,18 +253,25 @@ def ursula(click_config,
     #
     # Make Ursula
     #
-    # TODO: OH MY INDEED
     client_password = None
     if not ursula_config.federated_only:
         if not dev and not click_config.json_ipc:
             client_password = get_client_password(checksum_address=ursula_config.worker_address)
-    URSULA = actions.make_cli_character(character_config=ursula_config,
-                                        click_config=click_config,
-                                        min_stake=min_stake,
-                                        teacher_uri=teacher_uri,
-                                        dev=dev,
-                                        lonely=lonely,
-                                        client_password=client_password)
+
+    try:
+        URSULA = actions.make_cli_character(character_config=ursula_config,
+                                            click_config=click_config,
+                                            min_stake=min_stake,
+                                            teacher_uri=teacher_uri,
+                                            dev=dev,
+                                            lonely=lonely,
+                                            client_password=client_password)
+    except Exception as e:
+        if click_config.debug:
+            raise
+        else:
+            emitter.echo(str(e)+"\n", color='red', bold=True)
+            raise click.Abort
 
     #
     # Authenticated Action Switch

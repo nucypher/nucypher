@@ -202,12 +202,20 @@ def alice(click_config,
     if not alice_config.federated_only:
         if (not hw_wallet or not dev) and not click_config.json_ipc:
             client_password = get_client_password(checksum_address=alice_config.checksum_address)
-    ALICE = actions.make_cli_character(character_config=alice_config,
-                                       click_config=click_config,
-                                       dev=dev,
-                                       teacher_uri=teacher_uri,
-                                       min_stake=min_stake,
-                                       client_password=client_password)
+
+    try:
+        ALICE = actions.make_cli_character(character_config=alice_config,
+                                           click_config=click_config,
+                                           dev=dev,
+                                           teacher_uri=teacher_uri,
+                                           min_stake=min_stake,
+                                           client_password=client_password)
+    except Exception as e:
+        if click_config.debug:
+            raise
+        else:
+            emitter.echo(str(e)+"\n", color='red', bold=True)
+            raise click.Abort
 
     #
     # Admin Actions

@@ -252,6 +252,7 @@ def make_cli_character(character_config,
         character_config.get_blockchain_interface()
 
     # Handle Keyring
+
     if not dev:
         character_config.attach_keyring()
         unlock_nucypher_keyring(emitter,
@@ -273,10 +274,12 @@ def make_cli_character(character_config,
     #
 
     # Produce Character
-    CHARACTER = character_config(known_nodes=teacher_nodes,
-                                 network_middleware=character_config.network_middleware,
-                                 **config_args)
-
+    try:
+        CHARACTER = character_config(known_nodes=teacher_nodes,
+                                     network_middleware=character_config.network_middleware,
+                                     **config_args)
+    except CryptoError as e:
+        raise character_config.keyring.AuthenticationFailed(str(e))
     #
     # Post-Init
     #
