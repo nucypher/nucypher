@@ -614,7 +614,8 @@ class Bob(Character):
                 # TODO: Fix this. It's always taking the last capsule
                 if cache:
                     self._saved_work_orders[node_id][capsule] = work_order
-
+            else:
+                self.log.debug(f"No need to make any new WorkOders for {capsule} for this node: {node_id}")
             if num_ursulas == len(generated_work_orders):
                 break
 
