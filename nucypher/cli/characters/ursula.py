@@ -357,12 +357,16 @@ def ursula(click_config,
         receipt = URSULA.confirm_activity()
 
         confirmed_period = URSULA.staking_agent.get_current_period() + 1
-        txhash = receipt["transactionHash"].hex()
         date = datetime_at_period(period=confirmed_period)
 
+        # TODO: Double-check dates here
         emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
                      f'(starting at {date})', bold=True, color='blue')
-        emitter.echo(f'Receipt: {txhash}')
+        painting.paint_receipt_summary(emitter=emitter,
+                                       receipt=receipt,
+                                       chain_name=URSULA.blockchain.client.chain_name)
+
+        # TODO: Check ActivityConfirmation event (see #1193)
         return
 
     else:

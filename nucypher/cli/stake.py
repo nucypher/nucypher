@@ -335,7 +335,9 @@ def stake(click_config,
                                                              duration=extension,
                                                              password=password)
         emitter.echo('Successfully divided stake', color='green', verbosity=1)
-        emitter.echo(f'Receipt ........... {new_stake.receipt}', verbosity=1)
+        paint_receipt_summary(emitter=emitter,
+                              receipt=new_stake.receipt,
+                              chain_name=STAKEHOLDER.blockchain.client.chain_name)
 
         # Show the resulting stake list
         painting.paint_stakes(emitter=emitter, stakes=STAKEHOLDER.stakes)
