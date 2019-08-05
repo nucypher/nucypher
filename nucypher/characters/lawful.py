@@ -679,6 +679,9 @@ class Bob(Character):
             if num_ursulas == len(generated_work_orders):
                 break
 
+        if generated_work_orders == OrderedDict():
+            self.log.war("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
+
         return generated_work_orders
 
     def get_reencrypted_cfrags(self, work_order):
