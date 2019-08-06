@@ -290,7 +290,7 @@ class WorkOrder:
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        tasks, tasks_bytes = [], []
+        tasks, tasks_bytes = {}, []
         for capsule in capsules:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
@@ -298,7 +298,7 @@ class WorkOrder:
             task = cls.Task(capsule, signature=None)
             specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
-            tasks.append(task)
+            tasks[capsule] = task
             tasks_bytes.append(bytes(task))
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
@@ -353,7 +353,7 @@ class WorkOrder:
                    receipt_signature=signature)
 
     def payload(self):
-        tasks_bytes = [bytes(item) for item in self.tasks]
+        tasks_bytes = [bytes(item) for item in self.tasks.values()]
         payload_elements = msgpack.dumps((tasks_bytes, self.blockhash))
         return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
 
@@ -365,7 +365,7 @@ class WorkOrder:
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
-        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
             # Validate re-encryption metadata
             metadata_input = bytes(task.signature)
             metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
@@ -380,7 +380,7 @@ class WorkOrder:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
                 # TODO: Instead of raising, we should do something (#957)
 
-        for task, (cfrag, cfrag_signature) in zip(self.tasks, cfrags_and_signatures):
+        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
             task.attach_work_result(cfrag, cfrag_signature)
 
         self.completed = maya.now()
