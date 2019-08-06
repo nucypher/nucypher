@@ -186,9 +186,16 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
+
+def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client, retrieve_control_request):
+    method_name, params = retrieve_control_request
+    endpoint = f'/{method_name}'
+
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 200
+
     del(params['alice_verifying_key'])
     response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
-
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
     method_name, params = encrypt_control_request
