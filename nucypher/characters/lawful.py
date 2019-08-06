@@ -604,10 +604,11 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
-                    capsules_to_include.append(capsule)
-                else:
+                existing_work_order = self._saved_work_orders[node_id].get(capsule)
+                if existing_work_order:
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
+                else:
+                    capsules_to_include.append(capsule)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
