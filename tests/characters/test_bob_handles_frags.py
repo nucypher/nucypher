@@ -151,7 +151,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
                                  receiving=federated_bob.public_keys(DecryptingPower),
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
-    work_orders = federated_bob.generate_work_orders(map_id, capsule, num_ursulas=1)
+    work_orders = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1)
 
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
@@ -160,7 +160,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert len(federated_bob._saved_work_orders) == 0
 
     # This time, we'll tell Bob to cache it.
-    cached_work_orders = federated_bob.generate_work_orders(map_id, capsule, num_ursulas=1, cache=True)
+    cached_work_orders = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1, cache=True)
 
     # Bob saved the WorkOrder.
     assert len(federated_bob._saved_work_orders) == 1
@@ -244,10 +244,10 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     saved_work_order = list(work_orders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    generated_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
-                                                               last_capsule_on_side_channel,
-                                                               num_ursulas=1,
-                                                               cache=True)
+    generated_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+                                                                  last_capsule_on_side_channel,
+                                                                  num_ursulas=1,
+                                                                  cache=True)
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
@@ -295,9 +295,9 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         receiving=federated_bob.public_keys(DecryptingPower),
         verifying=federated_alice.stamp.as_umbral_pubkey())
 
-    new_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
-                                                         the_message_kit.capsule,
-                                                         num_ursulas=number_left_to_collect)
+    new_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+                                                            the_message_kit.capsule,
+                                                            num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
 
     cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
