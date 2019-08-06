@@ -608,19 +608,22 @@ class Bob(Character):
             for capsule in capsules:
                 existing_work_order = self._saved_work_orders[node_id].get(capsule)
                 if existing_work_order:
+                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     if include_completed:
                         if existing_work_order.completed:
                             # TODO: cache expiration?
                             useful_work_orders[node_id] = existing_work_order
                         else:
-                            raise TypeError("Trying to reuse an incomplete WorkOrder.  Not sure what to do here.")
-                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
+                            self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
+                            useful_work_orders[node_id] = existing_work_order
+                    else:
+                        # There is an existing WorkOrder, but we're not using completed WorkOrders.
+                        self.log.warn(f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
                 else:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(
-                    arrangement_id, capsules_to_include, ursula, self)
+                work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
                 useful_work_orders[node_id] = work_order
                 # TODO: Fix this. It's always taking the last capsule
                 if cache:
@@ -633,7 +636,17 @@ class Bob(Character):
         if useful_work_orders == OrderedDict():
             self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
-        return generated_work_orders
+        return useful_work_orders
+
+    def get_reencrypted_cfrags(self, work_order, reuse_already_attached=False):
+        if work_order.completed:
+            if reuse_already_attached:
+                reuse_already_attached
+            else:
+                # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
+                raise RuntimeError("WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
+        else:
+            cfrags = self.network_middleware.reencrypt(work_order)
 
     def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
