@@ -280,7 +280,7 @@ class WorkOrder:
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
+        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]  # TODO: What if the different capsules have different correctness keys?
         alice_address = canonical_address_from_umbral_key(alice_verifying_key)
 
         # TODO: Bob's input to prove freshness for this work order
