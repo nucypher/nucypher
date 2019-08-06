@@ -583,6 +583,8 @@ class Bob(Character):
         return treasure_map
 
     def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
+        include_completed = cache  # TODO: Make these separate pieces of logic?
+
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
         try:
@@ -606,6 +608,12 @@ class Bob(Character):
             for capsule in capsules:
                 existing_work_order = self._saved_work_orders[node_id].get(capsule)
                 if existing_work_order:
+                    if include_completed:
+                        if existing_work_order.completed:
+                            # TODO: cache expiration?
+                            pass
+                        else:
+                            raise TypeError("Trying to reuse an incomplete WorkOrder.  Not sure what to do here.")
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                 else:
                     capsules_to_include.append(capsule)
@@ -650,9 +658,9 @@ class Bob(Character):
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        already_retrieved = len(message_kit.capsule._attached_cfrags) >= m
+        capsule_is_already_activated = len(message_kit.capsule._attached_cfrags) >= m
 
-        if already_retrieved:
+        if capsule_is_already_activated:
             if cache:
                 must_do_new_retrieval = False
             else:
@@ -677,6 +685,7 @@ class Bob(Character):
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
             for work_order in work_orders.values():
                 try:
+                    # Well, wait, let's consider that we might already have cached a CFrag here.
                     cfrags = self.get_reencrypted_cfrags(work_order)
                 except requests.exceptions.ConnectTimeout:
                     continue
