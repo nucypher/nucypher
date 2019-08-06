@@ -150,7 +150,7 @@ def deploy(action,
 
     password = None
     if not hw_wallet and not blockchain.client.is_local:
-        password = get_client_password(confirm=False)
+        password = get_client_password(checksum_address=deployer_address)
 
     # Produce Actor
     DEPLOYER = DeployerActor(blockchain=blockchain,
