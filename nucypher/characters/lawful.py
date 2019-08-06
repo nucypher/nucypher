@@ -707,8 +707,7 @@ class Bob(Character):
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
             for work_order in work_orders.values():
                 try:
-                    # Well, wait, let's consider that we might already have cached a CFrag here.
-                    cfrags = self.get_reencrypted_cfrags(work_order)
+                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=cache)
                 except requests.exceptions.ConnectTimeout:
                     continue
                 except NotFound:
