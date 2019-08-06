@@ -199,8 +199,16 @@ def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
     assert response.status_code == 200
 
+    response_data = json.loads(response.data)
+    assert 'cleartexts' in response_data['result']
+
+    response_message = response_data['result']['cleartexts'][0]
+    assert response_message == 'Welcome to flippering number 2.'  # We have received exactly the same message again.
+
     del(params['alice_verifying_key'])
-    response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 400
+
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
     method_name, params = encrypt_control_request
