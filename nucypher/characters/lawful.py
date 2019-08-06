@@ -582,7 +582,7 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
+    def work_orders_for_capsule(self, map_id, *capsules, num_ursulas=None, cache=False):
         include_completed = cache  # TODO: Make these separate pieces of logic?
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
@@ -593,7 +593,7 @@ class Bob(Character):
             raise KeyError(
                 "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
-        generated_work_orders = OrderedDict()
+        useful_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
@@ -611,7 +611,7 @@ class Bob(Character):
                     if include_completed:
                         if existing_work_order.completed:
                             # TODO: cache expiration?
-                            pass
+                            useful_work_orders[node_id] = existing_work_order
                         else:
                             raise TypeError("Trying to reuse an incomplete WorkOrder.  Not sure what to do here.")
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
@@ -621,16 +621,16 @@ class Bob(Character):
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
-                generated_work_orders[node_id] = work_order
+                useful_work_orders[node_id] = work_order
                 # TODO: Fix this. It's always taking the last capsule
                 if cache:
                     self._saved_work_orders[node_id][capsule] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
-            if num_ursulas == len(generated_work_orders):
+            if num_ursulas == len(useful_work_orders):
                 break
 
-        if generated_work_orders == OrderedDict():
+        if useful_work_orders == OrderedDict():
             self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
         return generated_work_orders
@@ -679,7 +679,7 @@ class Bob(Character):
         if must_do_new_retrieval:
             # TODO: Consider blocking until map is done being followed. #1114
 
-            work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
+            work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache)
             the_airing_of_grievances = []
 
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
