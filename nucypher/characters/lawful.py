@@ -677,22 +677,31 @@ class Bob(Character):
             if cache:
                 must_do_new_retrieval = False
             else:
-                raise TypeError(
-                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  Not sure what to do.")
+                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
         else:
-            must_do_new_retrieval = True
-
-        capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(DecryptingPower),
-            verifying=alice_verifying_key)
+            capsule.set_correctness_keys(
+                delegating=data_source.policy_pubkey,
+                receiving=self.public_keys(DecryptingPower),
+                verifying=alice_verifying_key)
+            work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache)
+            if cache:
+                cfrags_from_complete_work_orders = []
+                for work_order in work_orders.values():
+                    if work_order.completed:
+                        cfrags_from_complete_work_orders.append(work_order.tasks[capsule].cfrag)
+                if len(cfrags_from_complete_work_orders) >= m:
+                    for cfrag in cfrags_from_complete_work_orders:
+                        capsule.attach_cfrag(cfrag)
+                    must_do_new_retrieval = False
+                else:
+                    # TODO: What to do if we have some CFrags, but not enough to activate?
+                    self.log.info(f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
 
         cleartexts = []
 
         if must_do_new_retrieval:
             # TODO: Consider blocking until map is done being followed. #1114
 
-            work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache)
             the_airing_of_grievances = []
 
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
