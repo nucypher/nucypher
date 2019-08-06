@@ -665,7 +665,7 @@ class Bob(Character):
                 if not capsule in self._saved_work_orders[node_id]:
                     capsules_to_include.append(capsule)
                 else:
-                    self.log.debug("This capsule already has a saved WorkOrder.")
+                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
@@ -675,12 +675,12 @@ class Bob(Character):
                 if cache:
                     self._saved_work_orders[node_id][capsule] = work_order
             else:
-                self.log.debug(f"No need to make any new WorkOders for {capsule} for this node: {node_id}")
+                self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
             if num_ursulas == len(generated_work_orders):
                 break
 
         if generated_work_orders == OrderedDict():
-            self.log.war("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
+            self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
         return generated_work_orders
 
