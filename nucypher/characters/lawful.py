@@ -698,6 +698,7 @@ class Bob(Character):
                 try:
                     message_kit.capsule.attach_cfrag(cfrag)
                     if len(message_kit.capsule._attached_cfrags) >= m:
+                        # TODO: What to do with unused WorkOrders here?   #1197
                         break
                 except UmbralCorrectnessError:
                     task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
