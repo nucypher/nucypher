@@ -671,6 +671,8 @@ class Bob(Character):
 
         capsule_is_already_activated = len(message_kit.capsule._attached_cfrags) >= m
 
+        must_do_new_retrieval = True  # Unless we can safely conclude to the contrary.
+
         if capsule_is_already_activated:
             if cache:
                 must_do_new_retrieval = False
