@@ -648,9 +648,7 @@ class Bob(Character):
         else:
             cfrags = self.network_middleware.reencrypt(work_order)
 
-    def get_reencrypted_cfrags(self, work_order):
-        cfrags = self.network_middleware.reencrypt(work_order)
-        for task in work_order.tasks:
+        for task in work_order.tasks.values():
             # TODO: Maybe just update the work order here instead of setting it anew.
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_address]
             work_orders_by_ursula[task.capsule] = work_order
