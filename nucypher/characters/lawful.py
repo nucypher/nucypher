@@ -642,11 +642,14 @@ class Bob(Character):
     def get_reencrypted_cfrags(self, work_order, reuse_already_attached=False):
         if work_order.completed:
             if reuse_already_attached:
-                reuse_already_attached
+                # The WorkOrder is complete and we're reusing it.  Just send back the CFrags.
+                # (Note: we trust that we previously verified the Signature here; it's possible to manually attach a CFrag
+                # to a Task and subvert this check; this branch takes no position on that and does not protect against it.)
+                return [wo.cfrag for wo in work_order.tasks.values()]
             else:
                 # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
-                raise RuntimeError(
-                    "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
+                raise TypeError(
+                    "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Create a new WorkOrder or set cache=False for KMS mode.")
         else:
             cfrags = self.network_middleware.reencrypt(work_order)
 
