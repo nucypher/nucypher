@@ -171,7 +171,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     cached_id, cached_work_order = list(cached_work_orders.items())[0]
 
     assert ursula_id == cached_id
-    assert work_order.tasks[0].capsule == cached_work_order.tasks[0].capsule
+    assert work_order.tasks.get(capsule)
+    assert cached_work_order.tasks.keys() == work_order.tasks.keys()
 
     # The work order is not yet complete, of course.
     assert work_order.completed is False
@@ -255,7 +256,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
     # ...and, although this WorkOrder has the same capsules as the saved one...
-    for (new_item, saved_item) in zip(new_work_order.tasks, saved_work_order.tasks):
+    for (new_item, saved_item) in zip(new_work_order.tasks.values(), saved_work_order.tasks.values()):
         assert new_item.capsule == saved_item.capsule
 
     # ...it's not the same WorkOrder.
