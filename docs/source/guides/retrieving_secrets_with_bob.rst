@@ -4,13 +4,17 @@ Retrieving Secrets
 
 One node in your distributed application has already created a Policy and Granted access using Alice.  Another node has shared several secrets on that Policy using Enrico.  Now, you're ready to retrieve a secret using Bob and use the secret in your dapp.
 
+<<<<<<< HEAD
 We sometimes jokingly refer to Bob as "Bob the BUIDLer" - but there is at least a small nugget of truth in this designatation.  A critical design decision about user-facing functionality in any NuCypher-powered decentralized application is where, when, and how to use the secrets that you retrieve using the network.
 
 It's not an exaggeration to say that the parameters you pass to `retrieve(...)` are a representation of the critique your application is making in the world.
+=======
+>>>>>>> d14ca288... Temporary.
 
 Bob's Adventure
 ---------------
 
+<<<<<<< HEAD
 The Capsule finally Activated, Bob's face reflected its gold glow.  All he needed to do now was to slide his private keycard across its slot to open it and finally have The Secret inside.
 
 ----
@@ -33,6 +37,11 @@ Enrico has given Bob a Capsule.
 Now Bob wants the message.
 
 
+=======
+From seat 33K (coach obviously) of his hastily booked flight aboard an aging four-engine jumbo jet, Bob kept a sharp eye on the overhead compartment across the aisle where he has carefully placed it: the Capsule.
+
+He knew his quest well - he had gone over and over it in his mind and in his test suite.  He needed to find a worldwide cohort of five Ursulas - none of whom had ever even met one another.  Well, to be more specific, he needed to convene with any three of them.
+>>>>>>> d14ca288... Temporary.
 
 
 The question of whether to preserve or discard saved CFrags and activated Capsules
