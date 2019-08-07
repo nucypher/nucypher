@@ -2,18 +2,7 @@
 Retrieving Secrets
 ==================
 
-One node in your distributed application has already created a Policy and Granted access using Alice.  Another node has shared several secrets on that Policy using Enrico.  Now, you're ready to retrieve a secret using Bob and use the secret in your dapp.
-
-We sometimes jokingly refer to Bob as "Bob the BUIDLer" - but there is at least a small nugget of truth in this designatation.  A critical design decision about user-facing functionality in any NuCypher-powered decentralized application is where, when, and how to use the secrets that you retrieve using the network.
-
-It's not an exaggeration to say that the parameters you pass to `retrieve(...)` are a representation of the critique your application is making in the world.
-
-Bob's Adventure
----------------
-
-The Capsule finally Activated, Bob's face reflected its gold glow.  All he needed to do now was to slide his private keycard across its slot to open it and finally have The Secret inside.
-
-----
+Bob.  Speeding down the highway on the edge of the desert in search of The Secret.  But let's get to the heart of this thing:
 
 24 hours earlier, Bob had been sitting in the Pogo Lounge of the Beverly Heights Hotel (of course), when a call came from Alice: Bob had been Granted access.  And Enrico had shared a Capsule with Bob.
 
@@ -23,14 +12,23 @@ He needed to bring this Capsule around to each Ursula, who, upon inspecting it (
 
 As soon as Bob completed plugging any `m` of these CFrags in, the Capsule glowed its sunny glow to show that it was ready for Bob's key; the final piece of the process of retrieve().
 
+----
+
+We sometimes jokingly refer to Bob as "Bob the BUIDLer" - but there is at least a small nugget of truth in this designatation.  A critical design decision about user-facing functionality in any NuCypher-powered decentralized application is where, when, and how to use the secrets that you retrieve using the network.
+
+It's not an exaggeration to say that the parameters you pass to `retrieve(...)` are a representation of the critique your application is making in the world.
+
 
 Basic retrieval
 ---------------
 
 Alice has created a Policy and Granted Bob access.
 Enrico has given Bob a Capsule.
-
 Now Bob wants the message.
+
+```
+retrieve()
+```
 
 
 
