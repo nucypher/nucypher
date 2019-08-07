@@ -219,6 +219,42 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_orders_from_bob[0] == work_order
 
 
+def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_policy, federated_bob,
+                                                                   federated_ursulas, capsule_side_channel):
+
+    # In our last episode, Bob made a single WorkOrder...
+    work_orders = list(federated_bob._saved_work_orders.by_ursula.values())
+    assert len(work_orders) == 1
+
+    # ...and it matched the last capsule that came through the side channel.
+    last_capsule_on_side_channel = capsule_side_channel.messages[-1][0].capsule
+    old_work_order = work_orders[0][last_capsule_on_side_channel]
+
+    generated_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+                                                                  last_capsule_on_side_channel,
+                                                                  num_ursulas=1,
+                                                                  cache=True,
+                                                                  include_completed=True,
+                                                                  )
+
+    # Here we show that since we're using the same completed WorkOrder again, we get it back.
+    new_work_order = list(generated_work_orders.values())[0]
+    assert old_work_order == new_work_order
+
+    # We already got a CFrag for this WorkOrder, a couple of tests ago.
+    assert old_work_order.tasks[last_capsule_on_side_channel].cfrag
+
+    # As such, we will get TypeError if we try to get CFrags again and don't reuse_already_attached.
+    with pytest.raises(TypeError):
+        federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=False)
+
+    # On the other hand, if we are willing to reuse_already_attached, we'll get the CFrag back again.
+    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=True)
+
+    # One Capsule, one cFrag (the fact that it is just one WorkOrder is immaterial; the number of CFrags follows the number of Capsules).
+    assert len(cfrags) == 1
+
+
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_bob,
                                                                    federated_ursulas, capsule_side_channel):
     # In our last episode, Bob made a single WorkOrder...
