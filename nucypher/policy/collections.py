@@ -269,7 +269,7 @@ class WorkOrder:
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.tasks],
+            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.tasks.values()],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
