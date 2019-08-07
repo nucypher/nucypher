@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import time
+import datetime
 from typing import Union
 
 import maya
@@ -229,27 +230,37 @@ class Web3Client:
         now = maya.now()
         start_time = now
 
+        def has_latest_block():
+            # check that our local chain data is up to date
+            return (
+                datetime.datetime.now() -
+                datetime.datetime.fromtimestamp(
+                    self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
+                )
+            ).seconds < 30
+
         def check_for_timeout(t):
             last_update = maya.now()
             duration = (last_update - start_time).seconds
             if duration > t:
                 raise self.SyncTimeout
 
-        # Check for ethereum peers
-        self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
-        while not self.peers:
-            time.sleep(0)
-            check_for_timeout(t=60)
+        while not has_latest_block():
+            # Check for ethereum peers
+            self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
+            while not self.peers:
+                time.sleep(0)
+                check_for_timeout(t=60)
 
-        # Wait for sync start
-        self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
-        while not self.syncing:
-            time.sleep(0)
-            check_for_timeout(t=120)
+            # Wait for sync start
+            self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
+            while not self.syncing:
+                time.sleep(0)
+                check_for_timeout(t=120)
 
-        while self.syncing:
-            self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
-            time.sleep(5)
+            while self.syncing:
+                self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
+                time.sleep(5)
 
         return True
 
