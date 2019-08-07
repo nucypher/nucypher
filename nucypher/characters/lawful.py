@@ -674,35 +674,34 @@ class Bob(Character):
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        capsule_is_already_activated = len(message_kit.capsule._attached_cfrags) >= m
+        capsule_has_attached_cfrags = bool(capsule._attached_cfrags)
 
         must_do_new_retrieval = True  # Unless we can safely conclude to the contrary.
 
-        if capsule_is_already_activated:
-            if cache:
-                must_do_new_retrieval = False
-            else:
+        if capsule_has_attached_cfrags:
+            if not cache:
                 raise TypeError(
                     "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
-        else:
-            capsule.set_correctness_keys(
-                delegating=data_source.policy_pubkey,
-                receiving=self.public_keys(DecryptingPower),
-                verifying=alice_verifying_key)
-            work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache)
-            if cache:
-                cfrags_from_complete_work_orders = []
-                for work_order in work_orders.values():
-                    if work_order.completed:
-                        cfrags_from_complete_work_orders.append(work_order.tasks[capsule].cfrag)
-                if len(cfrags_from_complete_work_orders) >= m:
-                    for cfrag in cfrags_from_complete_work_orders:
-                        capsule.attach_cfrag(cfrag)
-                    must_do_new_retrieval = False
-                else:
-                    # TODO: What to do if we have some CFrags, but not enough to activate?
-                    self.log.info(
-                        f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
+
+        capsule.set_correctness_keys(
+            delegating=data_source.policy_pubkey,
+            receiving=self.public_keys(DecryptingPower),
+            verifying=alice_verifying_key)
+        work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache, include_completed=cache)  # TODO: Do we want cache and include_completed to be separately configurable?
+
+        if cache:
+            cfrags_from_complete_work_orders = []
+            for work_order in work_orders.values():
+                if work_order.completed:
+                    cfrag_in_question = work_order.tasks[capsule].cfrag
+                    if cfrag_in_question not in capsule._attached_cfrags:
+                        capsule.attach_cfrag(cfrag_in_question)
+            if len(capsule._attached_cfrags) >= m:
+                must_do_new_retrieval = False
+            else:
+                # TODO: What to do if we have some CFrags, but not enough to activate?
+                self.log.info(
+                    f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
 
         cleartexts = []
 
@@ -710,9 +709,15 @@ class Bob(Character):
             # TODO: Consider blocking until map is done being followed. #1114
 
             the_airing_of_grievances = []
+            valid_cfrags = set()
 
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
+            cfrag_count = len(capsule._attached_cfrags)
             for work_order in work_orders.values():
+                if cfrag_count >= m:
+                    # TODO: What to do with unused WorkOrders here?   #1197
+                    break
+                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
                     cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=cache)
                 except NodeSeemsToBeDown:
@@ -727,10 +732,12 @@ class Bob(Character):
 
                 cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
                 try:
-                    message_kit.capsule.attach_cfrag(cfrag)
-                    if len(message_kit.capsule._attached_cfrags) >= m:
-                        # TODO: What to do with unused WorkOrders here?   #1197
-                        break
+                    if cache:
+                        capsule.attach_cfrag(cfrag)
+                        cfrag_count = len(capsule._attached_cfrags)
+                    else:
+                        valid_cfrags.add(cfrag)
+                        cfrag_count = len(valid_cfrags)
                 except UmbralCorrectnessError:
                     task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
                     from nucypher.policy.collections import IndisputableEvidence
@@ -746,6 +753,12 @@ class Bob(Character):
                 # TODO: Find a better strategy for handling incorrect CFrags #500
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
+
+        if not cache:
+            # If we were caching, then we attached as we went through the loop.
+            # If not, we need to do it now.
+            for cfrag in valid_cfrags:
+                capsule.attach_cfrag(cfrag)
 
         delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
         cleartexts.append(delivered_cleartext)
