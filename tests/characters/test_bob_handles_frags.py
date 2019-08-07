@@ -308,7 +308,6 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # Attach the CFrag to the Capsule.
     last_capsule_on_side_channel.attach_cfrag(new_cfrag)
 
-
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
@@ -368,4 +367,30 @@ def test_federated_bob_retrieves(federated_bob,
                                                   label=enacted_federated_policy.label)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+
+def test_federated_bob_retrieves_again(federated_bob,
+                                 federated_alice,
+                                 capsule_side_channel,
+                                 enacted_federated_policy,
+                                 ):
+    the_same_message_kit, the_same_enrico = capsule_side_channel.messages[-1]
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    # Can't retrieve this message again.
+    # Bob needs to either instantiate the message_kit again or use cache=True.
+    with pytest.raises(TypeError):
+        delivered_cleartexts = federated_bob.retrieve(message_kit=the_same_message_kit,
+                                                      data_source=the_same_enrico,
+                                                      alice_verifying_key=alices_verifying_key,
+                                                      label=enacted_federated_policy.label)
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_same_message_kit,
+                                                  data_source=the_same_enrico,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  cache=True)
+
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
