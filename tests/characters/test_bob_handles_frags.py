@@ -298,8 +298,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # ...it's not the same WorkOrder.
     assert new_work_order != saved_work_order
 
-    # We can get a new CFrag, just like last time.
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
+    # Since this WorkOrder has never been completed, it will work even if we refuse to reuse_already_attached (Amnesiac Bob mode).
+    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=False)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
