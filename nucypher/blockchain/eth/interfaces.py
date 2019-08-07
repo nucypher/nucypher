@@ -251,13 +251,13 @@ class BlockchainInterface:
         else:
             self.attach_middleware()
 
-        # Wait for chaindata sync
-        if sync_now:
-            self.client.sync()
-
         # Establish contact with NuCypher contracts
         if not self.registry:
             self._configure_registry(fetch_registry=fetch_registry)
+
+        # Wait for chaindata sync
+        if sync_now:
+            return self.client.sync()
 
         return self.is_connected
 
