@@ -15,8 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
+import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
@@ -25,11 +25,6 @@ from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
-import time
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -47,6 +42,10 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -582,8 +581,8 @@ class Bob(Character):
 
         return treasure_map
 
-    def work_orders_for_capsule(self, map_id, *capsules, num_ursulas=None, cache=False):
-        include_completed = cache  # TODO: Make these separate pieces of logic?
+    def work_orders_for_capsule(self, map_id: str, *capsules, num_ursulas: int = None, cache: bool = False,
+                                include_completed: bool = False):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -618,7 +617,8 @@ class Bob(Character):
                             useful_work_orders[node_id] = existing_work_order
                     else:
                         # There is an existing WorkOrder, but we're not using completed WorkOrders.
-                        self.log.warn(f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
+                        self.log.warn(
+                            f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
                 else:
                     capsules_to_include.append(capsule)
 
@@ -634,7 +634,8 @@ class Bob(Character):
                 break
 
         if useful_work_orders == OrderedDict():
-            self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
+            self.log.warn(
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
         return useful_work_orders
 
@@ -644,7 +645,8 @@ class Bob(Character):
                 reuse_already_attached
             else:
                 # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
-                raise RuntimeError("WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
+                raise RuntimeError(
+                    "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
         else:
             cfrags = self.network_middleware.reencrypt(work_order)
 
@@ -677,7 +679,8 @@ class Bob(Character):
             if cache:
                 must_do_new_retrieval = False
             else:
-                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
+                raise TypeError(
+                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
         else:
             capsule.set_correctness_keys(
                 delegating=data_source.policy_pubkey,
@@ -695,7 +698,8 @@ class Bob(Character):
                     must_do_new_retrieval = False
                 else:
                     # TODO: What to do if we have some CFrags, but not enough to activate?
-                    self.log.info(f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
+                    self.log.info(
+                        f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
 
         cleartexts = []
 
@@ -1035,7 +1039,8 @@ class Ursula(Teacher, Character, Worker):
                       federated_only: bool,
                       *args, **kwargs
                       ):
-        response_data = network_middleware.client.node_information(host, port, certificate_filepath=certificate_filepath)
+        response_data = network_middleware.client.node_information(host, port,
+                                                                   certificate_filepath=certificate_filepath)
 
         stranger_ursula_from_public_keys = cls.from_bytes(response_data,
                                                           *args, **kwargs)
@@ -1135,6 +1140,15 @@ class Ursula(Teacher, Character, Worker):
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(
                     f"{checksum_address} is staking less than the specified minimum stake value ({minimum_stake}).")
+
+        # Verify the node's TLS certificate
+        try:
+            potential_seed_node.verify_node(network_middleware=network_middleware,
+                                            registry=registry,
+                                            certificate_filepath=temp_certificate_filepath)
+        except potential_seed_node.InvalidNode:
+            # TODO: What if our seed node fails verification?
+            raise
 
         # OK - everyone get out
         temp_node_storage.forget()
@@ -1289,7 +1303,7 @@ class Ursula(Teacher, Character, Worker):
         with ThreadedSession(self.datastore.engine):
             if not bob:  # All
                 return self.datastore.get_workorders()
-            else:        # Filter
+            else:  # Filter
                 work_orders_from_bob = self.datastore.get_workorders(bob_verifying_key=bytes(bob.stamp))
                 return work_orders_from_bob
 
@@ -1299,7 +1313,6 @@ class Ursula(Teacher, Character, Worker):
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
         for task in work_order.tasks:
-
             # Ursula signs on top of Bob's signature of each task.
             # Now both are committed to the same task.  See #259.
             reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
