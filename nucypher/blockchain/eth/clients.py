@@ -263,11 +263,14 @@ class Web3Client:
                 check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
 
             while True:
+                #  TODO:  Should this timeout eventually?
                 syncdata = self.syncing
                 if not syncdata:
-                    break
+                    raise StopIteration
+
                 self.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
                 time.sleep(self.SYNC_SLEEP_DURATION)
+                yield syncdata
 
         return True
 
