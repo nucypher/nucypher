@@ -716,10 +716,13 @@ class Bob(Character):
                 try:
                     cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=cache)
                 except NodeSeemsToBeDown:
+                    # TODO: What to do here?  Ursula isn't supposed to be down.
+                    self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
                     continue
                 except NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
                     # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    self.log.warn(f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
                     continue
 
                 cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
@@ -735,7 +738,7 @@ class Bob(Character):
                     # I got a lot of problems with you people ...
                     the_airing_of_grievances.append(evidence)
             else:
-                raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
+                raise Ursula.NotEnoughUrsulas("Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
