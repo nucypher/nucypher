@@ -15,20 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import random
-import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -42,8 +37,14 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
+from nucypher.blockchain.eth.actors import Worker
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -72,7 +73,6 @@ from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_
 
 
 class Alice(Character, BlockchainPolicyAuthor):
-
     banner = ALICE_BANNER
     _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -434,7 +434,6 @@ class Alice(Character, BlockchainPolicyAuthor):
 
 
 class Bob(Character):
-
     banner = BOB_BANNER
     _controller_class = BobJSONController
 
@@ -444,6 +443,7 @@ class Bob(Character):
         """
         Raised when Bob detects incorrect CFrags returned by some Ursulas
         """
+
         def __init__(self, evidence: List):
             self.evidence = evidence
 
@@ -466,7 +466,7 @@ class Bob(Character):
             else:
                 raise ValueError("You need to pass either treasure_map or map_id.")
         elif map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+            raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
@@ -595,8 +595,8 @@ class Bob(Character):
 
         return treasure_map
 
-    def work_orders_for_capsule(self, map_id, *capsules, num_ursulas=None, cache=False):
-        include_completed = cache  # TODO: Make these separate pieces of logic?
+    def work_orders_for_capsule(self, map_id: str, *capsules, num_ursulas: int = None, cache: bool = False,
+                                include_completed: bool = False):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -631,7 +631,8 @@ class Bob(Character):
                             useful_work_orders[node_id] = existing_work_order
                     else:
                         # There is an existing WorkOrder, but we're not using completed WorkOrders.
-                        self.log.warn(f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
+                        self.log.warn(
+                            f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
                 else:
                     capsules_to_include.append(capsule)
 
@@ -647,7 +648,8 @@ class Bob(Character):
                 break
 
         if useful_work_orders == OrderedDict():
-            self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
+            self.log.warn(
+                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
         return useful_work_orders
 
@@ -657,7 +659,8 @@ class Bob(Character):
                 reuse_already_attached
             else:
                 # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
-                raise RuntimeError("WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
+                raise RuntimeError(
+                    "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Set cache=False for KMS mode.")
         else:
             cfrags = self.network_middleware.reencrypt(work_order)
 
@@ -690,7 +693,8 @@ class Bob(Character):
             if cache:
                 must_do_new_retrieval = False
             else:
-                raise TypeError("Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
+                raise TypeError(
+                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
         else:
             capsule.set_correctness_keys(
                 delegating=data_source.policy_pubkey,
@@ -708,7 +712,8 @@ class Bob(Character):
                     must_do_new_retrieval = False
                 else:
                     # TODO: What to do if we have some CFrags, but not enough to activate?
-                    self.log.info(f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
+                    self.log.info(
+                        f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
 
         cleartexts = []
 
@@ -800,7 +805,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -888,7 +892,8 @@ class Ursula(Teacher, Character, Worker):
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
-                self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+                self.log.debug(
+                    f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
                 decentralized_identity_evidence = self.decentralized_identity_evidence
 
                 Worker.__init__(self,
@@ -1079,7 +1084,8 @@ class Ursula(Teacher, Character, Worker):
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
-                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
+                log.warn(
+                    "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -1134,7 +1140,8 @@ class Ursula(Teacher, Character, Worker):
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
+                raise Learner.NotATeacher(
+                    f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
 
         # Verify the node's TLS certificate
         try:
@@ -1247,7 +1254,6 @@ class Ursula(Teacher, Character, Worker):
                      federated_only: bool = False) -> 'Ursula':
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
-
 
     #
     # Properties
@@ -1371,7 +1377,7 @@ class Enrico(Character):
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),   # FIXME
+                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)
@@ -1383,7 +1389,6 @@ class Enrico(Character):
 
 
 class StakeHolder(Staker):
-
     banner = STAKEHOLDER_BANNER
 
     class StakingWallet:
