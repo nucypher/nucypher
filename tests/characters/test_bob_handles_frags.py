@@ -394,3 +394,65 @@ def test_federated_bob_retrieves_again(federated_bob,
                                                   cache=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+
+def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
+                                                                     federated_alice,
+                                                                     capsule_side_channel,
+                                                                     enacted_federated_policy,
+                                                                     federated_ursulas
+                                                                     ):
+    capsule_side_channel.reset()
+    the_message_kit, the_data_source = capsule_side_channel()
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    # Out of 10 Ursulas, eight are down.
+    ursula1 = list(federated_ursulas)[0]
+    ursula2 = list(federated_ursulas)[1]
+    ursula3 = list(federated_ursulas)[2]
+    ursula4 = list(federated_ursulas)[3]
+    ursula5 = list(federated_ursulas)[4]
+    ursula6 = list(federated_ursulas)[5]
+    ursula7 = list(federated_ursulas)[6]
+    ursula8 = list(federated_ursulas)[7]
+
+    federated_bob.remember_node(ursula1)
+
+    federated_bob.network_middleware = NodeIsDownMiddleware()
+    federated_bob.network_middleware.node_is_down(ursula1)
+    federated_bob.network_middleware.node_is_down(ursula2)
+    federated_bob.network_middleware.node_is_down(ursula3)
+    federated_bob.network_middleware.node_is_down(ursula4)
+    federated_bob.network_middleware.node_is_down(ursula5)
+    federated_bob.network_middleware.node_is_down(ursula6)
+    federated_bob.network_middleware.node_is_down(ursula7)
+    federated_bob.network_middleware.node_is_down(ursula8)
+
+    # Since 8 Ursulas are down, Bob can only get 2 CFrags; not enough to complete retrieval.
+    with pytest.raises(ursula1.NotEnoughUrsulas):
+        federated_bob.retrieve(message_kit=the_message_kit,
+                               data_source=the_data_source,
+                               alice_verifying_key=alices_verifying_key,
+                               label=enacted_federated_policy.label)
+
+    # Indeed, after his efforts, 2 CFrags are attached.
+    assert len(the_message_kit.capsule._attached_cfrags) == 2
+
+    # But now we delete them.
+    the_message_kit.capsule._attached_cfrags = []
+
+    # Now the remaining two Ursulas go down.
+    ursula9 = list(federated_ursulas)[8]
+    ursula10 = list(federated_ursulas)[9]
+    federated_bob.network_middleware.node_is_down(ursula9)
+    federated_bob.network_middleware.node_is_down(ursula10)
+
+    # ...but one other comes up.
+    federated_bob.network_middleware.node_is_up(ursula4)
+
+    with pytest.raises(ursula1.NotEnoughUrsulas):
+        federated_bob.retrieve(message_kit=the_message_kit,
+                               data_source=the_data_source,
+                               alice_verifying_key=alices_verifying_key,
+                               label=enacted_federated_policy.label)
