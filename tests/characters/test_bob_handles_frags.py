@@ -15,21 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
 import pytest_twisted
 from twisted.internet import threads
-
 from umbral import pre
-from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
+from umbral.kfrags import KFrag
 
-from nucypher.crypto.powers import DecryptingPower 
-from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.crypto.powers import DecryptingPower
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
-
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
@@ -220,8 +217,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
 
 def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_policy, federated_bob,
-                                                                   federated_ursulas, capsule_side_channel):
-
+                                                           federated_ursulas, capsule_side_channel):
     # In our last episode, Bob made a single WorkOrder...
     work_orders = list(federated_bob._saved_work_orders.by_ursula.values())
     assert len(work_orders) == 1
@@ -308,6 +304,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # Attach the CFrag to the Capsule.
     last_capsule_on_side_channel.attach_cfrag(new_cfrag)
 
+
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
@@ -352,7 +349,6 @@ def test_federated_bob_retrieves(federated_bob,
                                  capsule_side_channel,
                                  enacted_federated_policy,
                                  ):
-
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
@@ -371,10 +367,10 @@ def test_federated_bob_retrieves(federated_bob,
 
 
 def test_federated_bob_retrieves_again(federated_bob,
-                                 federated_alice,
-                                 capsule_side_channel,
-                                 enacted_federated_policy,
-                                 ):
+                                       federated_alice,
+                                       capsule_side_channel,
+                                       enacted_federated_policy,
+                                       ):
     the_same_message_kit, the_same_enrico = capsule_side_channel.messages[-1]
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
@@ -436,13 +432,10 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
 
-    # Indeed, after his efforts, 2 CFrags are attached.
-    assert len(the_message_kit.capsule._attached_cfrags) == 2
+    # Since we weren't caching, there are no attached Cfrags.
+    assert len(the_message_kit.capsule._attached_cfrags) == 0
 
-    # But now we delete them.
-    the_message_kit.capsule._attached_cfrags = []
-
-    # Now the remaining two Ursulas go down.
+        # Now the remaining two Ursulas go down.
     ursula9 = list(federated_ursulas)[8]
     ursula10 = list(federated_ursulas)[9]
     federated_bob.network_middleware.node_is_down(ursula9)
@@ -456,3 +449,99 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
                                data_source=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
+
+
+def test_federated_retrieves_partially_then_finishes(federated_bob,
+                                                                     federated_alice,
+                                                                     capsule_side_channel,
+                                                                     enacted_federated_policy,
+                                                                     federated_ursulas
+                                                                     ):
+    # Same setup as last time.
+    capsule_side_channel.reset()
+    the_message_kit, the_data_source = capsule_side_channel()
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+    ursula1 = list(federated_ursulas)[0]
+    ursula2 = list(federated_ursulas)[1]
+    ursula3 = list(federated_ursulas)[2]
+    ursula4 = list(federated_ursulas)[3]
+    ursula5 = list(federated_ursulas)[4]
+    ursula6 = list(federated_ursulas)[5]
+    ursula7 = list(federated_ursulas)[6]
+    ursula8 = list(federated_ursulas)[7]
+
+    federated_bob.remember_node(ursula1)
+
+    federated_bob.network_middleware = NodeIsDownMiddleware()
+    federated_bob.network_middleware.node_is_down(ursula1)
+    federated_bob.network_middleware.node_is_down(ursula2)
+    federated_bob.network_middleware.node_is_down(ursula3)
+    federated_bob.network_middleware.node_is_down(ursula4)
+    federated_bob.network_middleware.node_is_down(ursula5)
+    federated_bob.network_middleware.node_is_down(ursula6)
+    federated_bob.network_middleware.node_is_down(ursula7)
+    federated_bob.network_middleware.node_is_down(ursula8)
+
+    # Bob can't retrieve; there aren't enough Ursulas up.
+    with pytest.raises(ursula1.NotEnoughUrsulas):
+        federated_bob.retrieve(message_kit=the_message_kit,
+                               data_source=the_data_source,
+                               alice_verifying_key=alices_verifying_key,
+                               label=enacted_federated_policy.label,
+                               cache=True)
+
+    # Since we were caching, there are now 2 attached cfrags.
+    assert len(the_message_kit.capsule._attached_cfrags) == 2
+
+    # Now the remaining two Ursulas go down.
+    ursula9 = list(federated_ursulas)[8]
+    ursula10 = list(federated_ursulas)[9]
+    federated_bob.network_middleware.node_is_down(ursula9)
+    federated_bob.network_middleware.node_is_down(ursula10)
+
+    # ...but one other comes up.
+    federated_bob.network_middleware.node_is_up(ursula4)
+
+    # We're not allowed to try again with a Capsule with cached CFrags if we set cache to False.
+    with pytest.raises(TypeError):
+        federated_bob.retrieve(message_kit=the_message_kit,
+                               data_source=the_data_source,
+                               alice_verifying_key=alices_verifying_key,
+                               label=enacted_federated_policy.label,
+                               cache=False)
+
+    # But now, with just one Ursula up, we can use the cached CFrags to get the message.
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                           data_source=the_data_source,
+                           alice_verifying_key=alices_verifying_key,
+                           label=enacted_federated_policy.label,
+                           cache=True)
+
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+
+    # In fact, even with the whole network down, Bob can get the message:
+    for ursula in federated_ursulas:
+        federated_bob.network_middleware.node_is_down(ursula)
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  cache=True)
+
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+    # Heck, even if we delete the attached CFrags, as might happen if we were loading the Capsule again from disk...
+    the_message_kit.capsule._attached_cfrags = []
+
+    # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  cache=True)
+
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
