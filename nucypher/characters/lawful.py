@@ -608,17 +608,17 @@ class Bob(Character):
                 existing_work_order = self._saved_work_orders[node_id].get(capsule)
                 if existing_work_order:
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
-                    if include_completed:
-                        if existing_work_order.completed:
+                    if existing_work_order.completed:
+                        if include_completed:
                             # TODO: cache expiration?
                             useful_work_orders[node_id] = existing_work_order
                         else:
-                            self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
-                            useful_work_orders[node_id] = existing_work_order
+                            # There is an existing WorkOrder, but we're not using completed WorkOrders.
+                            self.log.warn(
+                                 f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
                     else:
-                        # There is an existing WorkOrder, but we're not using completed WorkOrders.
-                        self.log.warn(
-                            f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
+                        self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
+                        useful_work_orders[node_id] = existing_work_order
                 else:
                     capsules_to_include.append(capsule)
 
