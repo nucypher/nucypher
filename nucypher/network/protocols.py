@@ -32,6 +32,8 @@ def parse_node_uri(uri: str):
 
     if '@' in uri:
         checksum_address, uri = uri.split("@")
+        if checksum_address is None:
+            raise ValueError(f"{uri} is not a valid Teacher URI.")
         if not is_checksum_address(checksum_address):
             raise ValueError("{} is not a valid checksum address.".format(checksum_address))
     else:
