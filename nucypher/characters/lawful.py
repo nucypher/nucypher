@@ -44,6 +44,7 @@ from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDER
 from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
@@ -923,6 +924,7 @@ class Ursula(Teacher, Character, Worker):
                  timestamp=None,
 
                  # Blockchain
+                 blockchain: BlockchainInterface = None,
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
@@ -930,7 +932,6 @@ class Ursula(Teacher, Character, Worker):
                  client_password: str = None,
 
                  # Character
-                 password: str = None,
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
@@ -960,6 +961,7 @@ class Ursula(Teacher, Character, Worker):
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
+                           blockchain=blockchain,
                            **character_kwargs)
 
         #
@@ -1162,9 +1164,8 @@ class Ursula(Teacher, Character, Worker):
                          teacher_uri: str,
                          min_stake: int,
                          network_middleware: RestMiddleware = None,
+                         blockchain=None,
                          ) -> 'Ursula':
-
-        hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
 
         def __attempt(attempt=1, interval=10) -> Ursula:
             if attempt > 3:
@@ -1175,7 +1176,8 @@ class Ursula(Teacher, Character, Worker):
                                                        federated_only=federated_only,
                                                        checksum_address=checksum_address,
                                                        minimum_stake=min_stake,
-                                                       network_middleware=network_middleware)
+                                                       network_middleware=network_middleware,
+                                                       blockchain=blockchain)
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
@@ -1194,66 +1196,61 @@ class Ursula(Teacher, Character, Worker):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_address: str = None,  # TODO: Why is this unused?
+                                 blockchain: BlockchainInterface = None,
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
                                  ) -> 'Ursula':
+
+        if network_middleware is None:
+            network_middleware = RestMiddleware()
 
         #
         # WARNING: xxx Poison xxx
         # Let's learn what we can about the ... "seednode".
         #
 
-        if network_middleware is None:
-            network_middleware = RestMiddleware()
-
+        # Parse node URI
         host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
         certificate = network_middleware.get_certificate(host=host, port=port)
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+        # Create a temporary certificate storage area
         temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate)
+        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate)
+
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
+            blockchain=blockchain,
             host=real_host,
             port=port,
             network_middleware=network_middleware,
-            certificate_filepath=certificate_filepath,
+            certificate_filepath=temp_certificate_filepath,
             federated_only=federated_only,
             *args,
-            **kwargs)  # TODO: 466
-
-        potential_seed_node.certificate_filepath = certificate_filepath
-
-        if checksum_address:
-            # Ensure this is the specific node we expected
-            if not checksum_address == potential_seed_node.checksum_address:
-                template = "This seed node has a different wallet address: {} (expected {}). " \
-                           " Are you sure this is a seednode?"
-                raise potential_seed_node.SuspiciousActivity(
-                    template.format(potential_seed_node.checksum_address,
-                                    checksum_address))
+            **kwargs
+        )
 
         # Check the node's stake (optional)
-        if minimum_stake > 0:
-            # TODO: check the blockchain to verify that address has more then minimum_stake. #511
-            raise NotImplementedError("Stake checking is not implemented yet.")
+        if minimum_stake > 0 and not federated_only:
+            staking_agent = StakingEscrowAgent(blockchain=blockchain)
+            seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
+            if seednode_stake < minimum_stake:
+                raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
 
         # Verify the node's TLS certificate
         try:
-            potential_seed_node.verify_node(
-                network_middleware=network_middleware,
-                accept_federated_only=federated_only,
-                certificate_filepath=certificate_filepath)
-
+            potential_seed_node.verify_node(network_middleware=network_middleware,
+                                            accept_federated_only=federated_only,
+                                            certificate_filepath=temp_certificate_filepath)
         except potential_seed_node.InvalidNode:
-            raise  # TODO: What if our seed node fails verification?
+            # TODO: What if our seed node fails verification?
+            raise
 
         # OK - everyone get out
         temp_node_storage.forget()
-
         return potential_seed_node
 
     @classmethod
@@ -1277,6 +1274,7 @@ class Ursula(Teacher, Character, Worker):
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
+                   blockchain: BlockchainInterface = None,
                    ) -> 'Ursula':
 
         if version is INCLUDED_IN_BYTESTRING:
@@ -1313,7 +1311,7 @@ class Ursula(Teacher, Character, Worker):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(blockchain=blockchain, federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod
