@@ -70,6 +70,15 @@ class Web3Client:
     ALT_PARITY = 'Parity-Ethereum'
     GANACHE = 'EthereumJS TestRPC'
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
+    SYNC_TIMEOUT_DURATION = 60 # seconds to wait for various blockchain syncing endeavors
+    SYNC_SLEEP_DURATION = 5
+
+    class ConnectionNotEstablished(RuntimeError):
+        pass
+
+    class SyncTimeout(RuntimeError):
+        pass
+
 
     def __init__(self,
                  w3,
@@ -131,12 +140,6 @@ class Web3Client:
 
         instance = ClientSubclass(w3, **client_kwargs)
         return instance
-
-    class ConnectionNotEstablished(RuntimeError):
-        pass
-
-    class SyncTimeout(RuntimeError):
-        pass
 
     @property
     def peers(self):
@@ -218,6 +221,15 @@ class Web3Client:
     def send_raw_transaction(self, transaction: bytes) -> str:
         return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
 
+    def _has_latest_block(self):
+        # check that our local chain data is up to date
+        return (
+            datetime.datetime.now() -
+            datetime.datetime.fromtimestamp(
+                self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
+            )
+        ).seconds < 30
+
     def sync(self,
              timeout: int = 120,
              quiet: bool = False):
@@ -230,14 +242,6 @@ class Web3Client:
         now = maya.now()
         start_time = now
 
-        def has_latest_block():
-            # check that our local chain data is up to date
-            return (
-                datetime.datetime.now() -
-                datetime.datetime.fromtimestamp(
-                    self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
-                )
-            ).seconds < 30
 
         def check_for_timeout(t):
             last_update = maya.now()
@@ -245,22 +249,25 @@ class Web3Client:
             if duration > t:
                 raise self.SyncTimeout
 
-        while not has_latest_block():
+        while not self._has_latest_block():
             # Check for ethereum peers
             self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
             while not self.peers:
                 time.sleep(0)
-                check_for_timeout(t=60)
+                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION)
 
             # Wait for sync start
             self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
             while not self.syncing:
                 time.sleep(0)
-                check_for_timeout(t=120)
+                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
 
-            while self.syncing:
-                self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
-                time.sleep(5)
+            while True:
+                syncdata = self.syncing
+                if not syncdata:
+                    break
+                self.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+                time.sleep(self.SYNC_SLEEP_DURATION)
 
         return True
 
