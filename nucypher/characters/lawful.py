@@ -683,7 +683,7 @@ class Bob(Character):
                 must_do_new_retrieval = False
             else:
                 raise TypeError(
-                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  To use Bob in 'KMS mode', use cache=False.")
+                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
         else:
             capsule.set_correctness_keys(
                 delegating=data_source.policy_pubkey,
