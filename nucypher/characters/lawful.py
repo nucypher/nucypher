@@ -674,7 +674,7 @@ class Bob(Character):
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        capsule_has_attached_cfrags = bool(capsule._attached_cfrags)
+        capsule_has_attached_cfrags = len(capsule) > 0
 
         must_do_new_retrieval = True  # Unless we can safely conclude to the contrary.
 
@@ -694,9 +694,8 @@ class Bob(Character):
             for work_order in work_orders.values():
                 if work_order.completed:
                     cfrag_in_question = work_order.tasks[capsule].cfrag
-                    if cfrag_in_question not in capsule._attached_cfrags:
-                        capsule.attach_cfrag(cfrag_in_question)
-            if len(capsule._attached_cfrags) >= m:
+                    capsule.attach_cfrag(cfrag_in_question)
+            if len(capsule) >= m:
                 must_do_new_retrieval = False
             else:
                 # TODO: What to do if we have some CFrags, but not enough to activate?
@@ -712,7 +711,7 @@ class Bob(Character):
             valid_cfrags = set()
 
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
-            cfrag_count = len(capsule._attached_cfrags)
+            cfrag_count = len(capsule)
             for work_order in work_orders.values():
                 if cfrag_count >= m:
                     # TODO: What to do with unused WorkOrders here?   #1197
@@ -734,7 +733,7 @@ class Bob(Character):
                 try:
                     if cache:
                         capsule.attach_cfrag(cfrag)
-                        cfrag_count = len(capsule._attached_cfrags)
+                        cfrag_count = len(capsule)
                     else:
                         valid_cfrags.add(cfrag)
                         cfrag_count = len(valid_cfrags)
