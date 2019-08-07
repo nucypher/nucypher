@@ -715,7 +715,7 @@ class Bob(Character):
             for work_order in work_orders.values():
                 try:
                     cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=cache)
-                except requests.exceptions.ConnectTimeout:
+                except NodeSeemsToBeDown:
                     continue
                 except NotFound:
                     # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
