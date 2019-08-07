@@ -1058,19 +1058,15 @@ class Ursula(Teacher, Character, Worker):
         return stranger_ursula_from_public_keys
 
     @classmethod
-    def from_seednode_metadata(cls,
-                               seednode_metadata,
-                               *args,
-                               **kwargs):
+    def from_seednode_metadata(cls, seednode_metadata, *args, **kwargs):
         """
         Essentially another deserialization method, but this one doesn't reconstruct a complete
         node from bytes; instead it's just enough to connect to and verify a node.
-        """
 
-        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
-                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host,
-                                                                    seednode_metadata.rest_port),
-                                            *args, **kwargs)
+        NOTE: This is a federated only method.
+        """
+        seed_uri = f'{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}'
+        return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
     def from_teacher_uri(cls,
@@ -1086,9 +1082,8 @@ class Ursula(Teacher, Character, Worker):
                 raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
             try:
-                teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
+                teacher = cls.from_seed_and_stake_info(seed_uri=teacher_uri,
                                                        federated_only=federated_only,
-                                                       checksum_address=checksum_address,
                                                        minimum_stake=min_stake,
                                                        network_middleware=network_middleware,
                                                        blockchain=blockchain)
@@ -1104,7 +1099,6 @@ class Ursula(Teacher, Character, Worker):
         return __attempt()
 
     @classmethod
-    @validate_checksum_address
     def from_seed_and_stake_info(cls,
                                  seed_uri: str,
                                  federated_only: bool,
