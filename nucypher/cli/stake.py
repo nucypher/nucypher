@@ -115,11 +115,10 @@ def stake(click_config,
             raise click.BadOptionUsage(option_name='--provider',
                                        message="--provider is required to create a new stakeholder.")
 
+        fetch_registry = registry_filepath is None and not click_config.no_registry
         registry = None
-        fetch_registry = True
         if registry_filepath:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            fetch_registry = False
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
 
         blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
