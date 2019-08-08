@@ -9,6 +9,7 @@ from nucypher.cli.actions import get_nucypher_password, select_client_account, g
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.keyring import NucypherKeyring
 
 
 @click.command()
@@ -86,6 +87,21 @@ def alice(click_config,
           ):
     """
     "Alice the Policy Authority" management commands.
+
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    init                  Create a brand new persistent Alice
+    view                  View existing Alice's configuration.
+    run                   Start Alice's controller.
+    destroy               Delete existing Alice's configuration.
+    public-keys           Obtain Alice's public verification and encryption keys.
+    derive-policy-pubkey  Get a policy public key from a policy label.
+    grant                 Create and enact an access policy for some Bob.
+    revoke                Revoke a policy.
+    decrypt               Decrypt data encrypted under an Alice's policy public key.
+
     """
 
     #
@@ -134,12 +150,13 @@ def alice(click_config,
             blockchain.connect(sync_now=sync, fetch_registry=False)
             pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
 
+        download_registry = not federated_only and not click_config.no_registry
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       download_registry=click_config.no_registry,
+                                                       download_registry=download_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,
@@ -201,12 +218,18 @@ def alice(click_config,
     if not alice_config.federated_only:
         if (not hw_wallet or not dev) and not click_config.json_ipc:
             client_password = get_client_password(checksum_address=alice_config.checksum_address)
-    ALICE = actions.make_cli_character(character_config=alice_config,
-                                       click_config=click_config,
-                                       dev=dev,
-                                       teacher_uri=teacher_uri,
-                                       min_stake=min_stake,
-                                       client_password=client_password)
+
+    try:
+        ALICE = actions.make_cli_character(character_config=alice_config,
+                                           click_config=click_config,
+                                           dev=dev,
+                                           teacher_uri=teacher_uri,
+                                           min_stake=min_stake,
+                                           client_password=client_password)
+    except NucypherKeyring.AuthenticationFailed as e:
+        emitter.echo(str(e), color='red', bold=True)
+        click.get_current_context().exit(1)
+        # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Admin Actions

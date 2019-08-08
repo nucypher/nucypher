@@ -46,5 +46,4 @@ def deployment_progress():
             self.num_steps += steps
 
     progress = DeploymentProgress()
-
     return progress

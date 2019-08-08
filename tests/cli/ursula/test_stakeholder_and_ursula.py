@@ -258,6 +258,7 @@ def test_ursula_init(click_runner,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
+                 '--no-registry',
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
@@ -517,7 +518,7 @@ def test_stake_detach_worker(click_runner,
     init_args = ('stake', 'detach-worker',
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
-                 '--force')
+                 )
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli,

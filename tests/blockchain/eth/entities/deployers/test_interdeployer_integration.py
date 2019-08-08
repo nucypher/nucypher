@@ -137,7 +137,6 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
 
     # overall deployment steps must match aggregated individual expected number of steps
-    assert deployment_progress.num_steps == (token_deployer.number_of_deployment_transactions +
-                                             staking_escrow_deployer.number_of_deployment_transactions +
-                                             policy_manager_deployer.number_of_deployment_transactions +
-                                             adjudicator_deployer.number_of_deployment_transactions)
+    all_deployment_transactions = token_deployer.deployment_steps + staking_escrow_deployer.deployment_steps + \
+                                  policy_manager_deployer.deployment_steps + adjudicator_deployer.deployment_steps
+    assert deployment_progress.num_steps == len(all_deployment_transactions)

@@ -57,6 +57,18 @@ def bob(click_config,
         message_kit):
     """
     "Bob" management commands.
+
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    init         Create a brand new persistent Bob
+    view         View existing Bob's configuration.
+    run          Start Bob's controller.
+    destroy      Delete existing Bob's configuration.
+    public-keys  Obtain Bob's public verification and encryption keys.
+    retrieve     Obtain plaintext from encrypted data, if access was granted.
+
     """
 
     #
@@ -89,12 +101,13 @@ def bob(click_config,
             blockchain.connect()
             checksum_address = select_client_account(emitter=emitter, blockchain=blockchain)
 
+        download_registry = not federated_only and not click_config.no_registry
         new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
                                                    checksum_address=checksum_address,
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
-                                                   download_registry=click_config.no_registry,
+                                                   download_registry=download_registry,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 

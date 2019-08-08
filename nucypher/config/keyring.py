@@ -468,7 +468,7 @@ class NucypherKeyring:
     @unlock_required
     def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
-        Takes either a SigningPower or an DecryptingPower and returns
+        Takes either a SigningPower or a DecryptingPower and returns
         either a SigningPower or DecryptingPower with the coinciding
         private key.
 

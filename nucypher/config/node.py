@@ -17,8 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import secrets
-import string
 from tempfile import TemporaryDirectory
 from typing import List, Set
 
@@ -118,6 +116,23 @@ class CharacterConfiguration(BaseConfiguration):
         self.crypto_power = crypto_power
         self.keyring = keyring or NO_KEYRING_ATTACHED
         self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
+
+        # Federated vs. Blockchain arguments compatibility
+        blockchain_args = {'download_registry': download_registry,
+                           'registry_filepath': registry_filepath,
+                           'poa': poa,
+                           'provider_process': provider_process,
+                           'provider_uri': provider_uri}
+        if federated_only and any(blockchain_args.values()):
+            bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
+            # TODO: Warn or raise?
+            self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
+                          f"Overridden with a sane default.")
+            poa = False
+            provider_uri = None
+            provider_process = None
+            registry_filepath = None
+            download_registry = False
 
         # Contract Registry
         self.download_registry = download_registry
@@ -390,12 +405,13 @@ class CharacterConfiguration(BaseConfiguration):
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
-        if self.download_registry:
+        init_registry = self.download_registry and not self.federated_only
+        if init_registry:
             self.registry_filepath = EthereumContractRegistry.download_latest_publication()
 
         # Validate
         if not self.__dev_mode:
-            self.validate(no_registry=(not self.download_registry) or self.federated_only)
+            self.validate(no_registry=not init_registry)
 
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)

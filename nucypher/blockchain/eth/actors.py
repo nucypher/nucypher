@@ -268,12 +268,14 @@ class DeployerActor(NucypherTokenActor):
     def deploy_network_contracts(self,
                                  secrets: dict,
                                  interactive: bool = True,
-                                 emitter: StdoutEmitter = None) -> dict:
+                                 emitter: StdoutEmitter = None,
+                                 etherscan: bool = False) -> dict:
         """
 
         :param secrets: Contract upgrade secrets dictionary
         :param interactive: If True, wait for keypress after each contract deployment
         :param emitter: A console output emitter instance. If emitter is None, no output will be echoed to the console.
+        :param etherscan: Open deployed contracts in Etherscan
         :return: Returns a dictionary of deployment receipts keyed by contract name
         """
 
@@ -286,14 +288,16 @@ class DeployerActor(NucypherTokenActor):
         # deploy contracts
         total_deployment_transactions = 0
         for deployer_class in self.deployer_classes:
-            total_deployment_transactions += deployer_class.number_of_deployment_transactions
+            total_deployment_transactions += len(deployer_class.deployment_steps)
 
         first_iteration = True
-        with click.progressbar(length=total_deployment_transactions, label="Deployment progress") as bar:
+        with click.progressbar(length=total_deployment_transactions,
+                               label="Deployment progress",
+                               show_eta=False) as bar:
             bar.short_limit = 0
             for deployer_class in self.deployer_classes:
                 if interactive and not first_iteration:
-                    click.pause(info="\nPress any key to continue")
+                    click.pause(info=f"\nPress any key to continue with deployment of {deployer_class.contract_name}")
 
                 if emitter:
                     emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
@@ -314,7 +318,9 @@ class DeployerActor(NucypherTokenActor):
                     paint_contract_deployment(contract_name=deployer_class.contract_name,
                                               receipts=receipts,
                                               contract_address=deployer.contract_address,
-                                              emitter=emitter)
+                                              emitter=emitter,
+                                              chain_name=self.blockchain.client.chain_name,
+                                              open_in_browser=etherscan)
 
                 deployment_receipts[deployer_class.contract_name] = receipts
                 first_iteration = False
@@ -931,7 +937,7 @@ class StakeHolder(BaseConfiguration):
         self.attach_transacting_power(checksum_address=staker_address, password=password)
         staker = self.get_active_staker(address=staker_address)
         receipt = self.staking_agent.set_worker(staker_address=staker.checksum_address,
-                                               worker_address=worker_address)
+                                                worker_address=worker_address)
 
         self.to_configuration_file(override=True)
         return receipt

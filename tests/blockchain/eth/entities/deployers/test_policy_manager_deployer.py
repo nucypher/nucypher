@@ -20,6 +20,7 @@ import pytest
 from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     DispatcherDeployer
@@ -38,14 +39,18 @@ def policy_manager_deployer(staking_escrow_deployer, session_testerchain):
 
 
 def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
+
+    assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
+
     deployment_receipts = policy_manager_deployer.deploy(secret_hash=keccak(text=POLICY_MANAGER_DEPLOYMENT_SECRET),
                                                          progress=deployment_progress)
-    assert len(deployment_receipts) == 3
-    # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == policy_manager_deployer.number_of_deployment_transactions
 
-    for title, receipt in deployment_receipts.items():
-        assert receipt['status'] == 1
+    # deployment steps must match expected number of steps
+    steps = policy_manager_deployer.deployment_steps
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
+
+    for step_title in steps:
+        assert deployment_receipts[step_title]['status'] == 1
 
     staking_escrow_address = policy_manager_deployer.contract.functions.escrow().call()
     assert staking_escrow_deployer.contract_address == staking_escrow_address
@@ -99,6 +104,11 @@ def test_upgrade(session_testerchain):
     deployer = PolicyManagerDeployer(blockchain=session_testerchain,
                                      deployer_address=session_testerchain.etherbase_account)
 
+    bare_contract = session_testerchain.get_contract_by_name(name=PolicyManagerDeployer.contract_name,
+                                                             proxy_name=DispatcherDeployer.contract_name,
+                                                             use_proxy_address=False)
+    old_address = bare_contract.address
+
     with pytest.raises(deployer.ContractDeploymentError):
         deployer.upgrade(existing_secret_plaintext=wrong_secret,
                          new_secret_hash=new_secret_hash)
@@ -106,8 +116,19 @@ def test_upgrade(session_testerchain):
     receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret_hash)
 
-    for title, receipt in receipts.items():
-        assert receipt['status'] == 1
+    bare_contract = session_testerchain.get_contract_by_name(name=PolicyManagerDeployer.contract_name,
+                                                             proxy_name=DispatcherDeployer.contract_name,
+                                                             use_proxy_address=False)
+
+    new_address = bare_contract.address
+    assert old_address != new_address
+
+    # TODO: Contract ABI is not updated in Agents when upgrade/rollback #1184
+
+    transactions = ('deploy', 'retarget')
+    assert len(receipts) == len(transactions)
+    for tx in transactions:
+        assert receipts[tx]['status'] == 1
 
 
 def test_rollback(session_testerchain):

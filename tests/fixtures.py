@@ -19,12 +19,12 @@ import datetime
 import os
 import random
 import tempfile
-import time
 
 import maya
 import pytest
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
+from twisted.logger import Logger
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
@@ -40,7 +40,6 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -63,11 +62,11 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
-                                               make_federated_ursulas,
-                                               start_pytest_ursula_services)
+                                               make_federated_ursulas)
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
+test_logger = Logger("test-logger")
 
 #
 # Temporary
@@ -129,7 +128,8 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False)
+                                        reload_metadata=False,
+                                        download_registry=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -158,7 +158,8 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True,
                                 save_metadata=False,
-                                reload_metadata=False)
+                                reload_metadata=False,
+                                download_registry=False)
     yield config
     config.cleanup()
 
@@ -186,7 +187,8 @@ def bob_federated_test_config():
                               abort_on_learning_error=True,
                               federated_only=True,
                               save_metadata=False,
-                              reload_metadata=False)
+                              reload_metadata=False,
+                              download_registry=False)
     yield config
     config.cleanup()
 
@@ -382,6 +384,7 @@ def testerchain():
     testerchain = _make_testerchain()
     yield testerchain
     testerchain.disconnect()
+
 
 @pytest.fixture(scope='session')
 def _session_testerchain():  # ... boring name...BOOH!
@@ -762,3 +765,16 @@ def manual_worker(testerchain):
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
+
+
+#
+# Test logging
+#
+
+@pytest.fixture(autouse=True, scope='function')
+def log_in_and_out_of_test(request):
+    test_name = request.node.name
+    module_name = request.module.__name__
+    test_logger.info(f"Starting {module_name}.py::{test_name}")
+    yield
+    test_logger.info(f"Finalized {module_name}.py::{test_name}")

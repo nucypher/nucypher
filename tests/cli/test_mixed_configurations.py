@@ -84,7 +84,8 @@ def test_coexisting_configurations(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
-                       '--registry-filepath', mock_primary_registry_filepath
+                       '--registry-filepath', mock_primary_registry_filepath,
+                       '--no-registry'
                        )
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
@@ -102,6 +103,7 @@ def test_coexisting_configurations(click_runner,
                        '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
                        '--registry-filepath', mock_primary_registry_filepath,
+                       '--no-registry',
                        '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -120,6 +122,7 @@ def test_coexisting_configurations(click_runner,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
+                 '--no-registry',
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -138,6 +141,7 @@ def test_coexisting_configurations(click_runner,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', mock_primary_registry_filepath,
+                 '--no-registry',
                  '--provider', TEST_PROVIDER_URI,
                  '--config-root', custom_filepath)
 
@@ -195,8 +199,8 @@ def test_coexisting_configurations(click_runner,
     assert len(os.listdir(public_keys_dir)) == 5
     assert not os.path.isfile(ursula_file_location)
 
-    felix_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
-    result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
+    alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
+    result = click_runner.invoke(nucypher_cli, alice_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert len(os.listdir(public_keys_dir)) == 3
     assert not os.path.isfile(alice_file_location)
@@ -217,7 +221,9 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
                  '--staker-address', staker,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--config-root', custom_filepath)
+                 '--config-root', custom_filepath,
+                 '--no-registry',
+                 )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': ''}
@@ -244,6 +250,7 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
+                 '--no-registry',
                  '--config-root', custom_filepath)
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}

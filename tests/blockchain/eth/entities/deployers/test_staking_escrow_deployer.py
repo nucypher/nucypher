@@ -28,12 +28,11 @@ def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress)
     secret_hash = keccak(text=STAKING_ESCROW_DEPLOYMENT_SECRET)
     deployment_receipts = staking_escrow_deployer.deploy(secret_hash=secret_hash, progress=deployment_progress)
 
-    assert len(deployment_receipts) == 4
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == staking_escrow_deployer.number_of_deployment_transactions
+    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 4
 
-    for title, receipt in deployment_receipts.items():
-        assert receipt['status'] == 1
+    for step in staking_escrow_deployer.deployment_steps:
+        assert deployment_receipts[step]['status'] == 1
 
 
 def test_make_agent(staking_escrow_deployer):

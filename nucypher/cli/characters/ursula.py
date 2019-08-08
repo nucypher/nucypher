@@ -39,6 +39,7 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE
 )
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
 )
@@ -178,6 +179,7 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
+        download_registry = not federated_only and not click_config.no_registry
         ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
@@ -187,7 +189,7 @@ def ursula(click_config,
                                                      federated_only=federated_only,
                                                      checksum_address=staker_address,
                                                      worker_address=worker_address,
-                                                     download_registry=federated_only or click_config.no_registry,
+                                                     download_registry=download_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,
@@ -229,12 +231,10 @@ def ursula(click_config,
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=UrsulaConfiguration,
                                                              config_file=config_file)
-        except Exception as e:
-            if click_config.debug:
-                raise
-            else:
-                emitter.echo(str(e), color='red', bold=True)
-                raise click.Abort
+        except NucypherKeyring.AuthenticationFailed as e:
+            emitter.echo(str(e), color='red', bold=True)
+            click.get_current_context().exit(1)
+            # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Configured Pre-Authentication Actions
@@ -251,18 +251,23 @@ def ursula(click_config,
     #
     # Make Ursula
     #
-    # TODO: OH MY INDEED
     client_password = None
     if not ursula_config.federated_only:
         if not dev and not click_config.json_ipc:
             client_password = get_client_password(checksum_address=ursula_config.worker_address)
-    URSULA = actions.make_cli_character(character_config=ursula_config,
-                                        click_config=click_config,
-                                        min_stake=min_stake,
-                                        teacher_uri=teacher_uri,
-                                        dev=dev,
-                                        lonely=lonely,
-                                        client_password=client_password)
+
+    try:
+        URSULA = actions.make_cli_character(character_config=ursula_config,
+                                            click_config=click_config,
+                                            min_stake=min_stake,
+                                            teacher_uri=teacher_uri,
+                                            dev=dev,
+                                            lonely=lonely,
+                                            client_password=client_password)
+    except NucypherKeyring.AuthenticationFailed as e:
+        emitter.echo(str(e), color='red', bold=True)
+        click.get_current_context().exit(1)
+        # TODO: Exit codes (not only for this, but for other exceptions)
 
     #
     # Authenticated Action Switch
@@ -348,12 +353,16 @@ def ursula(click_config,
         receipt = URSULA.confirm_activity()
 
         confirmed_period = URSULA.staking_agent.get_current_period() + 1
-        txhash = receipt["transactionHash"].hex()
         date = datetime_at_period(period=confirmed_period)
 
+        # TODO: Double-check dates here
         emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
                      f'(starting at {date})', bold=True, color='blue')
-        emitter.echo(f'Receipt: {txhash}')
+        painting.paint_receipt_summary(emitter=emitter,
+                                       receipt=receipt,
+                                       chain_name=URSULA.blockchain.client.chain_name)
+
+        # TODO: Check ActivityConfirmation event (see #1193)
         return
 
     else:
