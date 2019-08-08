@@ -187,18 +187,33 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     # StakingEscrow Contract API
     #
 
-    def get_all_locked_tokens(self, periods: int = 1) -> int:
+    def get_global_locked_tokens(self, at_period: int = None) -> int:
         """
-        Returns the amount of tokens the staking escrow has locked.
+        Gets the number of locked tokens for *all* stakers that have
+        confirmed activity for the specified period.
+
+        `at_period` values can be any valid period number past, present, or future:
+
+            PAST - Calling this function with an `at_period` value in the past will return the number
+            of locked tokens whose worker activity was confirmed for that past period.
+
+            PRESENT - This is the default value, when no `at_period` value is provided.
+
+            FUTURE - Calling this function with an `at_period` value greater than
+            the current period + 1 (next period), will result in a zero return value
+            because activity cannot be confirmed beyond the next period.
+
+        Returns an amount of NuNits.
         """
-        if periods < 0:
-            raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
-        return self.contract.functions.getAllLockedTokens(periods).call()
+        if at_period is None:
+            # Get the current period on-chain by default.
+            at_period = self.contract.functions.getCurrentPeriod().call()
+        return self.contract.functions.lockedPerPeriod(at_period).call()
 
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
-        Returns the amount of tokens this staker has locked
-        for a given duration in periods measured from the current period forwards.
+        Returns the amount of tokens the specified staker has locked
+        for a given duration in periods measured starting from the current period.
         """
         if periods < 0:
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
@@ -341,8 +356,10 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
     def sample(self, quantity: int, duration: int, additional_ursulas: float = 1.7, attempts: int = 5) -> List[str]:
         """
         Select n random Stakers, according to their stake distribution.
+
         The returned addresses are shuffled, so one can request more than needed and
         throw away those which do not respond.
+
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
         """
 

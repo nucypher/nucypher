@@ -31,6 +31,8 @@ from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
+from nucypher.blockchain.eth.token import NU
+from web3 import Web3
 
 
 def echo_version(ctx, param, value):
@@ -181,7 +183,7 @@ def paint_contract_status(blockchain, emitter):
     contract_payload = f"""
 | NuCypher Contracts |
 
-Chain .....................{blockchain.client.chain_name}
+Chain .................... {blockchain.client.chain_name}
 Provider URI ............. {blockchain.provider_uri}
 Registry Path ............ {blockchain.registry.filepath}
 
@@ -195,9 +197,9 @@ Adjudicator .............. {adjudicator_agent.contract_address}
 | Staking |
 
 Current Period ........... {staking_agent.get_current_period()}
-Actively Staked Tokens.... {staking_agent.get_all_locked_tokens()}
+Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
 Published Stakes ......... {staking_agent.get_staker_population()}
-Gas Price ................ {blockchain.client.gas_price}
+Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
     """
     emitter.echo(contract_payload)
     emitter.echo(network_payload)

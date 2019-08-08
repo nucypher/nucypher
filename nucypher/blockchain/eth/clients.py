@@ -353,16 +353,6 @@ class InfuraClient(Web3Client):
         return True
 
 
-class InfuraClient(Web3Client):
-
-    is_local = False
-
-    def unlock_account(self, address, password):
-        return True
-
-    def sync(self, *args, **kwargs):
-        return True
-
 class EthereumTesterClient(Web3Client):
 
     is_local = True

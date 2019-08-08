@@ -42,12 +42,12 @@ def _get_infura_provider(provider_uri):
         from web3.auto.infura.goerli import w3
 
     except InfuraKeyNotFound:
-        raise ProviderError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider.')
+        raise ProviderError(f'{infura_envvar} must be provided in order to use an Infura Web3 provider {provider_uri}.')
 
     # Verify Connection
     connected = w3.isConnected()
     if not connected:
-        raise ProviderError('Failed to connect to Infura node.')
+        raise ProviderError(f'Failed to connect to Infura node "{provider_uri}".')
 
     return w3.provider
 
