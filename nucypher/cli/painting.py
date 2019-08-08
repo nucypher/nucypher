@@ -247,8 +247,8 @@ or set your Ursula worker node address by running 'nucypher stake set-worker'.
 
 def prettify_stake(stake, index: int = None) -> str:
 
-    start_datetime = str(stake.start_datetime.slang_date())
-    expiration_datetime = str(stake.end_datetime.slang_date())
+    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
+    expiration_datetime = stake.end_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
@@ -266,10 +266,10 @@ def prettify_stake(stake, index: int = None) -> str:
 
 def paint_stakes(emitter, stakes):
 
-    title = "=========================== Active Stakes ==============================\n"
+    title = "======================================= Active Stakes =========================================\n"
 
     header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
-    breaky = f'|   | ------ | ------ | - | -------- | ------------ | ------------------ '
+    breaky = f'|   | ------ | ------ | - | -------- | ------------ | ----------------------------------------- '
 
     emitter.echo(title)
     emitter.echo(header, bold=True)
