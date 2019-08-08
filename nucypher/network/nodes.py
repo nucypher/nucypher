@@ -1004,7 +1004,7 @@ class Teacher:
         """
         staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
         if staker_address == BlockchainInterface.NULL_ADDRESS:
-            raise self.DetachedWorker
+            raise self.DetachedWorker(f"Worker {self.worker_address} is detached")
         return staker_address == self.checksum_address
 
     def _staker_is_really_staking(self) -> bool:
@@ -1032,17 +1032,20 @@ class Teacher:
 
             # Off-chain signature verification
             if not self._stamp_has_valid_signature_by_worker():
-                raise self.InvalidWorkerSignature
+                message = f"Invalid signature {self.__decentralized_identity_evidence.hex()} " \
+                          f"from worker {self.worker_address} for stamp {bytes(self.stamp).hex()} "
+                raise self.InvalidWorkerSignature(message)
 
             # On-chain staking check
             if verify_staking:
                 if not self._worker_is_bonded_to_staker():  # <-- Blockchain CALL
-                    raise self.DetachedWorker
+                    message = f"Worker {self.worker_address} is not bonded to staker {self.checksum_address}"
+                    raise self.DetachedWorker(message)
 
                 if self._staker_is_really_staking():  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
-                    raise self.NotStaking
+                    raise self.NotStaking(f"Staker {self.checksum_address} is not staking")
 
             self.verified_stamp = True
 
@@ -1165,7 +1168,7 @@ class Teacher:
         if interface_is_valid:
             return True
         else:
-            raise self.InvalidNode
+            raise self.InvalidNode("Interface is not valid")
 
     def _signable_interface_info_message(self):
         message = self.canonical_public_address + self.rest_interface

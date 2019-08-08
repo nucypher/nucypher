@@ -175,11 +175,11 @@ def make_rest_app(
                                      certificate_filepath=certificate_filepath)
 
                 # Suspicion
-                except node.SuspiciousActivity:
+                except node.SuspiciousActivity as e:
                     # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     # TODO: Maybe also record the bytes representation separately to disk?
-                    message = f"Suspicious Activity: Discovered node with bad signature: {node}.  Announced via REST."
+                    message = f"Suspicious Activity about {node}: {str(e)}.  Announced via REST."
                     log.warn(message)
                     this_node.suspicious_activities_witnessed['vladimirs'].append(node)
                 except NodeSeemsToBeDown as e:
