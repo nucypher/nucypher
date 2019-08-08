@@ -271,7 +271,13 @@ class BlockchainInterface:
                 peer_count = len(self.client.peers)
                 emitter.echo(f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count>1 else '')}.")
 
-                initial_state = next(sync_state) or {}
+                try:
+                    emitter.echo("Beginning sync...")
+                    initial_state = next(sync_state)
+                except StopIteration:  # will occur if no syncing needs to happen
+                    emitter.echo("Local blockchain data is already synced.")
+                    return True
+
                 prior_state = initial_state
                 total_blocks_to_sync = int(initial_state.get('highestBlock', 0)) - int(initial_state.get('currentBlock', 0))
                 with click.progressbar(
