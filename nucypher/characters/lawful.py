@@ -839,6 +839,7 @@ class Ursula(Teacher, Character, Worker):
                  timestamp=None,
 
                  # Blockchain
+                 blockchain: BlockchainInterface = None,
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
@@ -875,6 +876,7 @@ class Ursula(Teacher, Character, Worker):
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
+                           blockchain=blockchain,
                            **character_kwargs)
 
         #
