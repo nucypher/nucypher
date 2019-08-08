@@ -95,6 +95,10 @@ class Web3Client:
         self.log = Logger(self.__class__.__name__)
 
     @classmethod
+    def _get_variant(cls, w3):
+        return cls
+
+    @classmethod
     def from_w3(cls, w3: Web3) -> 'Web3Client':
         """
 
@@ -138,7 +142,7 @@ class Web3Client:
             'platform': client_data[2] if len(client_data) == 4 else None  # Plaftorm is optional
         }
 
-        instance = ClientSubclass(w3, **client_kwargs)
+        instance = ClientSubclass._get_variant(w3)(w3, **client_kwargs)
         return instance
 
     @property
@@ -169,8 +173,8 @@ class Web3Client:
         return self.w3.isConnected()
 
     @property
-    def etherbase(self):
-        return self.accounts[0]
+    def etherbase(self) -> str:
+        return self.w3.eth.accounts[0]
 
     @property
     def accounts(self):
@@ -183,12 +187,12 @@ class Web3Client:
         self.w3.middleware_onion.inject(middleware, **kwargs)
 
     @property
-    def chain_id(self) -> str:  # TODO : Make this return an integer?
-        return str(int(self.w3.eth.chainId, 16))
+    def chain_id(self) -> int:
+        return int(self.w3.eth.chainId, 16)
 
     @property
-    def net_version(self) -> str:  # TODO : Make this return an integer?
-        return str(self.w3.net.version)
+    def net_version(self) -> int:
+        return int(self.w3.net.version)
 
     def get_contract(self, **kwargs):
         return self.w3.eth.contract(**kwargs)
@@ -282,6 +286,15 @@ class Web3Client:
 
 class GethClient(Web3Client):
 
+    @classmethod
+    def _get_variant(cls, w3):
+        # TODO: Accept this as a final solution?
+        # Shim for infura variant of geth websocket provider
+        # AttributeError: 'IPCProvider' object has no attribute 'endpoint_uri'
+        if 'infura' in getattr(w3.provider, 'endpoint_uri', ''):
+            return InfuraClient
+        return cls
+
     @property
     def is_local(self):
         return int(self.w3.net.version) not in PUBLIC_CHAINS
@@ -347,6 +360,17 @@ class GanacheClient(Web3Client):
         return True
 
 
+class InfuraClient(Web3Client):
+
+    is_local = False
+
+    def unlock_account(self, address, password):
+        return True
+
+    def sync(self, *args, **kwargs):
+        return True
+
+
 class EthereumTesterClient(Web3Client):
 
     is_local = True
@@ -395,8 +419,8 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
     IPC_PROTOCOL = 'http'
     IPC_FILENAME = 'geth.ipc'
     VERBOSITY = 5
-    CHAIN_ID = NotImplemented  # 1
-    _CHAIN_NAME = 'mainnet'
+    CHAIN_ID = NotImplemented
+    _CHAIN_NAME = NotImplemented
 
     _LOG_NAME = 'nucypher-geth'
     LOG = Logger(_LOG_NAME)

@@ -18,31 +18,40 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.characters.banners import NU_BANNER
+from nucypher.cli.actions import get_provider_process
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_known_nodes, paint_contract_status
-from nucypher.cli.types import (
-    EXISTING_READABLE_FILE
-)
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.cli.painting import paint_contract_status
 
 
 @click.command()
-@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
+@click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
+@click.option('--sync/--no-sync', default=False)
+@click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
+@click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
 @nucypher_click_config
-def status(click_config, config_file):
+def status(click_config, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
-    #
-    # Initialize
-    #
-    ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
-    if not ursula_config.federated_only:
-        ursula_config.get_blockchain_interface(provider_uri=ursula_config.provider_uri)
-        ursula_config.acquire_agency()
 
-        # Contracts
-        paint_contract_status(click_config.emitter, ursula_config=ursula_config, click_config=click_config)
+    emitter = click_config.emitter
+    click.clear()
+    emitter.banner(NU_BANNER)
+    emitter.echo(message="Reading Latest Chaindata...")
 
-    # Known Nodes
-    paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)
+    try:
+        ETH_NODE = None
+        if geth:
+            ETH_NODE = get_provider_process()
+        blockchain = BlockchainInterface(provider_uri=provider_uri, provider_process=ETH_NODE, poa=poa)
+        blockchain.connect(sync_now=sync, fetch_registry=True)
+        paint_contract_status(blockchain=blockchain, emitter=emitter)
+        return  # Exit
+
+    except Exception as e:
+        if click_config.debug:
+            raise
+        click.secho(str(e), bold=True, fg='red')
+        return  # Exit

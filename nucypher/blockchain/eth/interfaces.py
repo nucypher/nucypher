@@ -35,13 +35,15 @@ from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
-from web3.contract import Contract, ContractFunction
+from web3.contract import Contract
 from web3.contract import ContractConstructor
+from web3.contract import ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.exceptions import ValidationError
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import Web3Client, NuCypherGethProcess
+from nucypher.blockchain.eth.clients import NuCypherGethProcess
+from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.providers import (
     _get_tester_pyevm,
     _get_test_geth_parity_provider,
@@ -240,7 +242,7 @@ class BlockchainInterface:
         if self._provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
-        # Connect Web3 Instance
+        # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
             self.client = Web3Client.from_w3(w3=self.w3)
@@ -300,7 +302,9 @@ class BlockchainInterface:
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
         return self._provider
 
-    def _attach_provider(self, provider: Web3Providers = None, provider_uri: str = None) -> None:
+    def _attach_provider(self,
+                         provider: Web3Providers = None,
+                         provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
@@ -318,6 +322,7 @@ class BlockchainInterface:
                     'parity-ethereum': _get_test_geth_parity_provider,
                 }
                 provider_scheme = uri_breakdown.netloc
+
             else:
                 providers = {
                     'auto': _get_auto_provider,
