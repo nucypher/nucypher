@@ -132,7 +132,7 @@ class SyncingMockWeb3(SyncedMockWeb3):
     eth = SyncingMockW3Eth()
 
 
-class SyncingMockWeb3Nopeers(SyncingMockWeb3):
+class SyncingMockWeb3NoPeers(SyncingMockWeb3):
 
     geth = MockedW3GethWithNoPeers()
 
@@ -290,7 +290,7 @@ def test_no_peers_unsynced_geth_client():
 
     class NonSyncedNoPeersBlockchainInterface(GethClientTestBlockchain):
 
-        Web3 = SyncingMockWeb3Nopeers
+        Web3 = SyncingMockWeb3NoPeers
 
     interface = NonSyncedNoPeersBlockchainInterface(provider_uri='file:///ipc.geth')
     interface.connect(fetch_registry=False, sync_now=False)
