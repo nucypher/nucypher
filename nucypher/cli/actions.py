@@ -319,7 +319,7 @@ def confirm_deployment(emitter, deployer) -> bool:
         expected_chain_name = deployer.blockchain.client.chain_name
 
     if click.prompt(f"Type '{expected_chain_name}' to continue") != expected_chain_name:
-        emitter.echo("Aborting Deployment", fg='red', bold=True)
+        emitter.echo("Aborting Deployment", color='red', bold=True)
         raise click.Abort()
 
     return True

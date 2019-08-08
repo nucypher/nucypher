@@ -117,7 +117,7 @@ class NodeStorage(ABC):
             certificate_file.write(public_pem_bytes)
 
         self.certificate_filepath = certificate_filepath
-        self.log.debug(f"Saved TLS certificate for {self}: {certificate_filepath}")
+        self.log.debug(f"Saved TLS certificate for {checksum_address}: {certificate_filepath}")
 
         return certificate_filepath
 
