@@ -131,7 +131,7 @@ def alice(click_config,
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(sync_now=sync, fetch_registry=False)
+            blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
             pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
 
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),

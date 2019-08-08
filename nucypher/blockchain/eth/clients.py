@@ -71,6 +71,7 @@ class Web3Client:
     GANACHE = 'EthereumJS TestRPC'
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
     SYNC_TIMEOUT_DURATION = 60 # seconds to wait for various blockchain syncing endeavors
+    PEERING_TIMEOUT = 5
     SYNC_SLEEP_DURATION = 5
 
     class ConnectionNotEstablished(RuntimeError):
@@ -254,7 +255,7 @@ class Web3Client:
             self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
             while not self.peers:
                 time.sleep(0)
-                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION)
+                check_for_timeout(t=self.PEERING_TIMEOUT)
 
             # Wait for sync start
             self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
@@ -266,7 +267,7 @@ class Web3Client:
                 #  TODO:  Should this timeout eventually?
                 syncdata = self.syncing
                 if not syncdata:
-                    raise StopIteration
+                    return False
 
                 self.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
                 time.sleep(self.SYNC_SLEEP_DURATION)
