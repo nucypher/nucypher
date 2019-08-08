@@ -122,10 +122,7 @@ def stake(click_config,
             fetch_registry = False
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
 
-        sync_state = blockchain.connect(fetch_registry=False, sync_now=sync)
-        if sync:
-            for syncdata in sync_state:
-                emitter.echo(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+        blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       offline_mode=offline,
