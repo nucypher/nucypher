@@ -104,7 +104,8 @@ def load_seednodes(emitter,
                    federated_only: bool,
                    network_domains: set,
                    network_middleware: RestMiddleware = None,
-                   teacher_uris: list = None
+                   teacher_uris: list = None,
+                   blockchain=None,
                    ) -> List[Ursula]:
 
     # Set domains
@@ -132,7 +133,8 @@ def load_seednodes(emitter,
             teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                    min_stake=min_stake,
                                                    federated_only=federated_only,
-                                                   network_middleware=network_middleware)
+                                                   network_middleware=network_middleware,
+                                                   blockchain=blockchain)
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
@@ -254,6 +256,7 @@ def make_cli_character(character_config,
     # Handle Blockchain
     if not character_config.federated_only:
         character_config.get_blockchain_interface()
+        character_config.blockchain.connect(fetch_registry=False)
 
     # Handle Keyring
 
@@ -269,7 +272,8 @@ def make_cli_character(character_config,
                                    min_stake=min_stake,
                                    federated_only=character_config.federated_only,
                                    network_domains=character_config.domains,
-                                   network_middleware=character_config.network_middleware)
+                                   network_middleware=character_config.network_middleware,
+                                   blockchain=character_config.blockchain)
 
     #
     # Character Init

@@ -1072,9 +1072,8 @@ class Ursula(Teacher, Character, Worker):
                          teacher_uri: str,
                          min_stake: int,
                          network_middleware: RestMiddleware = None,
+                         blockchain=None,
                          ) -> 'Ursula':
-
-        hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
 
         def __attempt(attempt=1, interval=10) -> Ursula:
             if attempt > 3:
@@ -1084,7 +1083,8 @@ class Ursula(Teacher, Character, Worker):
                 teacher = cls.from_seed_and_stake_info(seed_uri=teacher_uri,
                                                        federated_only=federated_only,
                                                        minimum_stake=min_stake,
-                                                       network_middleware=network_middleware)
+                                                       network_middleware=network_middleware,
+                                                       blockchain=blockchain)
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
