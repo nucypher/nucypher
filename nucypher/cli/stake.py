@@ -121,7 +121,8 @@ def stake(click_config,
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             fetch_registry = False
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-        blockchain.connect(sync_now=sync, fetch_registry=fetch_registry)
+
+        blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
 
         new_stakeholder = StakeHolder(config_root=config_root,
                                       offline_mode=offline,

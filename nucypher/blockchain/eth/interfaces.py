@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pprint
+import time
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -53,6 +54,7 @@ from nucypher.blockchain.eth.providers import (
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.crypto.powers import TransactingPower
+from nucypher.characters.control.emitters import StdoutEmitter
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -222,7 +224,7 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self, fetch_registry: bool = True, sync_now: bool = False):
+    def connect(self, fetch_registry: bool = True, sync_now: bool = False, emitter: StdoutEmitter = None):
 
         # Spawn child process
         if self._provider_process:
@@ -249,13 +251,48 @@ class BlockchainInterface:
         else:
             self.attach_middleware()
 
-        # Wait for chaindata sync
-        if sync_now:
-            self.client.sync()
-
         # Establish contact with NuCypher contracts
         if not self.registry:
             self._configure_registry(fetch_registry=fetch_registry)
+
+        # Wait for chaindata sync
+        if sync_now:
+            sync_state = self.client.sync()
+            if emitter:
+                import click
+                emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
+
+                while not len(self.client.peers):
+                    emitter.echo("waiting for peers...")
+                    time.sleep(5)
+
+                peer_count = len(self.client.peers)
+                emitter.echo(f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count>1 else '')}.")
+
+                try:
+                    emitter.echo("Beginning sync...")
+                    initial_state = next(sync_state)
+                except StopIteration:  # will occur if no syncing needs to happen
+                    emitter.echo("Local blockchain data is already synced.")
+                    return True
+
+                prior_state = initial_state
+                total_blocks_to_sync = int(initial_state.get('highestBlock', 0)) - int(initial_state.get('currentBlock', 0))
+                with click.progressbar(
+                    length=total_blocks_to_sync,
+                    label="sync progress"
+                ) as bar:
+                    for syncdata in sync_state:
+                        if syncdata:
+                            blocks_accomplished = int(syncdata['currentBlock']) - int(prior_state.get('currentBlock', 0))
+                            bar.update(blocks_accomplished)
+                            prior_state = syncdata
+            else:
+                try:
+                    for syncdata in sync_state:
+                        self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+                except TypeError:  # it's already synced
+                    return True
 
         return self.is_connected
 

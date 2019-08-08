@@ -69,6 +69,16 @@ class Web3Client:
     ALT_PARITY = 'Parity-Ethereum'
     GANACHE = 'EthereumJS TestRPC'
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
+    SYNC_TIMEOUT_DURATION = 60 # seconds to wait for various blockchain syncing endeavors
+    PEERING_TIMEOUT = 30
+    SYNC_SLEEP_DURATION = 5
+
+    class ConnectionNotEstablished(RuntimeError):
+        pass
+
+    class SyncTimeout(RuntimeError):
+        pass
+
 
     def __init__(self,
                  w3,
@@ -130,12 +140,6 @@ class Web3Client:
 
         instance = ClientSubclass(w3, **client_kwargs)
         return instance
-
-    class ConnectionNotEstablished(RuntimeError):
-        pass
-
-    class SyncTimeout(RuntimeError):
-        pass
 
     @property
     def peers(self):
@@ -217,6 +221,21 @@ class Web3Client:
     def send_raw_transaction(self, transaction: bytes) -> str:
         return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
 
+    def sign_message(self, account: str, message: bytes) -> str:
+        """
+        Calls the appropriate signing function for the specified account on the
+        backend. If the backend is based on eth-tester, then it uses the
+        eth-tester signing interface to do so.
+        """
+        return self.w3.eth.sign(account, data=message)
+
+    def _has_latest_block(self):
+        # check that our local chain data is up to date
+        return (
+            time.time() -
+            self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
+        ) < 30
+
     def sync(self,
              timeout: int = 120,
              quiet: bool = False):
@@ -231,35 +250,34 @@ class Web3Client:
 
         def check_for_timeout(t):
             last_update = maya.now()
-            duration = (last_update - start_time).seconds
+            duration = (last_update - start_time).total_seconds()
             if duration > t:
                 raise self.SyncTimeout
 
-        # Check for ethereum peers
-        self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
-        while not self.peers:
-            time.sleep(0)
-            check_for_timeout(t=60)
+        while not self._has_latest_block():
+            # Check for ethereum peers
+            self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
+            while not self.peers:
+                time.sleep(0)
+                check_for_timeout(t=self.PEERING_TIMEOUT)
 
-        # Wait for sync start
-        self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
-        while not self.syncing:
-            time.sleep(0)
-            check_for_timeout(t=120)
+            # Wait for sync start
+            self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
+            while not self.syncing:
+                time.sleep(0)
+                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION*2)
 
-        while self.syncing:
-            self.log.info(f"Syncing {self.syncing['currentBlock']}/{self.syncing['highestBlock']}")
-            time.sleep(5)
+            while True:
+                #  TODO:  Should this timeout eventually?
+                syncdata = self.syncing
+                if not syncdata:
+                    return False
+
+                self.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+                time.sleep(self.SYNC_SLEEP_DURATION)
+                yield syncdata
 
         return True
-
-    def sign_message(self, account: str, message: bytes) -> str:
-        """
-        Calls the appropriate signing function for the specified account on the
-        backend. If the backend is based on eth-tester, then it uses the
-        eth-tester signing interface to do so.
-        """
-        return self.w3.eth.sign(account, data=message)
 
 
 class GethClient(Web3Client):

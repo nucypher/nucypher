@@ -33,6 +33,7 @@ from nucypher.crypto.powers import DecryptingPower
 @click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexadecimal string", type=click.STRING)
 @click.option('--alice-verifying-key', help="Alice's verifying key as a hexadecimal string", type=click.STRING)
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
+@click.option('--sync/--no-sync', default=True)
 @nucypher_click_config
 def bob(click_config,
         action,
@@ -54,7 +55,8 @@ def bob(click_config,
         label,
         policy_encrypting_key,
         alice_verifying_key,
-        message_kit):
+        message_kit,
+        sync):
     """
     "Bob" management commands.
 
@@ -98,7 +100,7 @@ def bob(click_config,
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect()
+            blockchain.connect(sync_now=sync, emitter=emitter)
             checksum_address = select_client_account(emitter=emitter, blockchain=blockchain)
 
         download_registry = not federated_only and not click_config.no_registry
