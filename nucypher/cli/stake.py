@@ -96,8 +96,8 @@ def stake(click_config,
     list             List active stakes for current stakeholder
     accounts         Show ETH and NU balances for stakeholder's accounts
     sync             Synchronize stake data with on-chain information
-    set-worker       Bound a worker to a staker
-    detach-worker    Detach worker currently bound to a staker
+    set-worker       Bond a worker to a staker
+    detach-worker    Detach worker currently bonded to a staker
     init             Create a new stake
     divide           Create a new stake from part of an existing one
     collect-reward   Withdraw staking reward
@@ -182,17 +182,17 @@ def stake(click_config,
 
         # TODO: Double-check dates
         current_period = STAKEHOLDER.staking_agent.get_current_period()
-        bounded_date = datetime_at_period(period=current_period)
+        bonded_date = datetime_at_period(period=current_period)
         min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
         release_period = current_period + min_worker_periods
         release_date = datetime_at_period(period=release_period)
 
-        emitter.echo(f"Successfully bound worker {worker_address} to staker {staking_address}", color='green')
+        emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
         paint_receipt_summary(emitter=emitter,
                               receipt=receipt,
                               chain_name=STAKEHOLDER.blockchain.client.chain_name,
                               transaction_type='set_worker')
-        emitter.echo(f"Bounded at period #{current_period} ({bounded_date})", color='green')
+        emitter.echo(f"Bonded at period #{current_period} ({bonded_date})", color='green')
         emitter.echo(f"This worker can be replaced or detached after period "
                      f"#{release_period} ({release_date})", color='green')
         return  # Exit
@@ -220,14 +220,14 @@ def stake(click_config,
 
         # TODO: Double-check dates
         current_period = STAKEHOLDER.staking_agent.get_current_period()
-        bounded_date = datetime_at_period(period=current_period)
+        bonded_date = datetime_at_period(period=current_period)
 
         emitter.echo(f"Successfully detached worker {worker_address} from staker {staking_address}", color='green')
         paint_receipt_summary(emitter=emitter,
                               receipt=receipt,
                               chain_name=STAKEHOLDER.blockchain.client.chain_name,
                               transaction_type='detach_worker')
-        emitter.echo(f"Detached at period #{current_period} ({bounded_date})", color='green')
+        emitter.echo(f"Detached at period #{current_period} ({bonded_date})", color='green')
         return  # Exit
 
     elif action == 'init':
