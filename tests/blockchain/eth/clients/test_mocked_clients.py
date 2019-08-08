@@ -51,7 +51,7 @@ class SyncedMockW3Eth:
 
 class SyncingMockW3Eth(SyncedMockW3Eth):
 
-    _sync_test_limit = 3
+    _sync_test_limit = 10
 
     def __init__(self, *args, **kwargs):
         self._syncing_counter = 0
@@ -238,21 +238,6 @@ def test_ganache_web3_client():
     assert interface.client.is_local
 
 
-def test_datetime_logic():
-
-    # test for https://github.com/nucypher/nucypher/pull/1203/files/29c0152f404cc8e46b80feb12a1440f5360ddbff#r311679487
-
-    delta = (
-        datetime.datetime.now() -
-        datetime.datetime.fromtimestamp(
-            datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(seconds=603))
-        )
-    )
-
-    assert isinstance(delta, datetime.timedelta)
-    assert delta.seconds == 602
-
-
 def test_synced_geth_client():
 
     class SyncedBlockchainInterface(GethClientTestBlockchain):
@@ -268,7 +253,7 @@ def test_synced_geth_client():
 
 def test_unsynced_geth_client():
 
-    GethClient.SYNC_TIMEOUT_DURATION = 2
+    GethClient.SYNC_SLEEP_DURATION = .1
 
     class NonSyncedBlockchainInterface(GethClientTestBlockchain):
 
@@ -280,13 +265,13 @@ def test_unsynced_geth_client():
     assert interface.client._has_latest_block() is False
     assert interface.client.syncing
 
-    with pytest.raises(Web3Client.SyncTimeout):
-        assert interface.client.sync()
+    assert len(list(interface.client.sync())) == 8
+
 
 
 def test_no_peers_unsynced_geth_client():
 
-    GethClient.SYNC_TIMEOUT_DURATION = 2
+    GethClient.PEERING_TIMEOUT = 1
 
     class NonSyncedNoPeersBlockchainInterface(GethClientTestBlockchain):
 
@@ -297,4 +282,4 @@ def test_no_peers_unsynced_geth_client():
 
     assert interface.client._has_latest_block() is False
     with pytest.raises(Web3Client.SyncTimeout):
-        assert interface.client.sync()
+        list(interface.client.sync())

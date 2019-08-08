@@ -290,10 +290,11 @@ class BlockchainInterface:
                             bar.update(blocks_accomplished)
                             prior_state = syncdata
             else:
-                for syncdata in sync_state:
-                    self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
-
-            return True
+                try:
+                    for syncdata in sync_state:
+                        self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+                except TypeError:  # it's already synced
+                    return True
 
         return self.is_connected
 

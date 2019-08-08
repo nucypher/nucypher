@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import time
-import datetime
 from typing import Union
 
 import maya
@@ -71,7 +70,7 @@ class Web3Client:
     GANACHE = 'EthereumJS TestRPC'
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
     SYNC_TIMEOUT_DURATION = 60 # seconds to wait for various blockchain syncing endeavors
-    PEERING_TIMEOUT = 5
+    PEERING_TIMEOUT = 30
     SYNC_SLEEP_DURATION = 5
 
     class ConnectionNotEstablished(RuntimeError):
@@ -226,14 +225,20 @@ class Web3Client:
     def send_raw_transaction(self, transaction: bytes) -> str:
         return self.w3.eth.sendRawTransaction(raw_transaction=transaction)
 
+    def sign_message(self, account: str, message: bytes) -> str:
+        """
+        Calls the appropriate signing function for the specified account on the
+        backend. If the backend is based on eth-tester, then it uses the
+        eth-tester signing interface to do so.
+        """
+        return self.w3.eth.sign(account, data=message)
+
     def _has_latest_block(self):
         # check that our local chain data is up to date
         return (
-            datetime.datetime.now() -
-            datetime.datetime.fromtimestamp(
-                self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
-            )
-        ).seconds < 30
+            time.time() -
+            self.w3.eth.getBlock(self.w3.eth.blockNumber)['timestamp']
+        ) < 30
 
     def sync(self,
              timeout: int = 120,
@@ -247,10 +252,9 @@ class Web3Client:
         now = maya.now()
         start_time = now
 
-
         def check_for_timeout(t):
             last_update = maya.now()
-            duration = (last_update - start_time).seconds
+            duration = (last_update - start_time).total_seconds()
             if duration > t:
                 raise self.SyncTimeout
 
@@ -278,14 +282,6 @@ class Web3Client:
                 yield syncdata
 
         return True
-
-    def sign_message(self, account: str, message: bytes) -> str:
-        """
-        Calls the appropriate signing function for the specified account on the
-        backend. If the backend is based on eth-tester, then it uses the
-        eth-tester signing interface to do so.
-        """
-        return self.w3.eth.sign(account, data=message)
 
 
 class GethClient(Web3Client):
