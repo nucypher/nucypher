@@ -310,6 +310,9 @@ def select_stake(stakeholder, emitter) -> Stake:
 
 def select_client_account(emitter, blockchain, prompt: str = None, default=0) -> str:
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    if len(enumerated_accounts) < 1:
+        emitter.echo("No ETH accounts were found.", color='red', bold=True)
+        raise click.Abort()
     for index, account in enumerated_accounts.items():
         emitter.echo(f"{index} | {account}")
     prompt = prompt or "Select Account"
