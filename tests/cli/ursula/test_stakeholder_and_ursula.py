@@ -87,6 +87,7 @@ def test_new_stakeholder(click_runner,
                  '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
+                 '--no-sync',
                  '--registry-filepath', mock_registry_filepath)
 
     result = click_runner.invoke(nucypher_cli,
@@ -134,6 +135,7 @@ def test_stake_init(click_runner,
                   '--registry-filepath', mock_registry_filepath,
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
+                  '--no-sync',
                   '--duration', token_economics.minimum_locked_periods,
                   '--force')
 
@@ -198,6 +200,7 @@ def test_staker_divide_stakes(click_runner,
                    '--force',
                    '--staking-address', manual_staker,
                    '--index', 0,
+                   '--no-sync',
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--duration', 10)
 
@@ -227,6 +230,7 @@ def test_stake_set_worker(click_runner,
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  '--worker-address', manual_worker,
+                 '--no-sync',
                  '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'

@@ -147,7 +147,7 @@ def alice(click_config,
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(sync_now=sync, fetch_registry=False)
+            blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
             pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
 
         download_registry = not federated_only and not click_config.no_registry

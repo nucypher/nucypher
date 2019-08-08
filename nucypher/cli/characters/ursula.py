@@ -68,6 +68,7 @@ from nucypher.utilities.sandbox.constants import (
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@click.option('--sync/--no-sync', default=False)
 @nucypher_click_config
 def ursula(click_config,
            action,
@@ -91,6 +92,7 @@ def ursula(click_config,
            geth,
            registry_filepath,
            interactive,
+           sync,
            ) -> None:
     """
     "Ursula the Untrusted" PRE Re-encryption node management commands.
@@ -163,7 +165,8 @@ def ursula(click_config,
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=False)
+
+            blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
 
             if not staker_address:
                 prompt = "Select staker account"
