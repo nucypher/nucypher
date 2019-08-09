@@ -257,7 +257,8 @@ def ursula(click_config,
     client_password = None
     if not ursula_config.federated_only:
         if not dev and not click_config.json_ipc:
-            client_password = get_client_password(checksum_address=ursula_config.worker_address)
+            client_password = get_client_password(checksum_address=ursula_config.worker_address,
+                                                  envvar="NUCYPHER_WORKER_ETH_PASSWORD")
 
     try:
         URSULA = actions.make_cli_character(character_config=ursula_config,
