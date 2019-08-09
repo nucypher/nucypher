@@ -15,6 +15,9 @@ Bob's Adventure
 ---------------
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 4c9081b4... Temporary 2.
 The Capsule finally Activated, Bob's face reflected its gold glow.  All he needed to do now was to slide his private keycard across its slot to open it and finally have The Secret inside.
 
 ----
@@ -36,12 +39,16 @@ Enrico has given Bob a Capsule.
 
 Now Bob wants the message.
 
+<<<<<<< HEAD
 
 =======
 From seat 33K (coach obviously) of his hastily booked flight aboard an aging four-engine jumbo jet, Bob kept a sharp eye on the overhead compartment across the aisle where he has carefully placed it: the Capsule.
 
 He knew his quest well - he had gone over and over it in his mind and in his test suite.  He needed to find a worldwide cohort of five Ursulas - none of whom had ever even met one another.  Well, to be more specific, he needed to convene with any three of them.
 >>>>>>> d14ca288... Temporary.
+=======
+
+>>>>>>> 4c9081b4... Temporary 2.
 
 
 The question of whether to preserve or discard saved CFrags and activated Capsules
