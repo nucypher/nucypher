@@ -267,7 +267,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert len(federated_bob._saved_work_orders.by_capsule(last_capsule_on_side_channel)) == 1
 
     # ...and he used it to obtain a CFrag from Ursula.
-    assert len(capsule_as_saved._attached_cfrags) == 1
+    assert len(capsule_as_saved) == 1
 
     # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
     work_orders_by_capsule = federated_bob._saved_work_orders.by_capsule(capsule_as_saved)
@@ -433,7 +433,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
                                label=enacted_federated_policy.label)
 
     # Since we weren't caching, there are no attached Cfrags.
-    assert len(the_message_kit.capsule._attached_cfrags) == 0
+    assert len(the_message_kit.capsule) == 0
 
         # Now the remaining two Ursulas go down.
     ursula9 = list(federated_ursulas)[8]
@@ -492,7 +492,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                cache=True)
 
     # Since we were caching, there are now 2 attached cfrags.
-    assert len(the_message_kit.capsule._attached_cfrags) == 2
+    assert len(the_message_kit.capsule) == 2
 
     # Now the remaining two Ursulas go down.
     ursula9 = list(federated_ursulas)[8]
@@ -534,7 +534,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
     # Heck, even if we delete the attached CFrags, as might happen if we were loading the Capsule again from disk...
-    the_message_kit.capsule._attached_cfrags = []
+    the_message_kit.capsule.clear_cfrags()
 
     # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
