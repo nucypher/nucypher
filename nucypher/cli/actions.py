@@ -71,18 +71,23 @@ class UnknownIPAddress(RuntimeError):
     pass
 
 
+def get_password_from_prompt(prompt: str = "Enter password", envvar: str = '', confirm: bool = False) -> str:
+    password = os.environ.get(envvar, NO_PASSWORD)
+    if password is NO_PASSWORD:  # Collect password, prefer env var
+        password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+    return password
+
+
 @validate_checksum_address
-def get_client_password(checksum_address: str) -> str:
+def get_client_password(checksum_address: str, envvar: str = '') -> str:
     prompt = f"Enter password to unlock account {checksum_address}"
-    client_password = click.prompt(prompt, hide_input=True)
+    client_password = get_password_from_prompt(prompt=prompt, envvar=envvar, confirm=False)
     return client_password
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
-    keyring_password = os.environ.get(envvar, NO_PASSWORD)
-    if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
-        prompt = "Enter nucypher keyring password"
-        keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+    prompt = "Enter NuCypher keyring password"
+    keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
 
@@ -310,6 +315,9 @@ def select_stake(stakeholder, emitter) -> Stake:
 
 def select_client_account(emitter, blockchain, prompt: str = None, default=0) -> str:
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    if len(enumerated_accounts) < 1:
+        emitter.echo("No ETH accounts were found.", color='red', bold=True)
+        raise click.Abort()
     for index, account in enumerated_accounts.items():
         emitter.echo(f"{index} | {account}")
     prompt = prompt or "Select Account"
