@@ -44,22 +44,14 @@ from nucypher.network.teachers import TEACHER_NODES
 NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
 
-DESTRUCTION = '''
-*Permanently and irreversibly delete all* nucypher files including:
-    - Private and Public Keys
-    - Known Nodes
-    - TLS certificates
-    - Node Configurations
-
-Delete {}?'''
-
 CHARACTER_DESTRUCTION = '''
 Delete all {name} character files including:
     - Private and Public Keys ({keystore})
     - Known Nodes             ({nodestore})
     - Node Configuration File ({config})
-
-Delete {root}?'''
+    - Database                ({database})
+    
+Are you sure?'''
 
 SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
 
@@ -179,11 +171,17 @@ def determine_external_ip_address(emitter, force: bool = False) -> str:
 
 def destroy_configuration(emitter, character_config, force: bool = False) -> None:
     if not force:
+        try:
+            database = character_config.db_filepath
+        except AttributeError:
+            database = "No database found"
+
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
                                                    root=character_config.config_root,
                                                    keystore=character_config.keyring_root,
                                                    nodestore=character_config.node_storage.root_dir,
-                                                   config=character_config.filepath), abort=True)
+                                                   config=character_config.filepath,
+                                                   database=database), abort=True)
     character_config.destroy()
     SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
     emitter.message(SUCCESSFUL_DESTRUCTION, color='green')
