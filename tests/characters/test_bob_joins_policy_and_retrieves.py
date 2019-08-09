@@ -129,7 +129,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     # OK, but we imagine that the message_kit is fresh here.
-    message_kit.capsule._attached_cfrags = []
+    message_kit.capsule.clear_cfrags()
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit=message_kit,
