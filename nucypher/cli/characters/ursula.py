@@ -243,13 +243,18 @@ def ursula(click_config,
     # Configured Pre-Authentication Actions
     #
 
-    # Handle destruction *before* network bootstrap and character initialization below
+    # Handle destruction and forget *before* network bootstrap and character initialization below
     if action == "destroy":
         """Delete all configuration files from the disk"""
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode - There is nothing to destroy."
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
+        actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
+        return
+
+    elif action == "forget":
+        actions.forget(emitter, configuration=ursula_config)
+        return
 
     #
     # Make Ursula
@@ -347,10 +352,6 @@ def ursula(click_config,
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
         return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and duration here?
-
-    elif action == "forget":
-        actions.forget(emitter, configuration=ursula_config)
-        return
 
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()
