@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 import random
-import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
@@ -24,7 +23,7 @@ from json.decoder import JSONDecodeError
 from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
-import requests
+import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -639,7 +638,9 @@ class Bob(Character):
 
         return treasure_map
 
-    def work_orders_for_capsule(self, map_id: str, *capsules, num_ursulas: int = None, cache: bool = False,
+    def work_orders_for_capsule(self, map_id: str, *capsules,
+                                num_ursulas: int = None,
+                                cache: bool = False,
                                 include_completed: bool = False):
 
         from nucypher.policy.models import WorkOrder  # Prevent circular import
@@ -650,7 +651,8 @@ class Bob(Character):
             raise KeyError(
                 "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
-        useful_work_orders = OrderedDict()
+        incomplete_work_orders = OrderedDict()
+        complete_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
@@ -668,34 +670,35 @@ class Bob(Character):
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     if existing_work_order.completed:
                         if include_completed:
-                            # TODO: cache expiration?
-                            useful_work_orders[node_id] = existing_work_order
+                            # TODO: Do we want these to expire at some point?
+                            complete_work_orders[node_id] = existing_work_order
                         else:
                             # There is an existing WorkOrder, but we're not using completed WorkOrders.
                             self.log.warn(
-                                 f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
+                                f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
                     else:
                         self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
-                        useful_work_orders[node_id] = existing_work_order
+                        incomplete_work_orders[node_id] = existing_work_order
                 else:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
-                useful_work_orders[node_id] = work_order
+                incomplete_work_orders[node_id] = work_order
                 # TODO: Fix this. It's always taking the last capsule
                 if cache:
                     self._saved_work_orders[node_id][capsule] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
-            if num_ursulas == len(useful_work_orders):
+            if num_ursulas == len(incomplete_work_orders) + len(complete_work_orders):
+                # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first?
                 break
 
-        if useful_work_orders == OrderedDict():
+        if incomplete_work_orders == OrderedDict():
             self.log.warn(
                 "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.
 
-        return useful_work_orders
+        return incomplete_work_orders, complete_work_orders
 
     def get_reencrypted_cfrags(self, work_order, reuse_already_attached=False):
         if work_order.completed:
@@ -802,7 +805,8 @@ class Bob(Character):
                     # I got a lot of problems with you people ...
                     the_airing_of_grievances.append(evidence)
             else:
-                raise Ursula.NotEnoughUrsulas("Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                raise Ursula.NotEnoughUrsulas(
+                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -811,7 +815,7 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
-        if not cache:
+        if not retain_cfrags:
             # If we were caching, then we attached as we went through the loop.
             # If not, we need to do it now.
             for cfrag in valid_cfrags:

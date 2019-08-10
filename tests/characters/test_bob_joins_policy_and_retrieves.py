@@ -110,7 +110,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                                       data_source=enrico,
                                                       alice_verifying_key=alices_verifying_key,
                                                       label=policy.label,
-                                                      cache=True)
+                                                      retain_cfrags=True)
 
     # Indeed, they're the same cleartexts.
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
@@ -124,7 +124,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                data_source=enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
-                               cache=True,
+                               retain_cfrags=True,
                                )
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
