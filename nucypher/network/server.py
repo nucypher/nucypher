@@ -387,7 +387,8 @@ def make_rest_app(
         try:
             content = status_template.render(this_node=this_node,
                                              known_nodes=this_node.known_nodes,
-                                             previous_states=previous_states)
+                                             previous_states=previous_states,
+                                             domains=serving_domains)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e
