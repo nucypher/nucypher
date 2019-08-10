@@ -700,17 +700,13 @@ class Bob(Character):
         incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags,
                                                    include_completed=use_precedent_work_orders)  # TODO: Do we want cache and include_completed to be separately configurable?
 
-        if use_precedent_work_orders:
-            cfrags_from_complete_work_orders = []
-            for work_order in complete_work_orders.values():
-                cfrag_in_question = work_order.tasks[capsule].cfrag
-                capsule.attach_cfrag(cfrag_in_question)
-            if len(capsule) >= m:
-                must_do_new_retrieval = False
-            else:
-                # TODO: What to do if we have some CFrags, but not enough to activate?
-                self.log.info(
-                    f"Had enough existing WorkOrders to get {len(cfrags_from_complete_work_orders)} CFrags, but not {m}.")
+        self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+
+        for work_order in complete_work_orders.values():
+            cfrag_in_question = work_order.tasks[capsule].cfrag
+            capsule.attach_cfrag(cfrag_in_question)
+        if len(capsule) >= m:
+            must_do_new_retrieval = False
 
         cleartexts = []
 
