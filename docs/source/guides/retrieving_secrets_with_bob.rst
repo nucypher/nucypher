@@ -4,6 +4,9 @@ Retrieving Secrets
 
 One node in your distributed application has already created a Policy and Granted access using Alice.  Another node has shared several secrets on that Policy using Enrico.  Now, you're ready to retrieve a secret using Bob and use the secret in your dapp.
 
+We sometimes jokingly refer to Bob as "Bob the BUIDLer" - but there is at least a small nugget of truth in this designatation.  A critical design decision about user-facing functionality in any NuCypher-powered decentralized application is where, when, and how to use the secrets that you retrieve using the network.
+
+It's not an exaggeration to say that the parameters you pass to `retrieve(...)` are a representation of the critique your application is making in the world.
 
 Bob's Adventure
 ---------------
