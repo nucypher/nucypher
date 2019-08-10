@@ -211,7 +211,7 @@ class TreasureMap:
 
 class WorkOrder:
 
-    class Task:
+    class PRETask:
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
@@ -295,7 +295,7 @@ class WorkOrder:
             if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
                 raise ValueError("Capsules in this work order are inconsistent.")
 
-            task = cls.Task(capsule, signature=None)
+            task = cls.PRETask(capsule, signature=None)
             specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
             tasks[capsule] = task
@@ -331,7 +331,7 @@ class WorkOrder:
 
         tasks = []
         for task_bytes in tasks_bytes:
-            task = cls.Task.from_bytes(task_bytes)
+            task = cls.PRETask.from_bytes(task_bytes)
             tasks.append(task)
 
             # Each task signature has to match the original specification

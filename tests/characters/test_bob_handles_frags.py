@@ -148,7 +148,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
                                  receiving=federated_bob.public_keys(DecryptingPower),
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
-    work_orders = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1)
+    work_orders, _ = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1)
 
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
@@ -157,7 +157,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert len(federated_bob._saved_work_orders) == 0
 
     # This time, we'll tell Bob to cache it.
-    cached_work_orders = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1, cache=True)
+    retained_work_orders, _ = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1, cache=True)
 
     # Bob saved the WorkOrder.
     assert len(federated_bob._saved_work_orders) == 1
@@ -165,7 +165,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert len(federated_bob._saved_work_orders.ursulas) == 1
 
     ursula_id, work_order = list(work_orders.items())[0]
-    cached_id, cached_work_order = list(cached_work_orders.items())[0]
+    cached_id, cached_work_order = list(retained_work_orders.items())[0]
 
     assert ursula_id == cached_id
     assert work_order.tasks.get(capsule)
@@ -226,7 +226,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
     last_capsule_on_side_channel = capsule_side_channel.messages[-1][0].capsule
     old_work_order = work_orders[0][last_capsule_on_side_channel]
 
-    generated_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+    incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
                                                                   last_capsule_on_side_channel,
                                                                   num_ursulas=1,
                                                                   cache=True,
@@ -234,7 +234,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
                                                                   )
 
     # Here we show that since we're using the same completed WorkOrder again, we get it back.
-    new_work_order = list(generated_work_orders.values())[0]
+    new_work_order = list(complete_work_orders.values())[0]
     assert old_work_order == new_work_order
 
     # We already got a CFrag for this WorkOrder, a couple of tests ago.
@@ -277,11 +277,11 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     saved_work_order = list(work_orders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    generated_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+    incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
                                                                   last_capsule_on_side_channel,
                                                                   num_ursulas=1,
                                                                   cache=True)
-    id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
+    id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
     id_of_ursula_from_whom_we_already_have_a_cfrag = list(work_orders_by_capsule.keys())[0]
@@ -328,10 +328,10 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         receiving=federated_bob.public_keys(DecryptingPower),
         verifying=federated_alice.stamp.as_umbral_pubkey())
 
-    new_work_orders = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
+    new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsule(enacted_federated_policy.treasure_map.public_id(),
                                                             the_message_kit.capsule,
                                                             num_ursulas=number_left_to_collect)
-    _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
+    _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
     cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
     the_message_kit.capsule.attach_cfrag(cfrags[0])
@@ -387,7 +387,7 @@ def test_federated_bob_retrieves_again(federated_bob,
                                                   data_source=the_same_enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  cache=True)
+                                                  retain_cfrags=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
@@ -489,7 +489,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                data_source=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
-                               cache=True)
+                               retain_cfrags=True)
 
     # Since we were caching, there are now 2 attached cfrags.
     assert len(the_message_kit.capsule) == 2
@@ -509,14 +509,14 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                data_source=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
-                               cache=False)
+                               retain_cfrags=False)
 
     # But now, with just one Ursula up, we can use the cached CFrags to get the message.
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                           data_source=the_data_source,
-                           alice_verifying_key=alices_verifying_key,
-                           label=enacted_federated_policy.label,
-                           cache=True)
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  retain_cfrags=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
@@ -529,7 +529,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   data_source=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  cache=True)
+                                                  retain_cfrags=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
@@ -541,7 +541,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   data_source=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  cache=True)
+                                                  retain_cfrags=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
