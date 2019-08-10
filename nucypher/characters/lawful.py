@@ -439,7 +439,7 @@ class Bob(Character):
             self.make_cli_controller()
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
-        self._saved_work_orders = WorkOrderHistory()
+        self._pending_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
@@ -629,7 +629,7 @@ class Bob(Character):
                 incomplete_work_orders[node_id] = work_order
                 # TODO: Fix this. It's always taking the last capsule
                 if cache:
-                    self._saved_work_orders[node_id][capsule] = work_order
+                    self._pending_work_orders[node_id][capsule] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
             if num_ursulas == len(incomplete_work_orders) + len(complete_work_orders):
@@ -658,7 +658,7 @@ class Bob(Character):
 
         for task in work_order.tasks.values():
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_address]
+            work_orders_by_ursula = self._pending_work_orders[work_order.ursula.checksum_address]
             work_orders_by_ursula[task.capsule] = work_order
         return cfrags
 
