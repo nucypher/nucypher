@@ -231,7 +231,6 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
         last_capsule_on_side_channel,
         num_ursulas=1,
         cache=True,
-        include_completed=True,
         )
 
     # Here we show that since we're using the same completed WorkOrder again, we get it back.
