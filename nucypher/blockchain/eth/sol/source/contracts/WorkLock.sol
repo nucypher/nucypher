@@ -14,11 +14,11 @@ contract WorkLock {
 
     event Bid(address indexed staker, uint256 depositedETH, uint256 claimedTokens);
     event Claimed(address indexed staker, uint256 claimedTokens);
-    event Refund(address indexed staker, uint256 refundETH, uint256 workDone);
+    event Refund(address indexed staker, uint256 refundETH, uint256 completedWork);
 
     struct WorkInfo {
         uint256 depositedETH;
-        uint256 workDone;
+        uint256 completedWork;
         bool claimed;
     }
 
@@ -101,23 +101,23 @@ contract WorkLock {
         require(!info.claimed, "Tokens are already claimed");
         info.claimed = true;
         claimedTokens = info.depositedETH.mul(depositRate);
-        info.workDone = escrow.setWorkMeasurement(msg.sender, true);
+        info.completedWork = escrow.setWorkMeasurement(msg.sender, true);
         token.approve(address(escrow), claimedTokens);
         escrow.deposit(msg.sender, claimedTokens, lockedPeriods);
         emit Claimed(msg.sender, claimedTokens);
     }
 
     /**
-    * @notice Refund ETH for the work done
+    * @notice Refund ETH for the completed work
     **/
     function refund() public returns (uint256 refundETH) {
         WorkInfo storage info = workInfo[msg.sender];
         require(info.claimed, "Tokens are not claimed");
         require(info.depositedETH > 0, "Nothing deposited");
-        uint256 currentWork = escrow.getWorkDone(msg.sender);
-        uint256 workDone = currentWork.sub(info.workDone);
-        require(workDone > 0, "No work has been done.");
-        refundETH = workDone.div(refundRate);
+        uint256 currentWork = escrow.getCompletedWork(msg.sender);
+        uint256 completedWork = currentWork.sub(info.completedWork);
+        require(completedWork > 0, "No work that has been completed.");
+        refundETH = completedWork.div(refundRate);
         if (refundETH > info.depositedETH) {
             refundETH = info.depositedETH;
         }
@@ -125,9 +125,9 @@ contract WorkLock {
             escrow.setWorkMeasurement(msg.sender, false);
         }
         info.depositedETH = info.depositedETH.sub(refundETH);
-        workDone = refundETH.mul(refundRate);
-        info.workDone = info.workDone.add(workDone);
-        emit Refund(msg.sender, refundETH, workDone);
+        completedWork = refundETH.mul(refundRate);
+        info.completedWork = info.completedWork.add(completedWork);
+        emit Refund(msg.sender, refundETH, completedWork);
         msg.sender.transfer(refundETH);
     }
 
@@ -136,12 +136,12 @@ contract WorkLock {
     **/
     function getRemainingWork(address _staker) public view returns (uint256) {
         WorkInfo storage info = workInfo[_staker];
-        uint256 workDone = escrow.getWorkDone(_staker).sub(info.workDone);
+        uint256 completedWork = escrow.getCompletedWork(_staker).sub(info.completedWork);
         uint256 remainingWork = info.depositedETH.mul(refundRate);
-        if (remainingWork <= workDone) {
+        if (remainingWork <= completedWork) {
             return 0;
         }
-        return remainingWork.sub(workDone);
+        return remainingWork.sub(completedWork);
     }
 
 }

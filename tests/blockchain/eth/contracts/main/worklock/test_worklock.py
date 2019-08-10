@@ -186,14 +186,14 @@ def test_worklock(testerchain, token_economics):
         testerchain.wait_for_receipt(tx)
 
     # Ursula claims tokens
-    value, measure_work, _work_done, periods = escrow.functions.stakerInfo(ursula1).call()
+    value, measure_work, _completed_work, periods = escrow.functions.stakerInfo(ursula1).call()
     assert value == 0
     assert not measure_work
     assert periods == 0
     tx = worklock.functions.claim().transact({'from': ursula1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula1).call() == 2 * minimum_deposit_eth * refund_rate
-    value, measure_work, work_done, periods = escrow.functions.stakerInfo(ursula1).call()
+    value, measure_work, completed_work, periods = escrow.functions.stakerInfo(ursula1).call()
     assert value == 2 * token_economics.minimum_allowed_locked
     assert measure_work
     assert periods == 2 * token_economics.minimum_locked_periods
@@ -218,16 +218,16 @@ def test_worklock(testerchain, token_economics):
         testerchain.wait_for_receipt(tx)
 
     # Second Ursula claims tokens
-    value, measure_work, _work_done, periods = escrow.functions.stakerInfo(ursula2).call()
+    value, measure_work, _completed_work, periods = escrow.functions.stakerInfo(ursula2).call()
     assert value == 0
     assert not measure_work
     assert periods == 0
-    tx = escrow.functions.setWorkDone(ursula2, refund_rate * minimum_deposit_eth).transact()
+    tx = escrow.functions.setCompletedWork(ursula2, refund_rate * minimum_deposit_eth).transact()
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.claim().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == maximum_deposit_eth * refund_rate
-    value, measure_work, work_done, periods = escrow.functions.stakerInfo(ursula2).call()
+    value, measure_work, completed_work, periods = escrow.functions.stakerInfo(ursula2).call()
     assert value == token_economics.maximum_allowed_locked
     assert measure_work
     assert periods == 2 * token_economics.minimum_locked_periods
@@ -244,8 +244,8 @@ def test_worklock(testerchain, token_economics):
 
     # "Do" some work and partial refund
     ursula1_balance = testerchain.w3.eth.getBalance(ursula1)
-    work_done = refund_rate * minimum_deposit_eth + refund_rate // 2
-    tx = escrow.functions.setWorkDone(ursula1, work_done).transact()
+    completed_work = refund_rate * minimum_deposit_eth + refund_rate // 2
+    tx = escrow.functions.setCompletedWork(ursula1, completed_work).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate - refund_rate // 2
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
@@ -254,7 +254,7 @@ def test_worklock(testerchain, token_economics):
     assert worklock.functions.getRemainingWork(ursula1).call() == minimum_deposit_eth * refund_rate - refund_rate // 2
     assert testerchain.w3.eth.getBalance(ursula1) == ursula1_balance + minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
-    _value, measure_work, _work_done, _periods = escrow.functions.stakerInfo(ursula1).call()
+    _value, measure_work, _completed_work, _periods = escrow.functions.stakerInfo(ursula1).call()
     assert measure_work
 
     events = refund_log.get_all_entries()
@@ -262,12 +262,12 @@ def test_worklock(testerchain, token_economics):
     event_args = events[0]['args']
     assert event_args['staker'] == ursula1
     assert event_args['refundETH'] == minimum_deposit_eth
-    assert event_args['workDone'] == minimum_deposit_eth * refund_rate
+    assert event_args['completedWork'] == minimum_deposit_eth * refund_rate
 
     # "Do" more work and full refund
     ursula1_balance = testerchain.w3.eth.getBalance(ursula1)
-    work_done = refund_rate * 2 * minimum_deposit_eth
-    tx = escrow.functions.setWorkDone(ursula1, work_done).transact()
+    completed_work = refund_rate * 2 * minimum_deposit_eth
+    tx = escrow.functions.setCompletedWork(ursula1, completed_work).transact()
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula1).call() == 0
     tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})
@@ -276,7 +276,7 @@ def test_worklock(testerchain, token_economics):
     assert worklock.functions.getRemainingWork(ursula1).call() == 0
     assert testerchain.w3.eth.getBalance(ursula1) == ursula1_balance + minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth
-    _value, measure_work, _work_done, _periods = escrow.functions.stakerInfo(ursula1).call()
+    _value, measure_work, _completed_work, _periods = escrow.functions.stakerInfo(ursula1).call()
     assert not measure_work
 
     events = refund_log.get_all_entries()
@@ -284,10 +284,10 @@ def test_worklock(testerchain, token_economics):
     event_args = events[1]['args']
     assert event_args['staker'] == ursula1
     assert event_args['refundETH'] == minimum_deposit_eth
-    assert event_args['workDone'] == minimum_deposit_eth * refund_rate
+    assert event_args['completedWork'] == minimum_deposit_eth * refund_rate
 
     # Can't refund more tokens
-    tx = escrow.functions.setWorkDone(ursula1, 2 * work_done).transact()
+    tx = escrow.functions.setCompletedWork(ursula1, 2 * completed_work).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.refund().transact({'from': ursula1, 'gas_price': 0})

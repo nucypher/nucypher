@@ -12,7 +12,7 @@ contract StakingEscrowForWorkLockMock {
     struct StakerInfo {
         uint256 value;
         bool measureWork;
-        uint256 workDone;
+        uint256 completedWork;
         uint16 periods;
     }
 
@@ -37,13 +37,13 @@ contract StakingEscrowForWorkLockMock {
         minLockedPeriods = _minLockedPeriods;
     }
 
-    function getWorkDone(address _staker) public view returns (uint256) {
-        return stakerInfo[_staker].workDone;
+    function getCompletedWork(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].completedWork;
     }
 
     function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
         stakerInfo[_staker].measureWork = _measureWork;
-        return stakerInfo[_staker].workDone;
+        return stakerInfo[_staker].completedWork;
     }
 
     function deposit(address _staker, uint256 _value, uint16 _periods) public {
@@ -52,8 +52,8 @@ contract StakingEscrowForWorkLockMock {
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function setWorkDone(address _staker, uint256 _workDone) public {
-        stakerInfo[_staker].workDone = _workDone;
+    function setCompletedWork(address _staker, uint256 _completedWork) public {
+        stakerInfo[_staker].completedWork = _completedWork;
     }
 
 }

@@ -366,7 +366,7 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 6).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 7).call()
-    assert 0 == escrow.functions.getWorkDone(ursula2).call()
+    assert 0 == escrow.functions.getCompletedWork(ursula2).call()
 
     tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -378,7 +378,7 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 9).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 10).call()
-    assert 0 == escrow.functions.getWorkDone(ursula2).call()
+    assert 0 == escrow.functions.getCompletedWork(ursula2).call()
 
     # Can't claim more than once
     with pytest.raises((TransactionFailed, ValueError)):
@@ -608,10 +608,10 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Check work measurement
-    work_done = escrow.functions.getWorkDone(ursula2).call()
+    work_done = escrow.functions.getCompletedWork(ursula2).call()
     assert 0 < work_done
-    assert 0 == escrow.functions.getWorkDone(user_escrow_1.address).call()
-    assert 0 == escrow.functions.getWorkDone(ursula1).call()
+    assert 0 == escrow.functions.getCompletedWork(user_escrow_1.address).call()
+    assert 0 == escrow.functions.getCompletedWork(ursula1).call()
 
     testerchain.time_travel(hours=1)
     tx = policy_manager.functions.revokeArrangement(policy_id_3, user_escrow_1.address) \
@@ -1067,7 +1067,7 @@ def test_all(testerchain,
     assert ursula4_balance < token.functions.balanceOf(ursula4).call()
 
     # Partial refund for Ursula
-    new_work_done = escrow.functions.getWorkDone(ursula2).call()
+    new_work_done = escrow.functions.getCompletedWork(ursula2).call()
     assert work_done < new_work_done
     remaining_work = worklock.functions.getRemainingWork(ursula2).call()
     assert 0 < remaining_work
@@ -1080,5 +1080,5 @@ def test_all(testerchain,
     assert refund + ursula2_balance == testerchain.w3.eth.getBalance(ursula2)
     assert remaining_work == worklock.functions.getRemainingWork(ursula2).call()
     assert deposited_eth - refund == testerchain.w3.eth.getBalance(worklock.address)
-    assert 0 == escrow.functions.getWorkDone(ursula1).call()
-    assert 0 == escrow.functions.getWorkDone(user_escrow_1.address).call()
+    assert 0 == escrow.functions.getCompletedWork(ursula1).call()
+    assert 0 == escrow.functions.getCompletedWork(user_escrow_1.address).call()

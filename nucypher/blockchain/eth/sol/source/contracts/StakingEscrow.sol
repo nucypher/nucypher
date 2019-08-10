@@ -91,7 +91,7 @@ contract StakingEscrow is Issuer {
         // last confirmed active period
         uint16 lastActivePeriod;
         bool measureWork;
-        uint256 workDone;
+        uint256 completedWork;
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
     }
@@ -374,10 +374,10 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get work that done by the staker
+    * @notice Get work that completed by the staker
     **/
-    function getWorkDone(address _staker) public view returns (uint256) {
-        return stakerInfo[_staker].workDone;
+    function getCompletedWork(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].completedWork;
     }
 
     //------------------------Main methods------------------------
@@ -392,7 +392,7 @@ contract StakingEscrow is Issuer {
         StakerInfo storage info = stakerInfo[_staker];
         info.measureWork = _measureWork;
         emit WorkMeasurementSet(_staker, _measureWork);
-        return info.workDone;
+        return info.completedWork;
     }
 
     /** @notice Set worker
@@ -502,11 +502,11 @@ contract StakingEscrow is Issuer {
     /**
     * @notice Deposit tokens
     * @param _staker Staker
-    * @param _payor Owner of tokens
+    * @param _payer Owner of tokens
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function deposit(address _staker, address _payor, uint256 _value, uint16 _periods) internal isInitialized {
+    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal isInitialized {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
@@ -517,7 +517,7 @@ contract StakingEscrow is Issuer {
             policyManager.register(_staker, getCurrentPeriod());
         }
         info.value = info.value.add(_value);
-        token.safeTransferFrom(_payor, address(this), _value);
+        token.safeTransferFrom(_payer, address(this), _value);
         lock(_staker, _value, _periods);
         emit Deposited(_staker, _value, _periods);
     }
@@ -781,7 +781,7 @@ contract StakingEscrow is Issuer {
 
         info.value = info.value.add(reward);
         if (info.measureWork) {
-            info.workDone = info.workDone.add(reward);
+            info.completedWork = info.completedWork.add(reward);
         }
         emit Mined(_staker, previousPeriod, reward);
     }
@@ -1272,7 +1272,7 @@ contract StakingEscrow is Issuer {
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
             infoToCheck.measureWork == info.measureWork &&
-            infoToCheck.workDone == info.workDone &&
+            infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&
             infoToCheck.workerStartPeriod == info.workerStartPeriod);
 

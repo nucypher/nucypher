@@ -723,7 +723,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.getWorkDone(ursula).call() == 0
+    assert escrow.functions.getCompletedWork(ursula).call() == 0
 
     # Confirm activity and mint to check that work is not measured by default
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
@@ -732,7 +732,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     tx = escrow.functions.mint().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(ursula).call() > stake
-    assert escrow.functions.getWorkDone(ursula).call() == 0
+    assert escrow.functions.getCompletedWork(ursula).call() == 0
 
     # Start work measurement
     stake = escrow.functions.getAllTokens(ursula).call()
@@ -752,11 +752,11 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
-    assert escrow.functions.getWorkDone(ursula).call() == reward
+    assert escrow.functions.getCompletedWork(ursula).call() == reward
 
     # Mint again and check work done
     stake = escrow.functions.getAllTokens(ursula).call()
-    work_done = escrow.functions.getWorkDone(ursula).call()
+    work_done = escrow.functions.getCompletedWork(ursula).call()
     tx = escrow.functions.confirmActivity().transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=2)
@@ -764,11 +764,11 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
-    assert escrow.functions.getWorkDone(ursula).call() == work_done + reward
+    assert escrow.functions.getCompletedWork(ursula).call() == work_done + reward
 
     # Stop work measurement
     stake = escrow.functions.getAllTokens(ursula).call()
-    work_done = escrow.functions.getWorkDone(ursula).call()
+    work_done = escrow.functions.getCompletedWork(ursula).call()
     tx = worklock.functions.setWorkMeasurement(ursula, False).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -785,5 +785,5 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     reward = escrow.functions.getAllTokens(ursula).call() - stake
     assert reward > 0
-    assert escrow.functions.getWorkDone(ursula).call() == work_done
+    assert escrow.functions.getCompletedWork(ursula).call() == work_done
 
