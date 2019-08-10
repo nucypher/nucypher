@@ -582,8 +582,7 @@ class Bob(Character):
 
     def work_orders_for_capsule(self, map_id: str, *capsules,
                                 num_ursulas: int = None,
-                                cache: bool = False,
-                                include_completed: bool = False):
+                                cache: bool = False):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -607,17 +606,12 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                existing_work_order = self._saved_work_orders[node_id].get(capsule)
+                existing_work_order = self._pending_work_orders[node_id].get(capsule)
                 if existing_work_order:
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     if existing_work_order.completed:
-                        if include_completed:
-                            # TODO: Do we want these to expire at some point?
-                            complete_work_orders[node_id] = existing_work_order
-                        else:
-                            # There is an existing WorkOrder, but we're not using completed WorkOrders.
-                            self.log.warn(
-                                f"Found existing WorkOrder {existing_work_order}, but not using completed WorkOrders.  No choice but to skip node {node_id}")
+                        # TODO: Do we want these to expire at some point?
+                        complete_work_orders[node_id] = existing_work_order
                     else:
                         self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
                         incomplete_work_orders[node_id] = existing_work_order
