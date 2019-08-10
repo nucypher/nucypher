@@ -673,7 +673,9 @@ class Bob(Character):
                  data_source,
                  alice_verifying_key,
                  label,
-                 retain_cfrags=False):
+                 retain_cfrags=False,
+                 use_attached_cfrags=False,
+                 use_precedent_work_orders=False):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
@@ -682,7 +684,7 @@ class Bob(Character):
         capsule_has_attached_cfrags = len(capsule) > 0
 
         if capsule_has_attached_cfrags:
-            if not retain_cfrags:
+            if not use_attached_cfrags:
                 raise TypeError(
                     "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
 
@@ -696,9 +698,9 @@ class Bob(Character):
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
         incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags,
-                                                   include_completed=retain_cfrags)  # TODO: Do we want cache and include_completed to be separately configurable?
+                                                   include_completed=use_precedent_work_orders)  # TODO: Do we want cache and include_completed to be separately configurable?
 
-        if retain_cfrags:
+        if use_precedent_work_orders:
             cfrags_from_complete_work_orders = []
             for work_order in complete_work_orders.values():
                 cfrag_in_question = work_order.tasks[capsule].cfrag
@@ -712,66 +714,58 @@ class Bob(Character):
 
         cleartexts = []
 
-        if must_do_new_retrieval:
-            # TODO: Consider blocking until map is done being followed. #1114
+        try:
+            if must_do_new_retrieval:
+                # TODO: Consider blocking until map is done being followed. #1114
 
-            the_airing_of_grievances = []
-            valid_cfrags = set()
+                the_airing_of_grievances = []
+                valid_cfrags = set()
 
-            # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
-            cfrag_count = len(capsule)
-            for work_order in incomplete_work_orders.values():
-                if cfrag_count >= m:
-                    # TODO: What to do with unused WorkOrders here?   #1197
-                    break
-                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
-                try:
-                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
-                except NodeSeemsToBeDown:
-                    # TODO: What to do here?  Ursula isn't supposed to be down.
-                    self.log.info(
-                        f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
-                    continue
-                except NotFound:
-                    # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
-                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
-                    self.log.warn(
-                        f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
-                    continue
+                # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
+                for work_order in incomplete_work_orders.values():
+                    if len(capsule) >= m:
+                        # TODO: What to do with unused WorkOrders here?   #1197
+                        break
+                    # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
+                    try:
+                        cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
+                    except NodeSeemsToBeDown:
+                        # TODO: What to do here?  Ursula isn't supposed to be down.
+                        self.log.info(
+                            f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
+                        continue
+                    except NotFound:
+                        # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+                        # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                        self.log.warn(
+                            f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
+                        continue
 
-                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                try:
-                    if retain_cfrags:
+                    cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                    try:
                         capsule.attach_cfrag(cfrag)
-                        cfrag_count = len(capsule)
-                    else:
-                        valid_cfrags.add(cfrag)
-                        cfrag_count = len(valid_cfrags)
-                except UmbralCorrectnessError:
-                    task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                    from nucypher.policy.collections import IndisputableEvidence
-                    evidence = IndisputableEvidence(task=task, work_order=work_order)
-                    # I got a lot of problems with you people ...
-                    the_airing_of_grievances.append(evidence)
-            else:
-                raise Ursula.NotEnoughUrsulas(
-                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                    except UmbralCorrectnessError:
+                        task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                        from nucypher.policy.models import IndisputableEvidence
+                        evidence = IndisputableEvidence(task=task, work_order=work_order)
+                        # I got a lot of problems with you people ...
+                        the_airing_of_grievances.append(evidence)
+                else:
+                    raise Ursula.NotEnoughUrsulas(
+                        "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
-            if the_airing_of_grievances:
-                # ... and now you're gonna hear about it!
-                raise self.IncorrectCFragsReceived(the_airing_of_grievances)
-                # TODO: Find a better strategy for handling incorrect CFrags #500
-                #  - There maybe enough cfrags to still open the capsule
-                #  - This line is unreachable when NotEnoughUrsulas
+                if the_airing_of_grievances:
+                    # ... and now you're gonna hear about it!
+                    raise self.IncorrectCFragsReceived(the_airing_of_grievances)
+                    # TODO: Find a better strategy for handling incorrect CFrags #500
+                    #  - There maybe enough cfrags to still open the capsule
+                    #  - This line is unreachable when NotEnoughUrsulas
 
-        if not retain_cfrags:
-            # If we were caching, then we attached as we went through the loop.
-            # If not, we need to do it now.
-            for cfrag in valid_cfrags:
-                capsule.attach_cfrag(cfrag)
-
-        delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
-        cleartexts.append(delivered_cleartext)
+            delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
+            cleartexts.append(delivered_cleartext)
+        finally:
+            if not retain_cfrags:
+                capsule.clear_cfrags()
 
         return cleartexts
 
