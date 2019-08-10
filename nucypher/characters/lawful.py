@@ -668,37 +668,41 @@ class Bob(Character):
         treasure_map = self.get_treasure_map(alice_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
-    def retrieve(self, message_kit, data_source, alice_verifying_key, label, cache=False):
+    def retrieve(self,
+                 message_kit,
+                 data_source,
+                 alice_verifying_key,
+                 label,
+                 retain_cfrags=False):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
 
+        capsule_has_attached_cfrags = len(capsule) > 0
+
+        if capsule_has_attached_cfrags:
+            if not retain_cfrags:
+                raise TypeError(
+                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
+
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        capsule_has_attached_cfrags = len(capsule) > 0
-
         must_do_new_retrieval = True  # Unless we can safely conclude to the contrary.
-
-        if capsule_has_attached_cfrags:
-            if not cache:
-                raise TypeError(
-                    "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
 
         capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
-        work_orders = self.work_orders_for_capsule(map_id, capsule, cache=cache,
-                                                   include_completed=cache)  # TODO: Do we want cache and include_completed to be separately configurable?
+        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags,
+                                                   include_completed=retain_cfrags)  # TODO: Do we want cache and include_completed to be separately configurable?
 
-        if cache:
+        if retain_cfrags:
             cfrags_from_complete_work_orders = []
-            for work_order in work_orders.values():
-                if work_order.completed:
-                    cfrag_in_question = work_order.tasks[capsule].cfrag
-                    capsule.attach_cfrag(cfrag_in_question)
+            for work_order in complete_work_orders.values():
+                cfrag_in_question = work_order.tasks[capsule].cfrag
+                capsule.attach_cfrag(cfrag_in_question)
             if len(capsule) >= m:
                 must_do_new_retrieval = False
             else:
@@ -716,13 +720,13 @@ class Bob(Character):
 
             # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
             cfrag_count = len(capsule)
-            for work_order in work_orders.values():
+            for work_order in incomplete_work_orders.values():
                 if cfrag_count >= m:
                     # TODO: What to do with unused WorkOrders here?   #1197
                     break
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
-                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=cache)
+                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
                 except NodeSeemsToBeDown:
                     # TODO: What to do here?  Ursula isn't supposed to be down.
                     self.log.info(
@@ -737,7 +741,7 @@ class Bob(Character):
 
                 cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
                 try:
-                    if cache:
+                    if retain_cfrags:
                         capsule.attach_cfrag(cfrag)
                         cfrag_count = len(capsule)
                     else:
