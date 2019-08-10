@@ -626,7 +626,7 @@ class Bob(Character):
                     self._pending_work_orders[node_id][capsule] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
-            if num_ursulas == len(incomplete_work_orders) + len(complete_work_orders):
+            if num_ursulas == len(incomplete_work_orders):
                 # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first?
                 break
 
@@ -642,13 +642,14 @@ class Bob(Character):
                 # The WorkOrder is complete and we're reusing it.  Just send back the CFrags.
                 # (Note: we trust that we previously verified the Signature here; it's possible to manually attach a CFrag
                 # to a Task and subvert this check; this branch takes no position on that and does not protect against it.)
-                return [wo.cfrag for wo in work_order.tasks.values()]
+                cfrags = [wo.cfrag for wo in work_order.tasks.values()]
             else:
                 # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
                 raise TypeError(
                     "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Create a new WorkOrder or set cache=False for KMS mode.")
         else:
             cfrags = self.network_middleware.reencrypt(work_order)
+            # cfrags = work_order.complete(cfrags_and_signatures)  # Will raise InvalidSignature or return CFrags.  TODO: Handle this scenario.  See #957.
 
         for task in work_order.tasks.values():
             # TODO: Maybe just update the work order here instead of setting it anew.
@@ -675,9 +676,7 @@ class Bob(Character):
 
         capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
 
-        capsule_has_attached_cfrags = len(capsule) > 0
-
-        if capsule_has_attached_cfrags:
+        if len(capsule) > 0:
             if not use_attached_cfrags:
                 raise TypeError(
                     "Not using cached retrievals, but the MessageKit's capsule has attached CFrags.  In order to retrieve this message, you must set cache=True.  To use Bob in 'KMS mode', use cache=False the first time you retrieve a message.")
@@ -685,71 +684,66 @@ class Bob(Character):
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-        must_do_new_retrieval = True  # Unless we can safely conclude to the contrary.
-
         capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
-        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags,
-                                                   include_completed=use_precedent_work_orders)  # TODO: Do we want cache and include_completed to be separately configurable?
+        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags)
 
         self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
 
-        for work_order in complete_work_orders.values():
-            cfrag_in_question = work_order.tasks[capsule].cfrag
-            capsule.attach_cfrag(cfrag_in_question)
-        if len(capsule) >= m:
-            must_do_new_retrieval = False
+        if complete_work_orders:
+            if use_precedent_work_orders:
+                for work_order in complete_work_orders.values():
+                    cfrag_in_question = work_order.tasks[capsule].cfrag
+                    capsule.attach_cfrag(cfrag_in_question)
+            else:
+                self.log.warn("Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
 
         cleartexts = []
 
         try:
-            if must_do_new_retrieval:
-                # TODO: Consider blocking until map is done being followed. #1114
+            # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
+            the_airing_of_grievances = []
 
-                the_airing_of_grievances = []
-                valid_cfrags = set()
+            for work_order in incomplete_work_orders.values():
+                if len(capsule) >= m:
+                    # TODO: What to do with unused WorkOrders here?   #1197
+                    break
+                # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
+                try:
+                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
+                except NodeSeemsToBeDown:
+                    # TODO: What to do here?  Ursula isn't supposed to be down.
+                    self.log.info(
+                        f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
+                    continue
+                except NotFound:
+                    # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+                    # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
+                    self.log.warn(
+                        f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
+                    continue
 
-                # TODO: Of course, it's possible that we have cached CFrags for one of these and thus need to retrieve for one WorkOrder and not another.
-                for work_order in incomplete_work_orders.values():
-                    if len(capsule) >= m:
-                        # TODO: What to do with unused WorkOrders here?   #1197
-                        break
-                    # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
-                    try:
-                        cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
-                    except NodeSeemsToBeDown:
-                        # TODO: What to do here?  Ursula isn't supposed to be down.
-                        self.log.info(
-                            f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
-                        continue
-                    except NotFound:
-                        # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
-                        # TODO: What's the thing to do here?  Do we want to track these Ursulas in some way in case they're lying?
-                        self.log.warn(
-                            f"Ursula ({work_order.ursula}) claims not to have the KFrag to complete WorkOrder: {work_order}.  Has accessed been revoked?")
-                        continue
+                cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                try:
+                    capsule.attach_cfrag(cfrag)
+                except UmbralCorrectnessError:
+                    task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
+                    from nucypher.policy.models import IndisputableEvidence
+                    evidence = IndisputableEvidence(task=task, work_order=work_order)
+                    # I got a lot of problems with you people ...
+                    the_airing_of_grievances.append(evidence)
+            else:
+                raise Ursula.NotEnoughUrsulas(
+                    "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
-                    cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                    try:
-                        capsule.attach_cfrag(cfrag)
-                    except UmbralCorrectnessError:
-                        task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                        from nucypher.policy.models import IndisputableEvidence
-                        evidence = IndisputableEvidence(task=task, work_order=work_order)
-                        # I got a lot of problems with you people ...
-                        the_airing_of_grievances.append(evidence)
-                else:
-                    raise Ursula.NotEnoughUrsulas(
-                        "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
-
-                if the_airing_of_grievances:
-                    # ... and now you're gonna hear about it!
-                    raise self.IncorrectCFragsReceived(the_airing_of_grievances)
-                    # TODO: Find a better strategy for handling incorrect CFrags #500
-                    #  - There maybe enough cfrags to still open the capsule
-                    #  - This line is unreachable when NotEnoughUrsulas
+            if the_airing_of_grievances:
+                # ... and now you're gonna hear about it!
+                raise self.IncorrectCFragsReceived(the_airing_of_grievances)
+                # TODO: Find a better strategy for handling incorrect CFrags #500
+                #  - There maybe enough cfrags to still open the capsule
+                #  - This line is unreachable when NotEnoughUrsulas
 
             delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
             cleartexts.append(delivered_cleartext)
