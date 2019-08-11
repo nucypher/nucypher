@@ -157,7 +157,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert len(federated_bob._completed_work_orders) == 0
 
     # This time, we'll tell Bob to cache it.
-    retained_work_orders, _ = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1, cache=True)
+    retained_work_orders, _ = federated_bob.work_orders_for_capsule(map_id, capsule, num_ursulas=1)
 
     # The work order we just made is not yet complete, of course.
     address, work_order = list(retained_work_orders.items())[0]
@@ -219,7 +219,6 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
         enacted_federated_policy.treasure_map.public_id(),
         last_capsule_on_side_channel,
         num_ursulas=1,
-        cache=True,
         )
 
     # Here we show that since we're using the same completed WorkOrder again, we get it back.
@@ -263,8 +262,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsule(
         enacted_federated_policy.treasure_map.public_id(),
         last_capsule_on_side_channel,
-        num_ursulas=1,
-        cache=True)
+        num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
