@@ -629,15 +629,14 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def get_reencrypted_cfrags(self, work_order):
+    def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
         if work_order.completed:
             raise TypeError("This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
 
-        cfrags = self.network_middleware.reencrypt(work_order)
+        cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
+        cfrags = work_order.complete(cfrags_and_signatures)
+        self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
 
-        for task in work_order.tasks.values():
-            completed_work_orders_for_ursula = self._completed_work_orders.by_checksum_address(work_order.ursula.checksum_address)
-            completed_work_orders_for_ursula[task.capsule] = work_order
         return cfrags
 
     def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
@@ -689,13 +688,13 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            for work_order in incomplete_work_orders.values():
+            for work_order in new_work_orders.values():
                 if len(capsule) >= m:
                     # TODO: What to do with unused WorkOrders here?   #1197
                     break
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
-                    cfrags = self.get_reencrypted_cfrags(work_order)
+                    cfrags = self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
                 except NodeSeemsToBeDown:
                     # TODO: What to do here?  Ursula isn't supposed to be down.
                     self.log.info(
