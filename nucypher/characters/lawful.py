@@ -718,6 +718,9 @@ class Bob(Character):
                     evidence = IndisputableEvidence(task=task, work_order=work_order)
                     # I got a lot of problems with you people ...
                     the_airing_of_grievances.append(evidence)
+                else:
+                    if not retain_cfrags:
+                        work_order.sanitize()
             else:
                 raise Ursula.NotEnoughUrsulas(
                     "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
