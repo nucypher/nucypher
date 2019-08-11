@@ -19,6 +19,7 @@ import binascii
 import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED, CFRAG_NOT_RETAINED
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
@@ -267,9 +268,9 @@ class WorkOrder:
         self.completed = False
 
     def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for Ursula: {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_bytes=[binascii.hexlify(bytes(item.capsule))[:6] for item in self.tasks.values()],
+            capsule_reprs=[t.capsule for t in self.tasks.values()],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):

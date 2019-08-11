@@ -318,6 +318,9 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
     cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
+    cfrag = cfrags[0]
+    assert cfrag not in the_message_kit.capsule._attached_cfrags
+
     the_message_kit.capsule.attach_cfrag(cfrags[0])
 
     # Now.
