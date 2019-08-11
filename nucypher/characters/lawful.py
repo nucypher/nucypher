@@ -607,7 +607,7 @@ class Bob(Character):
             capsules_to_include = []
             for capsule in capsules:
                 try:
-                    precedent_work_order = self._completed_work_orders[node_id][capsule]
+                    precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[node_id]
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     complete_work_orders[node_id] = precedent_work_order
                 except KeyError:
