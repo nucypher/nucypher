@@ -172,7 +172,7 @@ def bob(click_config,
     elif action == "view":
         """Paint an existing configuration to the console"""
         response = BobConfiguration._read_configuration_file(filepath=config_file or bob_config.config_file_location)
-        return BOB.controller.emitter.ipc(response)
+        return BOB.controller.emitter.ipc(response, request_id=0, duration=0)  # FIXME: #1216 - what are request_id and duration here?
 
     elif action == "destroy":
         """Delete Bob's character configuration files from the disk"""
