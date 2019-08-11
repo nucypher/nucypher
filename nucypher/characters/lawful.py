@@ -628,20 +628,11 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def get_reencrypted_cfrags(self, work_order, reuse_already_attached=False):
+    def get_reencrypted_cfrags(self, work_order):
         if work_order.completed:
-            if reuse_already_attached:
-                # The WorkOrder is complete and we're reusing it.  Just send back the CFrags.
-                # (Note: we trust that we previously verified the Signature here; it's possible to manually attach a CFrag
-                # to a Task and subvert this check; this branch takes no position on that and does not protect against it.)
-                cfrags = [wo.cfrag for wo in work_order.tasks.values()]
-            else:
-                # Seems like Bob is trying to be in "KMS mode", but he previously saved CFrags.
-                raise TypeError(
-                    "WorkOrder is already complete, but we're not using attached CFrags and Signatures.  Create a new WorkOrder or set cache=False for KMS mode.")
-        else:
-            cfrags = self.network_middleware.reencrypt(work_order)
-            # cfrags = work_order.complete(cfrags_and_signatures)  # Will raise InvalidSignature or return CFrags.  TODO: Handle this scenario.  See #957.
+            raise TypeError("This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+
+        cfrags = self.network_middleware.reencrypt(work_order)
 
         for task in work_order.tasks.values():
             completed_work_orders_for_ursula = self._completed_work_orders.by_checksum_address(work_order.ursula.checksum_address)
@@ -703,7 +694,7 @@ class Bob(Character):
                     break
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
-                    cfrags = self.get_reencrypted_cfrags(work_order, reuse_already_attached=retain_cfrags)
+                    cfrags = self.get_reencrypted_cfrags(work_order)
                 except NodeSeemsToBeDown:
                     # TODO: What to do here?  Ursula isn't supposed to be down.
                     self.log.info(
