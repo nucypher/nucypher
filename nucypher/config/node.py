@@ -342,7 +342,7 @@ class CharacterConfiguration(BaseConfiguration):
             self.blockchain.connect()
             payload.update(blockchain=self.blockchain)
 
-        self.read_known_nodes()   # Requires a connected blockchain
+        #self.read_known_nodes()   # FIXME: Requires a connected blockchain - #1202
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
