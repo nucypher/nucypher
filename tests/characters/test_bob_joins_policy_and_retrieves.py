@@ -35,7 +35,7 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
 
@@ -97,7 +97,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve(message_kit=message_kit,
-                                        data_source=enrico,
+                                        enrico=enrico,
                                         alice_verifying_key=alices_verifying_key,
                                         label=policy.label)
 
@@ -106,13 +106,13 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     # Bob tries to retrieve again, but without using the cached CFrags, it fails.
     with pytest.raises(TypeError):
         delivered_cleartexts = bob.retrieve(message_kit=message_kit,
-                                            data_source=enrico,
+                                            enrico=enrico,
                                             alice_verifying_key=alices_verifying_key,
                                             label=policy.label)
 
     # Bob can retrieve again if he sets cache=True.
     cleartexts_delivered_a_second_time = bob.retrieve(message_kit=message_kit,
-                                                      data_source=enrico,
+                                                      enrico=enrico,
                                                       alice_verifying_key=alices_verifying_key,
                                                       label=policy.label,
                                                       retain_cfrags=True)
@@ -126,7 +126,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags, even though this Policy has been revoked.  #892
     _cleartexts = bob.retrieve(message_kit=message_kit,
-                               data_source=enrico,
+                               enrico=enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
                                retain_cfrags=True,
@@ -138,7 +138,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit=message_kit,
-                                   data_source=enrico,
+                                   enrico=enrico,
                                    alice_verifying_key=alices_verifying_key,
                                    label=policy.label,
                                    )

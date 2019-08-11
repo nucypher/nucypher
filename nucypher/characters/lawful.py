@@ -647,13 +647,13 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self,
-                 message_kit,
-                 data_source,
-                 alice_verifying_key,
-                 label,
-                 retain_cfrags=False,
-                 use_attached_cfrags=False,
-                 use_precedent_work_orders=False):
+                 enrico: "Enrico",
+                 message_kit: UmbralMessageKit,
+                 alice_verifying_key: UmbralPublicKey,
+                 label: bytes,
+                 retain_cfrags: bool=False,
+                 use_attached_cfrags: bool=False,
+                 use_precedent_work_orders: bool=False):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
@@ -728,7 +728,7 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
-            delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
+            delivered_cleartext = self.verify_from(enrico, message_kit, decrypt=True)
             cleartexts.append(delivered_cleartext)
         finally:
             if not retain_cfrags:

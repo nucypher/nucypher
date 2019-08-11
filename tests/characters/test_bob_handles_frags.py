@@ -362,7 +362,7 @@ def test_federated_bob_retrieves_again(federated_bob,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   retain_cfrags=True)
@@ -372,13 +372,13 @@ def test_federated_bob_retrieves_again(federated_bob,
     # Bob needs to either instantiate the message_kit again or use use_attached_cfrags=True.
     with pytest.raises(TypeError):
         federated_bob.retrieve(message_kit=the_message_kit,
-                               data_source=the_data_source,
+                               enrico=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
                                )
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   use_attached_cfrags=True)
@@ -422,7 +422,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
     # Since 8 Ursulas are down, Bob can only get 2 CFrags; not enough to complete retrieval.
     with pytest.raises(ursula1.NotEnoughUrsulas):
         federated_bob.retrieve(message_kit=the_message_kit,
-                               data_source=the_data_source,
+                               enrico=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
 
@@ -440,7 +440,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
 
     with pytest.raises(ursula1.NotEnoughUrsulas):
         federated_bob.retrieve(message_kit=the_message_kit,
-                               data_source=the_data_source,
+                               enrico=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
 
@@ -480,7 +480,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     # Bob can't retrieve; there aren't enough Ursulas up.
     with pytest.raises(ursula1.NotEnoughUrsulas):
         federated_bob.retrieve(message_kit=the_message_kit,
-                               data_source=the_data_source,
+                               enrico=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
                                retain_cfrags=True)
@@ -500,14 +500,14 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     # We're not allowed to try again with a Capsule with cached CFrags if we set cache to False.
     with pytest.raises(TypeError):
         federated_bob.retrieve(message_kit=the_message_kit,
-                               data_source=the_data_source,
+                               enrico=the_data_source,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
                                retain_cfrags=False)
 
     # But now, with just one Ursula up, we can use the cached CFrags to get the message.
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   retain_cfrags=True,
@@ -521,7 +521,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
         federated_bob.network_middleware.node_is_down(ursula)
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   retain_cfrags=True,
@@ -534,7 +534,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
 
     # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   use_precedent_work_orders=True)
