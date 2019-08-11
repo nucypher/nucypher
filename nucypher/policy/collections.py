@@ -387,6 +387,10 @@ class WorkOrder:
         self.completed = maya.now()
         return good_cfrags
 
+    def sanitize(self):
+        for task in self.tasks.values():
+            task.cfrag = CFRAG_NOT_RETAINED
+
 
 class WorkOrderHistory:
 
