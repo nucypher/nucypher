@@ -55,12 +55,12 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     Activate the newly created virtual environment:
     
     ```bash
-    $ source /your/path/nucypher-venv
+    $ source /your/path/nucypher-venv/bin/activate
     ...
     $(nucypher-venv)
     ```
 
-    ``` note:: Successful virtualenv activation is indicated by '(nucypher-venv)$' prepending your console's prompt
+    ``` note:: Successful virtualenv activation is indicated by `(nucypher-venv)$` prepending your console's prompt
     ```
 
 
