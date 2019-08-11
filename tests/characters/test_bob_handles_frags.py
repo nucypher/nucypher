@@ -229,15 +229,9 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
     # We already got a CFrag for this WorkOrder, a couple of tests ago.
     assert old_work_order.tasks[last_capsule_on_side_channel].cfrag
 
-    # As such, we will get TypeError if we try to get CFrags again and don't reuse_already_attached.
+    # As such, we will get TypeError if we try to get CFrags again.
     with pytest.raises(TypeError):
-        federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=False)
-
-    # On the other hand, if we are willing to reuse_already_attached, we'll get the CFrag back again.
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=True)
-
-    # One Capsule, one cFrag (the fact that it is just one WorkOrder is immaterial; the number of CFrags follows the number of Capsules).
-    assert len(cfrags) == 1
+        federated_bob.get_reencrypted_cfrags(new_work_order)
 
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_bob,
@@ -284,8 +278,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # ...it's not the same WorkOrder.
     assert new_work_order != saved_work_order
 
-    # Since this WorkOrder has never been completed, it will work even if we refuse to reuse_already_attached (Amnesiac Bob mode).
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, reuse_already_attached=False)
+    # This WorkOrder has never been completed
+    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
