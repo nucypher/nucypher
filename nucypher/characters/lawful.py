@@ -631,7 +631,8 @@ class Bob(Character):
 
     def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
         if work_order.completed:
-            raise TypeError("This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+            raise TypeError(
+                "This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
 
         cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
         cfrags = work_order.complete(cfrags_and_signatures)
@@ -650,9 +651,9 @@ class Bob(Character):
                  message_kit: UmbralMessageKit,
                  alice_verifying_key: UmbralPublicKey,
                  label: bytes,
-                 retain_cfrags: bool=False,
-                 use_attached_cfrags: bool=False,
-                 use_precedent_work_orders: bool=False):
+                 retain_cfrags: bool = False,
+                 use_attached_cfrags: bool = False,
+                 use_precedent_work_orders: bool = False):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
@@ -667,10 +668,10 @@ class Bob(Character):
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
         capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
+            delegating=enrico.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
-        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule)
+        new_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule)
 
         self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
 
@@ -680,7 +681,8 @@ class Bob(Character):
                     cfrag_in_question = work_order.tasks[capsule].cfrag
                     capsule.attach_cfrag(cfrag_in_question)
             else:
-                self.log.warn("Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+                self.log.warn(
+                    "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
 
         cleartexts = []
 
