@@ -582,7 +582,7 @@ class Bob(Character):
 
     def work_orders_for_capsule(self, map_id: str, *capsules,
                                 num_ursulas: int = None,
-                                cache: bool = False):
+                                ):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -611,6 +611,7 @@ class Bob(Character):
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     complete_work_orders[node_id] = precedent_work_order
                 except KeyError:
+                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
@@ -656,7 +657,7 @@ class Bob(Character):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
-        capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+        capsule = message_kit.capsule  # TODO: WorkOrders can have more than one PRETask (each with its own Capsule).  So, let's generalize for WorkOrders with more than one Capsule.
 
         if len(capsule) > 0:
             if not use_attached_cfrags:
@@ -670,7 +671,7 @@ class Bob(Character):
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
-        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule, cache=retain_cfrags)
+        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule)
 
         self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
 
