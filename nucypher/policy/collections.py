@@ -391,6 +391,7 @@ class WorkOrderHistory:
 
     def __init__(self) -> None:
         self.by_ursula = {}  # type: dict
+        self._latest_replete = {}
 
     def __contains__(self, item):
         assert False

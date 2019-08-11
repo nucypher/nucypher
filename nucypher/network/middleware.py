@@ -163,8 +163,7 @@ class RestMiddleware:
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
         splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
         cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
-        cfrags = work_order.complete(cfrags_and_signatures)
-        return cfrags
+        return cfrags_and_signatures
 
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations

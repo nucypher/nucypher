@@ -164,7 +164,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed is False
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
-    cfrags = federated_bob.get_reencrypted_cfrags(work_order)
+    cfrags = federated_bob.get_reencrypted_cfrags(work_order, retain_cfrags=True)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
@@ -221,8 +221,9 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
         num_ursulas=1,
         )
 
-    # Here we show that since we're using the same completed WorkOrder again, we get it back.
-    new_work_order = list(complete_work_orders.values())[0]
+    # Here we show that this WorkOrder is still saved, replete with the CFrag.
+    work_orders_for_this_capsule = federated_bob._completed_work_orders._latest_replete[last_capsule_on_side_channel]
+    new_work_order = list(work_orders_for_this_capsule.values())[0]
     assert old_work_order == new_work_order
 
     # We already got a CFrag for this WorkOrder, a couple of tests ago.
@@ -277,7 +278,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert new_work_order != saved_work_order
 
     # This WorkOrder has never been completed
-    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order)
+    cfrags = federated_bob.get_reencrypted_cfrags(new_work_order, retain_cfrags=True)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
