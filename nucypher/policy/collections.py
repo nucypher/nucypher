@@ -408,6 +408,21 @@ class WorkOrderHistory:
     def ursulas(self):
         return self.by_ursula.keys()
 
+    def most_recent_replete(self, capsule):
+        """
+        Returns most recent WorkOrders for each Ursula which contain a complete task (with CFrag attached) for this Capsule.
+        """
+        return self._latest_replete[capsule]
+
+    def save_work_order(self, work_order, as_replete=False):
+        for task in work_order.tasks.values():
+            if as_replete:
+                work_orders_for_ursula = self._latest_replete.setdefault(task.capsule, {})
+                work_orders_for_ursula[work_order.ursula.checksum_address] = work_order
+
+            work_orders_for_ursula = self.by_ursula.setdefault(work_order.ursula.checksum_address, {})
+            work_orders_for_ursula[task.capsule] = work_order
+
     def by_checksum_address(self, checksum_address):
         return self.by_ursula.setdefault(checksum_address, {})
 
