@@ -772,7 +772,9 @@ class Learner:
                                             number_of_known_nodes=len(self.known_nodes))
             return FLEET_STATES_MATCH
 
-        node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
+        node_list = Ursula.batch_from_bytes(node_payload,
+                                            federated_only=self.federated_only,
+                                            blockchain=self.blockchain)  # TODO: 466
 
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),

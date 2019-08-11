@@ -1313,6 +1313,7 @@ class Ursula(Teacher, Character, Worker):
                          ursulas_as_bytes: Iterable[bytes],
                          federated_only: bool = False,
                          fail_fast: bool = False,
+                         blockchain: BlockchainInterface = None,
                          ) -> List['Ursula']:
 
         node_splitter = BytestringSplitter(VariableLengthBytestring)
@@ -1323,7 +1324,7 @@ class Ursula(Teacher, Character, Worker):
         ursulas = []
         for version, node_bytes in versions_and_node_bytes:
             try:
-                ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only)
+                ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only, blockchain=blockchain)
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
