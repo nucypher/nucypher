@@ -127,7 +127,7 @@ class BlockchainPolicy(Policy):
         self.handpicked_ursulas = handpicked_ursulas or UNKNOWN_ARRANGEMENTS
         self.value = value
         self.author = alice
-        self.selection_buffer = 1.5
+        self.selection_buffer = 1
 
         if not self.value > 0:
             raise self.InvalidPolicy("Value must be greater than 0.")
@@ -225,7 +225,9 @@ class BlockchainPolicy(Policy):
         if actual_sample_quantity > 0:
             # Sample by reading from the Blockchain
             try:
-                sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=self.lock_periods)
+                sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
+                                                       duration=self.lock_periods,
+                                                       additional_ursulas=1.0)
 
             except StakingEscrowAgent.NotEnoughStakers as e:
                 error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
