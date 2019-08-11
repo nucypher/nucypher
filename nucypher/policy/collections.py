@@ -396,7 +396,7 @@ class WorkOrderHistory:
         assert False
 
     def __getitem__(self, item):
-        return self.by_ursula.setdefault(item, {})
+        return self.by_ursula[item]
 
     def __setitem__(self, key, value):
         assert False
@@ -407,6 +407,9 @@ class WorkOrderHistory:
     @property
     def ursulas(self):
         return self.by_ursula.keys()
+
+    def by_checksum_address(self, checksum_address):
+        return self.by_ursula.setdefault(checksum_address, {})
 
     def by_capsule(self, capsule: Capsule):
         ursulas_by_capsules = {}  # type: dict
