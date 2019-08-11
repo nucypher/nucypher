@@ -439,7 +439,7 @@ class Bob(Character):
             self.make_cli_controller()
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
-        self._pending_work_orders = WorkOrderHistory()
+        self._completed_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
@@ -606,24 +606,16 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                existing_work_order = self._pending_work_orders[node_id].get(capsule)
-                if existing_work_order:
+                try:
+                    precedent_work_order = self._completed_work_orders[node_id][capsule]
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
-                    if existing_work_order.completed:
-                        # TODO: Do we want these to expire at some point?
-                        complete_work_orders[node_id] = existing_work_order
-                    else:
-                        self.log.info("Found an unused WorkOrder.  For now, we'll try to complete it.  See #1197.")
-                        incomplete_work_orders[node_id] = existing_work_order
-                else:
+                    complete_work_orders[node_id] = precedent_work_order
+                except KeyError:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
                 incomplete_work_orders[node_id] = work_order
-                # TODO: Fix this. It's always taking the last capsule
-                if cache:
-                    self._pending_work_orders[node_id][capsule] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
             if num_ursulas == len(incomplete_work_orders):
@@ -652,9 +644,8 @@ class Bob(Character):
             # cfrags = work_order.complete(cfrags_and_signatures)  # Will raise InvalidSignature or return CFrags.  TODO: Handle this scenario.  See #957.
 
         for task in work_order.tasks.values():
-            # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._pending_work_orders[work_order.ursula.checksum_address]
-            work_orders_by_ursula[task.capsule] = work_order
+            completed_work_orders_for_ursula = self._completed_work_orders.by_checksum_address(work_order.ursula.checksum_address)
+            completed_work_orders_for_ursula[task.capsule] = work_order
         return cfrags
 
     def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
