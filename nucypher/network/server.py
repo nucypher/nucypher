@@ -151,7 +151,9 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        nodes = _node_class.batch_from_bytes(request.data, federated_only=this_node.federated_only)  # TODO: 466
+        nodes = _node_class.batch_from_bytes(request.data,
+                                             federated_only=this_node.federated_only,
+                                             blockchain=this_node.blockchain)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
