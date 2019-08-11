@@ -353,7 +353,38 @@ def test_federated_bob_retrieves(federated_bob,
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
 
-def test_federated_bob_retrieves_again(federated_bob,
+def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
+                                 federated_alice,
+                                 capsule_side_channel,
+                                 enacted_federated_policy,
+                                 ):
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
+    capsule_side_channel.reset()
+    the_message_kit, the_data_source = capsule_side_channel()
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  enrico=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label)
+
+    # We show that indeed this is the passage originally encrypted by the Enrico.
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  enrico=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  use_precedent_work_orders=True)
+
+    # We show that indeed this is the passage originally encrypted by the Enrico.
+    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+
+
+def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
                                        federated_alice,
                                        capsule_side_channel,
                                        enacted_federated_policy,
