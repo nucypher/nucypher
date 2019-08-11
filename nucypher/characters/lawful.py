@@ -725,10 +725,10 @@ class Bob(Character):
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
         capsule.set_correctness_keys(
-            delegating=data_source.policy_pubkey,
+            delegating=enrico.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
-        incomplete_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule)
+        new_work_orders, complete_work_orders = self.work_orders_for_capsule(map_id, capsule)
 
         self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
 
