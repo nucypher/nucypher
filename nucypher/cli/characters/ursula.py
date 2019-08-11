@@ -352,7 +352,7 @@ def ursula(click_config,
 
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: #1216 - what are request_id and duration here?
 
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()
