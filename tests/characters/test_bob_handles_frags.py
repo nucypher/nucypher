@@ -341,7 +341,7 @@ def test_federated_bob_retrieves(federated_bob,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
-                                                  data_source=the_data_source,
+                                                  enrico=the_data_source,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
 
