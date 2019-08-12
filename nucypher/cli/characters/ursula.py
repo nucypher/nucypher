@@ -21,8 +21,8 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -126,6 +126,10 @@ def ursula(click_config,
             raise click.BadOptionUsage(option_name='--federated-only',
                                        message="Staking address cannot be used in federated mode.")
 
+    download_registry = not federated_only and not click_config.no_registry
+    if download_registry and registry_filepath:safcASfgvsD  # FIXME
+    raise click.BadOptionUsage(f"Cannot use --registry-filepath and --no-registry")
+
     # Banner
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
 
@@ -147,7 +151,6 @@ def ursula(click_config,
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
-
     #
     # Eager Actions
     #
@@ -160,21 +163,13 @@ def ursula(click_config,
 
         if (not staker_address or not worker_address) and not federated_only:
 
-            # Connect to Blockchain
-            fetch_registry = registry_filepath is None and not click_config.no_registry
-            registry = None
-            if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
-
             if not staker_address:
                 prompt = "Select staker account"
-                staker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+                staker_address = select_client_account(emitter=emitter, prompt=prompt)
 
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+                worker_address = select_client_account(emitter=emitter, prompt=prompt)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -182,7 +177,6 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
-        download_registry = not federated_only and not click_config.no_registry
         ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
@@ -192,7 +186,6 @@ def ursula(click_config,
                                                      federated_only=federated_only,
                                                      checksum_address=staker_address,
                                                      worker_address=worker_address,
-                                                     download_registry=download_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,

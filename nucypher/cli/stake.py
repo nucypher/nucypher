@@ -21,7 +21,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
@@ -118,7 +118,7 @@ def stake(click_config,
         fetch_registry = registry_filepath is None and not click_config.no_registry
         registry = None
         if registry_filepath:
-            registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            registry = ContractRegistry(registry_filepath=registry_filepath)
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
 
         blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
@@ -139,7 +139,7 @@ def stake(click_config,
                                                       provider_uri=provider_uri,
                                                       registry_filepath=registry_filepath,
                                                       offline=offline,
-                                                      sync_now=sync)
+                                                      sync=sync)
     #
     # Eager Actions
     #
@@ -166,7 +166,7 @@ def stake(click_config,
     elif action == 'set-worker':
 
         if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
+            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
 
         if not worker_address:
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
@@ -200,7 +200,7 @@ def stake(click_config,
     elif action == 'detach-worker':
 
         if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).owner_address
+            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
 
         if worker_address:
             raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address")
@@ -328,8 +328,8 @@ def stake(click_config,
         # Execute
         password = None
         if not hw_wallet and not STAKEHOLDER.blockchain.client.is_local:
-            password = get_client_password(checksum_address=current_stake.owner_address)
-        modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.owner_address,
+            password = get_client_password(checksum_address=current_stake.staker_address)
+        modified_stake, new_stake = STAKEHOLDER.divide_stake(address=current_stake.staker_address,
                                                              index=current_stake.index,
                                                              value=value,
                                                              duration=extension,

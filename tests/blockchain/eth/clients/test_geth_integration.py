@@ -4,9 +4,9 @@ import pytest
 from eth_utils import is_checksum_address
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.actors import DeployerActor
+from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.api import verify_eip_191
 
 
@@ -54,12 +54,12 @@ def test_geth_deployment_integration(instant_geth_dev_node):
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
-    memory_registry = InMemoryEthereumContractRegistry()
+    memory_registry = InMemoryContractRegistry()
     blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, registry=memory_registry)
 
     # Make Deployer
     etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
-    deployer = DeployerActor(blockchain=blockchain,
+    deployer = Administrator(blockchain=blockchain,
                              deployer_address=etherbase,
                              client_password=None)  # dev accounts have no password.
 

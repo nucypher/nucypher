@@ -40,6 +40,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.control.controllers import JSONRPCController
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
@@ -74,12 +75,12 @@ class Character(Learner):
                  domains: Set = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 blockchain: BlockchainInterface = None,
                  checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
+                 registry: ContractRegistry = None,
                  *args, **kwargs
                  ) -> None:
 
@@ -136,10 +137,8 @@ class Character(Learner):
 
         # Needed for on-chain verification
         if not self.federated_only:
-            self.blockchain = blockchain
-            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+            self.staking_agent = StakingEscrowAgent(registry=registry)
         else:
-            self.blockchain = FEDERATED_ONLY
             self.staking_agent = FEDERATED_ONLY
 
         #
@@ -182,8 +181,6 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
-            if not blockchain and is_me:
-                raise ValueError('No blockchain interface provided to run decentralized mode.')
             if not checksum_address:
                 raise ValueError("No checksum_address provided to run in decentralized mode.")
             else:

@@ -33,6 +33,7 @@ from twisted.logger import Logger
 
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
@@ -311,7 +312,9 @@ def select_stake(stakeholder, emitter) -> Stake:
     return chosen_stake
 
 
-def select_client_account(emitter, blockchain, prompt: str = None, default=0) -> str:
+def select_client_account(emitter, prompt: str = None, default=0) -> str:
+
+    blockchain = BlockchainInterfaceFactory.get_interface()
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo("No ETH accounts were found.", color='red', bold=True)

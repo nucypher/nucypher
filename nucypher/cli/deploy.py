@@ -20,10 +20,10 @@ import os
 
 import click
 
-from nucypher.blockchain.eth.actors import DeployerActor
+from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli import actions
 from nucypher.cli.actions import get_client_password, select_client_account
@@ -122,7 +122,7 @@ def deploy(action,
     if dev:
         # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
         registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
-    registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+    registry = ContractRegistry(registry_filepath=registry_filepath)
     emitter.echo(f"Using contract registry filepath {registry.filepath}")
 
     #
@@ -153,7 +153,7 @@ def deploy(action,
         password = get_client_password(checksum_address=deployer_address)
 
     # Produce Actor
-    DEPLOYER = DeployerActor(blockchain=blockchain,
+    DEPLOYER = Administrator(blockchain=blockchain,
                              client_password=password,
                              deployer_address=deployer_address)
 

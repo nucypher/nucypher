@@ -6,7 +6,7 @@ from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.main import nucypher_cli
@@ -46,7 +46,7 @@ def test_run_felix(click_runner,
     BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     # Mock live contract registry reads
-    EthereumContractRegistry.read = lambda *a, **kw: cached_blockchain.registry.read()
+    ContractRegistry.read = lambda *a, **kw: cached_blockchain.registry.read()
 
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,

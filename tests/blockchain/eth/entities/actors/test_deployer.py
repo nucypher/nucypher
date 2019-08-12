@@ -21,7 +21,7 @@ import string
 import pytest
 from web3.auto import w3
 
-from nucypher.blockchain.eth.actors import DeployerActor
+from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -36,7 +36,8 @@ from nucypher.utilities.sandbox.constants import (
 
 
 @pytest.mark.slow()
-def test_rapid_deployment(token_economics):
+@pytest.mark.usefixtures('testerchain')
+def test_rapid_deployment(token_economics, test_registry):
     compiler = SolidityCompiler()
     allocation_registry = InMemoryAllocationRegistry()
 
@@ -45,13 +46,13 @@ def test_rapid_deployment(token_economics):
                                    compiler=compiler)
 
     # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
-                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
+    blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                     account=blockchain.etherbase_account)
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = DeployerActor(blockchain=blockchain, deployer_address=deployer_address)
+    deployer = Administrator(deployer_address=deployer_address,
+                             registry=test_registry)
 
     secrets = dict()
     for deployer_class in deployer.upgradeable_deployer_classes:

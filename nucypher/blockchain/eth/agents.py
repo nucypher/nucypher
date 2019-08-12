@@ -24,40 +24,20 @@ from eth_utils.address import to_checksum_address
 from twisted.logger import Logger
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, \
-    POLICY_MANAGER_CONTRACT_NAME, USER_ESCROW_CONTRACT_NAME, USER_ESCROW_PROXY_CONTRACT_NAME, \
-    LIBRARY_LINKER_CONTRACT_NAME, ADJUDICATOR_CONTRACT_NAME, NUCYPHER_TOKEN_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import (
+    DISPATCHER_CONTRACT_NAME,
+    STAKING_ESCROW_CONTRACT_NAME,
+    POLICY_MANAGER_CONTRACT_NAME,
+    USER_ESCROW_CONTRACT_NAME,
+    USER_ESCROW_PROXY_CONTRACT_NAME,
+    LIBRARY_LINKER_CONTRACT_NAME,
+    ADJUDICATOR_CONTRACT_NAME,
+    NUCYPHER_TOKEN_CONTRACT_NAME
+)
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import AllocationRegistry, ContractRegistry
 from nucypher.crypto.api import sha256_digest
-
-
-class Agency(type):
-    __agents = dict()
-
-    class NoAgency(Exception):
-        pass
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls.__agents:
-            cls.__agents[cls] = super().__call__(*args, **kwargs)
-        return cls.__agents[cls]
-
-    @classmethod
-    def clear(mcs):
-        mcs.__agents = dict()
-
-    @property
-    def agents(cls):
-        return cls.__agents
-
-    @classmethod
-    def get_agent(mcs, cls):
-        try:
-            return mcs.__agents[cls]
-        except KeyError:
-            raise mcs.NoAgency
 
 
 class EthereumContractAgent:
@@ -69,39 +49,41 @@ class EthereumContractAgent:
     _forward_address = True
     _proxy_name = None
 
-    DEFAULT_TRANSACTION_GAS = {}
+    # TODO
+    DEFAULT_TRANSACTION_GAS_LIMITS = {}
 
     class ContractNotDeployed(Exception):
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface = None,
+                 registry: ContractRegistry,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
 
         self.log = Logger(self.__class__.__name__)
 
-        # TODO: Move this to agency class?
-        if not blockchain:
-            raise ValueError("Blockchain is required to connect a new agent.")
-        self.blockchain = blockchain
+        self.registry = registry
+
+        # NOTE: Entry-point for multi-provider support
+        self.blockchain = BlockchainInterfaceFactory.get_interface()
 
         if contract is None:  # Fetch the contract
-            contract = self.blockchain.get_contract_by_name(name=self.registry_contract_name,
+            contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                            name=self.registry_contract_name,
                                                             proxy_name=self._proxy_name,
                                                             use_proxy_address=self._forward_address)
         self.__contract = contract
 
         if not transaction_gas:
-            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS
+            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS
         self.transaction_gas = transaction_gas
 
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract_address,
                                                                         self.blockchain.provider_uri,
-                                                                        self.blockchain.registry.filepath))
+                                                                        self.registry.filepath))
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -124,7 +106,7 @@ class EthereumContractAgent:
         return self.registry_contract_name
 
 
-class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
+class NucypherTokenAgent(EthereumContractAgent):
 
     registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
@@ -148,7 +130,7 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
                                                    sender_address=sender_address)
         return receipt
 
-    def transfer(self, amount: int, target_address: str, sender_address: str, auto_approve: bool = True):
+    def transfer(self, amount: int, target_address: str, sender_address: str, auto_approve: bool = False):  # TODO
         if auto_approve:
             allowance = self.contract.functions.allowance(sender_address, target_address).call()
             if allowance != 0:
@@ -163,7 +145,7 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
         return receipt
 
 
-class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
+class StakingEscrowAgent(EthereumContractAgent):
 
     registry_contract_name = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
@@ -390,7 +372,7 @@ class StakingEscrowAgent(EthereumContractAgent, metaclass=Agency):
         raise self.NotEnoughStakers('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyManagerAgent(EthereumContractAgent, metaclass=Agency):
+class PolicyManagerAgent(EthereumContractAgent):
 
     registry_contract_name = POLICY_MANAGER_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
@@ -481,10 +463,10 @@ class UserEscrowAgent(EthereumContractAgent):
         # Sets the above
         self.__read_principal()
         self.__read_proxy()
-        super().__init__(blockchain=self.blockchain, contract=self.principal_contract, *args, **kwargs)
+        super().__init__(registry=self.registry, contract=self.principal_contract, *args, **kwargs)
 
     def __read_proxy(self):
-        self.__proxy_agent = self.UserEscrowProxyAgent(blockchain=self.blockchain)
+        self.__proxy_agent = self.UserEscrowProxyAgent(registry=self.registry)
         contract = self.__proxy_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
         self.__proxy_contract = contract
 
@@ -582,7 +564,7 @@ class UserEscrowAgent(EthereumContractAgent):
         return receipt
 
 
-class AdjudicatorAgent(EthereumContractAgent, metaclass=Agency):
+class AdjudicatorAgent(EthereumContractAgent):
 
     registry_contract_name = ADJUDICATOR_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME

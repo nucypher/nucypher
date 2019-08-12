@@ -18,19 +18,19 @@ import pytest
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import ContractRegistry
 
 
-def test_token_deployer_and_agent(session_testerchain, deployment_progress):
-    testerchain = session_testerchain
+def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry):
+    testerchain = testerchain
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails
-    with pytest.raises(EthereumContractRegistry.UnknownContract):
-        NucypherTokenAgent(blockchain=testerchain)
+    with pytest.raises(ContractRegistry.UnknownContract):
+        NucypherTokenAgent(registry=test_registry)
 
     # The big day...
-    deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
+    deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
 
     deployment_receipts = deployer.deploy(progress=deployment_progress)
 
@@ -48,10 +48,10 @@ def test_token_deployer_and_agent(session_testerchain, deployment_progress):
     assert expected_token_supply == token_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
-    same_token_agent = NucypherTokenAgent(blockchain=testerchain)
+    same_token_agent = NucypherTokenAgent(registry=test_registry)
 
     # Compare the contract address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
     assert token_agent == same_token_agent  # __eq__
 
-    testerchain.registry.clear()
+    test_registry.clear()  # TODO?

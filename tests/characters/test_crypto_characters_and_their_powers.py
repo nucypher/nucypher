@@ -125,8 +125,7 @@ def test_character_transacting_power_signing(testerchain, agency):
     signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
 
     # Manually consume the power up
-    transacting_power = TransactingPower(blockchain=testerchain,
-                                         password=INSECURE_DEVELOPMENT_PASSWORD,
+    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                          account=eth_address)
 
     signer._crypto_power.consume_power_up(transacting_power)

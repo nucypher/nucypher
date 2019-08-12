@@ -46,6 +46,7 @@ from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
@@ -122,11 +123,11 @@ class Alice(Character, PolicyAuthor):
         if is_me and not federated_only:  # TODO: #289
             transacting_power = TransactingPower(account=self.checksum_address,
                                                  password=client_password,
-                                                 blockchain=self.blockchain)
+                                                 registry=self.registry)
             self._crypto_power.consume_power_up(transacting_power)
 
             PolicyAuthor.__init__(self,
-                                  blockchain=self.blockchain,
+                                  registry=self.registry,
                                   policy_agent=policy_agent,
                                   checksum_address=checksum_address)
 
@@ -839,7 +840,7 @@ class Ursula(Teacher, Character, Worker):
                  timestamp=None,
 
                  # Blockchain
-                 blockchain: BlockchainInterface = None,
+                 registry: ContractRegistry = None,
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
@@ -875,8 +876,8 @@ class Ursula(Teacher, Character, Worker):
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
+                           registry=registry,
                            domains=domains,
-                           blockchain=blockchain,
                            **character_kwargs)
 
         #
@@ -892,9 +893,7 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address,
-                                                     password=client_password,
-                                                     blockchain=self.blockchain)
+                transacting_power = TransactingPower(account=worker_address, password=client_password)
                 self._crypto_power.consume_power_up(transacting_power)
 
                 # Use this power to substantiate the stamp
@@ -904,7 +903,7 @@ class Ursula(Teacher, Character, Worker):
 
                 Worker.__init__(self,
                                 is_me=is_me,
-                                blockchain=self.blockchain,
+                                registry=registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 stake_tracker=stake_tracker)
@@ -1181,7 +1180,7 @@ class Ursula(Teacher, Character, Worker):
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
-                   blockchain: BlockchainInterface = None,
+                   registry: ContractRegistry = None,
                    ) -> 'Ursula':
 
         if version is INCLUDED_IN_BYTESTRING:
@@ -1218,7 +1217,7 @@ class Ursula(Teacher, Character, Worker):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(blockchain=blockchain, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(registry=registry, federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod

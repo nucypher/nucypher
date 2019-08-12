@@ -15,9 +15,9 @@ from eth_utils import currency, is_checksum_address
 from twisted.internet import task, reactor
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.utils import datetime_at_period, datetime_to_period
+from nucypher.blockchain.eth.utils import datetime_at_period
 
 
 class NU:
@@ -145,33 +145,41 @@ class Stake:
         """Raised when a staking operation cannot be executed due to failure."""
 
     def __init__(self,
+                 staking_agent: StakingEscrowAgent,
                  checksum_address: str,
                  value: NU,
-                 start_period: int,
-                 end_period: int,
+                 first_locked_period: int,
+                 last_locked_period: int,
                  index: int,
-                 economics = None,
+                 economics=None,
                  validate_now: bool = True):
 
         self.log = Logger(f'stake-{checksum_address}-{index}')
 
-        # Stake Metadata
-        self.owner_address = checksum_address
+        # Ownership
+        self.staker_address = checksum_address
         self.worker_address = UNKNOWN_WORKER_STATUS
+
+        # Stake Metadata
         self.index = index
         self.value = value
-        self.start_period = start_period
-        self.end_period = end_period
+
+        # Periods
+        self.first_locked_period = first_locked_period
+
+        # TODO: Move Me Brightly - Docs
+        # After this period has passes, workers can go offline, if this is the only stake.
+        # This is the last period that can be confirmed for this stake.
+        # Meaning, It must be confirmed in the previous period,
+        # and no confirmation can be performed in this period for this stake.
+        self.last_locked_period = last_locked_period
 
         # Time
-        self.start_datetime = datetime_at_period(period=start_period)
-        self.end_datetime = datetime_at_period(period=end_period)
-        self.duration_delta = self.end_datetime - self.start_datetime
+        self.start_datetime = datetime_at_period(period=first_locked_period)
+        self.unlock_datetime = datetime_at_period(period=last_locked_period + 1)
 
-        # Agency
-        self.staking_agent = None
-        self.token_agent = NucypherTokenAgent()  # TODO: Use Agency
-        self.blockchain = self.token_agent.blockchain
+        # Blockchain
+        self.staking_agent = staking_agent
 
         # Economics
         from nucypher.blockchain.economics import TokenEconomics
@@ -183,10 +191,10 @@ class Stake:
             self.validate_duration()
 
         self.transactions = NO_STAKING_RECEIPT
-        self.receipt = NO_STAKING_RECEIPT
+        self.receipt = NO_STAKING_RECEIPT  # TODO: Implement for initialize stake
 
     def __repr__(self) -> str:
-        r = f'Stake(index={self.index}, value={self.value}, end_period={self.end_period})'
+        r = f'Stake(index={self.index}, value={self.value}, end_period={self.last_locked_period})'
         return r
 
     def __eq__(self, other) -> bool:
@@ -198,11 +206,8 @@ class Stake:
 
     @property
     def is_expired(self) -> bool:
-        if self.staking_agent:
-            current_period = self.staking_agent.get_current_period()  # on-chain
-        else:
-            current_period = datetime_to_period(maya.now())  # off-chain
-        return bool(current_period >= self.end_period)
+        current_period = self.staking_agent.get_current_period()  # TODO this is online only.
+        return bool(current_period > self.last_locked_period)
 
     @property
     def is_active(self) -> bool:
@@ -213,25 +218,26 @@ class Stake:
     def from_stake_info(cls,
                         checksum_address: str,
                         index: int,
-                        stake_info: Tuple[int, int, int]
+                        stake_info: Tuple[int, int, int],
+                        staking_agent: StakingEscrowAgent,
                         ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
-        start_period, end_period, value = stake_info
+        first_locked_period, last_locked_period, value = stake_info
 
-        instance = cls(checksum_address=checksum_address,
+        instance = cls(staking_agent=staking_agent,
+                       checksum_address=checksum_address,
                        index=index,
-                       start_period=start_period,
-                       end_period=end_period,
+                       first_locked_period=first_locked_period,
+                       last_locked_period=last_locked_period,
                        value=NU(value, 'NuNit'))
 
-        agent = StakingEscrowAgent()
-        instance.worker_address = agent.get_worker_from_staker(staker_address=checksum_address)
+        instance.worker_address = instance.staking_agent.get_worker_from_staker(staker_address=checksum_address)
         return instance
 
     def to_stake_info(self) -> Tuple[int, int, int]:
         """Returns a tuple representing the blockchain record of a stake"""
-        return self.start_period, self.end_period, int(self.value)
+        return self.first_locked_period, self.last_locked_period, int(self.value)
 
     #
     # Duration
@@ -240,23 +246,26 @@ class Stake:
     @property
     def duration(self) -> int:
         """Return stake duration in periods"""
-        result = (self.end_period - self.start_period) + 1
+        result = (self.last_locked_period - self.first_locked_period) + 1
         return result
 
     @property
     def periods_remaining(self) -> int:
         """Returns the number of periods remaining in the stake from now."""
-        current_period = datetime_to_period(datetime=maya.now())
-        return self.end_period - current_period
+        current_period = self.staking_agent.get_current_period()  # TODO this is online only.
+        return self.last_locked_period - current_period + 1
 
     def time_remaining(self, slang: bool = False) -> Union[int, str]:
-        """Returns the time delta remaining in the stake from now."""
-        now = maya.now()
-        delta = self.end_datetime - now
-
+        """
+        Returns the time delta remaining in the stake from now.
+        This method is designed for *UI* usage.
+        """
         if slang:
-            result = self.end_datetime.slang_date()
+            result = self.unlock_datetime.slang_date()
         else:
+            # TODO - EthAgent?
+            blocktime_epoch = self.staking_agent.blockchain.client.w3.eth.getBlock('latest').timestamp
+            delta = self.unlock_datetime.epoch - blocktime_epoch
             result = delta.seconds
         return result
 
@@ -311,24 +320,19 @@ class Stake:
     def sync(self) -> None:
         """Update this stakes attributes with on-chain values."""
 
-        if not self.staking_agent:
-            self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        if not self.token_agent:
-            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-
         # Read from blockchain
-        stake_info = self.staking_agent.get_substake_info(staker_address=self.owner_address,
+        stake_info = self.staking_agent.get_substake_info(staker_address=self.staker_address,
                                                           stake_index=self.index)  # < -- Read from blockchain
 
         first_period, last_period, locked_value = stake_info
-        if not self.start_period == first_period:
+        if not self.first_locked_period == first_period:
             # TODO: Provide an escape path or re-attempt in implementation
             raise self.StakingError("Inconsistent staking cache, aborting stake division.")
 
         # Mutate the instance with the on-chain values
-        self.end_period = last_period
+        self.last_locked_period = last_period
         self.value = NU.from_nunits(locked_value)
-        self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.owner_address)
+        self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.staker_address)
 
     @classmethod
     def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
@@ -357,7 +361,7 @@ class Stake:
 
         # Ensure selected stake is active
         if self.is_expired:
-            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.end_datetime}.')
+            raise self.StakingError(f'Cannot divide an expired stake. Selected stake expired {self.unlock_datetime}.')
 
         if target_value >= self.value:
             raise self.StakingError(f"Cannot divide stake; Target value ({target_value}) must be less "
@@ -369,19 +373,21 @@ class Stake:
 
         # Modified Original Stake
         remaining_stake_value = self.value - target_value
-        modified_stake = Stake(checksum_address=self.owner_address,
+        modified_stake = Stake(checksum_address=self.staker_address,
                                index=self.index,
-                               start_period=self.start_period,
-                               end_period=self.end_period,
-                               value=remaining_stake_value)
+                               first_locked_period=self.first_locked_period,
+                               last_locked_period=self.last_locked_period,
+                               value=remaining_stake_value,
+                               staking_agent=self.staking_agent)
 
         # New Derived Stake
-        end_period = self.end_period + additional_periods
-        new_stake = Stake(checksum_address=self.owner_address,
-                          start_period=self.start_period,
-                          end_period=end_period,
+        end_period = self.last_locked_period + additional_periods
+        new_stake = Stake(checksum_address=self.staker_address,
+                          first_locked_period=self.first_locked_period,
+                          last_locked_period=end_period,
                           value=target_value,
-                          index=NEW_STAKE)
+                          index=NEW_STAKE,
+                          staking_agent=self.staking_agent)
 
         #
         # Validate
@@ -396,7 +402,7 @@ class Stake:
         #
 
         # Transmit the stake division transaction
-        receipt = self.staking_agent.divide_stake(staker_address=self.owner_address,
+        receipt = self.staking_agent.divide_stake(staker_address=self.staker_address,
                                                   stake_index=self.index,
                                                   target_value=int(target_value),
                                                   periods=additional_periods)
@@ -405,20 +411,21 @@ class Stake:
         return modified_stake, new_stake
 
     @classmethod
-    def initialize_stake(cls, staker, amount: NU, lock_periods: int = None) -> 'Stake':
+    def initialize_stake(cls, staker, amount: NU, lock_periods: int) -> 'Stake':
 
         # Value
         amount = NU(int(amount), 'NuNit')
 
         # Duration
         current_period = staker.staking_agent.get_current_period()
-        end_period = current_period + lock_periods
+        last_locked_period = current_period + lock_periods
 
         stake = Stake(checksum_address=staker.checksum_address,
-                      start_period=current_period+1,
-                      end_period=end_period,
+                      first_locked_period=current_period + 1,
+                      last_locked_period=last_locked_period,
                       value=amount,
-                      index=NEW_STAKE)
+                      index=NEW_STAKE,
+                      staking_agent=staker.staking_agent)
 
         # Validate
         stake.validate_value()
@@ -451,6 +458,7 @@ class StakeTracker:
     __actions = list()   # type: List[Tuple[Callable, tuple]]
 
     def __init__(self,
+                 staking_agent: StakingEscrowAgent,
                  checksum_addresses: List[str],
                  refresh_rate: int = None,
                  start_now: bool = False,
@@ -459,8 +467,8 @@ class StakeTracker:
         super().__init__(*args, **kwargs)
 
         self.log = Logger('stake-tracker')
-        self.staking_agent = StakingEscrowAgent()
 
+        self.staking_agent = staking_agent
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
 
@@ -558,6 +566,8 @@ class StakeTracker:
         if self.__current_period != onchain_period:
             self.__current_period = onchain_period
             self.__read_stakes()
+
+            # TODO:  Extract PeriodObserver - Can be used to optimize stake reading calls.
             for action, args in self.__actions:
                 action(*args)
 
@@ -590,11 +600,12 @@ class StakeTracker:
                 else:
                     onchain_stake = Stake.from_stake_info(checksum_address=checksum_address,
                                                           stake_info=stake_info,
+                                                          staking_agent=self.staking_agent,
                                                           index=onchain_index)
 
                     # rack the latest terminal period
-                    if onchain_stake.end_period > terminal_period:
-                        terminal_period = onchain_stake.end_period
+                    if onchain_stake.last_locked_period > terminal_period:
+                        terminal_period = onchain_stake.last_locked_period
 
                 # Store the replacement stake
                 onchain_stakes.append(onchain_stake)

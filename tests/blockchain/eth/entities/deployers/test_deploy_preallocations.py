@@ -24,22 +24,21 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 
 
 @pytest.fixture(scope='function')
-def user_escrow_proxy(session_agency):
+def user_escrow_proxy(session_agency, test_registry):
     token_agent, staking_agent, policy_agent = session_agency
     testerchain = policy_agent.blockchain
     deployer = testerchain.etherbase_account
 
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, blockchain=testerchain)
+    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, registry=test_registry)
 
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
     testerchain.time_travel(seconds=120)
     yield escrow_proxy_deployer.contract_address
-    testerchain.registry.clear()
-    testerchain.disconnect()
+    test_registry.clear()
 
 
 @pytest.mark.slow()
-def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics):
+def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics, test_registry):
     token_agent, staking_agent, policy_agent = session_agency
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
@@ -50,7 +49,7 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics)
 
     _last_deployment_address = None
     for index in range(number_of_deployments):
-        escrow_deployer = UserEscrowDeployer(deployer_address=origin, blockchain=testerchain)
+        escrow_deployer = UserEscrowDeployer(deployer_address=origin, registry=test_registry)
 
         _deployment_txhashes = escrow_deployer.deploy()
 

@@ -113,8 +113,8 @@ def test_stake(testerchain, agency):
 
     ursula = FakeUrsula()
     stake = Stake(checksum_address=ursula.checksum_address,
-                  start_period=1,
-                  end_period=100,
+                  first_locked_period=1,
+                  last_locked_period=100,
                   value=NU(100, 'NU'),
                   index=0)
 

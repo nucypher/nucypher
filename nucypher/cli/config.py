@@ -160,7 +160,6 @@ _nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=T
 def nucypher_click_config(func):
     @_nucypher_click_config
     @click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
-    @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
     @click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan", default=False)
     @click.option('-J', '--json-ipc', help="Send all IPC output to stdout as JSON, and turn off the rest", is_flag=True)
     @click.option('-v', '--verbose', help="Verbose console messages", is_flag=True)
@@ -190,7 +189,6 @@ def nucypher_click_config(func):
     def wrapper(config,
                 *args,
                 mock_networking,
-                no_registry,
                 etherscan,
                 json_ipc,
                 verbose,
@@ -205,7 +203,6 @@ def nucypher_click_config(func):
 
         config.set_options(
             mock_networking,
-            no_registry,
             etherscan,
             json_ipc,
             verbose,

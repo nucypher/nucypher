@@ -9,7 +9,7 @@ from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, Agency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU, Stake
@@ -126,7 +126,7 @@ def test_stake_init(click_runner,
     BlockchainInterface.from_dict = from_dict
 
     # Staker address has not stakes
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
+    staking_agent = StakingEscrowAgent(registry=registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 

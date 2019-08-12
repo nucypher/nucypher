@@ -6,7 +6,7 @@ from constant_sorrow.constants import NO_STAKES
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Worker
-from nucypher.blockchain.eth.agents import Agency, StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -38,7 +38,7 @@ def test_software_stakeholder_configuration(testerchain,
     # Restore StakeHolder instance from JSON config
     the_same_stakeholder = StakeHolder.from_configuration_file(filepath=path,
                                                                funding_password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                               blockchain=testerchain)
+                                                               registry=test_registry)
 
     # Save the JSON config again
     the_same_stakeholder.to_configuration_file(filepath=path, override=True)
@@ -61,7 +61,6 @@ def test_initialize_stake_with_existing_account(software_stakeholder, stake_valu
         stake = software_stakeholder.stakes[0]
 
     # Really... there are no stakes.
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
     stakes = list(staking_agent.get_all_stakes(staker_address=software_stakeholder.accounts[0]))
     assert len(stakes) == 0
 
@@ -100,7 +99,6 @@ def test_divide_stake(software_stakeholder, token_economics):
                                                                   duration=10,
                                                                   value=target_value)
 
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.owner_address))
     assert len(stakes) == 2
     assert new_stake.value == target_value
@@ -111,7 +109,6 @@ def test_set_worker(software_stakeholder, manual_worker):
     stake = software_stakeholder.stakes[1]
 
     staker = software_stakeholder.get_active_staker(stake.owner_address)
-    staking_agent = Agency.get_agent(StakingEscrowAgent)
 
     software_stakeholder.set_worker(staker_address=staker.checksum_address,
                                     worker_address=manual_worker)

@@ -25,10 +25,10 @@ from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.actors import DeployerActor
+from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, EthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, ContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -93,7 +93,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  eth_airdrop=False,
                  free_transactions=False,
                  compiler: SolidityCompiler = None,
-                 registry: EthereumContractRegistry = None,
                  *args, **kwargs):
 
         if not test_accounts:
@@ -107,7 +106,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          provider_process=None,
                          poa=poa,
                          compiler=self._compiler,
-                         registry=registry or InMemoryEthereumContractRegistry(),
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")
@@ -162,11 +160,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         tx_hashes = list()
         for address in addresses:
-
-            tx = {'to': address,
-                  'from': coinbase,
-                  'value': amount}
-
+            tx = {'to': address, 'from': coinbase, 'value': amount}
             txhash = self.w3.eth.sendTransaction(tx)
 
             _receipt = self.wait_for_receipt(txhash)
@@ -210,18 +204,17 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls) -> 'TesterBlockchain':
+    def bootstrap_network(cls, registry: ContractRegistry) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())
-        power = TransactingPower(blockchain=testerchain,
-                                 password=INSECURE_DEVELOPMENT_PASSWORD,
+        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                  account=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = DeployerActor(blockchain=testerchain, deployer_address=origin, bare=True)
+        deployer = Administrator(deployer_address=origin, registry=registry)
         secrets = dict()
         for deployer_class in deployer.upgradeable_deployer_classes:
             secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD

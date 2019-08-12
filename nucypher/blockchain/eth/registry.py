@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
+import hashlib
 import json
 import os
 import pprint
@@ -32,7 +33,7 @@ from typing import Union
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
-class EthereumContractRegistry:
+class ContractRegistry:
     """
     Records known contracts on the disk for future access and utility. This
     lazily writes to the filesystem during contract enrollment.
@@ -72,9 +73,25 @@ class EthereumContractRegistry:
     class IllegalRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, registry_filepath: str = None) -> None:
+    def __init__(self, registry_filepath: str = None):
         self.log = Logger("registry")
         self.__filepath = registry_filepath or self._default_registry_filepath
+        self.log.info("Using contract registry {}".format(self.__filepath))
+
+    def __eq__(self, other) -> bool:
+        if self is other:
+            return True  # and that's all
+        return bool(self.read() == other.read())
+
+    @classmethod
+    def from_dict(cls, payload: dict, **overrides) -> 'ContractRegistry':
+        payload.update({k: v for k, v in overrides.items() if v is not None})
+        blockchain = cls(registry_filepath=payload['filepath'])
+        return blockchain
+
+    def to_dict(self) -> dict:
+        payload = dict(filepath=self.__filepath)
+        return payload
 
     @classmethod
     def _get_registry_class(cls, local=False):
@@ -83,10 +100,13 @@ class EthereumContractRegistry:
         have deployed the Nucypher contracts on that blockchain, therefore
         we do not want to download a registry from github.
         """
-        return LocalEthereumContractRegistry if local else cls
+        return LocalContractRegistry if local else cls
 
     @classmethod
-    def download_latest_publication(cls, filepath: str = None, branch: str = 'goerli') -> str:
+    def download_latest_publication(cls,
+                                    filepath: str = None,
+                                    branch: str = 'goerli'  # TODO: Allow other branches to be used
+                                    ) -> str:
         """
         Get the latest published contract registry from github and save it on the local file system.
         """
@@ -115,7 +135,7 @@ class EthereumContractRegistry:
         return filepath
 
     @classmethod
-    def from_latest_publication(cls, filepath: str = None, branch: str = 'goerli') -> 'EthereumContractRegistry':
+    def from_latest_publication(cls, filepath: str = None, branch: str = 'goerli') -> 'ContractRegistry':
         filepath = cls.download_latest_publication(filepath=filepath, branch=branch)
         instance = cls(registry_filepath=filepath)
         return instance
@@ -231,7 +251,7 @@ class EthereumContractRegistry:
         return contracts if contract_name else contracts[0]
 
 
-class LocalEthereumContractRegistry(EthereumContractRegistry):
+class LocalContractRegistry(ContractRegistry):
 
     _default_registry_filepath = os.path.join(
         DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json'
@@ -244,7 +264,7 @@ class LocalEthereumContractRegistry(EthereumContractRegistry):
         return cls._default_registry_filepath
 
 
-class TemporaryEthereumContractRegistry(EthereumContractRegistry):
+class TemporaryContractRegistry(ContractRegistry):
 
     def __init__(self) -> None:
         _, self.temp_filepath = tempfile.mkstemp()
@@ -273,7 +293,7 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
         return filepath
 
 
-class InMemoryEthereumContractRegistry(EthereumContractRegistry):
+class InMemoryContractRegistry(ContractRegistry):
 
     def __init__(self) -> None:
         super().__init__(registry_filepath="::memory-registry::")
@@ -309,14 +329,14 @@ class InMemoryEthereumContractRegistry(EthereumContractRegistry):
         return filepath
 
 
-class AllocationRegistry(EthereumContractRegistry):
+class AllocationRegistry(ContractRegistry):
 
     _multi_contract = False
     _contract_name = 'UserEscrow'
 
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'allocation_registry.json')
 
-    class NoAllocationRegistry(EthereumContractRegistry.NoRegistry):
+    class NoAllocationRegistry(ContractRegistry.NoRegistry):
         pass
 
     class AllocationEnrollmentError(RuntimeError):
@@ -331,7 +351,7 @@ class AllocationRegistry(EthereumContractRegistry):
 
         try:
             allocation_data = self.read()
-        except EthereumContractRegistry.NoRegistry:
+        except ContractRegistry.NoRegistry:
             raise self.NoAllocationRegistry
 
         if beneficiary_address:

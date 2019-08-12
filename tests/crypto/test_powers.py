@@ -14,8 +14,7 @@ def test_transacting_power_sign_message(testerchain):
     # Manually create a TransactingPower
     testerchain.connect()
     eth_address = testerchain.etherbase_account
-    power = TransactingPower(blockchain=testerchain,
-                             password=INSECURE_DEVELOPMENT_PASSWORD,
+    power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                              account=eth_address)
 
     # The default state of the account is locked.
@@ -53,8 +52,7 @@ def test_transacting_power_sign_message(testerchain):
 def test_transacting_power_sign_transaction(testerchain):
 
     eth_address = testerchain.unassigned_accounts[2]
-    power = TransactingPower(blockchain=testerchain,
-                             password=INSECURE_DEVELOPMENT_PASSWORD,
+    power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                              account=eth_address)
 
     assert power.is_active is False
@@ -99,15 +97,14 @@ def test_transacting_power_sign_transaction(testerchain):
     assert power.is_unlocked is True
 
     # Tear-Down Test
-    power = TransactingPower(blockchain=testerchain,
-                             password=INSECURE_DEVELOPMENT_PASSWORD,
+    power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                              account=testerchain.etherbase_account)
     power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
 
-def test_transacting_power_sign_agent_transaction(testerchain, agency):
+def test_transacting_power_sign_agent_transaction(testerchain, agency, test_registry):
 
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
+    token_agent = NucypherTokenAgent(registry=test_registry)
     contract_function = token_agent.contract.functions.approve(testerchain.etherbase_account, 100)
 
     payload = {'chainId': int(testerchain.client.net_version),
@@ -118,8 +115,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency):
     unsigned_transaction = contract_function.buildTransaction(payload)
 
     # Sign with Transacting Power
-    transacting_power = TransactingPower(blockchain=testerchain,
-                                         password=INSECURE_DEVELOPMENT_PASSWORD,
+    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                          account=testerchain.etherbase_account)
     transacting_power.activate()
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)

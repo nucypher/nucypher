@@ -1,7 +1,7 @@
 import click
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
@@ -98,7 +98,7 @@ def bob(click_config,
         if not checksum_address and not federated_only:
             registry = None
             if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+                registry = ContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
             blockchain.connect(sync_now=sync, emitter=emitter)
             checksum_address = select_client_account(emitter=emitter, blockchain=blockchain)

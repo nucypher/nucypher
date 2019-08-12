@@ -68,8 +68,7 @@ def test_approve_transfer(agent, token_economics):
     deployer, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=someone)
     testerchain.transacting_power.activate()
 
@@ -87,8 +86,7 @@ def test_transfer(agent, token_economics):
     origin, someone, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=origin)
     testerchain.transacting_power.activate()
 

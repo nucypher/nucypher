@@ -16,17 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
 
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import ContractRegistry
 
 
 def test_contract_registry(tempfile_path):
 
-    with pytest.raises(EthereumContractRegistry.RegistryError):
-        bad_registry = EthereumContractRegistry(registry_filepath='/fake/file/path/registry.json')
+    with pytest.raises(ContractRegistry.RegistryError):
+        bad_registry = ContractRegistry(registry_filepath='/fake/file/path/registry.json')
         bad_registry.search(contract_address='0xdeadbeef')
 
     # Tests everything is as it should be when initially created
-    test_registry = EthereumContractRegistry(registry_filepath=tempfile_path)
+    test_registry = ContractRegistry(registry_filepath=tempfile_path)
 
     assert test_registry.read() == list()
 
@@ -58,7 +58,7 @@ def test_contract_registry(tempfile_path):
     assert abi == test_abi
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(EthereumContractRegistry.UnknownContract):
+    with pytest.raises(ContractRegistry.UnknownContract):
         test_registry.search(contract_name='this does not exist')
 
     current_dataset = test_registry.read()
@@ -67,5 +67,5 @@ def test_contract_registry(tempfile_path):
     test_registry.write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(EthereumContractRegistry.IllegalRegistry):
+    with pytest.raises(ContractRegistry.IllegalRegistry):
         test_registry.search(contract_address=test_addr)

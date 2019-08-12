@@ -181,12 +181,12 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(blockchain=self.blockchain,
+        transacting_power = TransactingPower(registry=self.registry,
                                              password=client_password,
                                              account=self.checksum_address)
         self._crypto_power.consume_power_up(transacting_power)
 
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.token_agent = NucypherTokenAgent(registry=self.registry)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts

@@ -28,8 +28,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 @pytest.fixture()
 def escrow(testerchain):
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
     escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')

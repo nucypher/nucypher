@@ -130,7 +130,7 @@ def felix(click_config,
     try:
 
         # Connect to Blockchain
-        felix_config.get_blockchain_interface()
+        felix_config.initialize_blockchain_interface()
 
         # Authenticate
         unlock_nucypher_keyring(emitter,

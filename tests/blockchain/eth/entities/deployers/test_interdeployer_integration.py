@@ -30,15 +30,17 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 
 
 @pytest.mark.slow()
-def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
-    testerchain = session_testerchain
+def test_deploy_ethereum_contracts(testerchain,
+                                   deployment_progress,
+                                   test_registry):
+    testerchain = testerchain
 
     origin, *everybody_else = testerchain.client.accounts
 
     #
     # Nucypher Token
     #
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
     assert token_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
@@ -49,7 +51,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     assert token_deployer.is_deployed
     assert len(token_deployer.contract_address) == 42
 
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
+    token_agent = NucypherTokenAgent(registry=test_registry)
     assert len(token_agent.contract_address) == 42
     assert token_agent.contract_address == token_deployer.contract_address
 
@@ -62,7 +64,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     #
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     staking_escrow_deployer = StakingEscrowDeployer(
-        blockchain=testerchain,
+        registry=test_registry,
         deployer_address=origin)
     assert staking_escrow_deployer.deployer_address == origin
 
@@ -74,7 +76,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     assert staking_escrow_deployer.is_deployed
     assert len(staking_escrow_deployer.contract_address) == 42
 
-    staking_agent = StakingEscrowAgent(blockchain=testerchain)
+    staking_agent = StakingEscrowAgent(registry=test_registry)
     assert len(staking_agent.contract_address) == 42
     assert staking_agent.contract_address == staking_escrow_deployer.contract_address
 
@@ -88,7 +90,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     #
     policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
-        blockchain=testerchain,
+        registry=test_registry,
         deployer_address=origin)
 
     assert policy_manager_deployer.deployer_address == origin
@@ -115,7 +117,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     #
     adjudicator_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
     adjudicator_deployer = AdjudicatorDeployer(
-        blockchain=testerchain,
+        registry=test_registry,
         deployer_address=origin)
 
     assert adjudicator_deployer.deployer_address == origin
@@ -132,7 +134,7 @@ def test_deploy_ethereum_contracts(session_testerchain, deployment_progress):
     assert len(adjudicator_agent.contract_address) == 42
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
 
-    another_adjudicator_agent = AdjudicatorAgent()
+    another_adjudicator_agent = AdjudicatorAgent(registry=test_registry)
     assert len(another_adjudicator_agent.contract_address) == 42
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
 

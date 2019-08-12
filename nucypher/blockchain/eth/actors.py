@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 import os
 from datetime import datetime
@@ -49,10 +51,11 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
     AdjudicatorDeployer,
-    ContractDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+    ContractDeployer
+)
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, ContractRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -88,10 +91,9 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, blockchain: BlockchainInterface, checksum_address: str = None):
-        """
-        :param checksum_address:  If not passed, we assume this is an unknown actor
-        """
+    def __init__(self,
+                 registry: ContractRegistry,
+                 checksum_address: str = None):
         try:
             parent_address = self.checksum_address  # type: str
             if checksum_address is not None:
@@ -100,8 +102,8 @@ class NucypherTokenActor:
         except AttributeError:
             self.checksum_address = checksum_address  # type: str
 
-        self.blockchain = blockchain
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.registry = registry
+        self.token_agent = NucypherTokenAgent(registry=self.registry)
         self._saved_receipts = list()  # type: list # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -117,8 +119,9 @@ class NucypherTokenActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actors's current ETH balance"""
-        balance = self.blockchain.client.get_balance(self.checksum_address)
-        return self.blockchain.client.w3.fromWei(balance, 'ether')
+        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?
+        balance = blockchain.client.get_balance(self.checksum_address)
+        return blockchain.client.w3.fromWei(balance, 'ether')
 
     @property
     def token_balance(self) -> NU:
@@ -128,7 +131,10 @@ class NucypherTokenActor:
         return nu_balance
 
 
-class DeployerActor(NucypherTokenActor):
+class Administrator(NucypherTokenActor):
+    """
+    The administrator of network contracts.
+    """
 
     __interface_class = BlockchainDeployerInterface
 
@@ -153,54 +159,28 @@ class DeployerActor(NucypherTokenActor):
         pass
 
     def __init__(self,
-                 blockchain: BlockchainDeployerInterface,
+                 registry: ContractRegistry,
                  deployer_address: str = None,
-                 client_password: str = None,
-                 bare: bool = True
-                 ) -> None:
-
+                 client_password: str = None):
+        """
+        Note: super() is not called here to avoid setting the token agent.
+        TODO: Review this logic ^^.
+        """
         self.log = Logger("Deployment-Actor")
 
-        self.blockchain = blockchain
-        self.__deployer_address = NO_DEPLOYER_ADDRESS
         self.deployer_address = deployer_address
         self.checksum_address = self.deployer_address
 
-        if not bare:
-            self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
-            self.policy_agent = PolicyManagerAgent(blockchain=blockchain)
-            self.adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
-
+        self.registry = registry
         self.user_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.deployer_classes}
 
-        self.transacting_power = TransactingPower(blockchain=blockchain,
-                                                  password=client_password,
-                                                  account=deployer_address)
+        self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
         self.transacting_power.activate()
 
     def __repr__(self):
-        r = '{name}({blockchain}, {deployer_address})'.format(name=self.__class__.__name__,
-                                                              blockchain=self.blockchain,
-                                                              deployer_address=self.deployer_address)
+        r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
         return r
-
-    @property
-    def deployer_address(self):
-        return self.blockchain.deployer_address
-
-    @deployer_address.setter
-    def deployer_address(self, value):
-        """Used for validated post-init setting of deployer's address"""
-        self.blockchain.deployer_address = value
-
-    @property
-    def token_balance(self) -> NU:
-        if self.token_agent is CONTRACT_NOT_DEPLOYED:
-            message = f"{self.token_agent.contract_name} contract is not deployed, or the registry has missing records."
-            raise self.ActorError(message)
-        return super().token_balance
 
     def __get_deployer(self, contract_name: str):
         try:
@@ -230,7 +210,7 @@ class DeployerActor(NucypherTokenActor):
                         ) -> Tuple[dict, ContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
@@ -242,7 +222,7 @@ class DeployerActor(NucypherTokenActor):
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
@@ -250,14 +230,14 @@ class DeployerActor(NucypherTokenActor):
 
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                    new_secret_hash=new_secret_hash)
         return txhash
 
     def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
-        user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
+        user_escrow_deployer = UserEscrowDeployer(registry=self.registry,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)
         user_escrow_deployer.deploy()
@@ -315,11 +295,12 @@ class DeployerActor(NucypherTokenActor):
                                                               progress=bar)
 
                 if emitter:
+                    blockchain = BlockchainInterfaceFactory.get_interface()
                     paint_contract_deployment(contract_name=deployer_class.contract_name,
                                               receipts=receipts,
                                               contract_address=deployer.contract_address,
                                               emitter=emitter,
-                                              chain_name=self.blockchain.client.chain_name,
+                                              chain_name=blockchain.client.chain_name,
                                               open_in_browser=etherscan)
 
                 deployment_receipts[deployer_class.contract_name] = receipts
@@ -425,11 +406,15 @@ class Staker(NucypherTokenActor):
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
-        self.stake_tracker = StakeTracker(checksum_addresses=[self.checksum_address])
-        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.economics = economics or TokenEconomics()
+
         self.is_me = is_me
         self.__worker_address = None
+
+        # Blockchain
+        self.policy_agent = PolicyManagerAgent(registry=self.registry)
+        self.staking_agent = StakingEscrowAgent(registry=self.registry)
+        self.stake_tracker = StakeTracker(checksum_addresses=[self.checksum_address], staking_agent=self.staking_agent)
+        self.economics = economics or TokenEconomics()
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -495,10 +480,10 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - current_stake.end_period
+            additional_periods = datetime_to_period(datetime=expiration) - current_stake.last_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.end_period}).")
+                                         f"current stake's end period ({current_stake.last_locked_period}).")
 
         # Do it already!
         modified_stake, new_stake = current_stake.divide(target_value=target_value,
@@ -539,7 +524,9 @@ class Staker(NucypherTokenActor):
                                      f"Maximum stake value exceeded with a target value of {amount}.")
 
         # Write to blockchain
-        new_stake = Stake.initialize_stake(staker=self, amount=amount, lock_periods=lock_periods)
+        new_stake = Stake.initialize_stake(staker=self,
+                                           amount=amount,
+                                           lock_periods=lock_periods)
 
         # Update stake tracker cache element
         self.stake_tracker.refresh(checksum_addresses=[self.checksum_address])
@@ -582,12 +569,11 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_policy_reward(self, collector_address=None, policy_agent: PolicyManagerAgent = None):
-        """Collect rewarded ETH"""
-        policy_agent = policy_agent or PolicyManagerAgent(blockchain=self.blockchain)
+    def collect_policy_reward(self, collector_address=None) -> dict:
+        """Collect rewarded ETH."""
         withdraw_address = collector_address or self.checksum_address
-        receipt = policy_agent.collect_policy_reward(collector_address=withdraw_address,
-                                                     staker_address=self.checksum_address)
+        receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
+                                                          staker_address=self.checksum_address)
         return receipt
 
     @only_me
@@ -619,21 +605,20 @@ class Worker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 stake_tracker: StakeTracker = None,
                  worker_address: str = None,
                  start_working_loop: bool = True,
+                 stake_tracker: StakeTracker = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
-
         self.log = Logger("worker")
 
         self.__worker_address = worker_address
         self.is_me = is_me
 
         # Agency
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
+        self.token_agent = NucypherTokenAgent(registry=self.registry)
+        self.staking_agent = StakingEscrowAgent(registry=self.registry)
 
         # Stakes
         self.__start_time = WORKER_NOT_RUNNING
@@ -641,7 +626,16 @@ class Worker(NucypherTokenActor):
 
         # Workers cannot be started without being assigned a stake first.
         if is_me:
-            self.stake_tracker = stake_tracker or StakeTracker(checksum_addresses=[self.checksum_address])
+            addresses_to_track = [self.checksum_address]
+            if stake_tracker:
+                if self.registry != stake_tracker.staking_agent.registry:
+                    error = f"Inconsistent registry configuration for {self.__class__.__name__} " \
+                            f"and {StakeTracker.__name__}"
+                    raise self.ActorError(error)
+                self.stake_tracker = stake_tracker
+            else:
+                self.stake_tracker = StakeTracker(checksum_addresses=addresses_to_track,
+                                                  staking_agent=self.staking_agent)
 
             if not self.stake_tracker.stakes(checksum_address=self.checksum_address):
                 raise self.DetachedWorker
@@ -690,9 +684,9 @@ class PolicyAuthor(NucypherTokenActor):
 
         # From defaults
         if not policy_agent:
-            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-            self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-            self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
+            self.token_agent = NucypherTokenAgent(registry=self.registry)
+            self.staking_agent = StakingEscrowAgent(registry=self.registry)
+            self.policy_agent = PolicyManagerAgent(registry=self.registry)
 
         # Injected
         else:
@@ -737,7 +731,7 @@ class Investigator(NucypherTokenActor):
 
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
-        self.adjudicator_agent = AdjudicatorAgent(blockchain=self.blockchain)
+        self.adjudicator_agent = AdjudicatorAgent(registry=self.registry)
 
     @save_receipt
     def request_evaluation(self, evidence):
@@ -761,7 +755,7 @@ class StakeHolder(BaseConfiguration):
         pass
 
     def __init__(self,
-                 blockchain: BlockchainInterface,
+                 registry: ContractRegistry,
                  sync_now: bool = True,
                  *args, **kwargs):
 
@@ -770,13 +764,13 @@ class StakeHolder(BaseConfiguration):
         self.log = Logger(f"stakeholder")
 
         # Blockchain and Contract connection
-        self.blockchain = blockchain
-        self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
-        self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+        self.registry = registry
+        self.staking_agent = StakingEscrowAgent(registry=self.registry)
+        self.token_agent = NucypherTokenAgent(registry=self.registry)
         self.economics = TokenEconomics()
 
         # Mode
-        self.connect(blockchain=blockchain)
+        self.connect()
 
         self.__accounts = list()
         self.__stakers = dict()
@@ -793,22 +787,27 @@ class StakeHolder(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """Values to read/write from stakeholder JSON configuration files"""
-        payload = dict(provider_uri=self.blockchain.provider_uri,
-                       blockchain=self.blockchain.to_dict(),
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        payload = dict(blockchain=blockchain.to_dict(),
+                       registry=self.registry.to_dict(),
                        accounts=self.__accounts,
                        stakers=self.__serialize_stakers())
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, sync_now: bool = True, **overrides) -> 'StakeHolder':
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                sync: bool = False,
+                                **overrides
+                                ) -> 'StakeHolder':
+
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
 
         # Sub config
         blockchain_payload = payload.pop('blockchain')
-        blockchain = BlockchainInterface.from_dict(payload=blockchain_payload)
-        blockchain.connect(sync_now=sync_now)  # TODO: Leave this here?
-
+        BlockchainInterfaceFactory.initialize_interface(sync=sync, **blockchain_payload)
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=blockchain_payload['provider_uri'])
         payload.update(dict(blockchain=blockchain))
 
         payload.update(overrides)
@@ -820,9 +819,7 @@ class StakeHolder(BaseConfiguration):
         try:
             transacting_power = self.__transacting_powers[checksum_address]
         except KeyError:
-            transacting_power = TransactingPower(blockchain=self.blockchain,
-                                                 password=password,
-                                                 account=checksum_address)
+            transacting_power = TransactingPower(password=password, account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
         transacting_power.activate(password=password)
 
@@ -830,13 +827,12 @@ class StakeHolder(BaseConfiguration):
         filepath = super().to_configuration_file(*args, **kwargs)
         return filepath
 
-    def connect(self, blockchain: BlockchainInterface = None) -> None:
+    def connect(self) -> None:
         """Go Online"""
         if not self.staking_agent:
-            self.staking_agent = StakingEscrowAgent(blockchain=blockchain)
+            self.staking_agent = StakingEscrowAgent(registry=self.registry)
         if not self.token_agent:
-            self.token_agent = NucypherTokenAgent(blockchain=blockchain)
-        self.blockchain = self.token_agent.blockchain
+            self.token_agent = NucypherTokenAgent(registry=self.registry)
 
     #
     # Account Utilities
@@ -847,7 +843,8 @@ class StakeHolder(BaseConfiguration):
         return self.__accounts
 
     def __get_accounts(self) -> None:
-        accounts = self.blockchain.client.accounts
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        accounts = blockchain.client.accounts
         self.__accounts.extend(accounts)
 
     #
@@ -863,7 +860,7 @@ class StakeHolder(BaseConfiguration):
         for account in accounts:
             stakes = list(self.staking_agent.get_all_stakes(staker_address=account))
             if stakes:
-                staker = Staker(is_me=True, checksum_address=account, blockchain=self.blockchain)
+                staker = Staker(is_me=True, checksum_address=account, registry=self.registry)
                 self.__stakers[account] = staker
 
     @property
@@ -884,9 +881,11 @@ class StakeHolder(BaseConfiguration):
 
     @property
     def account_balances(self) -> dict:
+        blockchain = BlockchainInterfaceFactory.get_interface()
+
         balances = dict()
         for account in self.__accounts:
-            funds = {'ETH': self.blockchain.client.get_balance(account),
+            funds = {'ETH': blockchain.client.get_balance(account),  # TODO: EthAgent or something?
                      'NU': self.token_agent.get_balance(account)}
             balances.update({account: funds})
         return balances
@@ -920,12 +919,15 @@ class StakeHolder(BaseConfiguration):
 
         """Generates a worker JSON configuration file for a given staking address."""
         from nucypher.config.characters import UrsulaConfiguration
+        
+        blockchain = BlockchainInterfaceFactory.get_interface()
         worker_configuration = UrsulaConfiguration.generate(checksum_address=staking_address,
                                                             worker_address=worker_address,
                                                             password=password,
                                                             config_root=self.config_root,
                                                             federated_only=False,
-                                                            provider_uri=self.blockchain.provider_uri,
+                                                            provider_uri=blockchain.provider_uri,
+                                                            poa=blockchain.poa,
                                                             **configuration)
         return worker_configuration
 
@@ -959,7 +961,7 @@ class StakeHolder(BaseConfiguration):
             if checksum_address not in self.__accounts:
                 raise ValueError(f"{checksum_address} is an unknown wallet address.")
             else:
-                staker = Staker(is_me=True, checksum_address=checksum_address, blockchain=self.blockchain)
+                staker = Staker(is_me=True, checksum_address=checksum_address, registry=self.registry)
 
         # Don the transacting power for the staker's account.
         self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
@@ -1005,7 +1007,8 @@ class StakeHolder(BaseConfiguration):
                         password: str = None,
                         withdraw_address: str = None,
                         staking: bool = True,
-                        policy: bool = True) -> Dict[str, dict]:
+                        policy: bool = True
+                        ) -> Dict[str, dict]:
 
         if not staking and not policy:
             raise ValueError("Either staking or policy must be True in order to collect rewards")
@@ -1013,7 +1016,7 @@ class StakeHolder(BaseConfiguration):
         try:
             staker = self.get_active_staker(address=staker_address)
         except self.NoStakes:
-            staker = Staker(is_me=True, checksum_address=staker_address, blockchain=self.blockchain)
+            staker = Staker(is_me=True, checksum_address=staker_address, registry=self.registry)
 
         self.attach_transacting_power(checksum_address=staker.checksum_address, password=password)
 

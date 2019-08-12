@@ -12,7 +12,6 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    Agency,
     EthereumContractAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
@@ -40,7 +39,7 @@ def test_nucypher_deploy_contracts(click_runner,
                                    mock_allocation_infile,
                                    token_economics):
 
-    Agency.clear()
+
 
     #
     # Setup

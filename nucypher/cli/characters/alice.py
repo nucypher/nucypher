@@ -2,7 +2,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
@@ -147,7 +147,7 @@ def alice(click_config,
             fetch_registry = registry_filepath is None and not click_config.no_registry
             registry = None
             if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+                registry = ContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
             blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
 

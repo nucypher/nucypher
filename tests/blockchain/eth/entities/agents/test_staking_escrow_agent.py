@@ -22,15 +22,15 @@ from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()
-def test_unknown_contract(testerchain):
-    with pytest.raises(EthereumContractRegistry.UnknownContract) as exception:
-        _staking_agent = StakingEscrowAgent(blockchain=testerchain)
+def test_unknown_contract(testerchain, test_registry):
+    with pytest.raises(ContractRegistry.UnknownContract) as exception:
+        _staking_agent = StakingEscrowAgent(registry=test_registry)
 
     assert exception.value.args[0] == StakingEscrowAgent.registry_contract_name
 
@@ -44,8 +44,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
     staker_account = testerchain.unassigned_accounts[0]
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
 
@@ -58,8 +57,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker_account)
     testerchain.transacting_power.activate()
 
@@ -181,8 +179,7 @@ def test_confirm_activity(agency, testerchain):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker_account)
     testerchain.transacting_power.activate()
 
@@ -238,8 +235,7 @@ def test_collect_staking_reward(agency, testerchain):
     testerchain.time_travel(periods=2)
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker_account)
     testerchain.transacting_power.activate()
 

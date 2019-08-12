@@ -27,14 +27,14 @@ from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas
 
 
 @pytest.fixture(scope='module')
-def staker(testerchain, agency):
+def staker(testerchain, agency, test_registry):
     token_agent, staking_agent, policy_agent = agency
     origin, staker_account, *everybody_else = testerchain.client.accounts
     token_airdrop(token_agent=token_agent,
                   origin=testerchain.etherbase_account,
                   addresses=[staker_account],
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
+    staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
     return staker
 
 
@@ -43,8 +43,7 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics):
     token_agent, staking_agent, policy_agent = agency
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker.checksum_address)
     testerchain.transacting_power.activate()
 
@@ -89,11 +88,12 @@ def test_staker_divides_stake(staker, token_economics):
     staker.divide_stake(target_value=yet_another_stake_value, stake_index=stake_index + 2, additional_periods=2)
 
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
-    expected_yet_another_stake = Stake(start_period=current_period + 1,
-                                       end_period=current_period + 34,
+    expected_yet_another_stake = Stake(first_locked_period=current_period + 1,
+                                       last_locked_period=current_period + 34,
                                        value=yet_another_stake_value,
                                        checksum_address=staker.checksum_address,
-                                       index=3)
+                                       index=3,
+                                       staking_agent=staker.staking_agent)
 
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
@@ -102,7 +102,13 @@ def test_staker_divides_stake(staker, token_economics):
 
 
 @pytest.mark.slow()
-def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas, agency, token_economics, ursula_decentralized_test_config):
+def test_staker_collects_staking_reward(testerchain,
+                                        test_registry,
+                                        staker,
+                                        blockchain_ursulas,
+                                        agency,
+                                        token_economics,
+                                        ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
 
     # Capture the current token balance of the staker
@@ -110,8 +116,7 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     assert token_agent.get_balance(staker.checksum_address) == initial_balance
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker.checksum_address)
     testerchain.transacting_power.activate()
 
@@ -127,7 +132,7 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
                                         confirm_activity=False,
-                                        blockchain=testerchain).pop()
+                                        registry=test_registry).pop()
 
     # ...wait out the lock period...
     for _ in range(token_economics.minimum_locked_periods):
@@ -138,8 +143,7 @@ def test_staker_collects_staking_reward(testerchain, staker, blockchain_ursulas,
     testerchain.time_travel(periods=2)
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker.checksum_address)
     testerchain.transacting_power.activate()
 
