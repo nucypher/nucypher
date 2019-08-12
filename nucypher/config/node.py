@@ -219,9 +219,12 @@ class CharacterConfiguration(BaseConfiguration):
 
     def __setup_node_storage(self, node_storage=None) -> None:
         if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(federated_only=self.federated_only)
+            node_storage = ForgetfulNodeStorage(blockchain=self.blockchain,
+                                                federated_only=self.federated_only)
         elif not node_storage:
-            node_storage = LocalFileBasedNodeStorage(federated_only=self.federated_only, config_root=self.config_root)
+            node_storage = LocalFileBasedNodeStorage(blockchain=self.blockchain,
+                                                     federated_only=self.federated_only,
+                                                     config_root=self.config_root)
         self.node_storage = node_storage
 
     def read_known_nodes(self, additional_nodes=None) -> None:
@@ -333,15 +336,17 @@ class CharacterConfiguration(BaseConfiguration):
     @property
     def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
-        self.read_known_nodes()
-        payload = dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
-                       known_nodes=self.known_nodes,
-                       node_storage=self.node_storage,
-                       crypto_power_ups=self.derive_node_power_ups())
+        payload = dict()
         if not self.federated_only:
             self.get_blockchain_interface()
-            self.blockchain.connect()  # TODO: This makes blockchain connection more eager than transacting power acivation
+            self.blockchain.connect()
             payload.update(blockchain=self.blockchain)
+
+        self.read_known_nodes()   # Requires a connected blockchain
+        payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
+                       known_nodes=self.known_nodes,
+                       node_storage=self.node_storage,
+                       crypto_power_ups=self.derive_node_power_ups()))
         return payload
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:

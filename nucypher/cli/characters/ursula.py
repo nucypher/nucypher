@@ -161,12 +161,12 @@ def ursula(click_config,
         if (not staker_address or not worker_address) and not federated_only:
 
             # Connect to Blockchain
+            fetch_registry = registry_filepath is None and not click_config.no_registry
             registry = None
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-
-            blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
+            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
 
             if not staker_address:
                 prompt = "Select staker account"
@@ -243,13 +243,18 @@ def ursula(click_config,
     # Configured Pre-Authentication Actions
     #
 
-    # Handle destruction *before* network bootstrap and character initialization below
+    # Handle destruction and forget *before* network bootstrap and character initialization below
     if action == "destroy":
         """Delete all configuration files from the disk"""
         if dev:
             message = "'nucypher ursula destroy' cannot be used in --dev mode - There is nothing to destroy."
             raise click.BadOptionUsage(option_name='--dev', message=message)
-        return actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
+        actions.destroy_configuration(emitter, character_config=ursula_config, force=force)
+        return
+
+    elif action == "forget":
+        actions.forget(emitter, configuration=ursula_config)
+        return
 
     #
     # Make Ursula
@@ -257,7 +262,8 @@ def ursula(click_config,
     client_password = None
     if not ursula_config.federated_only:
         if not dev and not click_config.json_ipc:
-            client_password = get_client_password(checksum_address=ursula_config.worker_address)
+            client_password = get_client_password(checksum_address=ursula_config.worker_address,
+                                                  envvar="NUCYPHER_WORKER_ETH_PASSWORD")
 
     try:
         URSULA = actions.make_cli_character(character_config=ursula_config,
@@ -347,10 +353,6 @@ def ursula(click_config,
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
         return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and duration here?
-
-    elif action == "forget":
-        actions.forget(emitter, configuration=ursula_config)
-        return
 
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()
