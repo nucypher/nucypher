@@ -207,13 +207,17 @@ commands:
 
   pipenv_install:
     description: "Install Python dependencies with Pipenv"
+    parameters:
+      python_version:
+        type: string
+        default: "3.7"
     steps:
       - checkout
       - run:
           name: Install Python Dependencies with Pipenv
           command: |
             sudo apt update -y && sudo apt install python3-dev -y
-            pipenv sync --dev
+            pipenv sync --python << parameters.python_version >> --dev
       - run:
           name: Install Solidity Compiler (Pipenv Entrypoint)
           command: pipenv run install-solc
@@ -337,7 +341,8 @@ jobs:
   pipenv_install_36:
     <<: *python_36_base
     steps:
-      - pipenv_install
+      - pipenv_install:
+          python_version: "3.6"
       - persist_to_workspace:
           root: ~/.local/share/virtualenvs/
           paths:
@@ -351,7 +356,8 @@ jobs:
   pipenv_install_37:
     <<: *python_37_base
     steps:
-      - pipenv_install
+      - pipenv_install:
+          python_version: "3.7"
 
   agents:
     <<: *python_36_base
