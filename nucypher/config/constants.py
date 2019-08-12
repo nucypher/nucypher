@@ -36,8 +36,8 @@ CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contract
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
-DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
-USER_LOG_DIR = APP_DIR.user_log_dir
+DEFAULT_CONFIG_ROOT = os.getenv('NUCYPHER_CONFIG_ROOT') or APP_DIR.user_data_dir
+USER_LOG_DIR = os.getenv('NUCYPHER_USER_LOG_DIR') or APP_DIR.user_log_dir
 
 
 # Static Seednodes (Not from seeder contract)
