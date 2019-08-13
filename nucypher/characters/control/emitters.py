@@ -39,7 +39,7 @@ class StdoutEmitter:
         self.log.debug(message)
 
     def echo(self,
-             message: str,
+             message: str = None,
              color: str = None,
              bold: bool = False,
              nl: bool = True,
