@@ -841,10 +841,10 @@ class UserEscrowDeployer(ContractDeployer):
 
         """
 
-        deposit_txhash = self.initial_deposit(value=value, duration_seconds=duration)
-        assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
+        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration)
+        assign_receipt = self.assign_beneficiary(beneficiary_address=beneficiary_address)
         self.enroll_principal_contract()
-        return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
+        return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
     def deploy(self, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
