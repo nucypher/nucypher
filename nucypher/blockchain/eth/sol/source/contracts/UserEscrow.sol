@@ -76,7 +76,7 @@ contract UserEscrow is Ownable {
     /**
     * @notice Initial tokens deposit
     * @param _value Amount of token to deposit
-    * @param _duration Duration of tokens locking
+    * @param _duration Duration of tokens locking (in seconds)
     **/
     function initialDeposit(uint256 _value, uint256 _duration) public {
         require(lockedValue == 0 && _value > 0);
