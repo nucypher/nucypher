@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
-from nucypher.blockchain.eth.decorators import validate_secret
+from nucypher.blockchain.eth.decorators import validate_secret, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 
@@ -819,17 +819,16 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
     def allocation_registry(self):
         return self.__allocation_registry
 
-    def assign_beneficiary(self, beneficiary_address: str) -> dict: 
+    @validate_checksum_address
+    def assign_beneficiary(self, checksum_address: str) -> dict:
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
-        if not is_checksum_address(beneficiary_address):
-            raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
         # TODO: #413, #842 - Gas Management
         payload = {'gas': 500_000}
-        transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
+        transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
         transfer_owner_receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
                                                                   sender_address=self.deployer_address,
                                                                   payload=payload)
-        self.__beneficiary_address = beneficiary_address
+        self.__beneficiary_address = checksum_address
         return transfer_owner_receipt
 
     def initial_deposit(self, value: int, duration_seconds: int) -> dict:
@@ -872,7 +871,7 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
         """
 
         deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration)
-        assign_receipt = self.assign_beneficiary(beneficiary_address=beneficiary_address)
+        assign_receipt = self.assign_beneficiary(checksum_address=beneficiary_address)
         self.enroll_principal_contract()
         return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
