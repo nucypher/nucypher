@@ -55,7 +55,7 @@ from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractReg
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import paint_contract_deployment
+from nucypher.cli.painting import paint_contract_deployment, paint_allocation_data
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 
@@ -401,10 +401,23 @@ class ContractAdministrator(NucypherTokenActor):
 
     def deploy_beneficiaries_from_file(self,
                                        allocation_data_filepath: str,
-                                       allocation_outfile: str = None) -> dict:
+                                       allocation_outfile: str = None,
+                                       emitter=None,
+                                       interactive=None) -> dict:
 
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        receipts = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
+
+        # TODO: Print allocation data before deploying and ask for confirmation
+        if emitter:
+            paint_allocation_data(emitter, allocations)
+
+        if interactive:
+            click.confirm("Continue with the allocation process?", abort=True)
+
+        receipts = self.deploy_beneficiary_contracts(allocations=allocations,
+                                                     allocation_outfile=allocation_outfile,
+                                                     emitter=emitter,
+                                                     interactive=interactive)
         return receipts
 
     def save_deployment_receipts(self, receipts: dict) -> str:

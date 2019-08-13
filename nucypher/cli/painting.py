@@ -573,3 +573,14 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
         emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
                      f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
 
+
+def paint_allocation_data(emitter, allocations) -> None:
+    emitter.echo(f"\n{'Beneficiary':42} | {'Duration':20} | {'Amount':20}", bold=True)
+    emitter.echo("-"*(42+20+20+6), bold=True)
+    for allocation in allocations:
+        beneficiary = allocation['address']
+        amount = str(NU.from_nunits(allocation['amount']))
+        duration = (maya.now() + maya.timedelta(seconds=allocation['duration'])).slang_date()
+        emitter.echo(f"{beneficiary:24} | {duration:20} | {amount:20}")
+    emitter.echo()
+
