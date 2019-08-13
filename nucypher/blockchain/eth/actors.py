@@ -346,29 +346,33 @@ class DeployerActor(NucypherTokenActor):
         if allocation_registry is None:
             allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
 
-        allocation_txhashes, failed = dict(), list()
+        allocation_receipts, failed = dict(), list()
         for allocation in allocations:
             deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
 
+            beneficiary = allocation['address']
+            amount = allocation['amount']
             try:
-                txhashes = deployer.deliver(value=allocation['amount'],
+                receipts = deployer.deliver(value=amount,
                                             duration=allocation['duration'],
-                                            beneficiary_address=allocation['address'])
+                                            beneficiary_address=beneficiary)
             except TransactionFailed:
                 if crash_on_failure:
                     raise
-                self.log.debug(f"Failed allocation transaction for {allocation['amount']} to {allocation['address']}")
+                self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}")
                 failed.append(allocation)
                 continue
 
             else:
-                allocation_txhashes[allocation['address']] = txhashes
+                allocation_receipts[beneficiary] = receipts
+                principal_address = deployer.contract_address
+                self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
 
         if failed:
             # TODO: More with these failures: send to isolated logfile, and reattempt
             self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
 
-        return allocation_txhashes
+        return allocation_receipts
 
     @staticmethod
     def __read_allocation_data(filepath: str) -> list:
@@ -385,8 +389,8 @@ class DeployerActor(NucypherTokenActor):
                                        allocation_outfile: str = None) -> dict:
 
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-        txhashes = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
-        return txhashes
+        receipts = self.deploy_beneficiary_contracts(allocations=allocations, allocation_outfile=allocation_outfile)
+        return receipts
 
     def save_deployment_receipts(self, receipts: dict) -> str:
         filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'

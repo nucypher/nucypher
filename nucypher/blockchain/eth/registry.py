@@ -360,7 +360,7 @@ class AllocationRegistry(EthereumContractRegistry):
         try:
             allocation_data = self.read()
         except self.RegistryError:
-            self.log.info("Blank allocation registry encountered: enrolling {}:{}".format(beneficiary_address, contract_address))
+            self.log.info(f"Blank allocation registry encountered: enrolling {beneficiary_address}:{contract_address}")
             allocation_data = list() if self._multi_contract else dict()  # empty registry
 
         if beneficiary_address in allocation_data:
