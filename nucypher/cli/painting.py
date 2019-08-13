@@ -384,3 +384,14 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
     for i in range(delay)[::-1]:
         emitter.echo(f"{i}...", color='yellow')
         time.sleep(1)
+
+
+def paint_allocation_data(emitter, allocations) -> None:
+    emitter.echo(f"\n{'Beneficiary':42} | {'Duration':20} | {'Amount':20}", bold=True)
+    emitter.echo("-"*(42+20+20+6), bold=True)
+    for allocation in allocations:
+        beneficiary = allocation['address']
+        amount = str(NU.from_nunits(allocation['amount']))
+        duration = (maya.now() + maya.timedelta(seconds=allocation['duration'])).slang_date()
+        emitter.echo(f"{beneficiary:24} | {duration:20} | {amount:20}")
+    emitter.echo()

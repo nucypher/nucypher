@@ -258,7 +258,9 @@ def deploy(action,
             allocation_infile = click.prompt("Enter allocation data filepath")
         click.confirm("Continue deploying and allocating?", abort=True)
         DEPLOYER.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
-                                                allocation_outfile=allocation_outfile)
+                                                allocation_outfile=allocation_outfile,
+                                                emitter=emitter,
+                                                interactive=not force)
         return  # Exit
 
     elif action == "transfer":
