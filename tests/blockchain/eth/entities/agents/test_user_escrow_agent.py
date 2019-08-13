@@ -56,7 +56,7 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
 
     escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
-    escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
+    escrow_deployer.assign_beneficiary(checksum_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     _agent = escrow_deployer.make_agent()
