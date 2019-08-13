@@ -188,7 +188,7 @@ class Web3Client:
 
     @property
     def chain_id(self) -> int:
-        return int(self.w3.eth.chainId)
+        return int(self.w3.eth.chainId, 16)
 
     @property
     def net_version(self) -> int:
