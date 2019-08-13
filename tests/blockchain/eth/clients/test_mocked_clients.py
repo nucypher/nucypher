@@ -197,6 +197,7 @@ def test_geth_web3_client():
 
     assert interface.client.is_local is False
     assert interface.client.chain_id == 5  # Hardcoded above
+    assert interface.client.chain_name == "Goerli"
 
 
 def test_infura_web3_client():
@@ -211,6 +212,7 @@ def test_infura_web3_client():
     assert interface.client.backend == 'go1.11.1'
     assert interface.client.is_local is False
     assert interface.client.chain_id == 5
+    assert interface.client.chain_name == "Goerli"
 
     assert interface.client.unlock_account('address', 'password')  # Returns True on success
 
@@ -236,6 +238,7 @@ def test_ganache_web3_client():
     assert interface.client.platform is None
     assert interface.client.backend == 'ethereum-js'
     assert interface.client.is_local
+    assert interface.client.chain_name == "Ganache/TestRPC"
 
 
 def test_synced_geth_client():
