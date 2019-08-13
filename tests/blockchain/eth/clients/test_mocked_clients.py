@@ -7,7 +7,8 @@ from nucypher.blockchain.eth.clients import (
     ParityClient,
     GanacheClient,
     InfuraClient,
-    PUBLIC_CHAINS
+    PUBLIC_CHAINS,
+    UNKNOWN_DEVELOPMENT_CHAIN_ID
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
@@ -238,7 +239,7 @@ def test_ganache_web3_client():
     assert interface.client.platform is None
     assert interface.client.backend == 'ethereum-js'
     assert interface.client.is_local
-    assert interface.client.chain_name == "Ganache/TestRPC"
+    assert interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID
 
 
 def test_synced_geth_client():
