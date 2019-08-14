@@ -588,24 +588,29 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
 
 
 def paint_input_allocation_file(emitter, allocations) -> None:
-    emitter.echo(f"\n{'='*34} STAGED ALLOCATIONS {'='*34}", bold=True)
-    emitter.echo(f"\n{'Beneficiary':42} | {'Duration':20} | {'Amount':20}", bold=True)
-    emitter.echo("-"*(42+3+20+3+20), bold=True)
+    emitter.echo(f"\n{'='*46} STAGED ALLOCATIONS {'='*45}", bold=True)
+    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'Duration':20} | {'Amount':20}", bold=True)
+    emitter.echo("-"*(42+3+20+3+20+3+20), bold=True)
     for allocation in allocations:
-        beneficiary = allocation['address']
+        beneficiary = allocation['beneficiary_address']
         amount = str(NU.from_nunits(allocation['amount']))
-        duration = (maya.now() + maya.timedelta(seconds=allocation['duration'])).slang_date()
-        emitter.echo(f"{beneficiary} | {duration:20} | {amount:20}")
+        duration = (maya.now() + maya.timedelta(seconds=allocation['duration_seconds'])).slang_date()
+        name = allocation.get('name', 'No name provided')
+        emitter.echo(f"{beneficiary} | {name:20} | {duration:20} | {amount:20}")
     emitter.echo()
 
 
 def paint_deployed_allocations(emitter, allocations, failed) -> None:
-    emitter.echo(f"\n{'='*33} DEPLOYED ALLOCATIONS {'='*32}", bold=True)
-    emitter.echo(f"\n{'Beneficiary':42} | {'UserEscrow contract':42} ", bold=True)
-    emitter.echo("-"*(42+3+42), bold=True)
-    for beneficiary, contract_address in allocations:
-        emitter.echo(f"{beneficiary} | {contract_address}")
-    for beneficiary in failed:
-        emitter.echo(f"{beneficiary} | FAILED", color='red')
+    emitter.echo(f"\n{'='*45} DEPLOYED ALLOCATIONS {'='*44}", bold=True)
+    emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'UserEscrow contract':42} ", bold=True)
+    emitter.echo("-"*(42+3+20+3+42), bold=True)
+    for allocation, contract_address in allocations:
+        beneficiary = allocation['beneficiary_address']
+        name = allocation.get('name', 'No name provided')
+        emitter.echo(f"{beneficiary} | {name:20} | {contract_address}")
+    for allocation in failed:
+        beneficiary = allocation['beneficiary_address']
+        name = allocation.get('name', 'No name provided')
+        emitter.echo(f"{beneficiary} | {name:20} | FAILED", color='red')
     emitter.echo()
 
