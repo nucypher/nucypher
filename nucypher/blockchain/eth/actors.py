@@ -50,13 +50,12 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowDeployer,
     AdjudicatorDeployer,
     ContractDeployer)
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import paint_contract_deployment, paint_input_allocation_file
+from nucypher.cli.painting import paint_contract_deployment, paint_input_allocation_file, paint_deployed_allocations
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
@@ -357,7 +356,7 @@ class DeployerActor(NucypherTokenActor):
         if interactive:
             click.confirm("Continue with the allocation process?", abort=True)
 
-        allocation_receipts, failed = dict(), list()
+        allocation_receipts, failed, allocated = dict(), list(), list()
         total_deployment_transactions = len(allocations) * 4
 
         with click.progressbar(length=total_deployment_transactions,
@@ -399,6 +398,8 @@ class DeployerActor(NucypherTokenActor):
                     allocation_receipts[beneficiary] = receipts
                     principal_address = deployer.contract_address
                     self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
+                    allocated.append((beneficiary, principal_address))
+
                     if emitter:
                         paint_contract_deployment(contract_name=deployer.contract_name,
                                                   receipts=receipts,
@@ -406,6 +407,9 @@ class DeployerActor(NucypherTokenActor):
                                                   emitter=emitter,
                                                   chain_name=self.blockchain.client.chain_name,
                                                   open_in_browser=False)
+
+            if emitter:
+                paint_deployed_allocations(emitter, allocated, failed)
 
             if failed:
                 # TODO: More with these failures: send to isolated logfile, and reattempt
