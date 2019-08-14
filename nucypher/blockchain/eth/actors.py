@@ -56,7 +56,7 @@ from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting import paint_contract_deployment, paint_allocation_data
+from nucypher.cli.painting import paint_contract_deployment, paint_input_allocation_file
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
@@ -256,11 +256,11 @@ class DeployerActor(NucypherTokenActor):
                                    new_secret_hash=new_secret_hash)
         return txhash
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry, progress=None):
         user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)
-        user_escrow_deployer.deploy()
+        user_escrow_deployer.deploy(progress=progress)
         principal_address = user_escrow_deployer.contract.address
         self.user_escrow_deployers[principal_address] = user_escrow_deployer
         return user_escrow_deployer
@@ -332,45 +332,84 @@ class DeployerActor(NucypherTokenActor):
                                      allocation_outfile: str = None,
                                      allocation_registry: AllocationRegistry = None,
                                      crash_on_failure: bool = True,
+                                     interactive: bool = True,
+                                     emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
-
         Example allocation dataset (one year is 31536000 seconds):
 
         data = [{'address': '0xdeadbeef', 'amount': 100, 'duration': 31536000},
                 {'address': '0xabced120', 'amount': 133432, 'duration': 31536000*2},
                 {'address': '0xf7aefec2', 'amount': 999, 'duration': 31536000*3}]
         """
+
+        if interactive and not emitter:
+            raise ValueError("'emitter' is a required keyword argument when interactive is True.")
+
         if allocation_registry and allocation_outfile:
             raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
         if allocation_registry is None:
             allocation_registry = AllocationRegistry(registry_filepath=allocation_outfile)
 
+        if emitter:
+            paint_input_allocation_file(emitter, allocations)
+
+        if interactive:
+            click.confirm("Continue with the allocation process?", abort=True)
+
         allocation_receipts, failed = dict(), list()
-        for allocation in allocations:
-            deployer = self.deploy_user_escrow(allocation_registry=allocation_registry)
+        total_deployment_transactions = len(allocations) * 4
 
-            beneficiary = allocation['address']
-            amount = allocation['amount']
-            try:
-                receipts = deployer.deliver(value=amount,
-                                            duration=allocation['duration'],
-                                            beneficiary_address=beneficiary)
-            except TransactionFailed:
-                if crash_on_failure:
-                    raise
-                self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}")
-                failed.append(allocation)
-                continue
+        with click.progressbar(length=total_deployment_transactions,
+                               label="Allocation progress",
+                               show_eta=False) as bar:
+            bar.short_limit = 0
+            for allocation in allocations:
 
-            else:
-                allocation_receipts[beneficiary] = receipts
-                principal_address = deployer.contract_address
-                self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
+                # TODO: Check if allocation already exists in allocation registry
 
-        if failed:
-            # TODO: More with these failures: send to isolated logfile, and reattempt
-            self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
+                beneficiary = allocation['address']
+
+                if interactive:
+                    click.pause(info=f"\nPress any key to continue with allocation for beneficiary {beneficiary}")
+
+                if emitter:
+                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary}...")
+                    bar._last_line = None
+                    bar.render_progress()
+
+                deployer = self.deploy_user_escrow(allocation_registry=allocation_registry,
+                                                   progress=bar)
+
+                amount = allocation['amount']
+                duration = allocation['duration']
+                try:
+                    receipts = deployer.deliver(value=amount,
+                                                duration=duration,
+                                                beneficiary_address=beneficiary,
+                                                progress=bar)
+                except TransactionFailed:
+                    if crash_on_failure:
+                        raise
+                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}")
+                    failed.append(allocation)
+                    continue
+
+                else:
+                    allocation_receipts[beneficiary] = receipts
+                    principal_address = deployer.contract_address
+                    self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
+                    if emitter:
+                        paint_contract_deployment(contract_name=deployer.contract_name,
+                                                  receipts=receipts,
+                                                  contract_address=deployer.contract_address,
+                                                  emitter=emitter,
+                                                  chain_name=self.blockchain.client.chain_name,
+                                                  open_in_browser=False)
+
+            if failed:
+                # TODO: More with these failures: send to isolated logfile, and reattempt
+                self.log.critical(f"FAILED TOKEN ALLOCATION - {len(failed)} Allocations failed.")
 
         return allocation_receipts
 
@@ -391,14 +430,6 @@ class DeployerActor(NucypherTokenActor):
                                        interactive=None) -> dict:
 
         allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
-
-        # TODO: Print allocation data before deploying and ask for confirmation
-        if emitter:
-            paint_allocation_data(emitter, allocations)
-
-        if interactive:
-            click.confirm("Continue with the allocation process?", abort=True)
-
         receipts = self.deploy_beneficiary_contracts(allocations=allocations,
                                                      allocation_outfile=allocation_outfile,
                                                      emitter=emitter,
