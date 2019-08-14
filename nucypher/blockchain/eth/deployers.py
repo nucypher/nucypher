@@ -802,7 +802,7 @@ class UserEscrowDeployer(ContractDeployer):
         self.__beneficiary_address = checksum_address
         return transfer_owner_receipt
 
-    def initial_deposit(self, value: int, duration_seconds: int) -> dict:
+    def initial_deposit(self, value: int, duration_seconds: int, progress=None) -> dict:
         """Allocate an amount of tokens with lock time in seconds, and transfer ownership to the beneficiary"""
         # Approve
         allocation_receipts = dict()
@@ -810,7 +810,8 @@ class UserEscrowDeployer(ContractDeployer):
         approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
                                                            sender_address=self.deployer_address)  # TODO: Gas
         allocation_receipts['approve'] = approve_receipt
-
+        if progress:
+            progress.update(1)
         # Deposit
         # TODO: #413, #842 - Gas Management
         args = {'gas': 200_000}
@@ -821,6 +822,9 @@ class UserEscrowDeployer(ContractDeployer):
 
         # TODO: Do something with allocation_receipts. Perhaps it should be returned instead of only the last receipt.
         allocation_receipts['initial_deposit'] = deposit_receipt
+        if progress:
+            progress.update(1)
+
         return deposit_receipt
 
     def enroll_principal_contract(self):
@@ -830,7 +834,7 @@ class UserEscrowDeployer(ContractDeployer):
                                           contract_address=self.contract.address,
                                           contract_abi=self.contract.abi)
 
-    def deliver(self, value: int, duration: int, beneficiary_address: str) -> dict:
+    def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None) -> dict:
         """
         Transfer allocated tokens and hand-off the contract to the beneficiary.
 
@@ -841,8 +845,10 @@ class UserEscrowDeployer(ContractDeployer):
 
         """
 
-        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration)
+        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration, progress=progress)
         assign_receipt = self.assign_beneficiary(checksum_address=beneficiary_address)
+        if progress:
+            progress.update(1)
         self.enroll_principal_contract()
         return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
