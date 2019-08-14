@@ -368,11 +368,18 @@ class ContractAdministrator(NucypherTokenActor):
                                      emitter: StdoutEmitter = None,
                                      ) -> Dict[str, dict]:
         """
-        Example allocation dataset (one year is 31536000 seconds):
+        The allocation file is a JSON file containing a list of allocations. Each allocation has a:
+          * 'beneficiary_address': Checksum address of the beneficiary
+          * 'name': User-friendly name of the beneficiary (Optional)
+          * 'amount': Amount of tokens locked, in NuNits
+          * 'duration_seconds': Lock duration expressed in seconds
 
-        data = [{'beneficiary_address': '0xdeadbeef', 'amount': 100, 'duration_seconds': 31536000},
-                {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000*2},
-                {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000*3}]
+        Example allocation file:
+
+        [ {'beneficiary_address': '0xdeadbeef', 'name': 'H. E. Pennypacker', 'amount': 100, 'duration_seconds': 31536000},
+          {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000},
+          {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000}]
+
         """
 
         if interactive and not emitter:
@@ -401,12 +408,14 @@ class ContractAdministrator(NucypherTokenActor):
                 # TODO: Check if allocation already exists in allocation registry
 
                 beneficiary = allocation['beneficiary_address']
+                name = allocation.get('name', 'No name provided')
 
                 if interactive:
-                    click.pause(info=f"\nPress any key to continue with allocation for beneficiary {beneficiary}")
+                    click.pause(info=f"\nPress any key to continue with allocation for "
+                                     f"beneficiary {beneficiary} ({name})")
 
                 if emitter:
-                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary}...")
+                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary} ({name})...")
                     bar._last_line = None
                     bar.render_progress()
 
@@ -431,7 +440,7 @@ class ContractAdministrator(NucypherTokenActor):
                     allocation_receipts[beneficiary] = receipts
                     principal_address = deployer.contract_address
                     self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
-                    allocated.append((beneficiary, principal_address))
+                    allocated.append((allocation, principal_address))
 
                     if emitter:
                         blockchain = BlockchainInterfaceFactory.get_interface()
