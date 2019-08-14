@@ -29,7 +29,7 @@ contract UserEscrowLibraryLinker is Ownable {
 
     /**
     * @notice Upgrade library
-    * @param _target New contract address
+    * @param _target New contract staker_address
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/
@@ -63,7 +63,7 @@ contract UserEscrow is Ownable {
     uint256 public endLockTimestamp;
 
     /**
-    * @param _linker UserEscrowProxyInterface contract address
+    * @param _linker UserEscrowProxyInterface contract staker_address
     * @param _token Token contract
     **/
     constructor(UserEscrowLibraryLinker _linker, NuCypherToken _token) public {

@@ -110,7 +110,7 @@ class RevocationKit:
     @property
     def revokable_addresses(self):
         """
-        Returns a Set of revokable addresses in the checksum address formatting
+        Returns a Set of revokable addresses in the checksum staker_address formatting
         """
         return set(self.revocations.keys())
 

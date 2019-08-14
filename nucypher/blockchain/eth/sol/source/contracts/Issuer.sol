@@ -37,7 +37,7 @@ contract Issuer is Upgradeable {
     uint256 public currentSupply2;
 
     /**
-    * @notice Constructor sets address of token contract and coefficients for mining
+    * @notice Constructor sets staker_address of token contract and coefficients for mining
     * @dev Mining formula for one stake in one period
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
     if allLockedPeriods > rewardedPeriods then allLockedPeriods = rewardedPeriods

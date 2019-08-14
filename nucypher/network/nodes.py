@@ -271,7 +271,7 @@ class Learner:
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
-    really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
+    really_unknown_version_message = "Unable to glean staker_address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
     class NotEnoughNodes(RuntimeError):
@@ -914,7 +914,7 @@ class Teacher:
         self.__worker_address = None
 
     class InvalidNode(SuspiciousActivity):
-        """Raised when a node has an invalid characteristic - stamp, interface, or address."""
+        """Raised when a node has an invalid characteristic - stamp, interface, or staker_address."""
 
     class InvalidStamp(InvalidNode):
         """Base exception class for invalid character stamps"""
@@ -923,7 +923,7 @@ class Teacher:
         """Raised when a node does not have a stamp signature when one is required for verification"""
 
     class InvalidWorkerSignature(InvalidStamp):
-        """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
+        """Raised when a stamp fails signature verification or recovers an unexpected worker staker_address"""
 
     class NotStaking(InvalidStamp):
         """Raised when a node fails verification because it is not currently staking"""
@@ -1077,12 +1077,12 @@ class Teacher:
         """
         Three things happening here:
 
-        * Verify that the stamp matches the address (raises InvalidNode is it's not valid,
+        * Verify that the stamp matches the staker_address (raises InvalidNode is it's not valid,
           or WrongMode if it's a federated mode and being verified as a decentralized node)
 
         * Verify the interface signature (raises InvalidNode if not valid)
 
-        * Connect to the node, make sure that it's up, and that the signature and address we
+        * Connect to the node, make sure that it's up, and that the signature and staker_address we
           checked are the same ones this node is using now. (raises InvalidNode if not valid;
           also emits a specific warning depending on which check failed).
 
@@ -1123,7 +1123,7 @@ class Teacher:
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
             if not addresses_match:
-                self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
+                self.log.warn("Wallet staker_address swapped out.  It appears that someone is trying to defraud this node.")
             if not verifying_keys_match:
                 self.log.warn("Verifying key swapped out.  It appears that someone is impersonating this node.")
 
@@ -1159,9 +1159,9 @@ class Teacher:
 
     def validate_interface(self) -> bool:
         """
-        Checks that the interface info is valid for this node's canonical address.
+        Checks that the interface info is valid for this node's canonical staker_address.
         """
-        interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
+        interface_info_message = self._signable_interface_info_message()  # Contains canonical staker_address.
         message = self.timestamp_bytes() + interface_info_message
         interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid

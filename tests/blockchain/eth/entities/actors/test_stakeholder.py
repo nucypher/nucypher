@@ -5,7 +5,8 @@ import pytest
 from constant_sorrow.constants import NO_STAKES
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder, Worker
+from nucypher.blockchain.eth.actors import Worker
+from nucypher.characters.lawful import StakeHolder
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower

@@ -183,7 +183,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
 
     # Now let's go a little further: make the version totally unrecognizable.
 
-    # First, there's enough garbage to at least scrape a potential checksum address
+    # First, there's enough garbage to at least scrape a potential checksum staker_address
     fleet_snapshot = os.urandom(32 + 4)
     random_bytes = os.urandom(50)  # lots of garbage in here
     future_version = learner.LEARNER_VERSION + 42
@@ -208,7 +208,7 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
                                                                                future_version,
                                                                                learner.LEARNER_VERSION)
 
-    # This time, however, there's not enough garbage to assume there's a checksum address...
+    # This time, however, there's not enough garbage to assume there's a checksum staker_address...
     random_bytes = os.urandom(2)
     crazy_bytes = fleet_snapshot + VariableLengthBytestring(version_bytes + random_bytes)
     signed_crazy_bytes = bytes(teacher.stamp(crazy_bytes))

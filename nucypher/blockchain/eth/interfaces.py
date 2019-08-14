@@ -147,7 +147,7 @@ class BlockchainInterface:
         -----------------------------
 
         Contracts are freshly re-compiled if an instance of SolidityCompiler is passed; otherwise,
-        The registry will read contract data saved to disk that is be used to retrieve contact address and op-codes.
+        The registry will read contract data saved to disk that is be used to retrieve contact staker_address and op-codes.
         Optionally, A registry instance can be passed instead.
 
 
@@ -170,6 +170,7 @@ class BlockchainInterface:
         self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
+        self.transacting_power = READ_ONLY_INTERFACE
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -447,7 +448,7 @@ class BlockchainInterface:
                                                              address=proxy_addr,
                                                              ContractFactoryClass=self._contract_factory)
 
-                # Read this dispatcher's target address from the blockchain
+                # Read this dispatcher's target staker_address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
                 for target_name, target_addr, target_abi in target_contract_records:
 
@@ -532,7 +533,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         """
 
         if not is_checksum_address(deployer_address):
-            raise ValueError(f"{deployer_address} is not a valid EIP-55 checksum address.")
+            raise ValueError(f"{deployer_address} is not a valid EIP-55 checksum staker_address.")
 
         #
         # Build the deployment transaction #
@@ -545,7 +546,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         pprint_args = str(tuple(constructor_args))
         pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
         self.log.info(f"Deploying contract {contract_name} with "
-                      f"deployer address {deployer_address} "
+                      f"deployer staker_address {deployer_address} "
                       f"and parameters {pprint_args}")
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
@@ -565,7 +566,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         # Success
         address = receipt['contractAddress']
-        self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
+        self.log.info("Confirmed {} deployment: staker_address {}".format(contract_name, address))
 
         #
         # Instantiate & Enroll contract
@@ -600,7 +601,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
     def _wrap_contract(self, wrapper_contract: Contract, target_contract: Contract) -> Contract:
         """
         Used for upgradeable contracts; Returns a new contract object assembled
-        with its own address but the abi of the other.
+        with its own staker_address but the abi of the other.
         """
 
         # Wrap the contract
@@ -623,7 +624,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                          address=addr,
                                                          ContractFactoryClass=self._contract_factory)
 
-            # Read this dispatchers target address from the blockchain
+            # Read this dispatchers target staker_address from the blockchain
             proxy_live_target_address = proxy_contract.functions.target().call()
 
             if proxy_live_target_address == target_address:

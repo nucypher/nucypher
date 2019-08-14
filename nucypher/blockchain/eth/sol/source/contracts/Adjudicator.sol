@@ -59,7 +59,7 @@ contract Adjudicator is Upgradeable {
         public
     {
         // Sanity checks.
-        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
+        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null staker_address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
@@ -132,7 +132,7 @@ contract Adjudicator is Upgradeable {
         );
 
         // Verify that _taskSignature is bob's signature of the task specification.
-        // A task specification is: capsule + ursula pubkey + alice address + blockhash
+        // A task specification is: capsule + ursula pubkey + alice staker_address + blockhash
         bytes32 stampXCoord;
         assembly {
             stampXCoord := mload(add(_workerPublicKey, 32))
@@ -151,7 +151,7 @@ contract Adjudicator is Upgradeable {
                 "Specification signature is invalid"
         );
 
-        // 4. Extract worker address from stamp signature.
+        // 4. Extract worker staker_address from stamp signature.
         address worker = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
@@ -172,7 +172,7 @@ contract Adjudicator is Upgradeable {
 
     /**
     * @notice Calculate penalty to the staker and reward to the investigator
-    * @param _staker Staker's address
+    * @param _staker Staker's staker_address
     * @param _stakerValue Amount of tokens that belong to the staker
     **/
     function calculatePenaltyAndReward(address _staker, uint256 _stakerValue)

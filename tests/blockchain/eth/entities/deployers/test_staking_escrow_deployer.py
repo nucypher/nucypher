@@ -43,7 +43,7 @@ def test_make_agent(staking_escrow_deployer, test_registry):
     same_staking_agent = StakingEscrowAgent(registry=test_registry)
     assert staking_agent == same_staking_agent
 
-    # Compare the contract address for equality
+    # Compare the contract staker_address for equality
     assert staking_agent.contract_address == same_staking_agent.contract_address
 
 

@@ -21,7 +21,7 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
 
 import maya
 import requests
@@ -42,11 +42,14 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeTracker
-from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
+from nucypher.blockchain.eth.token import StakeList, PeriodTracker, NU
+from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
     AliceJSONController,
@@ -807,9 +810,9 @@ class Ursula(Teacher, Character, Worker):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_address: str = None,  # Staker address
+                 checksum_address: str = None,  # Staker staker_address
                  worker_address: str = None,
-                 stake_tracker: StakeTracker = None,
+                 period_tracker: PeriodTracker = None,
                  client_password: str = None,
 
                  # Character
@@ -870,7 +873,7 @@ class Ursula(Teacher, Character, Worker):
                                 registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                stake_tracker=stake_tracker)
+                                period_tracker=period_tracker)
 
         #
         # ProxyRESTServer and TLSHostingPower #
@@ -1355,3 +1358,116 @@ class Enrico(Character):
             return Response(json.dumps(response_data), status=200)
 
         return controller
+
+
+class StakeHolder(Staker):
+
+    banner = STAKEHOLDER_BANNER
+
+    class StakingWallet:
+
+        class UnknownAccount(KeyError):
+            pass
+
+        def __init__(self,
+                     registry: BaseContractRegistry,
+                     checksum_addresses: set = None):
+
+            # Wallet
+            self.__accounts = set()  # Note: Account index is meaningless here
+            self.__transacting_powers = dict()
+
+            # Blockchain
+            self.registry = registry
+            self.blockchain = BlockchainInterfaceFactory.get_interface()
+            self.token_agent = NucypherTokenAgent(self.registry)
+
+            self.__get_accounts()
+            self.__accounts.update(checksum_addresses)
+
+        @validate_checksum_address
+        def __contains__(self, checksum_address: str) -> bool:
+            return bool(checksum_address in self.__accounts)
+
+        @property
+        def active_account(self) -> str:
+            return self.blockchain.transacting_power.account
+
+        def __get_accounts(self) -> None:
+            accounts = self.blockchain.client.accounts
+            self.__accounts.update(accounts)
+
+        @property
+        def accounts(self) -> set:
+            return self.__accounts
+
+        @validate_checksum_address
+        def activate_account(self, checksum_address: str, password: str = None) -> None:
+            if checksum_address not in self:
+                self.__get_accounts()
+                if checksum_address not in self:
+                    raise self.UnknownAccount
+            try:
+                transacting_power = self.__transacting_powers[checksum_address]
+            except KeyError:
+                transacting_power = TransactingPower(password=password, account=checksum_address)
+                self.__transacting_powers[checksum_address] = transacting_power
+            transacting_power.activate(password=password)
+
+        @property
+        def balances(self) -> Dict[str, int]:
+            balances = dict()
+            for account in self.__accounts:
+                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
+                         'NU': self.token_agent.get_balance(account)}
+                balances.update({account: funds})
+            return balances
+
+    #
+    # StakeHolder
+    #
+
+    def __init__(self,
+                 is_me: bool = True,
+                 initial_address: str = None,
+                 checksum_addresses: set = None,
+                 *args, **kwargs):
+        super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
+        self.log = Logger(f"stakeholder")
+
+        # Wallet
+        self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
+        if initial_address:
+            # If an initial address was passed,
+            # it is safe to understand that it has already been used at a higher level.
+            if initial_address not in self.wallet:
+                raise self.StakingWallet.UnknownAccount
+            self.stakes.refresh()
+
+    @validate_checksum_address
+    def assimilate(self, checksum_address: str, password: str = None) -> None:
+        self.wallet.activate_account(checksum_address=checksum_address, password=password)
+        original_form = self.checksum_address
+        self.checksum_address = checksum_address
+        self.stakes = StakeList(registry=self.registry, checksum_address=checksum_address)
+        self.stakes.refresh()
+        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {checksum_address}.")
+
+    @property
+    def all_stakes(self) -> list:
+        stakes = list()
+        for account in self.wallet.accounts:
+            more_stakes = StakeList(registry=self.registry, checksum_address=account)
+            more_stakes.refresh()
+            stakes.extend(more_stakes)
+        return stakes
+
+    @property
+    def current_stake(self) -> NU:
+        """
+        The total number of staked tokens, either locked or unlocked in the current period.
+        """
+        # TODO: This is skipping a layer. Fix me?
+        stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
+        nu_stake = NU.from_nunits(stake)
+        return nu_stake

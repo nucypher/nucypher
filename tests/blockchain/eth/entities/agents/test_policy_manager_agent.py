@@ -64,7 +64,7 @@ def test_create_policy(testerchain, agency, token_economics):
                                   node_addresses=node_addresses)
 
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
 
 
 @pytest.mark.slow()
@@ -90,7 +90,7 @@ def test_revoke_arrangement(agency, policy_meta):
                                        author_address=policy_meta.author,
                                        node_address=policy_meta.addresses[0])
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
 
 
 @pytest.mark.slow()
@@ -101,7 +101,7 @@ def test_revoke_policy(agency, policy_meta):
 
     receipt = agent.revoke_policy(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
@@ -137,7 +137,7 @@ def test_collect_refund(testerchain, agency, policy_meta):
     testerchain.time_travel(hours=9)
     receipt = agent.collect_refund(policy_id=policy_meta.policy_id, author_address=policy_meta.author)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
 
 
 @pytest.mark.slow()
@@ -167,6 +167,6 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
 
     receipt = agent.collect_policy_reward(collector_address=staker, staker_address=staker)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
     new_eth_balance = token_agent.blockchain.client.get_balance(staker)
     assert new_eth_balance > old_eth_balance

@@ -127,7 +127,7 @@ def ecdsa_sign(message: bytes,
 
 def recover_address_eip_191(message: bytes, signature: bytes) -> str:
     """
-    Recover checksum address from EIP-191 signature
+    Recover checksum staker_address from EIP-191 signature
     """
     signable_message = encode_defunct(primitive=message)
     recovery = Account.recover_message(signable_message=signable_message, signature=signature)

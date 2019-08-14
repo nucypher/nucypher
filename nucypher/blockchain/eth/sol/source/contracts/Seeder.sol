@@ -36,8 +36,8 @@ contract Seeder is Ownable {
     }
 
     /**
-    * @notice Write a new seed address and interface info to contract storage
-    * @param _ip IPv4 address of the seed node
+    * @notice Write a new seed staker_address and interface info to contract storage
+    * @param _ip IPv4 staker_address of the seed node
     * @param _port TCP port of the seed node
     **/
     function enroll(address _seed, string memory _ip, uint16 _port) public onlyOwner {
@@ -59,7 +59,7 @@ contract Seeder is Ownable {
 
     /**
     * @notice Seed updates itself.
-    * @param _ip Updated IPv4 address of the existing seed node
+    * @param _ip Updated IPv4 staker_address of the existing seed node
     * @param _port Updated TCP port of the existing seed node
     **/
     function refresh(string memory _ip, uint16 _port) public {

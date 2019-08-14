@@ -570,7 +570,7 @@ class BlockchainPolicy(Policy):
 
             except KeyError:
                 # Unknown Node
-                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
+                self.alice.learn_about_specific_nodes({ether_address})  # enter staker_address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -606,7 +606,7 @@ class BlockchainPolicy(Policy):
                        value=self.value,
                        periods=self.lock_periods,           # uint16 _numberOfPeriods
                        first_period_reward=self.first_period_reward,  # uint256 _firstPartialReward
-                       node_addresses=prearranged_ursulas   # address[] memory _nodes
+                       node_addresses=prearranged_ursulas   # staker_address[] memory _nodes
         )
 
         # Capture Response

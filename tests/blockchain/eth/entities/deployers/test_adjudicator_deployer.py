@@ -71,5 +71,5 @@ def test_adjudicator_deployer(testerchain,
     some_policy_agent = AdjudicatorAgent(registry=test_registry)
     assert adjudicator_agent == some_policy_agent  # __eq__
 
-    # Compare the contract address for equality
+    # Compare the contract staker_address for equality
     assert adjudicator_agent.contract_address == some_policy_agent.contract_address

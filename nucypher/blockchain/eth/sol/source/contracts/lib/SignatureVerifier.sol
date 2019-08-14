@@ -2,7 +2,7 @@ pragma solidity ^0.5.3;
 
 
 /**
-* @notice Library to recover address and verify signatures
+* @notice Library to recover staker_address and verify signatures
 * @dev Simple wrapper for `ecrecover`
 **/
 library SignatureVerifier {
@@ -13,7 +13,7 @@ library SignatureVerifier {
     bytes25 constant EIP191_VERSION_E_HEADER = "Ethereum Signed Message:\n";
 
     /**
-    * @notice Recover signer address from hash and signature
+    * @notice Recover signer staker_address from hash and signature
     * @param _hash 32 bytes message hash
     * @param _signature Signature of hash - 32 bytes r + 32 bytes s + 1 byte v (could be 0, 1, 27, 28)
     **/
@@ -42,7 +42,7 @@ library SignatureVerifier {
     }
 
     /**
-    * @notice Transform public key to address
+    * @notice Transform public key to staker_address
     * @param _publicKey secp256k1 public key
     **/
     function toAddress(bytes memory _publicKey) internal pure returns (address) {

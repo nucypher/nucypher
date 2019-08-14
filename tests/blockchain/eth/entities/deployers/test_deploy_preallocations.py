@@ -53,9 +53,9 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics,
 
         _deployment_txhashes = escrow_deployer.deploy()
 
-        # Ensure we have the correct assembly of address and abi
+        # Ensure we have the correct assembly of staker_address and abi
         assert escrow_deployer.contract.address == escrow_deployer.contract.address
-        # assert escrow_deployer.contract_address == user_escrow_proxy  # (address)
+        # assert escrow_deployer.contract_address == user_escrow_proxy  # (staker_address)
 
         # Ensure each deployment is unique
         if _last_deployment_address:

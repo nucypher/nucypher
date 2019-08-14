@@ -119,7 +119,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Contract Registry
         if registry and registry_filepath:
-            if registry.filepath != filepath:
+            if registry.filepath != registry_filepath:
                 error = f"Inconsistent registry filepaths for '{registry.filepath}' and '{registry_filepath}'."
                 raise ValueError(error)
             else:
@@ -131,9 +131,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
-        self.token_agent = NO_BLOCKCHAIN_CONNECTION
-        self.staking_agent = NO_BLOCKCHAIN_CONNECTION
-        self.policy_agent = NO_BLOCKCHAIN_CONNECTION
 
         # Learner
         self.federated_only = federated_only
@@ -286,7 +283,7 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root', 'poa', 'provider_uri')
+        non_init_params = ('config_root', 'poa', 'provider_uri', 'registry_filepath')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
@@ -355,7 +352,6 @@ class CharacterConfiguration(BaseConfiguration):
 
             # Behavior
             domains=list(self.domains),  # From Set
-            provider_uri=self.provider_uri,
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
@@ -366,6 +362,8 @@ class CharacterConfiguration(BaseConfiguration):
         # Optional values (mode)
         if not self.federated_only:
             payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+            if self.registry_filepath:
+                payload.update(dict(registry_filepath=self.registry_filepath))
 
         # Merge with base payload
         base_payload = super().static_payload()
@@ -471,7 +469,7 @@ class CharacterConfiguration(BaseConfiguration):
                 if not os.path.exists(self.provider_process.data_dir):
                     os.mkdir(self.provider_process.data_dir)
 
-                # Get or create wallet address
+                # Get or create wallet staker_address
                 if not self.checksum_address:
                     self.checksum_address = self.provider_process.ensure_account_exists(password=password)
                 elif self.checksum_address not in self.provider_process.accounts():

@@ -241,7 +241,7 @@ def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
 
 
 def _generate_wallet(password: str) -> Tuple[str, dict]:
-    """Create a new wallet address and private "transacting" key encrypted with the password"""
+    """Create a new wallet staker_address and private "transacting" key encrypted with the password"""
     account = Account.create(extra_entropy=os.urandom(32))  # max out entropy for keccak256
     encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=password)
     return account.address, encrypted_wallet_data
@@ -562,7 +562,7 @@ class NucypherKeyring:
             pass
 
         if not checksum_address:
-            raise ValueError("Checksum address must be provided for non-federated keyring generation")
+            raise ValueError("Checksum staker_address must be provided for non-federated keyring generation")
 
         __key_filepaths = cls._generate_key_filepaths(account=checksum_address,
                                                       private_key_dir=_private_key_dir,

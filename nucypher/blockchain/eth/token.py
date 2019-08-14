@@ -1,4 +1,5 @@
 from _pydecimal import Decimal
+from collections import UserList
 from typing import Union, Tuple, Callable, List
 
 import maya
@@ -17,6 +18,7 @@ from twisted.logger import Logger
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 
 
@@ -219,18 +221,18 @@ class Stake:
                         checksum_address: str,
                         index: int,
                         stake_info: Tuple[int, int, int],
-                        staking_agent: StakingEscrowAgent,
+                        *args, **kwargs
                         ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
         first_locked_period, last_locked_period, value = stake_info
 
-        instance = cls(staking_agent=staking_agent,
-                       checksum_address=checksum_address,
+        instance = cls(checksum_address=checksum_address,
                        index=index,
                        first_locked_period=first_locked_period,
                        last_locked_period=last_locked_period,
-                       value=NU(value, 'NuNit'))
+                       value=NU(value, 'NuNit'),
+                       *args, **kwargs)
 
         instance.worker_address = instance.staking_agent.get_worker_from_staker(staker_address=checksum_address)
         return instance
@@ -448,79 +450,34 @@ class Stake:
         return stake
 
 
-class StakeTracker:
+class PeriodTracker:
 
-    REFRESH_RATE = 60 * 60  # TODO: Disable this during pytests.
-
-    tracking_addresses = set()
-
-    __stakes = dict()    # type: Dict[str: List[Stake]]
+    REFRESH_RATE = 60 * 60  # one hour.
     __actions = list()   # type: List[Tuple[Callable, tuple]]
 
-    def __init__(self,
-                 staking_agent: StakingEscrowAgent,
-                 checksum_addresses: List[str],
-                 refresh_rate: int = None,
-                 start_now: bool = False,
-                 *args, **kwargs):
+    def __init__(self, registry: BaseContractRegistry, refresh_rate: int = None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-
         self.log = Logger('stake-tracker')
 
-        self.staking_agent = staking_agent
+        self.staking_agent = StakingEscrowAgent(registry=registry)
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
 
         self.__current_period = None
-        self.__stakes = dict()
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
-        self.__terminal_period = NOT_STAKING
         self._abort_on_stake_tracking_error = True
 
-        # "load-in":  Read on-chain stakes
-        for checksum_address in checksum_addresses:
-            if not is_checksum_address(checksum_address):
-                raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
-            self.tracking_addresses.add(checksum_address)
-
-        if start_now:
-            self.start()  # deamonize
-        else:
-            self.refresh(checksum_addresses=checksum_addresses)  # read-once
-
-    @validate_checksum_address
-    def __getitem__(self, checksum_address: str):
-        stakes = self.stakes(checksum_address=checksum_address)
-        return stakes
+    @property
+    def current_period(self):
+        return self.__current_period
 
     def add_action(self, func: Callable, args=()) -> None:
         self.__actions.append((func, args))
 
     def clear_actions(self) -> None:
         self.__actions.clear()
-
-    @property
-    def current_period(self):
-        return self.__current_period
-
-    @validate_checksum_address
-    def stakes(self, checksum_address: str) -> List[Stake]:
-        """Return all cached stake instances from the blockchain."""
-        try:
-            return self.__stakes[checksum_address]
-        except KeyError:
-            return NO_STAKES.bool_value(False)
-        except TypeError:
-            if self.__stakes in (UNKNOWN_STAKES, NO_STAKES):
-                return NO_STAKES.bool_value(False)
-            raise
-
-    @validate_checksum_address
-    def refresh(self, checksum_addresses: List[str] = None) -> None:
-        """Public staking cache invalidation method"""
-        return self.__read_stakes(checksum_addresses=checksum_addresses)
 
     def stop(self) -> None:
         self._tracking_task.stop()
@@ -542,7 +499,7 @@ class StakeTracker:
 
         d = self._tracking_task.start(interval=self._refresh_rate)
         d.addErrback(self.handle_tracking_errors)
-        self.log.info(f"STARTED STAKE TRACKING for {len(self.tracking_addresses)} addresses")
+        self.log.info(f"STARTED PERIOD TRACKING with {len(self.__actions)} registered actions.")
 
     def _crash_gracefully(self, failure=None) -> None:
         """
@@ -565,59 +522,81 @@ class StakeTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.__current_period != onchain_period:
             self.__current_period = onchain_period
-            self.__read_stakes()
 
             # TODO:  Extract PeriodObserver - Can be used to optimize stake reading calls.
             for action, args in self.__actions:
                 action(*args)
 
+
+class StakeList(UserList):
+
+    def __init__(self,
+                 registry: BaseContractRegistry,
+                 checksum_address: str = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.log = Logger('stake-tracker')
+        self.staking_agent = StakingEscrowAgent(registry=registry)
+
+        self.__terminal_period = NOT_STAKING
+
+        # "load-in":  Read on-chain stakes
+        # Allow stake tracker to be initialized as an empty collection.
+        if checksum_address:
+            if not is_checksum_address(checksum_address):
+                raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
+        self.checksum_address = checksum_address
+        self.__updated = None
+
+    def start_tracking(self, period_tracker: PeriodTracker) -> None:
+        period_tracker.add_action(self.__read_stakes)
+        self.log.info(f"STARTED STAKE TRACKING for {self.checksum_address}")
+
+    @property
+    def updated(self) -> maya.MayaDT:
+        return self.__updated
+
     @validate_checksum_address
-    def __read_stakes(self, checksum_addresses: List[str] = None) -> None:
+    def refresh(self, checksum_addresses: List[str] = None) -> None:
+        """Public staking cache invalidation method"""
+        return self.__read_stakes()
+
+    @validate_checksum_address
+    def __read_stakes(self,) -> None:
         """Rewrite the local staking cache by reading on-chain stakes"""
 
-        if not checksum_addresses:
-            checksum_addresses = self.tracking_addresses
+        existing_records = len(self)
 
-        for checksum_address in checksum_addresses:
+        # Candidate replacement cache values
+        onchain_stakes, terminal_period = list(), 0
 
-            if not is_checksum_address(checksum_address):
-                if self._abort_on_stake_tracking_error:
-                    raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
-                self.tracking_addresses.remove(checksum_address)  # Prune
+        # Read from blockchain
+        stakes_reader = self.staking_agent.get_all_stakes(staker_address=self.checksum_address)
+        for onchain_index, stake_info in enumerate(stakes_reader):
 
-            existing_records = len(self.stakes(checksum_address=checksum_address))
+            if not stake_info:
+                onchain_stake = EMPTY_STAKING_SLOT
 
-            # Candidate replacement cache values
-            onchain_stakes, terminal_period = list(), 0
-
-            # Read from blockchain
-            stakes_reader = self.staking_agent.get_all_stakes(staker_address=checksum_address)
-            for onchain_index, stake_info in enumerate(stakes_reader):
-
-                if not stake_info:
-                    onchain_stake = EMPTY_STAKING_SLOT
-
-                else:
-                    onchain_stake = Stake.from_stake_info(checksum_address=checksum_address,
-                                                          stake_info=stake_info,
-                                                          staking_agent=self.staking_agent,
-                                                          index=onchain_index)
-
-                    # rack the latest terminal period
-                    if onchain_stake.last_locked_period > terminal_period:
-                        terminal_period = onchain_stake.last_locked_period
-
-                # Store the replacement stake
-                onchain_stakes.append(onchain_stake)
-
-            # Commit the new stake and terminal values to the cache
-            if not onchain_stakes:
-                self.__stakes[checksum_address] = NO_STAKES.bool_value(False)
             else:
-                self.__terminal_period = terminal_period
-                self.__stakes[checksum_address] = onchain_stakes
-                new_records = existing_records - len(self.__stakes[checksum_address])
-                self.log.debug(f"Updated local staking cache ({new_records} new stakes).")
+                onchain_stake = Stake.from_stake_info(checksum_address=self.checksum_address,
+                                                      stake_info=stake_info,
+                                                      staking_agent=self.staking_agent,
+                                                      index=onchain_index)
 
-            # Record most recent cache update
-            self.__updated = maya.now()
+                # rack the latest terminal period
+                if onchain_stake.last_locked_period > terminal_period:
+                    terminal_period = onchain_stake.last_locked_period
+
+            # Store the replacement stake
+            onchain_stakes.append(onchain_stake)
+
+        # Commit the new stake and terminal values to the cache
+        self.data = onchain_stakes
+        if onchain_stakes:
+            self.__terminal_period = terminal_period
+            new_records = existing_records - len(onchain_stakes)
+            self.log.debug(f"Updated local staking cache ({new_records} new stakes).")
+
+        # Record most recent cache update
+        self.__updated = maya.now()

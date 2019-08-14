@@ -187,7 +187,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     # Release worker
     _txhash = agent.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
 
-    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(address=agent.contract_address))
+    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
     assert txhash
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 

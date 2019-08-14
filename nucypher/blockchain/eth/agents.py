@@ -111,7 +111,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
     def get_balance(self, address: str = None) -> int:
-        """Get the balance of a token address, or of this contract address"""
+        """Get the balance of a token staker_address, or of this contract staker_address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
@@ -122,7 +122,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
-        """Approve the transfer of token from the sender address to the target address."""
+        """Approve the transfer of token from the sender staker_address to the target staker_address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
         contract_function = self.contract.functions.approve(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -201,8 +201,8 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
-    def owned_tokens(self, address: str) -> int:
-        return self.contract.functions.stakerInfo(address).call()[0]
+    def owned_tokens(self, staker_address: str) -> int:
+        return self.contract.functions.getAllTokens(staker_address).call()
 
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
@@ -222,7 +222,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
-        """Send tokens to the escrow from the staker's address"""
+        """Send tokens to the escrow from the staker's staker_address"""
         contract_function = self.contract.functions.deposit(amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)

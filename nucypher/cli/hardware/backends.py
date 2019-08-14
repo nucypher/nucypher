@@ -30,11 +30,11 @@ class TrustedDevice(ABC):
     TODO: Define an abstractmethod for BIP44 derivation?
     """
 
-    # We intentionally keep the address index off the path so that the
-    # subclass interfaces can handle which address index to use.
+    # We intentionally keep the staker_address index off the path so that the
+    # subclass interfaces can handle which staker_address index to use.
     DEFAULT_BIP44_PATH = "m/44'/60'/0'/0"
 
-    Signature = namedtuple('Signature', ['signature', 'address'])
+    Signature = namedtuple('Signature', ['signature', 'staker_address'])
 
     class DeviceError(Exception):
         pass

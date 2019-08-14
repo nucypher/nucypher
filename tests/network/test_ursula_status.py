@@ -19,6 +19,6 @@ def test_render_ursula_status_page_with_known_nodes(tmpdir, federated_ursulas):
     assert '<!DOCTYPE html>' in rendering
     assert ursula.nickname in rendering
 
-    # Every known nodes address is rendered
+    # Every known nodes staker_address is rendered
     for known_ursula in federated_ursulas:
         assert known_ursula.checksum_address in rendering

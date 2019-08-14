@@ -141,7 +141,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     they do not propagate interface information for Vladimir.
 
     Specifically, if Vladimir tries to perform the most obvious imitation attack -
-    propagating his own wallet address along with Ursula's information - the validity
+    propagating his own wallet staker_address along with Ursula's information - the validity
     check will catch it and Ursula will refuse to propagate it and also record Vladimir's
     details.
     """
@@ -172,10 +172,10 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     learn_about_vladimir()
 
     # And indeed, Ursula noticed the situation.
-    # She didn't record Vladimir's address.
+    # She didn't record Vladimir's staker_address.
     assert vladimir not in other_ursula.known_nodes
 
-    # But she *did* record the actual Ursula's address.
+    # But she *did* record the actual Ursula's staker_address.
     assert ursula_whom_vladimir_will_imitate in other_ursula.known_nodes
 
     # Furthermore, she properly marked Vladimir as suspicious.

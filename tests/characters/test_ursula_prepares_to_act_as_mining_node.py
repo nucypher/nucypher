@@ -91,16 +91,16 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ursulas):
     his_target = list(blockchain_ursulas)[4]
 
-    # Vladimir has his own ether address; he hopes to publish it along with Ursula's details
+    # Vladimir has his own ether staker_address; he hopes to publish it along with Ursula's details
     # so that Alice (or whomever) pays him instead of Ursula, even though Ursula is providing the service.
 
     # He finds a target and verifies that its interface is valid.
     assert his_target.validate_interface()
 
-    # Now Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
+    # Now Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether staker_address.
     vladimir = Vladimir.from_target_ursula(his_target, claim_signing_key=True)
 
-    # Vladimir can substantiate the stamp using his own ether address...
+    # Vladimir can substantiate the stamp using his own ether staker_address...
     vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
     vladimir.validate_worker = lambda: True
     vladimir.validate_worker()  # lol
@@ -109,7 +109,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     assert vladimir.stamp == his_target.stamp
 
     # ...he is unable to pretend that his interface is valid
-    # because the interface validity check contains the canonical public address as part of its message.
+    # because the interface validity check contains the canonical public staker_address as part of its message.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.validate_interface()
 

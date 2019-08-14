@@ -34,9 +34,9 @@ contract ERC20 is IERC20 {
     }
 
     /**
-     * @dev Gets the balance of the specified address.
-     * @param owner The address to query the balance of.
-     * @return An uint256 representing the amount owned by the passed address.
+     * @dev Gets the balance of the specified staker_address.
+     * @param owner The staker_address to query the balance of.
+     * @return An uint256 representing the amount owned by the passed staker_address.
      */
     function balanceOf(address owner) public view returns (uint256) {
         return _balances[owner];
@@ -44,8 +44,8 @@ contract ERC20 is IERC20 {
 
     /**
      * @dev Function to check the amount of tokens that an owner allowed to a spender.
-     * @param owner address The address which owns the funds.
-     * @param spender address The address which will spend the funds.
+     * @param owner staker_address The staker_address which owns the funds.
+     * @param spender staker_address The staker_address which will spend the funds.
      * @return A uint256 specifying the amount of tokens still available for the spender.
      */
     function allowance(address owner, address spender) public view returns (uint256) {
@@ -53,8 +53,8 @@ contract ERC20 is IERC20 {
     }
 
     /**
-     * @dev Transfer token for a specified address
-     * @param to The address to transfer to.
+     * @dev Transfer token for a specified staker_address
+     * @param to The staker_address to transfer to.
      * @param value The amount to be transferred.
      */
     function transfer(address to, uint256 value) public returns (bool) {
@@ -63,12 +63,12 @@ contract ERC20 is IERC20 {
     }
 
     /**
-     * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
+     * @dev Approve the passed staker_address to spend the specified amount of tokens on behalf of msg.sender.
      * Beware that changing an allowance with this method brings the risk that someone may use both the old
      * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
      * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
      * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     * @param spender The address which will spend the funds.
+     * @param spender The staker_address which will spend the funds.
      * @param value The amount of tokens to be spent.
      */
     function approve(address spender, uint256 value) public returns (bool) {
@@ -84,11 +84,11 @@ contract ERC20 is IERC20 {
     }
 
     /**
-     * @dev Transfer tokens from one address to another.
+     * @dev Transfer tokens from one staker_address to another.
      * Note that while this function emits an Approval event, this is not required as per the specification,
      * and other compliant implementations may not emit the event.
-     * @param from address The address which you want to send tokens from
-     * @param to address The address which you want to transfer to
+     * @param from staker_address The staker_address which you want to send tokens from
+     * @param to staker_address The staker_address which you want to transfer to
      * @param value uint256 the amount of tokens to be transferred
      */
     function transferFrom(address from, address to, uint256 value) public returns (bool) {
@@ -104,7 +104,7 @@ contract ERC20 is IERC20 {
      * the first transaction is mined)
      * From MonolithDAO Token.sol
      * Emits an Approval event.
-     * @param spender The address which will spend the funds.
+     * @param spender The staker_address which will spend the funds.
      * @param addedValue The amount of tokens to increase the allowance by.
      */
     function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
@@ -119,7 +119,7 @@ contract ERC20 is IERC20 {
      * the first transaction is mined)
      * From MonolithDAO Token.sol
      * Emits an Approval event.
-     * @param spender The address which will spend the funds.
+     * @param spender The staker_address which will spend the funds.
      * @param subtractedValue The amount of tokens to decrease the allowance by.
      */
     function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
@@ -129,8 +129,8 @@ contract ERC20 is IERC20 {
 
     /**
      * @dev Transfer token for a specified addresses
-     * @param from The address to transfer from.
-     * @param to The address to transfer to.
+     * @param from The staker_address to transfer from.
+     * @param to The staker_address to transfer to.
      * @param value The amount to be transferred.
      */
     function _transfer(address from, address to, uint256 value) internal {
@@ -171,9 +171,9 @@ contract ERC20 is IERC20 {
     }
 
     /**
-     * @dev Approve an address to spend another addresses' tokens.
-     * @param owner The address that owns the tokens.
-     * @param spender The address that will spend the tokens.
+     * @dev Approve an staker_address to spend another addresses' tokens.
+     * @param owner The staker_address that owns the tokens.
+     * @param spender The staker_address that will spend the tokens.
      * @param value The number of tokens that can be spent.
      */
     function _approve(address owner, address spender, uint256 value) internal {

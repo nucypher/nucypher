@@ -251,7 +251,7 @@ class Ec2Inventory(object):
 
         self.aws_account_id = None
 
-        # Index of hostname (address) to instance ID
+        # Index of hostname (staker_address) to instance ID
         self.index = {}
 
         # Boto profile to use (if any)
@@ -891,7 +891,7 @@ class Ec2Inventory(object):
         if instance.state not in self.ec2_instance_states:
             return
 
-        # Select the best destination address
+        # Select the best destination staker_address
         # When destination_format and destination_format_tags are specified
         # the following code will attempt to find the instance tags first,
         # then the instance attributes next, and finally if neither are found
@@ -918,7 +918,7 @@ class Ec2Inventory(object):
                 dest = getattr(instance, 'tags').get(self.destination_variable, None)
 
         if not dest:
-            # Skip instances we cannot address (e.g. private VPC subnet)
+            # Skip instances we cannot staker_address (e.g. private VPC subnet)
             return
 
         # Set the inventory name
@@ -936,7 +936,7 @@ class Ec2Inventory(object):
                 if name.endswith(self.route53_hostnames):
                     hostname = name
 
-        # If we can't get a nice hostname, use the destination address
+        # If we can't get a nice hostname, use the destination staker_address
         if not hostname:
             hostname = dest
         # to_safe strips hostname characters like dots, so don't strip route53 hostnames
@@ -1086,11 +1086,11 @@ class Ec2Inventory(object):
         if not self.all_rds_instances and instance.status != 'available':
             return
 
-        # Select the best destination address
+        # Select the best destination staker_address
         dest = instance.endpoint[0]
 
         if not dest:
-            # Skip instances we cannot address (e.g. private VPC subnet)
+            # Skip instances we cannot staker_address (e.g. private VPC subnet)
             return
 
         # Set the inventory name
@@ -1101,7 +1101,7 @@ class Ec2Inventory(object):
             else:
                 hostname = getattr(instance, self.hostname_variable)
 
-        # If we can't get a nice hostname, use the destination address
+        # If we can't get a nice hostname, use the destination staker_address
         if not hostname:
             hostname = dest
 
@@ -1207,7 +1207,7 @@ class Ec2Inventory(object):
         if not self.all_elasticache_clusters and cluster['CacheClusterStatus'] != 'available':
             return
 
-        # Select the best destination address
+        # Select the best destination staker_address
         if 'ConfigurationEndpoint' in cluster and cluster['ConfigurationEndpoint']:
             # Memcached cluster
             dest = cluster['ConfigurationEndpoint']['Address']
@@ -1220,7 +1220,7 @@ class Ec2Inventory(object):
             is_redis = True
 
         if not dest:
-            # Skip clusters we cannot address (e.g. private VPC subnet)
+            # Skip clusters we cannot staker_address (e.g. private VPC subnet)
             return
 
         # Add to index
@@ -1306,11 +1306,11 @@ class Ec2Inventory(object):
         if not self.all_elasticache_nodes and node['CacheNodeStatus'] != 'available':
             return
 
-        # Select the best destination address
+        # Select the best destination staker_address
         dest = node['Endpoint']['Address']
 
         if not dest:
-            # Skip nodes we cannot address (e.g. private VPC subnet)
+            # Skip nodes we cannot staker_address (e.g. private VPC subnet)
             return
 
         node_id = self.to_safe(cluster['CacheClusterId'] + '_' + node['CacheNodeId'])
@@ -1392,12 +1392,12 @@ class Ec2Inventory(object):
         if not self.all_elasticache_replication_groups and replication_group['Status'] != 'available':
             return
 
-        # Skip clusters we cannot address (e.g. private VPC subnet or clustered redis)
+        # Skip clusters we cannot staker_address (e.g. private VPC subnet or clustered redis)
         if replication_group['NodeGroups'][0]['PrimaryEndpoint'] is None or \
            replication_group['NodeGroups'][0]['PrimaryEndpoint']['Address'] is None:
             return
 
-        # Select the best destination address (PrimaryEndpoint)
+        # Select the best destination staker_address (PrimaryEndpoint)
         dest = replication_group['NodeGroups'][0]['PrimaryEndpoint']['Address']
 
         # Add to index

@@ -122,7 +122,7 @@ class Felix(Character, NucypherTokenActor):
 
     Felix is a web application that gives NuCypher *testnet* tokens to registered addresses
     with a scheduled reduction of disbursement amounts, and an HTTP endpoint
-    for handling new address registration.
+    for handling new staker_address registration.
 
     The main goal of Felix is to provide a source of testnet tokens for
     research and the development of production-ready nucypher dApps.
@@ -276,7 +276,7 @@ class Felix(Character, NucypherTokenActor):
         def register():
             """Handle new recipient registration via POST request."""
             try:
-                new_address = request.form['address']
+                new_address = request.form['staker_address']
             except KeyError:
                 return Response(status=400)  # TODO
 
@@ -341,7 +341,7 @@ class Felix(Character, NucypherTokenActor):
         self.log.info(NU_BANNER)
         self.log.info("Starting NU Token Distribution | START")
         if self.token_balance == NU.ZERO():
-            raise self.ActorError(f"Felix address {self.checksum_address} has 0 NU tokens.")
+            raise self.ActorError(f"Felix staker_address {self.checksum_address} has 0 NU tokens.")
         self._distribution_task.start(interval=self.DISTRIBUTION_INTERVAL, now=now)
         return True
 
@@ -426,7 +426,7 @@ class Felix(Character, NucypherTokenActor):
             # TODO: Is this needed? - Invalid entries are rejected at the endpoint view.
             # Prune database of invalid records
             # with ThreadedSession(self.db_engine) as session:
-            #     bad_eggs = session.query(self.Recipient).filter(self.Recipient.address in invalid_addresses).all()
+            #     bad_eggs = session.query(self.Recipient).filter(self.Recipient.staker_address in invalid_addresses).all()
             #     for egg in bad_eggs:
             #         session.delete(egg.id)
             #     session.commit()

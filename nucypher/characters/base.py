@@ -137,14 +137,6 @@ class Character(Learner):
         if not domains:
             domains = (CharacterConfiguration.DEFAULT_DOMAIN,)
 
-        # Needed for on-chain verification
-        if not self.federated_only:
-            if not registry:
-                raise ValueError(f"Registry is required for decentralized operation.")
-            self.staking_agent = StakingEscrowAgent(registry=registry)
-        else:
-            self.staking_agent = FEDERATED_ONLY
-
         #
         # Self-Character
         #
@@ -198,9 +190,9 @@ class Character(Learner):
             except NoSigningPower:
                 self._checksum_address = NO_BLOCKCHAIN_CONNECTION
             if checksum_address:
-                # We'll take a checksum address, as long as it matches their singing key
+                # We'll take a checksum staker_address, as long as it matches their singing key
                 if not checksum_address == self.checksum_address:
-                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
+                    error = "Federated-only Characters derive their staker_address from their Signing key; got {} instead."
                     raise self.SuspiciousActivity(error.format(checksum_address))
 
         #

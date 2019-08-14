@@ -130,8 +130,8 @@ class ContractDeployer:
 
         rules = [
             (self.is_deployed is not True, 'Contract already deployed'),
-            (self.deployer_address is not None, 'No deployer address set.'),
-            (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
+            (self.deployer_address is not None, 'No deployer staker_address set.'),
+            (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer staker_address set.'),
         ]
 
         disqualifications = list()
@@ -731,7 +731,7 @@ class UserEscrowDeployer(ContractDeployer):
     def assign_beneficiary(self, beneficiary_address: str) -> dict: 
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
         if not is_checksum_address(beneficiary_address):
-            raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
+            raise self.ContractDeploymentError("{} is not a valid checksum staker_address.".format(beneficiary_address))
         # TODO: #413, #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)

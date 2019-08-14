@@ -209,7 +209,7 @@ def paint_staged_stake(emitter,
                        stakeholder,
                        staking_address,
                        stake_value,
-                       duration,
+                       lock_periods,
                        start_period,
                        end_period,
                        division_message: str = None):
@@ -221,10 +221,10 @@ def paint_staged_stake(emitter,
     emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
 
     emitter.echo(f"""
-Staking address: {staking_address}
+Staking staker_address: {staking_address}
 ~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
-~ Duration   -> {duration} Days ({duration} Periods)
+~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
     """)
@@ -241,20 +241,20 @@ def paint_staking_confirmation(emitter, ursula, transactions):
 Successfully transmitted stake initialization transactions.
 
 View your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake set-worker'.
+or set your Ursula worker node staker_address by running 'nucypher stake set-worker'.
 ''', color='green')
 
 
 def prettify_stake(stake, index: int = None) -> str:
 
-    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
-    expiration_datetime = stake.end_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
+    start_datetime = str(stake.start_datetime.slang_date())
+    expiration_datetime = str(stake.unlock_datetime.slang_date())
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
 
     pretty = f'| {index if index is not None else "-"} ' \
-             f'| {stake.owner_address[:6]} ' \
+             f'| {stake.staker_address[:6]} ' \
              f'| {stake.worker_address[:6]} ' \
              f'| {stake.index} ' \
              f'| {str(stake.value)} ' \
@@ -292,7 +292,7 @@ def paint_staged_stake_division(emitter,
     staking_address = original_stake.owner_address
 
     division_message = f"""
-Staking address: {staking_address}
+Staking staker_address: {staking_address}
 ~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
@@ -300,7 +300,7 @@ Staking address: {staking_address}
                        stakeholder=stakeholder,
                        staking_address=staking_address,
                        stake_value=target_value,
-                       duration=new_duration,
+                       lock_periods=new_duration,
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)

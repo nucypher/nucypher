@@ -32,7 +32,7 @@ from umbral.signing import Signer
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.lawful import Enrico, Bob
+from nucypher.characters.lawful import Enrico, Bob, StakeHolder
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower

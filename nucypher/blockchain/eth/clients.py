@@ -375,7 +375,7 @@ class EthereumTesterClient(Web3Client):
     is_local = True
 
     def unlock_account(self, address, password) -> bool:
-        """Returns True if the testing backend keyring has control of the given address."""
+        """Returns True if the testing backend keyring has control of the given staker_address."""
         address = to_canonical_address(address)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
         if address in keystore:

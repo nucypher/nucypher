@@ -43,7 +43,7 @@ def test_execute(testerchain, deploy_contract):
     others = accounts[5:]
     token, _ = deploy_contract('NuCypherToken', 2 * 10 ** 40)
 
-    # Can't create the contract with the address 0x0 (address 0x0 is restricted for use)
+    # Can't create the contract with the staker_address 0x0 (staker_address 0x0 is restricted for use)
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('MultiSig', 3, owners + [BlockchainInterface.NULL_ADDRESS])
     # Owners must be no less than the threshold value
@@ -331,7 +331,7 @@ def test_owners_management(testerchain, deploy_contract):
     # Can't add the same owner again
     with pytest.raises((TransactionFailed, ValueError)):
         multisig.functions.addOwner(owners[0]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    # Can't add the address 0x0 as an owner
+    # Can't add the staker_address 0x0 as an owner
     with pytest.raises((TransactionFailed, ValueError)):
         multisig.functions.addOwner(BlockchainInterface.NULL_ADDRESS).buildTransaction({'from': multisig.address, 'gasPrice': 0})
 

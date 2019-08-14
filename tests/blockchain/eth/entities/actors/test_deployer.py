@@ -63,15 +63,15 @@ def test_rapid_deployment(token_economics, test_registry):
     all_yall = blockchain.unassigned_accounts
 
     # Start with some hard-coded cases...
-    allocation_data = [{'address': all_yall[1],
+    allocation_data = [{'staker_address': all_yall[1],
                         'amount': token_economics.maximum_allowed_locked,
                         'lock_periods': ONE_YEAR_IN_SECONDS},
 
-                       {'address': all_yall[2],
+                       {'staker_address': all_yall[2],
                         'amount': token_economics.minimum_allowed_locked,
                         'lock_periods': ONE_YEAR_IN_SECONDS*2},
 
-                       {'address': all_yall[3],
+                       {'staker_address': all_yall[3],
                         'amount': token_economics.minimum_allowed_locked*100,
                         'lock_periods': ONE_YEAR_IN_SECONDS*3}
                        ]
@@ -84,7 +84,7 @@ def test_rapid_deployment(token_economics, test_registry):
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
         duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
                                   (token_economics.maximum_locked_periods*ONE_YEAR_IN_SECONDS)*3)
-        random_allocation = {'address': beneficiary_address, 'amount': amount, 'lock_periods': duration}
+        random_allocation = {'staker_address': beneficiary_address, 'amount': amount, 'lock_periods': duration}
         allocation_data.append(random_allocation)
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)

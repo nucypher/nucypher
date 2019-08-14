@@ -46,8 +46,8 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-@click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--recipient-address', help="Recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--deployer-address', help="Deployer's checksum staker_address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--recipient-address', help="Recipient's checksum staker_address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--amount', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
@@ -82,8 +82,8 @@ def deploy(action,
     upgrade                Upgrade NuCypher existing proxy contract deployments.
     rollback               Rollback a proxy contract's target.
     status                 Echo owner information and bare contract metadata.
-    transfer-tokens        Transfer tokens to another address.
-    transfer-ownership     Transfer ownership of contracts to another address.
+    transfer-tokens        Transfer tokens to another staker_address.
+    transfer-ownership     Transfer ownership of contracts to another staker_address.
     """
 
     emitter = StdoutEmitter()
@@ -163,7 +163,7 @@ def deploy(action,
     # Verify ETH Balance
     emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
     if ADMINISTRATOR.eth_balance == 0:
-        emitter.echo("Deployer address has no ETH.", color='red', bold=True)
+        emitter.echo("Deployer staker_address has no ETH.", color='red', bold=True)
         raise click.Abort()
 
     #

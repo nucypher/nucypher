@@ -55,7 +55,7 @@ library ReEncryptionValidator {
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
         UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
 
-        // Extract Alice's address and check that it corresponds to the one provided
+        // Extract Alice's staker_address and check that it corresponds to the one provided
         address alicesAddress = SignatureVerifier.recover(
             _precomputed.hashedKFragValidityMessage,
             abi.encodePacked(_cFrag.proof.kFragSignature, _precomputed.lostBytes[0])

@@ -6,16 +6,13 @@ import random
 import maya
 import pytest
 from twisted.logger import Logger
-from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
-from nucypher.blockchain.eth.clients import Web3Client
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, BobConfiguration
+from nucypher.config.characters import UrsulaConfiguration, BobConfiguration, StakeHolderConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -39,7 +36,7 @@ def worker_configuration_file_location(custom_filepath):
 
 @pytest.fixture(scope='module')
 def stakeholder_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolder.generate_filename())
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolderConfiguration.generate_filename())
     return _configuration_file_location
 
 
@@ -95,13 +92,13 @@ def test_new_stakeholder(click_runner,
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, StakeHolder.generate_filename())
+    custom_config_filepath = os.path.join(custom_filepath, StakeHolderConfiguration.generate_filename())
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['blockchain']['provider_uri'] == TEST_PROVIDER_URI
+        assert config_data['provider_uri'] == TEST_PROVIDER_URI
 
 
 def test_stake_init(click_runner,
@@ -114,18 +111,17 @@ def test_stake_init(click_runner,
                     agency,
                     manual_staker):
 
-    # Staker address has not stakes
+    # Staker staker_address has not stakes
     staking_agent = StakingEscrowAgent(registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 
-    stake_args = ('stake', 'init',
+    stake_args = ('stake', 'create',
                   '--config-file', stakeholder_configuration_file_location,
-                  '--registry-filepath', mock_registry_filepath,
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--no-sync',
-                  '--lock_periods', token_economics.minimum_locked_periods,
+                  '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
 
     # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
@@ -150,7 +146,8 @@ def test_stake_init(click_runner,
     # Test integration with Stake
     stake = Stake.from_stake_info(index=0,
                                   checksum_address=manual_staker,
-                                  stake_info=stakes[0])
+                                  stake_info=stakes[0],
+                                  staking_agent=staking_agent)
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
 
@@ -161,16 +158,8 @@ def test_stake_list(click_runner,
                     mock_registry_filepath,
                     testerchain):
 
-    # Simulate "Reconnection"
-    cached_blockchain = BlockchainInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_registry_filepath
-
-    def from_dict(*args, **kwargs):
-        return testerchain
-    BlockchainInterface.from_dict = from_dict
-
-    stake_args = ('stake', 'list', '--config-file', stakeholder_configuration_file_location)
+    stake_args = ('stake', 'list',
+                  '--config-file', stakeholder_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -182,7 +171,8 @@ def test_staker_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
                               token_economics,
                               manual_staker,
-                              testerchain):
+                              testerchain,
+                              test_registry):
 
     divide_args = ('stake', 'divide',
                    '--config-file', stakeholder_configuration_file_location,
@@ -191,7 +181,7 @@ def test_staker_divide_stakes(click_runner,
                    '--index', 0,
                    '--no-sync',
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
-                   '--lock_periods', 10)
+                   '--lock-periods', 10)
 
     result = click_runner.invoke(nucypher_cli,
                                  divide_args,
@@ -211,6 +201,7 @@ def test_staker_divide_stakes(click_runner,
 
 def test_stake_set_worker(click_runner,
                           testerchain,
+                          test_registry,
                           manual_staker,
                           manual_worker,
                           stakeholder_configuration_file_location):
@@ -229,9 +220,7 @@ def test_stake_set_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staker = Staker(is_me=True,
-                    checksum_address=manual_staker,
-                    blockchain=testerchain)
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
 
     assert staker.worker_address == manual_worker
 
@@ -251,7 +240,6 @@ def test_ursula_init(click_runner,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', mock_registry_filepath,
-                 '--no-registry',
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
 
@@ -302,6 +290,7 @@ def test_ursula_run(click_runner,
 
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
+                                     test_registry,
                                      stakeholder_configuration_file_location,
                                      blockchain_alice,
                                      blockchain_bob,
@@ -319,20 +308,19 @@ def test_collect_rewards_integration(click_runner,
     staker_address = manual_staker
     worker_address = manual_worker
 
-    staker = Staker(is_me=True,
-                    checksum_address=staker_address,
-                    blockchain=testerchain)
+    staker = Staker(is_me=True, checksum_address=staker_address, registry=test_registry)
+    staker.stakes.refresh()
 
     # The staker is staking.
-    assert staker.stakes
     assert staker.is_staking
+    assert staker.stakes
     assert staker.worker_address == worker_address
 
     ursula_port = select_test_port()
     ursula = Ursula(is_me=True,
                     checksum_address=staker_address,
                     worker_address=worker_address,
-                    blockchain=testerchain,
+                    registry=test_registry,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
                     network_middleware=MockRestMiddleware())
@@ -342,10 +330,8 @@ def test_collect_rewards_integration(click_runner,
     assert ursula.checksum_address == staker_address
 
     # Mock TransactingPower consumption (Worker-Ursula)
-    ursula.blockchain.transacting_power = TransactingPower(account=worker_address,
-                                                           password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                           blockchain=testerchain)
-    ursula.blockchain.transacting_power.activate()
+    testerchain.transacting_power = TransactingPower(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
+    testerchain.transacting_power.activate()
 
     # Confirm for half the first stake lock_periods
     for _ in range(half_stake_time):
@@ -412,7 +398,7 @@ def test_collect_rewards_integration(click_runner,
     # WHERES THE MONEY URSULA?? - Collecting Rewards
     #
 
-    # The address the client wants Ursula to send rewards to
+    # The staker_address the client wants Ursula to send rewards to
     burner_wallet = testerchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
 
     # The rewards wallet is initially empty, because it is freshly created
@@ -485,11 +471,12 @@ def test_stake_detach_worker(click_runner,
                              testerchain,
                              manual_staker,
                              manual_worker,
+                             test_registry,
                              stakeholder_configuration_file_location):
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,
-                    blockchain=testerchain)
+                    registry=test_registry)
 
     assert staker.worker_address == manual_worker
 
@@ -507,6 +494,6 @@ def test_stake_detach_worker(click_runner,
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,
-                    blockchain=testerchain)
+                    registry=test_registry)
 
     assert not staker.worker_address

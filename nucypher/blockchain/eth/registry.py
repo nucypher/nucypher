@@ -132,7 +132,7 @@ class BaseContractRegistry(ABC):
 
     def enroll(self, contract_name, contract_address, contract_abi):
         """
-        Enrolls a contract to the chain registry by writing the name, address,
+        Enrolls a contract to the chain registry by writing the name, staker_address,
         and abi information to the filesystem as JSON.
 
         Note: Unless you are developing NuCypher, you most likely won't ever
@@ -151,7 +151,7 @@ class BaseContractRegistry(ABC):
 
     def search(self, contract_name: str = None, contract_address: str = None):
         """
-        Searches the registry for a contract with the provided name or address
+        Searches the registry for a contract with the provided name or staker_address
         and returns the contracts component data.
         """
         if not (bool(contract_name) ^ bool(contract_address)):
@@ -173,7 +173,7 @@ class BaseContractRegistry(ABC):
             raise self.UnknownContract(contract_name)
 
         if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
+            m = "Multiple records returned for staker_address {}"
             self.log.critical(m)
             raise self.IllegalRegistry(m.format(contract_address))
 
@@ -355,7 +355,7 @@ class AllocationRegistry(LocalContractRegistry):
         elif contract_address:
             records = list()
             for beneficiary_address, contract_data in allocation_data.items():
-                contract_address, contract_abi = contract_data['address'], contract_data['abi']
+                contract_address, contract_abi = contract_data['staker_address'], contract_data['abi']
                 records.append(dict(address=contract_address, abi=contract_abi))
             if len(records) > 1:
                 raise self.RegistryError("Multiple {} deployments for beneficiary {}".format(self._contract_name, beneficiary_address))
@@ -363,7 +363,7 @@ class AllocationRegistry(LocalContractRegistry):
                 contract_data = records[0]
 
         else:
-            raise ValueError("Beneficiary address or contract address must be supplied.")
+            raise ValueError("Beneficiary staker_address or contract staker_address must be supplied.")
 
         return contract_data
 

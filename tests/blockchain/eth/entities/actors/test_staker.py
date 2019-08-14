@@ -123,7 +123,7 @@ def test_staker_collects_staking_reward(testerchain,
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                             lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
 
-    # Get an unused address for a new worker
+    # Get an unused staker_address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]
     staker.set_worker(worker_address=worker_address)
 

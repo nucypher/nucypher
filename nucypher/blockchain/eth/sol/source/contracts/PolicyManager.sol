@@ -88,11 +88,11 @@ contract PolicyManager is Upgradeable {
     mapping (address => NodeInfo) public nodes;
 
     /**
-    * @notice Constructor sets address of the escrow contract
+    * @notice Constructor sets staker_address of the escrow contract
     * @param _escrow Escrow contract
     **/
     constructor(StakingEscrow _escrow) public {
-        // if the input address is not the StakingEscrow than calling `secondsPerPeriod` will throw error
+        // if the input staker_address is not the StakingEscrow than calling `secondsPerPeriod` will throw error
         secondsPerPeriod = _escrow.secondsPerPeriod();
         require(secondsPerPeriod > 0);
         escrow = _escrow;
@@ -116,7 +116,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Register a node
-    * @param _node Node address
+    * @param _node Node staker_address
     * @param _period Initial period
     **/
     function register(address _node, uint16 _period) external onlyEscrowContract {
@@ -185,7 +185,7 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Update node reward
-    * @param _node Node address
+    * @param _node Node staker_address
     * @param _period Processed period
     **/
     function updateReward(address _node, uint16 _period) external onlyEscrowContract {
@@ -396,7 +396,7 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Refund part of one node's fee by client
     * @param _policyId Policy id
-    * @param _node Node address
+    * @param _node Node staker_address
     **/
     function refund(bytes16 _policyId, address _node)
         public returns (uint256 refundValue)
@@ -542,7 +542,7 @@ contract PolicyManager is Upgradeable {
         PolicyManager policyManager = PolicyManager(_target);
         escrow = policyManager.escrow();
         secondsPerPeriod = policyManager.secondsPerPeriod();
-        // Create fake Policy and NodeInfo to use them in verifyState(address)
+        // Create fake Policy and NodeInfo to use them in verifyState(staker_address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
         policy.client = owner();
         policy.startPeriod = 1;

@@ -15,7 +15,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.command()
 @click.argument('action')
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-@click.option('--enode', help="An ethereum bootnode enode address to start learning from", type=click.STRING)
+@click.option('--enode', help="An ethereum bootnode enode staker_address to start learning from", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1')

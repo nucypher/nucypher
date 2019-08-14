@@ -13,10 +13,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     EthereumContractAgent)
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
-
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,

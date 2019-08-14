@@ -96,7 +96,7 @@ contract StakingEscrowForPolicyMock {
     }
 
     /**
-    * @notice Set policy manager address
+    * @notice Set policy manager staker_address
     **/
     function setPolicyManager(PolicyManager _policyManager) external {
         policyManager = _policyManager;

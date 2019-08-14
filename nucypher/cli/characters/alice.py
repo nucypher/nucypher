@@ -39,7 +39,7 @@ from nucypher.config.keyring import NucypherKeyring
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
-@click.option('--lock_periods', help="Policy lock_periods in periods", type=click.FLOAT)
+@click.option('--lock-periods', help="Policy lock_periods in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config

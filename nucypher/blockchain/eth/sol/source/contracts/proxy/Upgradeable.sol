@@ -6,8 +6,8 @@ import "zeppelin/ownership/Ownable.sol";
 
 /**
 * @notice Base contract for upgradeable contract
-* @dev Inherited contract should implement verifyState(address) method by checking storage variables
-* (see verifyState(address) in Dispatcher). Also contract should implement finishUpgrade(address)
+* @dev Inherited contract should implement verifyState(staker_address) method by checking storage variables
+* (see verifyState(staker_address) in Dispatcher). Also contract should implement finishUpgrade(staker_address)
 * if it is using constructor parameters by coping this parameters to the dispatcher storage
 **/
 contract Upgradeable is Ownable {
@@ -16,14 +16,14 @@ contract Upgradeable is Ownable {
     event UpgradeFinished(address indexed target, address sender);
 
     /**
-    * @dev Contracts at the target must reserve the same location in storage for this address as in Dispatcher
+    * @dev Contracts at the target must reserve the same location in storage for this staker_address as in Dispatcher
     * Stored data actually lives in the Dispatcher
     * However the storage layout is specified here in the implementing contracts
     **/
     address public target;
 
     /**
-    * @dev Previous contract address (if available). Used for rollback
+    * @dev Previous contract staker_address (if available). Used for rollback
     **/
     address public previousTarget;
 
@@ -61,7 +61,7 @@ contract Upgradeable is Ownable {
 
     /**
     * @dev Copy values from the new target to the current storage
-    * @param _target New target contract address
+    * @param _target New target contract staker_address
     **/
     function finishUpgrade(address _target) public onlyWhileUpgrading {
         emit UpgradeFinished(_target, msg.sender);

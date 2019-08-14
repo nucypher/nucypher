@@ -62,7 +62,7 @@ contract UserEscrowProxy {
 
     /**
     * @notice Set `worker` parameter in the staking escrow
-    * @param _worker Worker address
+    * @param _worker Worker staker_address
     **/
     function setWorker(address _worker) public {
         getStateContract().escrow().setWorker(_worker);

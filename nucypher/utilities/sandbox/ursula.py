@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeTracker
+from nucypher.blockchain.eth.token import PeriodTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.powers import TransactingPower
@@ -81,15 +81,14 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     ursulas = list()
 
     registry = ursula_config.registry
-    staking_agent = StakingEscrowAgent(registry=registry)
-    stake_tracker = StakeTracker(checksum_addresses=list(stakers_addresses), staking_agent=staking_agent)
+    period_tracker = PeriodTracker(registry=registry)
 
     for port, (staker_address, worker_address) in enumerate(stakers_and_workers, start=starting_port):
         ursula = ursula_config.produce(checksum_address=staker_address,
                                        worker_address=worker_address,
                                        db_filepath=MOCK_URSULA_DB_FILEPATH,
                                        rest_port=port + 100,
-                                       stake_tracker=stake_tracker,
+                                       period_tracker=period_tracker,
                                        **ursula_overrides)
         if confirm_activity:
             ursula.confirm_activity()

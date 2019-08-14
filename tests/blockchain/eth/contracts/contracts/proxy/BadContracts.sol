@@ -12,7 +12,7 @@ contract BadDispatcherStorage {
 
     address public owner;
     address public target;
-//    address public previousTarget;
+//    staker_address public previousTarget;
     bytes32 public secretHash;
     uint8 public isUpgrade;
 

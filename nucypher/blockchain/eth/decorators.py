@@ -12,10 +12,10 @@ VERIFIED_ADDRESSES = set()
 
 def validate_checksum_address(func: Callable) -> Callable:
     """
-    EIP-55 Checksum address validation decorator.
+    EIP-55 Checksum staker_address validation decorator.
 
     Inspects the decorated function for an input parameter "checksum_address",
-    then uses `eth_utils` to validate the address EIP-55 checksum,
+    then uses `eth_utils` to validate the staker_address EIP-55 checksum,
     verifying the input type on failure; Raises TypeError
     or InvalidChecksumAddress if validation fails, respectively.
 
@@ -33,7 +33,7 @@ def validate_checksum_address(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
 
-        # Check for the presence of a checksum address in this call
+        # Check for the presence of a checksum staker_address in this call
         params = inspect.getcallargs(func, *args, **kwargs)
         try:
             checksum_address = params[parameter_name]
@@ -67,7 +67,7 @@ def validate_checksum_address(func: Callable) -> Callable:
             raise TypeError(message)
 
         # Invalid Value
-        message = '"{}" is not a valid EIP-55 checksum address.'.format(checksum_address)
+        message = '"{}" is not a valid EIP-55 checksum staker_address.'.format(checksum_address)
         log.debug(message)
         raise InvalidChecksumAddress(message)
 

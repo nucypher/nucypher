@@ -52,7 +52,7 @@ def test_recover(testerchain, signature_verifier):
     hash_ctx.update(message)
     message_hash = hash_ctx.finalize()
 
-    # Generate Umbral key and extract "address" from the public key
+    # Generate Umbral key and extract "staker_address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
     umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
@@ -91,14 +91,14 @@ def test_recover(testerchain, signature_verifier):
 
 @pytest.mark.slow
 def test_address(testerchain, signature_verifier):
-    # Generate Umbral key and extract "address" from the public key
+    # Generate Umbral key and extract "staker_address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
     umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)[1:]
     signer_address = keccak_digest(umbral_pubkey_bytes)
     signer_address = to_normalized_address(signer_address[12:])
 
-    # Check extracting address in library
+    # Check extracting staker_address in library
     result_address = signature_verifier.functions.toAddress(umbral_pubkey_bytes).call()
     assert signer_address == to_normalized_address(result_address)
 

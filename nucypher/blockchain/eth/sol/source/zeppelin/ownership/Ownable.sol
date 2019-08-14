@@ -3,7 +3,7 @@ pragma solidity ^0.5.3;
 
 /**
  * @title Ownable
- * @dev The Ownable contract has an owner address, and provides basic authorization control
+ * @dev The Ownable contract has an owner staker_address, and provides basic authorization control
  * functions, this simplifies the implementation of "user permissions".
  */
 contract Ownable {
@@ -21,7 +21,7 @@ contract Ownable {
     }
 
     /**
-     * @return the address of the owner.
+     * @return the staker_address of the owner.
      */
     function owner() public view returns (address) {
         return _owner;
@@ -55,7 +55,7 @@ contract Ownable {
 
     /**
      * @dev Allows the current owner to transfer control of the contract to a newOwner.
-     * @param newOwner The address to transfer ownership to.
+     * @param newOwner The staker_address to transfer ownership to.
      */
     function transferOwnership(address newOwner) public onlyOwner {
         _transferOwnership(newOwner);
@@ -63,7 +63,7 @@ contract Ownable {
 
     /**
      * @dev Transfers control of the contract to a newOwner.
-     * @param newOwner The address to transfer ownership to.
+     * @param newOwner The staker_address to transfer ownership to.
      */
     function _transferOwnership(address newOwner) internal {
         require(newOwner != address(0));

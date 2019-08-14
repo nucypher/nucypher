@@ -52,7 +52,7 @@ contract MultiSig {
     * @notice Get unsigned hash for transaction parameters
     * @dev Follows ERC191 signature scheme: https://github.com/ethereum/EIPs/issues/191
     * @param _sender Trustee who will execute the transaction
-    * @param _destination Destination address
+    * @param _destination Destination staker_address
     * @param _value Amount of ETH to transfer
     * @param _data Call data
     * @param _nonce Nonce
@@ -71,11 +71,11 @@ contract MultiSig {
     }
 
     /**
-    * @dev Note that address recovered from signatures must be strictly increasing
+    * @dev Note that staker_address recovered from signatures must be strictly increasing
     * @param _sigV Array of signatures values V
     * @param _sigR Array of signatures values R
     * @param _sigS Array of signatures values S
-    * @param _destination Destination address
+    * @param _destination Destination staker_address
     * @param _value Amount of ETH to transfer
     * @param _data Call data
     **/

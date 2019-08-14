@@ -103,7 +103,7 @@ class NodeStorage(ABC):
         checksum_address = pseudonym.value
 
         if not is_checksum_address(checksum_address):  # TODO: more?
-            raise RuntimeError("Invalid certificate checksum address encountered: {}".format(checksum_address))
+            raise RuntimeError("Invalid certificate checksum staker_address encountered: {}".format(checksum_address))
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443

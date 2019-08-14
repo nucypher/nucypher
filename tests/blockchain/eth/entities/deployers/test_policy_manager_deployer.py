@@ -65,7 +65,7 @@ def test_make_agent(policy_manager_deployer, test_registry):
     some_policy_agent = PolicyManagerAgent(registry=test_registry)
     assert policy_agent == some_policy_agent  # __eq__
 
-    # Compare the contract address for equality
+    # Compare the contract staker_address for equality
     assert policy_agent.contract_address == some_policy_agent.contract_address
 
 

@@ -50,7 +50,7 @@ def test_token_deployer_and_agent(testerchain, deployment_progress, test_registr
     # Retrieve the token from the blockchain
     same_token_agent = NucypherTokenAgent(registry=test_registry)
 
-    # Compare the contract address for equality
+    # Compare the contract staker_address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
     assert token_agent == same_token_agent  # __eq__
 

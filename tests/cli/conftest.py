@@ -61,7 +61,7 @@ def nominal_federated_configuration_fields():
 @pytest.fixture(scope='module')
 def mock_allocation_infile(testerchain, token_economics):
     accounts = testerchain.unassigned_accounts
-    allocation_data = [{'address': addr,
+    allocation_data = [{'staker_address': addr,
                         'amount': token_economics.minimum_allowed_locked,
                         'lock_periods': ONE_YEAR_IN_SECONDS}
                        for addr in accounts]

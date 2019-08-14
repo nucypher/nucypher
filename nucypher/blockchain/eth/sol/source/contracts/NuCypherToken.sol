@@ -24,7 +24,7 @@ contract NuCypherToken is ERC20, ERC20Detailed('NuCypher', 'NU', 18) {
     * @notice Approves and then calls the receiving contract
     *
     * @dev call the receiveApproval function on the contract you want to be notified.
-    * receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
+    * receiveApproval(staker_address _from, uint256 _value, staker_address _tokenContract, bytes _extraData)
     **/
     function approveAndCall(address _spender, uint256 _value, bytes memory _extraData)
         public returns (bool success)

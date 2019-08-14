@@ -74,9 +74,9 @@ def test_deposit_tokens(testerchain, agency, token_economics):
                                            lock_periods=token_economics.minimum_locked_periods,
                                            sender_address=staker_account)
 
-    # Check the receipt for the contract address success code
+    # Check the receipt for the contract staker_address success code
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][2]['address'] == staking_agent.contract_address
+    assert receipt['logs'][2]['staker_address'] == staking_agent.contract_address
 
     testerchain.time_travel(periods=1)
     balance = token_agent.get_balance(address=staker_account)
@@ -144,7 +144,7 @@ def test_get_swarm(agency, blockchain_ursulas):
     swarm_addresses = list(swarm)
     assert len(swarm_addresses) == len(blockchain_ursulas) + 1
 
-    # Grab a staker address from the swarm
+    # Grab a staker staker_address from the swarm
     staker_addr = swarm_addresses[0]
     assert isinstance(staker_addr, str)
     assert is_address(staker_addr)
@@ -185,7 +185,7 @@ def test_confirm_activity(agency, testerchain):
 
     receipt = staking_agent.confirm_activity(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == staking_agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == staking_agent.contract_address
 
 
 @pytest.mark.skip('To be implemented')
@@ -218,7 +218,7 @@ def test_divide_stake(agency, token_economics):
                                  periods=1)
 
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['address'] == agent.contract_address
+    assert receipt['logs'][0]['staker_address'] == agent.contract_address
 
     stakes = list(agent.get_all_stakes(staker_address=someone))
     assert len(stakes) == 3
@@ -246,7 +246,7 @@ def test_collect_staking_reward(agency, testerchain):
 
     receipt = staking_agent.collect_staking_reward(staker_address=staker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][-1]['address'] == staking_agent.contract_address
+    assert receipt['logs'][-1]['staker_address'] == staking_agent.contract_address
 
     new_balance = token_agent.get_balance(address=staker_account)  # not the shoes
     assert new_balance > old_balance

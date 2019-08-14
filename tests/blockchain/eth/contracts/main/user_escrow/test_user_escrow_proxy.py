@@ -186,7 +186,7 @@ def test_proxy_selfdestruct(testerchain, token):
     with pytest.raises((BadFunctionCallOutput, ValueError)):
         contract1_lib.functions.method().call()
 
-    # Can't create linker using address without contract
+    # Can't create linker using staker_address without contract
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('UserEscrowLibraryLinker', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -215,7 +215,7 @@ def test_proxy_selfdestruct(testerchain, token):
         ContractFactoryClass=Contract)
     assert 15 == user_escrow_library.functions.method().call()
 
-    # Can't upgrade to an address without contract
+    # Can't upgrade to an staker_address without contract
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -233,7 +233,7 @@ def test_proxy_selfdestruct(testerchain, token):
     with pytest.raises((TransactionFailed, ValueError)):
         user_escrow_library.functions.method().call()
 
-    # Can't upgrade to an address without contract
+    # Can't upgrade to an staker_address without contract
     with pytest.raises((TransactionFailed, ValueError)):
         tx = linker_contract.functions.upgrade(BlockchainInterface.NULL_ADDRESS, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)

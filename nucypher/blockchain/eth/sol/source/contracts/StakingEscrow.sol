@@ -124,7 +124,7 @@ contract StakingEscrow is Issuer {
     WorkLockInterface public workLock;
 
     /**
-    * @notice Constructor sets address of token contract and coefficients for mining
+    * @notice Constructor sets staker_address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient
@@ -174,7 +174,7 @@ contract StakingEscrow is Issuer {
 
     //------------------------Initialization------------------------
     /**
-    * @notice Set policy manager address
+    * @notice Set policy manager staker_address
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
         require(address(policyManager) == address(0), "Policy manager can be set only once");
@@ -184,7 +184,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Set adjudicator address
+    * @notice Set adjudicator staker_address
     **/
     function setAdjudicator(AdjudicatorInterface _adjudicator) external onlyOwner {
         require(address(adjudicator) == address(0), "Adjudicator can be set only once");
@@ -355,11 +355,11 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get worker using staker's address
+    * @notice Get worker using staker's staker_address
     **/
     function getWorkerFromStaker(address _staker) public view returns (address) {
         StakerInfo storage info = stakerInfo[_staker];
-        // specified address is not a staker
+        // specified staker_address is not a staker
         if (stakerInfo[_staker].subStakes.length == 0) {
             return address(0);
         }
@@ -367,7 +367,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get staker using worker's address
+    * @notice Get staker using worker's staker_address
     **/
     function getStakerFromWorker(address _worker) public view returns (address) {
         return workerToStaker[_worker];
@@ -397,6 +397,8 @@ contract StakingEscrow is Issuer {
 
     /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
+    * @notice Set worker
+    * @param _worker Worker staker_address. Must be a real staker_address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
@@ -418,7 +420,7 @@ contract StakingEscrow is Issuer {
             workerToStaker[_worker] = msg.sender;
         }
 
-        // Set new worker (or unset if _worker == address(0))
+        // Set new worker (or unset if _worker == staker_address(0))
         info.worker = _worker;
         info.workerStartPeriod = currentPeriod;
         emit WorkerSet(msg.sender, _worker, currentPeriod);
@@ -452,10 +454,48 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
+    * @notice Pre-deposit tokens
+    * @param _stakers Stakers
+    * @param _values Amount of tokens to deposit for each staker
+    * @param _periods Amount of periods during which tokens will be locked for each staker
+    **/
+    function preDeposit(address[] memory _stakers, uint256[] memory _values, uint16[] memory _periods)
+        public isInitialized
+    {
+        require(_stakers.length != 0 &&
+            _stakers.length == _values.length &&
+            _stakers.length == _periods.length);
+        uint16 currentPeriod = getCurrentPeriod();
+        uint256 allValue = 0;
+
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            uint256 value = _values[i];
+            uint16 periods = _periods[i];
+            StakerInfo storage info = stakerInfo[staker];
+            require(info.subStakes.length == 0 &&
+                value >= minAllowableLockedTokens &&
+                value <= maxAllowableLockedTokens &&
+                periods >= minLockedPeriods);
+            require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
+                "A staker can't be a worker for another staker");
+            stakers.push(staker);
+            policyManager.register(staker, currentPeriod);
+            info.value = value;
+            info.subStakes.push(SubStakeInfo(currentPeriod.add16(1), 0, periods, value));
+            allValue = allValue.add(value);
+            emit Deposited(staker, value, periods);
+        }
+
+        token.safeTransferFrom(msg.sender, address(this), allValue);
+    }
+
+    /**
+    * @notice Implementation of the receiveApproval(staker_address,uint256,staker_address,bytes) method
     * (see NuCypherToken contract). Deposit all tokens that were approved to transfer
     * @param _from Staker
     * @param _value Amount of tokens to deposit
-    * @param _tokenContract Token contract address
+    * @param _tokenContract Token contract staker_address
     * @notice (param _extraData) Amount of periods during which tokens will be locked
     **/
     function receiveApproval(
@@ -719,7 +759,7 @@ contract StakingEscrow is Issuer {
     function mint() external onlyStaker {
         // save last active period to the storage if both periods will be empty after minting
         // because we won't be able to calculate last active period
-        // see getLastActivePeriod(address)
+        // see getLastActivePeriod(staker_address)
         StakerInfo storage info = stakerInfo[msg.sender];
         uint16 previousPeriod = getCurrentPeriod().sub16(1);
         if (info.confirmedPeriod1 <= previousPeriod &&
@@ -788,7 +828,7 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Calculate reward for one period
-    * @param _staker Staker's address
+    * @param _staker Staker's staker_address
     * @param _info Staker structure
     * @param _confirmedPeriodNumber Number of confirmed period (1 or 2)
     * @param _currentPeriod Current period
@@ -894,7 +934,7 @@ contract StakingEscrow is Issuer {
     //-------------------------Slashing-------------------------
     /**
     * @notice Slash the staker's stake and reward the investigator
-    * @param _staker Staker's address
+    * @param _staker Staker's staker_address
     * @param _penalty Penalty
     * @param _investigator Investigator
     * @param _reward Reward for the investigator

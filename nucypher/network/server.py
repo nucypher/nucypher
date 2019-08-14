@@ -114,7 +114,7 @@ def make_rest_app(
     @rest_app.route("/public_information")
     def public_information():
         """
-        REST endpoint for public keys and address.
+        REST endpoint for public keys and staker_address.
         """
         response = Response(
             response=bytes(this_node),

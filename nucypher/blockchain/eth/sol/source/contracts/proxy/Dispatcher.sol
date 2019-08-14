@@ -7,7 +7,7 @@ import "zeppelin/utils/Address.sol";
 
 /**
 * @notice Proxying requests to other contracts.
-* Client should use ABI of real contract and address of this contract
+* Client should use ABI of real contract and staker_address of this contract
 **/
 contract Dispatcher is Upgradeable {
     using Address for address;
@@ -26,7 +26,7 @@ contract Dispatcher is Upgradeable {
     }
 
     /**
-    * @param _target Target contract address
+    * @param _target Target contract staker_address
     * @param _newSecretHash Secret hash (keccak256)
     **/
     constructor(address _target, bytes32 _newSecretHash) public upgrading {
@@ -43,7 +43,7 @@ contract Dispatcher is Upgradeable {
 
     /**
     * @notice Verify new contract storage and upgrade target
-    * @param _target New target contract address
+    * @param _target New target contract staker_address
     * @param _secret Secret for proof of contract owning
     * @param _newSecretHash New secret hash (keccak256)
     **/

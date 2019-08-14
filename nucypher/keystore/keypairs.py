@@ -171,7 +171,7 @@ class HostingKeypair(Keypair):
         elif generate_certificate:
             if not host and checksum_address:
                 message = "If you don't supply a TLS certificate, one will be generated for you." \
-                          "But for that, you need to pass a host and checksum address."
+                          "But for that, you need to pass a host and checksum staker_address."
                 raise TypeError(message)
 
             certificate, private_key = generate_self_signed_certificate(host=host,

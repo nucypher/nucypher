@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from tempfile import TemporaryDirectory
 
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
@@ -25,7 +26,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.token import StakeTracker
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.characters.lawful import StakeHolder
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
@@ -51,7 +54,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
-                 stake_tracker: StakeTracker = None,
                  *args, **kwargs) -> None:
 
         if not rest_port:
@@ -63,7 +65,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
-        self.stake_tracker = stake_tracker
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
@@ -94,8 +95,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             tls_curve=self.tls_curve,  # TODO: Needs to be in static payload with [str -> curve] mapping
             certificate=self.certificate,
             interface_signature=self.interface_signature,
-            timestamp=None,
-            stake_tracker=self.stake_tracker
+            timestamp=None
         )
         return {**super().dynamic_payload, **payload}
 
@@ -243,3 +243,84 @@ class FelixConfiguration(CharacterConfiguration):
                                      host=self.rest_host,
                                      curve=self.tls_curve,
                                      **generation_kwargs)
+
+
+class StakeHolderConfiguration(CharacterConfiguration):
+    """TODO/FIXMR"""
+
+    _NAME = 'stakeholder'
+    CHARACTER_CLASS = StakeHolder
+
+    def __init__(self, checksum_addresses: set = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checksum_addresses = checksum_addresses
+
+    def static_payload(self) -> dict:
+        """Values to read/write from stakeholder JSON configuration files"""
+        payload = dict(provider_uri=self.provider_uri,
+                       poa=self.poa,
+
+                       # TODO: Move empty collection casting to base
+                       checksum_addresses=self.checksum_addresses or list())
+
+        if self.registry_filepath:
+            payload.update(dict(registry_filepath=self.registry_filepath))
+        return payload
+
+    @property
+    def dynamic_payload(self) -> dict:
+        payload = dict(registry=self.registry)
+        return payload
+
+    def __setup_node_storage(self, node_storage=None) -> None:
+        pass
+
+    @classmethod
+    def assemble(cls, filepath: str = None, **overrides) -> dict:
+        payload = cls._read_configuration_file(filepath=filepath)
+        # Filter out None values from **overrides to detect, well, overrides...
+        # Acts as a shim for optional CLI flags.
+        overrides = {k: v for k, v in overrides.items() if v is not None}
+        payload = {**payload, **overrides}
+        return payload
+
+    @classmethod
+    def generate_runtime_filepaths(cls, config_root: str) -> dict:
+        """Dynamically generate paths based on configuration root directory"""
+        filepaths = dict(config_root=config_root,
+                         config_file_location=os.path.join(config_root, cls.generate_filename()))
+        return filepaths
+
+    def initialize(self, password: str = None) -> str:
+        """Initialize a new configuration and write installation files to disk."""
+
+        # Development
+        if self.dev_mode:
+            self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
+            self.config_root = self.__temp_dir.name
+
+        # Persistent
+        else:
+            self._ensure_config_root_exists()
+
+        self._cache_runtime_filepaths()
+
+        # Validate
+        if not self.dev_mode:
+            self.validate()
+
+        # Success
+        message = "Created nucypher installation files at {}".format(self.config_root)
+        self.log.debug(message)
+        return self.config_root
+
+    @classmethod
+    def generate(cls, *args, **kwargs):
+        """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
+        node_config = cls(dev_mode=False, *args, **kwargs)
+        node_config.initialize()
+        node_config.to_configuration_file()
+        return node_config
+
+    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> str:
+        return super().to_configuration_file(override=True, *args, **kwargs)

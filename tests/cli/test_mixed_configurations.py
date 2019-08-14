@@ -152,7 +152,6 @@ def test_coexisting_configurations(click_runner,
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--interactive',
-                '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2

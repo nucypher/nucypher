@@ -33,7 +33,7 @@ def test_transacting_power_sign_message(testerchain):
     is_verified = verify_eip_191(address=eth_address, message=data_to_sign, signature=signature)
     assert is_verified is True
 
-    # Test invalid address/pubkey pair
+    # Test invalid staker_address/pubkey pair
     is_verified = verify_eip_191(address=testerchain.client.accounts[1],
                                  message=data_to_sign,
                                  signature=signature)
