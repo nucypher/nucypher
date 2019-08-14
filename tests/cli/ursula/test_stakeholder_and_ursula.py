@@ -56,7 +56,6 @@ def charlie_blockchain_test_config(blockchain_ursulas, agency):
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
-                              download_registry=False,
                               save_metadata=False,
                               reload_metadata=False)
     yield config
@@ -64,13 +63,11 @@ def charlie_blockchain_test_config(blockchain_ursulas, agency):
 
 
 @pytest.fixture(scope='module')
-def mock_registry_filepath(testerchain, agency):
-
-    registry = testerchain.registry
+def mock_registry_filepath(testerchain, agency, test_registry):
 
     # Fake the source contract registry
     with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
-        file.write(json.dumps(registry.read()))
+        file.write(json.dumps(test_registry.read()))
 
     yield MOCK_REGISTRY_FILEPATH
 
@@ -113,20 +110,12 @@ def test_stake_init(click_runner,
                     mock_registry_filepath,
                     token_economics,
                     testerchain,
+                    test_registry,
                     agency,
                     manual_staker):
 
-    # Simulate "Reconnection"
-    cached_blockchain = BlockchainInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_registry_filepath
-
-    def from_dict(*args, **kwargs):
-        return testerchain
-    BlockchainInterface.from_dict = from_dict
-
     # Staker address has not stakes
-    staking_agent = StakingEscrowAgent(registry=registry)
+    staking_agent = StakingEscrowAgent(registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 
@@ -136,7 +125,7 @@ def test_stake_init(click_runner,
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--no-sync',
-                  '--duration', token_economics.minimum_locked_periods,
+                  '--lock_periods', token_economics.minimum_locked_periods,
                   '--force')
 
     # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
@@ -202,7 +191,7 @@ def test_staker_divide_stakes(click_runner,
                    '--index', 0,
                    '--no-sync',
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
-                   '--duration', 10)
+                   '--lock_periods', 10)
 
     result = click_runner.invoke(nucypher_cli,
                                  divide_args,
@@ -298,13 +287,6 @@ def test_ursula_run(click_runner,
 
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
 
-    # Simulate "Reconnection" within the CLI process to the testerchain
-    def connect(self, *args, **kwargs):
-        self._attach_provider(testerchain.provider)
-        self.w3 = self.Web3(provider=self._provider)
-        self.client = Web3Client.from_w3(w3=self.w3)
-    BlockchainInterface.connect = connect
-
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
                  '--dry-run',
@@ -365,7 +347,7 @@ def test_collect_rewards_integration(click_runner,
                                                            blockchain=testerchain)
     ursula.blockchain.transacting_power.activate()
 
-    # Confirm for half the first stake duration
+    # Confirm for half the first stake lock_periods
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         ursula.confirm_activity()
@@ -445,17 +427,9 @@ def test_collect_rewards_integration(click_runner,
     # Half of the tokens are unlocked.
     assert staker.locked_tokens() == token_economics.minimum_allowed_locked
 
-    # Simulate "Reconnection" within the CLI process to the testerchain
-    def connect(self, *args, **kwargs):
-        self._attach_provider(testerchain.provider)
-        self.w3 = self.Web3(provider=self._provider)
-        self.client = Web3Client.from_w3(w3=self.w3)
-    BlockchainInterface.connect = connect
-
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
     testerchain.transacting_power = TransactingPower(account=staker_address,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     blockchain=testerchain)
+                                                     password=INSECURE_DEVELOPMENT_PASSWORD)
     testerchain.transacting_power.activate()
 
     # Collect Policy Reward

@@ -74,7 +74,7 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics,
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_receipt = deployer.initial_deposit(value=allocation, duration=token_economics.maximum_locked_periods)
+        deposit_receipt = deployer.initial_deposit(value=allocation, lock_periods=token_economics.maximum_locked_periods)
         deposit_receipts.append(deposit_receipt)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)

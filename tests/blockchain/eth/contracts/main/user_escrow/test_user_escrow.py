@@ -41,7 +41,7 @@ def test_escrow(testerchain, token, user_escrow):
     event_args = events[0]['args']
     assert creator == event_args['sender']
     assert 1000 == event_args['value']
-    assert 1000 == event_args['duration']
+    assert 1000 == event_args['lock_periods']
 
     # Can't deposit tokens again, only once
     with pytest.raises((TransactionFailed, ValueError)):

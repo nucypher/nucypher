@@ -35,7 +35,7 @@ from zope.interface import provider
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.policy.models import Policy
+from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory

@@ -51,7 +51,7 @@ def datetime_at_period(period: int) -> maya.MayaDT:
 
 
 def calculate_period_duration(future_time: maya.MayaDT) -> int:
-    """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
+    """Takes a future MayaDT instance and calculates the lock_periods from now, returning in periods"""
     future_period = datetime_to_period(datetime=future_time)
     current_period = datetime_to_period(datetime=maya.now())
     periods = future_period - current_period

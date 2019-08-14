@@ -138,7 +138,7 @@ class NU:
 
 class Stake:
     """
-    A quantity of tokens and staking duration for one stake for one staker.
+    A quantity of tokens and staking lock_periods for one stake for one staker.
     """
 
     class StakingError(Exception):
@@ -245,7 +245,7 @@ class Stake:
 
     @property
     def duration(self) -> int:
-        """Return stake duration in periods"""
+        """Return stake lock_periods in periods"""
         result = (self.last_locked_period - self.first_locked_period) + 1
         return result
 
@@ -304,7 +304,7 @@ class Stake:
         rulebook = (
 
             (self.economics.minimum_locked_periods <= self.duration,
-             'Stake duration of ({duration}) is too short; must be at least {minimum} periods.'
+             'Stake lock_periods of ({duration}) is too short; must be at least {minimum} periods.'
              .format(minimum=self.economics.minimum_locked_periods, duration=self.duration)),
 
         )
@@ -450,7 +450,7 @@ class Stake:
 
 class StakeTracker:
 
-    REFRESH_RATE = 60
+    REFRESH_RATE = 60 * 60  # TODO: Disable this during pytests.
 
     tracking_addresses = set()
 

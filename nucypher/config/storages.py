@@ -31,7 +31,7 @@ from twisted.logger import Logger
 from typing import Callable, Tuple, Union, Set, Any
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 
@@ -55,7 +55,7 @@ class NodeStorage(ABC):
                  character_class=None,
                  serializer: Callable = NODE_SERIALIZER,
                  deserializer: Callable = NODE_DESERIALIZER,
-                 registry: ContractRegistry = None,
+                 registry: BaseContractRegistry = None,
                  ) -> None:
 
         from nucypher.characters.lawful import Ursula
@@ -372,7 +372,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def __read_metadata(self,
                         filepath: str,
                         federated_only: bool,
-                        registry: ContractRegistry = None):
+                        registry: BaseContractRegistry = None):
 
         # TODO: Use registry None to indicate federated only
         from nucypher.characters.lawful import Ursula

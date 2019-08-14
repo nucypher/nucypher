@@ -21,7 +21,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import NU_BANNER
@@ -55,7 +55,7 @@ from nucypher.cli.types import (
 @click.option('--policy-reward/--no-policy-reward', is_flag=True, default=True)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
-@click.option('--duration', help="Period duration of stake", type=click.INT)
+@click.option('--lock_periods', help="Period lock_periods of stake", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @nucypher_click_config
 def stake(click_config,
@@ -118,7 +118,7 @@ def stake(click_config,
         fetch_registry = registry_filepath is None and not click_config.no_registry
         registry = None
         if registry_filepath:
-            registry = ContractRegistry(registry_filepath=registry_filepath)
+            registry = BaseContractRegistry(registry_filepath=registry_filepath)
         blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
 
         blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
@@ -257,7 +257,7 @@ def stake(click_config,
         value = NU.from_tokens(value)
 
         if not duration:
-            prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
+            prompt = f"Enter stake lock_periods ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
             duration = click.prompt(prompt, type=STAKE_DURATION)
 
         start_period = STAKEHOLDER.staking_agent.get_current_period()

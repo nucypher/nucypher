@@ -14,26 +14,24 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
-import hashlib
+
 import json
 import os
-import pprint
+import shutil
 import tempfile
+from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
+from typing import Union
 
 import requests
+from constant_sorrow.constants import REGISTRY_COMMITTED
 from twisted.logger import Logger
-
-import shutil
-from constant_sorrow import constants
-from typing import Union
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
-class ContractRegistry:
+class BaseContractRegistry(ABC):
     """
     Records known contracts on the disk for future access and utility. This
     lazily writes to the filesystem during contract enrollment.
@@ -46,8 +44,6 @@ class ContractRegistry:
 
     _multi_contract = True
     _contract_name = NotImplemented
-
-    _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
     __PUBLICATION_USER = "nucypher"
     __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"
@@ -73,42 +69,35 @@ class ContractRegistry:
     class IllegalRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, registry_filepath: str = None):
+    def __init__(self, *args, **kwargs):
         self.log = Logger("registry")
-        self.__filepath = registry_filepath or self._default_registry_filepath
-        self.log.info("Using contract registry {}".format(self.__filepath))
 
     def __eq__(self, other) -> bool:
         if self is other:
             return True  # and that's all
         return bool(self.read() == other.read())
 
-    @classmethod
-    def from_dict(cls, payload: dict, **overrides) -> 'ContractRegistry':
-        payload.update({k: v for k, v in overrides.items() if v is not None})
-        blockchain = cls(registry_filepath=payload['filepath'])
-        return blockchain
+    def __repr__(self):
+        r = f"{self.__class__.__name__}"
+        return r
 
-    def to_dict(self) -> dict:
-        payload = dict(filepath=self.__filepath)
-        return payload
+    @abstractmethod
+    def _destroy(self) -> None:
+        raise NotImplementedError
 
-    @classmethod
-    def _get_registry_class(cls, local=False):
-        """
-        If "local" is True, it means we are running a local blockchain and we
-        have deployed the Nucypher contracts on that blockchain, therefore
-        we do not want to download a registry from github.
-        """
-        return LocalContractRegistry if local else cls
+    @abstractmethod
+    def write(self, registry_data: list) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read(self) -> Union[list, dict]:
+        raise NotImplementedError
 
     @classmethod
-    def download_latest_publication(cls,
-                                    filepath: str = None,
-                                    branch: str = 'goerli'  # TODO: Allow other branches to be used
-                                    ) -> str:
+    def fetch_latest_publication(cls, branch: str = 'goerli') -> bytes:
         """
         Get the latest published contract registry from github and save it on the local file system.
+        # TODO: Allow other branches to be used
         """
 
         # Setup
@@ -121,28 +110,15 @@ class ContractRegistry:
             error = f"Failed to fetch registry from {github_endpoint} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
 
-        # Get filename
-        # TODO : Use envvar for config root and registry path
-        filepath = filepath or cls._default_registry_filepath
-
-        # Ensure parent path exists
-        os.makedirs(abspath(dirname(filepath)), exist_ok=True)
-
-        # Write registry
-        with open(filepath, 'wb') as registry_file:
-            registry_file.write(response.content)
-
-        return filepath
+        registry_data = response.content
+        return registry_data
 
     @classmethod
-    def from_latest_publication(cls, filepath: str = None, branch: str = 'goerli') -> 'ContractRegistry':
-        filepath = cls.download_latest_publication(filepath=filepath, branch=branch)
-        instance = cls(registry_filepath=filepath)
+    def from_latest_publication(cls, branch: str = 'goerli', *args, **kwargs) -> 'BaseContractRegistry':
+        registry_data_bytes = cls.fetch_latest_publication(branch=branch)
+        instance = cls(*args, **kwargs)
+        instance.write(registry_data=json.loads(registry_data_bytes))
         return instance
-
-    @property
-    def filepath(self):
-        return self.__filepath
 
     @property
     def enrolled_names(self):
@@ -154,23 +130,74 @@ class ContractRegistry:
         entries = iter(record[1] for record in self.read())
         return entries
 
+    def enroll(self, contract_name, contract_address, contract_abi):
+        """
+        Enrolls a contract to the chain registry by writing the name, address,
+        and abi information to the filesystem as JSON.
+
+        Note: Unless you are developing NuCypher, you most likely won't ever
+        need to use this.
+        """
+        contract_data = [contract_name, contract_address, contract_abi]
+        try:
+            registry_data = self.read()
+        except self.RegistryError:
+            self.log.info("Blank registry encountered: enrolling {}:{}".format(contract_name, contract_address))
+            registry_data = list()  # empty registry
+
+        registry_data.append(contract_data)
+        self.write(registry_data)
+        self.log.info("Enrolled {}:{} into registry.".format(contract_name, contract_address))
+
+    def search(self, contract_name: str = None, contract_address: str = None):
+        """
+        Searches the registry for a contract with the provided name or address
+        and returns the contracts component data.
+        """
+        if not (bool(contract_name) ^ bool(contract_address)):
+            raise ValueError("Pass contract_name or contract_address, not both.")
+
+        contracts = list()
+        registry_data = self.read()
+
+        try:
+            for name, addr, abi in registry_data:
+                if contract_name == name or contract_address == addr:
+                    contracts.append((name, addr, abi))
+        except ValueError:
+            message = "Missing or corrupted registry data"
+            self.log.critical(message)
+            raise self.IllegalRegistry(message)
+
+        if not contracts:
+            raise self.UnknownContract(contract_name)
+
+        if contract_address and len(contracts) > 1:
+            m = "Multiple records returned for address {}"
+            self.log.critical(m)
+            raise self.IllegalRegistry(m.format(contract_address))
+
+        return contracts if contract_name else contracts[0]
+
+
+class LocalContractRegistry(BaseContractRegistry):
+
+    def __init__(self, filepath: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__filepath = filepath
+        self.log.info("Using contract registry {}".format(self.__filepath))
+
+    def __repr__(self):
+        r = f"{self.__class__.__name__}(filepath={self.filepath})"
+        return r
+
+    @property
+    def filepath(self) -> str:
+        return self.__filepath
+
     def _swap_registry(self, filepath: str) -> bool:
         self.__filepath = filepath
         return True
-
-    def _destroy(self) -> None:
-        os.remove(self.filepath)
-
-    def write(self, registry_data: list) -> None:
-        """
-        Writes the registry data list as JSON to the registry file. If no
-        file exists, it will create it and write the data. If a file does exist
-        it will _overwrite_ everything in it.
-        """
-        with open(self.__filepath, 'w+') as registry_file:
-            registry_file.seek(0)
-            registry_file.write(json.dumps(registry_data))
-            registry_file.truncate()
 
     def read(self) -> Union[list, dict]:
         """
@@ -201,82 +228,44 @@ class ContractRegistry:
 
         return registry_data
 
-    def enroll(self, contract_name, contract_address, contract_abi):
+    def write(self, registry_data: list) -> None:
         """
-        Enrolls a contract to the chain registry by writing the name, address,
-        and abi information to the filesystem as JSON.
-
-        Note: Unless you are developing NuCypher, you most likely won't ever
-        need to use this.
+        Writes the registry data list as JSON to the registry file. If no
+        file exists, it will create it and write the data. If a file does exist
+        it will _overwrite_ everything in it.
         """
-        contract_data = [contract_name, contract_address, contract_abi]
-        try:
-            registry_data = self.read()
-        except self.RegistryError:
-            self.log.info("Blank registry encountered: enrolling {}:{}".format(contract_name, contract_address))
-            registry_data = list()  # empty registry
+        # Ensure parent path exists
+        os.makedirs(abspath(dirname(self.__filepath)), exist_ok=True)
 
-        registry_data.append(contract_data)
-        self.write(registry_data)
-        self.log.info("Enrolled {}:{} into registry {}".format(contract_name, contract_address, self.filepath))
+        with open(self.__filepath, 'w+') as registry_file:
+            registry_file.seek(0)
+            registry_file.write(json.dumps(registry_data))
+            registry_file.truncate()
 
-    def search(self, contract_name: str=None, contract_address: str=None):
-        """
-        Searches the registry for a contract with the provided name or address
-        and returns the contracts component data.
-        """
-        if not (bool(contract_name) ^ bool(contract_address)):
-            raise ValueError("Pass contract_name or contract_address, not both.")
-
-        contracts = list()
-        registry_data = self.read()
-
-        try:
-            for name, addr, abi in registry_data:
-                if contract_name == name or contract_address == addr:
-                    contracts.append((name, addr, abi))
-        except ValueError:
-            message = "Missing or corrupted registry data".format(self.__filepath)
-            self.log.critical(message)
-            raise self.IllegalRegistry(message)
-
-        if not contracts:
-            raise self.UnknownContract(contract_name)
-
-        if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
-            self.log.critical(m)
-            raise self.IllegalRegistry(m.format(contract_address))
-
-        return contracts if contract_name else contracts[0]
-
-
-class LocalContractRegistry(ContractRegistry):
-
-    _default_registry_filepath = os.path.join(
-        DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json'
-    )
-
-    __filepath = _default_registry_filepath
+    def _destroy(self) -> None:
+        os.remove(self.filepath)
 
     @classmethod
-    def download_latest_publication(cls, *args, **kwargs):
-        return cls._default_registry_filepath
+    def from_dict(cls, payload: dict, **overrides) -> 'LocalContractRegistry':
+        payload.update({k: v for k, v in overrides.items() if v is not None})
+        blockchain = cls(filepath=payload['filepath'])
+        return blockchain
+
+    def to_dict(self) -> dict:
+        payload = dict(filepath=self.__filepath)
+        return payload
 
 
-class TemporaryContractRegistry(ContractRegistry):
+class TemporaryContractRegistry(LocalContractRegistry):
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         _, self.temp_filepath = tempfile.mkstemp()
-        super().__init__(registry_filepath=self.temp_filepath)
+        super().__init__(filepath=self.temp_filepath, *args, **kwargs)
 
     def clear(self):
         self.log.info("Cleared temporary registry at {}".format(self.filepath))
         with open(self.filepath, 'w') as registry_file:
             registry_file.write('')
-
-    def cleanup(self):
-        os.remove(self.temp_filepath)  # remove registrar tempfile
 
     def commit(self, filepath) -> str:
         """writes the current state of the registry to a file"""
@@ -288,16 +277,16 @@ class TemporaryContractRegistry(ContractRegistry):
             self.clear()                                  # clear prior sim runs
 
         _ = shutil.copy(self.temp_filepath, filepath)
-        self.temp_filepath = constants.REGISTRY_COMMITTED  # just in case
+        self.temp_filepath = REGISTRY_COMMITTED  # just in case
         self.log.info("Wrote temporary registry to filesystem {}".format(filepath))
         return filepath
 
 
-class InMemoryContractRegistry(ContractRegistry):
+class InMemoryContractRegistry(BaseContractRegistry):
 
-    def __init__(self) -> None:
-        super().__init__(registry_filepath="::memory-registry::")
-        self.__registry_data = None  # type: str
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__registry_data = None
 
     def clear(self):
         self.__registry_data = None
@@ -328,15 +317,18 @@ class InMemoryContractRegistry(ContractRegistry):
         self.log.info("Wrote in-memory registry to filesystem {}".format(filepath))
         return filepath
 
+    def _destroy(self) -> None:
+        self.__registry_data = dict()
 
-class AllocationRegistry(ContractRegistry):
+
+class AllocationRegistry(LocalContractRegistry):
 
     _multi_contract = False
     _contract_name = 'UserEscrow'
 
     _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'allocation_registry.json')
 
-    class NoAllocationRegistry(ContractRegistry.NoRegistry):
+    class NoAllocationRegistry(BaseContractRegistry.NoRegistry):
         pass
 
     class AllocationEnrollmentError(RuntimeError):
@@ -351,7 +343,7 @@ class AllocationRegistry(ContractRegistry):
 
         try:
             allocation_data = self.read()
-        except ContractRegistry.NoRegistry:
+        except BaseContractRegistry.NoRegistry:
             raise self.NoAllocationRegistry
 
         if beneficiary_address:
@@ -394,8 +386,8 @@ class AllocationRegistry(ContractRegistry):
 class InMemoryAllocationRegistry(AllocationRegistry):
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(registry_filepath="::memory-registry::", *args, **kwargs)
-        self.__registry_data = None  # type: str
+        super().__init__(filepath="::memory-registry::", *args, **kwargs)
+        self.__registry_data = None
 
     def clear(self):
         self.__registry_data = None

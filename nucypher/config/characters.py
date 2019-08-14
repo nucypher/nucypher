@@ -147,30 +147,32 @@ class AliceConfiguration(CharacterConfiguration):
     # TODO: Best (Sane) Defaults
     DEFAULT_M = 2
     DEFAULT_N = 3
-    DEFAULT_RATE = int(1e14)          # wei
-    DEFAULT_FIRST_PERIOD_RATE = 0.25  # % of calculated rate per period
-    DEFAULT_DURATION = 3              # periods
+    DEFAULT_FIRST_PERIOD_REWARD = 0   # TODO #1063
 
     def __init__(self,
                  m: int = None,
                  n: int = None,
                  rate: int = None,
-                 first_period_rate: float = None,
-                 duration: int = None,
+                 first_period_reward: float = None,
+                 lock_periods: int = None,
                  *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
         self.m = m or self.DEFAULT_M
         self.n = n or self.DEFAULT_N
-        self.rate = rate or self.DEFAULT_RATE
-        self.first_period_rate = first_period_rate or self.DEFAULT_FIRST_PERIOD_RATE
-        self.duration = duration or self.DEFAULT_DURATION
-        super().__init__(*args, **kwargs)
+        if not self.federated_only:
+            self.rate = rate
+            self.lock_periods = lock_periods
+            self.first_period_reward = first_period_reward or self.DEFAULT_FIRST_PERIOD_REWARD
 
     def static_payload(self) -> dict:
-        payload = dict(m=self.m,
-                       n=self.n,
-                       rate=self.rate,
-                       first_period_rate=self.first_period_rate,
-                       duration=self.duration)
+        payload = dict(m=self.m, n=self.n)
+        if not self.federated_only:
+            payload['first_period_reward'] = self.first_period_reward
+            if self.rate:
+                payload['rate'] = self.rate
+            if self.lock_periods:
+                payload['lock_periods'] = self.lock_periods
         return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:

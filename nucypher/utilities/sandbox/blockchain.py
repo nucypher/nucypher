@@ -28,7 +28,7 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, ContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -204,7 +204,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls, registry: ContractRegistry) -> 'TesterBlockchain':
+    def bootstrap_network(cls, registry: BaseContractRegistry) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())

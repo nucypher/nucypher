@@ -14,7 +14,7 @@ class StdoutEmitter:
     transport_serializer = str
     default_color = 'white'
 
-    # sys.stdout.write() doesn't work well with click_runner's output capture
+    # sys.stdout.write() TODO: doesn't work well with click_runner's output capture
     default_sink_callable = print
 
     def __init__(self,
@@ -201,7 +201,7 @@ class WebEmitter:
         response_data = {'result': response,
                          'version': str(nucypher.__version__),
                          'id': str(request_id),
-                         'duration': str(duration)}
+                         'lock_periods': str(duration)}
         return response_data
 
     def exception(drone_character,

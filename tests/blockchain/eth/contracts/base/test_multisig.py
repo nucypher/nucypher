@@ -36,26 +36,26 @@ def to_32byte_hex(w3, value):
 
 
 @pytest.mark.slow
-def test_execute(testerchain):
+def test_execute(testerchain, deploy_contract):
     w3 = testerchain.w3
     accounts = sorted(w3.eth.accounts)
     owners = accounts[0:5]
     others = accounts[5:]
-    token, _ = testerchain.deploy_contract('NuCypherToken', 2 * 10 ** 40)
+    token, _ = deploy_contract('NuCypherToken', 2 * 10 ** 40)
 
     # Can't create the contract with the address 0x0 (address 0x0 is restricted for use)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('MultiSig', 3, owners + [BlockchainInterface.NULL_ADDRESS])
+        deploy_contract('MultiSig', 3, owners + [BlockchainInterface.NULL_ADDRESS])
     # Owners must be no less than the threshold value
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('MultiSig', 6, owners)
+        deploy_contract('MultiSig', 6, owners)
     # Can't use the same owners multiple times in the constructor (the owner array must contain unique values)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('MultiSig', 2, [owners[0], owners[1], owners[1]])
+        deploy_contract('MultiSig', 2, [owners[0], owners[1], owners[1]])
     # The threshold must be greater than zero or the contract will be broken
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('MultiSig', 0, owners)
-    multisig, _ = testerchain.deploy_contract('MultiSig', 3, owners)
+        deploy_contract('MultiSig', 0, owners)
+    multisig, _ = deploy_contract('MultiSig', 3, owners)
 
     # Check owners status
     assert multisig.functions.isOwner(owners[0]).call()
@@ -238,11 +238,11 @@ def execute_transaction(testerchain, multisig, accounts, tx):
 
 
 @pytest.mark.slow
-def test_owners_management(testerchain):
+def test_owners_management(testerchain, deploy_contract):
     w3 = testerchain.w3
     accounts = sorted(w3.eth.accounts)
     owners = accounts[0:3]
-    multisig, _ = testerchain.deploy_contract('MultiSig', 2, owners)
+    multisig, _ = deploy_contract('MultiSig', 2, owners)
 
     execution_log = multisig.events.Executed.createFilter(fromBlock='latest')
     owner_addition_log = multisig.events.OwnerAdded.createFilter(fromBlock='latest')

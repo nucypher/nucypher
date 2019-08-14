@@ -48,7 +48,7 @@ class CharacterControlJSONSerializer(CharacterControlSerializer):
     def build_response_metadata(response: dict, duration: maya.timedelta) -> dict:
         response_data = {'result': response,
                          'version': str(nucypher.__version__),
-                         'duration': str(duration)}
+                         'lock_periods': str(duration)}
         return response_data
 
     def __deserialize(self, request_payload: bytes) -> dict:

@@ -34,7 +34,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, ContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 
 
 class ContractDeployer:
@@ -56,7 +56,7 @@ class ContractDeployer:
         pass
 
     def __init__(self,
-                 registry: ContractRegistry,
+                 registry: BaseContractRegistry,
                  economics: TokenEconomics = None,
                  deployer_address: str = None):
 
@@ -615,12 +615,16 @@ class UserEscrowProxyDeployer(ContractDeployer):
                                                                    name=token_contract_name)
 
         staking_contract_name = StakingEscrowDeployer.contract_name
+        staking_proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     name=staking_contract_name)
+                                                                     name=staking_contract_name,
+                                                                     proxy_name=staking_proxy_name)
 
         policy_contract_name = PolicyManagerDeployer.contract_name
+        policy_proxy_name = PolicyManagerDeployer._proxy_deployer.contract_name
         self.policy_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                    name=policy_contract_name)
+                                                                    name=policy_contract_name,
+                                                                    proxy_name=policy_proxy_name)
 
     def _deploy_essential(self, gas_limit: int = None):
         """Note: These parameters are order-sensitive"""
@@ -737,7 +741,7 @@ class UserEscrowDeployer(ContractDeployer):
         self.__beneficiary_address = beneficiary_address
         return transfer_owner_receipt
 
-    def initial_deposit(self, value: int, duration: int) -> dict:
+    def initial_deposit(self, value: int, lock_periods: int) -> dict:
         """Allocate an amount of tokens with lock time, and transfer ownership to the beneficiary"""
         # Approve
         allocation_receipts = dict()
@@ -749,7 +753,7 @@ class UserEscrowDeployer(ContractDeployer):
         # Deposit
         # TODO: #413, #842 - Gas Management
         args = {'gas': 200_000}
-        deposit_function = self.contract.functions.initialDeposit(value, duration)
+        deposit_function = self.contract.functions.initialDeposit(value, lock_periods)
         deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,
                                                            sender_address=self.deployer_address,
                                                            payload=args)
@@ -776,7 +780,7 @@ class UserEscrowDeployer(ContractDeployer):
 
         """
 
-        deposit_txhash = self.initial_deposit(value=value, duration=duration)
+        deposit_txhash = self.initial_deposit(value=value, lock_periods=duration)
         assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
         self.enroll_principal_contract()
         return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
@@ -878,7 +882,8 @@ class AdjudicatorDeployer(ContractDeployer):
 
         self.check_deployment_readiness()
 
-        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+        existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                      name=self.contract_name,
                                                                       proxy_name=self._proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
 
@@ -907,7 +912,8 @@ class AdjudicatorDeployer(ContractDeployer):
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
-        existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+        existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                      name=self.contract_name,
                                                                       proxy_name=self._proxy_deployer.contract_name,
                                                                       use_proxy_address=False)
         dispatcher_deployer = DispatcherDeployer(registry=self.registry,

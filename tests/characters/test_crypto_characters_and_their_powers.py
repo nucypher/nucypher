@@ -118,11 +118,11 @@ def test_anybody_can_verify():
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
-def test_character_transacting_power_signing(testerchain, agency):
+def test_character_transacting_power_signing(testerchain, agency, test_registry):
 
     # Pretend to be a character.
     eth_address = testerchain.etherbase_account
-    signer = Character(is_me=True, blockchain=testerchain, checksum_address=eth_address)
+    signer = Character(is_me=True, registry=test_registry, checksum_address=eth_address)
 
     # Manually consume the power up
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,

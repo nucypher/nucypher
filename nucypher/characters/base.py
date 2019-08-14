@@ -40,7 +40,7 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.control.controllers import JSONRPCController
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.api import encrypt_and_sign
@@ -80,7 +80,7 @@ class Character(Learner):
                  keyring_root: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
-                 registry: ContractRegistry = None,
+                 registry: BaseContractRegistry = None,
                  *args, **kwargs
                  ) -> None:
 
@@ -111,9 +111,11 @@ class Character(Learner):
         #
         # Operating Mode
         #
-        if not federated_only and blockchain is None:
-            raise ValueError("No blockchain interface provided to initialize decentralized Character.")
+
+        if not bool(federated_only) ^ bool(registry):
+            raise ValueError(f"Pass either federated only or registry.  Got '{federated_only}'. '{registry}'")
         self.federated_only = federated_only  # type: bool
+        self.registry = registry
 
         #
         # Powers
@@ -137,6 +139,8 @@ class Character(Learner):
 
         # Needed for on-chain verification
         if not self.federated_only:
+            if not registry:
+                raise ValueError(f"Registry is required for decentralized operation.")
             self.staking_agent = StakingEscrowAgent(registry=registry)
         else:
             self.staking_agent = FEDERATED_ONLY

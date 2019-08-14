@@ -22,7 +22,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -118,17 +118,18 @@ def ursula(click_config,
     #
 
     if federated_only:
+        # TODO: consider rephrasing in a more universal voice.
         if geth:
             raise click.BadOptionUsage(option_name="--geth",
-                                       message="Federated only cannot be used with the --geth flag")
+                                       message="--geth cannot be used in federated mode.")
 
         if staker_address:
-            raise click.BadOptionUsage(option_name='--federated-only',
-                                       message="Staking address cannot be used in federated mode.")
+            raise click.BadOptionUsage(option_name='--staker-address',
+                                       message="--staker-address cannot be used in federated mode.")
 
-    download_registry = not federated_only and not click_config.no_registry
-    if download_registry and registry_filepath:safcASfgvsD  # FIXME
-    raise click.BadOptionUsage(f"Cannot use --registry-filepath and --no-registry")
+        if registry_filepath:
+            raise click.BadOptionUsage(option_name="--registry-filepath",
+                                       message=f"--registry-filepath cannot be used in federated mode.")
 
     # Banner
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
@@ -202,7 +203,6 @@ def ursula(click_config,
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
-                                            download_registry=False,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
@@ -346,7 +346,11 @@ def ursula(click_config,
 
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: #1216 - what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: what are request_id and lock_periods here?
+
+    elif action == "forget":
+        actions.forget(emitter, configuration=ursula_config)
+        return
 
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()

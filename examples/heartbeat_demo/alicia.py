@@ -109,7 +109,7 @@ doctor_strange = Bob.from_public_keys(verifying_key=doctor_pubkeys['sig'],
                                       federated_only=True)
 
 # Here are our remaining Policy details, such as:
-# - Policy duration
+# - Policy lock_periods
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
 #               she requires Bob to seek collaboration of at least 3 Ursulas

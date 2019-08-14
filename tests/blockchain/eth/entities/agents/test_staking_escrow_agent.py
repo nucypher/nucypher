@@ -22,14 +22,14 @@ from eth_utils.address import to_checksum_address, is_address
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.slow()
 def test_unknown_contract(testerchain, test_registry):
-    with pytest.raises(ContractRegistry.UnknownContract) as exception:
+    with pytest.raises(BaseContractRegistry.UnknownContract) as exception:
         _staking_agent = StakingEscrowAgent(registry=test_registry)
 
     assert exception.value.args[0] == StakingEscrowAgent.registry_contract_name

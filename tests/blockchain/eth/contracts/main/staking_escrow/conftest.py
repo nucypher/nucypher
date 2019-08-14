@@ -28,18 +28,18 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
-def token(testerchain):
+def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = testerchain.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 
 @pytest.fixture(params=[False, True])
-def escrow_contract(testerchain, token, request):
+def escrow_contract(testerchain, token, request, deploy_contract):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
         _staking_coefficient = 2 * 10 ** 7
-        contract, _ = testerchain.deploy_contract(
+        contract, _ = deploy_contract(
             contract_name='StakingEscrow',
             _token=token.address,
             _hoursPerPeriod=1,
@@ -54,13 +54,13 @@ def escrow_contract(testerchain, token, request):
 
         if request.param:
             secret_hash = keccak(secret)
-            dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
+            dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
             contract = testerchain.client.get_contract(
                 abi=contract.abi,
                 address=dispatcher.address,
                 ContractFactoryClass=Contract)
 
-        policy_manager, _ = testerchain.deploy_contract(
+        policy_manager, _ = deploy_contract(
             'PolicyManagerForStakingEscrowMock', token.address, contract.address
         )
         tx = contract.functions.setPolicyManager(policy_manager.address).transact()

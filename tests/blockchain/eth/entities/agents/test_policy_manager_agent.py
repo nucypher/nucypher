@@ -37,7 +37,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
                                   periods=10,
-                                  initial_reward=20,
+                                  first_period_reward=20,
                                   node_addresses=staker_addresses)
 
     return MockPolicyMetadata(_policy_id, testerchain.alice_account, staker_addresses)
@@ -60,7 +60,7 @@ def test_create_policy(testerchain, agency, token_economics):
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
                                   periods=10,
-                                  initial_reward=20,
+                                  first_period_reward=20,
                                   node_addresses=node_addresses)
 
     assert receipt['status'] == 1, "Transaction Rejected"

@@ -63,19 +63,24 @@ def mock_allocation_infile(testerchain, token_economics):
     accounts = testerchain.unassigned_accounts
     allocation_data = [{'address': addr,
                         'amount': token_economics.minimum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS}
+                        'lock_periods': ONE_YEAR_IN_SECONDS}
                        for addr in accounts]
 
     with open(MOCK_ALLOCATION_INFILE, 'w') as file:
         file.write(json.dumps(allocation_data))
 
-    registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_INFILE)
+    registry = AllocationRegistry(filepath=MOCK_ALLOCATION_INFILE)
     yield registry
     os.remove(MOCK_ALLOCATION_INFILE)
 
 
+@pytest.mark.usefixtures("agency")  # TODO: usesfixtures not working here
 @pytest.fixture(scope='module', autouse=True)
-def mock_primary_registry_filepath():
+def mock_primary_registry_filepath(test_registry, agency):
+    # Create filesystem registry from memory.
+    filepath = test_registry.commit(filepath=MOCK_REGISTRY_FILEPATH)
+    assert filepath == MOCK_REGISTRY_FILEPATH
+    assert os.path.isfile(MOCK_REGISTRY_FILEPATH)
     yield MOCK_REGISTRY_FILEPATH
     if os.path.isfile(MOCK_REGISTRY_FILEPATH):
         os.remove(MOCK_REGISTRY_FILEPATH)

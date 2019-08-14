@@ -16,13 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
-import collections
-from distutils.util import strtobool
+
 import functools
 import os
 
 import click
 from twisted.logger import Logger
+
+import collections
+from distutils.util import strtobool
 
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
@@ -42,6 +44,8 @@ def get_env_bool(var_name: str, default: bool) -> bool:
 
 class NucypherClickConfig:
 
+    verbosity = 0
+
     # Output Sinks
     __emitter = None
 
@@ -59,7 +63,6 @@ class NucypherClickConfig:
 
     def set_options(self,
                     mock_networking,
-                    no_registry,
                     etherscan,
                     json_ipc,
                     verbose,
@@ -79,16 +82,16 @@ class NucypherClickConfig:
                         "and cannot be used at the same time.")
 
         if verbose:
-            verbosity = 2
+            NucypherClickConfig.verbosity = 2
         elif quiet:
-            verbosity = 0
+            NucypherClickConfig.verbosity = 0
         else:
-            verbosity = 1
+            NucypherClickConfig.verbosity = 1
 
         if json_ipc:
-            emitter = JSONRPCStdoutEmitter(verbosity=verbosity)
+            emitter = JSONRPCStdoutEmitter(verbosity=NucypherClickConfig.verbosity)
         else:
-            emitter = StdoutEmitter(verbosity=verbosity)
+            emitter = StdoutEmitter(verbosity=NucypherClickConfig.verbosity)
 
         self.attach_emitter(emitter)
 
@@ -131,7 +134,6 @@ class NucypherClickConfig:
 
         # CLI Session Configuration
         self.mock_networking = mock_networking
-        self.no_registry = no_registry
         self.debug = debug
         self.json_ipc = json_ipc
         self.etherscan = etherscan

@@ -26,18 +26,18 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture()
-def escrow(testerchain):
+def escrow(testerchain, deploy_contract):
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
-    escrow, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow, _ = deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 
 
 @pytest.fixture(params=[False, True])
-def adjudicator(testerchain, escrow, request, slashing_economics):
-    contract, _ = testerchain.deploy_contract(
+def adjudicator(testerchain, escrow, request, slashing_economics, deploy_contract):
+    contract, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
         *slashing_economics.deployment_parameters)
@@ -45,7 +45,7 @@ def adjudicator(testerchain, escrow, request, slashing_economics):
     if request.param:
         secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
         secret_hash = testerchain.w3.keccak(secret)
-        dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
+        dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
         contract = testerchain.client.get_contract(

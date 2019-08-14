@@ -23,6 +23,7 @@ from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -163,10 +164,11 @@ class Felix(Character, NucypherTokenActor):
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
                  distribute_ether: bool = True,
+                 registry: BaseContractRegistry = None,
                  *args, **kwargs):
 
         # Character
-        super().__init__(*args, **kwargs)
+        super().__init__(registry=registry, *args, **kwargs)
         self.log = Logger(f"felix-{self.checksum_address[-6::]}")
 
         # Network
@@ -181,16 +183,15 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(registry=self.registry,
-                                             password=client_password,
+        transacting_power = TransactingPower(password=client_password,
                                              account=self.checksum_address)
         self._crypto_power.consume_power_up(transacting_power)
 
-        self.token_agent = NucypherTokenAgent(registry=self.registry)
+        self.token_agent = NucypherTokenAgent(registry=registry)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
-        existing_entries = list(self.blockchain.registry.enrolled_addresses)
+        existing_entries = list(registry.enrolled_addresses)
         self.reserved_addresses.extend(existing_entries)
 
         # Distribution
@@ -371,28 +372,14 @@ class Felix(Character, NucypherTokenActor):
 
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
-
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
                                             sender_address=self.checksum_address)
         txhash = receipt['transactionHash']
-        if self.distribute_ether:
-            ether = self.ETHER_AIRDROP_AMOUNT
-            transaction = {'to': recipient_address,
-                           'from': self.checksum_address,
-                           'value': ether,
-                           'gasPrice': self.blockchain.client.gasPrice}
-            ether_txhash = self.blockchain.client.send_transaction(transaction)
-
-            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
-                          f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
-
-        else:
-            self.log.info(
-                f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
-                f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
-
+        self.log.info(
+            f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
+            f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
         return txhash
 
     def airdrop_tokens(self):

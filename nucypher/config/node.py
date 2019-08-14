@@ -32,7 +32,7 @@ from twisted.logger import Logger
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
@@ -48,7 +48,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-    DEFAULT_PROVIDER_URI = 'http://localhost:8545'
+    DEFAULT_PROVIDER_URI = 'http://localhost:8545'  # TODO: Use auto? what is a sensible default?
     DEFAULT_DOMAIN = 'goerli'
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
@@ -90,13 +90,14 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Blockchain
                  poa: bool = False,
+                 sync: bool = False,  # TODO: What is the sensible default?
                  provider_uri: str = None,
-                 provider_process = None,
+                 provider_process=None,
 
                  # Registry
-                 registry_filepath: str = None
-
-                 ) -> None:
+                 registry: BaseContractRegistry = None,
+                 registry_filepath: str = None,
+                 ):
 
         self.log = Logger(self.__class__.__name__)
         UNINITIALIZED_CONFIGURATION.bool_value(False)
@@ -116,29 +117,20 @@ class CharacterConfiguration(BaseConfiguration):
         self.keyring = keyring or NO_KEYRING_ATTACHED
         self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
 
-        # Federated vs. Blockchain arguments compatibility
-        blockchain_args = {'registry_filepath': registry_filepath,
-                           'poa': poa,
-                           'provider_process': provider_process,
-                           'provider_uri': provider_uri}
-        if federated_only and any(blockchain_args.values()):
-            bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
-            # TODO: Warn or raise?
-            self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
-                          f"Overridden with a sane default.")
-            poa = False
-            provider_uri = None
-            provider_process = None
-            registry_filepath = None
-
         # Contract Registry
+        if registry and registry_filepath:
+            if registry.filepath != filepath:
+                error = f"Inconsistent registry filepaths for '{registry.filepath}' and '{registry_filepath}'."
+                raise ValueError(error)
+            else:
+                self.log.warn(f"Registry and registry filepath were both passed.")
+        self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
         self.poa = poa
         self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
-        self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.token_agent = NO_BLOCKCHAIN_CONNECTION
         self.staking_agent = NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = NO_BLOCKCHAIN_CONNECTION
@@ -158,6 +150,58 @@ class CharacterConfiguration(BaseConfiguration):
         self.__dev_mode = dev_mode
         self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
+
+        #
+        # Federated vs. Blockchain arguments consistency
+        #
+
+        #
+        # Federated
+        #
+
+        if self.federated_only:
+            # Check for incompatible values
+            blockchain_args = {'filepath': registry_filepath,
+                               'poa': poa,
+                               'provider_process': provider_process,
+                               'provider_uri': provider_uri}
+            if any(blockchain_args.values()):
+                bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
+                self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
+                              f"Overridden with a sane default.")
+
+                # Clear decentralized attributes to ensure consistency with a
+                # federated configuration.
+                self.poa = False
+                self.provider_uri = None
+                self.provider_process = None
+                self.registry_filepath = None
+
+        #
+        # Decentralized
+        #
+
+        else:
+            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
+            if not is_initialized:
+                from nucypher.cli.config import NucypherClickConfig  # FIXME
+
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
+                                                                poa=self.poa,
+                                                                provider_process=self.provider_process,
+                                                                sync=sync,
+                                                                show_sync_progress=NucypherClickConfig.verbosity)
+            else:
+                self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
+
+            if not self.registry:
+                # TODO: These two code blocks are untested.
+                if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
+                    self.log.info(f"Fetching latest registry from source.")
+                    self.registry = InMemoryContractRegistry.from_latest_publication()
+                else:
+                    self.registry = LocalContractRegistry(filepath=self.registry_filepath)
+                    self.log.info(f"Using local registry ({self.registry}).")
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -241,7 +285,7 @@ class CharacterConfiguration(BaseConfiguration):
         """
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-        merged_parameters = {**self.static_payload(), **overrides, **self.dynamic_payload}
+        merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
         non_init_params = ('config_root', 'poa', 'provider_uri')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
@@ -329,27 +373,11 @@ class CharacterConfiguration(BaseConfiguration):
 
         return payload
 
-    @property
+    @property  # TODO: Graduate to a method and "derive" dynamic from static payload.
     def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
-            if not is_initialized:
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
-                                                                poa=self.poa,
-                                                                provider_process=self.provider_process)
-            else:
-                self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
-
-            if not self.registry:
-                # TODO: These two code blocks are untested.
-                if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
-                    self.log.info(f"Fetching latest registry from source.")
-                    self.registry = ContractRegistry.from_latest_publication()  # TODO: Always Use In-Memory :-)
-                else:
-                    self.registry = ContractRegistry(registry_filepath=self.registry_filepath)
-                    self.log.info(f"Using local registry ({self.registry.filepath}).")
             payload.update(dict(registry=self.registry))
 
         self.read_known_nodes()   # Requires a connected blockchain to init Ursulas.

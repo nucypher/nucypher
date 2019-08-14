@@ -5,7 +5,8 @@ from eth_utils import is_checksum_address
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.actors import Administrator
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface, \
+    BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.api import verify_eip_191
 
@@ -24,7 +25,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
     # Start a geth process
     blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
-    blockchain.connect(fetch_registry=False, sync_now=False)
+    blockchain.connect()
 
     # Sign a message (RPC) and verify it.
     etherbase = blockchain.client.accounts[0]
@@ -43,31 +44,31 @@ def test_geth_create_new_account(instant_geth_dev_node):
         pytest.skip("Do not run Geth nodes in CI")
 
     blockchain = BlockchainInterface(provider_process=instant_geth_dev_node)
-    blockchain.connect(fetch_registry=False, sync_now=False)
+    blockchain.connect()
     new_account = blockchain.client.new_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(new_account)
 
 
-def test_geth_deployment_integration(instant_geth_dev_node):
+def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
 
     # TODO: Move to decorator
     if 'CIRCLECI' in os.environ:
         pytest.skip("Do not run Geth nodes in CI")
 
-    memory_registry = InMemoryContractRegistry()
-    blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node, registry=memory_registry)
+    blockchain = BlockchainDeployerInterface(provider_process=instant_geth_dev_node)
+    BlockchainInterfaceFactory.register_interface(interface=blockchain)
 
     # Make Deployer
     etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
-    deployer = Administrator(blockchain=blockchain,
-                             deployer_address=etherbase,
-                             client_password=None)  # dev accounts have no password.
+    administrator = Administrator(registry=test_registry,
+                                  deployer_address=etherbase,
+                                  client_password=None)  # dev accounts have no password.
 
-    assert int(deployer.blockchain.client.chain_id) == 1337
+    assert int(blockchain.client.chain_id) == 1337
 
     # Deploy
     secrets = dict()
-    for deployer_class in deployer.upgradeable_deployer_classes:
+    for deployer_class in administrator.upgradeable_deployer_classes:
         secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
 
-    deployer.deploy_network_contracts(secrets=secrets, interactive=False)
+    administrator.deploy_network_contracts(secrets=secrets, interactive=False)

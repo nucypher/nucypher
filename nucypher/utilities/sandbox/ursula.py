@@ -21,7 +21,7 @@ from typing import Set, List, Iterable, Optional
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import StakeTracker
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
@@ -67,7 +67,6 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
 
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
-                               registry: ContractRegistry,
                                stakers_addresses: Iterable[str],
                                workers_addresses: Iterable[str],
                                confirm_activity: bool = False,
@@ -81,9 +80,9 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     stakers_and_workers = zip(stakers_addresses, workers_addresses)
     ursulas = list()
 
+    registry = ursula_config.registry
     staking_agent = StakingEscrowAgent(registry=registry)
     stake_tracker = StakeTracker(checksum_addresses=list(stakers_addresses), staking_agent=staking_agent)
-    ursula_config.update(dict(registry=registry))  # TODO: possibly add StakeTracker instance.
 
     for port, (staker_address, worker_address) in enumerate(stakers_and_workers, start=starting_port):
         ursula = ursula_config.produce(checksum_address=staker_address,

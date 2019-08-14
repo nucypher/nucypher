@@ -18,7 +18,7 @@ export NUCYPHER_KEYRING_PASSWORD='debuggerdebuggerdebugger'
 nucypher ursula init --provider ipc:///tmp/geth.ipc --poa --network TEMPORARY_DOMAIN --rest-host 0.0.0.0
 
 # Inline Staking
-nucypher ursula stake --value 15000 --duration 30 --force
+nucypher ursula stake --value 15000 --lock_periods 30 --force
 
 # View Active Stakes
 nucypher ursula stake --list

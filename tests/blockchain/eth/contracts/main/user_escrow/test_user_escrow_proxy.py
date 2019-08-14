@@ -68,11 +68,11 @@ def test_upgrading(testerchain, token):
     secret_hash = keccak(secret)
     secret2_hash = keccak(secret2)
 
-    library_v1, _ = testerchain.deploy_contract('UserEscrowLibraryMockV1')
-    library_v2, _ = testerchain.deploy_contract('UserEscrowLibraryMockV2')
-    linker_contract, _ = testerchain.deploy_contract(
+    library_v1, _ = deploy_contract('UserEscrowLibraryMockV1')
+    library_v2, _ = deploy_contract('UserEscrowLibraryMockV2')
+    linker_contract, _ = deploy_contract(
         'UserEscrowLibraryLinker', library_v1.address, secret_hash)
-    user_escrow_contract, _ = testerchain.deploy_contract(
+    user_escrow_contract, _ = deploy_contract(
         'UserEscrow', linker_contract.address, token.address)
     # Transfer ownership
     tx = user_escrow_contract.functions.transferOwnership(user).transact({'from': creator})
@@ -179,7 +179,7 @@ def test_proxy_selfdestruct(testerchain, token):
     secret2_hash = keccak(secret2)
 
     # Deploy proxy and destroy it
-    contract1_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
+    contract1_lib, _ = deploy_contract('DestroyableUserEscrowLibrary')
     assert 15 == contract1_lib.functions.method().call()
     tx = contract1_lib.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
@@ -188,26 +188,26 @@ def test_proxy_selfdestruct(testerchain, token):
 
     # Can't create linker using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrowLibraryLinker', BlockchainInterface.NULL_ADDRESS, secret_hash)
+        deploy_contract('UserEscrowLibraryLinker', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrowLibraryLinker', account, secret_hash)
+        deploy_contract('UserEscrowLibraryLinker', account, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrowLibraryLinker', contract1_lib.address, secret_hash)
+        deploy_contract('UserEscrowLibraryLinker', contract1_lib.address, secret_hash)
 
     # Deploy contract again with a linker targeting it
-    contract2_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
-    linker_contract, _ = testerchain.deploy_contract(
+    contract2_lib, _ = deploy_contract('DestroyableUserEscrowLibrary')
+    linker_contract, _ = deploy_contract(
         'UserEscrowLibraryLinker', contract2_lib.address, secret_hash)
     assert contract2_lib.address == linker_contract.functions.target().call()
 
     # Can't create user escrow using wrong contracts
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrow', linker_contract.address, linker_contract.address)
+        deploy_contract('UserEscrow', linker_contract.address, linker_contract.address)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('UserEscrow', token.address, token.address)
+        deploy_contract('UserEscrow', token.address, token.address)
 
     # Deploy user escrow
-    user_escrow_contract, _ = testerchain.deploy_contract(
+    user_escrow_contract, _ = deploy_contract(
         'UserEscrow', linker_contract.address, token.address)
     user_escrow_library = testerchain.client.get_contract(
         abi=contract1_lib.abi,
@@ -245,7 +245,7 @@ def test_proxy_selfdestruct(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade to this contract
-    contract3_lib, _ = testerchain.deploy_contract('DestroyableUserEscrowLibrary')
+    contract3_lib, _ = deploy_contract('DestroyableUserEscrowLibrary')
     tx = linker_contract.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 15 == user_escrow_library.functions.method().call()

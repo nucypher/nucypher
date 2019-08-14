@@ -10,7 +10,7 @@ import nucypher
 from nucypher.characters.control.serializers import AliceControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.models import TreasureMap
+from nucypher.policy.collections import TreasureMap
 
 click_runner = CliRunner()
 

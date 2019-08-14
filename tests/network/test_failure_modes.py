@@ -3,7 +3,8 @@ import maya
 import pytest
 
 from nucypher.network.nodes import Learner
-from nucypher.policy.models import TreasureMap, Policy
+from nucypher.policy.collections import TreasureMap
+from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.middleware import NodeIsDownMiddleware
 from functools import partial
 

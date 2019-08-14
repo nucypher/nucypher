@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
 
-from nucypher.blockchain.eth.actors import PolicyAuthor
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT
 
 
@@ -24,12 +24,12 @@ from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT
 @pytest.fixture(scope='module')
 def author(testerchain, agency, test_registry):
     _origin, ursula, alice, *everybody_else = testerchain.client.accounts
-    author = PolicyAuthor(checksum_address=alice, registry=test_registry)
+    author = BlockchainPolicyAuthor(checksum_address=alice, registry=test_registry)
     return author
 
 
 @pytest.mark.slow()
 def test_create_policy_author(testerchain, agency, test_registry):
     _origin, ursula, alice, *everybody_else = testerchain.client.accounts
-    policy_author = PolicyAuthor(checksum_address=alice, registry=test_registry)
+    policy_author = BlockchainPolicyAuthor(checksum_address=alice, registry=test_registry)
     assert policy_author.checksum_address == alice

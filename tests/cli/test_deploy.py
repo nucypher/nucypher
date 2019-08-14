@@ -14,7 +14,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
 
 from nucypher.utilities.sandbox.constants import (
@@ -34,28 +34,28 @@ PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
+@pytest.fixture(scope="module")
+def registry_filepath():
+    # TODO: Use temp module
+    registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
+    if os.path.exists(registry_filepath):
+        os.remove(registry_filepath)
+    yield registry_filepath
+    if os.path.exists(registry_filepath):
+        os.remove(registry_filepath)
+
+
 def test_nucypher_deploy_contracts(click_runner,
-                                   mock_primary_registry_filepath,
                                    mock_allocation_infile,
-                                   token_economics):
-
-
-
-    #
-    # Setup
-    #
-
-    # We start with a blockchain node, and nothing else...
-    if os.path.isfile(mock_primary_registry_filepath):
-        os.remove(mock_primary_registry_filepath)
-    assert not os.path.isfile(mock_primary_registry_filepath)
+                                   token_economics,
+                                   registry_filepath):
 
     #
     # Main
     #
 
     command = ['contracts',
-               '--registry-outfile', mock_primary_registry_filepath,
+               '--registry-outfile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa']
 
@@ -70,8 +70,8 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # Check that the primary contract registry was written
     # and peek at some of the registered entries
-    assert os.path.isfile(mock_primary_registry_filepath)
-    with open(mock_primary_registry_filepath, 'r') as file:
+    assert os.path.isfile(registry_filepath)
+    with open(registry_filepath, 'r') as file:
 
         # Ensure every contract's name was written to the file, somehow
         raw_registry_data = file.read()
@@ -91,52 +91,42 @@ def test_nucypher_deploy_contracts(click_runner,
     #
     # Agency
     #
+    registry = LocalContractRegistry(filepath=registry_filepath)
 
-    token_agent = NucypherTokenAgent()
+    token_agent = NucypherTokenAgent(registry=registry)
     assert token_agent.contract_name == registered_name
     assert token_agent.registry_contract_name == registered_name
     assert token_agent.contract_address == registered_address
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    staking_agent = StakingEscrowAgent()
+    staking_agent = StakingEscrowAgent(registry=registry)
     assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated
-    assert PolicyManagerAgent()
+    assert PolicyManagerAgent(registry=registry)
 
     # This agent wasn't instantiated before, so we have to supply the blockchain
     blockchain = staking_agent.blockchain
-    assert AdjudicatorAgent(blockchain=blockchain)
+    assert AdjudicatorAgent(registry=registry)
 
 
-def test_transfer_tokens(click_runner, mock_primary_registry_filepath):
+def test_transfer_tokens(click_runner, registry_filepath):
     #
     # Setup
     #
 
-    # Simulate "Reconnection"
-    real_attach_provider = BlockchainDeployerInterface._attach_provider
-    cached_blockchain = BlockchainDeployerInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_primary_registry_filepath
-
-    def attach_cached_provider(interface, *args, **kwargs):
-        cached_provider = cached_blockchain.provider
-        real_attach_provider(interface, provider=cached_provider)
-
-    BlockchainDeployerInterface._attach_provider = attach_cached_provider
-
     # Let's transfer some NU to a random stranger
     recipient_address = to_checksum_address(os.urandom(20))
 
-    token_agent = NucypherTokenAgent()
+    registry = LocalContractRegistry(filepath=registry_filepath)
+    token_agent = NucypherTokenAgent(registry=registry)
     assert token_agent.get_balance(address=recipient_address) == 0
 
     command = ['transfer',
                '--recipient-address', recipient_address,
                '--amount', 42,
-               '--registry-infile', mock_primary_registry_filepath,
+               '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa']
 
@@ -148,26 +138,15 @@ def test_transfer_tokens(click_runner, mock_primary_registry_filepath):
     assert token_agent.get_balance(address=recipient_address) == 42
 
 
-def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
+def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     #
     # Setup
     #
 
-    # Simulate "Reconnection"
-    real_attach_provider = BlockchainDeployerInterface._attach_provider
-    cached_blockchain = BlockchainDeployerInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_primary_registry_filepath
-
-    def attach_cached_provider(interface, *args, **kwargs):
-        cached_provider = cached_blockchain.provider
-        real_attach_provider(interface, provider=cached_provider)
-    BlockchainDeployerInterface._attach_provider = attach_cached_provider
-
     # Check the existing state of the registry before the meat and potatoes
     expected_enrollments = 9
-    with open(mock_primary_registry_filepath, 'r') as file:
+    with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
         assert len(registry_data) == expected_enrollments
@@ -177,7 +156,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', mock_primary_registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
 
     # Generate user inputs
     yes = 'Y\n'  # :-)
@@ -231,13 +210,16 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         else:
             proxy_name = 'Dispatcher'
 
-        cached_blockchain = BlockchainDeployerInterface.reconnect()
-        real_old_contract = cached_blockchain.get_contract_by_name(name=contract_name,
-                                                                   proxy_name=proxy_name,
-                                                                   use_proxy_address=False)
+        registry = LocalContractRegistry(filepath=registry_filepath)
+        real_old_contract = testerchain.get_contract_by_name(name=contract_name,
+                                                             registry=registry,
+                                                             proxy_name=proxy_name,
+                                                             use_proxy_address=False)
 
         # Ensure the proxy targets the current deployed contract
-        proxy = cached_blockchain.get_proxy(target_address=real_old_contract.address, proxy_name=proxy_name)
+        proxy = testerchain.get_proxy(registry=registry,
+                                      target_address=real_old_contract.address,
+                                      proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address == real_old_contract.address
 
@@ -258,7 +240,7 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         expected_enrollments += 1
 
         # Verify the registry is updated (Potatoes)
-        with open(mock_primary_registry_filepath, 'r') as file:
+        with open(registry_filepath, 'r') as file:
 
             # Read the registry file directly, bypassing its interfaces
             raw_registry_data = file.read()
@@ -277,8 +259,8 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
             assert contract_enrollments == expected_contract_enrollments, error
 
         # Ensure deployments are different addresses
-        cached_blockchain = BlockchainDeployerInterface.reconnect()
-        records = cached_blockchain.registry.search(contract_name=contract_name)
+        registry = LocalContractRegistry(filepath=registry_filepath)
+        records = registry.search(contract_name=contract_name)
         assert len(records) == contract_enrollments, error
 
         old, new = records[-2:]            # Get the last two entries
@@ -290,25 +272,16 @@ def test_upgrade_contracts(click_runner, mock_primary_registry_filepath):
         assert old_address != new_address
 
         # Ensure the proxy now targets the new deployment
-        proxy = cached_blockchain.get_proxy(target_address=new_address, proxy_name=proxy_name)
+        proxy = testerchain.get_proxy(registry=registry,
+                                      target_address=new_address,
+                                      proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
 
 
-def test_rollback(click_runner, mock_primary_registry_filepath):
+def test_rollback(click_runner, testerchain, registry_filepath):
     """Roll 'em back!"""
-
-    # Simulate "Reconnection"
-    real_attach_provider = BlockchainDeployerInterface._attach_provider
-    cached_blockchain = BlockchainDeployerInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_primary_registry_filepath
-
-    def attach_cached_provider(interface, *args, **kwargs):
-        cached_provider = cached_blockchain.provider
-        real_attach_provider(interface, provider=cached_provider)
-    BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     # Input Components
     yes = 'Y\n'
@@ -327,15 +300,16 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
 
         command = ('rollback',
                    '--contract-name', contract_name,
-                   '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                   '--registry-infile', registry_filepath,
                    '--provider', TEST_PROVIDER_URI,
                    '--poa')
 
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code == 0
 
-        blockchain = BlockchainDeployerInterface.reconnect()
-        records = blockchain.registry.search(contract_name=contract_name)
+        # TODO unify this, trust more to registry_filepath, reduce calls
+        registry = LocalContractRegistry(filepath=registry_filepath)
+        records = registry.search(contract_name=contract_name)
         assert len(records) == 4
 
         *old_records, v3, v4 = records
@@ -347,9 +321,13 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
 
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            blockchain.get_proxy(target_address=current_target_address, proxy_name='Dispatcher')
+            testerchain.get_proxy(registry=registry,
+                                  target_address=current_target_address,
+                                  proxy_name='Dispatcher')
 
-        proxy = blockchain.get_proxy(target_address=rollback_target_address, proxy_name='Dispatcher')
+        proxy = testerchain.get_proxy(registry=registry,
+                                      target_address=rollback_target_address,
+                                      proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()
@@ -359,26 +337,16 @@ def test_rollback(click_runner, mock_primary_registry_filepath):
 
 def test_nucypher_deploy_allocation_contracts(click_runner,
                                               testerchain,
-                                              mock_primary_registry_filepath,
+                                              registry_filepath,
                                               mock_allocation_infile,
                                               token_economics):
-    # Simulate "Reconnection"
-    real_attach_provider = BlockchainDeployerInterface._attach_provider
-    cached_blockchain = BlockchainDeployerInterface.reconnect()
-    registry = cached_blockchain.registry
-    assert registry.filepath == mock_primary_registry_filepath
-
-    def attach_cached_provider(interface, *args, **kwargs):
-        cached_provider = cached_blockchain.provider
-        real_attach_provider(interface, provider=cached_provider)
-    BlockchainDeployerInterface._attach_provider = attach_cached_provider
 
     #
     # Main
     #
 
     deploy_command = ('allocations',
-                      '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                      '--registry-infile', registry_filepath,
                       '--allocation-infile', mock_allocation_infile.filepath,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
                       '--provider', TEST_PROVIDER_URI,
@@ -396,15 +364,9 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
     beneficiary = testerchain.client.accounts[-1]
-    allocation_registry = AllocationRegistry(registry_filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
-    user_escrow_agent = UserEscrowAgent(blockchain=cached_blockchain,
+    allocation_registry = AllocationRegistry(filepath=MOCK_ALLOCATION_REGISTRY_FILEPATH)
+    registry = LocalContractRegistry(filepath=registry_filepath)
+    user_escrow_agent = UserEscrowAgent(registry=registry,
                                         beneficiary=beneficiary,
                                         allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
-
-    #
-    # Tear Down
-    #
-
-    # Destroy existing blockchain
-    testerchain.disconnect()

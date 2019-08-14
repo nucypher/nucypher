@@ -53,9 +53,10 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
     _get_HTTP_provider
 )
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.utilities.logging import console_observer, GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -229,11 +230,15 @@ class BlockchainInterface:
 
         return self.is_connected
 
-    def sync(self, emitter: StdoutEmitter = None) -> None:
+    def sync(self, show_progress: bool = False) -> None:
 
         sync_state = self.client.sync()
-        if emitter:
+        if show_progress:
             import click
+            # TODO: It is possible that output has been redirected from a higher-level emitter.
+            # TODO: Use console logging instead of StdOutEmitter here.
+            emitter = StdoutEmitter()
+
             emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
 
             while not len(self.client.peers):
@@ -416,7 +421,7 @@ class BlockchainInterface:
         return receipt
 
     def get_contract_by_name(self,
-                             registry: ContractRegistry,
+                             registry: BaseContractRegistry,
                              name: str,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
@@ -514,7 +519,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     def deploy_contract(self,
                         deployer_address: str,
-                        registry: ContractRegistry,
+                        registry: BaseContractRegistry,
                         contract_name: str,
                         *constructor_args,
                         enroll: bool = True,
@@ -605,7 +610,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         return wrapped_contract
 
     def get_proxy(self,
-                  registry: ContractRegistry,
+                  registry: BaseContractRegistry,
                   target_address: str,
                   proxy_name: str) -> Contract:
 
@@ -646,7 +651,9 @@ class BlockchainInterfaceFactory:
     _interfaces = dict()
     _default_interface_class = BlockchainInterface
 
-    CachedInterface = collections.namedtuple('CachedInterface', ['interface', 'sync', 'emitter'])
+    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
+                                                                 'sync',
+                                                                 'show_sync_progress'])
 
     class FactoryError(Exception):
         pass
@@ -667,20 +674,20 @@ class BlockchainInterfaceFactory:
     def register_interface(cls,
                            interface: BlockchainInterface,
                            sync: bool = False,
-                           emitter: StdoutEmitter = None
+                           show_sync_progress: bool = False
                            ) -> None:
 
         provider_uri = interface.provider_uri
         if provider_uri in cls._interfaces:
             raise cls.FactoryError(f"A connection already exists for {provider_uri}.  Use .get_interface instead.")
-        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
+        cached = cls.CachedInterface(interface=interface, sync=sync, show_sync_progress=show_sync_progress)
         cls._interfaces[provider_uri] = cached
 
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
                              sync: bool = False,
-                             emitter: StdoutEmitter = None,
+                             show_sync_progress: bool = False,
                              interface_class: Interfaces = None,
                              *interface_args,
                              **interface_kwargs
@@ -693,7 +700,9 @@ class BlockchainInterfaceFactory:
         if not interface_class:
             interface_class = cls._default_interface_class
         interface = interface_class(provider_uri=provider_uri, *interface_args, **interface_kwargs)
-        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
+        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
+                                                            sync=sync,
+                                                            show_sync_progress=show_sync_progress)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -714,9 +723,9 @@ class BlockchainInterfaceFactory:
                 raise cls.FactoryError(f"There is no existing blockchain connection.")
 
         # Connect and Sync
-        interface, sync, emitter = cached_interface
+        interface, sync, show_sync_progress = cached_interface
         if not interface.is_connected:
             interface.connect()
             if sync:
-                interface.sync(emitter=emitter)
+                interface.sync(show_progress=show_sync_progress)
         return interface

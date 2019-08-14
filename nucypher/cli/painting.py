@@ -363,17 +363,17 @@ def paint_contract_deployment(emitter,
             webbrowser.open_new_tab(url)
 
 
-def paint_staged_deployment(emitter, deployer) -> None:
+def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.clear()
     emitter.banner(NU_BANNER)
     emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
-    emitter.echo(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
-    emitter.echo(f"Block ............... {deployer.blockchain.client.block_number}")
-    emitter.echo(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
-    emitter.echo(f"Deployer Address .... {deployer.checksum_address}")
-    emitter.echo(f"ETH ................. {deployer.eth_balance}")
-    emitter.echo(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
-    emitter.echo(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
+    emitter.echo(f"Web3 Provider ....... {deployer_interface.provider_uri}")
+    emitter.echo(f"Block ............... {deployer_interface.client.block_number}")
+    emitter.echo(f"Gas Price ........... {deployer_interface.client.gas_price}")
+    emitter.echo(f"Deployer Address .... {administrator.checksum_address}")
+    emitter.echo(f"ETH ................. {administrator.eth_balance}")
+    emitter.echo(f"Chain ID ............ {deployer_interface.client.chain_id}")
+    emitter.echo(f"Chain Name .......... {deployer_interface.client.chain_name}")
 
     # Ask - Last chance to gracefully abort. This step cannot be forced.
     emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')

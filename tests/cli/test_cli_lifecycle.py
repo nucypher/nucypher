@@ -71,20 +71,52 @@ class MockSideChannel:
 
 
 @pt.inlineCallbacks
-@pytest.mark.parametrize('federated', (True, False))
-def test_cli_lifecycle(click_runner,
-                       testerchain,
-                       random_policy_label,
-                       federated_ursulas,
-                       blockchain_ursulas,
-                       custom_filepath,
-                       custom_filepath_2,
-                       federated):
+def test_federated_cli_lifecycle(click_runner,
+                                 testerchain,
+                                 random_policy_label,
+                                 federated_ursulas,
+                                 custom_filepath,
+                                 custom_filepath_2,
+                                 mock_primary_registry_filepath):
+    yield _cli_lifecycle(click_runner,
+                         testerchain,
+                         random_policy_label,
+                         federated_ursulas,
+                         custom_filepath,
+                         custom_filepath_2,
+                         mock_primary_registry_filepath)
+
+
+@pt.inlineCallbacks
+def test_decentralized_cli_lifecycle(click_runner,
+                                     testerchain,
+                                     random_policy_label,
+                                     blockchain_ursulas,
+                                     custom_filepath,
+                                     custom_filepath_2,
+                                     mock_primary_registry_filepath):
+    yield _cli_lifecycle(click_runner,
+                         testerchain,
+                         random_policy_label,
+                         blockchain_ursulas,
+                         custom_filepath,
+                         custom_filepath_2,
+                         mock_primary_registry_filepath)
+
+
+def _cli_lifecycle(click_runner,
+                   testerchain,
+                   random_policy_label,
+                   ursulas,
+                   custom_filepath,
+                   custom_filepath_2,
+                   mock_primary_registry_filepath):
     """
     This is an end to end integration test that runs each cli call
     in it's own process using only CLI character control entry points,
     and a mock side channel that runs in the control process
     """
+    federated = list(ursulas)[0].federated_only
 
     # Boring Setup Stuff
     alice_config_root = custom_filepath
@@ -109,8 +141,8 @@ def test_cli_lifecycle(click_runner,
         alice_init_args += ('--federated-only', )
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
-                            '--no-registry',
-                            '--pay-with', testerchain.alice_account)
+                            '--pay-with', testerchain.alice_account,
+                            '--registry-filepath', mock_primary_registry_filepath)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -145,7 +177,6 @@ def test_cli_lifecycle(click_runner,
         bob_init_args += ('--federated-only', )
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
-                          '--no-registry',
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
@@ -252,9 +283,9 @@ def test_cli_lifecycle(click_runner,
     We catch up with Alice later on, but before she has learned about existing Ursulas...
     """
     if federated:
-        teacher = list(federated_ursulas)[0]
+        teacher = list(ursulas)[0]
     else:
-        teacher = list(blockchain_ursulas)[1]
+        teacher = list(ursulas)[1]
 
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 

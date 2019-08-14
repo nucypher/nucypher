@@ -6,7 +6,7 @@ from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.main import nucypher_cli
@@ -22,6 +22,7 @@ from nucypher.utilities.sandbox.constants import (
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner,
                    testerchain,
+                   test_registry,
                    agency,
                    deploy_user_input,
                    mock_primary_registry_filepath):
@@ -35,18 +36,8 @@ def test_run_felix(click_runner,
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
-    # Simulate "Reconnection"
-    real_attach_provider = BlockchainDeployerInterface._attach_provider
-    cached_blockchain = BlockchainDeployerInterface.reconnect()
-    cached_blockchain.registry.commit(filepath=mock_primary_registry_filepath)
-
-    def attach_cached_provider(interface, *args, **kwargs):
-        cached_provider = cached_blockchain.provider
-        real_attach_provider(interface, provider=cached_provider)
-    BlockchainDeployerInterface._attach_provider = attach_cached_provider
-
     # Mock live contract registry reads
-    ContractRegistry.read = lambda *a, **kw: cached_blockchain.registry.read()
+    LocalContractRegistry.read = lambda *a, **kw: test_registry.read()
 
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
@@ -60,7 +51,6 @@ def test_run_felix(click_runner,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
-                 '--no-registry',
                  '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -85,8 +75,7 @@ def test_run_felix(click_runner,
                 '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', configuration_file_location,
                 '--provider', TEST_PROVIDER_URI,
-                '--dry-run',
-                '--no-registry')
+                '--dry-run')
 
         run_result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, env=envvars)
         assert run_result.exit_code == 0
@@ -96,7 +85,8 @@ def test_run_felix(click_runner,
     def request_felix_landing_page(_result):
 
         # Init an equal Felix to the already running one.
-        felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location)
+        felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
+                                                                  registry_filepath=mock_primary_registry_filepath)
 
         felix_config.attach_keyring()
         felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -111,7 +101,7 @@ def test_run_felix(click_runner,
         assert response.status_code == 200
 
         # Register a new recipient
-        response = test_client.post('/register', data={'address': felix.blockchain.client.accounts[-1]})
+        response = test_client.post('/register', data={'address': testerchain.client.accounts[-1]})
         assert response.status_code == 200
 
         return
@@ -122,7 +112,7 @@ def test_run_felix(click_runner,
     # Record starting ether balance
     recipient = testerchain.client.accounts[-1]
     staker = Staker(checksum_address=recipient,
-                    blockchain=testerchain,
+                    registry=test_registry,
                     is_me=True)
     original_eth_balance = staker.eth_balance
 
@@ -136,7 +126,7 @@ def test_run_felix(click_runner,
     def confirm_airdrop(_results):
         recipient = testerchain.client.accounts[-1]
         staker = Staker(checksum_address=recipient,
-                        blockchain=testerchain,
+                        registry=test_registry,
                         is_me=True)
 
         assert staker.token_balance == NU(15000, 'NU')

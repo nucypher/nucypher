@@ -30,6 +30,7 @@ def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    mock_primary_registry_filepath,
                                    testerchain,
+                                   test_registry,
                                    agency):
     #
     # Setup
@@ -60,14 +61,6 @@ def test_coexisting_configurations(click_runner,
     # Not the configuration root...
     assert not os.path.isdir(custom_filepath)
 
-    # And not the customs registry.
-    assert not os.path.isfile(mock_primary_registry_filepath)
-
-    # Create filesystem registry
-    filepath = testerchain.registry.commit(filepath=mock_primary_registry_filepath)
-    assert filepath == mock_primary_registry_filepath
-    assert os.path.isfile(mock_primary_registry_filepath)
-
     #
     # Create
     #
@@ -85,8 +78,7 @@ def test_coexisting_configurations(click_runner,
                        '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
                        '--registry-filepath', mock_primary_registry_filepath,
-                       '--no-registry'
-                       )
+                       '--debug')
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -103,7 +95,6 @@ def test_coexisting_configurations(click_runner,
                        '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
                        '--registry-filepath', mock_primary_registry_filepath,
-                       '--no-registry',
                        '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -122,7 +113,6 @@ def test_coexisting_configurations(click_runner,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
-                 '--no-registry',
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -141,7 +131,6 @@ def test_coexisting_configurations(click_runner,
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', mock_primary_registry_filepath,
-                 '--no-registry',
                  '--provider', TEST_PROVIDER_URI,
                  '--config-root', custom_filepath)
 
@@ -163,6 +152,7 @@ def test_coexisting_configurations(click_runner,
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--interactive',
+                '--registry-filepath', mock_primary_registry_filepath,
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
@@ -212,7 +202,10 @@ def test_coexisting_configurations(click_runner,
     assert not os.path.isfile(felix_file_location)
 
 
-def test_corrupted_configuration(click_runner, custom_filepath, testerchain, mock_primary_registry_filepath):
+def test_corrupted_configuration(click_runner,
+                                 custom_filepath,
+                                 testerchain,
+                                 mock_primary_registry_filepath):
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     init_args = ('ursula', 'init',
@@ -222,7 +215,6 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--config-root', custom_filepath,
-                 '--no-registry',
                  )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
@@ -250,7 +242,6 @@ def test_corrupted_configuration(click_runner, custom_filepath, testerchain, moc
                  '--staker-address', staker,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', mock_primary_registry_filepath,
-                 '--no-registry',
                  '--config-root', custom_filepath)
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}

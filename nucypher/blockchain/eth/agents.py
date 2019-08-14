@@ -36,7 +36,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, ContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.crypto.api import sha256_digest
 
 
@@ -56,7 +56,7 @@ class EthereumContractAgent:
         pass
 
     def __init__(self,
-                 registry: ContractRegistry,
+                 registry: BaseContractRegistry,
                  contract: Contract = None,
                  transaction_gas: int = None
                  ) -> None:
@@ -83,7 +83,7 @@ class EthereumContractAgent:
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract_address,
                                                                         self.blockchain.provider_uri,
-                                                                        self.registry.filepath))
+                                                                        self.registry))
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -194,8 +194,8 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
-        Returns the amount of tokens the specified staker has locked
-        for a given duration in periods measured starting from the current period.
+        Returns the amount of tokens this staker has locked
+        for a given lock_periods in periods measured from the current period forwards.
         """
         if periods < 0:
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
@@ -354,7 +354,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
         if n_tokens == 0:
-            raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
+            raise self.NotEnoughStakers('There are no locked tokens for lock_periods {}.'.format(duration))
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
@@ -382,11 +382,11 @@ class PolicyManagerAgent(EthereumContractAgent):
                       author_address: str,
                       value: int,
                       periods: int,
-                      initial_reward: int,
+                      first_period_reward: int,
                       node_addresses: List[str]):
 
         payload = {'value': value}
-        contract_function = self.contract.functions.createPolicy(policy_id, periods, initial_reward, node_addresses)
+        contract_function = self.contract.functions.createPolicy(policy_id, periods, first_period_reward, node_addresses)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
                                                    sender_address=author_address)
@@ -449,11 +449,9 @@ class UserEscrowAgent(EthereumContractAgent):
 
     def __init__(self,
                  beneficiary: str,
-                 blockchain: BlockchainInterface,
+                 registry: BaseContractRegistry,
                  allocation_registry: AllocationRegistry = None,
-                 *args, **kwargs) -> None:
-
-        self.blockchain = blockchain
+                 *args, **kwargs):
 
         self.__allocation_registry = allocation_registry or self.__allocation_registry()
         self.__beneficiary = beneficiary
@@ -462,11 +460,12 @@ class UserEscrowAgent(EthereumContractAgent):
 
         # Sets the above
         self.__read_principal()
-        self.__read_proxy()
-        super().__init__(registry=self.registry, contract=self.principal_contract, *args, **kwargs)
+        self.__read_proxy(registry)
 
-    def __read_proxy(self):
-        self.__proxy_agent = self.UserEscrowProxyAgent(registry=self.registry)
+        super().__init__(contract=self.principal_contract, registry=registry, *args, **kwargs)
+
+    def __read_proxy(self, registry: BaseContractRegistry):
+        self.__proxy_agent = self.UserEscrowProxyAgent(registry=registry)
         contract = self.__proxy_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
         self.__proxy_contract = contract
 
@@ -477,7 +476,8 @@ class UserEscrowAgent(EthereumContractAgent):
         else:
             contract_data = self.__allocation_registry.search(beneficiary_address=self.beneficiary)
         address, abi = contract_data
-        principal_contract = self.blockchain.client.get_contract(abi=abi, address=address, ContractFactoryClass=Contract)
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        principal_contract = blockchain.client.get_contract(abi=abi, address=address, ContractFactoryClass=Contract)
         self.__principal_contract = principal_contract
 
     def __set_owner(self) -> None:

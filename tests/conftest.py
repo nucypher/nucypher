@@ -41,7 +41,7 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     """
     # WARNING: DO NOT USE THIS CODE ANYWHERE #
 
-    Mocks Scrypt derivation function for the duration of
+    Mocks Scrypt derivation function for the lock_periods of
     the test session in order to improve test performance.
     """
 

@@ -34,6 +34,7 @@ from twisted.logger import Logger
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
@@ -103,7 +104,7 @@ def load_seednodes(emitter,
                    network_domains: set,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None,
-                   blockchain=None,
+                   registry: BaseContractRegistry = None,
                    ) -> List[Ursula]:
 
     # Set domains
@@ -132,7 +133,7 @@ def load_seednodes(emitter,
                                                    min_stake=min_stake,
                                                    federated_only=federated_only,
                                                    network_middleware=network_middleware,
-                                                   blockchain=blockchain)
+                                                   registry=registry)
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
@@ -257,11 +258,6 @@ def make_cli_character(character_config,
     # Pre-Init
     #
 
-    # Handle Blockchain
-    if not character_config.federated_only:
-        character_config.get_blockchain_interface()
-        character_config.blockchain.connect(fetch_registry=False)
-
     # Handle Keyring
 
     if not dev:
@@ -277,7 +273,7 @@ def make_cli_character(character_config,
                                    federated_only=character_config.federated_only,
                                    network_domains=character_config.domains,
                                    network_middleware=character_config.network_middleware,
-                                   blockchain=character_config.blockchain)
+                                   registry=character_config.registry)
 
     #
     # Character Init
@@ -327,11 +323,11 @@ def select_client_account(emitter, prompt: str = None, default=0) -> str:
     return chosen_account
 
 
-def confirm_deployment(emitter, deployer) -> bool:
-    if deployer.blockchain.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer.blockchain.client.is_local:
+def confirm_deployment(emitter, deployer_interface) -> bool:
+    if deployer_interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer_interface.client.is_local:
         expected_chain_name = 'DEPLOY'
     else:
-        expected_chain_name = deployer.blockchain.client.chain_name
+        expected_chain_name = deployer_interface.client.chain_name
 
     if click.prompt(f"Type '{expected_chain_name}' to continue") != expected_chain_name:
         emitter.echo("Aborting Deployment", color='red', bold=True)

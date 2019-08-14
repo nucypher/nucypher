@@ -2,7 +2,7 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
@@ -39,7 +39,7 @@ from nucypher.config.keyring import NucypherKeyring
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
-@click.option('--duration', help="Policy duration in periods", type=click.FLOAT)
+@click.option('--lock_periods', help="Policy lock_periods in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
@@ -80,7 +80,7 @@ def alice(click_config,
           n,
           value,
           rate,
-          duration,
+          lock_periods,
           expiration,
           message_kit,
 
@@ -143,30 +143,20 @@ def alice(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not pay_with and not federated_only:
-            # Connect to Blockchain
-            fetch_registry = registry_filepath is None and not click_config.no_registry
-            registry = None
-            if registry_filepath:
-                registry = ContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
+            pay_with = select_client_account(emitter=emitter)
 
-            pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
-
-        download_registry = not federated_only and not click_config.no_registry
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                        config_root=config_root,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       download_registry=download_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,
                                                        provider_uri=provider_uri,
                                                        m=m,
                                                        n=n,
-                                                       duration=duration,
+                                                       lock_periods=lock_periods,
                                                        rate=rate)
 
         painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
@@ -176,7 +166,7 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: #1216 - what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and lock_periods here?
 
     #
     # Get Alice Configuration
@@ -200,7 +190,8 @@ def alice(click_config,
                 rest_port=discovery_port,
                 checksum_address=pay_with,
                 provider_process=ETH_NODE,
-                provider_uri=provider_uri)
+                provider_uri=provider_uri,
+                registry_filepath=registry_filepath)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)

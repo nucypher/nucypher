@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                DispatcherDeployer,
                                                AdjudicatorDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import ContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob
@@ -51,7 +51,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
-from nucypher.policy.models import IndisputableEvidence, WorkOrder
+from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
@@ -130,14 +130,13 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False,
-                                        download_registry=False)
+                                        reload_metadata=False,)
     yield ursula_config
     ursula_config.cleanup()
 
 
 @pytest.fixture(scope="module")
-def ursula_decentralized_test_config():
+def ursula_decentralized_test_config(test_registry):
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         provider_uri=TEST_PROVIDER_URI,
                                         rest_port=MOCK_URSULA_STARTING_PORT,
@@ -146,7 +145,8 @@ def ursula_decentralized_test_config():
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False)
+                                        reload_metadata=False,
+                                        registry=test_registry)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -159,23 +159,22 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True,
                                 save_metadata=False,
-                                reload_metadata=False,
-                                download_registry=False)
+                                reload_metadata=False)
     yield config
     config.cleanup()
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, testerchain):
+def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = AliceConfiguration(dev_mode=True,
                                 provider_uri=TEST_PROVIDER_URI,
                                 checksum_address=testerchain.alice_account,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                download_registry=False,
                                 save_metadata=False,
-                                reload_metadata=False)
+                                reload_metadata=False,
+                                registry=test_registry)
     yield config
     config.cleanup()
 
@@ -194,7 +193,7 @@ def bob_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(blockchain_ursulas, testerchain):
+def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = BobConfiguration(dev_mode=True,
                               provider_uri=TEST_PROVIDER_URI,
                               checksum_address=testerchain.bob_account,
@@ -204,7 +203,8 @@ def bob_blockchain_test_config(blockchain_ursulas, testerchain):
                               abort_on_learning_error=True,
                               federated_only=False,
                               save_metadata=False,
-                              reload_metadata=False)
+                              reload_metadata=False,
+                              registry=test_registry)
     yield config
     config.cleanup()
 
@@ -233,14 +233,9 @@ def idle_federated_policy(federated_alice, federated_bob):
 @pytest.fixture(scope="module")
 def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = NON_PAYMENT
-    contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
-    idle_federated_policy.make_arrangements(network_middleware,
-                                            value=deposit,
-                                            expiration=contract_end_datetime,
-                                            handpicked_ursulas=federated_ursulas)
+    idle_federated_policy.make_arrangements(network_middleware, handpicked_ursulas=federated_ursulas)
 
     # REST call happens here, as does population of TreasureMap.
     responses = idle_federated_policy.enact(network_middleware)
@@ -489,7 +484,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
 
-        # for a random lock duration
+        # for a random lock lock_periods
         min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
         periods = random.randint(min_locktime, max_locktime)
 
@@ -508,10 +503,9 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
+def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
 
-    _ursulas = make_decentralized_ursulas(registry=test_registry,
-                                          ursula_config=ursula_decentralized_test_config,
+    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
                                           confirm_activity=True)
@@ -755,3 +749,15 @@ def log_in_and_out_of_test(request):
     test_logger.info(f"Starting {module_name}.py::{test_name}")
     yield
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
+
+
+@pytest.fixture(scope="module")
+def deploy_contract(testerchain, test_registry):
+    def wrapped(contract_name, *args, **kwargs):
+        return testerchain.deploy_contract(testerchain.etherbase_account,
+                                           test_registry,
+                                           contract_name,
+                                           *args,
+                                           **kwargs)
+
+    return wrapped

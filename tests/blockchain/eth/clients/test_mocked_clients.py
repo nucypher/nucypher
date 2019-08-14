@@ -216,7 +216,7 @@ def test_client_no_provider():
 
 def test_geth_web3_client():
     interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert isinstance(interface.client, GethClient)
     assert interface.client.node_technology == 'Geth'
@@ -303,7 +303,7 @@ def test_infura_web3_client():
 
 def test_parity_web3_client():
     interface = ParityClientTestInterface(provider_uri='file:///ipc.parity')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert isinstance(interface.client, ParityClient)
     assert interface.client.node_technology == 'Parity-Ethereum'
@@ -314,7 +314,7 @@ def test_parity_web3_client():
 
 def test_ganache_web3_client():
     interface = GanacheClientTestInterface(provider_uri='http://ganache:8445')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert isinstance(interface.client, GanacheClient)
     assert interface.client.node_technology == 'EthereumJS TestRPC'
@@ -331,7 +331,7 @@ def test_synced_geth_client():
         Web3 = SyncedMockWeb3
 
     interface = SyncedBlockchainInterface(provider_uri='file:///ipc.geth')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert interface.client._has_latest_block()
     assert interface.client.sync()
@@ -346,13 +346,12 @@ def test_unsynced_geth_client():
         Web3 = SyncingMockWeb3
 
     interface = NonSyncedBlockchainInterface(provider_uri='file:///ipc.geth')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert interface.client._has_latest_block() is False
     assert interface.client.syncing
 
     assert len(list(interface.client.sync())) == 8
-
 
 
 def test_no_peers_unsynced_geth_client():
@@ -364,7 +363,7 @@ def test_no_peers_unsynced_geth_client():
         Web3 = SyncingMockWeb3NoPeers
 
     interface = NonSyncedNoPeersBlockchainInterface(provider_uri='file:///ipc.geth')
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
 
     assert interface.client._has_latest_block() is False
     with pytest.raises(Web3Client.SyncTimeout):

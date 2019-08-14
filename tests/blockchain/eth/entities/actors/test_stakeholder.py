@@ -131,7 +131,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     worker.blockchain.transacting_power = TransactingPower(account=manual_worker, blockchain=testerchain)
     worker.blockchain.transacting_power.activate()
 
-    # Wait out stake duration, manually confirming activity once per period.
+    # Wait out stake lock_periods, manually confirming activity once per period.
     periods_remaining = stake.end_period - worker.staking_agent.get_current_period()
 
     for period in range(periods_remaining):

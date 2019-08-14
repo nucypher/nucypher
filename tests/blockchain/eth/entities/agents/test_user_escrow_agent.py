@@ -66,7 +66,7 @@ def agent(testerchain, proxy_deployer, allocation_value, agency) -> UserEscrowAg
 
     _txhash = escrow_deployer.deploy()
 
-    escrow_deployer.initial_deposit(value=allocation_value, duration=TEST_DURATION)
+    escrow_deployer.initial_deposit(value=allocation_value, lock_periods=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
@@ -218,7 +218,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                          author_address=author,
                                          value=to_wei(1, 'ether'),
                                          periods=2,
-                                         initial_reward=0,
+                                         first_period_reward=0,
                                          node_addresses=[agent.contract_address])
 
     # Mock Powerup consumption (Beneficiary-Worker)

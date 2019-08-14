@@ -90,7 +90,7 @@ class UmbralMessageKit(MessageKit):
 class RevocationKit:
 
     def __init__(self, policy: 'Policy', signer: 'SignatureStamp'):
-        from nucypher.policy.models import Revocation
+        from nucypher.policy.collections import Revocation
         self.revocations = dict()
         for node_id, arrangement_id in policy.treasure_map:
             self.revocations[node_id] = Revocation(arrangement_id, signer=signer)

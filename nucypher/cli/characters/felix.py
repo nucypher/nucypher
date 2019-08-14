@@ -82,7 +82,6 @@ def felix(click_config,
                                                            db_filepath=db_filepath,
                                                            domains={network} if network else None,
                                                            checksum_address=checksum_address,
-                                                           download_registry=not click_config.no_registry,
                                                            registry_filepath=registry_filepath,
                                                            provider_uri=provider_uri,
                                                            provider_process=ETH_NODE,
@@ -128,9 +127,6 @@ def felix(click_config,
         return
 
     try:
-
-        # Connect to Blockchain
-        felix_config.initialize_blockchain_interface()
 
         # Authenticate
         unlock_nucypher_keyring(emitter,
@@ -182,16 +178,13 @@ ETH ........ {str(eth_balance)}
 
     elif action == 'run':     # Start web services
 
-        try:
-            emitter.echo("Waiting for blockchain sync...", color='yellow')
-            emitter.message(f"Running Felix on {host}:{port}")
-            FELIX.start(host=host,
-                        port=port,
-                        web_services=not dry_run,
-                        distribution=True,
-                        crash_on_error=click_config.debug)
-        finally:
-            FELIX.blockchain.disconnect()
+        emitter.echo("Waiting for blockchain sync...", color='yellow')
+        emitter.message(f"Running Felix on {host}:{port}")
+        FELIX.start(host=host,
+                    port=port,
+                    web_services=not dry_run,
+                    distribution=True,
+                    crash_on_error=click_config.debug)
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
