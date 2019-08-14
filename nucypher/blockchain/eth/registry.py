@@ -351,7 +351,7 @@ class AllocationRegistry(LocalContractRegistry):
 
     def search(self, beneficiary_address: str = None, contract_address: str = None):
         if not (bool(beneficiary_address) ^ bool(contract_address)):
-            raise ValueError("Pass contract_owner or contract_address, not both.")
+            raise ValueError("Pass either beneficiary_address or contract_address.")
 
         try:
             allocation_data = self.read()
@@ -373,9 +373,6 @@ class AllocationRegistry(LocalContractRegistry):
                 raise self.RegistryError("Multiple {} deployments for beneficiary {}".format(self._contract_name, beneficiary_address))
             else:
                 contract_data = records[0]
-
-        else:
-            raise ValueError("Beneficiary address or contract address must be supplied.")
 
         return contract_data
 

@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Tuple, Dict
 
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
-from eth_utils import is_checksum_address
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import StandardTokenEconomics
