@@ -368,12 +368,14 @@ class DeployerActor(NucypherTokenActor):
                 # TODO: Check if allocation already exists in allocation registry
 
                 beneficiary = allocation['address']
+                name = allocation.get('name', 'No name provided')
 
                 if interactive:
-                    click.pause(info=f"\nPress any key to continue with allocation for beneficiary {beneficiary}")
+                    click.pause(info=f"\nPress any key to continue with allocation for "
+                                     f"beneficiary {beneficiary} ({name})")
 
                 if emitter:
-                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary}...")
+                    emitter.echo(f"\nDeploying UserEscrow contract for beneficiary {beneficiary} ({name})...")
                     bar._last_line = None
                     bar.render_progress()
 
@@ -398,7 +400,7 @@ class DeployerActor(NucypherTokenActor):
                     allocation_receipts[beneficiary] = receipts
                     principal_address = deployer.contract_address
                     self.log.info(f"Created UserEscrow contract at {principal_address} for beneficiary {beneficiary}.")
-                    allocated.append((beneficiary, principal_address))
+                    allocated.append((allocation, principal_address))
 
                     if emitter:
                         paint_contract_deployment(contract_name=deployer.contract_name,
