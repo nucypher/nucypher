@@ -27,7 +27,8 @@ import click
 import maya
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
-    NO_WORKER_ASSIGNED
+    NO_WORKER_ASSIGNED,
+    NOT_STAKING_VIA_USER_ESCROW
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address
@@ -39,7 +40,10 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    ContractAgency)
+    ContractAgency,
+    UserEscrowAgent
+)
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -521,7 +525,11 @@ class Staker(NucypherTokenActor):
     class InsufficientTokens(StakerError):
         pass
 
-    def __init__(self, is_me: bool, *args, **kwargs) -> None:
+    def __init__(self,
+                 is_me: bool,
+                 beneficiary_address: str = None,
+                 allocation_registry=None,
+                 *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
@@ -534,6 +542,19 @@ class Staker(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
+
+        if beneficiary_address:
+            self.beneficiary_address = beneficiary_address
+            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
+                                                     allocation_registry=allocation_registry,
+                                                     beneficiary=beneficiary_address)
+        else:
+            self.beneficiary_address = NOT_STAKING_VIA_USER_ESCROW
+            self.user_escrow_agent = NOT_STAKING_VIA_USER_ESCROW
+
+    @property
+    def is_contract(self) -> bool:
+        return self.beneficiary_address is not NOT_STAKING_VIA_USER_ESCROW
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -690,8 +711,11 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def set_worker(self, worker_address: str) -> str:
-        # TODO: Set a Worker for this staker, not just in StakingEscrow
-        receipt = self.staking_agent.set_worker(staker_address=self.checksum_address, worker_address=worker_address)
+        if self.is_contract:
+            receipt = self.user_escrow_agent.set_worker(worker_address=worker_address)
+        else:
+            receipt = self.staking_agent.set_worker(staker_address=self.checksum_address,
+                                                    worker_address=worker_address)
         self.__worker_address = worker_address
         return receipt
 
@@ -711,7 +735,10 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the staker's account"""
-        receipt = self.staking_agent.mint(staker_address=self.checksum_address)
+        if self.is_contract:
+            receipt = self.user_escrow_agent.mint()
+        else:
+            receipt = self.staking_agent.mint(staker_address=self.checksum_address)
         return receipt
 
     def calculate_reward(self) -> int:
@@ -723,23 +750,34 @@ class Staker(NucypherTokenActor):
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
         withdraw_address = collector_address or self.checksum_address
-        receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
-                                                          staker_address=self.checksum_address)
+        if self.is_contract:
+            receipt = self.user_escrow_agent.collect_policy_reward(collector_address=withdraw_address)
+        else:
+            receipt = self.policy_agent.collect_policy_reward(collector_address=withdraw_address,
+                                                              staker_address=self.checksum_address)
         return receipt
 
     @only_me
     @save_receipt
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-        receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
+        if self.is_contract:
+            reward_amount = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
+            self.log.debug(f"Withdrawing staking reward, {reward_amount}, to {self.checksum_address}")
+            receipt = self.user_escrow_agent.withdraw_as_staker(amount=reward_amount)
+        else:
+            receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         return receipt
 
     @only_me
     @save_receipt
     def withdraw(self, amount: NU) -> str:
         """Withdraw tokens (assuming they're unlocked)"""
-        receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
-                                              amount=int(amount))
+        if self.is_contract:
+            receipt = self.user_escrow_agent.withdraw_as_staker(amount=int(amount))
+        else:
+            receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
+                                                  amount=int(amount))
         return receipt
 
 
