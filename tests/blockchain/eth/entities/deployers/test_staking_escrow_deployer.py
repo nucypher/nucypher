@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
 from nucypher.utilities.sandbox.blockchain import STAKING_ESCROW_DEPLOYMENT_SECRET
@@ -40,7 +40,7 @@ def test_make_agent(staking_escrow_deployer, test_registry):
     staking_agent = staking_escrow_deployer.make_agent()
 
     # Retrieve the StakingEscrowAgent singleton
-    same_staking_agent = StakingEscrowAgent(registry=test_registry)
+    same_staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent == same_staking_agent
 
     # Compare the contract staker_address for equality
@@ -55,7 +55,7 @@ def test_deployment_parameters(staking_escrow_deployer,
     token_address = staking_escrow_deployer.contract.functions.token().call()
     assert token_deployer.contract_address == token_address
 
-    staking_agent = StakingEscrowAgent(registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     params = staking_agent.staking_parameters()
     assert token_economics.staking_deployment_parameters[1:] == params[1:]
     assert token_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
@@ -71,7 +71,7 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
 
     # This contract shouldn't be accessible directly through the deployer or the agent
     assert staking_escrow_deployer.contract_address != existing_bare_contract.address
-    staking_agent = StakingEscrowAgent(registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.contract_address != existing_bare_contract
 
     # The wrapped contract, on the other hand, points to the bare one.
@@ -105,7 +105,7 @@ def test_rollback(testerchain, test_registry):
     deployer = StakingEscrowDeployer(registry=test_registry,
                                      deployer_address=testerchain.etherbase_account)
 
-    staking_agent = StakingEscrowAgent(registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade

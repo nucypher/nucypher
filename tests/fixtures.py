@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import datetime
+import json
 import os
 import random
 import tempfile
@@ -45,7 +46,8 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob, StakeHolder
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration, \
+    StakeHolderConfiguration
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
@@ -60,7 +62,7 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEMPORARY_DOMAIN,
                                                   TEST_PROVIDER_URI,
-                                                  INSECURE_DEVELOPMENT_PASSWORD)
+                                                  INSECURE_DEVELOPMENT_PASSWORD, MOCK_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
@@ -689,15 +691,19 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
                          target_address=address)
 
     # Create stakeholder from on-chain values given accounts over a web3 provider
-    stakeholder = StakeHolder(registry=test_registry,
-                              funding_account=address,
-                              funding_password=INSECURE_DEVELOPMENT_PASSWORD,
-                              trezor=False)
+    stakeholder = StakeHolder(registry=test_registry, initial_address=address)
 
     # Teardown
     yield stakeholder
     if os.path.exists(path):
         os.remove(path)
+
+
+@pytest.fixture(scope="module")
+def stakeholder_configuration(testerchain, mock_registry_filepath):
+    config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri,
+                                      registry_filepath=mock_registry_filepath)
+    return config
 
 
 @pytest.fixture(scope='module')
@@ -761,3 +767,16 @@ def deploy_contract(testerchain, test_registry):
                                            **kwargs)
 
     return wrapped
+
+
+@pytest.fixture(scope='module')
+def mock_registry_filepath(testerchain, agency, test_registry):
+
+    # Fake the source contract registry
+    with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
+        file.write(json.dumps(test_registry.read()))
+
+    yield MOCK_REGISTRY_FILEPATH
+
+    if os.path.isfile(MOCK_REGISTRY_FILEPATH):
+        os.remove(MOCK_REGISTRY_FILEPATH)

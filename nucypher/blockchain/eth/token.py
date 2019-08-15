@@ -16,7 +16,7 @@ from eth_utils import currency, is_checksum_address
 from twisted.internet import task, reactor
 from twisted.logger import Logger
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -268,7 +268,7 @@ class Stake:
             # TODO - EthAgent?
             blocktime_epoch = self.staking_agent.blockchain.client.w3.eth.getBlock('latest').timestamp
             delta = self.unlock_datetime.epoch - blocktime_epoch
-            result = delta.seconds
+            result = delta
         return result
 
     #
@@ -460,7 +460,7 @@ class PeriodTracker:
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
 
-        self.staking_agent = StakingEscrowAgent(registry=registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
 
@@ -522,8 +522,6 @@ class PeriodTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.__current_period != onchain_period:
             self.__current_period = onchain_period
-
-            # TODO:  Extract PeriodObserver - Can be used to optimize stake reading calls.
             for action, args in self.__actions:
                 action(*args)
 
@@ -537,7 +535,7 @@ class StakeList(UserList):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
-        self.staking_agent = StakingEscrowAgent(registry=registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
 
         self.__terminal_period = NOT_STAKING
 

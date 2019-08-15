@@ -17,16 +17,21 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 
 
 def test_contract_registry(tempfile_path):
 
+    # ABC
+    with pytest.raises(TypeError):
+        BaseContractRegistry(filepath='test')
+
     with pytest.raises(BaseContractRegistry.RegistryError):
-        bad_registry = BaseContractRegistry(registry_filepath='/fake/file/path/registry.json')
+        bad_registry = LocalContractRegistry(filepath='/fake/file/path/registry.json')
         bad_registry.search(contract_address='0xdeadbeef')
 
     # Tests everything is as it should be when initially created
-    test_registry = BaseContractRegistry(registry_filepath=tempfile_path)
+    test_registry = LocalContractRegistry(filepath=tempfile_path)
 
     assert test_registry.read() == list()
 

@@ -90,7 +90,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Blockchain
                  poa: bool = False,
-                 sync: bool = False,  # TODO: What is the sensible default?
+                 sync: bool = False,
                  provider_uri: str = None,
                  provider_process=None,
 

@@ -44,7 +44,7 @@ from umbral.signing import Signature
 import nucypher
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -178,11 +178,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                                 m=m or self.m,
                                                 n=n or self.n)
 
-    def create_policy(self,
-                      bob: "Bob",
-                      label: bytes,
-                      handpicked_ursulas: set = None,
-                      **policy_params):
+    def create_policy(self, bob: "Bob", label: bytes, **policy_params):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
@@ -213,7 +209,6 @@ class Alice(Character, BlockchainPolicyAuthor):
             # Sample from blockchain via PolicyManager
             from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
-            # TODO: Duplicated code? see BlockchainPolicyAuthor.create_policy
             policy = BlockchainPolicy(alice=self, **payload)
 
         return policy
@@ -260,18 +255,12 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Policy Creation
         #
 
-        if handpicked_ursulas is None:
-            handpicked_ursulas = set()
-
-        else:
+        if handpicked_ursulas:
             # This might be the first time alice learns about the handpicked Ursulas.
             for handpicked_ursula in handpicked_ursulas:
                 self.remember_node(node=handpicked_ursula)
 
-        policy = self.create_policy(bob=bob,
-                                    label=label,
-                                    handpicked_ursulas=handpicked_ursulas,
-                                    **policy_params)
+        policy = self.create_policy(bob=bob, label=label, **policy_params)
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -291,12 +280,6 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "all the Ursulas you need (in this case, {}); there's no other way to "
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
                     "or run the learning loop on a network with enough Ursulas.".format(policy.n))
-
-            if len(handpicked_ursulas) < policy.n:
-                number_of_ursulas_needed = policy.n - len(handpicked_ursulas)
-                new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
-                handpicked_ursulas.update(new_ursulas)
-                # TODO: new_ursulas can overlap with handpicked_ursulas, so we may still don't have n
 
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  handpicked_ursulas=handpicked_ursulas)
@@ -874,6 +857,11 @@ class Ursula(Teacher, Character, Worker):
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 period_tracker=period_tracker)
+        # Stranger
+        elif not self.federated_only:
+            # TODO: Needed for on-chain learning verification
+            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+
 
         #
         # ProxyRESTServer and TLSHostingPower #
@@ -1108,7 +1096,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and not federated_only:
-            staking_agent = StakingEscrowAgent(registry=registry)
+            staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
@@ -1380,10 +1368,11 @@ class StakeHolder(Staker):
             # Blockchain
             self.registry = registry
             self.blockchain = BlockchainInterfaceFactory.get_interface()
-            self.token_agent = NucypherTokenAgent(self.registry)
+            self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
             self.__get_accounts()
-            self.__accounts.update(checksum_addresses)
+            if checksum_addresses:
+                self.__accounts.update(checksum_addresses)
 
         @validate_checksum_address
         def __contains__(self, checksum_address: str) -> bool:
@@ -1431,6 +1420,7 @@ class StakeHolder(Staker):
                  is_me: bool = True,
                  initial_address: str = None,
                  checksum_addresses: set = None,
+                 password: str = None,
                  *args, **kwargs):
         super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
         self.log = Logger(f"stakeholder")
@@ -1442,7 +1432,7 @@ class StakeHolder(Staker):
             # it is safe to understand that it has already been used at a higher level.
             if initial_address not in self.wallet:
                 raise self.StakingWallet.UnknownAccount
-            self.stakes.refresh()
+            self.assimilate(checksum_address=initial_address, password=password)
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str, password: str = None) -> None:

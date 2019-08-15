@@ -1,6 +1,8 @@
 import math
+import random
 from abc import abstractmethod, ABC
 from collections import OrderedDict, deque
+from random import SystemRandom
 from typing import Generator, Set, List
 
 import maya
@@ -211,6 +213,10 @@ class Policy(ABC):
     def id(self) -> bytes:
         return construct_policy_id(self.label, bytes(self.bob.stamp))
 
+    @property
+    def accepted_ursulas(self) -> Set[Ursula]:
+        return {arrangement.ursula for arrangement in self._accepted_arrangements}
+
     def hrac(self) -> bytes:
         """
         # TODO: #180 - This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
@@ -344,6 +350,7 @@ class Policy(ABC):
                           handpicked_ursulas: Set[Ursula] = None,
                           *args, **kwargs,
                           ) -> None:
+
         sampled_ursulas = self.sample(handpicked_ursulas=handpicked_ursulas)
 
         if len(sampled_ursulas) < self.n:
@@ -366,24 +373,27 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample_essential(self, quantity: int) -> Set[Ursula]:
+    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
         raise NotImplementedError
 
     def sample(self, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
         if not handpicked_ursulas:
-            ursulas = set()
+            handpicked_ursulas = set()
         else:
-            ursulas = handpicked_ursulas
+            handpicked_ursulas = set(handpicked_ursulas)
 
         # Calculate the target sample quantity
         ADDITIONAL_URSULAS = self.selection_buffer
-        target_sample_quantity = self.n - len(ursulas)
+        target_sample_quantity = self.n - len(handpicked_ursulas)
         actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
 
         if actual_sample_quantity > 0:
-            selected_ursulas = self.sample_essential(quantity=actual_sample_quantity)
-            ursulas.update(selected_ursulas)
-        return ursulas
+            selected_ursulas = self.sample_essential(quantity=actual_sample_quantity,
+                                                     handpicked_ursulas=handpicked_ursulas)
+            handpicked_ursulas.update(selected_ursulas)
+
+        final_ursulas = handpicked_ursulas
+        return final_ursulas
 
     def _consider_arrangements(self,
                                network_middleware: RestMiddleware,
@@ -435,9 +445,12 @@ class FederatedPolicy(Policy):
                     "Pass them here as handpicked_ursulas.".format(self.n)
             raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
 
-    def sample_essential(self, quantity: int) -> Set[Ursula]:
-        known_nodes = self.alice.known_nodes.shuffled()
-        sampled_ursulas = known_nodes[0:quantity]
+    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
+        known_nodes = self.alice.known_nodes
+        if handpicked_ursulas:
+            # Prevent re-sampling of handpicked ursulas.
+            known_nodes = set(known_nodes) - set(handpicked_ursulas)
+        sampled_ursulas = set(random.sample(k=quantity, population=list(known_nodes)))
         return sampled_ursulas
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -580,8 +593,8 @@ class BlockchainPolicy(Policy):
 
         return found_ursulas
 
-    def sample_essential(self, quantity: int) -> Set[Ursula]:
-
+    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
+        # TODO: Prevent re-sampling of handpicked ursulas.
         selected_addresses = set()
         try:
             # Sample by reading from the Blockchain
@@ -612,7 +625,7 @@ class BlockchainPolicy(Policy):
         # Capture Response
         self.receipt = receipt
         self.publish_transaction = receipt['transactionHash']
-        self.is_published = True  # TODO: For real?
+        self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
 
         # Call super publish (currently publishes TMap)
         super().publish(network_middleware=self.alice.network_middleware)

@@ -21,7 +21,7 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
@@ -187,7 +187,7 @@ class Felix(Character, NucypherTokenActor):
                                              account=self.checksum_address)
         self._crypto_power.consume_power_up(transacting_power)
 
-        self.token_agent = NucypherTokenAgent(registry=registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts

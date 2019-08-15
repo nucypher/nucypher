@@ -100,41 +100,40 @@ class BlockchainInterface:
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
+        TODO: Move me to docs.
+
          Filesystem          Configuration           Node              Client                  EVM
         ================ ====================== =============== =====================  ===========================
 
-         Solidity Files -- SolidityCompiler ---                  --- HTTPProvider ------ ...
-                                               |                |
-                                               |                |
-                                               |                |
-                                               - *Blockchain* -- IPCProvider ----- External EVM (geth, parity...)
+         Solidity Files -- SolidityCompiler -                      --- HTTPProvider ------ ...
+                                            |                    |
+                                            |                    |
+                                            |                    |
+                                            - *BlockchainInterface* -- IPCProvider ----- External EVM (geth, parity...)
                                                        |         |
                                                        |         |
                                                  TestProvider ----- EthereumTester -------------
-                                                       ^                                         |
-                                                       |                                         |
-                                                       |
+                                                                                                |
+                                                                                                |
                                                                                         PyEVM (Development Chain)
-         Runtime Files --                 -------- Blockchain
+
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+         Runtime Files --                 --BlockchainInterface ----> Registry
                         |                |             ^
                         |                |             |
-
-         Key Files ------ CharacterConfiguration      Agent ... (Contract API)
-
-                                                       ^         ^
-                        |                |             |         |
-                                         |             |       STAKE  TODO
-
-                                                            StakeTracker
-                        |                |                       |
-                        |                |           Actor ... (Blockchain-Character API)
+                        |                |             |
+         Key Files ------ CharacterConfiguration     Agent                          ... (Contract API)
                         |                |             ^
                         |                |             |
-                        |                |
-         Config File ---                   -------- Character ... (Public API)
+                        |                |             |
+                        |                |           Actor                          ...Blockchain-Character API)
+                        |                |             ^
+                        |                |             |
+                        |                |             |
+         Config File ---                  --------- Character                       ... (Public API)
                                                        ^
                                                        |
-
                                                      Human
 
 

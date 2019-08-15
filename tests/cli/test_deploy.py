@@ -12,7 +12,7 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    EthereumContractAgent)
+    EthereumContractAgent, ContractAgency)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
@@ -99,7 +99,7 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # Now show that we can use contract Agency and read from the blockchain
     assert token_agent.get_balance() == 0
-    staking_agent = StakingEscrowAgent(registry=registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     assert staking_agent.get_current_period()
 
     # and at least the others can be instantiated

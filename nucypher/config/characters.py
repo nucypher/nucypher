@@ -246,7 +246,6 @@ class FelixConfiguration(CharacterConfiguration):
 
 
 class StakeHolderConfiguration(CharacterConfiguration):
-    """TODO/FIXMR"""
 
     _NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder

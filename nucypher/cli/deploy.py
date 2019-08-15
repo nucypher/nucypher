@@ -21,7 +21,7 @@ import os
 import click
 
 from nucypher.blockchain.eth.actors import Administrator
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -264,7 +264,7 @@ def deploy(action,
         return  # Exit
 
     elif action == "transfer":
-        token_agent = NucypherTokenAgent(registry=registry)
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         missing_options = list()
         if recipient_address is None:
             missing_options.append("--recipient-address")

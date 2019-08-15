@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import hashlib
 import json
 import os
 import shutil
@@ -75,11 +75,19 @@ class BaseContractRegistry(ABC):
     def __eq__(self, other) -> bool:
         if self is other:
             return True  # and that's all
-        return bool(self.read() == other.read())
+        return bool(self.id == other.id)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         r = f"{self.__class__.__name__}"
         return r
+
+    @property
+    def id(self) -> str:
+        """Returns a hexstr of the registry contents."""
+        md5 = hashlib.md5()
+        md5.update(json.dumps(self.read()).encode())
+        digest = md5.digest().hex()
+        return digest
 
     @abstractmethod
     def _destroy(self) -> None:
@@ -337,7 +345,10 @@ class AllocationRegistry(LocalContractRegistry):
     class UnknownBeneficiary(ValueError):
         pass
 
-    def search(self, beneficiary_address: str = None, contract_address: str=None):
+    def __init__(self, filepath: str = None, *args, **kwargs):
+        super().__init__(filepath=filepath or self._default_registry_filepath, *args, **kwargs)
+
+    def search(self, beneficiary_address: str = None, contract_address: str = None):
         if not (bool(beneficiary_address) ^ bool(contract_address)):
             raise ValueError("Pass contract_owner or contract_address, not both.")
 

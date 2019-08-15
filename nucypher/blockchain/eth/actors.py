@@ -38,8 +38,8 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
     PolicyManagerAgent,
-    AdjudicatorAgent
-)
+    AdjudicatorAgent,
+    ContractAgency)
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
@@ -86,9 +86,9 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):  # TODO: None?
+    def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):
 
-        # TODO: Consider this pattern.
+        # TODO: Consider this pattern - None for address?.
         # Note: If the base class implements multiple inheritance and already has a checksum address...
         try:
             parent_address = self.checksum_address  # type: str
@@ -99,7 +99,7 @@ class NucypherTokenActor:
             self.checksum_address = checksum_address  # type: str
 
         self.registry = registry
-        self.token_agent = NucypherTokenAgent(registry=self.registry)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -160,7 +160,7 @@ class Administrator(NucypherTokenActor):
                  client_password: str = None):
         """
         Note: super() is not called here to avoid setting the token agent.
-        TODO: Review this logic ^^.
+        TODO: Review this logic ^^ "bare mode".
         """
         self.log = Logger("Deployment-Actor")
 
@@ -407,8 +407,8 @@ class Staker(NucypherTokenActor):
         self.__worker_address = None
 
         # Blockchain
-        self.policy_agent = PolicyManagerAgent(registry=self.registry)
-        self.staking_agent = StakingEscrowAgent(registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = economics or TokenEconomics()
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
@@ -614,8 +614,7 @@ class Worker(NucypherTokenActor):
         self.is_me = is_me
 
         # Agency
-        self.token_agent = NucypherTokenAgent(registry=self.registry)
-        self.staking_agent = StakingEscrowAgent(registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
         # Stakes
         self.__start_time = WORKER_NOT_RUNNING
@@ -676,8 +675,8 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
         # From defaults
-        self.staking_agent = StakingEscrowAgent(registry=self.registry)
-        self.policy_agent = PolicyManagerAgent(registry=self.registry)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
 
         self.economics = economics or TokenEconomics()
         self.rate = rate
@@ -764,7 +763,7 @@ class Investigator(NucypherTokenActor):
                  *args, **kwargs) -> None:
 
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
-        self.adjudicator_agent = AdjudicatorAgent(registry=self.registry)
+        self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
 
     @save_receipt
     def request_evaluation(self, evidence):

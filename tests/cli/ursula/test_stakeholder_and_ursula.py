@@ -8,7 +8,7 @@ import pytest
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
@@ -59,19 +59,6 @@ def charlie_blockchain_test_config(blockchain_ursulas, agency):
     config.cleanup()
 
 
-@pytest.fixture(scope='module')
-def mock_registry_filepath(testerchain, agency, test_registry):
-
-    # Fake the source contract registry
-    with open(MOCK_REGISTRY_FILEPATH, 'w') as file:
-        file.write(json.dumps(test_registry.read()))
-
-    yield MOCK_REGISTRY_FILEPATH
-
-    if os.path.isfile(MOCK_REGISTRY_FILEPATH):
-        os.remove(MOCK_REGISTRY_FILEPATH)
-
-
 def test_new_stakeholder(click_runner,
                          custom_filepath,
                          mock_registry_filepath,
@@ -112,7 +99,7 @@ def test_stake_init(click_runner,
                     manual_staker):
 
     # Staker staker_address has not stakes
-    staking_agent = StakingEscrowAgent(registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
 

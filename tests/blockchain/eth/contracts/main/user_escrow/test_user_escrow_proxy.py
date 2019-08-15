@@ -56,7 +56,7 @@ def test_proxy(testerchain, policy_manager, user_escrow):
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token):
+def test_upgrading(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     user = testerchain.client.accounts[1]
     tx = testerchain.client.send_transaction(
@@ -169,7 +169,7 @@ def test_upgrading(testerchain, token):
 
 
 @pytest.mark.slow
-def test_proxy_selfdestruct(testerchain, token):
+def test_proxy_selfdestruct(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 

@@ -20,7 +20,7 @@ import pytest
 from eth_utils import keccak
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
@@ -76,7 +76,7 @@ def test_deploy_ethereum_contracts(testerchain,
     assert staking_escrow_deployer.is_deployed
     assert len(staking_escrow_deployer.contract_address) == 42
 
-    staking_agent = StakingEscrowAgent(registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert len(staking_agent.contract_address) == 42
     assert staking_agent.contract_address == staking_escrow_deployer.contract_address
 

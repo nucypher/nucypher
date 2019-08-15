@@ -20,7 +20,7 @@ import os
 import pytest
 from eth_utils.address import to_checksum_address, is_address
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.crypto.powers import TransactingPower
@@ -30,7 +30,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 @pytest.mark.slow()
 def test_unknown_contract(testerchain, test_registry):
     with pytest.raises(BaseContractRegistry.UnknownContract) as exception:
-        _staking_agent = StakingEscrowAgent(registry=test_registry)
+        _staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     assert exception.value.args[0] == StakingEscrowAgent.registry_contract_name
 
@@ -76,7 +76,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
 
     # Check the receipt for the contract staker_address success code
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][2]['staker_address'] == staking_agent.contract_address
+    assert receipt['logs'][2]['address'] == staking_agent.contract_address
 
     testerchain.time_travel(periods=1)
     balance = token_agent.get_balance(address=staker_account)
@@ -185,7 +185,7 @@ def test_confirm_activity(agency, testerchain):
 
     receipt = staking_agent.confirm_activity(worker_address=worker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['staker_address'] == staking_agent.contract_address
+    assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
 
 @pytest.mark.skip('To be implemented')
@@ -218,7 +218,7 @@ def test_divide_stake(agency, token_economics):
                                  periods=1)
 
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['staker_address'] == agent.contract_address
+    assert receipt['logs'][0]['address'] == agent.contract_address
 
     stakes = list(agent.get_all_stakes(staker_address=someone))
     assert len(stakes) == 3
@@ -246,7 +246,7 @@ def test_collect_staking_reward(agency, testerchain):
 
     receipt = staking_agent.collect_staking_reward(staker_address=staker_account)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][-1]['staker_address'] == staking_agent.contract_address
+    assert receipt['logs'][-1]['address'] == staking_agent.contract_address
 
     new_balance = token_agent.get_balance(address=staker_account)  # not the shoes
     assert new_balance > old_balance

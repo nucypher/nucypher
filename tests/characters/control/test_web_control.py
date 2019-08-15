@@ -153,7 +153,7 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, enact
     }
 
     # Simulate passing in a teacher-uri
-    enacted_federated_policy.bob.remember_node(enacted_federated_policy.ursulas[0])
+    enacted_federated_policy.bob.remember_node(list(enacted_federated_policy.accepted_ursulas)[0])
 
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO

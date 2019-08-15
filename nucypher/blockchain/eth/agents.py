@@ -40,6 +40,25 @@ from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractReg
 from nucypher.crypto.api import sha256_digest
 
 
+class ContractAgency:
+    # TODO: Enforce singleton
+
+    __agents = dict()
+
+    @classmethod
+    def get_agent(cls, agent_class, registry: BaseContractRegistry):
+        if not issubclass(agent_class, EthereumContractAgent):
+            raise TypeError(f"Only agent subclasses can be used from the agency.")
+        registry_id = registry.id
+        try:
+            return cls.__agents[registry_id][agent_class]
+        except KeyError:
+            agent = agent_class(registry=registry)
+            cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
+            cls.__agents[registry_id][agent_class] = agent
+            return agent
+
+
 class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
@@ -130,16 +149,7 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
-    def transfer(self, amount: int, target_address: str, sender_address: str, auto_approve: bool = False):  # TODO
-        if auto_approve:
-            allowance = self.contract.functions.allowance(sender_address, target_address).call()
-            if allowance != 0:
-                delta = int(amount) - int(allowance)
-                self.increase_allowance(sender_address=sender_address,
-                                        target_address=target_address,
-                                        increase=delta)
-            else:
-                self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+    def transfer(self, amount: int, target_address: str, sender_address: str):
         contract_function = self.contract.functions.transfer(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt

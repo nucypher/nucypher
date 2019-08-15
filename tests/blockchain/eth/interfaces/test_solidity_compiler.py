@@ -19,9 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 
 
-def test_nucypher_contract_compiled(testerchain):
+def test_nucypher_contract_compiled(testerchain, test_registry):
     # Ensure that solidity smart contacts are available, post-compile.
     origin, *everybody_else = testerchain.client.accounts
 
-    token_contract_identifier = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin).contract_name
+    token_contract_identifier = NucypherTokenDeployer(registry=test_registry, deployer_address=origin).contract_name
     assert token_contract_identifier in testerchain._BlockchainDeployerInterface__raw_contract_cache

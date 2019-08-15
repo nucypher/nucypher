@@ -24,9 +24,9 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain):
+def agent(testerchain, test_registry):
     origin, *everybody_else = testerchain.client.accounts
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
 
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()
@@ -78,7 +78,7 @@ def test_approve_transfer(agent, token_economics):
                                      sender_address=someone)
 
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['staker_address'] == agent.contract_address
+    assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 def test_transfer(agent, token_economics):
@@ -96,7 +96,7 @@ def test_transfer(agent, token_economics):
                              sender_address=origin)
 
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert receipt['logs'][0]['staker_address'] == agent.contract_address
+    assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
     assert new_balance == old_balance + token_economics.minimum_allowed_locked

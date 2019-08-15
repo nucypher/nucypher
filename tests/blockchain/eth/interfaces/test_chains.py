@@ -36,7 +36,6 @@ def another_testerchain(solidity_compiler):
     testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True)
     testerchain.deployer_address = testerchain.etherbase_account
     yield testerchain
-    testerchain.disconnect()
 
 
 def test_testerchain_creation(testerchain, another_testerchain):

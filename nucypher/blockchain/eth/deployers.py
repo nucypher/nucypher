@@ -159,7 +159,7 @@ class ContractDeployer:
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
         """
-        # TODO: Consider splitting this into teo classes upgradeable v non-upgraeable.
+        # TODO: Consider splitting this into to classes upgradeable v non-upgraeable.
         #       Alternately, just remove deployment secrets alltogether.
         raise NotImplementedError
 

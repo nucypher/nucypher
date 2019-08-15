@@ -47,7 +47,13 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     federated_alice.network_middleware.node_is_down(down_node)
 
     # Here's the command we want to run.
-    alice_grant_action = partial(federated_alice.grant, federated_bob, label, m=m, n=n, expiration=policy_end_datetime, timeout=.1)
+    alice_grant_action = partial(federated_alice.grant,
+                                 federated_bob,
+                                 label,
+                                 m=m,
+                                 n=n,
+                                 expiration=policy_end_datetime,
+                                 timeout=.1)
 
     # Try a first time, failing because no known nodes are up for Alice to even try to learn from.
     with pytest.raises(down_node.NotEnoughNodes):
@@ -60,7 +66,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     # ...amidst a few others that are down.
     more_nodes = list(federated_ursulas)[2:10]
 
-    # Alice still only knows aboot two nodes (the one that is down and the new one).
+    # Alice still only knows about two nodes (the one that is down and the new one).
     assert len(federated_alice.known_nodes) == 2
 
     for node in more_nodes:
@@ -72,12 +78,14 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
 
     # Now we'll have a situation where Alice knows about all 10,
     # though only one is up.
+
     # She'll try to learn about more, but there aren't any.
     # Because she has successfully completed learning, but the nodes about which she learned are down,
     # she'll get a different error.
+
     for node in more_nodes:
         federated_alice.remember_node(node)
-    with pytest.raises(Policy.MoreKFragsThanArrangements):
+    with pytest.raises(Policy.Rejected):
         alice_grant_action()
 
     # Now let's let a few of them come up.
@@ -85,7 +93,15 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
         federated_alice.network_middleware.node_is_up(node)
 
     # Now the same exact action works.
-    policy = alice_grant_action()  # I'm a little surprised this doesn't fail once in a while, if more then 2 of the nodes selected are among those still down.
+    # TODO: This action only succeeds here because we are forcing
+    #       grant to accept the ursulas that just came back online (handpicked_ursulas).
+    #       Since there are now enough Ursulas online, this action *can* succeed without forcing sample.
+    policy = alice_grant_action(handpicked_ursulas=more_nodes[:3])
+
+    # TODO: This is how it's actually done. How can we measure such random results?
+    #       The below line will fail with ? probability, if more then 2 of the nodes selected
+    #       are among those still down.
+    # policy = alice_grant_action()
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n

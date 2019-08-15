@@ -453,7 +453,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_worker(testerchain, token, escrow_contract):
+def test_worker(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
         testerchain.client.accounts
