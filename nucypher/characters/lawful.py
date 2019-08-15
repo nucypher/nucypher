@@ -580,9 +580,12 @@ class Bob(Character):
 
         return treasure_map
 
-    def work_orders_for_capsule(self, map_id: str, *capsules,
-                                num_ursulas: int = None,
-                                ):
+    def work_orders_for_capsules(self,
+                                 *capsules,
+                                 map_id: str,
+                                 alice_verifying_key: UmbralPublicKey,
+                                 num_ursulas: int = None,
+                                 ):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -601,8 +604,6 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
-            # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -614,8 +615,15 @@ class Bob(Character):
                     # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
                     capsules_to_include.append(capsule)
 
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
+            ursula = self.known_nodes[node_id]
+
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
+                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                                        alice_verifying=alice_verifying_key,
+                                                        capsules=capsules_to_include,
+                                                        ursula=ursula,
+                                                        bob=self)
                 incomplete_work_orders[node_id] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
