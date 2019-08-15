@@ -302,7 +302,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
 
     # Nothing to withdraw
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.withdrawPolicyReward().transact({'from': user, 'gas_price': 0})
+        tx = user_escrow_proxy.functions.withdrawPolicyReward(user).transact({'from': user, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.functions.withdrawETH().transact({'from': user, 'gas_price': 0})
@@ -320,14 +320,14 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
 
     # Only user can withdraw reward
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.withdrawPolicyReward().transact({'from': creator, 'gas_price': 0})
+        tx = user_escrow_proxy.functions.withdrawPolicyReward(creator).transact({'from': creator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.functions.withdrawETH().transact({'from': creator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
     # User withdraws reward
-    tx = user_escrow_proxy.functions.withdrawPolicyReward().transact({'from': user, 'gas_price': 0})
+    tx = user_escrow_proxy.functions.withdrawPolicyReward(user).transact({'from': user, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert user_balance + 10000 == testerchain.client.get_balance(user)
     assert 0 == testerchain.client.get_balance(policy_manager.address)

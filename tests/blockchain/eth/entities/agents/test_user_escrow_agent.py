@@ -52,7 +52,7 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
                                          registry=test_registry,
                                          allocation_registry=TEST_ALLOCATION_REGISTRY)
 
-    _txhash = escrow_deployer.deploy()
+    _receipt = escrow_deployer.deploy()
 
     escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
@@ -169,14 +169,14 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
     receipt = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
-    assert receipt  # TODO
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Release worker
     _receipt = agent.release_worker()
 
     receipt = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
-    assert receipt
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
 
@@ -189,7 +189,8 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    _receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked,
+                                       periods=token_economics.minimum_locked_periods)
 
     # User sets a worker in StakingEscrow via UserEscrow
     worker = testerchain.ursula_account(0)
@@ -202,21 +203,21 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=author)
     testerchain.transacting_power.activate()
 
-    _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
-                                         author_address=author,
-                                         value=to_wei(1, 'ether'),
-                                         periods=2,
-                                         first_period_reward=0,
-                                         node_addresses=[agent.contract_address])
+    _receipt = policy_agent.create_policy(policy_id=os.urandom(16),
+                                          author_address=author,
+                                          value=to_wei(1, 'ether'),
+                                          periods=2,
+                                          first_period_reward=0,
+                                          node_addresses=[agent.contract_address])
 
     # Mock Powerup consumption (Beneficiary-Worker)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
-    _txhash = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
     testerchain.time_travel(periods=2)
-    _txhash = staking_agent.confirm_activity(worker_address=worker)
+    _receipt = staking_agent.confirm_activity(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
@@ -225,8 +226,8 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    txhash = agent.collect_policy_reward()
-    assert txhash  # TODO
+    receipt = agent.collect_policy_reward(collector_address=agent.beneficiary)
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert testerchain.client.get_balance(account=agent.beneficiary) > old_balance
 
 
@@ -244,7 +245,7 @@ def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
         agent.withdraw_tokens(value=allocation_value)
     testerchain.time_travel(seconds=TEST_DURATION)
 
-    txhash = agent.withdraw_tokens(value=allocation_value)
-    assert txhash  # TODO
+    receipt = agent.withdraw_tokens(value=allocation_value)
+    assert receipt['status'] == 1, "Transaction Rejected"
     assert token_agent.get_balance(address=agent.contract_address) == 0
     assert token_agent.get_balance(address=beneficiary_address) == allocation_value

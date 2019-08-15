@@ -149,9 +149,9 @@ contract UserEscrowProxy {
     /**
     * @notice Withdraw available reward from the policy manager to the user escrow
     **/
-    function withdrawPolicyReward() public {
-        uint256 value = getStateContract().policyManager().withdraw(msg.sender);
-        emit PolicyRewardWithdrawn(msg.sender, value);
+    function withdrawPolicyReward(address payable _recipient) public {
+        uint256 value = getStateContract().policyManager().withdraw(_recipient);
+        emit PolicyRewardWithdrawn(_recipient, value);
     }
 
     /**

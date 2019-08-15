@@ -653,7 +653,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     assert ursula2_balance < testerchain.client.get_balance(ursula2)
     ursula3_balance = testerchain.client.get_balance(ursula3)
-    tx = user_escrow_proxy_1.functions.withdrawPolicyReward().transact({'from': ursula3, 'gas_price': 0})
+    tx = user_escrow_proxy_1.functions.withdrawPolicyReward(ursula3).transact({'from': ursula3, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert ursula3_balance < testerchain.client.get_balance(ursula3)
 
