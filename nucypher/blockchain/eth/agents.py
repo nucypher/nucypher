@@ -582,8 +582,7 @@ class UserEscrowAgent(EthereumContractAgent):
         self.__principal_contract = principal_contract
 
     def __set_owner(self) -> None:
-        owner = self.owner
-        self.__beneficiary = owner
+        self.__beneficiary = self.owner
 
     def __read_principal(self, contract_address: str = None) -> None:
         self.__fetch_principal_contract(contract_address=contract_address)
@@ -647,6 +646,10 @@ class UserEscrowAgent(EthereumContractAgent):
     def set_worker(self, worker_address: str):
         contract_function = self.__proxy_contract.functions.setWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
+        return receipt
+
+    def release_worker(self):
+        receipt = self.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
         return receipt
 
     def mint(self):

@@ -18,9 +18,9 @@ import os
 
 import maya
 import pytest
+from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
 
-from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer, DispatcherDeployer
@@ -59,21 +59,21 @@ def agent(testerchain, test_registry, allocation_value, agency) -> UserEscrowAge
     escrow_deployer.assign_beneficiary(checksum_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
-    _agent = escrow_deployer.make_agent()
+    agent = escrow_deployer.make_agent()
 
-    _direct_agent = UserEscrowAgent(registry=test_registry,
-                                    allocation_registry=TEST_ALLOCATION_REGISTRY,
-                                    beneficiary=beneficiary_address)
+    direct_agent = UserEscrowAgent(registry=test_registry,
+                                   allocation_registry=TEST_ALLOCATION_REGISTRY,
+                                   beneficiary=beneficiary_address)
 
-    assert _direct_agent == _agent
-    assert _direct_agent.contract.abi == _agent.contract.abi
-    assert _direct_agent.contract.address == _agent.contract.address
-    assert _agent.principal_contract.address == escrow_deployer.contract.address
-    assert _agent.principal_contract.abi == escrow_deployer.contract.abi
-    assert _direct_agent.contract.abi == escrow_deployer.contract.abi
-    assert _direct_agent.contract.address == escrow_deployer.contract.address
+    assert direct_agent == agent
+    assert direct_agent.contract.abi == agent.contract.abi
+    assert direct_agent.contract.address == agent.contract.address
+    assert agent.principal_contract.address == escrow_deployer.contract.address
+    assert agent.principal_contract.abi == escrow_deployer.contract.abi
+    assert direct_agent.contract.abi == escrow_deployer.contract.abi
+    assert direct_agent.contract.address == escrow_deployer.contract.address
 
-    yield _agent
+    yield agent
     TEST_ALLOCATION_REGISTRY.clear()
 
 
@@ -97,9 +97,9 @@ def test_user_escrow_agent_represents_beneficiary(agent, agency):
 
 def test_read_beneficiary(testerchain, agent):
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
-    benficiary = agent.beneficiary
-    assert benficiary == beneficiary_address
-    assert is_checksum_address(benficiary)
+    beneficiary = agent.beneficiary
+    assert beneficiary == beneficiary_address
+    assert is_checksum_address(beneficiary)
 
 
 def test_read_allocation(agent, agency, allocation_value):
@@ -168,15 +168,15 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
-    txhash = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
-    assert txhash  # TODO
+    receipt = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
+    assert receipt  # TODO
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Release worker
-    _txhash = agent.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+    _receipt = agent.release_worker()
 
-    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
-    assert txhash
+    receipt = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
+    assert receipt
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
 
