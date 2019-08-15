@@ -663,8 +663,8 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def collect_policy_reward(self):
-        contract_function = self.__proxy_contract.functions.withdrawPolicyReward()
+    def collect_policy_reward(self, collector_address: str):
+        contract_function = self.__proxy_contract.functions.withdrawPolicyReward(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
