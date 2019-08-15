@@ -1181,7 +1181,6 @@ class Ursula(Teacher, Character, Worker):
                          federated_only: bool = False,
                          registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
-                         blockchain: BlockchainInterface = None,
                          ) -> List['Ursula']:
 
         node_splitter = BytestringSplitter(VariableLengthBytestring)

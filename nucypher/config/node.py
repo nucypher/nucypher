@@ -48,7 +48,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-    DEFAULT_PROVIDER_URI = 'http://localhost:8545'  # TODO: Use auto? what is a sensible default?
     DEFAULT_DOMAIN = 'goerli'
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
@@ -129,7 +128,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Blockchain
         self.poa = poa
-        self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
+        self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
 
         # Learner
@@ -180,7 +179,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         else:
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
-            if not is_initialized:
+            if not is_initialized and provider_uri:
                 from nucypher.cli.config import NucypherClickConfig  # FIXME
 
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
@@ -361,7 +360,8 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Optional values (mode)
         if not self.federated_only:
-            payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+            if self.provider_uri:
+                payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
             if self.registry_filepath:
                 payload.update(dict(registry_filepath=self.registry_filepath))
 

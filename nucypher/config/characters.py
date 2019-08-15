@@ -26,9 +26,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.lawful import StakeHolder
-from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration

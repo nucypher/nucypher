@@ -12,7 +12,6 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 def test_transacting_power_sign_message(testerchain):
 
     # Manually create a TransactingPower
-    testerchain.connect()
     eth_address = testerchain.etherbase_account
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                              account=eth_address)
@@ -45,8 +44,6 @@ def test_transacting_power_sign_message(testerchain):
     # Test a signature without unlocking the account
     with pytest.raises(PowerUpError):
         power.sign_message(message=b'test')
-
-    del power      # Locks account
 
 
 def test_transacting_power_sign_transaction(testerchain):

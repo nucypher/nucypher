@@ -27,7 +27,7 @@ from web3 import Web3
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import Administrator
 from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
@@ -204,10 +204,12 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls, registry: BaseContractRegistry) -> 'TesterBlockchain':
+    def bootstrap_network(cls) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
+        registry = InMemoryContractRegistry()
         testerchain = cls(compiler=SolidityCompiler())
+        BlockchainInterfaceFactory.register_interface(testerchain)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                  account=testerchain.etherbase_account)
         power.activate()
@@ -219,7 +221,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         for deployer_class in deployer.upgradeable_deployer_classes:
             secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD
         _receipts = deployer.deploy_network_contracts(secrets=secrets, interactive=False)
-        return testerchain
+        return testerchain, registry
 
     @property
     def etherbase_account(self):

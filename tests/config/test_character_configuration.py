@@ -3,7 +3,7 @@ import os
 import tempfile
 
 import pytest
-from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED
+from constant_sorrow.constants import NO_KEYRING_ATTACHED, CERTIFICATE_NOT_SAVED, NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob
@@ -35,7 +35,7 @@ def test_federated_development_character_configurations(character, configuration
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
-    assert config.provider_uri == configuration.DEFAULT_PROVIDER_URI
+    assert config.provider_uri == NO_BLOCKCHAIN_CONNECTION
 
     # Production
     thing_one = config()
@@ -120,7 +120,6 @@ def test_ursula_development_configuration(federated_only=True):
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
-    assert config.provider_uri == UrsulaConfiguration.DEFAULT_PROVIDER_URI
 
     # Produce an Ursula
     ursula_one = config()
