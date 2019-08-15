@@ -615,8 +615,6 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
-            # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -627,6 +625,9 @@ class Bob(Character):
                 except KeyError:
                     # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
                     capsules_to_include.append(capsule)
+
+            # TODO: Bob crashes if he hasn't learned about this Ursula #999
+            ursula = self.known_nodes[node_id]
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
