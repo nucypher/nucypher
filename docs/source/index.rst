@@ -1,6 +1,6 @@
 NuCypher
 ========
-*A proxy re-encryption network to empower privacy in decentralized systems*
+*A decentralized cryptological network offering accessible, intuitive, and collusion-resistant runtimes and interfaces to novel and exciting cryptographic primitives.*
 
 
 ----
