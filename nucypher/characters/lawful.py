@@ -594,9 +594,12 @@ class Bob(Character):
 
         return treasure_map
 
-    def work_orders_for_capsule(self, map_id: str, *capsules,
-                                num_ursulas: int = None,
-                                ):
+    def work_orders_for_capsules(self,
+                                 *capsules,
+                                 map_id: str,
+                                 alice_verifying_key: UmbralPublicKey,
+                                 num_ursulas: int = None,
+                                 ):
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
@@ -630,7 +633,11 @@ class Bob(Character):
             ursula = self.known_nodes[node_id]
 
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(arrangement_id, capsules_to_include, ursula, self)
+                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                                        alice_verifying=alice_verifying_key,
+                                                        capsules=capsules_to_include,
+                                                        ursula=ursula,
+                                                        bob=self)
                 incomplete_work_orders[node_id] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
