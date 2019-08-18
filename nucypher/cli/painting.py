@@ -289,7 +289,7 @@ def paint_staged_stake_division(emitter,
 
     new_end_period = original_stake.end_period + extension
     new_duration = new_end_period - original_stake.start_period
-    staking_address = original_stake.checksum_address
+    staking_address = original_stake.owner_address
 
     division_message = f"""
 Staking address: {staking_address}
