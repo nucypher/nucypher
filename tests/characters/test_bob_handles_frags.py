@@ -368,7 +368,7 @@ def test_federated_bob_retrieves_a_single_message(federated_bob,
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
 
-def test_federated_bob_retrieves_multiple_messages(federated_bob,
+def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bob,
                                                    federated_alice,
                                                    capsule_side_channel,
                                                    enacted_federated_policy,
@@ -390,6 +390,32 @@ def test_federated_bob_retrieves_multiple_messages(federated_bob,
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
     assert b"Welcome to flippering number 2." == delivered_cleartexts[1]
     assert b"Welcome to flippering number 3." == delivered_cleartexts[2]
+
+
+def test_federated_bob_retrieves_multiple_messages_from_different_enricos(federated_bob,
+                                                   federated_alice,
+                                                   capsule_side_channel,
+                                                   enacted_federated_policy,
+                                                   ):
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
+    message1, enrico1 = capsule_side_channel.reset()  # First message
+    message2, enrico2 = capsule_side_channel.reset()  # Second message
+    message3, enrico3 = capsule_side_channel.reset()  # Third message
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+    message1.sender = enrico1
+    message2.sender = enrico2
+    message3.sender = enrico3
+
+    delivered_cleartexts = federated_bob.retrieve(message_kits=(message1, message2, message3),
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label)
+
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[1]
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[2]
 
 
 def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
