@@ -658,13 +658,13 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self,
-                 enrico: "Enrico",
                  message_kits: UmbralMessageKit,
                  alice_verifying_key: UmbralPublicKey,
                  label: bytes,
-                 retain_cfrags: bool = False,
-                 use_attached_cfrags: bool = False,
-                 use_precedent_work_orders: bool = False):
+                 enrico: "Enrico" = None,
+                 retain_cfrags: bool=False,
+                 use_attached_cfrags: bool=False,
+                 use_precedent_work_orders: bool=False):
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
 
@@ -788,7 +788,7 @@ class Bob(Character):
                 #  - This line is unreachable when NotEnoughUrsulas
 
             for message in message_kits:
-                delivered_cleartext = self.verify_from(enrico, message, decrypt=True)
+                delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
                 cleartexts.append(delivered_cleartext)
         finally:
             if not retain_cfrags:
