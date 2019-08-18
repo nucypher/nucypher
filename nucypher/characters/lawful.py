@@ -712,10 +712,10 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self,
-                 enrico: "Enrico",
                  message_kits: UmbralMessageKit,
                  alice_verifying_key: UmbralPublicKey,
                  label: bytes,
+                 enrico: "Enrico" = None,
                  retain_cfrags: bool=False,
                  use_attached_cfrags: bool=False,
                  use_precedent_work_orders: bool=False):
@@ -727,7 +727,17 @@ class Bob(Character):
 
         for message in message_kits:
 
-            capsule = message.capsule  # TODO: WorkOrders can have more than one PRETask (each with its own Capsule).  So, let's generalize for WorkOrders with more than one Capsule.
+            # Two sanity checks before we get into network activity.
+
+            if message.sender:
+                if enrico and message.sender != enrico:
+                    raise ValueError
+            elif enrico:
+                message.sender = enrico
+            else:
+                raise TypeError
+
+            capsule = message.capsule
 
             if len(capsule) > 0:
                 if not use_attached_cfrags:
@@ -825,7 +835,7 @@ class Bob(Character):
                 #  - This line is unreachable when NotEnoughUrsulas
 
             for message in message_kits:
-                delivered_cleartext = self.verify_from(enrico, message, decrypt=True)
+                delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
                 cleartexts.append(delivered_cleartext)
         finally:
             if not retain_cfrags:
