@@ -700,10 +700,9 @@ class Bob(Character):
             hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, label)
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
-            capsule.set_correctness_keys(
-                delegating=enrico.policy_pubkey,
-                receiving=self.public_keys(DecryptingPower),
-                verifying=alice_verifying_key)
+            capsule.set_cfrag_correctness_key("receiving", self.public_keys(DecryptingPower))
+            capsule.set_cfrag_correctness_key("verifying", alice_verifying_key)
+
             new_work_orders, complete_work_orders = self.work_orders_for_capsules(
                 map_id=map_id,
                 alice_verifying_key=alice_verifying_key,
