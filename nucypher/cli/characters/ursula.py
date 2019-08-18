@@ -343,12 +343,13 @@ def ursula(click_config,
 
         if not URSULA.federated_only:
             emitter.echo("BLOCKCHAIN ----------\n")
-            painting.paint_contract_status(emitter, ursula_config=ursula_config)
+            painting.paint_contract_status(emitter=emitter, blockchain=URSULA.blockchain)
             current_block = URSULA.blockchain.w3.eth.blockNumber
             emitter.echo(f'Block # {current_block}')
-            emitter.echo(f'NU Balance: {URSULA.token_balance}')
-            emitter.echo(f'ETH Balance: {URSULA.eth_balance}')
-            emitter.echo(f'Current Gas Price {URSULA.blockchain.client.gasPrice}')
+            # TODO: 1231
+            emitter.echo(f'NU Balance (staker): {URSULA.token_balance}')
+            emitter.echo(f'ETH Balance (worker): {URSULA.blockchain.client.get_balance(URSULA.worker_address)}')
+            emitter.echo(f'Current Gas Price {URSULA.blockchain.client.gas_price}')
 
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
