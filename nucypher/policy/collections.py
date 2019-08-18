@@ -280,9 +280,8 @@ class WorkOrder:
         return len(self.tasks)
 
     @classmethod
-    def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]  # TODO: What if the different capsules have different correctness keys?
-        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
+    def construct_by_bob(cls, arrangement_id, alice_verifying, capsules, ursula, bob):
+        alice_address = canonical_address_from_umbral_key(alice_verifying)
 
         # TODO: Bob's input to prove freshness for this work order
         blockhash = b'\x00' * 32
@@ -293,9 +292,6 @@ class WorkOrder:
 
         tasks, tasks_bytes = {}, []
         for capsule in capsules:
-            if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
-                raise ValueError("Capsules in this work order are inconsistent.")
-
             task = cls.PRETask(capsule, signature=None)
             specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
