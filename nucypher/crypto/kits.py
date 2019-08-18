@@ -14,15 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 
 
 class CryptoKit:
+    """
+    A package of discrete items, meant to be sent over the wire or saved to disk (in either case, as bytes),
+    capable of performing a distinct cryptological function.
+    """
     splitter = None
 
     @classmethod
@@ -40,6 +41,11 @@ class CryptoKit:
 
 
 class MessageKit(CryptoKit):
+    """
+    All the components needed to transmit and verify an encrypted message.
+    """
+    return_remainder_when_splitting = True
+    splitter = capsule_splitter + key_splitter
 
     def __init__(self,
                  capsule,
@@ -72,19 +78,30 @@ class MessageKit(CryptoKit):
         return bytes(self.capsule) + self.ciphertext
 
 
-class UmbralMessageKit(MessageKit):
+class PolicyMessageKit(MessageKit):
+    """
+    A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
+    """
+    splitter = capsule_splitter + key_splitter * 2
 
-    return_remainder_when_splitting = True
-    splitter = capsule_splitter + key_splitter
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.policy_pubkey = None
+    def to_bytes(self):
+        """
+        We don't include Alice's verifying key when the message is meant to be used with a Policy.
+        """
+        return super().to_bytes(self, include_alice_pubkey=False)
 
     @classmethod
     def from_bytes(cls, some_bytes):
         capsule, sender_verifying_key, ciphertext = cls.split_bytes(some_bytes)
         return cls(capsule=capsule, sender_verifying_key=sender_verifying_key, ciphertext=ciphertext)
+
+
+
+    # def __init__(self, *args, **kwargs) -> None:
+    #     super().__init__(*args, **kwargs)
+    #     self.policy_pubkey = None
+
+UmbralMessageKit = MessageKit
 
 
 class RevocationKit:
