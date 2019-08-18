@@ -184,7 +184,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     blockchain_bob.join_policy(label, bytes(blockchain_alice.stamp))
 
-    plaintext = blockchain_bob.retrieve(message_kit, enrico, blockchain_alice.stamp, label)
+    plaintext = blockchain_bob.retrieve(enrico, message_kit, blockchain_alice.stamp, label)
     assert plaintext[0] == message
 
     # Let's consider also that a node may be down when granting
