@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from constant_sorrow import constants
+from constant_sorrow.constants import UNKNOWN_SENDER, NOT_SIGNED
 
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 
@@ -51,7 +51,7 @@ class MessageKit(CryptoKit):
                  capsule,
                  sender_verifying_key=None,
                  ciphertext=None,
-                 signature=constants.NOT_SIGNED) -> None:
+                 signature=NOT_SIGNED) -> None:
 
         self.ciphertext = ciphertext
         self.capsule = capsule
@@ -84,24 +84,21 @@ class PolicyMessageKit(MessageKit):
     """
     splitter = capsule_splitter + key_splitter * 2
 
-    def to_bytes(self):
-        """
-        We don't include Alice's verifying key when the message is meant to be used with a Policy.
-        """
-        return super().to_bytes(self, include_alice_pubkey=False)
+    @property
+    def sender(self):
+        return self._sender
 
-    @classmethod
-    def from_bytes(cls, some_bytes):
-        capsule, sender_verifying_key, ciphertext = cls.split_bytes(some_bytes)
-        return cls(capsule=capsule, sender_verifying_key=sender_verifying_key, ciphertext=ciphertext)
-
+    @sender.setter
+    def sender(self, enrico):
+        self.capsule.set_cfrag_correctness_key("delegating", enrico.policy_pubkey)
+        self._sender = enrico
 
 
     # def __init__(self, *args, **kwargs) -> None:
     #     super().__init__(*args, **kwargs)
     #     self.policy_pubkey = None
 
-UmbralMessageKit = MessageKit
+UmbralMessageKit = PolicyMessageKit
 
 
 class RevocationKit:
