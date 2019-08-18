@@ -292,7 +292,7 @@ def capsule_side_channel(enacted_federated_policy):
         def reset(self):
             self.enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
             self.messages = []
-            self()
+            return self(), self.enrico
 
     return _CapsuleSideChannel()
 
