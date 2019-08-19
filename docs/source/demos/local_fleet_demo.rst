@@ -21,9 +21,9 @@ All Demo Ursulas:
 Running A Local Fleet
 ---------------------
 
-1. Install Nucypher
+1. Install NuCypher
 
-Acquire the Nucypher application code and install the dependencies.
+Acquire the NuCypher application code and install the dependencies.
 For a full installation guide see the :doc:`/guides/installation_guide`.
 
 2. Run a Lonely Ursula
