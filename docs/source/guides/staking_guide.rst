@@ -2,18 +2,32 @@
 NuCypher Staking Guide
 =======================
 
-**Ursula Staking Actions**
+**StakeHolder Commands**
 
-+-------------------+------------------------------------------------------------------------------+
-| Action            |  Description                                                                 |
-+===================+==============================================================================+
-|  ``stake``        | Initialize or view NuCypher stakes (used with ``--value`` and ``--duration``)|
-+-------------------+------------------------------------------------------------------------------+
-| ``collect-reward``| Collect staking reward (Policy reward collection in future PR)               |
-+-------------------+------------------------------------------------------------------------------+
++----------------------+-------------------------------------------------------------------------------+
+| Action               |  Description                                                                  |
++======================+===============================================================================+
+|  ``new-stakeholder`` | Create a new stakeholder configuration                                        |
++----------------------+-------------------------------------------------------------------------------+
+|  ``init``            | Initialize or view NuCypher stakes (used with ``--value`` and ``--duration``) |
++----------------------+-------------------------------------------------------------------------------+
+|  ``list``            | List active stakes for current stakeholder                                    |
++----------------------+-------------------------------------------------------------------------------+
+|  ``accounts``        | Show ETH and NU balances for stakeholder's accounts                           |
++----------------------+-------------------------------------------------------------------------------+
+|  ``sync``            | Synchronize stake data with on-chain information                              |
++----------------------+-------------------------------------------------------------------------------+
+|  ``set-worker``      | Bond a worker to a staker                                                     |
++----------------------+-------------------------------------------------------------------------------+
+|  ``detach-worker``   | Detach worker currently bonded to a staker                                    |
++----------------------+-------------------------------------------------------------------------------+
+|  ``divide``          | Create a new stake from part of an existing one                               |
++----------------------+-------------------------------------------------------------------------------+
+| ``collect-reward``   | Withdraw staking or policy rewards                                            |
++----------------------+-------------------------------------------------------------------------------+
 
 
-**Ursula Staking Options**
+**StakeHolder Command Options**
 
 +-----------------+--------------------------------------------+
 | Option          |  Description                               |
@@ -24,60 +38,26 @@ NuCypher Staking Guide
 +-----------------+--------------------------------------------+
 |  ``--index``    | Stake index                                |
 +-----------------+--------------------------------------------+
-|  ``--list``     | List stakes (used with ``stake`` action)   |
-+-----------------+--------------------------------------------+
-|  ``--divide``   | Divide stakes (used with ``stake`` action) |
-+-----------------+--------------------------------------------+
 
 
 
 Interactive Method
 ------------------
 
+*Initialize a new stakeholder*
+
 .. code:: bash
 
-    (nucypher)$ nucypher ursula stake
+    (nucypher)$ nucypher stake new-stakeholder
 
 
 *Initialize a new stake*
 
 .. code:: bash
 
-    Stage a new stake? [y/N]: y
+    (nucypher)$ nucypher stake init
 
-    Current balance: 100000
-    Enter stake value in NU [15000]: 30000
-
-    Minimum duration: 30 | Maximum Duration: 365
-    Enter stake duration in periods (1 Period = 24 Hours): 90
-
-    ============================== STAGED STAKE ==============================
-
-    (Ursula)⇀Sienna Scales GreenYellow Ferry↽ (0x058D5F4cC9d52403c2F6944eC1c821a0e6E78657)
-    ~ Value      -> 30000 NU (300000000000000000000000 NU-wei)
-    ~ Duration   -> 90 Days (90 Periods)
-    ~ Enactment  -> 2019-03-12 02:08:41.425755+00:00 (17967)
-    ~ Expiration -> 2020-02-08 02:08:41.425912+00:00 (18300)
-
-    =========================================================================
-
-    * Ursula Node Operator Notice *
-    -------------------------------
-    ...
-
-    Accept node operator obligation? [y/N]: y
-    Publish staged stake to the blockchain? [y/N]: y
-
-    Escrow Address ... 0x709166C66Ab0BC36126607BE823F11F64C2A9996
-    Approve .......... 0x7eef13ee7451adaa33d814ecd4953a46de0a10267f7b52dcb487031c900a8d80
-    Deposit .......... 0x75127e862e044309c9980fdb0e4d3120de7723dd8b70f62d5504e6851f672f4c
-
-    Successfully transmitted stake initialization transactions.
-    View your active stakes by running 'nucypher ursula stake --list'
-    or start your Ursula node by running 'nucypher ursula run'.
-
-
-*View existing stakes*
+*List existing stakes*
 
 .. code:: bash
 
