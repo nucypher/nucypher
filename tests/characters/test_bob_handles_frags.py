@@ -359,7 +359,7 @@ def test_federated_bob_retrieves_a_single_message(federated_bob,
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
@@ -382,7 +382,7 @@ def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bo
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=three_message_kits,
+    delivered_cleartexts = federated_bob.retrieve(*three_message_kits,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
@@ -409,7 +409,9 @@ def test_federated_bob_retrieves_multiple_messages_from_different_enricos(federa
     message2.sender = enrico2
     message3.sender = enrico3
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(message1, message2, message3),
+    delivered_cleartexts = federated_bob.retrieve(message1,
+                                                  message2,
+                                                  message3,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
 
@@ -431,7 +433,7 @@ def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label)
@@ -439,7 +441,7 @@ def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -458,7 +460,7 @@ def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
     the_message_kit = capsule_side_channel()
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -468,13 +470,13 @@ def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
     # Can't retrieve this message again.
     # Bob needs to either instantiate the message_kit again or use use_attached_cfrags=True.
     with pytest.raises(TypeError):
-        federated_bob.retrieve(message_kits=(the_message_kit,),
+        federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
                                )
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -518,7 +520,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
 
     # Since 8 Ursulas are down, Bob can only get 2 CFrags; not enough to complete retrieval.
     with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(message_kits=(the_message_kit,),
+        federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
@@ -536,7 +538,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
     federated_bob.network_middleware.node_is_up(ursula4)
 
     with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(message_kits=(the_message_kit,),
+        federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label)
@@ -576,7 +578,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
 
     # Bob can't retrieve; there aren't enough Ursulas up.
     with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(message_kits=(the_message_kit,),
+        federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
@@ -596,14 +598,14 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
 
     # We're not allowed to try again with a Capsule with cached CFrags if we set cache to False.
     with pytest.raises(TypeError):
-        federated_bob.retrieve(message_kits=(the_message_kit,),
+        federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
                                retain_cfrags=False)
 
     # But now, with just one Ursula up, we can use the cached CFrags to get the message.
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -617,7 +619,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     for ursula in federated_ursulas:
         federated_bob.network_middleware.node_is_down(ursula)
 
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -630,7 +632,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     the_message_kit.capsule.clear_cfrags()
 
     # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
-    delivered_cleartexts = federated_bob.retrieve(message_kits=(the_message_kit,),
+    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
