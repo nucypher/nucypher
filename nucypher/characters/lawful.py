@@ -658,7 +658,7 @@ class Bob(Character):
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def retrieve(self,
-                 message_kits: UmbralMessageKit,
+                 *message_kits: UmbralMessageKit,
                  alice_verifying_key: UmbralPublicKey,
                  label: bytes,
                  enrico: "Enrico" = None,
