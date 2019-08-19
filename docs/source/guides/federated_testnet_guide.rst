@@ -25,7 +25,7 @@ Before getting started, please note:
 Contents
 --------
 
-* `Stage A | Install The Nucypher Environment`_
+* `Stage A | Install The NuCypher Environment`_
 * `Stage B | Configure Ursula`_
 * `Stage C | Run the Node (Interactive Method)`_
 * `Stage C | Run the Node (System Service Method)`_
@@ -34,7 +34,7 @@ Contents
 Configure a NuFT Node
 ---------------------
 
-Stage A | Install The Nucypher Environment
+Stage A | Install The NuCypher Environment
 ------------------------------------------
 
 1. Install Python and Git
@@ -71,7 +71,7 @@ Activate your virtual environment:
     (nucypher)$
 
 
-3. Install Nucypher
+3. Install NuCypher
     
 Install ``nucypher`` with ``git`` and ``pip3`` into your virtual environment.
 
@@ -251,7 +251,7 @@ To restart your node service
 Updating a NuFT Node
 ---------------------
 
-Nucypher is under active development, you can expect frequent code changes to occur as bugs are
+NuCypher is under active development, you can expect frequent code changes to occur as bugs are
 discovered and code fixes are submitted. As a result, Ursula nodes will need to be frequently updated
 to use the most up-to-date version of the application code.
 

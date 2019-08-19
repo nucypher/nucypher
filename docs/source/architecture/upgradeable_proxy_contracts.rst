@@ -1,4 +1,4 @@
-Nucypher's Approaches to Upgradeable Contracts
+NuCypher's Approaches to Upgradeable Contracts
 ==============================================
 
 Smart contracts in Ethereum are immutable...
