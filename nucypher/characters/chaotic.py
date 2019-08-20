@@ -302,8 +302,8 @@ class Felix(Character, NucypherTokenActor):
         @limiter.limit("5 per day")
         def register():
             """Handle new recipient registration via POST request."""
-            try:
-                new_address = (
+
+            new_address = (
                 request.form.get('address') or
                 request.get_json().get('address')
             )
