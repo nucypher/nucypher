@@ -6,6 +6,7 @@ import eth_utils
 import math
 import maya
 import time
+from decimal import Decimal
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
 from flask import Flask, render_template, Response
@@ -138,9 +139,10 @@ class Felix(Character, NucypherTokenActor):
 
     # Disbursement
     BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = 0.95               # 5% reduction of previous stake is 0.95, for example
+    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9, for example
+                                    # this will result in 90 days of distribution
     MINIMUM_DISBURSEMENT = 1e18     # NuNits
-    ETHER_AIRDROP_AMOUNT = int(2e18)  # Wei
+    ETHER_AIRDROP_AMOUNT = 0        # Wei  Local modification to prevent eth distribution
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -162,7 +164,7 @@ class Felix(Character, NucypherTokenActor):
                  client_password: str = None,
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
-                 distribute_ether: bool = True,
+                 distribute_ether: bool = False,
                  *args, **kwargs):
 
         # Character
@@ -206,11 +208,10 @@ class Felix(Character, NucypherTokenActor):
         self.economics = economics
 
         self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked
-        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked
+        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked * 3
 
         # Optionally send ether with each token transaction
         self.distribute_ether = distribute_ether
-
         # Banner
         self.log.info(FELIX_BANNER.format(self.checksum_address))
 
@@ -275,15 +276,19 @@ class Felix(Character, NucypherTokenActor):
         def register():
             """Handle new recipient registration via POST request."""
             try:
-                new_address = request.form['address']
-            except KeyError:
-                return Response(status=400)  # TODO
+                new_address = (
+                request.form.get('address') or
+                request.get_json().get('address')
+            )
+
+            if not new_address:
+                return Response(response="no address was supplied", status=411)
 
             if not eth_utils.is_checksum_address(new_address):
-                return Response(status=400)  # TODO
+                return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
 
             if new_address in self.reserved_addresses:
-                return Response(status=400)  # TODO
+                return Response(response="sorry, that address is reserved and cannot receive funds.", status=403)
 
             try:
                 with ThreadedSession(self.db_engine) as session:
@@ -292,7 +297,7 @@ class Felix(Character, NucypherTokenActor):
                     if existing:
                         # Address already exists; Abort
                         self.log.debug(f"{new_address} is already enrolled.")
-                        return Response(status=400)
+                        return Response(response="That address is already enrolled.", status=409)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
