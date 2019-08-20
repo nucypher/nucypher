@@ -33,6 +33,7 @@ The first step is to launch the first Ursula on the network by running:
 
 .. code::
 
+   $ cd scripts/local_fleet
    $ python run_lonely_ursula.py
 
 This will start an Ursula node:
@@ -42,7 +43,7 @@ This will start an Ursula node:
 
 3. Run a Local Fleet of Ursulas
 
-Next, launch subsequent Ursulas, informing them of the first Ursula:
+Next, launch subsequent Ursulas in another terminal, informing them of the first Ursula:
 
 
 .. code::
