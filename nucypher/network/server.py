@@ -31,8 +31,9 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
+
+import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
@@ -53,7 +54,6 @@ status_template = Template(_status_template_content)
 
 
 class ProxyRESTServer:
-    log = Logger("characters")
     SERVER_VERSION = LEARNING_LOOP_VERSION
     log = Logger("network-server")
 
@@ -390,7 +390,8 @@ def make_rest_app(
             content = status_template.render(this_node=this_node,
                                              known_nodes=this_node.known_nodes,
                                              previous_states=previous_states,
-                                             domains=serving_domains)
+                                             domains=serving_domains,
+                                             version=nucypher.__version__)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e
