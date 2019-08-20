@@ -14,16 +14,16 @@ Overview
 All Demo Ursulas:
  * Run on ``localhost``
  * In ``--federated-only`` mode
- * On the ``TEMPORARY_DOMIAN`` (implied by ``--dev``)
+ * On the ``TEMPORARY_DOMAIN`` (implied by ``--dev``)
  * Using temporary resources (files, database, etc.)
 
 
 Running A Local Fleet
 ---------------------
 
-1. Install Nucypher
+1. Install NuCypher
 
-Acquire the Nucypher application code and install the dependencies.
+Acquire the NuCypher application code and install the dependencies.
 For a full installation guide see the :doc:`/guides/installation_guide`.
 
 2. Run a Lonely Ursula
@@ -33,7 +33,7 @@ The first step is to launch the first Ursula on the network by running:
 
 .. code::
 
-   $ python run_lonely_demo_ursula.py
+   $ python run_lonely_ursula.py
 
 This will start an Ursula node:
  * With seednode discovery disabled
@@ -47,22 +47,22 @@ Next, launch subsequent Ursulas, informing them of the first Ursula:
 
 .. code::
 
-    $ python run_demo_ursula_fleet.py
+    $ python run_local_ursula_fleet.py
 
 This will run 5 temporary Ursulas that:
- * All specify the lonely Ursula as a seednode
+ * All specify the lonely Ursula as a teacher
  * Run on ports ``11501`` through ``11506``
 
 
 4. Run an Entry-Point Ursula (Optional)
 
 While the local fleet is running, you may want an entry-point to introspect the code in a debugger.
-For this we provide the optional script ``run_single_demo_ursula.py`` for your convenience.
+For this we provide the optional script ``run_single_ursula.py`` for your convenience.
 
 
 .. code::
 
-   $ python run_single_demo_ursula.py
+   $ python run_single_ursula.py
 
 This will run a single temporary Ursula:
 

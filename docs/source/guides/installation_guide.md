@@ -3,35 +3,26 @@
 
 ## Contents
 
-* [Running Ursula with Systemd](#System-Requirements)
-* [Running Ursula with Systemd](#Systemd-Service-Installation)
+* [System Requirements and Dependencies](#System-Requirements-and-Dependencies)
 * [Standard Installation](#Standard-Installation)
 * [Development Installation](#Development-Installation)
 * [Running Ursula with Systemd](#Systemd-Service-Installation)
 
-## System Requirements
+## System Requirements and Dependencies
 
-* At least 1 GB of RAM is required for key derivation functionality (SCrypt).
+* At least 1 GB of RAM is required for secure password-based key derivation with [scrypt](http://www.tarsnap.com/scrypt.html).
 * We have tested `nucypher` with Windows, Mac OS, and GNU/Linux (GNU/Linux is recommended).
+* If you don’t already have it, install [Python](https://www.python.org/downloads/). 
+As of August 2019, we are working with Python 3.6, 3.7, and 3.8.
+* We also require the following system packages (Linux):
 
-
-## System Dependencies
-
-If you don’t already have it, install Python.
-As of January 2019, we are working with Python 3.6, 3.7, and 3.8.
-
-* Official Python Website: <https://www.python.org/downloads/>
-
-
-We also require the following system packages (Linux):
-
-    - libffi-dev
-    - python3-dev
-    - python3-virtualenv
+    - `libffi-dev`
+    - `python3-dev`
+    - `python3-virtualenv`
 
 ## Standard Installation
 
-We recommend installing nucypher with either `pip` or `pipenv`
+We recommend installing `nucypher` with either `pip` or `pipenv`
 
 * [Pip Documentation](https://pip.pypa.io/en/stable/installing/)
 * [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)
@@ -55,7 +46,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     Activate the newly created virtual environment:
     
     ```bash
-    $ source /your/path/nucypher-venv
+    $ source /your/path/nucypher-venv/bin/activate
     ...
     $(nucypher-venv)
     ```
@@ -91,7 +82,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
 1. Install Application code with Pipenv
     
     Ensure you have `pipenv` installed (See full documentation for pipenv here: [Pipenv Documentation](https://pipenv.readthedocs.io/en/latest/)).
-    Then to install nucypher with pipenv, run:
+    Then to install `nucypher` with `pipenv`, run:
     
     ```bash
     $ pipenv install nucypher

@@ -143,11 +143,14 @@ def alice(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not pay_with and not federated_only:
+            # Connect to Blockchain
+            fetch_registry = registry_filepath is None and not click_config.no_registry
             registry = None
             if registry_filepath:
                 registry = EthereumContractRegistry(registry_filepath=registry_filepath)
             blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=False, sync_now=sync, emitter=emitter)
+            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
+
             pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
 
         download_registry = not federated_only and not click_config.no_registry
@@ -173,7 +176,7 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: #1216 - what are request_id and duration here?
 
     #
     # Get Alice Configuration

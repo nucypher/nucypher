@@ -59,7 +59,7 @@ The actors in this example can be mapped naturally to :doc:`Characters </api/cha
   if she grants access to him. 
   This is modelled by the :class:`~nucypher.characters.lawful.Bob` character.
 
-Install Nucypher
+Install NuCypher
 -----------------
 
 Acquire the ``nucypher`` application code and install the dependencies.

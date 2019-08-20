@@ -106,6 +106,12 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
+
+        #
+        # Operating Mode
+        #
+        if not federated_only and blockchain is None:
+            raise ValueError("No blockchain interface provided to initialize decentralized Character.")
         self.federated_only = federated_only  # type: bool
 
         #

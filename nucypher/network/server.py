@@ -31,8 +31,9 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
+
+import nucypher
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
@@ -53,7 +54,6 @@ status_template = Template(_status_template_content)
 
 
 class ProxyRESTServer:
-    log = Logger("characters")
     SERVER_VERSION = LEARNING_LOOP_VERSION
     log = Logger("network-server")
 
@@ -151,7 +151,9 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        nodes = _node_class.batch_from_bytes(request.data, federated_only=this_node.federated_only)  # TODO: 466
+        nodes = _node_class.batch_from_bytes(request.data,
+                                             federated_only=this_node.federated_only,
+                                             blockchain=this_node.blockchain)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
@@ -175,11 +177,11 @@ def make_rest_app(
                                      certificate_filepath=certificate_filepath)
 
                 # Suspicion
-                except node.SuspiciousActivity:
+                except node.SuspiciousActivity as e:
                     # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     # TODO: Maybe also record the bytes representation separately to disk?
-                    message = f"Suspicious Activity: Discovered node with bad signature: {node}.  Announced via REST."
+                    message = f"Suspicious Activity about {node}: {str(e)}.  Announced via REST."
                     log.warn(message)
                     this_node.suspicious_activities_witnessed['vladimirs'].append(node)
                 except NodeSeemsToBeDown as e:
@@ -387,7 +389,9 @@ def make_rest_app(
         try:
             content = status_template.render(this_node=this_node,
                                              known_nodes=this_node.known_nodes,
-                                             previous_states=previous_states)
+                                             previous_states=previous_states,
+                                             domains=serving_domains,
+                                             version=nucypher.__version__)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e

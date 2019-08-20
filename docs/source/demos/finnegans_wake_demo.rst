@@ -36,7 +36,7 @@ without revealing data keys to intermediary entities.
 +------+-----------+----------------------------------------------------------------------------------------------+
 
 
-Install Nucypher
+Install NuCypher
 ----------------
 
     Acquire the ``nucypher`` application code and install the dependencies.

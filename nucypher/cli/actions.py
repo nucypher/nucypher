@@ -44,22 +44,14 @@ from nucypher.network.teachers import TEACHER_NODES
 NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
 
-DESTRUCTION = '''
-*Permanently and irreversibly delete all* nucypher files including:
-    - Private and Public Keys
-    - Known Nodes
-    - TLS certificates
-    - Node Configurations
-
-Delete {}?'''
-
 CHARACTER_DESTRUCTION = '''
 Delete all {name} character files including:
     - Private and Public Keys ({keystore})
     - Known Nodes             ({nodestore})
     - Node Configuration File ({config})
-
-Delete {root}?'''
+    - Database                ({database})
+    
+Are you sure?'''
 
 SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
 
@@ -71,18 +63,23 @@ class UnknownIPAddress(RuntimeError):
     pass
 
 
+def get_password_from_prompt(prompt: str = "Enter password", envvar: str = '', confirm: bool = False) -> str:
+    password = os.environ.get(envvar, NO_PASSWORD)
+    if password is NO_PASSWORD:  # Collect password, prefer env var
+        password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+    return password
+
+
 @validate_checksum_address
-def get_client_password(checksum_address: str) -> str:
+def get_client_password(checksum_address: str, envvar: str = '') -> str:
     prompt = f"Enter password to unlock account {checksum_address}"
-    client_password = click.prompt(prompt, hide_input=True)
+    client_password = get_password_from_prompt(prompt=prompt, envvar=envvar, confirm=False)
     return client_password
 
 
 def get_nucypher_password(confirm: bool = False, envvar="NUCYPHER_KEYRING_PASSWORD") -> str:
-    keyring_password = os.environ.get(envvar, NO_PASSWORD)
-    if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
-        prompt = "Enter nucypher keyring password"
-        keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+    prompt = "Enter NuCypher keyring password"
+    keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
 
@@ -104,7 +101,8 @@ def load_seednodes(emitter,
                    federated_only: bool,
                    network_domains: set,
                    network_middleware: RestMiddleware = None,
-                   teacher_uris: list = None
+                   teacher_uris: list = None,
+                   blockchain=None,
                    ) -> List[Ursula]:
 
     # Set domains
@@ -118,17 +116,22 @@ def load_seednodes(emitter,
 
     for domain in network_domains:
         try:
-            teacher_uris = TEACHER_NODES[domain]
+            # Known NuCypher Domain
+            seednode_uris = TEACHER_NODES[domain]
         except KeyError:
-            # TODO: If this is a unknown domain, require the caller to pass a teacher URI explicitly?
+            # Unknown NuCypher Domain
             if not teacher_uris:
                 emitter.message(f"No default teacher nodes exist for the specified network: {domain}")
+        else:
+            # Prefer the injected teacher URI, then use the hardcoded seednodes.
+            teacher_uris.extend(seednode_uris)
 
         for uri in teacher_uris:
             teacher_node = Ursula.from_teacher_uri(teacher_uri=uri,
                                                    min_stake=min_stake,
                                                    federated_only=federated_only,
-                                                   network_middleware=network_middleware)
+                                                   network_middleware=network_middleware,
+                                                   blockchain=blockchain)
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
@@ -168,11 +171,17 @@ def determine_external_ip_address(emitter, force: bool = False) -> str:
 
 def destroy_configuration(emitter, character_config, force: bool = False) -> None:
     if not force:
+        try:
+            database = character_config.db_filepath
+        except AttributeError:
+            database = "No database found"
+
         click.confirm(CHARACTER_DESTRUCTION.format(name=character_config._NAME,
                                                    root=character_config.config_root,
                                                    keystore=character_config.keyring_root,
                                                    nodestore=character_config.node_storage.root_dir,
-                                                   config=character_config.filepath), abort=True)
+                                                   config=character_config.filepath,
+                                                   database=database), abort=True)
     character_config.destroy()
     SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
     emitter.message(SUCCESSFUL_DESTRUCTION, color='green')
@@ -250,6 +259,7 @@ def make_cli_character(character_config,
     # Handle Blockchain
     if not character_config.federated_only:
         character_config.get_blockchain_interface()
+        character_config.blockchain.connect(fetch_registry=False)
 
     # Handle Keyring
 
@@ -260,14 +270,13 @@ def make_cli_character(character_config,
                                 password=get_nucypher_password(confirm=False))
 
     # Handle Teachers
-    teacher_nodes = None
-    if teacher_uri:
-        teacher_nodes = load_seednodes(emitter,
-                                       teacher_uris=[teacher_uri] if teacher_uri else None,
-                                       min_stake=min_stake,
-                                       federated_only=character_config.federated_only,
-                                       network_domains=character_config.domains,
-                                       network_middleware=character_config.network_middleware)
+    teacher_nodes = load_seednodes(emitter,
+                                   teacher_uris=[teacher_uri] if teacher_uri else None,
+                                   min_stake=min_stake,
+                                   federated_only=character_config.federated_only,
+                                   network_domains=character_config.domains,
+                                   network_middleware=character_config.network_middleware,
+                                   blockchain=character_config.blockchain)
 
     #
     # Character Init
@@ -304,6 +313,9 @@ def select_stake(stakeholder, emitter) -> Stake:
 
 def select_client_account(emitter, blockchain, prompt: str = None, default=0) -> str:
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
+    if len(enumerated_accounts) < 1:
+        emitter.echo("No ETH accounts were found.", color='red', bold=True)
+        raise click.Abort()
     for index, account in enumerated_accounts.items():
         emitter.echo(f"{index} | {account}")
     prompt = prompt or "Select Account"

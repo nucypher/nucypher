@@ -60,18 +60,18 @@ The character control API uses JSON for all its endpoints. A request may look li
 .. code::
 
     {
+        'bob_verifying_key': '02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c',
         'bob_encrypting_key': '0324df67664e6ea40f2eea8037c994debd4caa42117fe86cdb8cab6ac7728751ad',
-        'label': 'dGVzdA==',
+        'label': 'spın̈al-tap-covers',
         'm': 2,
         'n': 3,
         'expiration': '2019-02-14T22:23:10.771093Z',
     }
 
-Take a look at ``bob_encrypting_key``. Take note that it's a hex-encoded string.
+Take a look at ``bob_encrypting_key`` and ``bob_verifying_key``. Take note that they are hex-encoded strings.
 The character control API endpoints expect `all` keys to be encoded as hex.
 
-Now, look at ``label``. Notice that it's a base64-encoded string.
-Whenever the Python API expects the ``bytes`` type, the character control API will expect a base64 encoded string.
+Now, look at ``label``. Notice that it's a unicode string. How else could you properly write important stuff like "`Spın̈al Tap`"?
 
 Integers, in our case ``m`` and ``n`` can be passed as is without encoding.
 
@@ -93,7 +93,8 @@ The same goes for our API's responses. One may look like:
     }
 
 The character control API will return the results of our Python API.
-If any data is returned, like a treasure map or a message kit, it will be serialized as base64 with the object name being a key inside ``result``.
+If any binary data is returned, like a treasure map or a message kit, it will be serialized as base64 with the object name being a key inside ``result``.
+Conversely, whenever the Python API expects the ``bytes`` type, the character control API will expect a base64 encoded string.
 
 Be sure to also check the returned status code of the request. All successful calls will be 200.
 See the above "Status Codes" section on what to do in the event of a 400 or 500.
@@ -105,11 +106,11 @@ Alice
 -----
 
 derive_policy_encrypting_key
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This endpoint controls the ``Alice.get_policy_pubkey_from_label`` method.
+This endpoint controls the ``Alice.get_policy_encrypting_key_from_label`` method.
 
-- URL: ``/derive_policy_encrypting_key/<\label\>``
+- URL: ``/derive_policy_encrypting_key/<label>``
 - HTTP Method: ``POST``
 - Returns: a hex-encoded ``policy_encrypting_key``
 
@@ -121,15 +122,17 @@ This endpoint controls the ``Alice.grant`` method.
 - URL: ``/grant``
 - HTTP Method: ``PUT``
 - Required arguments:
+    - ``bob_verifying_key`` -- encoded as hex
     - ``bob_encrypting_key`` -- encoded as hex
     - ``label`` -- a unicode string
     - ``m`` -- an integer
     - ``n`` -- an integer
     - ``expiration`` -- an ISO-8601 formatted datetime string
+    - ``value``-- an integer
 - Returns:
     - ``treasure_map`` -- encoded as base64
     - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_signing_pubkey`` -- encoded as hex
+    - ``alice_verifying_pubkey`` -- encoded as hex
 
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
 
@@ -145,11 +148,10 @@ This endpoint controls the ``Bob.retrieve`` method.
 - HTTP Method: ``POST``
 - Required arguments:
     - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_signing_pubkey`` -- encoded as hex
-    - ``datasource_signing_pubkey`` -- encoded as hex
+    - ``alice_verifying_pubkey`` -- encoded as hex
     - ``label`` -- a unicode string
     - ``message_kit`` -- encoded as base64
-- Returns: a JSON-array of base64-encoded decrypted plaintexts as ``plaintext``
+- Returns: a JSON-array of base64-encoded decrypted plaintexts as ``cleartexts``
 
 For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve`` Python API method.
 
@@ -167,4 +169,4 @@ This endpoint controls the ``Enrico.encrypt_message`` method.
     - ``message`` -- encoded as base64
 - Returns: ``message_kit`` and ``signature`` encoded as base64
 
-For more details on these arguments, see the nucypher documentation on the ``DataSource.encrypt_message`` Python API method.
+For more details on these arguments, see the nucypher documentation on the ``Enrico.encrypt_message`` Python API method.
