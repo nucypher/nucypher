@@ -281,10 +281,15 @@ class Felix(Character, NucypherTokenActor):
 
                 return json.dumps(
                         {
-                            "total": total_recipients,
-                            "latest": last_address,
-                            "latest_date": last_transaction_date,
-                            "unfunded": unfunded,
+                            "total_recipients": total_recipients,
+                            "latest_recipient": last_address,
+                            "latest_disburse_date": last_transaction_date,
+                            "unfunded_recipients": unfunded,
+                            "state": {
+                                "eth": self.eth_balance(),
+                                "NU": self.token_balance(),
+                                "address": self.checksum_address,
+                            }
                         }
                     )
 
