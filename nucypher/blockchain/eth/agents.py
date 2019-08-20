@@ -150,14 +150,18 @@ class NucypherTokenAgent(EthereumContractAgent, metaclass=Agency):
 
     def transfer(self, amount: int, target_address: str, sender_address: str, auto_approve: bool = True):
         if auto_approve:
+            
             allowance = self.contract.functions.allowance(sender_address, target_address).call()
-            if allowance != 0:
+            
+            if allowance == 0: 
+                self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+        
+            elif amount > allowance:
                 delta = int(amount) - int(allowance)
                 self.increase_allowance(sender_address=sender_address,
                                         target_address=target_address,
                                         increase=delta)
-            else:
-                self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+        
         contract_function = self.contract.functions.transfer(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
