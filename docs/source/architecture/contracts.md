@@ -1,4 +1,4 @@
-# Nucypher Ethereum Contracts
+# NuCypher Ethereum Contracts
 
 
 ## Contract Listing
