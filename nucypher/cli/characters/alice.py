@@ -176,7 +176,7 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: #1216 - what are request_id and duration here?
 
     #
     # Get Alice Configuration

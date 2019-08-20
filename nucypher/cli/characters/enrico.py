@@ -17,6 +17,14 @@ from nucypher.cli.types import NETWORK_PORT
 def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, message):
     """
     "Enrico the Encryptor" management commands.
+
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    run       Start Enrico's controller.
+    encrypt   Encrypt a message under a given policy public key
+
     """
 
     #
