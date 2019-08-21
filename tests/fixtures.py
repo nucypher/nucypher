@@ -62,7 +62,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEMPORARY_DOMAIN,
                                                   TEST_PROVIDER_URI,
-                                                  INSECURE_DEVELOPMENT_PASSWORD, MOCK_REGISTRY_FILEPATH)
+                                                  INSECURE_DEVELOPMENT_PASSWORD, MOCK_REGISTRY_FILEPATH,
+                                                  TEST_GAS_LIMIT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
 from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
@@ -369,6 +370,11 @@ def _make_testerchain():
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
+    # Monkey patch to prevent gas adjustment
+    import eth
+    eth._utils.headers.GAS_LIMIT_MINIMUM = TEST_GAS_LIMIT
+    eth._utils.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
+    eth.vm.forks.frontier.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
     BlockchainInterfaceFactory.register_interface(interface=testerchain)
