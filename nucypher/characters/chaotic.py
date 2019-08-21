@@ -134,8 +134,8 @@ class Felix(Character, NucypherTokenActor):
     TEMPLATE_NAME = 'felix.html'
 
     # Intervals
-    DISTRIBUTION_INTERVAL = 60*60   # seconds (60*60=1Hr)
-    DISBURSEMENT_INTERVAL = 24      # (24) hours
+    DISTRIBUTION_INTERVAL = 60  # seconds (60*60=1Hr)
+    DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each year.
     STAGING_DELAY = 10              # seconds
 
     # Disbursement
