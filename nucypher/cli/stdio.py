@@ -40,11 +40,12 @@ def sendMessage(encodedMessage):
     sys.stdout.buffer.flush()
 
 
-
-
 try:
     while 6:
-        receivedMessage = getMessage()["action"]
+        command_data = getMessage()
+
+        specification = lookup[command_data['character']._specifications[command_data['action']]
+
         sendMessage(encodeMessage(receivedMessage))
 
 except Exception:
