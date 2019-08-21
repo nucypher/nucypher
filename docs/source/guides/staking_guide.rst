@@ -55,7 +55,7 @@ Most stakers will use the following commands in order:
 1. Create a new persistent stakeholder configuration
 2. Initialize a new stake
 3. List all Stakes
-4. Bond a worker to the stake
+4. Bond a worker to the staker
 5. Divide an existing Stake
 
 
@@ -138,7 +138,7 @@ Interactive Method
     | 2 | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
 
 
-*Bond an Ursula to a Stake*
+*Bond an Ursula to a Staker*
 
 .. code:: bash
 
