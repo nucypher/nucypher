@@ -47,6 +47,17 @@ All staking-related operations are performed through the ``nucypher stake`` comm
 +-----------------+--------------------------------------------+
 
 
+Staking Overview
+-----------------
+
+Most stakers will use the following commands in order:
+
+1. Create a new persistent stakeholder configuration
+2. Initialize a new stake
+3. List all Stakes
+4. Bond a worker to the stake
+5. Divide an existing Stake
+
 
 Interactive Method
 ------------------
@@ -125,6 +136,24 @@ Interactive Method
     | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
     | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
     | 2 | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+
+
+*Bond an Ursula to a Stake*
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake set-worker
+
+    ======================================= Active Stakes =========================================
+
+    | ~ | Staker | Worker | # | Value    | Duration     | Enactment
+    |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
+    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
+    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
+    | 2 | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+
+    Select Stake: 2
+    OK!
 
 
 *Divide an existing stake*
