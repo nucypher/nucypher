@@ -9,4 +9,3 @@ python:
     - docs
 formats:
     - epub
-    - pdf

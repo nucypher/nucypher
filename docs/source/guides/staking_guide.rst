@@ -57,8 +57,8 @@ Most stakers on the Goerli testnet will complete the following steps:
 2) Install and run Geth, Parity or another ethereum node.
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
-6) Initialize a Worker node and bond it to your Staker (`set-worker`) https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html
-7) Run the Worker, and keep it online!
+5) Initialize a Worker node and bond it to your Staker (`set-worker`) https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html
+6) Run the Worker, and keep it online!
 
 Interactive Method
 ------------------
