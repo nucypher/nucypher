@@ -139,7 +139,7 @@ def test_run_felix(click_runner,
                         blockchain=testerchain,
                         is_me=True)
 
-        assert staker.token_balance == NU(15000, 'NU')
+        assert staker.token_balance == NU(45000, 'NU')
 
         # TODO: Airdrop Testnet Ethers?
         # new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')

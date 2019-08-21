@@ -141,8 +141,8 @@ class Felix(Character, NucypherTokenActor):
     BATCH_SIZE = 10                 # transactions
     MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9, for example
                                     # this will result in 90 days of distribution
-    MINIMUM_DISBURSEMENT = 1e18     # NuNits
-    ETHER_AIRDROP_AMOUNT = 1e17     # Wei
+    MINIMUM_DISBURSEMENT = int(1e18)     # NuNits
+    ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -275,8 +275,7 @@ class Felix(Character, NucypherTokenActor):
                 last_transaction_date = last_recipient.last_disbursement_time.isoformat()
 
                 unfunded = session.query(self.Recipient).filter(
-                                    self.Recipient.last_disbursement_time.is_(None)
-                                ).count()
+                    self.Recipient.last_disbursement_time.is_(None)).count()
 
                 return json.dumps(
                         {
