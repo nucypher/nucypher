@@ -1,7 +1,7 @@
 /*
-On startup, connect to the "ping_pong" app.
+On startup, connect to the "nucypher" app.
 */
-var port = browser.runtime.connectNative("ping_pong");
+var port = browser.runtime.connectNative("nucypher");
 
 
 /*

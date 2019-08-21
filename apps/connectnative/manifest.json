@@ -1,8 +1,8 @@
 {
 
-  "description": "Native messaging example add-on",
+  "description": "Nucypher Character Control add-on",
   "manifest_version": 2,
-  "name": "Native messaging example",
+  "name": "Nucypher",
   "version": "1.0",
   "icons": {
     "48": "icons/message.svg"
@@ -10,7 +10,7 @@
 
   "applications": {
     "gecko": {
-      "id": "ping_pong@example.org",
+      "id": "nucypher@nucypher.com",
       "strict_min_version": "50.0"
     }
   },
@@ -22,7 +22,7 @@
   "browser_action": {
     "default_icon": "icons/message.svg"
   },
-  
+
   "permissions": ["nativeMessaging"]
 
 }
