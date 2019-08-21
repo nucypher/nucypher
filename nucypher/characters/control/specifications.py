@@ -60,6 +60,8 @@ class CharacterSpecification(ABC):
 
 class AliceSpecification(CharacterSpecification):
 
+    _name = "alice"
+
     __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
 
@@ -90,6 +92,8 @@ class AliceSpecification(CharacterSpecification):
 
 class BobSpecification(CharacterSpecification):
 
+    _name = "bob"
+
     __join_policy = (('label', 'alice_verifying_key'),
                      ('policy_encrypting_key', ))
 
@@ -106,7 +110,16 @@ class BobSpecification(CharacterSpecification):
 
 class EnricoSpecification(CharacterSpecification):
 
+    _name = "enrico"
+
     __encrypt_message = (('message', ),
                          ('message_kit', 'signature'))
 
     _specifications = {'encrypt_message': __encrypt_message}
+
+
+ALL_SPECIFICATIONS = [
+    AliceSpecification,
+    BobSpecification,
+    EnricoSpecification,
+]
