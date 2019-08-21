@@ -21,37 +21,30 @@ If your installation in non-functional, be sure you have the latest version inst
 
 
 
-2(a). Configure a new Ursula node
+2. Configure a new Ursula node
 
 *Decentralized Ursula Configuration*
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK NAME>
+    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK NAME> --poa
+
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``ipc:///tmp/geth.ipc``   - Geth Development Node (IPC; **Note**: Also use ``--poa`` flag)
+    - ``file:///tmp/geth.ipc``   - Geth Development Node
     - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
     - ``ws://0.0.0.0:8080``     - Websocket Provider
 
-2(b). Configure a new Ursula node
 
-*Federated Ursula Initialization*
-
-.. code:: bash
-
-    (nucypher)$ nucypher ursula init --federated-only --network <NETWORK NAME>
-
-
-3. Enter your public-facing IPv4 address when prompted
+3. Enter or confirm your public-facing IPv4 address when prompted
 
 .. code:: bash
 
     Enter Nodes Public IPv4 Address: <YOUR NODE IP HERE>
 
 
-4. Enter a password when prompted
+4. Create a password when prompted
 
 .. code:: bash
 
@@ -63,16 +56,15 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
     - Minimum password length is 16 characters
     - Do not use a password that you use anywhere else
-    - Security audits are ongoing on this codebase. For now, treat it as un-audited.
 
-5. Connect to a fleet
+5. Connect to a Fleet
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run --teacher <SEEDNODE_URI>
+    (nucypher)$ nucypher ursula run --teacher <SEEDNODE_URI> --interactive
 
 
-6. Verify Node Connection
+6. Verify Ursula Blockchain Connection (Interactive)
 
 This will drop your terminal session into the “Ursula Interactive Console” indicated by the ``>>>``.
 Verify that the node setup was successful by running the ``status`` command.
@@ -82,7 +74,7 @@ Verify that the node setup was successful by running the ``status`` command.
     Ursula >>> status
 
 
-7. To view a list of known nodes, execute the ``known_nodes`` command
+7. To view a list of known Ursulas, execute the ``known_nodes`` command
 
 .. code:: bash
 
@@ -92,7 +84,7 @@ Verify that the node setup was successful by running the ``status`` command.
 You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
 
 .. NOTE::
-    Since nodes self-sign TLS certificates, you may receive a warning from your web browser.
+    Since Ursulas self-sign TLS certificates, you may receive a warning from your web browser.
 
 
 8. To stop your node from the interactive console and return to the terminal session:
@@ -106,4 +98,4 @@ You can also view your node’s network status webpage by navigating your web br
 
 .. code:: bash
 
-    (nucypher)$ nucypher ursula run
+    (nucypher)$ nucypher ursula run --poa

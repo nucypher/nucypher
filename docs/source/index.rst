@@ -109,13 +109,11 @@ Whitepapers
    :caption: Guides
 
    guides/quickstart
-   guides/federated_testnet_guide
    guides/installation_guide
-   guides/ursula_configuration_guide
-   guides/contribution_guide
-   guides/character_control_guide
    guides/staking_guide
-   guides/deployment_guide
+   guides/ursula_configuration_guide
+   guides/character_control_guide
+   guides/contribution_guide
 
 .. toctree::
    :maxdepth: 1
