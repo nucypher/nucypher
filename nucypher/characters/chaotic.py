@@ -143,7 +143,7 @@ class Felix(Character, NucypherTokenActor):
     MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9, for example
                                     # this will result in 90 days of distribution
     MINIMUM_DISBURSEMENT = 1e18     # NuNits
-    ETHER_AIRDROP_AMOUNT = 0        # Wei  Local modification to prevent eth distribution
+    ETHER_AIRDROP_AMOUNT = 1e17     # Wei
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -165,7 +165,7 @@ class Felix(Character, NucypherTokenActor):
                  client_password: str = None,
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
-                 distribute_ether: bool = False,
+                 distribute_ether: bool = True,
                  registry: BaseContractRegistry = None,
                  *args, **kwargs):
 
@@ -416,6 +416,14 @@ class Felix(Character, NucypherTokenActor):
                            'value': ether,
                            'gasPrice': self.blockchain.client.gasPrice}
             ether_txhash = self.blockchain.client.send_transaction(transaction)
+
+            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
+                          f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
+
+        else:
+            self.log.info(
+                f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
+                f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
 
         self.log.info(
             f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
