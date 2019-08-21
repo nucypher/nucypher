@@ -50,14 +50,15 @@ All staking-related operations are performed through the ``nucypher stake`` comm
 Staking Overview
 -----------------
 
-Most stakers will use the following commands in order:
 
-1. Create a new persistent stakeholder configuration
-2. Initialize a new stake
-3. List all Stakes
-4. Bond a worker to the stake
-5. Divide an existing Stake
+Most stakers on the Goerli testnet will complete the following steps:
 
+1) Install nucypher https://docs.nucypher.com/en/latest/guides/installation_guide.html
+2) Install and run Geth, Parity or another ethereum node.
+3) Request testnet tokens from faucet
+4) Stake tokens (See Below)
+6) Initialize a Worker node and bond it to your Staker (`set-worker`) https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html
+7) Run the Worker, and keep it online!
 
 Interactive Method
 ------------------
@@ -138,7 +139,7 @@ Interactive Method
     | 2 | 0xbb03 |    -   | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
 
-*Bond an Ursula to a Stake*
+*Bond an Ursula to a Staker*
 
 .. code:: bash
 
