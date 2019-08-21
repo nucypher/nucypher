@@ -133,16 +133,16 @@ class Felix(Character, NucypherTokenActor):
     TEMPLATE_NAME = 'felix.html'
 
     # Intervals
-    DISTRIBUTION_INTERVAL = 60  # seconds (60*60=1Hr)
-    DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each year.
-    STAGING_DELAY = 10              # seconds
+    DISTRIBUTION_INTERVAL = 60  # seconds
+    DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each YEAR.
+    STAGING_DELAY = 10        # seconds
 
     # Disbursement
     BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9, for example
-                                    # this will result in 90 days of distribution
-    MINIMUM_DISBURSEMENT = int(1e18)     # NuNits
-    ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei
+    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9
+                                    # this is not relevant until the year of time declared above, passes.
+    MINIMUM_DISBURSEMENT = int(1e18)     # NuNits (1 NU)
+    ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei (.1 ether)
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
