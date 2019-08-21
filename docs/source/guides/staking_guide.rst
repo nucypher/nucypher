@@ -55,7 +55,7 @@ Most stakers will use the following commands in order:
 1. Create a new persistent stakeholder configuration
 2. Initialize a new stake
 3. List all Stakes
-4. Bond a worker to the staker
+4. Bond a worker to the stake
 5. Divide an existing Stake
 
 
@@ -135,10 +135,10 @@ Interactive Method
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
     | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
     | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+    | 2 | 0xbb03 |    -   | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
 
-*Bond an Ursula to a Staker*
+*Bond an Ursula to a Stake*
 
 .. code:: bash
 
@@ -150,9 +150,12 @@ Interactive Method
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
     | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
     | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 | 0xbb04 | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+    | 2 | 0xbb03 |   -    | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
 
     Select Stake: 2
+    Enter Worker Address: 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
+    Worker 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA successfully bonded to staker 0xbb03...
+
     OK!
 
 
@@ -188,7 +191,7 @@ Interactive Method
     Successfully divided stake
     OK | 0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572 (85128 gas)
     Block #1146153 | 0x2f87bccff86bf48d18f8ab0f54e30236bce6ca5ea9f85f3165c7389f2ea44e45
-     See https://goerli.etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
+    See https://goerli.etherscan.io/tx/0xfa30927f05967b9a752402db9faecf146c46eda0740bd3d67b9e86dd908b6572
 
     ======================================= Active Stakes =========================================
 

@@ -663,7 +663,7 @@ class NucypherKeyring:
         """
         rules = (
             (bool(password), 'Password must not be blank.'),
-            (len(password) >= 16, 'Password is too short, must be >= 16 chars.'),
+            (len(password) >= 16, 'Password is too short.'),
         )
 
         failures = list()
