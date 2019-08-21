@@ -271,8 +271,9 @@ class Felix(Character, NucypherTokenActor):
                 last_recipient = session.query(self.Recipient).filter(
                     self.Recipient.last_disbursement_time.isnot(None)
                 ).order_by('last_disbursement_time').first()
-                last_address = last_recipient.address
-                last_transaction_date = last_recipient.last_disbursement_time.isoformat()
+
+                last_address = last_recipient.address if last_recipient else None
+                last_transaction_date = last_recipient.last_disbursement_time.isoformat() if last_recipient else None
 
                 unfunded = session.query(self.Recipient).filter(
                     self.Recipient.last_disbursement_time.is_(None)).count()
@@ -284,21 +285,20 @@ class Felix(Character, NucypherTokenActor):
                             "latest_disburse_date": last_transaction_date,
                             "unfunded_recipients": unfunded,
                             "state": {
-                                "eth": self.eth_balance(),
-                                "NU": self.token_balance(),
+                                "eth": str(self.eth_balance),
+                                "NU": str(self.token_balance),
                                 "address": self.checksum_address,
+                                "contract_address": self.token_agent.contract_address,
                             }
                         }
                     )
 
         @rest_app.route("/", methods=['GET'])
-        @limiter.limit("100/day;20/hour;1/minute")
         def home():
             rendering = render_template(self.TEMPLATE_NAME)
             return rendering
 
         @rest_app.route("/register", methods=['POST'])
-        @limiter.limit("5 per day")
         def register():
             """Handle new recipient registration via POST request."""
 
@@ -533,4 +533,3 @@ class Felix(Character, NucypherTokenActor):
 
         del self._AIRDROP_QUEUE[self.__airdrop]
         self.__airdrop += 1
-
