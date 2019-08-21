@@ -25,7 +25,7 @@ from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.economics import TokenEconomics
-from nucypher.blockchain.eth.actors import Administrator
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
@@ -216,7 +216,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = Administrator(deployer_address=origin, registry=registry)
+        deployer = ContractAdministrator(deployer_address=origin, registry=registry)
         secrets = dict()
         for deployer_class in deployer.upgradeable_deployer_classes:
             secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD

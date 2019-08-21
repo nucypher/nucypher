@@ -151,7 +151,7 @@ class Stake:
                  checksum_address: str,
                  value: NU,
                  first_locked_period: int,
-                 last_locked_period: int,
+                 final_locked_period: int,
                  index: int,
                  economics=None,
                  validate_now: bool = True):
@@ -174,11 +174,11 @@ class Stake:
         # This is the last period that can be confirmed for this stake.
         # Meaning, It must be confirmed in the previous period,
         # and no confirmation can be performed in this period for this stake.
-        self.last_locked_period = last_locked_period
+        self.final_locked_period = final_locked_period
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period)
-        self.unlock_datetime = datetime_at_period(period=last_locked_period + 1)
+        self.unlock_datetime = datetime_at_period(period=final_locked_period + 1)
 
         # Blockchain
         self.staking_agent = staking_agent
@@ -196,7 +196,7 @@ class Stake:
         self.receipt = NO_STAKING_RECEIPT  # TODO: Implement for initialize stake
 
     def __repr__(self) -> str:
-        r = f'Stake(index={self.index}, value={self.value}, end_period={self.last_locked_period})'
+        r = f'Stake(index={self.index}, value={self.value}, end_period={self.final_locked_period})'
         return r
 
     def __eq__(self, other) -> bool:
@@ -209,7 +209,7 @@ class Stake:
     @property
     def is_expired(self) -> bool:
         current_period = self.staking_agent.get_current_period()  # TODO this is online only.
-        return bool(current_period > self.last_locked_period)
+        return bool(current_period > self.final_locked_period)
 
     @property
     def is_active(self) -> bool:
@@ -225,12 +225,12 @@ class Stake:
                         ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
-        first_locked_period, last_locked_period, value = stake_info
+        first_locked_period, final_locked_period, value = stake_info
 
         instance = cls(checksum_address=checksum_address,
                        index=index,
                        first_locked_period=first_locked_period,
-                       last_locked_period=last_locked_period,
+                       final_locked_period=final_locked_period,
                        value=NU(value, 'NuNit'),
                        *args, **kwargs)
 
@@ -239,7 +239,7 @@ class Stake:
 
     def to_stake_info(self) -> Tuple[int, int, int]:
         """Returns a tuple representing the blockchain record of a stake"""
-        return self.first_locked_period, self.last_locked_period, int(self.value)
+        return self.first_locked_period, self.final_locked_period, int(self.value)
 
     #
     # Duration
@@ -248,14 +248,14 @@ class Stake:
     @property
     def duration(self) -> int:
         """Return stake duration in periods"""
-        result = (self.last_locked_period - self.first_locked_period) + 1
+        result = (self.final_locked_period - self.first_locked_period) + 1
         return result
 
     @property
     def periods_remaining(self) -> int:
         """Returns the number of periods remaining in the stake from now."""
         current_period = self.staking_agent.get_current_period()  # TODO this is online only.
-        return self.last_locked_period - current_period + 1
+        return self.final_locked_period - current_period + 1
 
     def time_remaining(self, slang: bool = False) -> Union[int, str]:
         """
@@ -332,7 +332,7 @@ class Stake:
             raise self.StakingError("Inconsistent staking cache, aborting stake division.")
 
         # Mutate the instance with the on-chain values
-        self.last_locked_period = last_period
+        self.final_locked_period = last_period
         self.value = NU.from_nunits(locked_value)
         self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.staker_address)
 
@@ -378,15 +378,15 @@ class Stake:
         modified_stake = Stake(checksum_address=self.staker_address,
                                index=self.index,
                                first_locked_period=self.first_locked_period,
-                               last_locked_period=self.last_locked_period,
+                               final_locked_period=self.final_locked_period,
                                value=remaining_stake_value,
                                staking_agent=self.staking_agent)
 
         # New Derived Stake
-        end_period = self.last_locked_period + additional_periods
+        end_period = self.final_locked_period + additional_periods
         new_stake = Stake(checksum_address=self.staker_address,
                           first_locked_period=self.first_locked_period,
-                          last_locked_period=end_period,
+                          final_locked_period=end_period,
                           value=target_value,
                           index=NEW_STAKE,
                           staking_agent=self.staking_agent)
@@ -420,11 +420,11 @@ class Stake:
 
         # Duration
         current_period = staker.staking_agent.get_current_period()
-        last_locked_period = current_period + lock_periods
+        final_locked_period = current_period + lock_periods
 
         stake = Stake(checksum_address=staker.checksum_address,
                       first_locked_period=current_period + 1,
-                      last_locked_period=last_locked_period,
+                      final_locked_period=final_locked_period,
                       value=amount,
                       index=NEW_STAKE,
                       staking_agent=staker.staking_agent)
@@ -583,8 +583,8 @@ class StakeList(UserList):
                                                       index=onchain_index)
 
                 # rack the latest terminal period
-                if onchain_stake.last_locked_period > terminal_period:
-                    terminal_period = onchain_stake.last_locked_period
+                if onchain_stake.final_locked_period > terminal_period:
+                    terminal_period = onchain_stake.final_locked_period
 
             # Store the replacement stake
             onchain_stakes.append(onchain_stake)

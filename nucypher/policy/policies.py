@@ -366,7 +366,8 @@ class Policy(ABC):
                                     *args, **kwargs)
 
         if len(self._accepted_arrangements) < self.n:
-            raise self.Rejected("Selected Ursulas rejected too many arrangements")
+            raise self.Rejected(f'Selected Ursulas rejected too many arrangements '
+                                f'- only {self._accepted_arrangements} of {self.n} accepted.')
 
     @abstractmethod
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):

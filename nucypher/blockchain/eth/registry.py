@@ -84,9 +84,9 @@ class BaseContractRegistry(ABC):
     @property
     def id(self) -> str:
         """Returns a hexstr of the registry contents."""
-        md5 = hashlib.md5()
-        md5.update(json.dumps(self.read()).encode())
-        digest = md5.digest().hex()
+        blake = hashlib.blake2b()
+        blake.update(json.dumps(self.read()).encode())
+        digest = blake.digest().hex()
         return digest
 
     @abstractmethod
@@ -245,7 +245,7 @@ class LocalContractRegistry(BaseContractRegistry):
         # Ensure parent path exists
         os.makedirs(abspath(dirname(self.__filepath)), exist_ok=True)
 
-        with open(self.__filepath, 'w+') as registry_file:
+        with open(self.__filepath, 'w') as registry_file:
             registry_file.seek(0)
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()

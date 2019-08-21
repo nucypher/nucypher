@@ -83,7 +83,7 @@ class ContractDeployer:
 
     @property
     def economics(self) -> TokenEconomics:
-        """Read-only access for ecnomics instance."""
+        """Read-only access for economics instance."""
         return self.__economics
 
     @property

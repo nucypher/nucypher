@@ -89,7 +89,7 @@ def test_staker_divides_stake(staker, token_economics):
 
     expected_new_stake = (current_period + 1, current_period + 32, new_stake_value - yet_another_stake_value)
     expected_yet_another_stake = Stake(first_locked_period=current_period + 1,
-                                       last_locked_period=current_period + 34,
+                                       final_locked_period=current_period + 34,
                                        value=yet_another_stake_value,
                                        checksum_address=staker.checksum_address,
                                        index=3,

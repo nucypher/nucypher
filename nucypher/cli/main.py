@@ -57,17 +57,16 @@ Inversely, commenting out an entry point here will disable it.
 
 ENTRY_POINTS = (
 
-    # Utility Sub-Commands
     # Utility Commands
-    status.status,  # Network Status
-    stake.stake,  # Stake Management
+    status.status,    # Network Status
     # device.device,  # TODO: nucypher device  # Hardware Wallet Management
 
     # Characters
-    alice.alice,  # Author of Policies
-    bob.bob,  # Builder of Capsules
+    alice.alice,    # Author of Policies
+    bob.bob,        # Builder of Capsules
     enrico.enrico,  # Encryptor of Data
-    moe.moe,  # Monitor
+    stake.stake,    # Stake Management
+    moe.moe,        # Monitor
     ursula.ursula,  # Untrusted Re-Encryption Proxy
     felix.felix     # Faucet
 )

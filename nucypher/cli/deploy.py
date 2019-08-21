@@ -20,7 +20,7 @@ import os
 
 import click
 
-from nucypher.blockchain.eth.actors import Administrator
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry
@@ -156,9 +156,9 @@ def deploy(action,
         password = get_client_password(checksum_address=deployer_address)
 
     # Produce Actor
-    ADMINISTRATOR = Administrator(registry=registry,
-                             client_password=password,
-                             deployer_address=deployer_address)
+    ADMINISTRATOR = ContractAdministrator(registry=registry,
+                                          client_password=password,
+                                          deployer_address=deployer_address)
 
     # Verify ETH Balance
     emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")

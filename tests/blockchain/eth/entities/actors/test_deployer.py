@@ -21,7 +21,7 @@ import string
 import pytest
 from web3.auto import w3
 
-from nucypher.blockchain.eth.actors import Administrator
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -51,8 +51,8 @@ def test_rapid_deployment(token_economics, test_registry):
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = Administrator(deployer_address=deployer_address,
-                             registry=test_registry)
+    deployer = ContractAdministrator(deployer_address=deployer_address,
+                                     registry=test_registry)
 
     secrets = dict()
     for deployer_class in deployer.upgradeable_deployer_classes:

@@ -127,7 +127,7 @@ class NucypherTokenActor:
         return nu_balance
 
 
-class Administrator(NucypherTokenActor):
+class ContractAdministrator(NucypherTokenActor):
     """
     The administrator of network contracts.
     """
@@ -475,10 +475,10 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - current_stake.last_locked_period
+            additional_periods = datetime_to_period(datetime=expiration) - current_stake.final_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.last_locked_period}).")
+                                         f"current stake's end period ({current_stake.final_locked_period}).")
 
         # Do it already!
         modified_stake, new_stake = current_stake.divide(target_value=target_value,
@@ -597,7 +597,7 @@ class Worker(NucypherTokenActor):
         pass
 
     class DetachedWorker(WorkerError):
-        """Raised when the worker address is not assigned an on-chain stake in the StakingEscrow contract."""
+        """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
 
     def __init__(self,
                  is_me: bool,

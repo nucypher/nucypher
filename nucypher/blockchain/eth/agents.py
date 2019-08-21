@@ -130,7 +130,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
     def get_balance(self, address: str = None) -> int:
-        """Get the balance of a token address, or of this contract address"""
+        """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
@@ -141,7 +141,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
-        """Approve the transfer of token from the sender address to the target address."""
+        """Approve the transfer of tokens from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
         contract_function = self.contract.functions.approve(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

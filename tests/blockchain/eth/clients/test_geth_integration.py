@@ -4,7 +4,7 @@ import pytest
 from eth_utils import is_checksum_address
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.actors import Administrator
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface, \
     BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -60,9 +60,9 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
 
     # Make Deployer
     etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
-    administrator = Administrator(registry=test_registry,
-                                  deployer_address=etherbase,
-                                  client_password=None)  # dev accounts have no password.
+    administrator = ContractAdministrator(registry=test_registry,
+                                          deployer_address=etherbase,
+                                          client_password=None)  # dev accounts have no password.
 
     assert int(blockchain.client.chain_id) == 1337
 
