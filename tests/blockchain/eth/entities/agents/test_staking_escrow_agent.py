@@ -74,7 +74,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
                                            lock_periods=token_economics.minimum_locked_periods,
                                            sender_address=staker_account)
 
-    # Check the receipt for the contract staker_address success code
+    # Check the receipt for the contract address success code
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][2]['address'] == staking_agent.contract_address
 
@@ -144,7 +144,7 @@ def test_get_swarm(agency, blockchain_ursulas):
     swarm_addresses = list(swarm)
     assert len(swarm_addresses) == len(blockchain_ursulas) + 1
 
-    # Grab a staker staker_address from the swarm
+    # Grab a staker address from the swarm
     staker_addr = swarm_addresses[0]
     assert isinstance(staker_addr, str)
     assert is_address(staker_addr)

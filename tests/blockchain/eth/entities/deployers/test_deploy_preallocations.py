@@ -53,9 +53,9 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics,
 
         _deployment_txhashes = escrow_deployer.deploy()
 
-        # Ensure we have the correct assembly of staker_address and abi
+        # Ensure we have the correct assembly of address and abi
         assert escrow_deployer.contract.address == escrow_deployer.contract.address
-        # assert escrow_deployer.contract_address == user_escrow_proxy  # (staker_address)
+        # assert escrow_deployer.contract_address == user_escrow_proxy  # (address)
 
         # Ensure each deployment is unique
         if _last_deployment_address:
@@ -74,7 +74,7 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics,
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_receipt = deployer.initial_deposit(value=allocation, lock_periods=token_economics.maximum_locked_periods)
+        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_locked_periods)
         deposit_receipts.append(deposit_receipt)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)

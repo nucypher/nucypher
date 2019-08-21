@@ -201,7 +201,7 @@ class WebEmitter:
         response_data = {'result': response,
                          'version': str(nucypher.__version__),
                          'id': str(request_id),
-                         'lock_periods': str(duration)}
+                         'duration': str(duration)}
         return response_data
 
     def exception(drone_character,

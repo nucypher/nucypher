@@ -98,7 +98,7 @@ def test_stake_init(click_runner,
                     agency,
                     manual_staker):
 
-    # Staker staker_address has not stakes
+    # Staker address has not stakes
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
     assert not stakes
@@ -320,7 +320,7 @@ def test_collect_rewards_integration(click_runner,
     testerchain.transacting_power = TransactingPower(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
     testerchain.transacting_power.activate()
 
-    # Confirm for half the first stake lock_periods
+    # Confirm for half the first stake duration
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         ursula.confirm_activity()
@@ -385,7 +385,7 @@ def test_collect_rewards_integration(click_runner,
     # WHERES THE MONEY URSULA?? - Collecting Rewards
     #
 
-    # The staker_address the client wants Ursula to send rewards to
+    # The address the client wants Ursula to send rewards to
     burner_wallet = testerchain.w3.eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
 
     # The rewards wallet is initially empty, because it is freshly created

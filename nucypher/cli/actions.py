@@ -146,7 +146,7 @@ def get_external_ip_from_centralized_source() -> str:
     ip_request = requests.get('https://ifconfig.me/')
     if ip_request.status_code == 200:
         return ip_request.text
-    raise UnknownIPAddress(f"There was an error determining the IP staker_address automatically. "
+    raise UnknownIPAddress(f"There was an error determining the IP address automatically. "
                            f"(status code {ip_request.status_code})")
 
 
@@ -163,8 +163,8 @@ def determine_external_ip_address(emitter, force: bool = False) -> str:
     else:
         # Interactive
         if not force:
-            if not click.confirm(f"Is this the public-facing IPv4 staker_address ({rest_host}) you want to use for Ursula?"):
-                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 staker_address here:", type=IPV4_ADDRESS)
+            if not click.confirm(f"Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"):
+                rest_host = click.prompt("Please enter Ursula's public-facing IPv4 address here:", type=IPV4_ADDRESS)
         else:
             emitter.message(f"WARNING: --force is set, using auto-detected IP '{rest_host}'", color='yellow')
 
@@ -208,7 +208,7 @@ By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
 - Staked tokens will be locked for the stake duration.
 
 - You are obligated to maintain a networked and available Ursula-Worker node 
-  bonded to the staker staker_address {staker_address} for the duration 
+  bonded to the staker address {staker_address} for the duration 
   of the stake(s) ({lock_periods} periods).
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption

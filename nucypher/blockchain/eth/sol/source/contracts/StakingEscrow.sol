@@ -124,7 +124,7 @@ contract StakingEscrow is Issuer {
     WorkLockInterface public workLock;
 
     /**
-    * @notice Constructor sets staker_address of token contract and coefficients for mining
+    * @notice Constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient
@@ -174,7 +174,7 @@ contract StakingEscrow is Issuer {
 
     //------------------------Initialization------------------------
     /**
-    * @notice Set policy manager staker_address
+    * @notice Set policy manager address
     **/
     function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
         require(address(policyManager) == address(0), "Policy manager can be set only once");
@@ -184,7 +184,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Set adjudicator staker_address
+    * @notice Set adjudicator address
     **/
     function setAdjudicator(AdjudicatorInterface _adjudicator) external onlyOwner {
         require(address(adjudicator) == address(0), "Adjudicator can be set only once");
@@ -355,11 +355,11 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get worker using staker's staker_address
+    * @notice Get worker using staker's address
     **/
     function getWorkerFromStaker(address _staker) public view returns (address) {
         StakerInfo storage info = stakerInfo[_staker];
-        // specified staker_address is not a staker
+        // specified address is not a staker
         if (stakerInfo[_staker].subStakes.length == 0) {
             return address(0);
         }
@@ -367,7 +367,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Get staker using worker's staker_address
+    * @notice Get staker using worker's address
     **/
     function getStakerFromWorker(address _worker) public view returns (address) {
         return workerToStaker[_worker];
@@ -398,7 +398,7 @@ contract StakingEscrow is Issuer {
     /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
     * @notice Set worker
-    * @param _worker Worker staker_address. Must be a real staker_address, not a contract
+    * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
@@ -420,7 +420,7 @@ contract StakingEscrow is Issuer {
             workerToStaker[_worker] = msg.sender;
         }
 
-        // Set new worker (or unset if _worker == staker_address(0))
+        // Set new worker (or unset if _worker == address(0))
         info.worker = _worker;
         info.workerStartPeriod = currentPeriod;
         emit WorkerSet(msg.sender, _worker, currentPeriod);
@@ -491,11 +491,11 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Implementation of the receiveApproval(staker_address,uint256,staker_address,bytes) method
+    * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
     * (see NuCypherToken contract). Deposit all tokens that were approved to transfer
     * @param _from Staker
     * @param _value Amount of tokens to deposit
-    * @param _tokenContract Token contract staker_address
+    * @param _tokenContract Token contract address
     * @notice (param _extraData) Amount of periods during which tokens will be locked
     **/
     function receiveApproval(
@@ -759,7 +759,7 @@ contract StakingEscrow is Issuer {
     function mint() external onlyStaker {
         // save last active period to the storage if both periods will be empty after minting
         // because we won't be able to calculate last active period
-        // see getLastActivePeriod(staker_address)
+        // see getLastActivePeriod(address)
         StakerInfo storage info = stakerInfo[msg.sender];
         uint16 previousPeriod = getCurrentPeriod().sub16(1);
         if (info.confirmedPeriod1 <= previousPeriod &&
@@ -828,7 +828,7 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Calculate reward for one period
-    * @param _staker Staker's staker_address
+    * @param _staker Staker's address
     * @param _info Staker structure
     * @param _confirmedPeriodNumber Number of confirmed period (1 or 2)
     * @param _currentPeriod Current period
@@ -934,7 +934,7 @@ contract StakingEscrow is Issuer {
     //-------------------------Slashing-------------------------
     /**
     * @notice Slash the staker's stake and reward the investigator
-    * @param _staker Staker's staker_address
+    * @param _staker Staker's address
     * @param _penalty Penalty
     * @param _investigator Investigator
     * @param _reward Reward for the investigator

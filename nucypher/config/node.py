@@ -469,7 +469,7 @@ class CharacterConfiguration(BaseConfiguration):
                 if not os.path.exists(self.provider_process.data_dir):
                     os.mkdir(self.provider_process.data_dir)
 
-                # Get or create wallet staker_address
+                # Get or create wallet address
                 if not self.checksum_address:
                     self.checksum_address = self.provider_process.ensure_account_exists(password=password)
                 elif self.checksum_address not in self.provider_process.accounts():

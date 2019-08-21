@@ -144,7 +144,7 @@ MOCK_URSULA_DB_FILEPATH = ':memory:'
 # Gas
 #
 
-TEST_GAS_LIMIT = 6_200_000  # gas 
+TEST_GAS_LIMIT = 6_200_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 

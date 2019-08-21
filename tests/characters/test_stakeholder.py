@@ -116,7 +116,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     testerchain.transacting_power = TransactingPower(account=manual_worker)
     testerchain.transacting_power.activate()
 
-    # Wait out stake lock_periods, manually confirming activity once per period.
+    # Wait out stake lock periods, manually confirming activity once per period.
     for period in range(stake.periods_remaining-1):
         worker.confirm_activity()
         testerchain.time_travel(periods=1)

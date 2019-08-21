@@ -54,9 +54,9 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=True)
 @click.option('--policy-reward/--no-policy-reward', is_flag=True, default=True)
-@click.option('--withdraw-address', help="Send reward collection to an alternate staker_address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
-@click.option('--lock-periods', help="Period lock_periods of stake", type=click.INT)
+@click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @nucypher_click_config
 def stake(click_config,
@@ -166,7 +166,7 @@ def stake(click_config,
             staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
 
         if not worker_address:
-            worker_address = click.prompt("Enter worker staker_address", type=EIP55_CHECKSUM_ADDRESS)
+            worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
 
         # TODO: Check preconditions (e.g., minWorkerPeriods, already in use, etc)
 
@@ -252,7 +252,7 @@ def stake(click_config,
         value = NU.from_tokens(value)
 
         if not lock_periods:
-            prompt = f"Enter stake lock_periods ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
+            prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
             lock_periods = click.prompt(prompt, type=STAKE_DURATION)
 
         start_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -336,7 +336,7 @@ def stake(click_config,
         return  # Exit
 
     elif action == 'collect-reward':
-        """Withdraw staking reward to the specified wallet staker_address"""
+        """Withdraw staking reward to the specified wallet address"""
 
         password = None
         if not hw_wallet and not blockchain.client.is_local:

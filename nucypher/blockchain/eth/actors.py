@@ -104,12 +104,12 @@ class NucypherTokenActor:
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{}(staker_address='{}')"
+        r = "{}(address='{}')"
         r = r.format(class_name, self.checksum_address)
         return r
 
     def __eq__(self, other) -> bool:
-        """Actors are equal if they have the same staker_address."""
+        """Actors are equal if they have the same address."""
         return bool(self.checksum_address == other.checksum_address)
 
     @property
@@ -314,9 +314,9 @@ class Administrator(NucypherTokenActor):
 
         Example allocation dataset (one year is 31536000 seconds):
 
-        data = [{'staker_address': '0xdeadbeef', 'amount': 100, 'lock_periods': 31536000},
-                {'staker_address': '0xabced120', 'amount': 133432, 'lock_periods': 31536000*2},
-                {'staker_address': '0xf7aefec2', 'amount': 999, 'lock_periods': 31536000*3}]
+        data = [{'beneficiary_address': '0xdeadbeef', 'amount': 100, 'duration_seconds': 31536000},
+                {'beneficiary_address': '0xabced120', 'amount': 133432, 'duration_seconds': 31536000*2},
+                {'beneficiary_address': '0xf7aefec2', 'amount': 999, 'duration_seconds': 31536000*3}]
         """
         if allocation_registry and allocation_outfile:
             raise self.ActorError("Pass either allocation registry or allocation_outfile, not both.")
@@ -329,17 +329,17 @@ class Administrator(NucypherTokenActor):
 
             try:
                 txhashes = deployer.deliver(value=allocation['amount'],
-                                            duration=allocation['lock_periods'],
-                                            beneficiary_address=allocation['staker_address'])
+                                            duration=allocation['duration_seconds'],
+                                            beneficiary_address=allocation['beneficiary_address'])
             except TransactionFailed:
                 if crash_on_failure:
                     raise
-                self.log.debug(f"Failed allocation transaction for {allocation['amount']} to {allocation['staker_address']}")
+                self.log.debug(f"Failed allocation transaction for {allocation['amount']} to {allocation['beneficiary_address']}")
                 failed.append(allocation)
                 continue
 
             else:
-                allocation_txhashes[allocation['staker_address']] = txhashes
+                allocation_txhashes[allocation['beneficiary_address']] = txhashes
 
         if failed:
             # TODO: More with these failures: send to isolated logfile, and reattempt
@@ -434,7 +434,7 @@ class Staker(NucypherTokenActor):
         return bool(self.stakes)
 
     def locked_tokens(self, periods: int = 0) -> NU:
-        """Returns the amount of tokens this staker has locked for a given lock_periods in periods."""
+        """Returns the amount of tokens this staker has locked for a given duration in periods."""
         self.stakes.refresh()
         raw_value = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=periods)
         value = NU.from_nunits(raw_value)
@@ -456,7 +456,7 @@ class Staker(NucypherTokenActor):
                      additional_periods: int = None,
                      expiration: maya.MayaDT = None) -> tuple:
 
-        # Calculate lock_periods in periods
+        # Calculate duration in periods
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
@@ -473,7 +473,7 @@ class Staker(NucypherTokenActor):
                 message = "Cannot divide stake - There are no active stakes."
             raise Stake.StakingError(message)
 
-        # Calculate stake lock_periods in periods
+        # Calculate stake duration in periods
         if expiration:
             additional_periods = datetime_to_period(datetime=expiration) - current_stake.last_locked_period
             if additional_periods <= 0:
@@ -597,7 +597,7 @@ class Worker(NucypherTokenActor):
         pass
 
     class DetachedWorker(WorkerError):
-        """Raised when the worker staker_address is not assigned an on-chain stake in the StakingEscrow contract."""
+        """Raised when the worker address is not assigned an on-chain stake in the StakingEscrow contract."""
 
     def __init__(self,
                  is_me: bool,
@@ -663,7 +663,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                  checksum_address: str,
                  economics: TokenEconomics = None,
                  rate: int = None,
-                 lock_periods: int = None,
+                 duration_periods: int = None,
                  first_period_reward: int = None,
                  *args, **kwargs):
         """
@@ -680,7 +680,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
         self.economics = economics or TokenEconomics()
         self.rate = rate
-        self.lock_periods = lock_periods
+        self.duration_periods = duration_periods
         self.first_period_reward = first_period_reward
 
         policy_value_specified = self.rate and self.first_period_reward
@@ -690,7 +690,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
-                                   lock_periods: int = None,
+                                   duration_periods: int = None,
                                    expiration: maya.MayaDT = None,
                                    value: int = None,
                                    rate: int = None,
@@ -700,30 +700,30 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         Construct policy creation from parameters or overrides.
         """
 
-        if not lock_periods and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'lock_periods', got neither.")
+        if not duration_periods and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
 
         # Merge injected and default params.
         first_period_reward = first_period_reward or self.first_period_reward
         rate = rate or self.rate
-        lock_periods = lock_periods or self.lock_periods
+        duration_periods = duration_periods or self.duration_periods
 
-        # Calculate lock_periods periods and expiration datetime
+        # Calculate duration in periods and expiration datetime
         if expiration:
-            lock_periods = calculate_period_duration(future_time=expiration)
+            duration_periods = calculate_period_duration(future_time=expiration)
         else:
-            lock_periods = lock_periods or self.lock_periods
-            expiration = datetime_at_period(self.staking_agent.get_current_period() + lock_periods)
+            duration_periods = duration_periods or self.duration_periods
+            expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods)
 
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
-                                                                         lock_periods=lock_periods,
+                                                                         duration_periods=duration_periods,
                                                                          first_period_reward=first_period_reward,
                                                                          value=value,
                                                                          rate=rate)
 
         # These values may have been recalculated in this block.
-        policy_end_time = dict(lock_periods=lock_periods, expiration=expiration)
+        policy_end_time = dict(duration_periods=duration_periods, expiration=expiration)
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 

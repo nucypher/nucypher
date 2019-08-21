@@ -54,7 +54,7 @@ def test_contract_registry(tempfile_path):
     assert address == test_addr
     assert abi == test_abi
 
-    # ...or by staker_address
+    # ...or by address
     contract_record = test_registry.search(contract_address=test_addr)
     name, address, abi = contract_record
 
@@ -67,7 +67,7 @@ def test_contract_registry(tempfile_path):
         test_registry.search(contract_name='this does not exist')
 
     current_dataset = test_registry.read()
-    # Corrupt the registry with a duplicate staker_address
+    # Corrupt the registry with a duplicate address
     current_dataset.append([test_name, test_addr, test_abi])
     test_registry.write(current_dataset)
 

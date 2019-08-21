@@ -221,13 +221,15 @@ def paint_staged_stake(emitter,
     emitter.echo(f"\n{'=' * 30} STAGED STAKE {'=' * 30}", bold=True)
 
     emitter.echo(f"""
-Staking staker_address: {staking_address}
+Staking address: {staking_address}
 ~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
     """)
+
+    # TODO: periods != Days - Do we inform the user here?
 
     emitter.echo('=========================================================================', bold=True)
 
@@ -241,7 +243,7 @@ def paint_staking_confirmation(emitter, ursula, transactions):
 Successfully transmitted stake initialization transactions.
 
 View your stakes by running 'nucypher stake list'
-or set your Ursula worker node staker_address by running 'nucypher stake set-worker'.
+or set your Ursula worker node address by running 'nucypher stake set-worker'.
 ''', color='green')
 
 
@@ -288,11 +290,11 @@ def paint_staged_stake_division(emitter,
                                 extension):
 
     new_end_period = original_stake.end_period + extension
-    new_duration = new_end_period - original_stake.start_period
+    new_duration_periods = new_end_period - original_stake.start_period
     staking_address = original_stake.owner_address
 
     division_message = f"""
-Staking staker_address: {staking_address}
+Staking address: {staking_address}
 ~ Original Stake: {prettify_stake(stake=original_stake, index=None)}
 """
 
@@ -300,7 +302,7 @@ Staking staker_address: {staking_address}
                        stakeholder=stakeholder,
                        staking_address=staking_address,
                        stake_value=target_value,
-                       lock_periods=new_duration,
+                       lock_periods=new_duration_periods,
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)

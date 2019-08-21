@@ -66,7 +66,7 @@ def agent(testerchain, test_registry, proxy_deployer, allocation_value, agency) 
 
     _txhash = escrow_deployer.deploy()
 
-    escrow_deployer.initial_deposit(value=allocation_value, lock_periods=TEST_DURATION)
+    escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()

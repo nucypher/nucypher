@@ -130,8 +130,8 @@ class ContractDeployer:
 
         rules = [
             (self.is_deployed is not True, 'Contract already deployed'),
-            (self.deployer_address is not None, 'No deployer staker_address set.'),
-            (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer staker_address set.'),
+            (self.deployer_address is not None, 'No deployer address set.'),
+            (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
         ]
 
         disqualifications = list()
@@ -731,7 +731,7 @@ class UserEscrowDeployer(ContractDeployer):
     def assign_beneficiary(self, beneficiary_address: str) -> dict: 
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
         if not is_checksum_address(beneficiary_address):
-            raise self.ContractDeploymentError("{} is not a valid checksum staker_address.".format(beneficiary_address))
+            raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
         # TODO: #413, #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(beneficiary_address)
@@ -741,8 +741,8 @@ class UserEscrowDeployer(ContractDeployer):
         self.__beneficiary_address = beneficiary_address
         return transfer_owner_receipt
 
-    def initial_deposit(self, value: int, lock_periods: int) -> dict:
-        """Allocate an amount of tokens with lock time, and transfer ownership to the beneficiary"""
+    def initial_deposit(self, value: int, duration_seconds: int) -> dict:
+        """Allocate an amount of tokens with lock time in seconds, and transfer ownership to the beneficiary"""
         # Approve
         allocation_receipts = dict()
         approve_function  = self.token_contract.functions.approve(self.contract.address, value)
@@ -753,7 +753,7 @@ class UserEscrowDeployer(ContractDeployer):
         # Deposit
         # TODO: #413, #842 - Gas Management
         args = {'gas': 200_000}
-        deposit_function = self.contract.functions.initialDeposit(value, lock_periods)
+        deposit_function = self.contract.functions.initialDeposit(value, duration_seconds)
         deposit_receipt = self.blockchain.send_transaction(contract_function=deposit_function,
                                                            sender_address=self.deployer_address,
                                                            payload=args)
@@ -780,7 +780,7 @@ class UserEscrowDeployer(ContractDeployer):
 
         """
 
-        deposit_txhash = self.initial_deposit(value=value, lock_periods=duration)
+        deposit_txhash = self.initial_deposit(value=value, duration_seconds=duration)
         assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
         self.enroll_principal_contract()
         return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)

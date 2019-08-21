@@ -51,7 +51,7 @@ def datetime_at_period(period: int) -> maya.MayaDT:
 
 
 def calculate_period_duration(future_time: maya.MayaDT) -> int:
-    """Takes a future MayaDT instance and calculates the lock_periods from now, returning in periods"""
+    """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
     future_period = datetime_to_period(datetime=future_time)
     current_period = datetime_to_period(datetime=maya.now())
     periods = future_period - current_period
@@ -72,7 +72,7 @@ def etherscan_url(item, network: str, is_token=False) -> str:
             raise ValueError(f"'{network}' network not supported by Etherscan")
 
     if is_address(item):
-        item_type = 'staker_address' if not is_token else 'token'
+        item_type = 'address' if not is_token else 'token'
         item = to_checksum_address(item)
     elif is_hex(item) and len(item) == 2 + 32*2:  # If it's a hash...
         item_type = 'tx'

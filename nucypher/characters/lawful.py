@@ -94,7 +94,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
                  # Policy Value
                  rate: int = None,
-                 lock_periods: int = None,
+                 duration_periods: int = None,
                  first_period_reward: int = 0,
 
                  # Middleware
@@ -130,7 +130,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             BlockchainPolicyAuthor.__init__(self,
                                             registry=self.registry,
                                             rate=rate,
-                                            lock_periods=lock_periods,
+                                            duration_periods=duration_periods,
                                             first_period_reward=first_period_reward,
                                             checksum_address=checksum_address)
 
@@ -216,7 +216,7 @@ class Alice(Character, BlockchainPolicyAuthor):
     def generate_policy_parameters(self,
                                    m: int = None,
                                    n: int = None,
-                                   lock_periods: int = None,
+                                   duration_periods: int = None,
                                    expiration: maya.MayaDT = None,
                                    *args, **kwargs
                                    ) -> dict:
@@ -224,8 +224,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         Construct policy creation from parameters or overrides.
         """
 
-        if not lock_periods and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'lock_periods', got neither.")
+        if not duration_periods and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
 
         # Merge injected and default params.
         m = m or self.m
@@ -235,7 +235,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Calculate Policy Rate and Value
         if not self.federated_only:
             payload = super().generate_policy_parameters(number_of_ursulas=n,
-                                                         lock_periods=lock_periods,
+                                                         duration_periods=duration_periods,
                                                          expiration=expiration,
                                                          *args, **kwargs)
             base_payload.update(payload)
@@ -793,7 +793,7 @@ class Ursula(Teacher, Character, Worker):
 
                  # Blockchain
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
-                 checksum_address: str = None,  # Staker staker_address
+                 checksum_address: str = None,  # Staker address
                  worker_address: str = None,
                  period_tracker: PeriodTracker = None,
                  client_password: str = None,

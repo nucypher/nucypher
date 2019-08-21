@@ -99,7 +99,7 @@ def test_run_felix(click_runner,
         assert response.status_code == 200
 
         # Register a new recipient
-        response = test_client.post('/register', data={'staker_address': testerchain.client.accounts[-1]})
+        response = test_client.post('/register', data={'address': testerchain.client.accounts[-1]})
         assert response.status_code == 200
 
         return

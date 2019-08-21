@@ -35,7 +35,7 @@ def parse_node_uri(uri: str):
         if checksum_address is None:
             raise ValueError(f"{uri} is not a valid Teacher URI - no checksum address.")
         if not is_checksum_address(checksum_address):
-            raise ValueError("{} is not a valid checksum staker_address.".format(checksum_address))
+            raise ValueError("{} is not a valid checksum address.".format(checksum_address))
     else:
         checksum_address = None  # federated
 

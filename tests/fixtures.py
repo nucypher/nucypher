@@ -492,7 +492,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
         amount = random.randint(min_stake, balance)
 
-        # for a random lock lock_periods
+        # for a random lock duration
         min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
         periods = random.randint(min_locktime, max_locktime)
 

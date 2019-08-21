@@ -130,7 +130,7 @@ class NucypherTokenAgent(EthereumContractAgent):
     registry_contract_name = NUCYPHER_TOKEN_CONTRACT_NAME
 
     def get_balance(self, address: str = None) -> int:
-        """Get the balance of a token staker_address, or of this contract staker_address"""
+        """Get the balance of a token address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
@@ -141,7 +141,7 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
-        """Approve the transfer of token from the sender staker_address to the target staker_address."""
+        """Approve the transfer of token from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
         contract_function = self.contract.functions.approve(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -205,7 +205,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
         Returns the amount of tokens this staker has locked
-        for a given lock_periods in periods measured from the current period forwards.
+        for a given duration in periods measured from the current period forwards.
         """
         if periods < 0:
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
@@ -232,7 +232,7 @@ class StakingEscrowAgent(EthereumContractAgent):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
-        """Send tokens to the escrow from the staker's staker_address"""
+        """Send tokens to the escrow from the staker's address"""
         contract_function = self.contract.functions.deposit(amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
@@ -364,7 +364,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
         if n_tokens == 0:
-            raise self.NotEnoughStakers('There are no locked tokens for lock_periods {}.'.format(duration))
+            raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))

@@ -345,7 +345,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
 
     # Prepares test case:
-    # two Ursula with the same sum of sub stakes and lock_periods with two confirmed period in a past
+    # two Ursula with the stake value and duration, that have both confirmed two subsequent past periods
     sub_stake_1 = new_sub_stake
     sub_stake_2 = sub_stake_1 // 2
     stake = sub_stake_1 + sub_stake_2

@@ -109,7 +109,7 @@ class BlockchainArrangement(Arrangement):
                  ursula: Ursula,
                  rate: int,
                  expiration: maya.MayaDT,
-                 lock_periods: int,
+                 duration_periods: int,
                  *args, **kwargs):
 
         super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
@@ -119,9 +119,9 @@ class BlockchainArrangement(Arrangement):
         self.policy_agent = alice.policy_agent  # type: PolicyManagerAgent
         self.staker = ursula                    # type: Ursula
 
-        # Arrangement rate and lock_periods
+        # Arrangement rate and duration in periods
         self.rate = rate
-        self.lock_periods = lock_periods
+        self.duration_periods = duration_periods
 
         # Status
         self.is_published = False
@@ -482,13 +482,13 @@ class BlockchainPolicy(Policy):
                  alice: Alice,
                  value: int,
                  rate: int,
-                 lock_periods: int,
+                 duration_periods: int,
                  expiration: maya.MayaDT,
                  first_period_reward: int,
                  *args, **kwargs):
 
         self.first_period_reward = first_period_reward
-        self.lock_periods = lock_periods
+        self.duration_periods = duration_periods
         self.expiration = expiration
         self.value = value
         self.rate = rate
@@ -505,24 +505,24 @@ class BlockchainPolicy(Policy):
         self.validate_reward_value()
 
     def validate_reward_value(self) -> None:
-        rate_per_period = ((self.value // self.n) - self.first_period_reward) // self.lock_periods  # wei
+        rate_per_period = ((self.value // self.n) - self.first_period_reward) // self.duration_periods  # wei
         if rate_per_period <= self.first_period_reward:
             raise ValueError(
                 f"Policy rate ({rate_per_period} wei) is less then the initial reward ({self.first_period_reward})")
 
-        recalculated_value = ((self.lock_periods * rate_per_period) + self.first_period_reward) * self.n
+        recalculated_value = ((self.duration_periods * rate_per_period) + self.first_period_reward) * self.n
         if recalculated_value != self.value:
             raise ValueError(f"Invalid policy value calculation.")  # TODO: Make a better suggestion.
 
     @staticmethod
     def generate_policy_parameters(n: int,
-                                   lock_periods: int,
+                                   duration_periods: int,
                                    first_period_reward: int = None,
                                    value: int = None,
                                    rate: int = None) -> dict:
 
         # Check for negative inputs
-        if sum(True for i in (n, lock_periods, first_period_reward, value, rate) if i is not None and i < 0) > 0:
+        if sum(True for i in (n, duration_periods, first_period_reward, value, rate) if i is not None and i < 0) > 0:
             raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
@@ -531,7 +531,7 @@ class BlockchainPolicy(Policy):
             raise BlockchainPolicy.InvalidPolicyValue(f"Exactly two parameters must be provided to calculate policy value and rate.")
 
         if not value:
-            value = ((rate * lock_periods) + first_period_reward) * n
+            value = ((rate * duration_periods) + first_period_reward) * n
 
         else:
             value_per_node = value // n
@@ -540,14 +540,14 @@ class BlockchainPolicy(Policy):
                                                           f" divided by N ({n}) without a remainder.")
 
             if not rate:
-                rate = (value_per_node - first_period_reward) // lock_periods
-                if rate * lock_periods + first_period_reward != value_per_node:
+                rate = (value_per_node - first_period_reward) // duration_periods
+                if rate * duration_periods + first_period_reward != value_per_node:
                     raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node minus "
                                                               f"first period reward ({first_period_reward} wei) "
-                                                              f"cannot be divided by duration ({lock_periods} periods)"
+                                                              f"cannot be divided by duration ({duration_periods} periods)"
                                                               f" without a remainder.")
             else:
-                first_period_reward = value_per_node - (rate * lock_periods)
+                first_period_reward = value_per_node - (rate * duration_periods)
 
         if first_period_reward >= rate:
             raise BlockchainPolicy.InvalidPolicyValue(f"Policy rate of ({rate} wei) per period must be greater than "
@@ -583,7 +583,7 @@ class BlockchainPolicy(Policy):
 
             except KeyError:
                 # Unknown Node
-                self.alice.learn_about_specific_nodes({ether_address})  # enter staker_address in learning loop
+                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -598,7 +598,7 @@ class BlockchainPolicy(Policy):
         selected_addresses = set()
         try:
             # Sample by reading from the Blockchain
-            sampled_addresses = self.alice.recruit(quantity=quantity, duration=self.lock_periods)
+            sampled_addresses = self.alice.recruit(quantity=quantity, duration=self.duration_periods)
         except StakingEscrowAgent.NotEnoughStakers as e:
             error = f"Cannot create policy with {quantity} arrangements: {e}"
             raise self.NotEnoughBlockchainUrsulas(error)
@@ -617,9 +617,9 @@ class BlockchainPolicy(Policy):
                        policy_id=self.hrac()[:16],          # bytes16 _policyID
                        author_address=self.author.checksum_address,
                        value=self.value,
-                       periods=self.lock_periods,           # uint16 _numberOfPeriods
+                       periods=self.duration_periods,           # uint16 _numberOfPeriods
                        first_period_reward=self.first_period_reward,  # uint256 _firstPartialReward
-                       node_addresses=prearranged_ursulas   # staker_address[] memory _nodes
+                       node_addresses=prearranged_ursulas   # address[] memory _nodes
         )
 
         # Capture Response
@@ -636,5 +636,5 @@ class BlockchainPolicy(Policy):
                                        expiration=self.expiration,
                                        ursula=ursula,
                                        rate=self.rate,
-                                       lock_periods=self.lock_periods,
+                                       duration_periods=self.duration_periods,
                                        *args, **kwargs)

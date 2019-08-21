@@ -47,7 +47,7 @@ from nucypher.utilities.sandbox.constants import (
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
-    """Airdrops tokens from creator staker_address to all other addresses!"""
+    """Airdrops tokens from creator address to all other addresses!"""
 
     def txs():
         args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
@@ -154,7 +154,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return addresses
 
     def ether_airdrop(self, amount: int) -> List[str]:
-        """Airdrops ether from creator staker_address to all other addresses!"""
+        """Airdrops ether from creator address to all other addresses!"""
 
         coinbase, *addresses = self.w3.eth.accounts
 
@@ -178,7 +178,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         more_than_one_arg = sum(map(bool, (hours, seconds, periods))) > 1
         if more_than_one_arg:
-            raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
+            raise ValueError("Specify hours, seconds, or periods, not a combination")
 
         if periods:
             duration = (TokenEconomics.hours_per_period * periods) * (60 * 60)
@@ -190,7 +190,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
             duration = seconds
             base = 1
         else:
-            raise ValueError("Specify either hours, seconds, or lock_periods.")
+            raise ValueError("Specify either hours, seconds, or periods.")
 
         now = self.w3.eth.getBlock(block_identifier='latest').timestamp
         end_timestamp = ((now+duration)//base) * base

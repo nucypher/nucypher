@@ -152,7 +152,7 @@ class AliceConfiguration(CharacterConfiguration):
                  n: int = None,
                  rate: int = None,
                  first_period_reward: float = None,
-                 lock_periods: int = None,
+                 duration_periods: int = None,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -160,7 +160,7 @@ class AliceConfiguration(CharacterConfiguration):
         self.n = n or self.DEFAULT_N
         if not self.federated_only:
             self.rate = rate
-            self.lock_periods = lock_periods
+            self.duration_periods = duration_periods
             self.first_period_reward = first_period_reward or self.DEFAULT_FIRST_PERIOD_REWARD
 
     def static_payload(self) -> dict:
@@ -169,8 +169,8 @@ class AliceConfiguration(CharacterConfiguration):
             payload['first_period_reward'] = self.first_period_reward
             if self.rate:
                 payload['rate'] = self.rate
-            if self.lock_periods:
-                payload['lock_periods'] = self.lock_periods
+            if self.duration_periods:
+                payload['duration_periods'] = self.duration_periods
         return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:

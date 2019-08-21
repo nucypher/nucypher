@@ -39,7 +39,7 @@ from nucypher.config.keyring import NucypherKeyring
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
-@click.option('--lock-periods', help="Policy lock_periods in periods", type=click.FLOAT)
+@click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
@@ -80,7 +80,7 @@ def alice(click_config,
           n,
           value,
           rate,
-          lock_periods,
+          duration_periods,
           expiration,
           message_kit,
 
@@ -156,7 +156,7 @@ def alice(click_config,
                                                        provider_uri=provider_uri,
                                                        m=m,
                                                        n=n,
-                                                       lock_periods=lock_periods,
+                                                       duration_periods=duration_periods,
                                                        rate=rate)
 
         painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
@@ -166,7 +166,7 @@ def alice(click_config,
         """Paint an existing configuration to the console"""
         configuration_file_location = config_file or AliceConfiguration.default_filepath()
         response = AliceConfiguration._read_configuration_file(filepath=configuration_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and lock_periods here?
+        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
 
     #
     # Get Alice Configuration

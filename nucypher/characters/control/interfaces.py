@@ -44,7 +44,7 @@ def character_control_interface(func):
         # Validate response
         instance.validate_response(response=response, interface_name=interface_name)
 
-        # Record lock_periods
+        # Record duration
         responding = maya.now()
         duration = responding - received
 
