@@ -82,7 +82,9 @@ class PolicyMessageKit(MessageKit):
     """
     A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
     """
-    splitter = capsule_splitter + key_splitter * 2
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._sender = UNKNOWN_SENDER.bool_value(False)
 
     @property
     def sender(self):
@@ -90,6 +92,7 @@ class PolicyMessageKit(MessageKit):
 
     @sender.setter
     def sender(self, enrico):
+        # Here we set the delegating correctness key to the policy public key (which happens to be composed on enrico, but for which of course he doesn't have the corresponding private key).
         self.capsule.set_cfrag_correctness_key("delegating", enrico.policy_pubkey)
         self._sender = enrico
 
