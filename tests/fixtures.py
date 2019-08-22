@@ -288,11 +288,15 @@ def capsule_side_channel(enacted_federated_policy):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
             message_kit, _signature = self.enrico.encrypt_message(message)
             self.messages.append((message_kit, self.enrico))
+            if self.plaintext_passthrough:
+                self.plaintexts.append(message)
             return message_kit
 
-        def reset(self):
+        def reset(self, plaintext_passthrough=False):
             self.enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
             self.messages = []
+            self.plaintexts = []
+            self.plaintext_passthrough = plaintext_passthrough
             return self(), self.enrico
 
     return _CapsuleSideChannel()
