@@ -98,7 +98,7 @@ def test_bob_destroy(click_runner, custom_filepath):
     assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
 
 
-def test_bob_retrieve_args(click_runner,
+def test_bob_retrieves_twice_via_cli(click_runner,
                            capsule_side_channel,
                            enacted_federated_policy,
                            federated_ursulas,
@@ -155,6 +155,15 @@ def test_bob_retrieve_args(click_runner,
 
     actions.make_cli_character = substitue_bob
 
+    # Once...
+    retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+    assert retrieve_response.exit_code == 0
+
+    retrieve_response = json.loads(retrieve_response.output)
+    for cleartext in retrieve_response['result']['cleartexts']:
+        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+
+    # and again!
     retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
     assert retrieve_response.exit_code == 0
 
