@@ -1,21 +1,16 @@
+import json
 import os
+from base64 import b64encode
 
+from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
+from nucypher.characters.lawful import Ursula
+from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, \
-    MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH, TEMPORARY_DOMAIN
-from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
-
-
-def test_bob_public_keys(click_runner):
-    derive_key_args = ('bob', 'public-keys',
-                       '--dev')
-
-    result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
-
-    assert result.exit_code == 0
-    assert "bob_encrypting_key" in result.output
-    assert "bob_verifying_key" in result.output
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import SigningPower
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH
 
 
 def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_runner):
@@ -77,6 +72,16 @@ def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     assert custom_filepath in result.output
 
 
+def test_bob_public_keys(click_runner):
+    derive_key_args = ('bob', 'public-keys', '--dev')
+
+    result = click_runner.invoke(nucypher_cli, derive_key_args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert "bob_encrypting_key" in result.output
+    assert "bob_verifying_key" in result.output
+
+
 # Should be the last test since it deletes the configuration file
 def test_bob_destroy(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
@@ -88,3 +93,71 @@ def test_bob_destroy(click_runner, custom_filepath):
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output
     assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
+    assert result.exit_code == 2
+    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
+
+
+def test_bob_retrieve_args(click_runner,
+                           capsule_side_channel,
+                           enacted_federated_policy,
+                           federated_ursulas,
+                           custom_filepath_2,
+                           federated_alice
+                           ):
+    teacher = list(federated_ursulas)[0]
+
+    first_message = capsule_side_channel.reset(plaintext_passthrough=True)
+    three_message_kits = [capsule_side_channel(), capsule_side_channel(), capsule_side_channel()]
+
+    bob_config_root = custom_filepath_2
+    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
+    label = enacted_federated_policy.label
+
+    # I already have a Bob.
+
+    # Need to init so that the config file is made, even though we won't use this Bob.
+    bob_init_args = ('bob', 'init',
+                     '--network', TEMPORARY_DOMAIN,
+                     '--config-root', bob_config_root,
+                     '--federated-only')
+
+    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+
+    bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
+
+    message_kit_bytes = bytes(three_message_kits[0])
+    message_kit_b64_bytes = b64encode(message_kit_bytes)
+    UmbralMessageKit.from_bytes(message_kit_bytes)
+
+    retrieve_args = ('bob', 'retrieve',
+                     '--mock-networking',
+                     '--json-ipc',
+                     '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),
+                     '--config-file', bob_configuration_file_location,
+                     '--message-kit', message_kit_b64_bytes,
+                     '--label', label,
+                     '--policy-encrypting-key', federated_alice.get_policy_encrypting_key_from_label(label).hex(),
+                     '--alice-verifying-key', federated_alice.public_keys(SigningPower).hex()
+                     )
+
+    from nucypher.cli import actions
+
+    def substitue_bob(*args, **kwargs):
+        this_fuckin_guy = enacted_federated_policy.bob
+        somebody_else = Ursula.from_teacher_uri(teacher_uri=kwargs['teacher_uri'],
+                                                min_stake=0,
+                                                federated_only=True,
+                                                network_middleware=this_fuckin_guy.network_middleware)
+        this_fuckin_guy.remember_node(somebody_else)
+        this_fuckin_guy.controller.emitter = JSONRPCStdoutEmitter()
+        return this_fuckin_guy
+
+    actions.make_cli_character = substitue_bob
+
+    retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+    assert retrieve_response.exit_code == 0
+
+    retrieve_response = json.loads(retrieve_response.output)
+    for cleartext in retrieve_response['result']['cleartexts']:
+        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
