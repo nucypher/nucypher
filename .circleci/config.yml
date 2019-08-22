@@ -17,10 +17,10 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - validate_reqs_files:
-          filters:
-            tags:
-              only: /.*/
+      #- validate_reqs_files:
+      #    filters:
+      #      tags:
+      #        only: /.*/
       - pip_install_37:
           filters:
             tags:
@@ -217,7 +217,7 @@ commands:
           name: Install Python Dependencies with Pipenv
           command: |
             sudo apt update -y && sudo apt install python3-dev -y
-            pipenv sync --python << parameters.python_version >> --dev
+            pipenv install --skip-lock --python << parameters.python_version >> --dev
       - run:
           name: Install Solidity Compiler (Pipenv Entrypoint)
           command: pipenv run install-solc
