@@ -596,6 +596,8 @@ class Learner:
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
+                elif not reactor.running and not learn_on_this_thread:
+                    raise RuntimeError(f"The reactor isn't running, but you're trying to use it for discovery.  You need to start the Reactor in order to use {self} this way.")
                 else:
                     raise self.NotEnoughNodes("After {} seconds and {} rounds, didn't find {} nodes".format(
                         timeout, rounds_undertaken, number_of_nodes_to_know))

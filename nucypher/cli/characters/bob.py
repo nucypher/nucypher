@@ -137,7 +137,8 @@ def bob(click_config,
                                      click_config=click_config,
                                      dev=dev,
                                      teacher_uri=teacher_uri,
-                                     min_stake=min_stake)
+                                     min_stake=min_stake,
+                                     learn_on_same_thread=True)  # A temporary measure until #1234 is properly fixed.
 
     #
     # Admin Action
