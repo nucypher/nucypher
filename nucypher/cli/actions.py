@@ -34,6 +34,7 @@ from twisted.logger import Logger
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.token import Stake
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
@@ -244,13 +245,16 @@ def get_provider_process(start_now: bool = False):
 
 
 def make_cli_character(character_config,
-                       click_config,
+                       click_config=None,  # TODO: Make this an emitter only
                        dev: bool = False,
                        teacher_uri: str = None,
                        min_stake: int = 0,
                        **config_args):
 
-    emitter = click_config.emitter
+    if click_config:
+        emitter = click_config.emitter
+    else:
+        emitter = StdoutEmitter()
 
     #
     # Pre-Init
