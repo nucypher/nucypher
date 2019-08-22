@@ -158,6 +158,7 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
+        # TODO: No reason to keccak this over and over again.  Turn into set-once property pattern.
         _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
         return _id
 
