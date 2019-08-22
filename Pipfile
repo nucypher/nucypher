@@ -33,6 +33,7 @@ click = ">=7.0"
 colorama = "*"
 boto3 = "*"
 flask-limiter = "*"
+py-geth = "*"
 
 [dev-packages]
 # Pytest
