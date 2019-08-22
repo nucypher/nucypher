@@ -96,12 +96,11 @@ class PolicyMessageKit(MessageKit):
         self.capsule.set_cfrag_correctness_key("delegating", enrico.policy_pubkey)
         self._sender = enrico
 
+    def __bytes__(self):
+        return super().to_bytes(include_alice_pubkey=True)
 
-    # def __init__(self, *args, **kwargs) -> None:
-    #     super().__init__(*args, **kwargs)
-    #     self.policy_pubkey = None
 
-UmbralMessageKit = PolicyMessageKit
+UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enrico's
 
 
 class RevocationKit:
