@@ -17,10 +17,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-      #- validate_reqs_files:
-      #    filters:
-      #      tags:
-      #        only: /.*/
       - pip_install_37:
           filters:
             tags:
