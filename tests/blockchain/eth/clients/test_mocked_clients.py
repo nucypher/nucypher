@@ -1,7 +1,7 @@
 import datetime
 
 import pytest
-from web3 import HTTPProvider, IPCProvider
+from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
 from nucypher.blockchain.eth.clients import (
     Web3Client,
@@ -35,6 +35,11 @@ class MockGanacheProvider:
 
 class MockInfuraProvider:
     endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
+    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+
+
+class MockWebSocketProvider:
+    endpoint_uri = 'ws://127.0.0.1:8546'
     clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
 
 
@@ -169,9 +174,8 @@ class ProviderTypeTestClient(BlockchainInterfaceTestBase):
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(*args, **kwargs)
 
-        if self.expected_provider_class is not None:
-            # check type
-            assert self.expected_provider_class == self.provider.__class__
+        # check type
+        assert isinstance(self.provider, self.expected_provider_class)
 
         super()._attach_provider(provider=self.test_provider_to_attach)
 
@@ -270,6 +274,14 @@ def test_detect_provider_type_https():
     assert isinstance(interface.client, GanacheClient)
 
 
+def test_detect_provider_type_ws():
+    interface = ProviderTypeTestClient(provider_uri='ws://127.0.0.1:8546',
+                                       expected_provider_class=WebsocketProvider,
+                                       actual_provider_to_attach=MockWebSocketProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GethClient)
+
+    
 def test_infura_web3_client():
     interface = InfuraTestClient(provider_uri='infura://1234567890987654321abcdef')
     interface.connect(fetch_registry=False, sync_now=False)
