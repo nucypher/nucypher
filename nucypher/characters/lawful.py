@@ -621,6 +621,9 @@ class Bob(Character):
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
             except NodeSeemsToBeDown:
                 continue
+            except NotFound:
+                self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                continue
 
             if response.status_code == 200 and response.content:
                 try:
