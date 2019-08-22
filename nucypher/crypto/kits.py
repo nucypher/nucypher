@@ -93,7 +93,7 @@ class PolicyMessageKit(MessageKit):
     @sender.setter
     def sender(self, enrico):
         # Here we set the delegating correctness key to the policy public key (which happens to be composed on enrico, but for which of course he doesn't have the corresponding private key).
-        self.capsule.set_cfrag_correctness_key("delegating", enrico.policy_pubkey)
+        self.capsule.set_correctness_keys("delegating", enrico.policy_pubkey)
         self._sender = enrico
 
     def __bytes__(self):
