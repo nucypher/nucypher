@@ -11,10 +11,9 @@ from nucypher.characters.control.specifications import ALL_SPECIFICATIONS
 
 lookup = {spec._name: spec for spec in ALL_SPECIFICATIONS}
 
-dir = os.path.dirname(os.path.realpath(__file__))
-log_file = dir + '/err.log'
-logging.basicConfig(filename=log_file,
-                    filemode='w')
+log_path = os.path.dirname(os.path.realpath(__file__))
+log_file = log_path + '/err.log'
+logging.basicConfig(filename=log_file, filemode='w')
 
 
 def getMessage():
@@ -22,7 +21,6 @@ def getMessage():
     if len(rawLength) == 0:
         sys.exit(0)
     messageLength = struct.unpack('@I', rawLength)[0]
-
     message = sys.stdin.buffer.read(messageLength).decode('utf-8')
     return json.loads(message)
 
@@ -41,11 +39,9 @@ def sendMessage(encodedMessage):
 
 
 try:
-    while 6:
+    while True:
         command_data = getMessage()
-
         specification = lookup[command_data['character']._specifications[command_data['action']]
-
         sendMessage(encodeMessage(receivedMessage))
 
 except Exception:
