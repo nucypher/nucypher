@@ -93,7 +93,7 @@ def stake(click_config,
     \b
     Actions
     -------------------------------------------------
-    new-stakeholder  Create a new stakeholder configuration
+    init-stakeholder Create a new stakeholder configuration
     list             List active stakes for current stakeholder
     accounts         Show ETH and NU balances for stakeholder's accounts
     sync             Synchronize stake data with on-chain information
@@ -110,7 +110,7 @@ def stake(click_config,
     emitter.clear()
     emitter.banner(StakeHolder.banner)
 
-    if action == 'new-stakeholder':
+    if action == 'init-stakeholder':
 
         if not provider_uri:
             raise click.BadOptionUsage(option_name='--provider',

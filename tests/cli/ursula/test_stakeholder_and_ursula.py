@@ -64,7 +64,7 @@ def test_new_stakeholder(click_runner,
                          mock_registry_filepath,
                          testerchain):
 
-    init_args = ('stake', 'new-stakeholder',
+    init_args = ('stake', 'init-stakeholder',
                  '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
