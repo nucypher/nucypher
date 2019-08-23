@@ -17,10 +17,13 @@ var bgPort = browser.runtime.connect({name:"port-from-cs"});
 function onRetrieved(data){
     const element_id = data.input.args['message-kit'].slice(12, 17);
     var element = $('#' + element_id);
-
-    let imagedata = JSON.parse(data.result).result.cleartexts[0];
+    if (data.result.length){
+        let imagedata = JSON.parse(data.result).result.cleartexts[0];
     console.log("Image data is ", imagedata);
     element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + imagedata).show();
+    } else{
+        element.find(".imgcontainer").attr('src', browser.runtime.getURL("images/denied.png")).show()
+    }
     element.find('.coin').hide();
 }
 
