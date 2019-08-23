@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR
 
-NUCYPHER_KEYRING_PASSWORD = os.getenv("NUCYPHER_KEYRING_PASSWORD")
+NUCYPHER_KEYRING_PASSWORD = "flashdanceasspants"
 
 log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
@@ -56,11 +56,10 @@ try:
 
         ####
         # INTERNAL INTERFACE
-        logging.error("calling NuCypher CLI")
+        logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
         environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
         result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
         ####
-
         send_message(encode_message(result.output))  # < ---- RESPONSE TO BROWSER
 
 except Exception:

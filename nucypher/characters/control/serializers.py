@@ -170,6 +170,7 @@ class BobControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerMix
         return parsed_input
 
     def dump_retrieve_output(self, response: dict):
+        breakpoint()
         cleartexts = [cleartext.decode() for cleartext in response['cleartexts']]
         response_data = {'cleartexts': cleartexts}
         return response_data

@@ -1,22 +1,60 @@
-
 const nucypher = browser.runtime.connectNative("nucypher");
 
-nucypher.onMessage.addListener((response) => {
-  console.log("Received: " + response);
-});
+const decrypt = (encrypted, key) => {
+  const keyUint8Array = fromHexString(key);
+  const messageWithNonceAsUint8Array = naclUtil.decodeBase64(encrypted);
+  const nonce = messageWithNonceAsUint8Array.slice(0, nacl.secretbox.nonceLength);
+  const message = messageWithNonceAsUint8Array.slice(
+    nacl.secretbox.nonceLength,
+    encrypted.length
+  );
 
-browser.browserAction.onClicked.addListener(() => {
+  const decrypted = nacl.secretbox.open(message, nonce, keyUint8Array);
+
+  if (!decrypted) {
+    console.log("Could not decrypt message");
+  }
+
+  const base64DecryptedMessage = naclUtil.encodeUTF8(decrypted);
+  return base64DecryptedMessage;
+};
+
+
+function ncRetrieve(request) {
+
+  let args = {
+    "teacher": "https://165.22.21.214:9151",
+  };
+
+  args = Object.assign(args, request);
+
+  delete args['image_ciphertext']
+
   const data = {
     character: "bob",
     action:"retrieve",
-    args: {
-      "teacher": "https://165.22.21.214:9151",
-      "label": "damon_test_1",
-      "message-kit": "AkHV6LZ0WwBUhPWLXkyc3FurlemkJ1q3O7AZBvb0LzXOAvxN2fOmOqOSZLwFFsUJXQ2qY7wf4jLm3GRxNQ3POmdo/x6Ix/3GjQ1B/Dp8IuhC/vEDEFjTBAQjhAUnmrupGYEDJlAyK+h3YTYSAOpyUX1OUQM1e/lTViWS2Ea0GcM3fmpBCw+l15p5Rk9fWnCAtu4qA45IVwCqTo3FMHwsrxl3UGU5aM6w5Jyd961mmrMMYxyqwLvlenjabOGbe4T51vqqtZpfyVhVYK1QCdqIXbrS6tdoUOc601UCUlmSVGJp6Z26B+3fneNcJJZYWhaQO4LPq0KREZVnekecJ4uy",
-      "policy-encrypting-key": "032ceda4de0c68450aaa51354abb0e657c00da38e08212beab44bf8b790258f6c9",
-      "alice-verifying-key": "0341bcb12a5d99f752581af7cd8ca39f7d46737d2f9b7cbe95d2eb40c5c75dee67",
-    },
+    args,
   };
-  console.log(data);
+  console.log('retrieving from bob:', data);
   nucypher.postMessage(data);
+};
+
+const fromHexString = hexString =>
+  new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+
+nucypher.onMessage.addListener((response) => {
+  // response is a key which can be used to decrypt the original image.
+  console.log("Received: " + response);
+  //decrypt here
+  portFromCS.postMessage(response);
 });
+
+var portFromCS;
+
+function connected(p) {
+  portFromCS = p;
+  portFromCS.onMessage.addListener(ncRetrieve);
+}
+
+browser.runtime.onConnect.addListener(connected);
+
