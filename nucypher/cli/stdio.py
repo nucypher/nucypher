@@ -58,9 +58,23 @@ try:
         # INTERNAL INTERFACE
         logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
         environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
-        result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
+
+        result = None
+        try:
+            result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
+            result = result.output
+        except Exception:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            err = ''.join('\n'+line for line in lines)  # Log it or whatever here
+            logging.error(f"NuCypher CLI error ==== \n {err}")
         ####
-        send_message(encode_message(result.output))  # < ---- RESPONSE TO BROWSER
+        output = {
+            "input": command_data,
+            "result": result,
+        }
+
+        send_message(encode_message(output))  # < ---- RESPONSE TO BROWSER
 
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()

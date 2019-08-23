@@ -1,6 +1,11 @@
 const nucypher = browser.runtime.connectNative("nucypher");
 
-const decrypt = (encrypted, key) => {
+const fromHexString = hexString =>
+  new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+
+const decrypt = (data) => {
+  let key = data.key;
+  let encrypted = data.image;
   const keyUint8Array = fromHexString(key);
   const messageWithNonceAsUint8Array = naclUtil.decodeBase64(encrypted);
   const nonce = messageWithNonceAsUint8Array.slice(0, nacl.secretbox.nonceLength);
@@ -16,9 +21,14 @@ const decrypt = (encrypted, key) => {
   }
 
   const base64DecryptedMessage = naclUtil.encodeUTF8(decrypted);
-  return base64DecryptedMessage;
+  portFromCS.postMessage({
+    route: 'decrypted',
+    data: {
+      image: base64DecryptedMessage,
+      id: data.id,
+    }
+  });
 };
-
 
 function ncRetrieve(request) {
 
@@ -39,21 +49,28 @@ function ncRetrieve(request) {
   nucypher.postMessage(data);
 };
 
-const fromHexString = hexString =>
-  new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
-
 nucypher.onMessage.addListener((response) => {
   // response is a key which can be used to decrypt the original image.
-  console.log("Received: " + response);
-  //decrypt here
-  portFromCS.postMessage(response);
+  portFromCS.postMessage({
+    route: 'retrieved',
+    data: response,
+  });
 });
 
 var portFromCS;
 
+function Dispatcher(message){
+  const callbacks = {
+    'decrypt': decrypt,
+    'retrieve': ncRetrieve,
+  }
+
+  return callbacks[message.route](message.data);
+}
+
 function connected(p) {
   portFromCS = p;
-  portFromCS.onMessage.addListener(ncRetrieve);
+  portFromCS.onMessage.addListener(Dispatcher);
 }
 
 browser.runtime.onConnect.addListener(connected);
