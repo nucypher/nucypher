@@ -1,7 +1,8 @@
 
 $("body").find("nucypher").append(
-    '<div><div><img width="300" src="https://cdn.discordapp.com/attachments/511272975845163019/614224386064384022/box.png"></div>click to retrieve</div>'
+    '<div><div style="height:300px"><img style="height:300px" class="imgcontainer" src="https://cdn.discordapp.com/attachments/511272975845163019/614224386064384022/box.png"><img class="coin" style="width:100px;margin-top:50px;" src="https://thumbs.gfycat.com/ImmaterialCandidBooby-max-1mb.gif"></div>click to retrieve</div>'
 );
+$("body").find(".coin").hide();
 
 function getFakeData(element_id){
     return {
@@ -14,7 +15,9 @@ function getFakeData(element_id){
 var bgPort = browser.runtime.connect({name:"port-from-cs"});
 
 function onDecrypted(data){
-    var element = $('#' + data.id).find("img").attr('src', 'data:image/png;base64,' + data.image);
+    var element = $('#' + data.id)
+    element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + data.image).show();
+    element.find('.coin').hide();
 }
 
 function onRetrieved(data){
@@ -31,10 +34,15 @@ function onRetrieved(data){
             image: imagedata,
             id: element_id,
         }
+        bgPort.postMessage(message);
     } else {
-        message.data = getFakeData(element_id);
+        setTimeout(function(){
+            message.data = getFakeData(element_id);
+        bgPort.postMessage(message);
+        }, 2000);
+
     }
-    bgPort.postMessage(message);
+
 }
 
 function fDispatcher(message){
@@ -51,6 +59,8 @@ bgPort.onMessage.addListener(fDispatcher);
 $("body").find("nucypher").on("click", function(){
     var data = JSON.parse($(this).attr("data-data"));
     $(this).attr("id", data['message-kit'].slice(12, 17));
+    $(this).find('.coin').show();
+    $(this).find('.imgcontainer').hide();
     const message = {
         route: 'retrieve',
         data: data,
