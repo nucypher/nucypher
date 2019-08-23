@@ -759,7 +759,7 @@ class Bob(Character):
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
-            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+            self.log.info(f"Found {len(complete_work_orders)} WorkOrders for this Capsule ({capsule}).")
 
             if complete_work_orders:
                 if use_precedent_work_orders:
@@ -772,11 +772,11 @@ class Bob(Character):
 
         # Part II: Getting the cleartexts.
         cleartexts = []
+        self.log.info(f"About to retrieve {capsule} with label:{label}")
 
         try:
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
-
 
             for work_order in new_work_orders.values():
                 for capsule in work_order.tasks:
@@ -797,6 +797,7 @@ class Bob(Character):
 
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
+                    self.log.debug(f"Engaging Ursula: {work_order.ursula} to request work on {work_order}.")
                     self.get_reencrypted_cfrags(work_order, retain_cfrags=retain_cfrags)
                 except NodeSeemsToBeDown:
                     # TODO: What to do here?  Ursula isn't supposed to be down.
@@ -812,6 +813,7 @@ class Bob(Character):
 
                 for capsule, pre_task in work_order.tasks.items():
                     try:
+                        self.log.debug(f"Attaching {pre_task.cfrag} to {capsule}")
                         capsule.attach_cfrag(pre_task.cfrag)
                     except UmbralCorrectnessError:
                         task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
@@ -825,6 +827,7 @@ class Bob(Character):
 
                 # If all the capsules are now activated, we can stop here.
                 if not capsules_to_activate:
+                    self.log.info("Successfully activated all capsules.")
                     break
             else:
                 raise Ursula.NotEnoughUrsulas(
@@ -845,7 +848,7 @@ class Bob(Character):
                 capsule.clear_cfrags()
                 for work_order in new_work_orders.values():
                     work_order.sanitize()
-
+        self.log.debug(f"Retrieved cleartexts: {cleartexts}")
         return cleartexts
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):

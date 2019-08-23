@@ -18,8 +18,9 @@ function onRetrieved(data){
     const element_id = data.input.args['message-kit'].slice(12, 17);
     var element = $('#' + element_id);
 
-    let imagedata = data.result;
-    element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + data.image).show();
+    let imagedata = JSON.parse(data.result).result.cleartexts[0];
+    console.log("Image data is ", imagedata);
+    element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + imagedata).show();
     element.find('.coin').hide();
 }
 

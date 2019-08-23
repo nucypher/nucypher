@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR
 
-NUCYPHER_KEYRING_PASSWORD = "flashdanceasspants"
+NUCYPHER_KEYRING_PASSWORD = "wecanjustdestroythiskeypairlater"
 
 log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
@@ -51,6 +51,7 @@ try:
         action = command_data['action']
 
         options = [character, action, '--json-ipc']
+        # command_data['args']['label'] = command_data['args']['label'].encode()
         for param, value in command_data['args'].items():
             options.extend((f"--{param}", value))
 
@@ -61,20 +62,25 @@ try:
 
         result = None
         try:
-            result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
-            result = result.output
+            nc_result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
+            logging.error(f"result is: {nc_result.output}")
+            result = nc_result.output
         except Exception:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             err = ''.join('\n'+line for line in lines)  # Log it or whatever here
             logging.error(f"NuCypher CLI error ==== \n {err}")
         ####
+
+
+
         output = {
             "input": command_data,
             "result": result,
         }
-
-        send_message(encode_message(output))  # < ---- RESPONSE TO BROWSER
+        final_message = encode_message(output)
+        logging.error(f"Sending to the browser: {final_message}")
+        send_message(final_message)  # < ---- RESPONSE TO BROWSER
 
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()

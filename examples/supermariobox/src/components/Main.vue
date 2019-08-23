@@ -6,6 +6,10 @@
 
 <script>
 import data3 from '@/data/data3.json';
+import data4 from '@/data/data4.json';
+//import data5 from '@/data/data5.json';
+//import data6 from '@/data/data6.json';
+
 import NuBit from '@/components/NuBit';
 
 export default {
@@ -32,6 +36,9 @@ export default {
     return {
       loadedData: [
         data3,
+        data4,
+        //data5,
+        //data6,
       ]
     }
   }
