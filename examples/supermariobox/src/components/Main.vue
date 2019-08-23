@@ -1,15 +1,12 @@
 <template>
   <div class="hello">
-      <nu-bit v-for="(pic,index) in getData()" v-bind:key="index" :data="pic"/>
+      <nu-bit v-for="(pic, index) in getData()" v-bind:key="index" :data="pic"/>
   </div>
 </template>
 
 <script>
-import data3 from '@/data/data3.json';
-import data4 from '@/data/data4.json';
-//import data5 from '@/data/data5.json';
-//import data6 from '@/data/data6.json';
-
+import data6 from '@/data/data6.json';
+import data7 from '@/data/data7.json';
 import NuBit from '@/components/NuBit';
 
 export default {
@@ -25,7 +22,19 @@ export default {
       return this.loadedData[this.getDataIndex()];
     },
     getDataIndex(){
-      const pathdata = window.location.pathname.split('/');
+      /*
+        very simple routing... find a number in the url
+        either  /#/1 or /2 should work.
+
+        if no number is found, return 0
+      */
+
+      let pathdata = []
+      if (window.location.href.indexOf('#/')>0){
+        pathdata = window.location.hash.split('/');
+      } else {
+        pathdata = window.location.pathname.split('/');
+      }
       if (pathdata.length > 1) {
         return Math.min(parseInt(pathdata[pathdata.length-1]), this.loadedData.length-1);
       }
@@ -35,30 +44,10 @@ export default {
   data(){
     return {
       loadedData: [
-        data3,
-        data4,
-        //data5,
-        //data6,
+        data6,
+        data7,
       ]
     }
   }
 }
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>

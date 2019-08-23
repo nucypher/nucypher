@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR
 
-NUCYPHER_KEYRING_PASSWORD = "wecanjustdestroythiskeypairlater"
+NUCYPHER_KEYRING_PASSWORD = "flashdanceasspants"
 
 log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
