@@ -14,43 +14,18 @@ function getFakeData(element_id){
 
 var bgPort = browser.runtime.connect({name:"port-from-cs"});
 
-function onDecrypted(data){
-    var element = $('#' + data.id)
-    element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + data.image).show();
-    element.find('.coin').hide();
-}
-
 function onRetrieved(data){
     const element_id = data.input.args['message-kit'].slice(12, 17);
     var element = $('#' + element_id);
 
-    let imagedata = element.attr("data-data");
-    const message = {
-        route: 'decrypt',
-    };
-    if (data.result){
-        message.data = {
-            key: data.result,
-            image: imagedata,
-            id: element_id,
-        }
-        bgPort.postMessage(message);
-    } else {
-        setTimeout(function(){
-            element.find('.imgcontainer').show();
-                element.find('.coin').hide();
-            // message.data = getFakeData(element_id);
-        // bgPort.postMessage(message);
-        }, 2000);
-
-    }
-
+    let imagedata = data.result;
+    element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + data.image).show();
+    element.find('.coin').hide();
 }
 
 function fDispatcher(message){
     console.log("fDispatcher:", message);
     const callbacks = {
-        'decrypted': onDecrypted,
         'retrieved': onRetrieved,
     }
     return callbacks[message.route](message.data);

@@ -1,6 +1,6 @@
 <template>
   <div class="hello">
-      <nu-bit v-for="pic,index in getData()" v-bind:key="index" :data="pic"/>
+      <nu-bit v-for="(pic,index) in getData()" v-bind:key="index" :data="pic"/>
   </div>
 </template>
 
@@ -21,9 +21,7 @@ export default {
       return this.loadedData[this.getDataIndex()];
     },
     getDataIndex(){
-
       const pathdata = window.location.pathname.split('/');
-
       if (pathdata.length > 1) {
         return Math.min(parseInt(pathdata[pathdata.length-1]), this.loadedData.length-1);
       }
