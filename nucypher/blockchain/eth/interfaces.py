@@ -339,8 +339,8 @@ class BlockchainInterface:
             if not provider_scheme:
                 if os.path.exists(provider_uri):
                     # file is available - assume ipc/file scheme
-                    self.log.info(f"Auto-detecting provider scheme as 'file://' for provider {provider_uri}")
                     provider_scheme = 'file'
+                    self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")
 
             try:
                 self._provider = providers[provider_scheme](provider_uri)
