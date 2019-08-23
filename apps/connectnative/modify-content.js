@@ -1,6 +1,6 @@
 
 $("body").find("nucypher").append(
-    '<div><div style="height:300px"><img style="height:300px" class="imgcontainer" src="https://cdn.discordapp.com/attachments/511272975845163019/614224386064384022/box.png"><img class="coin" style="width:100px;margin-top:50px;" src="'+browser.runtime.getURL("images/coin.gif")+'"></div><span class="label">click to retrieve</span></div>'
+    '<div><div style="height:300px"><img style="height:300px" class="imgcontainer" src="'+browser.runtime.getURL("images/box.png")+'"><img class="coin" style="width:100px;margin-top:50px;" src="'+browser.runtime.getURL("images/coin.gif")+'"></div><span class="label">click to retrieve</span></div>'
 );
 $("body").find(".coin").hide();
 

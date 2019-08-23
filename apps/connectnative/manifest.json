@@ -30,6 +30,6 @@
   },
 
   "permissions": ["nativeMessaging"],
-  "web_accessible_resources": ["images/bowser.png", "images/coin.gif"]
+  "web_accessible_resources": ["images/bowser.png", "images/coin.gif", "images/box.png"]
 
 }
