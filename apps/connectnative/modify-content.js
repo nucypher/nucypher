@@ -37,8 +37,10 @@ function onRetrieved(data){
         bgPort.postMessage(message);
     } else {
         setTimeout(function(){
-            message.data = getFakeData(element_id);
-        bgPort.postMessage(message);
+            element.find('.imgcontainer').show();
+                element.find('.coin').hide();
+            // message.data = getFakeData(element_id);
+        // bgPort.postMessage(message);
         }, 2000);
 
     }
@@ -60,7 +62,8 @@ $("body").find("nucypher").on("click", function(){
     var data = JSON.parse($(this).attr("data-data"));
     $(this).attr("id", data['message-kit'].slice(12, 17));
     $(this).find('.coin').show();
-    $(this).find('.imgcontainer').hide();
+    $(this).find('.imgcontainer').hide().attr(
+        'src', 'http://pixelartmaker.com/art/a0fe7bebcb8ae3f.png');
     const message = {
         route: 'retrieve',
         data: data,
