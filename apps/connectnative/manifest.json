@@ -29,6 +29,7 @@
     "default_icon": "icons/message.svg"
   },
 
-  "permissions": ["nativeMessaging"]
+  "permissions": ["nativeMessaging"],
+  "web_accessible_resources": ["images/bowser.png", "images/coin.gif"]
 
 }

@@ -1,6 +1,6 @@
 
 $("body").find("nucypher").append(
-    '<div><div style="height:300px"><img style="height:300px" class="imgcontainer" src="https://cdn.discordapp.com/attachments/511272975845163019/614224386064384022/box.png"><img class="coin" style="width:100px;margin-top:50px;" src="https://thumbs.gfycat.com/ImmaterialCandidBooby-max-1mb.gif"></div>click to retrieve</div>'
+    '<div><div style="height:300px"><img style="height:300px" class="imgcontainer" src="https://cdn.discordapp.com/attachments/511272975845163019/614224386064384022/box.png"><img class="coin" style="width:100px;margin-top:50px;" src="'+browser.runtime.getURL("images/coin.gif")+'"></div><span class="label">click to retrieve</span></div>'
 );
 $("body").find(".coin").hide();
 
@@ -63,7 +63,7 @@ $("body").find("nucypher").on("click", function(){
     $(this).attr("id", data['message-kit'].slice(12, 17));
     $(this).find('.coin').show();
     $(this).find('.imgcontainer').hide().attr(
-        'src', 'http://pixelartmaker.com/art/a0fe7bebcb8ae3f.png');
+        'src', browser.runtime.getURL("images/denied.png"));
     const message = {
         route: 'retrieve',
         data: data,
