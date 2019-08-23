@@ -24,6 +24,14 @@ contract AdjudicatorInterface {
 
 
 /**
+* @notice WorkLock interface
+**/
+contract WorkLockInterface {
+    function escrow() public view returns (address);
+}
+
+
+/**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
 **/
@@ -48,6 +56,7 @@ contract StakingEscrow is Issuer {
     event ReStakeSet(address indexed staker, bool reStake);
     event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerSet(address indexed staker, address indexed worker, uint16 indexed startPeriod);
+    event WorkMeasurementSet(address indexed staker, bool measureWork);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -79,8 +88,10 @@ contract StakingEscrow is Issuer {
         address worker;
         // period when worker was set
         uint16 workerStartPeriod;
-        // downtime
+        // last confirmed active period
         uint16 lastActivePeriod;
+        bool measureWork;
+        uint256 completedWork;
         Downtime[] pastDowntime;
         SubStakeInfo[] subStakes;
     }
@@ -110,6 +121,7 @@ contract StakingEscrow is Issuer {
     uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
     AdjudicatorInterface public adjudicator;
+    WorkLockInterface public workLock;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -179,6 +191,16 @@ contract StakingEscrow is Issuer {
         require(_adjudicator.escrow() == address(this),
             "This escrow must be the escrow for the new adjudicator");
         adjudicator = _adjudicator;
+    }
+
+    /**
+    * @notice Set worklock address
+    **/
+    function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
+        // Two-part require...
+        require(address(workLock) == address(0) &&  // Can't workLock once it is set.
+            _workLock.escrow() == address(this));  // This is the escrow for the new workLock.
+        workLock = _workLock;
     }
 
     //------------------------Main getters------------------------
@@ -351,9 +373,29 @@ contract StakingEscrow is Issuer {
         return workerToStaker[_worker];
     }
 
+    /**
+    * @notice Get work that completed by the staker
+    **/
+    function getCompletedWork(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].completedWork;
+    }
+
     //------------------------Main methods------------------------
     /**
-    * @notice Set worker
+    * @notice Start or stop measuring the work of a staker
+    * @param _staker Staker
+    * @param _measureWork Value for `measureWork` parameter
+    * @return Work that was previously done
+    **/
+    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+        require(msg.sender == address(workLock));
+        StakerInfo storage info = stakerInfo[_staker];
+        info.measureWork = _measureWork;
+        emit WorkMeasurementSet(_staker, _measureWork);
+        return info.completedWork;
+    }
+
+    /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
@@ -409,43 +451,6 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Pre-deposit tokens
-    * @param _stakers Stakers
-    * @param _values Amount of tokens to deposit for each staker
-    * @param _periods Amount of periods during which tokens will be locked for each staker
-    **/
-    function preDeposit(address[] memory _stakers, uint256[] memory _values, uint16[] memory _periods)
-        public isInitialized
-    {
-        require(_stakers.length != 0 &&
-            _stakers.length == _values.length &&
-            _stakers.length == _periods.length);
-        uint16 currentPeriod = getCurrentPeriod();
-        uint256 allValue = 0;
-
-        for (uint256 i = 0; i < _stakers.length; i++) {
-            address staker = _stakers[i];
-            uint256 value = _values[i];
-            uint16 periods = _periods[i];
-            StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0 &&
-                value >= minAllowableLockedTokens &&
-                value <= maxAllowableLockedTokens &&
-                periods >= minLockedPeriods);
-            require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
-                "A staker can't be a worker for another staker");
-            stakers.push(staker);
-            policyManager.register(staker, currentPeriod);
-            info.value = value;
-            info.subStakes.push(SubStakeInfo(currentPeriod.add16(1), 0, periods, value));
-            allValue = allValue.add(value);
-            emit Deposited(staker, value, periods);
-        }
-
-        token.safeTransferFrom(msg.sender, address(this), allValue);
-    }
-
-    /**
     * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
     * (see NuCypherToken contract). Deposit all tokens that were approved to transfer
     * @param _from Staker
@@ -472,7 +477,7 @@ contract StakingEscrow is Issuer {
             payload := calldataload(0xA4)
         }
         payload = payload >> 8*(32 - payloadSize);
-        deposit(_from, _value, uint16(payload));
+        deposit(_from, _from, _value, uint16(payload));
     }
 
     /**
@@ -481,7 +486,7 @@ contract StakingEscrow is Issuer {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function deposit(uint256 _value, uint16 _periods) public {
-        deposit(msg.sender, _value, _periods);
+        deposit(msg.sender, msg.sender, _value, _periods);
     }
 
     /**
@@ -490,7 +495,18 @@ contract StakingEscrow is Issuer {
     * @param _value Amount of tokens to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function deposit(address _staker, uint256 _value, uint16 _periods) internal isInitialized {
+    function deposit(address _staker, uint256 _value, uint16 _periods) public {
+        deposit(_staker, msg.sender, _value, _periods);
+    }
+
+    /**
+    * @notice Deposit tokens
+    * @param _staker Staker
+    * @param _payer Owner of tokens
+    * @param _value Amount of tokens to deposit
+    * @param _periods Amount of periods during which tokens will be locked
+    **/
+    function deposit(address _staker, address _payer, uint256 _value, uint16 _periods) internal isInitialized {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         require(workerToStaker[_staker] == address(0) || workerToStaker[_staker] == info.worker,
@@ -501,7 +517,7 @@ contract StakingEscrow is Issuer {
             policyManager.register(_staker, getCurrentPeriod());
         }
         info.value = info.value.add(_value);
-        token.safeTransferFrom(_staker, address(this), _value);
+        token.safeTransferFrom(_payer, address(this), _value);
         lock(_staker, _value, _periods);
         emit Deposited(_staker, _value, _periods);
     }
@@ -588,13 +604,7 @@ contract StakingEscrow is Issuer {
     * @param _newValue New sub stake value
     * @param _periods Amount of periods for extending sub stake
     **/
-    function divideStake(
-        uint256 _index,
-        uint256 _newValue,
-        uint16 _periods
-    )
-        public onlyStaker
-    {
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_newValue >= minAllowableLockedTokens &&
             _periods > 0 &&
@@ -603,20 +613,38 @@ contract StakingEscrow is Issuer {
         uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
-        require(lastPeriod >= currentPeriod);
+        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
 
         uint256 oldValue = subStake.lockedValue;
         subStake.lockedValue = oldValue.sub(_newValue);
         require(subStake.lockedValue >= minAllowableLockedTokens);
         saveSubStake(info, subStake.firstPeriod, 0, subStake.periods.add16(_periods), _newValue);
-        // if the next period is confirmed and
-        // old sub stake is finishing in the current period then update confirmation
-        if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
-            lockedPerPeriod[startPeriod] = lockedPerPeriod[startPeriod].add(_newValue);
-            emit ActivityConfirmed(msg.sender, startPeriod, _newValue);
-        }
         emit Divided(msg.sender, oldValue, lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, subStake.firstPeriod, subStake.periods + _periods);
+    }
+
+    /**
+    * @notice Prolong active sub stake
+    * @param _index Index of the sub stake
+    * @param _periods Amount of periods for extending sub stake
+    **/
+    function prolongStake(uint256 _index, uint16 _periods) public onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(_periods > 0, "Incorrect parameters");
+        SubStakeInfo storage subStake = info.subStakes[_index];
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 startPeriod = getStartPeriod(info, currentPeriod);
+        uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
+        require(lastPeriod > currentPeriod, "The sub stake must active at least in the next period");
+
+        subStake.periods = subStake.periods.add16(_periods);
+        // if the sub stake ends in the next confirmed period then reset the `lastPeriod` field
+        if (lastPeriod == startPeriod) {
+            subStake.lastPeriod = 0;
+        }
+        require(lastPeriod.add16(_periods).sub16(currentPeriod) >= minLockedPeriods,
+            "The extended sub stake must not be less than the minimum value");
+        emit Locked(msg.sender, subStake.lockedValue, lastPeriod + 1, _periods);
     }
 
     /**
@@ -752,6 +780,9 @@ contract StakingEscrow is Issuer {
         }
 
         info.value = info.value.add(reward);
+        if (info.measureWork) {
+            info.completedWork = info.completedWork.add(reward);
+        }
         emit Mined(_staker, previousPeriod, reward);
     }
 
@@ -1219,6 +1250,7 @@ contract StakingEscrow is Issuer {
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") == maxAllowableLockedTokens);
         require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(address(delegateGet(_testTarget, "adjudicator()")) == address(adjudicator));
+        require(address(delegateGet(_testTarget, "workLock()")) == address(workLock));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
         require(address(delegateGet(_testTarget, "workerToStaker(address)", bytes32(0))) ==
@@ -1239,6 +1271,8 @@ contract StakingEscrow is Issuer {
             infoToCheck.reStake == info.reStake &&
             infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod &&
+            infoToCheck.measureWork == info.measureWork &&
+            infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&
             infoToCheck.workerStartPeriod == info.workerStartPeriod);
 

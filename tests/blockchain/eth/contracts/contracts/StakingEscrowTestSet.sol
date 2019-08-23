@@ -185,3 +185,21 @@ contract Intermediary {
     }
 
 }
+
+
+/**
+* @notice Contract for testing staking escrow contract
+**/
+contract WorkLockForStakingEscrowMock {
+
+    StakingEscrow public escrow;
+
+    constructor(StakingEscrow _escrow) public {
+        escrow = _escrow;
+    }
+
+    function setWorkMeasurement(address _staker, bool _measureWork) public returns (uint256) {
+        return escrow.setWorkMeasurement(_staker, _measureWork);
+    }
+}
+
