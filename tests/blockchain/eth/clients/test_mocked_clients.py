@@ -167,7 +167,7 @@ class ProviderTypeTestClient(BlockchainInterfaceTestBase):
                  actual_provider_to_attach,
                  *args,
                  **kwargs):
-        BlockchainInterfaceTestBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.expected_provider_class = expected_provider_class
         self.test_provider_to_attach = actual_provider_to_attach
 
