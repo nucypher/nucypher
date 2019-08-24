@@ -15,6 +15,13 @@ log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
 
 
+# TODO:  populate this from nucypher code somehow?
+NO_KEYRING_NEEDED = [
+    'bob.init',
+    'alice.init',
+    'status',
+]
+
 def get_message():
     message_length = sys.stdin.buffer.read(4)
     if len(message_length) == 0:
@@ -44,19 +51,25 @@ try:
     while True:
 
         command_data = get_message()  # < -------- REQUEST FROM BROWSER
+        action = command_data['action']
+        character = command_data.get('character', '')
         options = []
-        character = command_data.get('character')
-        try:
-            NUCYPHER_KEYRING_PASSWORD = command_data['keyring_password']
-        except KeyError:
-            send_message(encode_message({'error': "keyring password is required"}))
 
         if character:
             options.append(character)
 
+        #  if there is no password, the process will just hang
+        #  so lets deal with that now.
+        try:
+            NUCYPHER_KEYRING_PASSWORD = command_data['keyring_password']
+        except KeyError:
+            if not '.'.join(options) in NO_KEYRING_NEEDED:
+                send_message(encode_message({'error': "keyring password is required"}))
+                exit(1)
+
         action = command_data['action']
         options += [action, '--json-ipc']
-        # command_data['args']['label'] = command_data['args']['label'].encode()
+
         for param, value in command_data['args'].items():
             options.extend((f"--{param}", value))
 
