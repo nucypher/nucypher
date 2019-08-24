@@ -4,7 +4,7 @@ $("body").find("nucypher").append(
 );
 $("body").find(".coin").hide();
 
-var bgPort = browser.runtime.connect();
+var bgPort = browser.runtime.connect({name: "content-messages"});
 
 function formatId(messageKit){
     return messageKit.slice(0, 10).replace('+', 'x').replace('/', '1');
@@ -15,7 +15,6 @@ function onRetrieved(data){
     var element = $('#' + element_id);
     if (data.result.length){
         let imagedata = JSON.parse(data.result).result.cleartexts[0];
-        console.log("Image data is ", imagedata);
         element.find(".imgcontainer").attr('src', 'data:image/png;base64,' + imagedata).show();
     } else{
         element.find(".imgcontainer").attr('src', browser.runtime.getURL("images/denied.png")).show()
@@ -24,11 +23,12 @@ function onRetrieved(data){
 }
 
 function fDispatcher(message){
-    console.log("fDispatcher:", message);
     const callbacks = {
-        'retrieved': onRetrieved,
+        'bob.retrieve': onRetrieved,
     }
-    return callbacks[message.route](message.data);
+    if (callbacks[message.route] !== undefined){
+        return callbacks[message.route](message.data);
+    }
 }
 
 bgPort.onMessage.addListener(fDispatcher);

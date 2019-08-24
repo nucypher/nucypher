@@ -4,10 +4,6 @@
   "manifest_version": 2,
   "name": "Nucypher",
   "version": "1.0",
-  "icons": {
-    "48": "icons/message.svg"
-  },
-
   "applications": {
     "gecko": {
       "id": "nucypher@nucypher.com",
@@ -15,13 +11,13 @@
     }
   },
   "background": {
-    "scripts": ["nacl-util.js", "nacl.js", "background.js"]
+    "scripts": ["background.js"]
   },
 
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["jquery.js", "modify-content.js"]
+      "js": ["sources/jquery.js", "content.js"]
     }
   ],
 
@@ -29,7 +25,15 @@
     "default_icon": "icons/message.svg"
   },
 
-  "permissions": ["nativeMessaging"],
+  "permissions": [
+    "tabs",
+    "nativeMessaging",
+    "*://*/*",
+    "activeTab",
+    "webRequest",
+    "webRequestBlocking",
+    "storage"
+  ],
   "web_accessible_resources": ["images/bowser.png", "images/coin.gif", "images/box.png"]
 
 }

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="panel/bootstrap.css"/>
+    <link rel="stylesheet" href="panel/panel.css"/>
+  </head>
+
+<body>
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12">
+      <label for="passwordinput">Password</label>
+      <input type="password" class="form-control" id="passwordinput" placeholder="Password">
+      <hr>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-3">
+      <div class="button">Bob Keys</div>
+      <div class="button">Retrieve</div>
+      <div class="button">Grant</div>
+      <div route="status" class="button">Status</div>
+    </div>
+    <div class="col-xs-9">
+      <form id="commandform">
+      </form>
+      <hr>
+      <div class="row text-left">
+        <div class="col-xs-4 pull-right">
+          <button disabled="true" id="submitbutton" class="btn btn-primary rm-5" type="submit">run NuCypher</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-12" id="output">
+    </div>
+  </div>
+  </div>
+  <script src="sources/jquery.js"></script>
+  <script src="panel/panel.js"></script>
+</body>
+
+</html>

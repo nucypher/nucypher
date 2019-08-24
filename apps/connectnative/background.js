@@ -1,45 +1,71 @@
+
+// connect native
 const nucypher = browser.runtime.connectNative("nucypher");
 
-function ncRetrieve(request) {
+nucypher.onMessage.addListener((response) => {
+  console.log(response);
+  // response is a key which can be used to decrypt the original image.
+  if (ports['panel-messages']){
+    ports['panel-messages'].postMessage({
+      route: response.route,
+      data: response,
+    });
+  }
+  if(ports['content-messages']){
+    ports['content-messages'].postMessage({
+      route: response.route,
+      data: response,
+    });
+  }
+});
+// encd connect native
 
-  let args = {
-    "teacher": "https://165.22.21.214:9151",
-  };
+//callbacks
 
-  args = Object.assign(args, request);
-
-  delete args['image_ciphertext']
-
-  const data = {
-    character: "bob",
-    action:"retrieve",
-    args,
-  };
-  console.log('retrieving from bob:', data);
-  nucypher.postMessage(data);
+function NucypherExecute(request) {
+  if (request.character === "undefined"){
+    delete request.character;
+  }
+  console.log(request);
+  nucypher.postMessage(request);
 };
 
-nucypher.onMessage.addListener((response) => {
-  // response is a key which can be used to decrypt the original image.
-  portFromCS.postMessage({
-    route: 'retrieved',
-    data: response,
-  });
-});
+function NucypherOptions(request) {
+  request.options = true;
+  nucypher.postMessage(request);
+}
 
-var portFromCS;
+// browser interaction
+var ports = {
+  "panel-messages": null,
+  "content-messages": null,
+}
 
 function Dispatcher(message){
   const callbacks = {
-    'retrieve': ncRetrieve,
+    execute: NucypherExecute,
+    options: NucypherOptions,
   }
-  return callbacks[message.route](message.data);
+  if (callbacks[message.route] !== undefined){
+    return callbacks[message.route](message.data);
+  }
 }
 
 function connected(p) {
-  portFromCS = p;
-  portFromCS.onMessage.addListener(Dispatcher);
+  ports[p.name] = p;
+  ports[p.name].onMessage.addListener(Dispatcher);
+  console.log(ports)
 }
-
 browser.runtime.onConnect.addListener(connected);
 
+//panel interaction
+browser.browserAction.onClicked.addListener(() => {
+  var popupWindow = browser.windows.create(
+    {
+      type: "detached_panel",
+      url: "popup.html",
+      width: 600,
+      height: 300,
+    }
+  );
+})
