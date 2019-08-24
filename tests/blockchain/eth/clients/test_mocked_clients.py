@@ -208,6 +208,12 @@ class GanacheClientTestInterface(BlockchainInterfaceTestBase):
         super()._attach_provider(provider=MockGanacheProvider())
 
 
+def test_client_no_provider():
+    with pytest.raises(BlockchainInterface.NoProvider) as e:
+        interface = BlockchainInterfaceTestBase()
+        interface.connect(fetch_registry=False, sync_now=False)
+
+
 def test_geth_web3_client():
     interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth')
     interface.connect(fetch_registry=False, sync_now=False)
@@ -232,7 +238,7 @@ def test_autodetect_provider_type_file(tempfile_path):
 
 
 def test_autodetect_provider_type_file_none_existent():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(BlockchainInterface.UnsupportedProvider) as e:
         interface = BlockchainInterfaceTestBase(provider_uri='/none_existent.ipc.geth')
         interface.connect(fetch_registry=False, sync_now=False)
 
