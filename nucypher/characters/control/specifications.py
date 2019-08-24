@@ -3,6 +3,7 @@ from abc import ABC
 
 class CharacterSpecification(ABC):
 
+    _name = NotImplemented
     _specifications = NotImplemented
 
     class SpecificationError(ValueError):
@@ -60,13 +61,13 @@ class CharacterSpecification(ABC):
 
 class AliceSpecification(CharacterSpecification):
 
-    _name = "alice"
+    _name = 'alice'
 
     __create_policy = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                        ('label', 'policy_encrypting_key'))                              # Out
 
-    __derive_policy_encrypting_key = (('label', ),                         # In
-                                     ('policy_encrypting_key', 'label'))   # Out
+    __derive_policy_encrypting_key = (('label', ),                          # In
+                                      ('policy_encrypting_key', 'label'))   # Out
 
     __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
@@ -92,7 +93,7 @@ class AliceSpecification(CharacterSpecification):
 
 class BobSpecification(CharacterSpecification):
 
-    _name = "bob"
+    _name = 'bob'
 
     __join_policy = (('label', 'alice_verifying_key'),
                      ('policy_encrypting_key', ))
@@ -110,7 +111,7 @@ class BobSpecification(CharacterSpecification):
 
 class EnricoSpecification(CharacterSpecification):
 
-    _name = "enrico"
+    _name = 'enrico'
 
     __encrypt_message = (('message', ),
                          ('message_kit', 'signature'))
