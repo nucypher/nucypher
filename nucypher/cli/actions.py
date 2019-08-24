@@ -20,6 +20,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import shutil
 from typing import List
+from itertools import chain
+from typing import List, Callable
 
 import click
 import requests
@@ -39,6 +41,9 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
+from nucypher.characters.control.specifications import CharacterSpecification
+from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -55,7 +60,7 @@ Delete all {name} character files including:
     - Known Nodes             ({nodestore})
     - Node Configuration File ({config})
     - Database                ({database})
-    
+
 Are you sure?'''
 
 SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
@@ -211,8 +216,8 @@ By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
 
 - Staked tokens will be locked for the stake duration.
 
-- You are obligated to maintain a networked and available Ursula-Worker node 
-  bonded to the staker address {staker_address} for the duration 
+- You are obligated to maintain a networked and available Ursula-Worker node
+  bonded to the staker address {staker_address} for the duration
   of the stake(s) ({lock_periods} periods).
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
@@ -375,7 +380,7 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
 
 def confirm_enable_restaking_lock(emitter, staking_address: str, release_period: int) -> bool:
     restaking_lock_agreement = f"""
-By enabling the re-staking lock for {staking_address}, you are committing to automatically 
+By enabling the re-staking lock for {staking_address}, you are committing to automatically
 re-stake all rewards until period a future period.  You will not be able to disable re-staking until {release_period}.
     """
     emitter.message(restaking_lock_agreement)
@@ -419,3 +424,26 @@ def establish_deployer_registry(emitter,
     emitter.message(f"Configured to registry filepath {registry_filepath}")
 
     return registry
+
+
+def echo_schema(command, character_name: str, action: str = None):
+    def click_scheme_reader():
+        for option in command.params:
+            yield option.name, option.type.name
+    click_schema = dict(click_scheme_reader())
+
+    # Get character specification
+    all_specs = {spec._name: spec for spec in CharacterSpecification.__subclasses__()}
+    specification = all_specs[character_name]()
+
+    # Used for flattened schema generation
+    # flattened_inputs = set(chain.from_iterable(input_specs))
+
+    result = dict()
+    for interface, io in specification._specifications.items():
+        input_spec, output_spec = io
+        result[interface] = {option: click_schema[option] for option in input_spec}
+
+    if action:
+        return result[action]
+    return result
