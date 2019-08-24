@@ -15,29 +15,33 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import time
 import webbrowser
 from decimal import Decimal
+from typing import List
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
-from nucypher.blockchain.eth.agents import ContractAgency
-from nucypher.blockchain.eth.agents import UserEscrowAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    AdjudicatorAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent
+)
+from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.blockchain.eth.utils import etherscan_url
+from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
+from nucypher.network.nicknames import nickname_from_seed
 
 
 def echo_version(ctx, param, value):
@@ -94,7 +98,6 @@ def build_fleet_state_status(ursula) -> str:
 
 
 def paint_node_status(emitter, ursula, start_time):
-
     # Build Learning status line
     learning_status = "Unknown"
     if ursula._learning_task.running:
@@ -178,13 +181,19 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(emitter, registry):
-
+def paint_contract_status(registry, emitter):
     blockchain = BlockchainInterfaceFactory.get_interface()
+
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
+
+
+    try:
+        registry_filepath = registry.filepath
+    except AttributeError:
+        registry_filepath = "No filepath"
 
     contracts = f"""
 | Contract Deployments |
@@ -320,7 +329,6 @@ def paint_staged_stake(emitter,
                        start_period,
                        end_period,
                        division_message: str = None):
-
     if division_message:
         emitter.echo(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
         emitter.echo(division_message)
@@ -375,7 +383,6 @@ def prettify_stake(stake, index: int = None) -> str:
 
 
 def paint_stakes(emitter, stakes):
-
     title = "======================================= Active Stakes =========================================\n"
 
     header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
@@ -396,7 +403,6 @@ def paint_staged_stake_division(emitter,
                                 original_stake,
                                 target_value,
                                 extension):
-
     new_end_period = original_stake.end_period + extension
     new_duration_periods = new_end_period - original_stake.start_period
     staking_address = original_stake.owner_address
@@ -439,7 +445,6 @@ def paint_contract_deployment(emitter,
                               receipts: dict,
                               chain_name: str = None,
                               open_in_browser: bool = False):
-
     # TODO: switch to using an explicit emitter
 
     is_token_contract = contract_name == NUCYPHER_TOKEN_CONTRACT_NAME
@@ -494,3 +499,53 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
     for i in range(delay)[::-1]:
         emitter.echo(f"{i}...", color='yellow')
         time.sleep(1)
+
+
+def paint_stakers(emitter, stakers: List[str], agent) -> None:
+    current_period = agent.get_current_period()
+    emitter.echo(f"\nCurrent period: {current_period}")
+    emitter.echo("\n| Stakers |\n")
+    emitter.echo(f"{'Checksum address':42}  Staker information")
+    emitter.echo('=' * (42 + 2 + 53))
+
+    for staker in stakers:
+        nickname, _ = nickname_from_seed(staker)
+        emitter.echo(f"{staker}  {'Nickname:':10} {nickname}")
+        tab = " " * len(staker)
+        info = agent.contract.functions.stakerInfo(staker).call()
+        stake, confirmed1, confirmed2, restake, *remaining_info = info
+        locked_restake_until_period, worker, worker_start, last_active = remaining_info
+        last_confirmed_period = max(confirmed1, confirmed2)
+        missing_confirmations = current_period - last_confirmed_period
+        stake_in_nu = round(NU.from_nunits(stake), 2)
+        locked_tokens = round(NU.from_nunits(agent.get_locked_tokens(staker)), 2)
+
+        emitter.echo(f"{tab}  {'Stake:':10} {stake_in_nu}  (Locked: {locked_tokens})")
+        emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
+        if missing_confirmations == -1:
+            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
+        elif missing_confirmations == 0:
+            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
+                         f"Pending confirmation of next period.", color='yellow')
+        elif missing_confirmations == current_period:
+            emitter.echo(f"Never confirmed activity", color='red')
+        else:
+            emitter.echo(f"Missing {missing_confirmations} confirmations "
+                         f"(last time for period #{last_confirmed_period})", color='red')
+        emitter.echo(f"{tab}  {'Worker:':10} {worker}\n")
+
+
+def paint_locked_tokens_status(emitter, agent) -> None:
+    emitter.echo("\n| Locked Tokens |\n")
+
+    from collections import Counter
+    token_counter = Counter({day: agent.get_all_locked_tokens(day) for day in range(1, 61)})
+
+    width = 60  # Adjust to desired width
+    longest_key = max(len(str(key)) for key in token_counter)
+    graph_width = width - longest_key - 2
+    widest = token_counter.most_common(1)[0][1]
+    scale = graph_width / float(widest)
+
+    for key, size in sorted(token_counter.items()):
+        emitter.echo(f"{key:2}: {int(size * scale) * '*'} {NU.from_nunits(size)}")

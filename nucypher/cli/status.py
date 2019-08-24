@@ -18,21 +18,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_contract_status
+from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status, paint_known_nodes
+from nucypher.config.characters import UrsulaConfiguration
 
 
 @click.command()
+@click.argument('action')
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
 @click.option('--sync/--no-sync', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
 @nucypher_click_config
-def status(click_config, provider_uri, sync, geth, poa):
+def status(click_config, action, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
@@ -40,16 +43,44 @@ def status(click_config, provider_uri, sync, geth, poa):
     emitter = click_config.emitter
     click.clear()
     emitter.banner(NU_BANNER)
-    emitter.echo(message="Reading Latest Chaindata...")
 
     try:
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, sync=sync)
-        registry = InMemoryContractRegistry.from_latest_publication()
-        paint_contract_status(emitter=emitter, registry=registry)
-        return  # Exit
+        ETH_NODE = None
+        if geth:
+            ETH_NODE = get_provider_process()
 
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
+                                                        provider_process=ETH_NODE,
+                                                        poa=poa)
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        emitter.echo(message="Reading Latest Chaindata...")
+        blockchain.connect()
     except Exception as e:
         if click_config.debug:
             raise
         click.secho(str(e), bold=True, fg='red')
         return  # Exit
+
+    # TODO: Allow --registry
+    registry = InMemoryContractRegistry.from_latest_publication()
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+
+    if action == 'view':
+        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=click_config.config_file)
+        if not ursula_config.federated_only:
+            paint_contract_status(registry, emitter=emitter)
+
+        paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)
+        return  # Exit
+
+    if action == 'stakers':
+        paint_stakers(emitter=emitter, stakers=staking_agent.get_stakers(), agent=staking_agent)
+        return  # Exit
+
+    elif action == 'locked-tokens':
+        paint_locked_tokens_status(emitter=emitter, agent=staking_agent)
+        return  # Exit
+
+    else:
+        ctx = click.get_current_context()
+        click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx).show()
