@@ -1,8 +1,10 @@
+from itertools import chain
+
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.banners import ALICE_BANNER
+from nucypher.characters.control.specifications import AliceSpecification, CharacterSpecification
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
 from nucypher.cli.config import nucypher_click_config
@@ -11,8 +13,29 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
 
 
+def echo_schema(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    # import pdb; pdb.set_trace()
+
+    def schema():
+        for option in alice.params:
+            yield option.name, option.type.name
+
+    command_name = ctx.command.name
+    all_specs = {spec._name: spec for spec in CharacterSpecification.__subclasses__()}
+    specification = all_specs[command_name]()
+    input_specs = (s[0] for s in specification._specifications.values())
+
+    flattened_inputs = set(chain.from_iterable(input_specs))
+    full_scheme = dict(schema())
+    character_scheme = {option: full_scheme[option] for option in flattened_inputs}
+    return character_scheme
+
+
 @click.command()
 @click.argument('action')
+@click.option('--options', help="Export JSON type schema", is_flag=True, callback=echo_schema, is_eager=True, expose_value=False)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
