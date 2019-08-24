@@ -6,6 +6,7 @@ SpecificationTuple = namedtuple('SpecificationTuple', ['input', 'optional', 'out
 
 class CharacterSpecification(ABC):
 
+    _name = NotImplemented
     _specifications = NotImplemented
 
     class SpecificationError(ValueError):
@@ -68,6 +69,8 @@ class CharacterSpecification(ABC):
 
 class AliceSpecification(CharacterSpecification):
 
+    _name = 'alice'
+
     __create_policy = {'input': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
                        'optional': ('value', 'first_period_reward', 'rate'),
                        'output': ('label', 'policy_encrypting_key')}
@@ -98,6 +101,8 @@ class AliceSpecification(CharacterSpecification):
 
 class BobSpecification(CharacterSpecification):
 
+    _name = 'bob'
+
     __join_policy = {'input': ('label', 'alice_verifying_key'),
                      'output': ('policy_encrypting_key', )}
 
@@ -113,6 +118,8 @@ class BobSpecification(CharacterSpecification):
 
 
 class EnricoSpecification(CharacterSpecification):
+
+    _name = 'enrico'
 
     __encrypt_message = {'input': ('message', ),
                          'output': ('message_kit', 'signature')}

@@ -5,16 +5,19 @@ from nucypher.characters.banners import ENRICO_BANNER
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT
+from nucypher.cli.actions import echo_schema
+from nucypher.characters.control.specifications import EnricoSpecification
 
 
 @click.command()
 @click.argument('action')
+@click.option('--options', help="Export JSON type schema", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
 @click.option('--message', help="A unicode message to encrypt for a policy", type=click.STRING)
 @click.option('--policy-encrypting-key', help="Encrypting Public Key for Policy as hexidecimal string", type=click.STRING)
 @nucypher_click_config
-def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, message):
+def enrico(click_config, action, options, policy_encrypting_key, dry_run, http_port, message):
     """
     "Enrico the Encryptor" management commands.
 
@@ -27,22 +30,29 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
 
     """
 
-    #
-    # Validate
-    #
-
-    if not policy_encrypting_key:
-        raise click.BadArgumentUsage('--policy-encrypting-key is required to start Enrico.')
-
     # Banner
     emitter = click_config.emitter
     emitter.clear()
     emitter.banner(ENRICO_BANNER.format(policy_encrypting_key))
 
     #
+    # Handle Options
+    #
+    if options:
+        # TODO: Move to common decorator
+        scheme = echo_schema(enrico, character_name=EnricoSpecification._name, action=action)
+        emitter.ipc(response=scheme, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+        return  # Exit
+
+    #
+    # Validate
+    #
+    if not policy_encrypting_key:
+        raise click.BadArgumentUsage('--policy-encrypting-key is required to start Enrico.')
+
+    #
     # Make Enrico
     #
-
     policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
     ENRICO.controller.emitter = emitter  # TODO: set it on object creation? Or not set at all?
@@ -74,6 +84,5 @@ def enrico(click_config, action, policy_encrypting_key, dry_run, http_port, mess
         encryption_request = {'message': message}
         response = ENRICO.controller.encrypt_message(request=encryption_request)
         return response
-
     else:
         raise click.BadArgumentUsage
