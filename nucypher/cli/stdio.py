@@ -23,6 +23,9 @@ TEMP_MOCK_ARGS = {
             "type": "str",
         },
     ],
+    'bob.public-keys': {
+
+    }
 }
 
 
@@ -85,7 +88,7 @@ try:
                 }
                 send_message(encode_message(output))
             else:
-                # options += ['--json-ipc']
+                options += ['--json-ipc']
 
                 for param, value in command_data['args'].items():
                     options.extend((f"--{param}", value))

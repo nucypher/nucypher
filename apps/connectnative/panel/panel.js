@@ -32,7 +32,6 @@ function onOptions(data){
         data = Object.assign(data, $('#commandform').serializeObject())
         bgPort.postMessage({route: "execute", data: data});
     });
-
 }
 
 function fDispatcher(message){
