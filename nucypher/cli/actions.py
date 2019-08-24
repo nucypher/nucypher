@@ -225,7 +225,7 @@ Accept ursula node operator obligation?""", abort=True)
 
 
 def handle_missing_configuration_file(character_config_class, config_file: str = None):
-    config_file_location = config_file or character_config_class.DEFAULT_CONFIG_FILE_LOCATION
+    config_file_location = config_file or character_config_class.default_filepath()
     message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
               f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
               f'\'nucypher {character_config_class._NAME} init\''

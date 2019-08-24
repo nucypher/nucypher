@@ -320,7 +320,11 @@ class CharacterConfiguration(BaseConfiguration):
         """Initialize a CharacterConfiguration from a JSON file."""
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
-        node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
+        try:
+            node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
+        except TypeError as e:
+            # TODO: Trigger configuration migration?
+            raise cls.ConfigurationError(f"Your configuration file may be out of date: {e}")
         return node_configuration
 
     def validate(self) -> bool:
