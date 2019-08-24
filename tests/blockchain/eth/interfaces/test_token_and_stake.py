@@ -98,6 +98,11 @@ def test_NU(token_economics):
     with pytest.raises(InvalidOperation):
         _nan = NU(float('NaN'), 'NU')
 
+    # Rounding NUs
+    assert round(pi_nus, 2) == NU("3.14", "NU")
+    assert round(pi_nus, 1) == NU("3.1", "NU")
+    assert round(pi_nus, 0) == round(pi_nus) == NU("3", "NU")
+
 
 def test_stake(testerchain, token_economics, agency):
     token_agent, staking_agent, _policy_agent = agency
