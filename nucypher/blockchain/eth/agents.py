@@ -191,6 +191,19 @@ class StakingEscrowAgent(EthereumContractAgent):
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
 
+    def get_stakers(self) -> List[str]:
+        """Returns a list of active stakers"""
+        num_stakers = self.contract.functions.getStakersLength().call()
+        stakers = [self.contract.functions.stakers(i).call() for i in range(num_stakers)]
+        return stakers
+
+    def get_all_locked_tokens(self, periods: int) -> int:
+        """Returns the current period"""
+        if periods < 1:
+            raise ValueError("Period must be > 1")
+
+        return self.contract.functions.getAllLockedTokens(periods).call()
+
     #
     # StakingEscrow Contract API
     #
