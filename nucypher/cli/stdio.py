@@ -11,8 +11,6 @@ from click.testing import CliRunner
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR
 
-NUCYPHER_KEYRING_PASSWORD = "flashdanceasspants"
-
 log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
 
@@ -46,11 +44,18 @@ try:
     while True:
 
         command_data = get_message()  # < -------- REQUEST FROM BROWSER
+        options = []
+        character = command_data.get('character')
+        try:
+            NUCYPHER_KEYRING_PASSWORD = command_data['keyring_password']
+        except KeyError:
+            send_message(encode_message({'error': "keyring password is required"}))
 
-        character = command_data['character']
+        if character:
+            options.append(character)
+
         action = command_data['action']
-
-        options = [character, action, '--json-ipc']
+        options += [action, '--json-ipc']
         # command_data['args']['label'] = command_data['args']['label'].encode()
         for param, value in command_data['args'].items():
             options.extend((f"--{param}", value))
@@ -71,8 +76,6 @@ try:
             err = ''.join('\n'+line for line in lines)  # Log it or whatever here
             logging.error(f"NuCypher CLI error ==== \n {err}")
         ####
-
-
 
         output = {
             "input": command_data,
