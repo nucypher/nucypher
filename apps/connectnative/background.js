@@ -1,19 +1,24 @@
 
 // connect native
 const nucypher = browser.runtime.connectNative("nucypher");
+var popupWindow;
+var password;
 
 nucypher.onMessage.addListener((response) => {
-  console.log(response);
   // response is a key which can be used to decrypt the original image.
+  let route = response.route;
+  if (response.input.options){
+    route = "options";
+  }
   if (ports['panel-messages']){
     ports['panel-messages'].postMessage({
-      route: response.route,
+      route: route,
       data: response,
     });
   }
   if(ports['content-messages']){
     ports['content-messages'].postMessage({
-      route: response.route,
+      route: route,
       data: response,
     });
   }
@@ -23,16 +28,33 @@ nucypher.onMessage.addListener((response) => {
 //callbacks
 
 function NucypherExecute(request) {
-  if (request.character === "undefined"){
+  if (request.character === "undefined") {
     delete request.character;
   }
-  console.log(request);
   nucypher.postMessage(request);
 };
 
 function NucypherOptions(request) {
   request.options = true;
+  request.keyring_password = password;
+  request.args = {
+    options: true,
+  }
   nucypher.postMessage(request);
+}
+
+function getPassword(request){
+  ports['panel-messages'].postMessage({
+    route: 'need-password',
+  });
+}
+
+function setPassword(data){
+  password = data;
+  ports['content-messages'].postMessage({
+    route: 'setPassword',
+    data: data,
+  });
 }
 
 // browser interaction
@@ -45,6 +67,8 @@ function Dispatcher(message){
   const callbacks = {
     execute: NucypherExecute,
     options: NucypherOptions,
+    'need-password': getPassword,
+    setPassword: setPassword,
   }
   if (callbacks[message.route] !== undefined){
     return callbacks[message.route](message.data);
@@ -60,7 +84,7 @@ browser.runtime.onConnect.addListener(connected);
 
 //panel interaction
 browser.browserAction.onClicked.addListener(() => {
-  var popupWindow = browser.windows.create(
+  popupWindow = browser.windows.create(
     {
       type: "detached_panel",
       url: "popup.html",

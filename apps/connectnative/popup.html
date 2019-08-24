@@ -12,7 +12,12 @@
   <div class="row">
     <div class="col-xs-12">
       <label for="passwordinput">Password</label>
-      <input type="password" class="form-control" id="passwordinput" placeholder="Password">
+      <div class="input-group">
+      <input type="password" id="passwordinput" class="form-control">
+        <span class="input-group-btn">
+          <button id="passwordbutton" class="btn btn-default" type="button">Set Password</button>
+        </span>
+      </div>
       <hr>
     </div>
   </div>
@@ -20,12 +25,16 @@
     <div class="col-xs-3">
       <div route="public-keys" character="bob" class="button">Bob Keys</div>
       <div class="button">Retrieve</div>
-      <div class="button">Grant</div>
+      <div route="grant" character="alice" class="button">Grant</div>
       <div route="status" class="button">Status</div>
     </div>
     <div class="col-xs-9">
+    <div class="row">
+      <div class="col-xs-9 pull-left">
       <form id="commandform">
       </form>
+      </div>
+    </div>
       <hr>
       <div class="row text-left">
         <div class="col-xs-4 pull-right">

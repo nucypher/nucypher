@@ -23,9 +23,6 @@ TEMP_MOCK_ARGS = {
             "type": "str",
         },
     ],
-    'bob.public-keys': {
-
-    }
 }
 
 
@@ -69,7 +66,7 @@ try:
 
         route_key = '.'.join(options)
 
-        if command_data.get("options"):
+        if command_data.get("options") and TEMP_MOCK_ARGS.get(route_key):
             output = {
                 "input": command_data,
                 "result": TEMP_MOCK_ARGS.get(route_key),
@@ -88,16 +85,22 @@ try:
                 }
                 send_message(encode_message(output))
             else:
-                options += ['--json-ipc']
+                options.append('--json-ipc')
+
+                if command_data.get("options"):
+                    options.append('--options')
 
                 for param, value in command_data['args'].items():
-                    options.extend((f"--{param}", value))
+                    param = param.replace("_", "-")
+                    if value is True:
+                        options.append(f"--{param}")
+                    else:
+                        options.extend((f"--{param}", value))
 
                 ####
                 # INTERNAL INTERFACE
                 logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
                 environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
-
                 result = None
                 try:
                     nc_result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)

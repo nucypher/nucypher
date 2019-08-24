@@ -5,6 +5,7 @@ $("body").find("nucypher").append(
 $("body").find(".coin").hide();
 
 var bgPort = browser.runtime.connect({name: "content-messages"});
+var password = null;
 
 function formatId(messageKit){
     return messageKit.slice(0, 10).replace('+', 'x').replace('/', '1');
@@ -22,9 +23,15 @@ function onRetrieved(data){
     element.find('.coin').hide();
 }
 
+function setPassword(data){
+    password = data;
+    console.log(password);
+}
+
 function fDispatcher(message){
     const callbacks = {
         'bob.retrieve': onRetrieved,
+        setPassword: setPassword,
     }
     if (callbacks[message.route] !== undefined){
         return callbacks[message.route](message.data);
@@ -34,15 +41,31 @@ function fDispatcher(message){
 bgPort.onMessage.addListener(fDispatcher);
 
 $("body").find("nucypher").on("click", function(){
-    var data = JSON.parse($(this).attr("data-data"));
-    $(this).attr("id", formatId(data['message-kit']));
-    $(this).find('.coin').show();
-    $(this).find('.imgcontainer').hide().attr(
-        'src', browser.runtime.getURL("images/denied.png"));
-    const message = {
-        route: 'retrieve',
-        data: data,
-    };
-    bgPort.postMessage(message);
+
+    if (password) {
+        $(this).find('.prompt').remove();
+        var data = JSON.parse($(this).attr("data-data"));
+        $(this).attr("id", formatId(data['message-kit']));
+        $(this).find('.coin').show();
+        $(this).find('.imgcontainer').hide().attr(
+            'src', browser.runtime.getURL("images/denied.png"));
+
+        const message = {
+            route: 'execute',
+            data: {
+                character: 'bob',
+                action: 'retrieve',
+                keyring_password: password,
+                args: data,
+            }
+        };
+
+        bgPort.postMessage(message);
+    } else {
+        alert("Please Open the NuCypher Control Panel and enter a password");
+        bgPort.postMessage({
+            route: "need-password",
+        });
+    }
 });
 
