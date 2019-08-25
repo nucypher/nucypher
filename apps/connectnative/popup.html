@@ -8,12 +8,13 @@
   </head>
 
 <body>
-<div class="container">
+<div class="container-fluid">
+
   <div class="row">
     <div class="col-xs-12">
       <label for="passwordinput">Password</label>
       <div class="input-group">
-      <input type="password" id="passwordinput" class="form-control">
+        <input type="password" id="passwordinput" name="password" class="form-control">
         <span class="input-group-btn">
           <button id="passwordbutton" class="btn btn-default" type="button">Set Password</button>
         </span>
@@ -21,37 +22,34 @@
       <hr>
     </div>
   </div>
+
   <div class="row onlyifnopassword nopassword">
     <div class="cols-xs-12 text-center">
       <h4>enter your NuCypher Keyring password to begin</h4>
     </div>
   </div>
   <div class="row onlyifpassword nopassword">
-    <div class="col-xs-3 buttons">
-      <div>works</div>
-      <button class="btn btn-default tm-5 action" route="grant" character="alice">Grant</button>
-      <button class="btn btn-default tm-5 action" route="revoke" character="alice">Alice Revoke</button>
-      <button class="btn btn-default tm-5 action" route="decrypt" character="alice">Alice Decrypt</button>
-
-      <div>experimental</div>
-      <button class="btn btn-default tm-5 action" route="public-keys" character="bob">Bob Keys</button>
-      <button class="btn btn-default tm-5 action" route="status">Status</button>
+    <div class="col-xs-12">
+        <div>works</div>
+        <button class="btn btn-default tm-5 action" route="grant" character="alice">Grant</button>
+        <button class="btn btn-default tm-5 action" route="revoke" character="alice">Alice Revoke</button>
+        <button class="btn btn-default tm-5 action" route="decrypt" character="alice">Alice Decrypt</button>
+        <button class="btn btn-default tm-5 action" route="encrypt" character="enrico">Enrico Encrypt</button>
+        <div>experimental</div>
+        <button class="btn btn-default tm-5 action" route="public-keys" character="bob">Bob Keys</button>
+        <button class="btn btn-default tm-5 action" route="status">Status</button>
+    </div>
+    <div class="col-xs-12">
+      <hr>
+    </div>
+    <div class="col-xs-3">
+      <button disabled="true" id="submitbutton" class="btn btn-primary tm-5" type="submit">run NuCypher</button>
     </div>
     <div class="col-xs-9">
-    <div class="row">
-      <div class="col-xs-9 pull-left">
-      <form id="commandform">
-      </form>
-      </div>
-    </div>
-      <hr>
-      <div class="row text-left">
-        <div class="col-xs-4 pull-right">
-          <button disabled="true" id="submitbutton" class="btn btn-primary rm-5" type="submit">run NuCypher</button>
-        </div>
-      </div>
+      <form id="commandform"></form>
     </div>
   </div>
+  <hr>
   <div class="row">
     <div class="col-xs-12" id="output">
     </div>

@@ -1,6 +1,3 @@
-#commandform{
-    max-height:100px;
-}
 
 .list-group-item{
   overflow-wrap: break-word;
@@ -13,6 +10,7 @@
 
 .onlyifnopassword {
     visibility:hidden;
+    height:0px;
 }
 .onlyifnopassword.nopassword {
     visibility:visible;
