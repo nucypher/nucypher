@@ -113,10 +113,10 @@ class EnricoSpecification(CharacterSpecification):
 
     _name = 'enrico'
 
-    __encrypt_message = (('message', ),
+    __encrypt_message = (('message', 'policy_encrypting_key'),
                          ('message_kit', 'signature'))
 
-    _specifications = {'encrypt_message': __encrypt_message}
+    _specifications = {'encrypt_message': __encrypt_message, 'encrypt': __encrypt_message}
 
 
 ALL_SPECIFICATIONS = [
