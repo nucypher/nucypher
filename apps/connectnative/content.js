@@ -25,7 +25,6 @@ function onRetrieved(data){
 
 function setPassword(data){
     password = data;
-    console.log(password);
 }
 
 function fDispatcher(message){

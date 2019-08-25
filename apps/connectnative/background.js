@@ -89,7 +89,7 @@ browser.browserAction.onClicked.addListener(() => {
       type: "detached_panel",
       url: "popup.html",
       width: 600,
-      height: 300,
+      height: 600,
     }
   );
 })

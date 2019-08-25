@@ -15,16 +15,6 @@ from nucypher.config.constants import USER_LOG_DIR
 log_file = LOG_PATH = os.path.join(USER_LOG_DIR, f'native-messaging.log')
 logging.basicConfig(filename=log_file, filemode='w')
 
-TEMP_MOCK_ARGS = {
-    'status': [
-        {
-            "name": "provider",
-            "hint": "geth provider location eg.ipc:///home/root/.ethereum/goerli/geth.ipc",
-            "type": "str",
-        },
-    ],
-}
-
 
 def get_message():
     message_length = sys.stdin.buffer.read(4)
@@ -65,64 +55,55 @@ try:
         #  so lets deal with that now.
 
         route_key = '.'.join(options)
-
-        if command_data.get("options") and TEMP_MOCK_ARGS.get(route_key):
+        try:
+            NUCYPHER_KEYRING_PASSWORD = command_data['keyring_password']
+        except KeyError:
             output = {
                 "input": command_data,
-                "result": TEMP_MOCK_ARGS.get(route_key),
-                "route": "options",
+                "result": None,
+                "error": "keyring password is required",
+                "route": route_key,
             }
             send_message(encode_message(output))
         else:
+            options.append('--json-ipc')
+
+            if command_data.get("options"):
+                options.append('--options')
+
+            for param, value in command_data['args'].items():
+                param = param.replace("_", "-")
+                if value is True:
+                    options.append(f"--{param}")
+                else:
+                    options.extend((f"--{param}", value))
+
+            ####
+            # INTERNAL INTERFACE
+            logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
+            environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
+            result = None
             try:
-                NUCYPHER_KEYRING_PASSWORD = command_data['keyring_password']
-            except KeyError:
-                output = {
-                    "input": command_data,
-                    "result": None,
-                    "error": "keyring password is required",
-                    "route": route_key,
-                }
-                send_message(encode_message(output))
-            else:
-                options.append('--json-ipc')
+                nc_result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
+                logging.error(f"result is: {nc_result.output}")
+                result = nc_result.output
+            except BadParameter as e:
+                logging.error(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
 
-                if command_data.get("options"):
-                    options.append('--options')
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                err = ''.join('\n'+line for line in lines)  # Log it or whatever here
+                logging.error(f"NuCypher CLI error ==== \n {err}")
+            ####
 
-                for param, value in command_data['args'].items():
-                    param = param.replace("_", "-")
-                    if value is True:
-                        options.append(f"--{param}")
-                    else:
-                        options.extend((f"--{param}", value))
-
-                ####
-                # INTERNAL INTERFACE
-                logging.error(f"calling NuCypher CLI with {NUCYPHER_KEYRING_PASSWORD}")
-                environ = {'NUCYPHER_KEYRING_PASSWORD': NUCYPHER_KEYRING_PASSWORD}
-                result = None
-                try:
-                    nc_result = click_runner.invoke(nucypher_cli, options, catch_exceptions=True, env=environ)
-                    logging.error(f"result is: {nc_result.output}")
-                    result = nc_result.output
-                except BadParameter as e:
-                    logging.error(f"NuCypher CLI error ==== \n {'.'.join(dir(e).keys())}")
-
-                    exc_type, exc_value, exc_traceback = sys.exc_info()
-                    lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-                    err = ''.join('\n'+line for line in lines)  # Log it or whatever here
-                    logging.error(f"NuCypher CLI error ==== \n {err}")
-                ####
-
-                output = {
-                    "input": command_data,
-                    "route": route_key,
-                    "result": result,
-                }
-                final_message = encode_message(output)
-                logging.error(f"Sending to the browser: {final_message}")
-                send_message(final_message)  # < ---- RESPONSE TO BROWSER
+            output = {
+                "input": command_data,
+                "route": route_key,
+                "result": result,
+            }
+            final_message = encode_message(output)
+            logging.error(f"Sending to the browser: {final_message}")
+            send_message(final_message)  # < ---- RESPONSE TO BROWSER
 
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()

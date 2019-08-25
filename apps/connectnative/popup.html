@@ -21,12 +21,21 @@
       <hr>
     </div>
   </div>
-  <div class="row">
-    <div class="col-xs-3">
-      <div route="public-keys" character="bob" class="button">Bob Keys</div>
-      <div class="button">Retrieve</div>
-      <div route="grant" character="alice" class="button">Grant</div>
-      <div route="status" class="button">Status</div>
+  <div class="row onlyifnopassword nopassword">
+    <div class="cols-xs-12 text-center">
+      <h4>enter your NuCypher Keyring password to begin</h4>
+    </div>
+  </div>
+  <div class="row onlyifpassword nopassword">
+    <div class="col-xs-3 buttons">
+      <div>works</div>
+      <button class="btn btn-default tm-5 action" route="grant" character="alice">Grant</button>
+      <button class="btn btn-default tm-5 action" route="revoke" character="alice">Alice Revoke</button>
+      <button class="btn btn-default tm-5 action" route="decrypt" character="alice">Alice Decrypt</button>
+
+      <div>experimental</div>
+      <button class="btn btn-default tm-5 action" route="public-keys" character="bob">Bob Keys</button>
+      <button class="btn btn-default tm-5 action" route="status">Status</button>
     </div>
     <div class="col-xs-9">
     <div class="row">
