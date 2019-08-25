@@ -96,6 +96,7 @@ try:
                 logging.error(f"NuCypher CLI error ==== \n {err}")
             ####
 
+            del command_data['keyring_password']
             output = {
                 "input": command_data,
                 "route": route_key,
