@@ -18,7 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List
+from itertools import chain
+from typing import List, Callable
 
 import click
 import requests
@@ -34,6 +35,7 @@ from twisted.logger import Logger
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.token import Stake
+from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
@@ -224,7 +226,7 @@ Accept ursula node operator obligation?""", abort=True)
 
 
 def handle_missing_configuration_file(character_config_class, config_file: str = None):
-    config_file_location = config_file or character_config_class.DEFAULT_CONFIG_FILE_LOCATION
+    config_file_location = config_file or character_config_class.default_filepath()
     message = f'No {character_config_class._NAME.capitalize()} configuration file found.\n' \
               f'To create a new persistent {character_config_class._NAME.capitalize()} run: ' \
               f'\'nucypher {character_config_class._NAME} init\''
@@ -339,3 +341,26 @@ def confirm_deployment(emitter, deployer) -> bool:
         raise click.Abort()
 
     return True
+
+
+def echo_schema(command, character_name: str, action: str = None):
+    def click_scheme_reader():
+        for option in command.params:
+            yield option.name, option.type.name
+    click_schema = dict(click_scheme_reader())
+
+    # Get character specification
+    all_specs = {spec._name: spec for spec in CharacterSpecification.__subclasses__()}
+    specification = all_specs[character_name]()
+
+    # Used for flattened schema generation
+    # flattened_inputs = set(chain.from_iterable(input_specs))
+
+    result = dict()
+    for interface, io in specification._specifications.items():
+        input_spec, output_spec = io
+        result[interface] = {option: click_schema[option] for option in input_spec}
+
+    if action:
+        return result[action]
+    return result

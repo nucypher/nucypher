@@ -81,7 +81,6 @@ def deploy(action,
     allocations            Deploy pre-allocation contracts.
     upgrade                Upgrade NuCypher existing proxy contract deployments.
     rollback               Rollback a proxy contract's target.
-    status                 Echo owner information and bare contract metadata.
     transfer-tokens        Transfer tokens to another address.
     transfer-ownership     Transfer ownership of contracts to another address.
     """

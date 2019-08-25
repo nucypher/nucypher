@@ -1,0 +1,20 @@
+
+.list-group-item{
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.buttons .btn{
+    margin:3px;
+}
+
+.onlyifnopassword {
+    visibility:hidden;
+    height:0px;
+}
+.onlyifnopassword.nopassword {
+    visibility:visible;
+}
+.onlyifpassword.nopassword {
+    visibility:hidden;
+}

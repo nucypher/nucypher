@@ -3,8 +3,9 @@ import click
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.banners import BOB_BANNER
+from nucypher.characters.control.specifications import AliceSpecification, BobSpecification
 from nucypher.cli import actions, painting
-from nucypher.cli.actions import get_nucypher_password, select_client_account
+from nucypher.cli.actions import get_nucypher_password, select_client_account, echo_schema
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import BobConfiguration
@@ -14,6 +15,7 @@ from nucypher.crypto.powers import DecryptingPower
 
 @click.command()
 @click.argument('action')
+@click.option('--options', help="Export JSON type schema", is_flag=True)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -37,6 +39,7 @@ from nucypher.crypto.powers import DecryptingPower
 @nucypher_click_config
 def bob(click_config,
         action,
+        options,
         teacher_uri,
         min_stake,
         controller_port,
@@ -85,6 +88,12 @@ def bob(click_config,
     #
     # Eager Actions
     #
+
+    if options:
+        # TODO: Move to common decorator
+        scheme = echo_schema(bob, character_name=BobSpecification._name, action=action)
+        emitter.ipc(response=scheme, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+        return  # Exit
 
     if action == 'init':
         """Create a brand-new persistent Bob"""
