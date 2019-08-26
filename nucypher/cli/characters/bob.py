@@ -1,7 +1,6 @@
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
@@ -85,6 +84,8 @@ def bob(click_config,
     #
     # Eager Actions
     #
+
+    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, sync=sync)
 
     if action == 'init':
         """Create a brand-new persistent Bob"""

@@ -1,8 +1,7 @@
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.cli import actions, painting, types
 from nucypher.cli.actions import get_nucypher_password, select_client_account, get_client_password
@@ -124,6 +123,8 @@ def alice(click_config,
     if geth:
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
+
+    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, sync=sync)
 
     #
     # Eager Actions (No Authentication Required)

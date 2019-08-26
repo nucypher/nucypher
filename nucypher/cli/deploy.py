@@ -81,7 +81,6 @@ def deploy(action,
     allocations            Deploy pre-allocation contracts.
     upgrade                Upgrade NuCypher existing proxy contract deployments.
     rollback               Rollback a proxy contract's target.
-    status                 Echo owner information and bare contract metadata.
     transfer-tokens        Transfer tokens to another address.
     transfer-ownership     Transfer ownership of contracts to another address.
     """
@@ -120,11 +119,13 @@ def deploy(action,
     # Connect to Registry
     #
 
+    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+
     # Establish a contract registry from disk if specified
-    registry_filepath = registry_outfile or registry_infile
+    registry_filepath = registry_outfile or registry_infile or default_registry_filepath
     if dev:
         # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
-        registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'dev_contract_registry.json')
+        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
     registry = LocalContractRegistry(filepath=registry_filepath)
     emitter.echo(f"Using contract registry filepath {registry.filepath}")
 
