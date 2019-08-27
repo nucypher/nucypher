@@ -52,8 +52,8 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--staking-reward/--no-staking-reward', is_flag=True, default=True)
-@click.option('--policy-reward/--no-policy-reward', is_flag=True, default=True)
+@click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
+@click.option('--policy-reward/--no-policy-reward', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send reward collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
@@ -153,7 +153,7 @@ def stake(click_config,
             emitter.echo(f"There are no active stakes")
         else:
             painting.paint_stakes(emitter=emitter, stakes=stakes)
-        return
+        return  # Exit
 
     elif action == 'accounts':
         for address, balances in STAKEHOLDER.wallet.balances.items():
@@ -236,7 +236,9 @@ def stake(click_config,
 
         password = None
         if not staking_address:
-            staking_address = select_client_account(prompt="Select staking account", emitter=emitter)
+            staking_address = select_client_account(prompt="Select staking account",
+                                                    emitter=emitter,
+                                                    provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
 
         if not hw_wallet and not blockchain.client.is_local:
             password = click.prompt(f"Enter password to unlock {staking_address}",
@@ -349,12 +351,19 @@ def stake(click_config,
         if staking_reward:
             # Note: Sending staking / inflation rewards to another account is not allowed.
             staking_receipt = STAKEHOLDER.collect_staking_reward()
+            paint_receipt_summary(receipt=staking_receipt,
+                                  chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                                  emitter=emitter)
 
-            # painting.paint_reward_collection(receipt=staking_receipt)
         if policy_reward:
             policy_receipt = STAKEHOLDER.collect_policy_reward(collector_address=withdraw_address)
-            # painting.paint_reward_collection(receipt=staking_receipt)
+            paint_receipt_summary(receipt=policy_receipt,
+                                  chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                                  emitter=emitter)
 
+        return  # Exit
+
+    # Catch-All for unknown actions
     else:
         ctx = click.get_current_context()
         click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx).show()

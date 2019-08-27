@@ -106,8 +106,8 @@ class EthereumContractAgent:
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self.blockchain, self.registry_contract_name)
+        r = "{}(registry={}, contract={})"
+        return r.format(class_name, self.registry, self.registry_contract_name)
 
     def __eq__(self, other):
         return bool(self.contract_address == other.contract_address)

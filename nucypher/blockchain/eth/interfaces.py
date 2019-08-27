@@ -565,7 +565,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         # Success
         address = receipt['contractAddress']
-        self.log.info("Confirmed {} deployment address {}".format(contract_name, address))
+        self.log.info(f"Confirmed {contract_name} deployment: new address {address}")
 
         #
         # Instantiate & Enroll contract

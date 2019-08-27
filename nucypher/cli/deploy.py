@@ -147,7 +147,10 @@ def deploy(action,
     # Verify Address & collect password
     if not deployer_address:
         prompt = "Select deployer account"
-        deployer_address = select_client_account(emitter=emitter, prompt=prompt)
+        deployer_address = select_client_account(emitter=emitter,
+                                                 prompt=prompt,
+                                                 provider_uri=provider_uri,
+                                                 show_balances=False)
 
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)

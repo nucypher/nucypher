@@ -166,11 +166,11 @@ def ursula(click_config,
 
             if not staker_address:
                 prompt = "Select staker account"
-                staker_address = select_client_account(emitter=emitter, prompt=prompt)
+                staker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
 
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, prompt=prompt)
+                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar

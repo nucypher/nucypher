@@ -124,8 +124,6 @@ def alice(click_config,
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
-    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, sync=sync)
-
     #
     # Eager Actions (No Authentication Required)
     #
@@ -144,7 +142,7 @@ def alice(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not pay_with and not federated_only:
-            pay_with = select_client_account(emitter=emitter)
+            pay_with = select_client_account(emitter=emitter, provider_uri=provider_uri)
 
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                        config_root=config_root,

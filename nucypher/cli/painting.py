@@ -26,7 +26,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
@@ -222,7 +222,7 @@ def paint_staged_stake(emitter,
 
     emitter.echo(f"""
 Staking address: {staking_address}
-~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
+~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
@@ -248,9 +248,8 @@ or set your Ursula worker node address by running 'nucypher stake set-worker'.
 
 
 def prettify_stake(stake, index: int = None) -> str:
-
-    start_datetime = str(stake.start_datetime.slang_date())
-    expiration_datetime = str(stake.unlock_datetime.slang_date())
+    start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
+    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'

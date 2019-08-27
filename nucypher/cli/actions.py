@@ -31,10 +31,12 @@ from constant_sorrow.constants import (
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import painting
@@ -301,23 +303,57 @@ def make_cli_character(character_config,
 
 
 def select_stake(stakeholder, emitter) -> Stake:
-    enumerated_stakes = dict(enumerate(stakeholder.stakes))
-    painting.paint_stakes(stakes=stakeholder.stakes, emitter=emitter)
+    stakes = stakeholder.all_stakes
+    enumerated_stakes = dict(enumerate(stakes))
+    painting.paint_stakes(stakes=stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
 
 
-def select_client_account(emitter, prompt: str = None, default=0) -> str:
-    blockchain = BlockchainInterfaceFactory.get_interface()
+def select_client_account(emitter,
+                          provider_uri: str,
+                          prompt: str = None,
+                          default: int = 0,
+                          registry=None,
+                          show_balances: bool = True
+                          ) -> str:
+    """
+    Note: Setting show_balances to True, causes an eager contract and blockchain connection.
+    """
+
+    if not provider_uri:
+        raise ValueError("Provider URI must be provided to select a wallet account.")
+
+    # Lazy connect the blockchain interface
+    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+
+    # Lazy connect to contracts
+    token_agent = None
+    if show_balances:
+        if not registry:
+            registry = InMemoryContractRegistry.from_latest_publication()
+        token_agent = NucypherTokenAgent(registry=registry)
+
+    # Real wallet accounts
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo("No ETH accounts were found.", color='red', bold=True)
         raise click.Abort()
+
+    # Display account info
     for index, account in enumerated_accounts.items():
-        emitter.echo(f"{index} | {account}")
+        message = f"{index} | {account} "
+        if show_balances:
+            message += f" | {NU.from_nunits(token_agent.get_balance(address=account))}"
+        emitter.echo(message)
+
+    # Prompt the user for selection, and return
     prompt = prompt or "Select Account"
-    choice = click.prompt(prompt, type=click.IntRange(min=0, max=len(enumerated_accounts)-1), default=default)
+    account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
+    choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
     return chosen_account
 

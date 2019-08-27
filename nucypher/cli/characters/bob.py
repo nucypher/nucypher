@@ -44,7 +44,7 @@ def bob(click_config,
         network,
         config_root,
         config_file,
-        checksum_address ,
+        checksum_address,
         provider_uri,
         registry_filepath,
         dev,
@@ -85,8 +85,6 @@ def bob(click_config,
     # Eager Actions
     #
 
-    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, sync=sync)
-
     if action == 'init':
         """Create a brand-new persistent Bob"""
 
@@ -97,7 +95,7 @@ def bob(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not checksum_address and not federated_only:
-            checksum_address = select_client_account(emitter=emitter)
+            checksum_address = select_client_account(emitter=emitter, provider_uri=provider_uri)
 
         new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
