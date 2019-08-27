@@ -1,5 +1,7 @@
 import datetime
+
 import pytest
+from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
 from nucypher.blockchain.eth.clients import (
     Web3Client,
@@ -33,6 +35,11 @@ class MockGanacheProvider:
 
 class MockInfuraProvider:
     endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
+    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+
+
+class MockWebSocketProvider:
+    endpoint_uri = 'ws://127.0.0.1:8546'
     clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
 
 
@@ -154,6 +161,25 @@ class BlockchainInterfaceTestBase(BlockchainInterface):
         pass
 
 
+class ProviderTypeTestClient(BlockchainInterfaceTestBase):
+    def __init__(self,
+                 expected_provider_class,
+                 actual_provider_to_attach,
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.expected_provider_class = expected_provider_class
+        self.test_provider_to_attach = actual_provider_to_attach
+
+    def _attach_provider(self, *args, **kwargs) -> None:
+        super()._attach_provider(*args, **kwargs)
+
+        # check type
+        assert isinstance(self.provider, self.expected_provider_class)
+
+        super()._attach_provider(provider=self.test_provider_to_attach)
+
+
 class InfuraTestClient(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
@@ -164,9 +190,6 @@ class GethClientTestBlockchain(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockGethProvider())
-
-    def _get_infura_provider(self):
-        return MockInfuraProvider()
 
     @property
     def is_local(self):
@@ -185,6 +208,12 @@ class GanacheClientTestInterface(BlockchainInterfaceTestBase):
         super()._attach_provider(provider=MockGanacheProvider())
 
 
+def test_client_no_provider():
+    with pytest.raises(BlockchainInterface.NoProvider) as e:
+        interface = BlockchainInterfaceTestBase()
+        interface.connect(fetch_registry=False, sync_now=False)
+
+
 def test_geth_web3_client():
     interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth')
     interface.connect(fetch_registry=False, sync_now=False)
@@ -197,6 +226,63 @@ def test_geth_web3_client():
 
     assert interface.client.is_local is False
     assert interface.client.chain_id == 5  # Hardcoded above
+
+
+def test_autodetect_provider_type_file(tempfile_path):
+
+    interface = ProviderTypeTestClient(provider_uri=tempfile_path,  # existing file for test
+                                       expected_provider_class=IPCProvider,
+                                       actual_provider_to_attach=MockGethProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GethClient)
+
+
+def test_autodetect_provider_type_file_none_existent():
+    with pytest.raises(BlockchainInterface.UnsupportedProvider) as e:
+        interface = BlockchainInterfaceTestBase(provider_uri='/none_existent.ipc.geth')
+        interface.connect(fetch_registry=False, sync_now=False)
+
+    assert "invalid or unsupported blockchain provider URI" in str(e)
+
+
+def test_detect_provider_type_file():
+    interface = ProviderTypeTestClient(provider_uri='file:///ipc.geth',
+                                       expected_provider_class=IPCProvider,
+                                       actual_provider_to_attach=MockGethProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GethClient)
+
+
+def test_detect_provider_type_ipc():
+    interface = ProviderTypeTestClient(provider_uri='ipc:///ipc.geth',
+                                       expected_provider_class=IPCProvider,
+                                       actual_provider_to_attach=MockGethProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GethClient)
+
+
+def test_detect_provider_type_http():
+    interface = ProviderTypeTestClient(provider_uri='http://ganache:8445',
+                                       expected_provider_class=HTTPProvider,
+                                       actual_provider_to_attach=MockGanacheProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GanacheClient)
+
+
+def test_detect_provider_type_https():
+    interface = ProviderTypeTestClient(provider_uri='https://ganache:8445',
+                                       expected_provider_class=HTTPProvider,
+                                       actual_provider_to_attach=MockGanacheProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GanacheClient)
+
+
+def test_detect_provider_type_ws():
+    interface = ProviderTypeTestClient(provider_uri='ws://127.0.0.1:8546',
+                                       expected_provider_class=WebsocketProvider,
+                                       actual_provider_to_attach=MockWebSocketProvider())
+    interface.connect(fetch_registry=False, sync_now=False)
+    assert isinstance(interface.client, GethClient)
 
 
 def test_infura_web3_client():

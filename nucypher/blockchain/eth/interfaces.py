@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
 import pprint
 import time
 from typing import List
@@ -55,8 +55,8 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import TransactingPower
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.crypto.powers import TransactingPower
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -80,6 +80,9 @@ class BlockchainInterface:
         pass
 
     class NoProvider(InterfaceError):
+        pass
+
+    class UnsupportedProvider(InterfaceError):
         pass
 
     class ConnectionFailed(InterfaceError):
@@ -334,10 +337,18 @@ class BlockchainInterface:
                     'https': _get_HTTP_provider,
                 }
                 provider_scheme = uri_breakdown.scheme
+
+            # auto-detect for file based ipc
+            if not provider_scheme:
+                if os.path.exists(provider_uri):
+                    # file is available - assume ipc/file scheme
+                    provider_scheme = 'file'
+                    self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")
+
             try:
                 self._provider = providers[provider_scheme](provider_uri)
             except KeyError:
-                raise ValueError(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
+                raise self.UnsupportedProvider(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
             else:
                 self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         else:
