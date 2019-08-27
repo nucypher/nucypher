@@ -311,7 +311,10 @@ class Felix(Character, NucypherTokenActor):
             if not new_address:
                 return Response(response="no address was supplied", status=411)
 
-            if not eth_utils.is_checksum_address(new_address):
+             if not eth_utils.is_address(new_address):
+                 return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
+             else:
+                 new_address = eth_utils.to_checksum_address(new_address)
                 return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
 
             if new_address in self.reserved_addresses:
