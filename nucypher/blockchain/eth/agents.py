@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import math
 import random
 from typing import Generator, List, Tuple, Union
 
@@ -356,13 +357,12 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
 
         stakers_population = self.get_staker_population()
-        if quantity > stakers_population:
-            raise self.NotEnoughStakers(f'There are {stakers_population} published stakers, need a total of {quantity}.')
+        n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
+        if n_select > stakers_population:
+            raise self.NotEnoughStakers(f'There are {stakers_population} published stakers, need a total of {n_select}.')
 
         system_random = random.SystemRandom()
-        n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
-
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
