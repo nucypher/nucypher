@@ -258,6 +258,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def read_known_nodes(self, additional_nodes=None) -> None:
         known_nodes = self.node_storage.all(federated_only=self.federated_only)
+
         known_nodes = {node.checksum_address: node for node in known_nodes}
         if additional_nodes:
             known_nodes.update({node.checksum_address: node for node in additional_nodes})

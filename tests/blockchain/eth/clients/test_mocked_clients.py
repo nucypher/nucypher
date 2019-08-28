@@ -211,7 +211,7 @@ class GanacheClientTestInterface(BlockchainInterfaceTestBase):
 def test_client_no_provider():
     with pytest.raises(BlockchainInterface.NoProvider) as e:
         interface = BlockchainInterfaceTestBase()
-        interface.connect(fetch_registry=False, sync_now=False)
+        interface.connect()
 
 
 def test_geth_web3_client():
@@ -233,14 +233,14 @@ def test_autodetect_provider_type_file(tempfile_path):
     interface = ProviderTypeTestClient(provider_uri=tempfile_path,  # existing file for test
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GethClient)
 
 
 def test_autodetect_provider_type_file_none_existent():
     with pytest.raises(BlockchainInterface.UnsupportedProvider) as e:
         interface = BlockchainInterfaceTestBase(provider_uri='/none_existent.ipc.geth')
-        interface.connect(fetch_registry=False, sync_now=False)
+        interface.connect()
 
     assert "invalid or unsupported blockchain provider URI" in str(e)
 
@@ -249,7 +249,7 @@ def test_detect_provider_type_file():
     interface = ProviderTypeTestClient(provider_uri='file:///ipc.geth',
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GethClient)
 
 
@@ -257,7 +257,7 @@ def test_detect_provider_type_ipc():
     interface = ProviderTypeTestClient(provider_uri='ipc:///ipc.geth',
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GethClient)
 
 
@@ -265,7 +265,7 @@ def test_detect_provider_type_http():
     interface = ProviderTypeTestClient(provider_uri='http://ganache:8445',
                                        expected_provider_class=HTTPProvider,
                                        actual_provider_to_attach=MockGanacheProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GanacheClient)
 
 
@@ -273,7 +273,7 @@ def test_detect_provider_type_https():
     interface = ProviderTypeTestClient(provider_uri='https://ganache:8445',
                                        expected_provider_class=HTTPProvider,
                                        actual_provider_to_attach=MockGanacheProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GanacheClient)
 
 
@@ -281,7 +281,7 @@ def test_detect_provider_type_ws():
     interface = ProviderTypeTestClient(provider_uri='ws://127.0.0.1:8546',
                                        expected_provider_class=WebsocketProvider,
                                        actual_provider_to_attach=MockWebSocketProvider())
-    interface.connect(fetch_registry=False, sync_now=False)
+    interface.connect()
     assert isinstance(interface.client, GethClient)
 
 
