@@ -20,14 +20,14 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.mark.slow
-def test_worklock(testerchain, token_economics):
+def test_worklock(testerchain, token_economics, deploy_contract):
     creator, ursula1, ursula2, *everyone_else = testerchain.w3.eth.accounts
 
     # Create an ERC20 token
-    token, _ = testerchain.deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
 
     # Deploy MinersEscrow mock
-    escrow, _ = testerchain.deploy_contract(
+    escrow, _ = deploy_contract(
         contract_name='StakingEscrowForWorkLockMock',
         _token=token.address,
         _minAllowableLockedTokens=token_economics.minimum_allowed_locked,
@@ -41,7 +41,7 @@ def test_worklock(testerchain, token_economics):
     end_bid_date = start_bid_date + (60 * 60)
     deposit_rate = 100
     refund_rate = 200
-    worklock, _ = testerchain.deploy_contract(
+    worklock, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
         _escrow=escrow.address,

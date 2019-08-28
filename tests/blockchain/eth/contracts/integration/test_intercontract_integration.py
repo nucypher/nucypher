@@ -133,7 +133,7 @@ def adjudicator(testerchain, escrow, slashing_economics, deploy_contract):
 
 
 @pytest.fixture()
-def worklock(testerchain, token, escrow):
+def worklock(testerchain, token, escrow, deploy_contract):
     escrow, _ = escrow
     creator = testerchain.w3.eth.accounts[0]
 
@@ -143,7 +143,7 @@ def worklock(testerchain, token, escrow):
     end_bid_date = start_bid_date + 3600
     deposit_rate = 2
     refund_rate = deposit_rate
-    contract, _ = testerchain.deploy_contract(
+    contract, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
         _escrow=escrow.address,

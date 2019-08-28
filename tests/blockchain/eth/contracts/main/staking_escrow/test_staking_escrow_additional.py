@@ -89,7 +89,7 @@ def test_upgrading(testerchain, token, deploy_contract):
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
     testerchain.wait_for_receipt(tx)
-    worklock, _ = testerchain.deploy_contract(
+    worklock, _ = deploy_contract(
         'WorkLockForStakingEscrowMock', contract.address
     )
     tx = contract.functions.setWorkLock(worklock.address).transact()
@@ -696,7 +696,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
 
 
 @pytest.mark.slow
-def test_measure_work(testerchain, token, escrow_contract):
+def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, ursula, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
@@ -708,7 +708,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock
-    worklock, _ = testerchain.deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
     tx = escrow.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 

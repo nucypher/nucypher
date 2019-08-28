@@ -383,6 +383,7 @@ class CharacterConfiguration(BaseConfiguration):
         if not self.federated_only:
             payload.update(dict(registry=self.registry))
 
+        # TODO: #1279
         self.read_known_nodes()   # Requires a connected blockchain to init Ursulas.
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
