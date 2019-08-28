@@ -367,13 +367,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
-            points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
+            points = sorted(system_random.randrange(n_tokens) for _ in range(n_select))
+            self.log.debug(f"Sampling {n_select} stakers with random points: {points}")
 
-            deltas = []
-            for next_point, previous_point in zip(points[1:], points[:-1]):
-                deltas.append(next_point - previous_point)
-
-            addresses = set(self.contract.functions.sample(deltas, duration).call())
+            addresses = set(self.contract.functions.sample(points, duration).call())
             addresses.discard(str(BlockchainInterface.NULL_ADDRESS))
 
             if len(addresses) >= quantity:
