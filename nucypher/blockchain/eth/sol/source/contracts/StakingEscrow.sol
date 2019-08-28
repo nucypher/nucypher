@@ -397,8 +397,6 @@ contract StakingEscrow is Issuer {
 
     /** @notice Set worker
     * @param _worker Worker address. Must be a real address, not a contract
-    * @notice Set worker
-    * @param _worker Worker address. Must be a real address, not a contract
     **/
     function setWorker(address _worker) public onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
@@ -450,44 +448,6 @@ contract StakingEscrow is Issuer {
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
         emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
-    }
-
-    /**
-    * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
-    * @notice Pre-deposit tokens
-    * @param _stakers Stakers
-    * @param _values Amount of tokens to deposit for each staker
-    * @param _periods Amount of periods during which tokens will be locked for each staker
-    **/
-    function preDeposit(address[] memory _stakers, uint256[] memory _values, uint16[] memory _periods)
-        public isInitialized
-    {
-        require(_stakers.length != 0 &&
-            _stakers.length == _values.length &&
-            _stakers.length == _periods.length);
-        uint16 currentPeriod = getCurrentPeriod();
-        uint256 allValue = 0;
-
-        for (uint256 i = 0; i < _stakers.length; i++) {
-            address staker = _stakers[i];
-            uint256 value = _values[i];
-            uint16 periods = _periods[i];
-            StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0 &&
-                value >= minAllowableLockedTokens &&
-                value <= maxAllowableLockedTokens &&
-                periods >= minLockedPeriods);
-            require(workerToStaker[staker] == address(0) || workerToStaker[staker] == info.worker,
-                "A staker can't be a worker for another staker");
-            stakers.push(staker);
-            policyManager.register(staker, currentPeriod);
-            info.value = value;
-            info.subStakes.push(SubStakeInfo(currentPeriod.add16(1), 0, periods, value));
-            allValue = allValue.add(value);
-            emit Deposited(staker, value, periods);
-        }
-
-        token.safeTransferFrom(msg.sender, address(this), allValue);
     }
 
     /**
