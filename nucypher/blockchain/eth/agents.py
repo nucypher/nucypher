@@ -231,6 +231,9 @@ class StakingEscrowAgent(EthereumContractAgent):
             at_period = self.contract.functions.getCurrentPeriod().call()
         return self.contract.functions.lockedPerPeriod(at_period).call()
 
+    def get_staker_info(self, staker_address: str):
+        return self.contract.functions.stakerInfo(staker_address).call()
+
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
         Returns the amount of tokens this staker has locked
@@ -241,7 +244,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
     def owned_tokens(self, staker_address: str) -> int:
-        return self.contract.functions.getAllTokens(staker_address).call()
+        staker_info = self.get_staker_info(staker_address)
+        return staker_info[0]
 
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()

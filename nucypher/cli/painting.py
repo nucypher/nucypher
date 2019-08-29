@@ -512,7 +512,7 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         nickname, _ = nickname_from_seed(staker)
         emitter.echo(f"{staker}  {'Nickname:':10} {nickname}")
         tab = " " * len(staker)
-        info = agent.contract.functions.stakerInfo(staker).call()
+        info = agent.get_staker_info(staker)
         stake, confirmed1, confirmed2, restake, *remaining_info = info
         locked_restake_until_period, worker, worker_start, last_active = remaining_info
         last_confirmed_period = max(confirmed1, confirmed2)
