@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
 import time
 
 import pytest
@@ -27,11 +27,12 @@ from nucypher.cli.actions import UnknownIPAddress
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.node import CharacterConfiguration
+from nucypher.network.nodes import Teacher
 from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_URSULA_STARTING_PORT,
-    TEMPORARY_DOMAIN
-)
+    TEMPORARY_DOMAIN,
+    TEST_PROVIDER_URI, MOCK_IP_ADDRESS)
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 
@@ -106,6 +107,70 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     d.addCallback(run_ursula)
 
     yield d
+
+
+@pt.inlineCallbacks
+def test_persistent_node_storage_integration(click_runner,
+                                             custom_filepath,
+                                             testerchain,
+                                             blockchain_ursulas,
+                                             agency,
+                                             mock_primary_registry_filepath):
+
+    alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
+    filename = UrsulaConfiguration.generate_filename()
+    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+
+    init_args = ('ursula', 'init',
+                 '--provider', TEST_PROVIDER_URI,
+                 '--worker-address', another_ursula,
+                 '--staker-address', staker,
+                 '--network', TEMPORARY_DOMAIN,
+                 '--rest-host', MOCK_IP_ADDRESS,
+                 '--config-root', custom_filepath,
+                 '--registry-filepath', mock_primary_registry_filepath,
+                 )
+
+    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
+
+    teacher = blockchain_ursulas.pop()
+    teacher_uri = teacher.rest_information()[0].uri
+
+    start_pytest_ursula_services(ursula=teacher)
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
+
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--debug',
+                '--interactive',
+                '--config-file', another_ursula_configuration_file_location,
+                '--teacher', teacher_uri)
+
+    with pytest.raises(Teacher.DetachedWorker):
+        # Worker init success, but unassigned.
+        result = yield threads.deferToThread(click_runner.invoke,
+                                             nucypher_cli, run_args,
+                                             catch_exceptions=False,
+                                             input=user_input)
+    assert result.exit_code == 0
+
+    # Run an Ursula amidst the other configuration files
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--debug',
+                '--interactive',
+                '--config-file', another_ursula_configuration_file_location)
+
+    with pytest.raises(Teacher.DetachedWorker):
+        # Worker init success, but unassigned.
+        result = yield threads.deferToThread(click_runner.invoke,
+                                             nucypher_cli, run_args,
+                                             catch_exceptions=False,
+                                             input=user_input)
+    assert result.exit_code == 0
 
 
 def test_ursula_cannot_init_with_dev_flag(click_runner):

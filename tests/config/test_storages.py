@@ -14,19 +14,22 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 
 import pytest
 
 from nucypher.characters.lawful import Ursula
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.storages import (
     ForgetfulNodeStorage,
     TemporaryFileBasedNodeStorage,
-    NodeStorage
-)
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_DB_FILEPATH, MOCK_URSULA_STARTING_PORT
-
-MOCK_S3_BUCKET_NAME = 'mock-seednodes'
-S3_DOMAIN_NAME = 's3.amazonaws.com'
+    NodeStorage,
+    LocalFileBasedNodeStorage)
+from nucypher.utilities.sandbox.constants import (
+    MOCK_URSULA_DB_FILEPATH,
+    MOCK_URSULA_STARTING_PORT,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    TEST_PROVIDER_URI)
 
 
 class BaseTestNodeStorageBackends:
