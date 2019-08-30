@@ -313,9 +313,12 @@ class GethClient(Web3Client):
             return True
         debug_message = f"Unlocking account {address}"
         if password is None:
-            debug_message += " without a password."
+            debug_message += " with no password."
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(address, password)
+
+        # TODO: #1282 - Handle account unlock duration
+        ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
+        return self.w3.geth.personal.unlockAccount(address, password, duration=ONE_YEAR_IN_SECONDS*10)
 
     def sign_transaction(self, transaction: dict) -> bytes:
 
