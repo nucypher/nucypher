@@ -72,7 +72,9 @@ Most stakers on the Goerli testnet will complete the following steps:
 
 Interactive Method
 ------------------
-*Run an Ethereum node for stakeholder*
+
+Run an Ethereum node for stakeholder
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming you have ``geth`` installed, let's run a node on Görli testnet.
 On StakeHolder side, it's ok to run a light node.
@@ -104,7 +106,8 @@ If you don't have a hardware wallet, you can create a software one:
 Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
 account address and ``<username>`` is your user.
 
-*Initialize a new stakeholder*
+Initialize a new stakeholder
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -113,7 +116,8 @@ account address and ``<username>`` is your user.
 If you ran ``geth`` node as above, your ``<PROVIDER>`` is
 ``ipc:///home/<username>/.ethereum/goerli/geth.ipc``.
 
-*Initialize a new stake*
+Initialize a new stake
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -167,7 +171,8 @@ If you ran ``geth`` node as above, your ``<PROVIDER>`` is
     Successfully transmitted stake initialization transactions.
 
 
-*List existing stakes*
+List existing stakes
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -185,7 +190,8 @@ If the Worker in the list is shown as ``0x0000``, it means that you didn't yet
 attach any node to your Staker, so you still have to do it!
 
 
-*Bond an Ursula to a Staker*
+Bond an Ursula to a Staker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 After you created an Ethereum node for your worker (see below about the worker),
 you can set the worker:
@@ -216,7 +222,8 @@ by copying and pasting the address to `Goerli Etherscan <https://goerli.ethersca
 After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
 
 
-*Divide an existing stake*
+Divide an existing stake
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -274,7 +281,8 @@ Inline Method
 +----------------+----------------+--------------+
 
 
-*Stake 30000 NU for 90 Periods*
+Stake 30000 NU for 90 Periods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -282,13 +290,15 @@ Inline Method
     ...
 
 
-*Divide stake at index 0, at 15000 NU for 30 additional Periods*
+Divide stake at index 0, at 15000 NU for 30 additional Periods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
     (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30
     ...
 
-*Worker configuration*
+Worker configuration
+------------------------
 
 Please go to :ref:`ursula-config-guide`.
