@@ -2,7 +2,16 @@
 NuCypher Staking Guide
 =======================
 
-All staking-related operations are performed through the ``nucypher stake`` command:
+The account which is actively doing staking operations is necessary to be a hot
+wallet. But it doesn't have to be the same account as the one which receives and
+sends NU tokens. The account which holds NU tokens is called StakeHolder, or
+Staker, and the account which participates in the network as Ursula node is
+called Worker.
+StakeHolder and Worker can have the same Ethereum account, but it's better to
+have them separate: StakeHolder controlled by a hardware wallet, and Worker
+having an address controlled by geth.
+
+All staking-related operations done by StakeHolder are performed through the ``nucypher stake`` command:
 
 .. code:: bash
 
@@ -53,15 +62,47 @@ Staking Overview
 
 Most stakers on the Goerli testnet will complete the following steps:
 
-1) Install nucypher https://docs.nucypher.com/en/latest/guides/installation_guide.html
-2) Install and run Geth, Parity or another ethereum node.
+1) Install nucypher on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
+2) Install and run Geth, Parity or another ethereum node (can use with software or hardware Ethereum wallet).
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
-5) Initialize a Worker node and bond it to your Staker (`set-worker`) https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html
-6) Run the Worker, and keep it online!
+5) Install another Ethereum node at the Worker instance
+6) Initialize a Worker node and bond it to your Staker (``set-worker``) :ref:`ursula-config-guide`
+7) Configure and run the Worker, and keep it online (See Below)!
 
 Interactive Method
 ------------------
+*Run an Ethereum node for stakeholder*
+
+Assuming you have ``geth`` installed, let's run a node on Görli testnet.
+On StakeHolder side, it's ok to run a light node.
+
+.. code:: bash
+
+    $ geth --goerli --syncmode light
+
+If you want to use your hardware wallet, just connect it to your machine. You'll
+see something like this in logs:
+
+.. code:: bash
+
+    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
+
+If you see something like ``New wallet appeared, failed to open`` in the logs,
+you need to reconnect the hardware wallet (without turning the ``geth`` node
+off).
+
+If you don't have a hardware wallet, you can create a software one:
+
+.. code:: bash
+
+    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
+
+Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
+account address and ``<username>`` is your user.
 
 *Initialize a new stakeholder*
 
@@ -69,12 +110,14 @@ Interactive Method
 
     (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa
 
+If you ran ``geth`` node as above, your ``<PROVIDER>`` is
+``ipc:///home/<username>/.ethereum/goerli/geth.ipc``.
 
 *Initialize a new stake*
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init
+    (nucypher)$ nucypher stake create
 
     Select staking account [0]: 0
     Enter password to unlock 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA:
@@ -134,12 +177,18 @@ Interactive Method
 
     | ~ | Staker | Worker | # | Value    | Duration     | Enactment
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 |    -   | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
+    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
+    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
+    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
+
+If the Worker in the list is shown as ``0x0000``, it means that you didn't yet
+attach any node to your Staker, so you still have to do it!
 
 
 *Bond an Ursula to a Staker*
+
+After you created an Ethereum node for your worker (see below about the worker),
+you can set the worker:
 
 .. code:: bash
 
@@ -149,15 +198,22 @@ Interactive Method
 
     | ~ | Staker | Worker | # | Value    | Duration     | Enactment
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 |   -    | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
+    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
+    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
     Select Stake: 2
-    Enter Worker Address: 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
+    Enter Worker Address: 0xbeefc4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
     Worker 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA successfully bonded to staker 0xbb03...
 
     OK!
+
+Please note that the address should be in the format where checksum is encoded
+in the address. However, geth shows addresses in the lower case. You can convert
+by copying and pasting the address to `Goerli Etherscan <https://goerli.etherscan.io/>`_, e.g.
+``0x287a817426dd1ae78ea23e9918e2273b6733a43d -> 0x287A817426DD1AE78ea23e9918e2273b6733a43D``.
+
+After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
 
 
 *Divide an existing stake*
@@ -232,3 +288,7 @@ Inline Method
 
     (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30
     ...
+
+*Worker configuration*
+
+Please go to :ref:`ursula-config-guide`.

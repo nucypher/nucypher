@@ -1,3 +1,5 @@
+.. _ursula-config-guide:
+
 Ursula Configuration Guide
 ==========================
 
