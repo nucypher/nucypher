@@ -21,14 +21,14 @@ from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
 
 import maya
 import requests
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, FEDERATED_POLICY, STRANGER_ALICE
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -42,13 +42,14 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.eth.actors import PolicyAuthor, Worker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.token import StakeTracker
-from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
-from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import StakeList, PeriodTracker, NU
+from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
     AliceJSONController,
@@ -71,26 +72,36 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 
 
-class Alice(Character, PolicyAuthor):
+class Alice(Character, BlockchainPolicyAuthor):
 
     banner = ALICE_BANNER
     _controller_class = AliceJSONController
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
-                 checksum_address: str = None,
-                 m: int = None,
-                 n: int = None,
-                 rate: int = None,
-                 duration: int = None,
-                 first_period_rate: float = None,
-                 timeout: int = 10,
+
+                 # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
-                 network_middleware=None,
-                 controller=True,
-                 policy_agent=None,
+
+                 # Ownership
+                 checksum_address: str = None,
                  client_password: str = None,
+
+                 # Ursulas
+                 m: int = None,
+                 n: int = None,
+
+                 # Policy Value
+                 rate: int = None,
+                 duration_periods: int = None,
+                 first_period_reward: int = 0,
+
+                 # Middleware
+                 timeout: int = 10,  # seconds  # TODO: configure
+                 network_middleware: RestMiddleware = None,
+                 controller: bool = True,
+
                  *args, **kwargs) -> None:
 
         #
@@ -102,15 +113,9 @@ class Alice(Character, PolicyAuthor):
         if is_me:
             self.m = m
             self.n = n
-            self.rate = rate
-            self.duration = duration
-            self.first_period_rate = first_period_rate
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
-            self.rate = STRANGER_ALICE
-            self.duration = STRANGER_ALICE
-            self.first_period_rate = STRANGER_ALICE
 
         Character.__init__(self,
                            is_me=is_me,
@@ -120,15 +125,14 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            transacting_power = TransactingPower(account=self.checksum_address,
-                                                 password=client_password,
-                                                 blockchain=self.blockchain)
+            transacting_power = TransactingPower(account=self.checksum_address, password=client_password)
             self._crypto_power.consume_power_up(transacting_power)
-
-            PolicyAuthor.__init__(self,
-                                  blockchain=self.blockchain,
-                                  policy_agent=policy_agent,
-                                  checksum_address=checksum_address)
+            BlockchainPolicyAuthor.__init__(self,
+                                            registry=self.registry,
+                                            rate=rate,
+                                            duration_periods=duration_periods,
+                                            first_period_reward=first_period_reward,
+                                            checksum_address=checksum_address)
 
         if is_me and controller:
             self.controller = self._controller_class(alice=self)
@@ -174,48 +178,37 @@ class Alice(Character, PolicyAuthor):
                                                 m=m or self.m,
                                                 n=n or self.n)
 
-    def create_policy(self,
-                      bob: "Bob",
-                      label: bytes,
-                      handpicked_ursulas: set = None,
-                      **policy_params):
+    def create_policy(self, bob: "Bob", label: bytes, **policy_params):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
         """
 
-        params = self.generate_policy_parameters(**policy_params)
+        policy_params = self.generate_policy_parameters(**policy_params)
+        N = policy_params.pop('n')
 
         # Generate KFrags
         public_key, kfrags = self.generate_kfrags(bob=bob,
                                                   label=label,
-                                                  m=params['m'],
-                                                  n=params['n'])
+                                                  m=policy_params['m'],
+                                                  n=N)
 
-        # Federated Payload
         payload = dict(label=label,
                        bob=bob,
                        kfrags=kfrags,
                        public_key=public_key,
-                       m=params['m'])
+                       m=policy_params['m'],
+                       expiration=policy_params['expiration'])
 
-        # Use known nodes
         if self.federated_only:
-            from nucypher.policy.models import FederatedPolicy
-            known_nodes = self.known_nodes.shuffled()
-            policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
+            # Use known nodes
+            from nucypher.policy.policies import FederatedPolicy
+            policy = FederatedPolicy(alice=self, **payload)
 
-        # Sample from blockchain via PolicyManager
         else:
-            blockchain_payload = dict(duration=params['duration'],
-                                      expiration=params['expiration'],
-                                      value=params['value'],
-                                      initial_reward=params['first_period_value'],
-                                      handpicked_ursulas=handpicked_ursulas)
-
-            payload.update(blockchain_payload)
-
-            from nucypher.blockchain.eth.policies import BlockchainPolicy
+            # Sample from blockchain via PolicyManager
+            from nucypher.policy.policies import BlockchainPolicy
+            payload.update(**policy_params)
             policy = BlockchainPolicy(alice=self, **payload)
 
         return policy
@@ -223,51 +216,30 @@ class Alice(Character, PolicyAuthor):
     def generate_policy_parameters(self,
                                    m: int = None,
                                    n: int = None,
-                                   duration: int = None,
+                                   duration_periods: int = None,
                                    expiration: maya.MayaDT = None,
-                                   value: int = None,
-                                   rate: int = None,
-                                   first_period_value: int = None,
-                                   first_period_rate: float = None) -> dict:
+                                   *args, **kwargs
+                                   ) -> dict:
         """
         Construct policy creation from parameters or overrides.
         """
 
+        if not duration_periods and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
+
+        # Merge injected and default params.
         m = m or self.m
         n = n or self.n
+        base_payload = dict(m=m, n=n, expiration=expiration)
 
         # Calculate Policy Rate and Value
         if not self.federated_only:
-
-            # Calculate duration periods and expiration datetime
-            if expiration:
-                duration = calculate_period_duration(future_time=expiration)
-            else:
-                duration = duration or self.duration
-                expiration = datetime_at_period(self.staking_agent.get_current_period() + duration)
-
-            if not value and not rate:
-                value = int(self.rate * duration)
-                rate = self.rate
-            elif rate:
-                value = int(rate * duration)
-            elif value:
-                rate = value // duration
-
-            # TODO: #1063 - What is the best way to calculate default first period value?
-            # first_period_rate = first_period_rate or self.first_period_rate
-            first_period_value = first_period_value or 0
-
-        else:
-            value = first_period_value = duration = FEDERATED_POLICY
-
-        payload = dict(m=m, n=n,
-                       duration=duration,
-                       expiration=expiration,
-                       first_period_value=first_period_value,
-                       value=value,
-                       rate=rate)
-        return payload
+            payload = super().generate_policy_parameters(number_of_ursulas=n,
+                                                         duration_periods=duration_periods,
+                                                         expiration=expiration,
+                                                         *args, **kwargs)
+            base_payload.update(payload)
+        return base_payload
 
     def grant(self,
               bob: "Bob",
@@ -278,28 +250,17 @@ class Alice(Character, PolicyAuthor):
               **policy_params):
 
         timeout = timeout or self.timeout
-        params = self.generate_policy_parameters(**policy_params)
 
         #
         # Policy Creation
         #
 
-        if handpicked_ursulas is None:
-            handpicked_ursulas = set()
-
-        else:
+        if handpicked_ursulas:
             # This might be the first time alice learns about the handpicked Ursulas.
             for handpicked_ursula in handpicked_ursulas:
                 self.remember_node(node=handpicked_ursula)
 
-        policy = self.create_policy(bob=bob,
-                                    label=label,
-                                    m=params['m'],
-                                    n=params['n'],
-                                    duration=params['duration'],
-                                    expiration=params['expiration'],
-                                    value=params['value'],
-                                    handpicked_ursulas=handpicked_ursulas)
+        policy = self.create_policy(bob=bob, label=label, **policy_params)
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -309,8 +270,8 @@ class Alice(Character, PolicyAuthor):
         # TODO: 289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
-        if self.federated_only and len(self.known_nodes) < params['n']:
-            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=params['n'],
+        if self.federated_only and len(self.known_nodes) < policy.n:
+            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=policy.n,
                                                                    learn_on_this_thread=discover_on_this_thread,
                                                                    timeout=timeout)
             if not good_to_go:
@@ -318,17 +279,9 @@ class Alice(Character, PolicyAuthor):
                     "To make a Policy in federated mode, you need to know about "
                     "all the Ursulas you need (in this case, {}); there's no other way to "
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
-                    "or run the learning loop on a network with enough Ursulas.".format(params['n']))
-
-            if len(handpicked_ursulas) < params['n']:
-                number_of_ursulas_needed = params['n'] - len(handpicked_ursulas)
-                new_ursulas = random.sample(list(self.known_nodes), number_of_ursulas_needed)
-                handpicked_ursulas.update(new_ursulas)
-                # TODO: new_ursulas can overlap with handpicked_ursulas, so we may still don't have n
+                    "or run the learning loop on a network with enough Ursulas.".format(policy.n))
 
         policy.make_arrangements(network_middleware=self.network_middleware,
-                                 value=params['value'],
-                                 expiration=params['expiration'],
                                  handpicked_ursulas=handpicked_ursulas)
 
         # REST call happens here, as does population of TreasureMap.
@@ -493,13 +446,13 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, controller=True, *args, **kwargs) -> None:
+    def __init__(self, controller: bool = True, *args, **kwargs) -> None:
         Character.__init__(self, *args, **kwargs)
 
         if controller:
             self.controller = self._controller_class(bob=self)
 
-        from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
+        from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
@@ -618,7 +571,7 @@ class Bob(Character):
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
         """
-        from nucypher.policy.models import TreasureMap
+        from nucypher.policy.collections import TreasureMap
         for node in self.known_nodes.shuffled():
             try:
                 response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
@@ -642,7 +595,7 @@ class Bob(Character):
         return treasure_map
 
     def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
-        from nucypher.policy.models import WorkOrder  # Prevent circular import
+        from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
         try:
             treasure_map_to_use = self.treasure_maps[map_id]
@@ -743,7 +696,7 @@ class Bob(Character):
                         break
                 except UmbralCorrectnessError:
                     task = work_order.tasks[0]  # TODO: generalize for WorkOrders with more than one capsule/task
-                    from nucypher.policy.models import IndisputableEvidence
+                    from nucypher.policy.collections import IndisputableEvidence
                     evidence = IndisputableEvidence(task=task, work_order=work_order)
                     # I got a lot of problems with you people ...
                     the_airing_of_grievances.append(evidence)
@@ -839,11 +792,10 @@ class Ursula(Teacher, Character, Worker):
                  timestamp=None,
 
                  # Blockchain
-                 blockchain: BlockchainInterface = None,
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
-                 stake_tracker: StakeTracker = None,
+                 period_tracker: PeriodTracker = None,
                  client_password: str = None,
 
                  # Character
@@ -876,7 +828,6 @@ class Ursula(Teacher, Character, Worker):
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
                            domains=domains,
-                           blockchain=blockchain,
                            **character_kwargs)
 
         #
@@ -892,9 +843,7 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address,
-                                                     password=client_password,
-                                                     blockchain=self.blockchain)
+                transacting_power = TransactingPower(account=worker_address, password=client_password)
                 self._crypto_power.consume_power_up(transacting_power)
 
                 # Use this power to substantiate the stamp
@@ -904,10 +853,15 @@ class Ursula(Teacher, Character, Worker):
 
                 Worker.__init__(self,
                                 is_me=is_me,
-                                blockchain=self.blockchain,
+                                registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                stake_tracker=stake_tracker)
+                                period_tracker=period_tracker)
+        # Stranger
+        elif not self.federated_only:
+            # TODO: Needed for on-chain learning verification
+            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+
 
         #
         # ProxyRESTServer and TLSHostingPower #
@@ -1074,7 +1028,7 @@ class Ursula(Teacher, Character, Worker):
                          teacher_uri: str,
                          min_stake: int,
                          network_middleware: RestMiddleware = None,
-                         blockchain=None,
+                         registry: BaseContractRegistry = None,
                          ) -> 'Ursula':
 
         def __attempt(attempt=1, interval=10) -> Ursula:
@@ -1086,7 +1040,7 @@ class Ursula(Teacher, Character, Worker):
                                                        federated_only=federated_only,
                                                        minimum_stake=min_stake,
                                                        network_middleware=network_middleware,
-                                                       blockchain=blockchain)
+                                                       registry=registry)
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
@@ -1103,7 +1057,7 @@ class Ursula(Teacher, Character, Worker):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 blockchain: BlockchainInterface = None,
+                                 registry: BaseContractRegistry = None,
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
@@ -1130,7 +1084,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            blockchain=blockchain,
+            registry=registry,
             host=real_host,
             port=port,
             network_middleware=network_middleware,
@@ -1142,7 +1096,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and not federated_only:
-            staking_agent = StakingEscrowAgent(blockchain=blockchain)
+            staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
             seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{checksum_address} is staking less then the specified minimum stake value ({minimum_stake}).")
@@ -1181,7 +1135,7 @@ class Ursula(Teacher, Character, Worker):
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
-                   blockchain: BlockchainInterface = None,
+                   registry: BaseContractRegistry = None,
                    ) -> 'Ursula':
 
         if version is INCLUDED_IN_BYTESTRING:
@@ -1218,15 +1172,15 @@ class Ursula(Teacher, Character, Worker):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(blockchain=blockchain, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(registry=registry, federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
                          federated_only: bool = False,
+                         registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
-                         blockchain: BlockchainInterface = None,
                          ) -> List['Ursula']:
 
         node_splitter = BytestringSplitter(VariableLengthBytestring)
@@ -1237,7 +1191,10 @@ class Ursula(Teacher, Character, Worker):
         ursulas = []
         for version, node_bytes in versions_and_node_bytes:
             try:
-                ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only, blockchain=blockchain)
+                ursula = cls.from_bytes(node_bytes,
+                                        version,
+                                        registry=registry,
+                                        federated_only=federated_only)
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
@@ -1388,3 +1345,118 @@ class Enrico(Character):
             return Response(json.dumps(response_data), status=200)
 
         return controller
+
+
+class StakeHolder(Staker):
+
+    banner = STAKEHOLDER_BANNER
+
+    class StakingWallet:
+
+        class UnknownAccount(KeyError):
+            pass
+
+        def __init__(self,
+                     registry: BaseContractRegistry,
+                     checksum_addresses: set = None):
+
+            # Wallet
+            self.__accounts = set()  # Note: Account index is meaningless here
+            self.__transacting_powers = dict()
+
+            # Blockchain
+            self.registry = registry
+            self.blockchain = BlockchainInterfaceFactory.get_interface()
+            self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+
+            self.__get_accounts()
+            if checksum_addresses:
+                self.__accounts.update(checksum_addresses)
+
+        @validate_checksum_address
+        def __contains__(self, checksum_address: str) -> bool:
+            return bool(checksum_address in self.__accounts)
+
+        @property
+        def active_account(self) -> str:
+            return self.blockchain.transacting_power.account
+
+        def __get_accounts(self) -> None:
+            accounts = self.blockchain.client.accounts
+            self.__accounts.update(accounts)
+
+        @property
+        def accounts(self) -> set:
+            return self.__accounts
+
+        @validate_checksum_address
+        def activate_account(self, checksum_address: str, password: str = None) -> None:
+            if checksum_address not in self:
+                self.__get_accounts()
+                if checksum_address not in self:
+                    raise self.UnknownAccount
+            try:
+                transacting_power = self.__transacting_powers[checksum_address]
+            except KeyError:
+                transacting_power = TransactingPower(password=password, account=checksum_address)
+                self.__transacting_powers[checksum_address] = transacting_power
+            transacting_power.activate(password=password)
+
+        @property
+        def balances(self) -> Dict[str, int]:
+            balances = dict()
+            for account in self.__accounts:
+                funds = {'ETH': self.blockchain.client.get_balance(account),  # TODO: EthAgent or something?
+                         'NU': self.token_agent.get_balance(account)}
+                balances.update({account: funds})
+            return balances
+
+    #
+    # StakeHolder
+    #
+
+    def __init__(self,
+                 is_me: bool = True,
+                 initial_address: str = None,
+                 checksum_addresses: set = None,
+                 password: str = None,
+                 *args, **kwargs):
+        super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
+        self.log = Logger(f"stakeholder")
+
+        # Wallet
+        self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
+        if initial_address:
+            # If an initial address was passed,
+            # it is safe to understand that it has already been used at a higher level.
+            if initial_address not in self.wallet:
+                raise self.StakingWallet.UnknownAccount
+            self.assimilate(checksum_address=initial_address, password=password)
+
+    @validate_checksum_address
+    def assimilate(self, checksum_address: str, password: str = None) -> None:
+        self.wallet.activate_account(checksum_address=checksum_address, password=password)
+        original_form = self.checksum_address
+        self.checksum_address = checksum_address
+        self.stakes = StakeList(registry=self.registry, checksum_address=checksum_address)
+        self.stakes.refresh()
+        self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {checksum_address}.")
+
+    @property
+    def all_stakes(self) -> list:
+        stakes = list()
+        for account in self.wallet.accounts:
+            more_stakes = StakeList(registry=self.registry, checksum_address=account)
+            more_stakes.refresh()
+            stakes.extend(more_stakes)
+        return stakes
+
+    @property
+    def current_stake(self) -> NU:
+        """
+        The total number of staked tokens, either locked or unlocked in the current period.
+        """
+        # TODO: This is skipping a layer. Fix me?
+        stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
+        nu_stake = NU.from_nunits(stake)
+        return nu_stake

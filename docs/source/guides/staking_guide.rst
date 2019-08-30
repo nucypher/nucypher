@@ -14,9 +14,9 @@ All staking-related operations are performed through the ``nucypher stake`` comm
 +----------------------+-------------------------------------------------------------------------------+
 | Action               |  Description                                                                  |
 +======================+===============================================================================+
-|  ``new-stakeholder`` | Create a new stakeholder configuration                                        |
+|  ``init-stakeholder``| Create a new stakeholder configuration                                        |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``init``            | Initialize NuCypher stakes (used with ``--value`` and ``--duration``)         |
+|  ``create``          | Initialize NuCypher stakes (used with ``--value`` and ``--duration``)         |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``list``            | List active stakes for current stakeholder                                    |
 +----------------------+-------------------------------------------------------------------------------+
@@ -67,7 +67,7 @@ Interactive Method
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake new-stakeholder --provider <PROVIDER>  --poa
+    (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa
 
 
 *Initialize a new stake*

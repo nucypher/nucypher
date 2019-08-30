@@ -21,7 +21,7 @@ import string
 import pytest
 from web3.auto import w3
 
-from nucypher.blockchain.eth.actors import DeployerActor
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -36,7 +36,8 @@ from nucypher.utilities.sandbox.constants import (
 
 
 @pytest.mark.slow()
-def test_rapid_deployment(token_economics):
+@pytest.mark.usefixtures('testerchain')
+def test_rapid_deployment(token_economics, test_registry):
     compiler = SolidityCompiler()
     allocation_registry = InMemoryAllocationRegistry()
 
@@ -45,13 +46,13 @@ def test_rapid_deployment(token_economics):
                                    compiler=compiler)
 
     # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = TransactingPower(blockchain=blockchain,
-                                                    password=INSECURE_DEVELOPMENT_PASSWORD,
+    blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                     account=blockchain.etherbase_account)
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = DeployerActor(blockchain=blockchain, deployer_address=deployer_address)
+    deployer = ContractAdministrator(deployer_address=deployer_address,
+                                     registry=test_registry)
 
     secrets = dict()
     for deployer_class in deployer.upgradeable_deployer_classes:
@@ -62,17 +63,17 @@ def test_rapid_deployment(token_economics):
     all_yall = blockchain.unassigned_accounts
 
     # Start with some hard-coded cases...
-    allocation_data = [{'address': all_yall[1],
+    allocation_data = [{'beneficiary_address': all_yall[1],
                         'amount': token_economics.maximum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS},
+                        'duration_seconds': ONE_YEAR_IN_SECONDS},
 
-                       {'address': all_yall[2],
+                       {'beneficiary_address': all_yall[2],
                         'amount': token_economics.minimum_allowed_locked,
-                        'duration': ONE_YEAR_IN_SECONDS*2},
+                        'duration_seconds': ONE_YEAR_IN_SECONDS*2},
 
-                       {'address': all_yall[3],
+                       {'beneficiary_address': all_yall[3],
                         'amount': token_economics.minimum_allowed_locked*100,
-                        'duration': ONE_YEAR_IN_SECONDS*3}
+                        'duration_seconds': ONE_YEAR_IN_SECONDS*3}
                        ]
 
     # Pile on the rest
@@ -83,7 +84,7 @@ def test_rapid_deployment(token_economics):
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
         duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
                                   (token_economics.maximum_locked_periods*ONE_YEAR_IN_SECONDS)*3)
-        random_allocation = {'address': beneficiary_address, 'amount': amount, 'duration': duration}
+        random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)

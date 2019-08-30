@@ -21,8 +21,8 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
@@ -118,13 +118,18 @@ def ursula(click_config,
     #
 
     if federated_only:
+        # TODO: consider rephrasing in a more universal voice.
         if geth:
             raise click.BadOptionUsage(option_name="--geth",
-                                       message="Federated only cannot be used with the --geth flag")
+                                       message="--geth cannot be used in federated mode.")
 
         if staker_address:
-            raise click.BadOptionUsage(option_name='--federated-only',
-                                       message="Staking address cannot be used in federated mode.")
+            raise click.BadOptionUsage(option_name='--staker-address',
+                                       message="--staker-address cannot be used in federated mode.")
+
+        if registry_filepath:
+            raise click.BadOptionUsage(option_name="--registry-filepath",
+                                       message=f"--registry-filepath cannot be used in federated mode.")
 
     # Banner
     emitter.banner(URSULA_BANNER.format(worker_address or ''))
@@ -147,7 +152,6 @@ def ursula(click_config,
         ETH_NODE = actions.get_provider_process()
         provider_uri = ETH_NODE.provider_uri(scheme='file')
 
-
     #
     # Eager Actions
     #
@@ -160,21 +164,13 @@ def ursula(click_config,
 
         if (not staker_address or not worker_address) and not federated_only:
 
-            # Connect to Blockchain
-            fetch_registry = registry_filepath is None and not click_config.no_registry
-            registry = None
-            if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
-
             if not staker_address:
                 prompt = "Select staker account"
-                staker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+                staker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
 
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter, blockchain=blockchain, prompt=prompt)
+                worker_address = select_client_account(emitter=emitter, prompt=prompt, provider_uri=provider_uri)
 
         if not config_root:                         # Flag
             config_root = click_config.config_file  # Envvar
@@ -182,7 +178,6 @@ def ursula(click_config,
         if not rest_host:
             rest_host = actions.determine_external_ip_address(emitter, force=force)
 
-        download_registry = not federated_only and not click_config.no_registry
         ursula_config = UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                      config_root=config_root,
                                                      rest_host=rest_host,
@@ -192,7 +187,6 @@ def ursula(click_config,
                                                      federated_only=federated_only,
                                                      checksum_address=staker_address,
                                                      worker_address=worker_address,
-                                                     download_registry=download_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_process=ETH_NODE,
                                                      provider_uri=provider_uri,
@@ -209,7 +203,6 @@ def ursula(click_config,
         ursula_config = UrsulaConfiguration(dev_mode=True,
                                             domains={TEMPORARY_DOMAIN},
                                             poa=poa,
-                                            download_registry=False,
                                             registry_filepath=registry_filepath,
                                             provider_process=ETH_NODE,
                                             provider_uri=provider_uri,
@@ -342,18 +335,24 @@ def ursula(click_config,
         """Paint an existing configuration to the console"""
 
         if not URSULA.federated_only:
+            blockchain = URSULA.staking_agent.blockchain
+
             emitter.echo("BLOCKCHAIN ----------\n")
             painting.paint_contract_status(emitter=emitter, blockchain=URSULA.blockchain)
-            current_block = URSULA.blockchain.w3.eth.blockNumber
+            current_block = blockchain.w3.eth.blockNumber
             emitter.echo(f'Block # {current_block}')
             # TODO: 1231
             emitter.echo(f'NU Balance (staker): {URSULA.token_balance}')
-            emitter.echo(f'ETH Balance (worker): {URSULA.blockchain.client.get_balance(URSULA.worker_address)}')
-            emitter.echo(f'Current Gas Price {URSULA.blockchain.client.gas_price}')
+            emitter.echo(f'ETH Balance (worker): {blockchain.client.get_balance(URSULA.worker_address)}')
+            emitter.echo(f'Current Gas Price {blockchain.client.gas_price}')
 
         emitter.echo("CONFIGURATION --------")
         response = UrsulaConfiguration._read_configuration_file(filepath=config_file or ursula_config.config_file_location)
-        return emitter.ipc(response=response, request_id=0, duration=0) # FIXME: #1216 - what are request_id and duration here?
+        return emitter.ipc(response=response, request_id=0, duration=0)  # FIXME: what are request_id and duration here?
+
+    elif action == "forget":
+        actions.forget(emitter, configuration=ursula_config)
+        return
 
     elif action == 'confirm-activity':
         receipt = URSULA.confirm_activity()
@@ -366,7 +365,7 @@ def ursula(click_config,
                      f'(starting at {date})', bold=True, color='blue')
         painting.paint_receipt_summary(emitter=emitter,
                                        receipt=receipt,
-                                       chain_name=URSULA.blockchain.client.chain_name)
+                                       chain_name=URSULA.staking_agent.blockchain.client.chain_name)
 
         # TODO: Check ActivityConfirmation event (see #1193)
         return

@@ -29,20 +29,23 @@ from nucypher.blockchain.eth.deployers import (
 
 
 @pytest.mark.slow()
-def test_adjudicator_deployer(session_testerchain, slashing_economics, deployment_progress):
-    testerchain = session_testerchain
+def test_adjudicator_deployer(testerchain,
+                              slashing_economics,
+                              deployment_progress,
+                              test_registry):
+    testerchain = testerchain
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
     stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, blockchain=testerchain)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
 
     staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
-    deployer = AdjudicatorDeployer(deployer_address=origin, blockchain=testerchain)
+    deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
     deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH),
                                           progress=deployment_progress)
 
@@ -56,6 +59,7 @@ def test_adjudicator_deployer(session_testerchain, slashing_economics, deploymen
     adjudicator_agent = deployer.make_agent()
 
     # Check default Adjudicator deployment parameters
+    assert staking_escrow_deployer.deployer_address != staking_agent.contract_address
     assert adjudicator_agent.staking_escrow_contract == staking_agent.contract_address
     assert adjudicator_agent.hash_algorithm == slashing_economics.hash_algorithm
     assert adjudicator_agent.base_penalty == slashing_economics.base_penalty
@@ -64,7 +68,7 @@ def test_adjudicator_deployer(session_testerchain, slashing_economics, deploymen
     assert adjudicator_agent.reward_coefficient == slashing_economics.reward_coefficient
 
     # Retrieve the AdjudicatorAgent singleton
-    some_policy_agent = AdjudicatorAgent()
+    some_policy_agent = AdjudicatorAgent(registry=test_registry)
     assert adjudicator_agent == some_policy_agent  # __eq__
 
     # Compare the contract address for equality

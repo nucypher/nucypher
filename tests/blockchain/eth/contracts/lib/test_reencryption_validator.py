@@ -32,8 +32,8 @@ from nucypher.crypto.signing import SignatureStamp
 
 
 @pytest.fixture(scope='module')
-def reencryption_validator(testerchain):
-    contract, _ = testerchain.deploy_contract('ReEncryptionValidatorMock')
+def reencryption_validator(testerchain, deploy_contract):
+    contract, _ = deploy_contract('ReEncryptionValidatorMock')
     return contract
 
 

@@ -32,7 +32,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token):
+def test_upgrading(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
 
@@ -40,7 +40,7 @@ def test_upgrading(testerchain, token):
     secret2_hash = keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = testerchain.deploy_contract(
+    contract_library_v1, _ = deploy_contract(
         contract_name='StakingEscrow',
         _token=token.address,
         _hoursPerPeriod=1,
@@ -52,10 +52,10 @@ def test_upgrading(testerchain, token):
         _maxAllowableLockedTokens=1500,
         _minWorkerPeriods=1
     )
-    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.deploy_contract(
+    contract_library_v2, _ = deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -84,12 +84,12 @@ def test_upgrading(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Initialize contract and staker
-    policy_manager, _ = testerchain.deploy_contract(
+    policy_manager, _ = deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
     testerchain.wait_for_receipt(tx)
-    worklock, _ = testerchain.deploy_contract(
+    worklock, _ = deploy_contract(
         'WorkLockForStakingEscrowMock', contract.address
     )
     tx = contract.functions.setWorkLock(worklock.address).transact()
@@ -125,7 +125,7 @@ def test_upgrading(testerchain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.deploy_contract(
+    contract_library_bad, _ = deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -345,7 +345,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
 
     # Prepares test case:
-    # two Ursula with the same sum of sub stakes and duration with two confirmed period in a past
+    # two Ursula with the stake value and duration, that have both confirmed two subsequent past periods
     sub_stake_1 = new_sub_stake
     sub_stake_2 = sub_stake_1 // 2
     stake = sub_stake_1 + sub_stake_2
@@ -453,7 +453,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_worker(testerchain, token, escrow_contract):
+def test_worker(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
         testerchain.client.accounts
@@ -465,9 +465,9 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
-    intermediary1, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary2, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary3, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary1, _ = deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary2, _ = deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary3, _ = deploy_contract('Intermediary', token.address, escrow.address)
 
     # Prepare stakers: two with intermediary contract and one just a staker
     sub_stake = 1000
@@ -696,7 +696,7 @@ def test_worker(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_measure_work(testerchain, token, escrow_contract):
+def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, ursula, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
@@ -708,7 +708,7 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock
-    worklock, _ = testerchain.deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
     tx = escrow.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 

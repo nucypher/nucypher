@@ -35,23 +35,16 @@ def status(click_config, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
+    #
+    # Initialize
+    #
+    ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
+    if not ursula_config.federated_only:
+        ursula_config.initialize_blockchain_interface()
+        ursula_config.acquire_agency()
 
-    emitter = click_config.emitter
-    click.clear()
-    emitter.banner(NU_BANNER)
-    emitter.echo(message="Reading Latest Chaindata...")
+        # Contracts
+        paint_contract_status(click_config.emitter, ursula_config=ursula_config, click_config=click_config)
 
-    try:
-        ETH_NODE = None
-        if geth:
-            ETH_NODE = get_provider_process()
-        blockchain = BlockchainInterface(provider_uri=provider_uri, provider_process=ETH_NODE, poa=poa)
-        blockchain.connect(sync_now=sync, fetch_registry=True)
-        paint_contract_status(blockchain=blockchain, emitter=emitter)
-        return  # Exit
-
-    except Exception as e:
-        if click_config.debug:
-            raise
-        click.secho(str(e), bold=True, fg='red')
-        return  # Exit
+    # Known Nodes
+    paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)

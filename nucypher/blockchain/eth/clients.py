@@ -79,7 +79,6 @@ class Web3Client:
     class SyncTimeout(RuntimeError):
         pass
 
-
     def __init__(self,
                  w3,
                  node_technology: str,

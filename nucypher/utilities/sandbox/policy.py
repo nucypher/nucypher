@@ -25,7 +25,7 @@ import maya
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.models import Arrangement, Policy
+from nucypher.policy.policies import Arrangement, Policy
 
 
 class MockArrangement(Arrangement):

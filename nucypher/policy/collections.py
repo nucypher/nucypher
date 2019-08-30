@@ -15,380 +15,38 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
-from abc import abstractmethod
-from collections import OrderedDict
 
 import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
+from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Generator, List, Set, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 from umbral.pre import Capsule
 
-from nucypher.characters.lawful import Alice, Bob, Ursula, Character
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH, PUBLIC_KEY_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
-from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.characters.lawful import Bob, Character
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
-                                   construct_policy_id,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
-from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, NotFound
-
-
-class Arrangement:
-    """
-    A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
-    """
-    federated = True
-    ID_LENGTH = 32
-
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
-                                  (bytes, ID_LENGTH),  # arrangement_ID
-                                  (bytes, VariableLengthBytestring))  # expiration
-
-    def __init__(self,
-                 alice: Alice,
-                 expiration: maya.MayaDT,
-                 value: int = None,
-                 ursula: Ursula = None,
-                 arrangement_id: bytes = None,
-                 kfrag: KFrag = UNKNOWN_KFRAG
-                 ) -> None:
-        """
-        :param value: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
-                      a portion will be locked for each Ursula that accepts.
-        :param expiration: The moment which Alice wants the Arrangement to end.
-
-        Other params are hopefully self-evident.
-        """
-        if arrangement_id:
-            if len(arrangement_id) != self.ID_LENGTH:
-                raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
-            self.id = arrangement_id
-        else:
-            self.id = secure_random(self.ID_LENGTH)
-        self.expiration = expiration
-        self.alice = alice
-        self.value = value
-
-        """
-        These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
-        (because she doesn't know if this Arrangement will be accepted).  She doesn't have an Ursula, for the same reason.
-        """
-        self.kfrag = kfrag
-        self.ursula = ursula
-
-    def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
-
-    @classmethod
-    def from_bytes(cls, arrangement_as_bytes):
-        alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
-        expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-        return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
-
-    def encrypt_payload_for_ursula(self):
-        """Craft an offer to send to Ursula."""
-        # We don't need the signature separately.
-        return self.alice.encrypt_for(self.ursula, self.payload())[0]
-
-    def payload(self):
-        # TODO #127 - Ship the expiration again?
-        # Or some other way of alerting Ursula to
-        # recall her previous dialogue regarding this Arrangement.
-        # Update: We'll probably have her store the Arrangement by hrac.  See #127.
-        return bytes(self.kfrag)
-
-    @abstractmethod
-    def revoke(self):
-        """
-        Revoke arrangement.
-        """
-        raise NotImplementedError
-
-
-class Policy:
-    """
-    An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
-    for a specific path.
-
-    Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
-
-    Each Ursula is offered a Arrangement (see above) for a given Policy by Alice.
-
-    Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
-    and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
-    """
-
-    POLICY_ID_LENGTH = 16
-
-    def __init__(self,
-                 alice,
-                 label,
-                 bob=None,
-                 kfrags=(UNKNOWN_KFRAG,),
-                 public_key=None,
-                 m: int = None,
-                 alice_signature=NOT_SIGNED) -> None:
-
-        """
-        :param kfrags:  A list of KFrags to distribute per this Policy.
-        :param label: The identity of the resource to which Bob is granted access.
-        """
-        self.alice = alice                     # type: Alice
-        self.label = label                     # type: bytes
-        self.bob = bob                         # type: Bob
-        self.kfrags = kfrags                   # type: List[KFrag]
-        self.public_key = public_key
-        self.treasure_map = TreasureMap(m=m)
-
-        # Keep track of this stuff
-        self._accepted_arrangements = set()    # type: set
-        self._rejected_arrangements = set()    # type: set
-
-        self._enacted_arrangements = OrderedDict()    # type: OrderedDict
-        self._published_arrangements = OrderedDict()  # type: OrderedDict
-
-        self.alice_signature = alice_signature  # TODO: This is unused / To Be Implemented?
-
-    class MoreKFragsThanArrangements(TypeError):
-        """
-        Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
-        such that we don't have enough KFrags to give to each Ursula.
-        """
-
-    @property
-    def n(self) -> int:
-        return len(self.kfrags)
-
-    @property
-    def id(self) -> bytes:
-        return construct_policy_id(self.label, bytes(self.bob.stamp))
-
-    def hrac(self) -> bytes:
-        """
-        # TODO: #180 - This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
-
-        The "hashed resource authentication code".
-
-        A hash of:
-        * Alice's public key
-        * Bob's public key
-        * the label
-
-        Alice and Bob have all the information they need to construct this.
-        Ursula does not, so we share it with her.
-        """
-        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
-
-    def publish_treasure_map(self, network_middleware: RestMiddleware) -> dict:
-        self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
-                                                  self.bob.public_keys(SigningPower),
-                                                  self.alice.stamp,
-                                                  self.label)
-        if not self.alice.known_nodes:
-            # TODO: Optionally, block.
-            raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
-
-        responses = dict()
-        for node in self.alice.known_nodes:
-            # TODO: # 342 - It's way overkill to push this to every node we know about.  Come up with a system.
-
-            try:
-                treasure_map_id = self.treasure_map.public_id()
-
-                # TODO: Certificate filepath needs to be looked up and passed here
-                response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                       map_id=treasure_map_id,
-                                                                       map_payload=bytes(self.treasure_map))
-            except NodeSeemsToBeDown:
-                # TODO: Introduce good failure mode here if too few nodes receive the map.
-                continue
-
-            if response.status_code == 202:
-                # TODO: #341 - Handle response wherein node already had a copy of this TreasureMap.
-                responses[node] = response
-
-            else:
-                # TODO: Do something useful here.
-                raise RuntimeError
-
-        return responses
-
-    def publish(self, network_middleware: RestMiddleware) -> dict:
-        """
-        Spread word of this Policy far and wide.
-
-        Base publication method for spreading news of the policy.
-        If this is a blockchain policy, this includes writing to
-        PolicyManager contract storage.
-        """
-        return self.publish_treasure_map(network_middleware=network_middleware)
-
-    def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
-
-        if len(self._accepted_arrangements) < self.n:
-            raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
-                                                  "Call make_arrangements to make more.")
-
-        for kfrag in self.kfrags:
-            for arrangement in self._accepted_arrangements:
-                if not arrangement in self._enacted_arrangements.values():
-                    arrangement.kfrag = kfrag
-                    self._enacted_arrangements[kfrag] = arrangement
-                    yield arrangement
-                    break  # This KFrag is now assigned; break the inner loop and go back to assign other kfrags.
-            else:
-                # We didn't assign that KFrag.  Trouble.
-                # This is ideally an impossible situation, because we don't typically
-                # enter this method unless we've already had n or more Arrangements accepted.
-                raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
-        return
-
-    def enact(self, network_middleware, publish=True) -> dict:
-        """
-        Assign kfrags to ursulas_on_network, and distribute them via REST,
-        populating enacted_arrangements
-        """
-        for arrangement in self.__assign_kfrags():
-            policy_message_kit = arrangement.encrypt_payload_for_ursula()
-
-            response = network_middleware.enact_policy(arrangement.ursula,
-                                                       arrangement.id,
-                                                       policy_message_kit.to_bytes())
-
-            if not response:
-                pass  # TODO: Parse response for confirmation.
-
-            # Assuming response is what we hope for.
-            self.treasure_map.add_arrangement(arrangement)
-
-        else:  # ...After *all* the policies are enacted
-            # Create Alice's revocation kit
-            self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.add_active_policy(self)
-
-            if publish is True:
-                return self.publish(network_middleware=network_middleware)
-
-    def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
-        try:
-            ursula.verify_node(network_middleware,
-                               accept_federated_only=arrangement.federated)
-        except ursula.InvalidNode:
-            # TODO: What do we actually do here?  Report this at least (355)?
-            # Maybe also have another bucket for invalid nodes?
-            # It's possible that nothing sordid is happening here;
-            # this node may be updating its interface info or rotating a signing key
-            # and we learned about a previous one.
-            raise
-
-        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
-
-        # TODO: check out the response: need to assess the result and see if we're actually good to go.
-        arrangement_is_accepted = negotiation_response.status_code == 200
-
-        bucket = self._accepted_arrangements if arrangement_is_accepted else self._rejected_arrangements
-        bucket.add(arrangement)
-
-        return arrangement_is_accepted
-
-    @abstractmethod
-    def make_arrangements(self,
-                          network_middleware: RestMiddleware,
-                          deposit: int,
-                          expiration: maya.MayaDT,
-                          ursulas: Set[Ursula] = None) -> None:
-        """
-        Create and consider n Arrangement objects.
-        """
-        raise NotImplementedError
-
-    def _consider_arrangements(self,
-                               network_middleware: RestMiddleware,
-                               candidate_ursulas: Set[Ursula],
-                               value: int,
-                               expiration: maya.MayaDT):
-
-        for selected_ursula in candidate_ursulas:
-            arrangement = self._arrangement_class(alice=self.alice,
-                                                  ursula=selected_ursula,
-                                                  value=value,
-                                                  expiration=expiration)
-            try:
-                is_accepted = self.consider_arrangement(ursula=selected_ursula,
-                                                        arrangement=arrangement,
-                                                        network_middleware=network_middleware)
-
-            except NodeSeemsToBeDown:  # TODO: #355 Also catch InvalidNode here?
-                # This arrangement won't be added to the accepted bucket.
-                # If too many nodes are down, it will fail in make_arrangements.
-                continue
-
-            else:
-
-                # Bucket the arrangements
-                if is_accepted:
-                    self._accepted_arrangements.add(arrangement)
-                else:
-                    self._rejected_arrangements.add(arrangement)
-
-        return self._accepted_arrangements, self._rejected_arrangements
-
-
-class FederatedPolicy(Policy):
-    _arrangement_class = Arrangement
-
-    def __init__(self, ursulas: Set[Ursula], *args, **kwargs) -> None:
-        self.ursulas = ursulas
-        super().__init__(*args, **kwargs)
-
-    def make_arrangements(self,
-                          network_middleware: RestMiddleware,
-                          value: int,
-                          expiration: maya.MayaDT,
-                          handpicked_ursulas: Set[Ursula] = None) -> None:
-
-        if handpicked_ursulas is None:
-            ursulas = set()  # type: set
-        else:
-            ursulas = handpicked_ursulas
-        ursulas.update(self.ursulas)
-
-        if len(ursulas) < self.n:
-            raise ValueError(
-                "To make a Policy in federated mode, you need to designate *all* '  \
-                 the Ursulas you need (in this case, {}); there's no other way to ' \
-                 know which nodes to use.  Either pass them here or when you make ' \
-                 the Policy.".format(self.n))
-
-        # TODO: One of these layers needs to add concurrency.
-
-        self._consider_arrangements(network_middleware,
-                                    candidate_ursulas=ursulas,
-                                    value=value,
-                                    expiration=expiration)
-
-        if len(self._accepted_arrangements) < self.n:
-            raise self.MoreKFragsThanArrangements
+from nucypher.network.middleware import NotFound
 
 
 class TreasureMap:
+    from nucypher.policy.policies import Arrangement
+    ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
+
     splitter = BytestringSplitter(Signature,
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
@@ -399,7 +57,7 @@ class TreasureMap:
         Called when no known nodes have it.
         """
 
-    node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), Arrangement.ID_LENGTH)
+    node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
 
     from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 

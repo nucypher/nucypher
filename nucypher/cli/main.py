@@ -19,8 +19,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli import status, stake
-from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix
+from nucypher.cli import status
+from nucypher.cli.characters import moe, ursula, alice, bob, enrico, felix, stake
 from nucypher.cli.painting import echo_version
 
 
@@ -57,16 +57,15 @@ Inversely, commenting out an entry point here will disable it.
 
 ENTRY_POINTS = (
 
-    # Utility Sub-Commands
     # Utility Commands
-    status.status,  # Network Status
-    stake.stake,    # Stake Management
+    status.status,    # Network Status
     # device.device,  # TODO: nucypher device  # Hardware Wallet Management
 
     # Characters
     alice.alice,    # Author of Policies
     bob.bob,        # Builder of Capsules
     enrico.enrico,  # Encryptor of Data
+    stake.stake,    # Stake Management
     moe.moe,        # Monitor
     ursula.ursula,  # Untrusted Re-Encryption Proxy
     felix.felix     # Faucet

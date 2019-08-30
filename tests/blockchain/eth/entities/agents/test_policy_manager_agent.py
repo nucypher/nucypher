@@ -37,7 +37,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
                                   periods=10,
-                                  initial_reward=20,
+                                  first_period_reward=20,
                                   node_addresses=staker_addresses)
 
     return MockPolicyMetadata(_policy_id, testerchain.alice_account, staker_addresses)
@@ -50,8 +50,7 @@ def test_create_policy(testerchain, agency, token_economics):
     agent = policy_agent
 
     # Mock Powerup consumption
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.alice_account)
     testerchain.transacting_power.activate()
 
@@ -61,7 +60,7 @@ def test_create_policy(testerchain, agency, token_economics):
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,
                                   periods=10,
-                                  initial_reward=20,
+                                  first_period_reward=20,
                                   node_addresses=node_addresses)
 
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -114,8 +113,7 @@ def test_calculate_refund(testerchain, agency, policy_meta):
     worker = staking_agent.get_worker_from_staker(staker)
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
@@ -123,8 +121,7 @@ def test_calculate_refund(testerchain, agency, policy_meta):
     _receipt = staking_agent.confirm_activity(worker_address=worker)
 
     # Mock Powerup consumption (Alice)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.alice_account)
     testerchain.transacting_power.activate()
 
@@ -153,8 +150,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
     worker = staking_agent.get_worker_from_staker(staker)
 
     # Mock Powerup consumption (Ursula-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
@@ -165,8 +161,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
         testerchain.time_travel(periods=1)
 
     # Mock Powerup consumption (Ursula-Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker)
     testerchain.transacting_power.activate()
 

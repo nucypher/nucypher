@@ -28,7 +28,7 @@ SECRET_LENGTH = 16
 
 
 @pytest.mark.slow
-def test_dispatcher(testerchain):
+def test_dispatcher(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
@@ -40,20 +40,20 @@ def test_dispatcher(testerchain):
     secret3_hash = keccak(secret3)
 
     # Try to deploy broken libraries and dispatcher for them
-    contract0_bad_lib, _ = testerchain.deploy_contract('BadDispatcherStorage')
-    contract2_bad_verify_state_lib, _ = testerchain.deploy_contract('ContractV2BadVerifyState')
+    contract0_bad_lib, _ = deploy_contract('BadDispatcherStorage')
+    contract2_bad_verify_state_lib, _ = deploy_contract('ContractV2BadVerifyState')
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', contract0_bad_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract0_bad_lib.address, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', contract2_bad_verify_state_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract2_bad_verify_state_lib.address, secret_hash)
 
     # Deploy contracts and dispatcher for them
-    contract1_lib, _ = testerchain.deploy_contract('ContractV1', 1)
-    contract2_lib, _ = testerchain.deploy_contract('ContractV2', 1)
-    contract3_lib, _ = testerchain.deploy_contract('ContractV3', 2)
-    contract4_lib, _ = testerchain.deploy_contract('ContractV4', 3)
-    contract2_bad_storage_lib, _ = testerchain.deploy_contract('ContractV2BadStorage')
-    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+    contract1_lib, _ = deploy_contract('ContractV1', 1)
+    contract2_lib, _ = deploy_contract('ContractV2', 1)
+    contract3_lib, _ = deploy_contract('ContractV3', 2)
+    contract4_lib, _ = deploy_contract('ContractV4', 3)
+    contract2_bad_storage_lib, _ = deploy_contract('ContractV2BadStorage')
+    dispatcher, _ = deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
     assert contract1_lib.address == dispatcher.functions.target().call()
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
@@ -472,7 +472,7 @@ def test_dispatcher(testerchain):
 
 
 @pytest.mark.slow
-def test_selfdestruct(testerchain):
+def test_selfdestruct(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
@@ -484,7 +484,7 @@ def test_selfdestruct(testerchain):
     secret3_hash = keccak(secret3)
 
     # Deploy contract and destroy it
-    contract1_lib, _ = testerchain.deploy_contract('Destroyable', 22)
+    contract1_lib, _ = deploy_contract('Destroyable', 22)
     assert 22 == contract1_lib.functions.constructorValue().call()
     tx = contract1_lib.functions.destroy().transact()
     testerchain.wait_for_receipt(tx)
@@ -493,15 +493,15 @@ def test_selfdestruct(testerchain):
 
     # Can't create dispatcher using address without contract
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', BlockchainInterface.NULL_ADDRESS, secret_hash)
+        deploy_contract('Dispatcher', BlockchainInterface.NULL_ADDRESS, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', account, secret_hash)
+        deploy_contract('Dispatcher', account, secret_hash)
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
+        deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
 
     # Deploy contract again with a dispatcher targeting it
-    contract2_lib, _ = testerchain.deploy_contract('Destroyable', 23)
-    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract2_lib.address, secret_hash)
+    contract2_lib, _ = deploy_contract('Destroyable', 23)
+    dispatcher, _ = deploy_contract('Dispatcher', contract2_lib.address, secret_hash)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
     contract_instance = testerchain.client.get_contract(
@@ -543,7 +543,7 @@ def test_selfdestruct(testerchain):
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade to this contract
-    contract3_lib, _ = testerchain.deploy_contract('Destroyable', 24)
+    contract3_lib, _ = deploy_contract('Destroyable', 24)
     tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 24 == contract_instance.functions.constructorValue().call()
@@ -566,8 +566,8 @@ def test_selfdestruct(testerchain):
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract twice and upgrade to the latest contract
-    contract4_lib, _ = testerchain.deploy_contract('Destroyable', 25)
-    contract5_lib, _ = testerchain.deploy_contract('Destroyable', 26)
+    contract4_lib, _ = deploy_contract('Destroyable', 25)
+    contract5_lib, _ = deploy_contract('Destroyable', 26)
     tx = dispatcher.functions.upgrade(contract4_lib.address, secret2, secret3_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = dispatcher.functions.upgrade(contract5_lib.address, secret3, secret_hash).transact({'from': creator})
@@ -583,7 +583,7 @@ def test_selfdestruct(testerchain):
         testerchain.wait_for_receipt(tx)
 
     # Deploy the same contract again and upgrade
-    contract6_lib, _ = testerchain.deploy_contract('Destroyable', 27)
+    contract6_lib, _ = deploy_contract('Destroyable', 27)
     tx = dispatcher.functions.upgrade(contract6_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 27 == contract_instance.functions.constructorValue().call()

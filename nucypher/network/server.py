@@ -152,8 +152,8 @@ def make_rest_app(
             return Response(bytes(signature) + payload, headers=headers)
 
         nodes = _node_class.batch_from_bytes(request.data,
-                                             federated_only=this_node.federated_only,
-                                             blockchain=this_node.blockchain)  # TODO: 466
+                                             registry=this_node.registry,
+                                             federated_only=this_node.federated_only)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
@@ -208,7 +208,7 @@ def make_rest_app(
 
     @rest_app.route('/consider_arrangement', methods=['POST'])
     def consider_arrangement():
-        from nucypher.policy.models import Arrangement
+        from nucypher.policy.policies import Arrangement
         arrangement = Arrangement.from_bytes(request.data)
 
         with ThreadedSession(db_engine) as session:
@@ -265,7 +265,7 @@ def make_rest_app(
         """
         REST endpoint for revoking/deleting a KFrag from a node.
         """
-        from nucypher.policy.models import Revocation
+        from nucypher.policy.collections import Revocation
 
         revocation = Revocation.from_bytes(request.data)
         log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation).hex(), id_as_hex))
@@ -293,7 +293,7 @@ def make_rest_app(
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
-        from nucypher.policy.models import WorkOrder  # Avoid circular import
+        from nucypher.policy.collections import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
         try:
             with ThreadedSession(db_engine) as session:
@@ -360,7 +360,7 @@ def make_rest_app(
 
     @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
     def receive_treasure_map(treasure_map_id):
-        from nucypher.policy.models import TreasureMap
+        from nucypher.policy.collections import TreasureMap
 
         try:
             treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)

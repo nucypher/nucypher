@@ -55,7 +55,7 @@ def test_sampling(testerchain, token, escrow_contract):
     assert NULL_ADDR == addresses[0]
 
     all_locked_tokens = 0
-    # All stakers lock tokens for different duration
+    # All stakers lock tokens for different lock periods
     for index, staker in enumerate(stakers):
         balance = token.functions.balanceOf(staker).call()
         tx = token.functions.approve(escrow.address, balance).transact({'from': staker})
@@ -106,7 +106,7 @@ def test_sampling(testerchain, token, escrow_contract):
     addresses = escrow.functions.sample([1], len(stakers)).call()
     assert 1 == len(addresses)
     assert stakers[-1] == addresses[0]
-    # Sample staker by the duration more than the longest stake
+    # Sample staker using the duration more than the longest stake
     # The result is empty
     addresses = escrow.functions.sample([1], len(stakers) + 1).call()
     assert 1 == len(addresses)

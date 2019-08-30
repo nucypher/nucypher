@@ -290,7 +290,7 @@ class Learner:
         """
 
     def __init__(self,
-                 domains: Set,
+                 domains: set,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
@@ -299,7 +299,7 @@ class Learner:
                  node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False,
-                 lonely: bool = False,
+                 lonely: bool = False
                  ) -> None:
 
         self.log = Logger("learning-loop")  # type: Logger
@@ -771,8 +771,8 @@ class Learner:
             return FLEET_STATES_MATCH
 
         node_list = Ursula.batch_from_bytes(node_payload,
-                                            federated_only=self.federated_only,
-                                            blockchain=self.blockchain)  # TODO: 466
+                                            registry=self.registry,
+                                            federated_only=self.federated_only)  # TODO: 466
 
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),

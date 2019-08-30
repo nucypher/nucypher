@@ -1,7 +1,6 @@
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.banners import BOB_BANNER
 from nucypher.cli import actions, painting
 from nucypher.cli.actions import get_nucypher_password, select_client_account
@@ -45,7 +44,7 @@ def bob(click_config,
         network,
         config_root,
         config_file,
-        checksum_address ,
+        checksum_address,
         provider_uri,
         registry_filepath,
         dev,
@@ -96,20 +95,13 @@ def bob(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not checksum_address and not federated_only:
-            registry = None
-            if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(sync_now=sync, emitter=emitter)
-            checksum_address = select_client_account(emitter=emitter, blockchain=blockchain)
+            checksum_address = select_client_account(emitter=emitter, provider_uri=provider_uri)
 
-        download_registry = not federated_only and not click_config.no_registry
         new_bob_config = BobConfiguration.generate(password=get_nucypher_password(confirm=True),
                                                    config_root=config_root or DEFAULT_CONFIG_ROOT,
                                                    checksum_address=checksum_address,
                                                    domains={network} if network else None,
                                                    federated_only=federated_only,
-                                                   download_registry=download_registry,
                                                    registry_filepath=registry_filepath,
                                                    provider_uri=provider_uri)
 
@@ -124,7 +116,7 @@ def bob(click_config,
                                       domains={network},
                                       provider_uri=provider_uri,
                                       federated_only=True,
-                                      checksum_address=checksum_address ,
+                                      checksum_address=checksum_address,
                                       network_middleware=click_config.middleware)
     else:
 
@@ -132,9 +124,10 @@ def bob(click_config,
             bob_config = BobConfiguration.from_configuration_file(
                 filepath=config_file,
                 domains={network} if network else None,
-                checksum_address=checksum_address ,
+                checksum_address=checksum_address,
                 rest_port=discovery_port,
                 provider_uri=provider_uri,
+                registry_filepath=registry_filepath,
                 network_middleware=click_config.middleware)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=BobConfiguration,
