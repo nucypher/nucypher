@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgen
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeList, PeriodTracker, NU
+from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
@@ -795,7 +795,7 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
-                 period_tracker: PeriodTracker = None,
+                 work_tracker: WorkTracker = None,
                  client_password: str = None,
 
                  # Character
@@ -843,8 +843,8 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
-                self._crypto_power.consume_power_up(transacting_power)
+                self.transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
+                self._crypto_power.consume_power_up(self.transacting_power)
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
@@ -856,7 +856,7 @@ class Ursula(Teacher, Character, Worker):
                                 registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                period_tracker=period_tracker)
+                                work_tracker=work_tracker)
 
         #
         # ProxyRESTServer and TLSHostingPower #

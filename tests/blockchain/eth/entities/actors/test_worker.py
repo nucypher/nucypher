@@ -3,7 +3,7 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
-from nucypher.blockchain.eth.token import NU, PeriodTracker
+from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, start_pytest_ursula_services
@@ -31,7 +31,7 @@ def test_worker_auto_confirmations(testerchain,
 
     # Control time
     clock = Clock()
-    PeriodTracker.CLOCK = clock
+    WorkTracker.CLOCK = clock
 
     # Bond the Worker and Staker
     staker.set_worker(worker_address=worker_address)
@@ -49,10 +49,8 @@ def test_worker_auto_confirmations(testerchain,
         ursula.period_tracker.start()
 
     def time_travel(_):
-        # Advance one period, and two hours, somehow separately
-        testerchain.time_travel(periods=2)
-        two_hours = (60*60) * 2
-        clock.advance(two_hours)
+        testerchain.time_travel(periods=1)
+        clock.advance(WorkTracker.REFRESH_RATE+1)
 
     def verify(_):
         # Verify that periods were confirmed on-chain automatically

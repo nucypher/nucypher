@@ -35,7 +35,8 @@ NucypherClickConfig.log_to_file = True
 WebEmitter._crash_on_error_default = True
 
 # Dont re-lock account in background during activity confirmations
-TransactingPower.lock_account = lambda: True
+LOCK_FUNCTION = TransactingPower.lock_account
+TransactingPower.lock_account = lambda *a, **k: True
 
 
 ##########################################

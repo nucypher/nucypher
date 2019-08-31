@@ -7,6 +7,9 @@ from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (PowerUpError)
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.conftest import LOCK_FUNCTION
+
+TransactingPower.lock_account = LOCK_FUNCTION
 
 
 def test_transacting_power_sign_message(testerchain):

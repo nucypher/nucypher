@@ -165,7 +165,7 @@ class Web3Client:
 
     def unlock_account(self, address, password, duration=None) -> bool:
         if not self.is_local:
-            return self.unlock_account(address, password, duration=duration)
+            return self.unlock_account(address, password)
 
     @property
     def is_connected(self):
@@ -315,7 +315,7 @@ class GethClient(Web3Client):
         if password is None:
             debug_message += " with no password."
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(address, password, duration=duration)
+        return self.w3.geth.personal.unlockAccount(address, password, duration)
 
     def sign_transaction(self, transaction: dict) -> bytes:
 
@@ -383,7 +383,7 @@ class EthereumTesterClient(Web3Client):
         else:
             return self.w3.provider.ethereum_tester.unlock_account(account=address,
                                                                    password=password,
-                                                                   duration=duration)
+                                                                   unlock_seconds=duration)
 
     def sync(self, *args, **kwargs):
         return True

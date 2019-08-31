@@ -142,20 +142,20 @@ class TransactingPower(CryptoPowerUp):
 
     def activate(self, password: str = None):
         """Be Consumed"""
-        self.unlock_account(password=password or self.__password)
-        if not self.__cache:
+        self.unlock_account(password=password)
+        if self.__cache is False:
             self.__password = None
         self.blockchain.transacting_power = self
 
     def lock_account(self):
         if self.device:
-            # TODO: Force Disconnect Devices?
-            pass
+            pass  # TODO: Force Disconnect Devices?
         else:
             _result = self.blockchain.client.lock_account(address=self.account)
         self.__unlocked = False
 
     def unlock_account(self, password: str = None, duration: int = None):
+        password = password or self.__password
         if self.device:
             unlocked = True
         else:
