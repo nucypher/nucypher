@@ -419,8 +419,8 @@ class LocalFileBasedNodeStorage(NodeStorage):
         node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
         return node
 
-    def store_node_certificate(self, certificate: Certificate):
-        certificate_filepath = self._write_tls_certificate(certificate=certificate)
+    def store_node_certificate(self, certificate: Certificate, force: bool = True):
+        certificate_filepath = self._write_tls_certificate(certificate=certificate, force=force)
         return certificate_filepath
 
     def store_node_metadata(self, node, filepath: str = None) -> str:
@@ -430,7 +430,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return filepath
 
     def save_node(self, node, force) -> Tuple[str, str]:
-        certificate_filepath = self.store_node_certificate(certificate=node.certificate)
+        certificate_filepath = self.store_node_certificate(certificate=node.certificate, force=force)
         metadata_filepath = self.store_node_metadata(node=node)
         return metadata_filepath, certificate_filepath
 

@@ -351,9 +351,7 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self,
-                       read_storages: bool = True,
-                       retry_attempts: int = 3):  # TODO: why are these unused?
+    def load_seednodes(self, read_storage: bool = True, retry_attempts: int = 3):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
@@ -383,7 +381,7 @@ class Learner:
 
         self.done_seeding = True
 
-        if read_storages is True:
+        if read_storage is True:
             self.read_nodes_from_storage()
 
         if not self.known_nodes:
@@ -426,7 +424,7 @@ class Learner:
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             registry=self.registry)  # composed on character subclass
+                             registry=self.registry)  # composed on character subclass, determines operating mode
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
 

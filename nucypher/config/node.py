@@ -178,7 +178,7 @@ class CharacterConfiguration(BaseConfiguration):
         else:
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
-                from nucypher.cli.config import NucypherClickConfig  # FIXME
+                from nucypher.cli.config import NucypherClickConfig  # TODO: Need a better place for global verbosity, non-local to the CLI.
 
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,

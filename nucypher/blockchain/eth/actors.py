@@ -625,7 +625,7 @@ class Worker(NucypherTokenActor):
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.refresh()
             if check_active_worker and not len(self.stakes):
-                raise self.DetachedWorker
+                raise self.DetachedWorker(f"{self.__worker_address} is not bonded to {self.checksum_address}.")
 
             self.period_tracker = period_tracker or PeriodTracker(registry=self.registry)
             self.period_tracker.add_action(self._confirm_period)
