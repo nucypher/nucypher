@@ -33,21 +33,23 @@ def test_worker_auto_confirmations(testerchain,
     clock = Clock()
     PeriodTracker.CLOCK = clock
 
+    # Bond the Worker and Staker
+    staker.set_worker(worker_address=worker_address)
+
+    # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
                                         confirm_activity=False,
                                         registry=test_registry).pop()
 
-    # Bond the Worker and Staker
-    staker.set_worker(worker_address=worker_address)
-
-    # Start running the worker
     def start():
+        # Start running the worker
         start_pytest_ursula_services(ursula=ursula)
         ursula.period_tracker.start()
 
     def time_travel(_):
+        # Advance one period, and two hours, somehow separately
         testerchain.time_travel(periods=2)
         two_hours = (60*60) * 2
         clock.advance(two_hours)

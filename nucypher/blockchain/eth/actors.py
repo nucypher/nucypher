@@ -604,6 +604,7 @@ class Worker(NucypherTokenActor):
                  period_tracker: PeriodTracker = None,
                  worker_address: str = None,
                  start_working_loop: bool = True,
+                 confirm_now: bool = True,
                  check_active_worker: bool = True,
                  *args, **kwargs):
 
@@ -630,6 +631,9 @@ class Worker(NucypherTokenActor):
             self.period_tracker = period_tracker or PeriodTracker(registry=self.registry)
             self.period_tracker.add_action(self._confirm_period)
             self.stakes.start_tracking(self.period_tracker)
+
+            if confirm_now:
+                self.confirm_activity()
             if start_working_loop:
                 self.period_tracker.start(act_now=False)
 
