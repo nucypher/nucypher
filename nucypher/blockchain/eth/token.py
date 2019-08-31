@@ -452,6 +452,7 @@ class Stake:
 
 class PeriodTracker:
 
+    CLOCK = reactor
     REFRESH_RATE = 60 * 60  # one hour.
     __actions = list()   # type: List[Tuple[Callable, tuple]]
 
@@ -463,6 +464,7 @@ class PeriodTracker:
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self.__update)
+        self._tracking_task.clock = self.CLOCK
 
         self.__current_period = None
         self.__start_time = NOT_STAKING
@@ -472,6 +474,11 @@ class PeriodTracker:
     @property
     def current_period(self):
         return self.__current_period
+
+    def perform_actions(self) -> None:
+        for action, args in self.__actions:
+            self.log.info(f"Performing action: '{str(action.__name__)}'")
+            action(*args)
 
     def add_action(self, func: Callable, args=()) -> None:
         self.__actions.append((func, args))
@@ -483,7 +490,7 @@ class PeriodTracker:
         self._tracking_task.stop()
         self.log.info(f"STOPPED STAKE TRACKING")
 
-    def start(self, force: bool = False) -> None:
+    def start(self, act_now: bool = False, force: bool = False) -> None:
         """
         High-level stake tracking initialization, this function aims
         to be safely called at any time - For example, it is okay to call
@@ -500,6 +507,9 @@ class PeriodTracker:
         d = self._tracking_task.start(interval=self._refresh_rate)
         d.addErrback(self.handle_tracking_errors)
         self.log.info(f"STARTED PERIOD TRACKING with {len(self.__actions)} registered actions.")
+
+        if act_now:
+            self.perform_actions()
 
     def _crash_gracefully(self, failure=None) -> None:
         """
@@ -522,8 +532,7 @@ class PeriodTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.__current_period != onchain_period:
             self.__current_period = onchain_period
-            for action, args in self.__actions:
-                action(*args)
+            self.perform_actions()
 
 
 class StakeList(UserList):

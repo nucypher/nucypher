@@ -631,7 +631,7 @@ class Worker(NucypherTokenActor):
             self.period_tracker.add_action(self._confirm_period)
             self.stakes.start_tracking(self.period_tracker)
             if start_working_loop:
-                self.period_tracker.start()
+                self.period_tracker.start(act_now=False)
 
     @property
     def last_active_period(self) -> int:
@@ -647,13 +647,24 @@ class Worker(NucypherTokenActor):
 
     @only_me
     def _confirm_period(self) -> None:
-        # TODO: Follow-up actions for downtime
+        interval = self.period_tracker.current_period - self.last_active_period
+
         # TODO: Check for stake expiration and exit
-        missed_periods = self.period_tracker.current_period - self.last_active_period
-        if missed_periods:
-            self.log.warn(f"MISSED CONFIRMATIONS - {missed_periods} missed staking confirmations detected!")
-        self.confirm_activity()  # < --- blockchain WRITE
+        if not interval:
+            return  # No need to confirm this period.  Save the gas.
+
+        if interval > 1:
+            # TODO: Follow-up actions for downtime
+            self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
+
+        #
+        # Confirm
+        #
+
         self.log.info("Confirmed activity for period {}".format(self.period_tracker.current_period))
+        transacting_power = self.staking_agent.blockchain.transacting_power
+        with transacting_power:
+            self.confirm_activity()  # < --- blockchain WRITE
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

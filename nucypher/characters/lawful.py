@@ -843,7 +843,7 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address, password=client_password)
+                transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
                 self._crypto_power.consume_power_up(transacting_power)
 
                 # Use this power to substantiate the stamp
