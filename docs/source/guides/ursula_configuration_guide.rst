@@ -30,6 +30,14 @@ You need to create a software-controlled account in geth:
 So, your worker account is ``0xc080708026a3a280894365efd51bb64521c45147`` in
 this case.
 
+Before installing ``nucypher``, you may need to install necessary developer
+tools and headers, if you don't have them already. In Ubuntu, Debian, Linux Mint
+or similar distros, that is:
+
+.. code:: bash
+
+    $ sudo apt install build-essential python3-dev python3-pip
+
 Install ``nucypher`` either by doing ``sudo pip3 install nucypher`` if you have
 a dedicated instance or container, or with a ``virtualenv``:
 
@@ -62,18 +70,20 @@ If your installation in non-functional, be sure you have the latest version inst
 2. Configure a new Ursula node
 --------------------------------
 
-*Decentralized Ursula Configuration*
-
 .. code:: bash
 
-    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK NAME> --poa
+    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --poa --staker-address <YOUR STAKER ADDRESS>
 
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 
-    - ``file:///tmp/geth.ipc``   - Geth Development Node
+    - ``ipc:///home/ubuntu/.ethereum/goerli/geth.ipc`` - Geth Node on Görli testnet running under user ``ubuntu`` (most probably that's what you need).
+    - ``ipc:///tmp/geth.ipc``   - Geth Development Node
     - ``http://localhost:7545`` - Ganache TestRPC (HTTP-JSON-RPC)
     - ``ws://0.0.0.0:8080``     - Websocket Provider
+
+``<YOUR STAKER ADDRESS>`` is the address you've staked from when following the
+:ref:`staking-guide`.
 
 
 3. Enter or confirm your public-facing IPv4 address when prompted
