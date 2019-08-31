@@ -168,7 +168,7 @@ class Character(Learner):
         #
         # Stranger-Character
         #
-        
+
         else:  # Feel like a stranger
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stranger-Character.")

@@ -173,7 +173,7 @@ def make_rest_app(
                         certificate=node.certificate)
 
                     node.verify_node(this_node.network_middleware,
-                                     accept_federated_only=this_node.federated_only,  # TODO: 466
+                                     registry=this_node.registry,
                                      certificate_filepath=certificate_filepath)
 
                 # Suspicion

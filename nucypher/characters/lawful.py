@@ -1099,7 +1099,7 @@ class Ursula(Teacher, Character, Worker):
         # Verify the node's TLS certificate
         try:
             potential_seed_node.verify_node(network_middleware=network_middleware,
-                                            accept_federated_only=federated_only,
+                                            registry=registry,
                                             certificate_filepath=temp_certificate_filepath)
         except potential_seed_node.InvalidNode:
             # TODO: What if our seed node fails verification?
@@ -1167,7 +1167,7 @@ class Ursula(Teacher, Character, Worker):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(registry=registry, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod

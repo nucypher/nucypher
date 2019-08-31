@@ -45,7 +45,9 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, verify_eip_191, recover_address_eip_191
@@ -319,14 +321,10 @@ class Learner:
         self.lonely = lonely
         self.done_seeding = False
 
-        # Read
-        if node_storage is None:
-            from nucypher.characters.lawful import Ursula
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,  # TODO: #466
-                                                       character_class=Ursula)
-
+        if not node_storage:
+            # Fallback storage backend
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only)
         self.node_storage = node_storage
-
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
@@ -428,8 +426,7 @@ class Learner:
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
-                             )
+                             registry=self.registry)  # composed on character subclass
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
 
@@ -803,18 +800,18 @@ class Learner:
             try:
                 if eager:
                     node.verify_node(self.network_middleware,
-                                     accept_federated_only=self.federated_only,  # TODO: 466
+                                     registry=self.registry,
                                      certificate_filepath=certificate_filepath)
                     self.log.debug("Verified node: {}".format(node.checksum_address))
 
                 else:
-                    node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
+                    node.validate_metadata(registry=self.registry)
 
             #
             # Report Failure
             #
 
-            except NodeSeemsToBeDown as e:
+            except NodeSeemsToBeDown:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {node}.")
 
@@ -998,26 +995,31 @@ class Teacher:
                                             address=self.worker_address)
         return signature_is_valid
 
-    def _worker_is_bonded_to_staker(self) -> bool:
+    def _worker_is_bonded_to_staker(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the worker is linked to a staker, but it may be
         the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
         """
-        staker_address = self.staking_agent.get_staker_from_worker(worker_address=self.worker_address)
+        # Lazy agent get or create
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+
+        staker_address = staking_agent.get_staker_from_worker(worker_address=self.worker_address)
         if staker_address == BlockchainInterface.NULL_ADDRESS:
             raise self.DetachedWorker(f"Worker {self.worker_address} is detached")
         return staker_address == self.checksum_address
 
-    def _staker_is_really_staking(self) -> bool:
+    def _staker_is_really_staking(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the staker is, indeed, staking.
         """
-        locked_tokens = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address)
+        # Lazy agent get or create
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        locked_tokens = staking_agent.get_locked_tokens(staker_address=self.checksum_address)
         return locked_tokens > 0  # TODO: Consider min stake size #1115
 
-    def validate_worker(self, verify_staking: bool = True) -> None:
+    def validate_worker(self, registry: BaseContractRegistry = None) -> None:
 
         # Federated
         if self.federated_only:
@@ -1028,7 +1030,6 @@ class Teacher:
 
         # Decentralized
         else:
-
             if self.__decentralized_identity_evidence is NOT_SIGNED:
                 raise self.StampNotSigned
 
@@ -1038,22 +1039,20 @@ class Teacher:
                           f"from worker {self.worker_address} for stamp {bytes(self.stamp).hex()} "
                 raise self.InvalidWorkerSignature(message)
 
-            # On-chain staking check
-            if verify_staking:
-                if not self._worker_is_bonded_to_staker():  # <-- Blockchain CALL
+            # On-chain staking check, if registry is present
+            if registry:
+                if not self._worker_is_bonded_to_staker(registry=registry):  # <-- Blockchain CALL
                     message = f"Worker {self.worker_address} is not bonded to staker {self.checksum_address}"
                     raise self.DetachedWorker(message)
 
-                if self._staker_is_really_staking():  # <-- Blockchain CALL
+                if self._staker_is_really_staking(registry=registry):  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
                     raise self.NotStaking(f"Staker {self.checksum_address} is not staking")
 
             self.verified_stamp = True
 
-    def validate_metadata(self,
-                          accept_federated_only: bool = False,
-                          verify_staking: bool = True):
+    def validate_metadata(self, registry: BaseContractRegistry = None):
 
         # Verify the interface signature
         if not self.verified_interface:
@@ -1065,16 +1064,16 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_worker(verify_staking=verify_staking)
+            self.validate_worker(registry=registry)
         except self.WrongMode:
-            if not accept_federated_only:
+            if bool(registry):
                 raise
 
     def verify_node(self,
                     network_middleware,
                     certificate_filepath: str = None,
-                    accept_federated_only: bool = False,
-                    force: bool = False
+                    force: bool = False,
+                    registry: BaseContractRegistry = None,
                     ) -> bool:
         """
         Three things happening here:
@@ -1099,8 +1098,12 @@ class Teacher:
         if self.verified_node:
             return True
 
+        if not registry and not self.federated_only:  # TODO: # 466
+            self.log.debug("No registry provided for decentralized stranger node verification - "
+                           "on-chain Staking verification will not be performed.")
+
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        self.validate_metadata(accept_federated_only=accept_federated_only)
+        self.validate_metadata(registry=registry)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:

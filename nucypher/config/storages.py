@@ -369,19 +369,15 @@ class LocalFileBasedNodeStorage(NodeStorage):
                                      self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
         return metadata_path
 
-    def __read_metadata(self,
-                        filepath: str,
-                        federated_only: bool,
-                        registry: BaseContractRegistry = None):
+    def __read_metadata(self, filepath: str, federated_only: bool):
 
-        # TODO: Use registry None to indicate federated only
         from nucypher.characters.lawful import Ursula
 
         try:
             with open(filepath, "rb") as seed_file:
                 seed_file.seek(0)
                 node_bytes = self.deserializer(seed_file.read())
-                node = Ursula.from_bytes(node_bytes, registry=registry, federated_only=federated_only)
+                node = Ursula.from_bytes(node_bytes, federated_only=federated_only)  # TODO: #466
         except FileNotFoundError:
             raise self.UnknownNode
         return node
@@ -410,9 +406,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             known_nodes = set()
             for filename in filenames:
                 metadata_path = os.path.join(self.metadata_dir, filename)
-                node = self.__read_metadata(filepath=metadata_path,
-                                            registry=self.registry,
-                                            federated_only=federated_only)  # TODO: 466
+                node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
                 known_nodes.add(node)
             return known_nodes
 
@@ -422,9 +416,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             certificate = self.__read_tls_public_certificate(checksum_address=checksum_address)
             return certificate
         metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
-        node = self.__read_metadata(filepath=metadata_path,
-                                    registry=self.registry,
-                                    federated_only=federated_only)  # TODO: 466
+        node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
         return node
 
     def store_node_certificate(self, certificate: Certificate):
