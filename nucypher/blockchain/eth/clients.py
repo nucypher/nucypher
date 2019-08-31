@@ -159,13 +159,15 @@ class Web3Client:
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
-    def lock_account(self, address):
-        if not self.is_local:
-            return self.lock_account(address=address)
+    def lock_account(self, address) -> bool:
+        if self.is_local:
+            return True
+        return NotImplemented
 
     def unlock_account(self, address, password, duration=None) -> bool:
-        if not self.is_local:
-            return self.unlock_account(address, password)
+        if self.is_local:
+            return True
+        return NotImplemented
 
     @property
     def is_connected(self):
@@ -317,6 +319,9 @@ class GethClient(Web3Client):
         self.log.debug(debug_message)
         return self.w3.geth.personal.unlockAccount(address, password, duration)
 
+    def lock_account(self, address):
+        return self.w3.geth.personal.lockAccount(address)
+
     def sign_transaction(self, transaction: dict) -> bytes:
 
         # Do not include a 'to' field for contract creation.
@@ -346,6 +351,9 @@ class ParityClient(Web3Client):
 
     def unlock_account(self, address, password, duration: int = None) -> bool:
         return self.w3.parity.unlockAccount.unlockAccount(address, password, duration)
+
+    def lock_account(self, address):
+        return self.w3.parity.personal.lockAccount(address)
 
 
 class GanacheClient(Web3Client):
@@ -384,6 +392,15 @@ class EthereumTesterClient(Web3Client):
             return self.w3.provider.ethereum_tester.unlock_account(account=address,
                                                                    password=password,
                                                                    unlock_seconds=duration)
+
+    def lock_account(self, address) -> bool:
+        """Returns True if the testing backend keyring has control of the given address."""
+        address = to_canonical_address(address)
+        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
+        if address in keystore:
+            return True
+        else:
+            return self.w3.provider.ethereum_tester.lock_account(account=address)
 
     def sync(self, *args, **kwargs):
         return True

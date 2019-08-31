@@ -153,6 +153,7 @@ class TransactingPower(CryptoPowerUp):
         else:
             _result = self.blockchain.client.lock_account(address=self.account)
         self.__unlocked = False
+        return self.__unlocked
 
     def unlock_account(self, password: str = None, duration: int = None):
         password = password or self.__password
