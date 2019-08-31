@@ -20,6 +20,7 @@ import pytest
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 # Logger Configuration
 #
@@ -32,6 +33,9 @@ NucypherClickConfig.log_to_file = True
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
+
+# Dont re-lock account in background during activity confirmations
+TransactingPower.lock_account = lambda: True
 
 
 ##########################################
