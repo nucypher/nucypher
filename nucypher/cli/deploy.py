@@ -83,8 +83,8 @@ def deploy(action,
     allocations            Deploy pre-allocation contracts.
     upgrade                Upgrade NuCypher existing proxy contract deployments.
     rollback               Rollback a proxy contract's target.
-    status                 Echo owner information and bare contract metadata.
-    transfer-tokens        Transfer tokens from a contract to another address.
+    inspect                Echo owner information and bare contract metadata.
+    transfer-tokens        Transfer tokens from a contract to another address using the owner's address.
     transfer-ownership     Transfer ownership of contracts to another address.
     """
 
@@ -293,7 +293,6 @@ def deploy(action,
                                        sender_address=token_agent.contract_address,
                                        target_address=target_address)
         emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
-
         return  # Exit
 
     elif action == "transfer-ownership":
