@@ -531,8 +531,8 @@ class PeriodTracker:
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.__current_period != onchain_period:
-            self.__current_period = onchain_period
             self.perform_actions()
+            self.__current_period = onchain_period
 
 
 class StakeList(UserList):

@@ -651,13 +651,13 @@ class Worker(NucypherTokenActor):
 
     @only_me
     def _confirm_period(self) -> None:
-        interval = self.period_tracker.current_period - self.last_active_period
+        interval = self.staking_agent.get_current_period() - self.last_active_period
 
         # TODO: Check for stake expiration and exit
-        if not interval:
+        if interval < 0:
             return  # No need to confirm this period.  Save the gas.
 
-        if interval > 1:
+        if interval > 0:
             # TODO: Follow-up actions for downtime
             self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
 
