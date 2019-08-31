@@ -1,3 +1,5 @@
+.. _staking-guide:
+
 =======================
 NuCypher Staking Guide
 =======================

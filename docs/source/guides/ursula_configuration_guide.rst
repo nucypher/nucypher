@@ -1,11 +1,47 @@
 .. _ursula-config-guide:
 
+==========================
 Ursula Configuration Guide
 ==========================
 
+1. Install NuCypher and geth
+------------------------------
+
+If you want to run a NuCypher node which participates in decentralized network,
+you need to install it first. The installation procedure for the Ursula (Worker)
+node is exactly the same as for Staker.
+
+First, you install geth. You'll need to run it in the background and sync up.
+For testnet, it is:
+
+.. code:: bash
+
+    $ geth --goerli
+
+You need to create a software-controlled account in geth:
+
+.. code:: bash
+
+    $ geth attach ~/.ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts[0]
+    ["0xc080708026a3a280894365efd51bb64521c45147"]
+
+So, your worker account is ``0xc080708026a3a280894365efd51bb64521c45147`` in
+this case.
+
+Install ``nucypher`` either by doing ``sudo pip3 install nucypher`` if you have
+a dedicated instance or container, or with a ``virtualenv``:
+
+.. code:: bash
+
+    $ virtualenv -p python3 nucypher
+    $ source nucypher/bin/activate
+    (nu)$ pip3 install nucypher
+
 Before continuing, Verify your ``nucypher`` installation and entry points are functional:
 
-Activate your virtual environment and run the ``nucypher --help`` command
+Activate your virtual environment (if you already didn't) and run the ``nucypher --help`` command
 
 .. code:: bash
 
@@ -24,6 +60,7 @@ If your installation in non-functional, be sure you have the latest version inst
 
 
 2. Configure a new Ursula node
+--------------------------------
 
 *Decentralized Ursula Configuration*
 
@@ -40,6 +77,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 
 3. Enter or confirm your public-facing IPv4 address when prompted
+-------------------------------------------------------------------
 
 .. code:: bash
 
@@ -47,6 +85,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 
 4. Create a password when prompted
+-----------------------------------------
 
 .. code:: bash
 
@@ -60,6 +99,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
     - Do not use a password that you use anywhere else
 
 5. Connect to a Fleet
+------------------------
 
 .. code:: bash
 
@@ -67,6 +107,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 
 6. Verify Ursula Blockchain Connection (Interactive)
+------------------------------------------------------
 
 This will drop your terminal session into the “Ursula Interactive Console” indicated by the ``>>>``.
 Verify that the node setup was successful by running the ``status`` command.
@@ -77,6 +118,7 @@ Verify that the node setup was successful by running the ``status`` command.
 
 
 7. To view a list of known Ursulas, execute the ``known_nodes`` command
+-------------------------------------------------------------------------
 
 .. code:: bash
 
@@ -90,6 +132,7 @@ You can also view your node’s network status webpage by navigating your web br
 
 
 8. To stop your node from the interactive console and return to the terminal session:
+---------------------------------------------------------------------------------------
 
 .. code:: bash
 
@@ -97,6 +140,7 @@ You can also view your node’s network status webpage by navigating your web br
 
 
 9. Subsequent node restarts do not need the teacher endpoint specified:
+-------------------------------------------------------------------------
 
 .. code:: bash
 
