@@ -18,7 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
 from nucypher.cli.config import nucypher_click_config
@@ -35,16 +36,20 @@ def status(click_config, provider_uri, sync, geth, poa):
     """
     Echo a snapshot of live network metadata.
     """
-    #
-    # Initialize
-    #
-    ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
-    if not ursula_config.federated_only:
-        ursula_config.initialize_blockchain_interface()
-        ursula_config.acquire_agency()
 
-        # Contracts
-        paint_contract_status(click_config.emitter, ursula_config=ursula_config, click_config=click_config)
+    emitter = click_config.emitter
+    click.clear()
+    emitter.banner(NU_BANNER)
+    emitter.echo(message="Reading Latest Chaindata...")
 
-    # Known Nodes
-    paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)
+    try:
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, sync=sync)
+        registry = InMemoryContractRegistry.from_latest_publication()
+        paint_contract_status(emitter=emitter, registry=registry)
+        return  # Exit
+
+    except Exception as e:
+        if click_config.debug:
+            raise
+        click.secho(str(e), bold=True, fg='red')
+        return  # Exit

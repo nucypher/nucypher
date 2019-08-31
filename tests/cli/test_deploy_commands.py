@@ -1,10 +1,11 @@
 import pytest
 
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, AdjudicatorAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, AdjudicatorAgent, NucypherTokenAgent, \
+    ContractAgency
 from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
 
@@ -15,7 +16,7 @@ registry_filepath = '/tmp/nucypher-test-registry.json'
 def mocked_blockchain_connection(testerchain, agency):
 
     # Disable registry fetching, use the mock one instead
-    EthereumContractRegistry.download_latest_publication = lambda: registry_filepath
+    InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
     testerchain.registry.commit(filepath=registry_filepath)
 
     # Simulate "Reconnection" within the CLI process to the testerchain
@@ -38,7 +39,7 @@ def test_nucypher_deploy_status_no_deployments(click_runner, testerchain):
     assert result.exit_code == 0
 
 
-def test_nucypher_deploy_status_fully_deployed(click_runner, testerchain, agency):
+def test_nucypher_deploy_status_fully_deployed(click_runner, testerchain, test_registry, agency):
 
     status_command = ('status',
                       '--provider', TEST_PROVIDER_URI,
@@ -48,9 +49,10 @@ def test_nucypher_deploy_status_fully_deployed(click_runner, testerchain, agency
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    staking_agent = StakingEscrowAgent(blockchain=testerchain)
-    policy_agent = PolicyManagerAgent(blockchain=testerchain)
-    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
     assert staking_agent.get_owner() in result.output
     assert policy_agent.get_owner() in result.output

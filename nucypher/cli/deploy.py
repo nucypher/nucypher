@@ -23,7 +23,7 @@ import click
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli import actions
 from nucypher.cli.actions import get_client_password, select_client_account
@@ -119,20 +119,6 @@ def deploy(action,
                      color='yellow')
 
     #
-    # Connect to Registry
-    #
-
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
-
-    # Establish a contract registry from disk if specified
-    registry_filepath = registry_outfile or registry_infile or default_registry_filepath
-    if dev:
-        # TODO: Need a way to detect a geth--dev registry filepath here. (then deprecate the --dev flag)
-        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    emitter.echo(f"Using contract registry filepath {registry.filepath}")
-
-    #
     # Connect to Blockchain
     #
 
@@ -143,10 +129,28 @@ def deploy(action,
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-    if action == "status":
-        deployer = ContractAdministrator(registry=registry, deployer_address=deployer_address)
-        paint_deployer_contract_status(emitter=emitter, deployer=deployer)
+    if action == "inspect":
+        if registry_infile:
+            registry = LocalContractRegistry(filepath=registry_infile)
+        else:
+            registry = InMemoryContractRegistry.from_latest_publication()
+        administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
+        paint_deployer_contract_status(emitter=emitter, administrator=administrator)
         return  # Exit
+
+    #
+    # Establish Registry
+    #
+
+    # Establish a contract registry from disk if specified
+    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+    registry_filepath = (registry_outfile or registry_infile) or default_registry_filepath
+    if dev:
+        # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
+        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
+    registry = LocalContractRegistry(filepath=registry_filepath)
+    emitter.message(f"Configured to registry filepath {registry_filepath}")
+
     #
     # Make Authenticated Deployment Actor
     #
