@@ -857,11 +857,6 @@ class Ursula(Teacher, Character, Worker):
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 period_tracker=period_tracker)
-        # Stranger
-        elif not self.federated_only:
-            # TODO: Needed for on-chain learning verification
-            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-
 
         #
         # ProxyRESTServer and TLSHostingPower #

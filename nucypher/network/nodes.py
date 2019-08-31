@@ -321,10 +321,12 @@ class Learner:
 
         # Read
         if node_storage is None:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only, # TODO: remove federated_only
-                                                       character_class=self.__class__)
+            from nucypher.characters.lawful import Ursula
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,  # TODO: #466
+                                                       character_class=Ursula)
 
         self.node_storage = node_storage
+
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 

@@ -38,7 +38,6 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import FleetStateTracker
 
 
 class CharacterConfiguration(BaseConfiguration):
@@ -139,8 +138,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.start_learning_now = start_learning_now
         self.save_metadata = save_metadata
         self.reload_metadata = reload_metadata
-        self.__known_nodes = known_nodes or set()  # handpicked
-        self.__fleet_state = FleetStateTracker()
+        self.known_nodes = known_nodes or set()  # handpicked
 
         # Configuration
         self.__dev_mode = dev_mode
@@ -242,30 +240,14 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    @property
-    def known_nodes(self) -> FleetStateTracker:
-        return self.__fleet_state
-
     def __setup_node_storage(self, node_storage=None) -> None:
         if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(registry=self.registry,
-                                                federated_only=self.federated_only)
-        elif not node_storage:
+            node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
+        else:
             node_storage = LocalFileBasedNodeStorage(registry=self.registry,
-                                                     federated_only=self.federated_only,
-                                                     config_root=self.config_root)
+                                                     config_root=self.config_root,
+                                                     federated_only=self.federated_only)
         self.node_storage = node_storage
-
-    def read_known_nodes(self, additional_nodes=None) -> None:
-        known_nodes = self.node_storage.all(federated_only=self.federated_only)
-
-        known_nodes = {node.checksum_address: node for node in known_nodes}
-        if additional_nodes:
-            known_nodes.update({node.checksum_address: node for node in additional_nodes})
-        if self.__known_nodes:
-            known_nodes.update({node.checksum_address: node for node in self.__known_nodes})
-        self.__fleet_state._nodes.update(known_nodes)
-        self.__fleet_state.record_fleet_state(additional_nodes_to_track=self.__known_nodes)
 
     def forget_nodes(self) -> None:
         self.node_storage.clear()
@@ -383,8 +365,6 @@ class CharacterConfiguration(BaseConfiguration):
         if not self.federated_only:
             payload.update(dict(registry=self.registry))
 
-        # TODO: #1279
-        self.read_known_nodes()   # Requires a connected blockchain to init Ursulas.
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
