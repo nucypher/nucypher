@@ -22,61 +22,30 @@ from nucypher.blockchain.eth.deployers import (UserEscrowDeployer,
                                                UserEscrowProxyDeployer,
                                                LibraryLinkerDeployer)
 from nucypher.crypto.api import keccak_digest
-from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SECRET
-
+from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SECRET, INSECURE_DEVELOPMENT_PASSWORD
 
 user_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50
 
 
-@pytest.fixture(scope='module')
-def user_escrow_proxy_deployer(testerchain, session_agency, test_registry):
-    print("ENTER USER ESCROW")
-    testerchain = testerchain
-    deployer = testerchain.etherbase_account
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                         registry=test_registry)
-    return user_escrow_proxy_deployer
-
-
 @pytest.mark.slow()
 def test_user_escrow_deployer(testerchain,
-                              session_agency,
-                              user_escrow_proxy_deployer,
+                              agency,
                               deployment_progress,
                               test_registry):
-    testerchain = testerchain
-    deployer_account = testerchain.etherbase_account
-    secret_hash = keccak_digest(USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode())
 
-    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=secret_hash,
-                                                                   progress=deployment_progress)
-
-    # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(user_escrow_proxy_deployer.deployment_steps) == 2
-    assert len(user_escrow_proxy_receipts) == 2
-
-    for step in user_escrow_proxy_deployer.deployment_steps:
-        assert user_escrow_proxy_receipts[step]['status'] == 1
-
-    deployer = UserEscrowDeployer(deployer_address=deployer_account,
-                                  registry=test_registry)
-
+    deployer = UserEscrowDeployer(deployer_address=testerchain.etherbase_account, registry=test_registry)
     receipt = deployer.deploy()
     assert receipt['status'] == 1
 
 
 @pytest.mark.slow()
-def test_deploy_multiple(testerchain, session_agency, user_escrow_proxy_deployer, test_registry):
+def test_deploy_multiple(testerchain, agency, test_registry):
     testerchain = testerchain
     deployer_account = testerchain.etherbase_account
 
-    linker_deployer = LibraryLinkerDeployer(registry=test_registry,
-                                            deployer_address=deployer_account,
-                                            target_contract=user_escrow_proxy_deployer.contract,
-                                            bare=True)
-    linker_address = linker_deployer.contract_address
-
+    linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
+    linker_address = linker.address
     for index in range(NUMBER_OF_PREALLOCATIONS):
         deployer = UserEscrowDeployer(deployer_address=deployer_account, registry=test_registry)
 
@@ -99,26 +68,25 @@ def test_deploy_multiple(testerchain, session_agency, user_escrow_proxy_deployer
 
 @pytest.mark.slow()
 def test_upgrade_user_escrow_proxy(testerchain,
-                                   session_agency,
-                                   user_escrow_proxy_deployer,
+                                   agency,
                                    test_registry):
-    old_secret = USER_ESCROW_PROXY_DEPLOYMENT_SECRET.encode()
+
+    old_secret = INSECURE_DEVELOPMENT_PASSWORD.encode()
     new_secret = 'new' + USER_ESCROW_PROXY_DEPLOYMENT_SECRET
     new_secret_hash = keccak_digest(new_secret.encode())
-
-    linker_deployer = LibraryLinkerDeployer(registry=test_registry,
-                                            deployer_address=user_escrow_proxy_deployer.deployer_address,
-                                            target_contract=user_escrow_proxy_deployer.contract,
-                                            bare=True)
-    linker_address = linker_deployer.contract_address
+    linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
+    linker_address = linker.address
 
     contract = testerchain.get_contract_by_name(registry=test_registry,
                                                 name=UserEscrowProxyDeployer.contract_name,
                                                 proxy_name=LibraryLinkerDeployer.contract_name,
                                                 use_proxy_address=False)
 
-    target = linker_deployer.contract.functions.target().call()
+    target = linker.functions.target().call()
     assert target == contract.address
+
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=testerchain.etherbase_account,
+                                                         registry=test_registry)
 
     receipts = user_escrow_proxy_deployer.upgrade(existing_secret_plaintext=old_secret,
                                                   new_secret_hash=new_secret_hash)
@@ -132,7 +100,7 @@ def test_upgrade_user_escrow_proxy(testerchain,
         linker = user_escrow_contract.functions.linker().call()
         assert linker == linker_address
 
-    new_target = linker_deployer.contract.functions.target().call()
+    new_target = linker.functions.target().call()
     contract = testerchain.get_contract_by_name(registry=test_registry,
                                                 name=UserEscrowProxyDeployer.contract_name,
                                                 proxy_name=LibraryLinkerDeployer.contract_name,

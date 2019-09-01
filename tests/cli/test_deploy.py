@@ -38,11 +38,12 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 
 
 @pytest.fixture(scope="module")
-def registry_filepath():
+def registry_filepath(test_registry):
     # TODO: Use temp module
     registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)
+    # test_registry.commit(registry_filepath)
     yield registry_filepath
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)
@@ -126,8 +127,8 @@ def test_transfer_tokens(click_runner, registry_filepath):
     token_agent = NucypherTokenAgent(registry=registry)
     assert token_agent.get_balance(address=recipient_address) == 0
 
-    command = ['transfer',
-               '--recipient-address', recipient_address,
+    command = ['transfer-tokens',
+               '--target -address', recipient_address,
                '--amount', 42,
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
@@ -382,7 +383,7 @@ def test_nucypher_deploy_status(click_runner, testerchain, test_registry, agency
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
-    status_command = ('status',
+    status_command = ('inspect',
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
                       '--provider-uri', TEST_PROVIDER_URI,
                       '--poa')
@@ -398,7 +399,6 @@ def test_nucypher_deploy_status(click_runner, testerchain, test_registry, agency
 
 def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
 
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
@@ -448,22 +448,3 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
     assert staking_agent.owner_address == maclane
     assert staking_agent.owner_address == michwill
 
-
-def test_transfer_tokens(click_runner, testerchain, agency):
-
-    maclane = testerchain.unassigned_accounts[0]
-
-    ownership_command = ('transfer-ownership',
-                         '--deployer-address', testerchain.deployer_address,
-                         '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                         '--provider-uri', TEST_PROVIDER_URI,
-                         '--checksum-address', maclane,
-                         '--poa')
-
-    user_input = 'Y\n'
-    result = click_runner.invoke(deploy,
-                                 ownership_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0

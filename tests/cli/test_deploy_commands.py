@@ -2,9 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, AdjudicatorAgent, NucypherTokenAgent, \
     ContractAgency
-from nucypher.blockchain.eth.clients import Web3Client
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
@@ -13,19 +11,10 @@ registry_filepath = '/tmp/nucypher-test-registry.json'
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mocked_blockchain_connection(testerchain, agency):
-
+def mocked_blockchain_connection(testerchain, test_registry, agency):
     # Disable registry fetching, use the mock one instead
     InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
-    testerchain.registry.commit(filepath=registry_filepath)
-
-    # Simulate "Reconnection" within the CLI process to the testerchain
-    def connect(self, *args, **kwargs):
-        self._attach_provider(testerchain.provider)
-        self.w3 = self.Web3(provider=self._provider)
-        self.client = Web3Client.from_w3(w3=self.w3)
-    BlockchainInterface.connect = connect
-    BlockchainDeployerInterface.connect = connect
+    test_registry.commit(filepath=registry_filepath)
 
 
 def test_nucypher_deploy_status_no_deployments(click_runner, testerchain):
@@ -49,17 +38,16 @@ def test_nucypher_deploy_status_fully_deployed(click_runner, testerchain, test_r
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
-    assert staking_agent.get_owner() in result.output
-    assert policy_agent.get_owner() in result.output
-    assert adjudicator_agent.get_owner() in result.output
+    assert staking_agent.owner() in result.output
+    assert policy_agent.owner() in result.output
+    assert adjudicator_agent.owner() in result.output
 
 
-def test_transfer_ownership(click_runner, testerchain, agency):
+def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
 
     maclane = testerchain.unassigned_accounts[0]
     michwill = testerchain.unassigned_accounts[1]
@@ -79,13 +67,13 @@ def test_transfer_ownership(click_runner, testerchain, agency):
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staking_agent = StakingEscrowAgent(blockchain=testerchain)
-    policy_agent = PolicyManagerAgent(blockchain=testerchain)
-    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
-    assert staking_agent.get_owner() == maclane
-    assert policy_agent.get_owner() == maclane
-    assert adjudicator_agent.get_owner() == maclane
+    assert staking_agent.owner() == maclane
+    assert policy_agent.owner() == maclane
+    assert adjudicator_agent.owner() == maclane
 
     ownership_command = ('transfer-ownership',
                          '--deployer-address', maclane,
@@ -101,13 +89,12 @@ def test_transfer_ownership(click_runner, testerchain, agency):
                                  input=user_input,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert staking_agent.get_owner() == michwill
+    assert staking_agent.owner() == michwill
 
 
-def test_transfer_tokens(click_runner, testerchain, agency):
+def test_transfer_tokens(click_runner, testerchain, test_registry, agency):
 
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
-
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     maclane = testerchain.unassigned_accounts[0]
     pre_transfer_balance = token_agent.get_balance(address=maclane)
 

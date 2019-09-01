@@ -125,10 +125,11 @@ class EthereumContractAgent:
     def contract_name(self) -> str:
         return self.registry_contract_name
 
-    def get_owner(self) -> str:
+    @property
+    def owner(self):
         if not self._proxy_name:
             # Only upgradeable + ownable contracts can implement ownership transference.
-            raise NotImplementedError
+            return None
         return self.contract.functions.owner().call()
 
     @validate_checksum_address
