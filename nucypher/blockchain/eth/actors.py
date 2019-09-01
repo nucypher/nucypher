@@ -30,7 +30,7 @@ from constant_sorrow.constants import (
     NO_WORKER_ASSIGNED
 )
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import keccak
+from eth_utils import keccak, is_checksum_address
 from twisted.logger import Logger
 
 from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
@@ -329,7 +329,7 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = dict()
 
         for contract_deployer in self.upgradeable_deployer_classes:
-            deployer = contract_deployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+            deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
             deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
 
             if emitter:

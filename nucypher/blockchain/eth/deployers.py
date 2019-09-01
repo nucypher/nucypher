@@ -570,7 +570,8 @@ class PolicyManagerDeployer(ContractDeployer):
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None):
         existing_bare_contract = self.blockchain.get_contract_by_name(name=self.contract_name,
                                                                       proxy_name=self._proxy_deployer.contract_name,
-                                                                      use_proxy_address=False)
+                                                                      use_proxy_address=False,
+                                                                      registry=self.registry)
 
         dispatcher_deployer = DispatcherDeployer(registry=self.registry,
                                                  target_contract=existing_bare_contract,

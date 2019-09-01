@@ -15,7 +15,6 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     EthereumContractAgent
 )
-from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -374,76 +373,3 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                         beneficiary=beneficiary,
                                         allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
-
-
-def test_nucypher_deploy_status(click_runner, testerchain, test_registry, agency):
-
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
-
-    status_command = ('inspect',
-                      '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                      '--provider', TEST_PROVIDER_URI,
-                      '--poa')
-
-    result = click_runner.invoke(deploy,
-                                 status_command,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-    assert staking_agent.owner in result.output
-    assert policy_agent.owner in result.output
-    assert adjudicator_agent.owner in result.output
-
-
-def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
-
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
-
-    assert staking_agent.owner == testerchain.deployer_address
-    assert policy_agent.owner == testerchain.deployer_address
-    assert adjudicator_agent.owner == testerchain.deployer_address
-
-    maclane = testerchain.unassigned_accounts[0]
-
-    ownership_command = ('transfer-ownership',
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                         '--provider', TEST_PROVIDER_URI,
-                         '--checksum-address', maclane,
-                         '--poa')
-
-    account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
-
-    result = click_runner.invoke(deploy,
-                                 ownership_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-
-    assert staking_agent.owner == maclane
-    assert policy_agent.owner == maclane
-    assert adjudicator_agent.owner == maclane
-
-    michwill = testerchain.unassigned_accounts[1]
-
-    ownership_command = ('transfer-ownership',
-                         '--deployer-address', testerchain.etherbase_account,
-                         '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                         '--provider-uri', TEST_PROVIDER_URI,
-                         '--checksum-address', michwill,
-                         '--poa')
-
-    user_input = yes
-    result = click_runner.invoke(deploy,
-                                 ownership_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-    assert staking_agent.owner == maclane
-    assert staking_agent.owner == michwill
