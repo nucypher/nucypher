@@ -515,8 +515,9 @@ class Staker(NucypherTokenActor):
 
         # Ensure the new stake will not exceed the staking limit
         if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
-            raise Stake.StakingError(f"Cannot divide stake - "
-                                     f"Maximum stake value exceeded with a target value of {amount}.")
+            raise Stake.StakingError(f"Cannot initialize stake - "
+                                     f"Maximum stake value exceeded for {self.checksum_address} "
+                                     f"with a target value of {amount}.")
 
         # Write to blockchain
         new_stake = Stake.initialize_stake(staker=self,

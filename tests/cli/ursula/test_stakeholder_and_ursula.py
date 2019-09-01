@@ -20,7 +20,6 @@ from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_REGISTRY_FILEPATH,
     TEMPORARY_DOMAIN,
     MOCK_KNOWN_URSULAS_CACHE,
     select_test_port,

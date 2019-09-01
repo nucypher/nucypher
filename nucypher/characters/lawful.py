@@ -1447,11 +1447,10 @@ class StakeHolder(Staker):
         return stakes
 
     @property
-    def current_stake(self) -> NU:
+    def total_stake(self) -> NU:
         """
         The total number of staked tokens, either locked or unlocked in the current period.
         """
-        # TODO: This is skipping a layer. Fix me?
         stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
         nu_stake = NU.from_nunits(stake)
         return nu_stake
