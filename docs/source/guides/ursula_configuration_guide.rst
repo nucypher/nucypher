@@ -16,7 +16,7 @@ For testnet, it is:
 
 .. code:: bash
 
-    $ geth --goerli
+    $ geth --goerli --no-usb
 
 You need to create a software-controlled account in geth:
 
@@ -114,6 +114,9 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 .. code:: bash
 
     (nucypher)$ nucypher ursula run --teacher <SEEDNODE_URI> --interactive
+
+The teacher ``SEEDNODE_URI`` is given in a form ``ip_address:port``, for example
+``13.48.124.134:9151``.
 
 
 6. Verify Ursula Blockchain Connection (Interactive)
