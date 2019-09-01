@@ -30,8 +30,9 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     UserEscrowAgent,
-    AdjudicatorAgent
-)
+    AdjudicatorAgent,
+    WorkLockAgent,
+    ContractAgency)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -1002,8 +1003,8 @@ class WorklockDeployer(BaseContractDeployer):
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+        self.token_agent =  ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
         # Worklock constructor params.
         # TODO: Do these want to be in an "economics" class?
@@ -1031,7 +1032,9 @@ class WorklockDeployer(BaseContractDeployer):
         self.check_deployment_readiness()
 
         # Deploy
-        worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.contract_name,
+        worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
+                                                                           self.registry,
+                                                                           self.contract_name,
                                                                            self.token_agent.contract_address,
                                                                            self.staking_agent.contract_address,
                                                                            self.start_date,
