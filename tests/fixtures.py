@@ -39,15 +39,18 @@ from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               DispatcherDeployer,
                                                AdjudicatorDeployer, UserEscrowProxyDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob, StakeHolder
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration, \
+from nucypher.config.characters import (
+    UrsulaConfiguration,
+    AliceConfiguration,
+    BobConfiguration,
     StakeHolderConfiguration
+)
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
@@ -55,20 +58,22 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-                                                  MOCK_POLICY_DEFAULT_M,
-                                                  MOCK_URSULA_STARTING_PORT,
-                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  TEMPORARY_DOMAIN,
-                                                  TEST_PROVIDER_URI,
-                                                  INSECURE_DEVELOPMENT_PASSWORD,
-                                                  MOCK_REGISTRY_FILEPATH,
-                                                  TEST_GAS_LIMIT)
+from nucypher.utilities.sandbox.constants import (
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+    MOCK_POLICY_DEFAULT_M,
+    MOCK_URSULA_STARTING_PORT,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TEMPORARY_DOMAIN,
+    TEST_PROVIDER_URI,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_REGISTRY_FILEPATH,
+    TEST_GAS_LIMIT,
+    INSECURE_DEPLOYMENT_SECRET_HASH
+)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
-                                               make_federated_ursulas)
+from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, make_federated_ursulas
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
@@ -77,6 +82,7 @@ test_logger = Logger("test-logger")
 #
 # Temporary
 #
+
 
 @pytest.fixture(scope="function")
 def tempfile_path():
@@ -91,18 +97,6 @@ def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield temp_dir.name
     temp_dir.cleanup()
-
-
-@pytest.fixture(scope="module")
-def temp_config_root(temp_dir_path):
-    """
-    User is responsible for closing the file given at the path.
-    """
-    default_node_config = CharacterConfiguration(dev_mode=True,
-                                                 config_root=temp_dir_path,
-                                                 download_registry=False)
-    yield default_node_config.config_root
-    default_node_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -418,16 +412,16 @@ def _make_agency(testerchain, test_registry):
     token_deployer.deploy()
 
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-    staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
-    policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
-    user_escrow_proxy_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     token_agent = token_deployer.make_agent()                           # 1 Token
     staking_agent = staking_escrow_deployer.make_agent()                # 2 Miner Escrow

@@ -18,11 +18,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.deployers import (UserEscrowDeployer,
-                                               UserEscrowProxyDeployer,
-                                               LibraryLinkerDeployer)
+from nucypher.blockchain.eth.deployers import (
+    UserEscrowDeployer,
+    UserEscrowProxyDeployer,
+    LibraryLinkerDeployer
+)
 from nucypher.crypto.api import keccak_digest
-from nucypher.utilities.sandbox.constants import USER_ESCROW_PROXY_DEPLOYMENT_SECRET, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import (
+    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
+    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
+)
 
 user_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50
@@ -71,11 +76,10 @@ def test_upgrade_user_escrow_proxy(testerchain,
                                    agency,
                                    test_registry):
 
-    old_secret = INSECURE_DEVELOPMENT_PASSWORD.encode()
+    old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
     new_secret = 'new' + USER_ESCROW_PROXY_DEPLOYMENT_SECRET
     new_secret_hash = keccak_digest(new_secret.encode())
     linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
-    linker_address = linker.address
 
     contract = testerchain.get_contract_by_name(registry=test_registry,
                                                 name=UserEscrowProxyDeployer.contract_name,
@@ -97,8 +101,8 @@ def test_upgrade_user_escrow_proxy(testerchain,
         assert receipt['status'] == 1
 
     for user_escrow_contract in user_escrow_contracts:
-        linker = user_escrow_contract.functions.linker().call()
-        assert linker == linker_address
+        linker_address = user_escrow_contract.functions.linker().call()
+        assert linker.address == linker_address
 
     new_target = linker.functions.target().call()
     contract = testerchain.get_contract_by_name(registry=test_registry,

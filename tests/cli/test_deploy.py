@@ -128,8 +128,8 @@ def test_transfer_tokens(click_runner, registry_filepath):
     assert token_agent.get_balance(address=recipient_address) == 0
 
     command = ['transfer-tokens',
-               '--target -address', recipient_address,
-               '--amount', 42,
+               '--target-address', recipient_address,
+               '--value', 42,
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa']
@@ -385,16 +385,16 @@ def test_nucypher_deploy_status(click_runner, testerchain, test_registry, agency
 
     status_command = ('inspect',
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                      '--provider-uri', TEST_PROVIDER_URI,
+                      '--provider', TEST_PROVIDER_URI,
                       '--poa')
 
     result = click_runner.invoke(deploy,
                                  status_command,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert staking_agent.owner_address in result.output
-    assert policy_agent.owner_address in result.output
-    assert adjudicator_agent.owner_address in result.output
+    assert staking_agent.owner in result.output
+    assert policy_agent.owner in result.output
+    assert adjudicator_agent.owner in result.output
 
 
 def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
@@ -403,15 +403,15 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
 
-    assert staking_agent.owner_address == testerchain.deployer_address
-    assert policy_agent.owner_address == testerchain.deployer_address
-    assert adjudicator_agent.owner_address == testerchain.deployer_address
+    assert staking_agent.owner == testerchain.deployer_address
+    assert policy_agent.owner == testerchain.deployer_address
+    assert adjudicator_agent.owner == testerchain.deployer_address
 
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
                          '--registry-infile', MOCK_REGISTRY_FILEPATH,
-                         '--provider-uri', TEST_PROVIDER_URI,
+                         '--provider', TEST_PROVIDER_URI,
                          '--checksum-address', maclane,
                          '--poa')
 
@@ -425,14 +425,14 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    assert staking_agent.owner_address == maclane
-    assert policy_agent.owner_address == maclane
-    assert adjudicator_agent.owner_address == maclane
+    assert staking_agent.owner == maclane
+    assert policy_agent.owner == maclane
+    assert adjudicator_agent.owner == maclane
 
     michwill = testerchain.unassigned_accounts[1]
 
     ownership_command = ('transfer-ownership',
-                         '--deployer-address', testerchain.deployer_address,
+                         '--deployer-address', testerchain.etherbase_account,
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--registry-infile', MOCK_REGISTRY_FILEPATH,
                          '--provider-uri', TEST_PROVIDER_URI,
@@ -445,6 +445,5 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
                                  input=user_input,
                                  catch_exceptions=False)
     assert result.exit_code == 0
-    assert staking_agent.owner_address == maclane
-    assert staking_agent.owner_address == michwill
-
+    assert staking_agent.owner == maclane
+    assert staking_agent.owner == michwill

@@ -275,22 +275,22 @@ def deploy(action,
             allocation_infile = click.prompt("Enter allocation data filepath")
         click.confirm("Continue deploying and allocating?", abort=True)
         ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
-                                                      allocation_outfile=allocation_outfile)
+                                                     allocation_outfile=allocation_outfile)
         return  # Exit
 
     elif action == "transfer-tokens":
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         missing_options = list()
         if target_address is None:
-            missing_options.append("--recipient-address")
+            missing_options.append("--target-address")
         if value is None:
-            missing_options.append("--amount")
+            missing_options.append("--value")
         if missing_options:
             raise click.BadArgumentUsage(message=f"Need {' and '.join(missing_options)} to transfer tokens.")
 
         click.confirm(f"Transfer {value} from {token_agent.contract_address} to {target_address}?", abort=True)
         receipt = token_agent.transfer(amount=value,
-                                       sender_address=token_agent.contract_address,
+                                       sender_address=deployer_address,
                                        target_address=target_address)
         emitter.echo(f"OK | Receipt: {receipt['transactionHash'].hex()}")
         return  # Exit

@@ -30,6 +30,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
+from nucypher.crypto.api import keccak_digest
 
 
 def select_test_port() -> int:
@@ -150,3 +151,5 @@ TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 
+INSECURE_DEPLOYMENT_SECRET_PLAINTEXT = os.urandom(32)
+INSECURE_DEPLOYMENT_SECRET_HASH = keccak_digest(INSECURE_DEPLOYMENT_SECRET_PLAINTEXT)
