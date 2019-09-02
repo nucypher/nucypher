@@ -359,7 +359,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         stakers_population = self.get_staker_population()
         n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
         if n_select > stakers_population:
-            raise self.NotEnoughStakers(f'There are {stakers_population} published stakers, need a total of {n_select}.')
+            raise self.NotEnoughStakers(f'There are {stakers_population} active stakers, need at least {n_select}.')
 
         system_random = random.SystemRandom()
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
