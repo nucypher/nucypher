@@ -46,7 +46,7 @@ def test_worker_auto_confirmations(testerchain,
     def start():
         # Start running the worker
         start_pytest_ursula_services(ursula=ursula)
-        ursula.period_tracker.start()
+        ursula.work_tracker.start()
 
     def time_travel(_):
         testerchain.time_travel(periods=1)

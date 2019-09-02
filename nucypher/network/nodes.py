@@ -1069,9 +1069,9 @@ class Teacher:
 
     def verify_node(self,
                     network_middleware,
-                    certificate_filepath: str = None,
-                    force: bool = False,
                     registry: BaseContractRegistry = None,
+                    certificate_filepath: str = None,
+                    force: bool = False
                     ) -> bool:
         """
         Three things happening here:

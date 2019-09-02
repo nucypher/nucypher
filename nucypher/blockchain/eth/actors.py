@@ -629,9 +629,9 @@ class Worker(NucypherTokenActor):
             if check_active_worker and not len(self.stakes):
                 raise self.DetachedWorker(f"{self.__worker_address} is not bonded to {self.checksum_address}.")
 
-            self.period_tracker = work_tracker or WorkTracker(worker=self)
+            self.work_tracker = work_tracker or WorkTracker(worker=self)
             if start_working_now:
-                self.period_tracker.start(act_now=False)
+                self.work_tracker.start(act_now=False)
 
     @property
     def last_active_period(self) -> int:
