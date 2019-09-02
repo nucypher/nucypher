@@ -389,7 +389,6 @@ class BlockchainInterface:
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
 
-
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:

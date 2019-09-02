@@ -229,8 +229,8 @@ def ursula(click_config,
                                                              config_file=config_file)
         except NucypherKeyring.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
-            click.get_current_context().exit(1)
             # TODO: Exit codes (not only for this, but for other exceptions)
+            return click.get_current_context().exit(1)
 
     #
     # Configured Pre-Authentication Actions
@@ -252,6 +252,7 @@ def ursula(click_config,
     #
     # Make Ursula
     #
+
     client_password = None
     if not ursula_config.federated_only:
         if not dev and not click_config.json_ipc:
@@ -268,8 +269,8 @@ def ursula(click_config,
                                             client_password=client_password)
     except NucypherKeyring.AuthenticationFailed as e:
         emitter.echo(str(e), color='red', bold=True)
-        click.get_current_context().exit(1)
         # TODO: Exit codes (not only for this, but for other exceptions)
+        return click.get_current_context().exit(1)
 
     #
     # Authenticated Action Switch

@@ -109,7 +109,7 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     worker = Worker(is_me=True,
                     worker_address=manual_worker,
                     checksum_address=stake.staker_address,
-                    start_working_loop=False,
+                    start_working_now=False,
                     registry=test_registry)
 
     # Mock TransactingPower consumption (Worker-Ursula)

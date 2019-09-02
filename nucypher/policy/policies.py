@@ -325,8 +325,7 @@ class Policy(ABC):
 
     def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         try:
-            ursula.verify_node(network_middleware,
-                               accept_federated_only=arrangement.federated)
+            ursula.verify_node(network_middleware, registry=self.alice.registry)  # From the perspective of alice.
         except ursula.InvalidNode:
             # TODO: What do we actually do here?  Report this at least (355)?
             # Maybe also have another bucket for invalid nodes?

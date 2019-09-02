@@ -51,7 +51,7 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
     assert ursula_in_a_house in ursula_with_a_mouse.known_nodes
 
 
-def test_stakers_bond_to_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
 
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                          stakers_addresses=testerchain.stakers_accounts,
@@ -60,7 +60,7 @@ def test_stakers_bond_to_ursulas(testerchain, stakers, ursula_decentralized_test
 
     assert len(ursulas) == len(stakers)
     for ursula in ursulas:
-        ursula.validate_worker(verify_staking=True)
+        ursula.validate_worker(registry=test_registry)
         assert ursula.verified_worker
 
 

@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgen
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import StakeList, PeriodTracker, NU
+from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import (
@@ -795,7 +795,7 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,  # Staker address
                  worker_address: str = None,
-                 period_tracker: PeriodTracker = None,
+                 work_tracker: WorkTracker = None,
                  client_password: str = None,
 
                  # Character
@@ -843,8 +843,8 @@ class Ursula(Teacher, Character, Worker):
             #
             if not federated_only:
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address, password=client_password)
-                self._crypto_power.consume_power_up(transacting_power)
+                self.transacting_power = TransactingPower(account=worker_address, password=client_password, cache=True)
+                self._crypto_power.consume_power_up(self.transacting_power)
 
                 # Use this power to substantiate the stamp
                 self.substantiate_stamp()
@@ -856,12 +856,7 @@ class Ursula(Teacher, Character, Worker):
                                 registry=self.registry,
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
-                                period_tracker=period_tracker)
-        # Stranger
-        elif not self.federated_only:
-            # TODO: Needed for on-chain learning verification
-            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-
+                                work_tracker=work_tracker)
 
         #
         # ProxyRESTServer and TLSHostingPower #
@@ -1104,7 +1099,7 @@ class Ursula(Teacher, Character, Worker):
         # Verify the node's TLS certificate
         try:
             potential_seed_node.verify_node(network_middleware=network_middleware,
-                                            accept_federated_only=federated_only,
+                                            registry=registry,
                                             certificate_filepath=temp_certificate_filepath)
         except potential_seed_node.InvalidNode:
             # TODO: What if our seed node fails verification?
@@ -1172,7 +1167,7 @@ class Ursula(Teacher, Character, Worker):
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = set(d.decode('utf-8') for d in domains_vbytes)
 
-        ursula = cls.from_public_keys(registry=registry, federated_only=federated_only, **node_info)
+        ursula = cls.from_public_keys(federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod
@@ -1452,11 +1447,10 @@ class StakeHolder(Staker):
         return stakes
 
     @property
-    def current_stake(self) -> NU:
+    def total_stake(self) -> NU:
         """
         The total number of staked tokens, either locked or unlocked in the current period.
         """
-        # TODO: This is skipping a layer. Fix me?
         stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
         nu_stake = NU.from_nunits(stake)
         return nu_stake

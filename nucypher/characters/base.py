@@ -112,8 +112,6 @@ class Character(Learner):
         # Operating Mode
         #
 
-        if not bool(federated_only) ^ bool(registry):
-            raise ValueError(f"Pass either federated only or registry.  Got '{federated_only}'. '{registry}'")
         self.federated_only = federated_only  # type: bool
         self.registry = registry
 
@@ -142,6 +140,10 @@ class Character(Learner):
         #
         if is_me is True:
 
+            if not bool(federated_only) ^ bool(registry):
+                raise ValueError(f"Pass either federated only or registry for is_me Characters.  \
+                                 Got '{federated_only}' and '{registry}'.")
+
             self.keyring_root = keyring_root  # type: str
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
@@ -166,9 +168,14 @@ class Character(Learner):
         #
         # Stranger-Character
         #
+
         else:  # Feel like a stranger
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stranger-Character.")
+
+            if registry is not None:
+                raise TypeError("Registry cannot be attached to stranger-Characters.")
+
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
             self.keyring_root = STRANGER
             self.network_middleware = STRANGER

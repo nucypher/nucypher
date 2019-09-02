@@ -52,7 +52,7 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
-from nucypher.blockchain.eth.token import NU, Stake, StakeList, PeriodTracker
+from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.painting import paint_contract_deployment
@@ -515,8 +515,9 @@ class Staker(NucypherTokenActor):
 
         # Ensure the new stake will not exceed the staking limit
         if (self.current_stake + amount) > self.economics.maximum_allowed_locked:
-            raise Stake.StakingError(f"Cannot divide stake - "
-                                     f"Maximum stake value exceeded with a target value of {amount}.")
+            raise Stake.StakingError(f"Cannot initialize stake - "
+                                     f"Maximum stake value exceeded for {self.checksum_address} "
+                                     f"with a target value of {amount}.")
 
         # Write to blockchain
         new_stake = Stake.initialize_stake(staker=self,
@@ -601,9 +602,10 @@ class Worker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 period_tracker: PeriodTracker = None,
+                 work_tracker: WorkTracker = None,
                  worker_address: str = None,
-                 start_working_loop: bool = True,
+                 start_working_now: bool = True,
+                 confirm_now: bool = True,
                  check_active_worker: bool = True,
                  *args, **kwargs):
 
@@ -625,13 +627,11 @@ class Worker(NucypherTokenActor):
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.refresh()
             if check_active_worker and not len(self.stakes):
-                raise self.DetachedWorker
+                raise self.DetachedWorker(f"{self.__worker_address} is not bonded to {self.checksum_address}.")
 
-            self.period_tracker = period_tracker or PeriodTracker(registry=self.registry)
-            self.period_tracker.add_action(self._confirm_period)
-            self.stakes.start_tracking(self.period_tracker)
-            if start_working_loop:
-                self.period_tracker.start()
+            self.work_tracker = work_tracker or WorkTracker(worker=self)
+            if start_working_now:
+                self.work_tracker.start(act_now=False)
 
     @property
     def last_active_period(self) -> int:
@@ -644,16 +644,6 @@ class Worker(NucypherTokenActor):
         """For each period that the worker confirms activity, the staker is rewarded"""
         receipt = self.staking_agent.confirm_activity(worker_address=self.__worker_address)
         return receipt
-
-    @only_me
-    def _confirm_period(self) -> None:
-        # TODO: Follow-up actions for downtime
-        # TODO: Check for stake expiration and exit
-        missed_periods = self.period_tracker.current_period - self.last_active_period
-        if missed_periods:
-            self.log.warn(f"MISSED CONFIRMATIONS - {missed_periods} missed staking confirmations detected!")
-        self.confirm_activity()  # < --- blockchain WRITE
-        self.log.info("Confirmed activity for period {}".format(self.period_tracker.current_period))
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

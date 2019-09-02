@@ -1,14 +1,12 @@
 from _pydecimal import Decimal
 from collections import UserList
-from typing import Union, Tuple, Callable, List
+from typing import Union, Tuple, List
 
 import maya
 from constant_sorrow.constants import (
     NEW_STAKE,
     NO_STAKING_RECEIPT,
     NOT_STAKING,
-    UNKNOWN_STAKES,
-    NO_STAKES,
     EMPTY_STAKING_SLOT,
     UNKNOWN_WORKER_STATUS
 )
@@ -450,40 +448,37 @@ class Stake:
         return stake
 
 
-class PeriodTracker:
+class WorkTracker:
 
-    REFRESH_RATE = 60 * 60  # one hour.
-    __actions = list()   # type: List[Tuple[Callable, tuple]]
+    CLOCK = reactor
+    REFRESH_RATE = 60 * 15  # Fifteen minutes
 
-    def __init__(self, registry: BaseContractRegistry, refresh_rate: int = None, *args, **kwargs):
+    def __init__(self, worker, refresh_rate: int = None, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
 
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        self.worker = worker
+        self.staking_agent = self.worker.staking_agent
+
         self._refresh_rate = refresh_rate or self.REFRESH_RATE
-        self._tracking_task = task.LoopingCall(self.__update)
+        self._tracking_task = task.LoopingCall(self._do_work)
+        self._tracking_task.clock = self.CLOCK
 
         self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
-        self._abort_on_stake_tracking_error = True
+        self._abort_on_error = True
 
     @property
     def current_period(self):
         return self.__current_period
 
-    def add_action(self, func: Callable, args=()) -> None:
-        self.__actions.append((func, args))
-
-    def clear_actions(self) -> None:
-        self.__actions.clear()
-
     def stop(self) -> None:
         self._tracking_task.stop()
-        self.log.info(f"STOPPED STAKE TRACKING")
+        self.log.info(f"STOPPED WORK TRACKING")
 
-    def start(self, force: bool = False) -> None:
+    def start(self, act_now: bool = False, force: bool = False) -> None:
         """
         High-level stake tracking initialization, this function aims
         to be safely called at any time - For example, it is okay to call
@@ -498,8 +493,11 @@ class PeriodTracker:
         self.__current_period = self.__uptime_period
 
         d = self._tracking_task.start(interval=self._refresh_rate)
-        d.addErrback(self.handle_tracking_errors)
-        self.log.info(f"STARTED PERIOD TRACKING with {len(self.__actions)} registered actions.")
+        d.addErrback(self.handle_working_errors)
+        self.log.info(f"STARTED WORK TRACKING")
+
+        if act_now:
+            self._do_work()
 
     def _crash_gracefully(self, failure=None) -> None:
         """
@@ -509,21 +507,37 @@ class PeriodTracker:
         self._crashed = failure
         failure.raiseException()
 
-    def handle_tracking_errors(self, *args, **kwargs) -> None:
+    def handle_working_errors(self, *args, **kwargs) -> None:
         failure = args[0]
-        if self._abort_on_stake_tracking_error:
-            self.log.critical(f"Unhandled error during node stake tracking. {failure}")
+        if self._abort_on_error:
+            self.log.critical(f"Unhandled error during node work tracking. {failure}")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn(f"Unhandled error during stake tracking: {failure.getTraceback()}")
+            self.log.warn(f"Unhandled error during work tracking: {failure.getTraceback()}")
 
-    def __update(self) -> None:
+    def _do_work(self) -> None:
+        # TODO: Check for stake expiration and exit
+        # TODO: Follow-up actions for downtime
+
+        # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
-        if self.__current_period != onchain_period:
+        if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            for action, args in self.__actions:
-                action(*args)
+            # self.worker.stakes.refresh()  # TODO: Track stakes
+
+        # Measure working interval
+        interval = onchain_period - self.worker.last_active_period
+        if interval < 0:
+            return  # No need to confirm this period.  Save the gas.
+        if interval > 0:
+            self.log.warn(f"MISSED CONFIRMATIONS - {interval} missed staking confirmations detected.")
+
+        # Confirm Activity
+        self.log.info("Confirmed activity for period {}".format(self.current_period))
+        transacting_power = self.worker.transacting_power
+        with transacting_power:
+            self.worker.confirm_activity()  # < --- blockchain WRITE
 
 
 class StakeList(UserList):
@@ -546,10 +560,6 @@ class StakeList(UserList):
                 raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
         self.checksum_address = checksum_address
         self.__updated = None
-
-    def start_tracking(self, period_tracker: PeriodTracker) -> None:
-        period_tracker.add_action(self.__read_stakes)
-        self.log.info(f"STARTED STAKE TRACKING for {self.checksum_address}")
 
     @property
     def updated(self) -> maya.MayaDT:
