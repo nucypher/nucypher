@@ -1,0 +1,18 @@
+ETH Contracts:
+  - nucypher/blockchain/eth/sol/source/**/*
+
+CLI:
+  - nucypher/cli/**/*
+
+circleci:
+  - .circleci/**/*
+
+Demos:
+  - examples/**/*
+
+Dependencies:
+  - Pipfile
+  - Pipfile.lock
+  - setup.py
+  - dev-requirements.txt
+  - requirements.txt
