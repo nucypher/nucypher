@@ -140,7 +140,7 @@ class Felix(Character, NucypherTokenActor):
 
     # Disbursement
     BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous stake is 0.9
+    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous disbursement is 0.9
                                     # this is not relevant until the year of time declared above, passes.
     MINIMUM_DISBURSEMENT = int(1e18)     # NuNits (1 NU)
     ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei (.1 ether)
