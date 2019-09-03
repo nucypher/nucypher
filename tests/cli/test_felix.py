@@ -130,8 +130,8 @@ def test_run_felix(click_runner,
         assert staker.token_balance == NU(45000, 'NU')
 
         # TODO: Airdrop Testnet Ethers?
-        # new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
-        assert staker.eth_balance == original_eth_balance
+        new_eth_balance = original_eth_balance + testerchain.w3.fromWei(Felix.ETHER_AIRDROP_AMOUNT, 'ether')
+        assert staker.eth_balance == new_eth_balance
 
     staged_airdrops = Felix._AIRDROP_QUEUE
     next_airdrop = staged_airdrops[0]
