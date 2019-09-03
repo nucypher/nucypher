@@ -19,20 +19,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, WorkLockAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, WorkLockDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from nucypher.blockchain.eth.agents import WorkLockAgent
+from nucypher.blockchain.eth.deployers import WorklockDeployer
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
-def test_token_deployer_and_agent(testerchain, agency, token_economics):
+def test_token_deployer(testerchain, test_registry, agency, token_economics):
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails
-    with pytest.raises(EthereumContractRegistry.UnknownContract):
-        WorkLockAgent(blockchain=testerchain)
+    with pytest.raises(BaseContractRegistry.UnknownContract):
+        WorkLockAgent(registry=test_registry)
 
     # Generate WorkLock params
-    # TODO: Move to "economics" class?
+    # TODO: Move to "WorkLockEconomics" class #1126
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     start_bid_date = now + (60 * 60)  # 1 Hour
     end_bid_date = start_bid_date + (60 * 60)
@@ -41,7 +41,7 @@ def test_token_deployer_and_agent(testerchain, agency, token_economics):
     locked_periods = 2 * token_economics.minimum_locked_periods
 
     # Create WorkLock Deployer
-    deployer = WorkLockDeployer(blockchain=testerchain,
+    deployer = WorklockDeployer(blockchain=testerchain,
                                 deployer_address=origin,
                                 start_date=start_bid_date,
                                 end_date=end_bid_date,
