@@ -61,7 +61,7 @@ Activate your virtual environment (if you already didn't) and run the ``nucypher
 You will see a list of possible usage options (``--version``, ``-v``, ``--dev``, etc.) and commands (``status``, ``ursula``).
 For example, you can use ``nucypher ursula destroy`` to delete all files associated with the node.
 
-If your installation in non-functional, be sure you have the latest version installed, and see the `Installation Guide`_
+If your installation is non-functional, be sure you have the latest version installed, and see the `Installation Guide`_
 
 .. _Installation Guide: installation_guide.html
 
