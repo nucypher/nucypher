@@ -432,7 +432,6 @@ class StakingEscrowDeployer(ContractDeployer):
         return rollback_receipt
 
 
-
 class PolicyManagerDeployer(ContractDeployer):
     """
     Depends on StakingEscrow and NucypherTokenAgent
@@ -814,7 +813,13 @@ class AdjudicatorDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, economics: TokenEconomics = None, *args, **kwargs):
+        super().__init__(*args, economics=economics, **kwargs)
+        staking_contract_name = StakingEscrowDeployer.contract_name
+        proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
+        self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                     name=staking_contract_name,
+                                                                     proxy_name=proxy_name)
 
     def _deploy_essential(self, gas_limit: int = None):
         constructor_args = (self.staking_contract.address,
@@ -834,8 +839,8 @@ class AdjudicatorDeployer(ContractDeployer):
             progress.update(1)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                               target_contract=adjudicator_contract,
-                                               deployer_address=self.deployer_address)
+                                              target_contract=adjudicator_contract,
+                                              deployer_address=self.deployer_address)
 
         proxy_deploy_receipts = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         proxy_deploy_receipt = proxy_deploy_receipts[proxy_deployer.deployment_steps[0]]
@@ -882,9 +887,9 @@ class AdjudicatorDeployer(ContractDeployer):
                                                                       use_proxy_address=False)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                               target_contract=existing_bare_contract,
-                                               deployer_address=self.deployer_address,
-                                               bare=True)
+                                              target_contract=existing_bare_contract,
+                                              deployer_address=self.deployer_address,
+                                              bare=True)
 
         adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
 
