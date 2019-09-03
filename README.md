@@ -1,6 +1,7 @@
 ![](/docs/source/.static/img/nucypher.png)
 
-*A proxy re-encryption network to empower privacy in decentralized systems*
+*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes
+and interfaces for secrets management, secure data exchange, and secure computation.*
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
 [![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
@@ -12,8 +13,15 @@
 
 ----
 
-The NuCypher network facilitates end-to-end encrypted data sharing
-for distributed apps and protocols.
+The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces
+for secrets management, secure data exchange, and secure computation.
+* Accessible - The network is permissionless and censorship-resistant.
+There are no gate-keepers and anyone can use it.
+* Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
+(with additional characters where appropriate). This character-based narrative permeates the code-base and helps
+developers write safe, misuse-resistant code.
+* Extensible - The network currently supports proxy re-encryption but can be extended to provide support other cryptographic primitives.
+
 Access permissions are baked into the underlying encryption,
 and access can only be explicitly granted by the data owner via sharing policies.
 Consequently, the data owner has ultimate control over access to their data.
