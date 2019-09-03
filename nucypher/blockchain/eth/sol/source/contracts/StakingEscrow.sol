@@ -839,16 +839,20 @@ contract StakingEscrow is Issuer {
 
     /**
     * @notice Get active stakers based on input points
-    * @param _points Array of absolute values
+    * @param _points Array of absolute values. Must be sorted in ascending order.
     * @param _periods Amount of periods for locked tokens calculation
     *
-    * @dev Sampling iterates over an array of stakers and input points.
-    * Each iteration checks if the current point is contained within the current staker stake.
-    * If the point is greater than or equal to the current sum of stakes,
-    * this staker is skipped and the sum is increased by the value of next staker's stake.
-    * If a point is less than the current sum of stakes, then the current staker is appended to the resulting array.
-    * Secondly, the sum of stakes is decreased by a point;
-    * The next iteration will check the next point for the difference.
+    * @dev This method implements the Probability Proportional to Size (PPS) sampling algorithm,
+    * but with the random input data provided in the _points array.
+    * In few words, the algorithm places in a line all active stakes that have locked tokens for
+    * at least _periods periods; a staker is selected if an input point is within its stake.
+    * For example:
+    *
+    * Stakes: |----- S0 ----|--------- S1 ---------|-- S2 --|---- S3 ---|-S4-|----- S5 -----|
+    * Points: ....R0.......................R1..................R2...............R3...........
+    *
+    * In this case, Stakers 0, 1, 3 and 5 will be selected.
+    *
     * Only stakers which confirmed the current period (in the previous period) are used.
     * If the number of points is more than the number of active stakers with suitable stakes,
     * the last values in the resulting array will be zeros addresses.
@@ -862,31 +866,30 @@ contract StakingEscrow is Issuer {
         uint16 nextPeriod = currentPeriod.add16(_periods);
         result = new address[](_points.length);
 
+        uint256 previousPoint = 0;
         uint256 pointIndex = 0;
         uint256 sumOfLockedTokens = 0;
         uint256 stakerIndex = 0;
-        bool addMoreTokens = true;
         while (stakerIndex < stakers.length && pointIndex < _points.length) {
             address currentStaker = stakers[stakerIndex];
             StakerInfo storage info = stakerInfo[currentStaker];
-            uint256 point = _points[pointIndex];
             if (info.confirmedPeriod1 != currentPeriod &&
                 info.confirmedPeriod2 != currentPeriod) {
                 stakerIndex += 1;
-                addMoreTokens = true;
                 continue;
             }
-            if (addMoreTokens) {
-                sumOfLockedTokens = sumOfLockedTokens.add(getLockedTokens(info, currentPeriod, nextPeriod));
-            }
-            if (sumOfLockedTokens > point) {
+            uint256 stakerTokens = getLockedTokens(info, currentPeriod, nextPeriod);
+            uint256 nextSumValue = sumOfLockedTokens.add(stakerTokens);
+
+            uint256 point = _points[pointIndex];
+            require(point >= previousPoint);  // _points must be a sorted array
+            if (sumOfLockedTokens <= point && point < nextSumValue) {
                 result[pointIndex] = currentStaker;
-                sumOfLockedTokens -= point;
                 pointIndex += 1;
-                addMoreTokens = false;
+                previousPoint = point;
             } else {
                 stakerIndex += 1;
-                addMoreTokens = true;
+                sumOfLockedTokens = nextSumValue;
             }
         }
     }

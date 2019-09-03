@@ -164,12 +164,11 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     label = b'bbo'
 
-    # TODO: Investigate issues with wiggle room and additional ursulas during sampling. See also #1061 and #1090
-    # 1 <= N <= 4 : OK, although for N=4 it can fail with very small probability (<1%)
-    # M = N = 5: Fails with prob. ~66%  --> Cannot create policy with 5 arrangements: Selection failed after 5 attempts
-    # N == 6 : NotEnoughBlockchainUrsulas: Cannot create policy with 6 arrangements: Selection failed after 5 attempts
-    # N >= 7 : NotEnoughBlockchainUrsulas: Cannot create policy with 7 arrangements: Cannot create policy with 7 arrangements: 10 stakers are available, need 11 (for wiggle room)
-    m = n = 3
+    # TODO: Make sample selection buffer configurable - #1061
+    # Currently, it only supports N<=6, since for N=7, it tries to sample 11 ursulas due to wiggle room,
+    # and blockchain_ursulas only contains 10.
+    # For N >= 7 : NotEnoughBlockchainUrsulas: Cannot create policy with 7 arrangements: There are 10 active stakers, need at least 11.
+    m = n = 6
     expiration = maya.now() + datetime.timedelta(days=5)
 
     _policy = blockchain_alice.grant(bob=blockchain_bob,

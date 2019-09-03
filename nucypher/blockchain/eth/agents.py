@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import math
 import random
 from typing import Generator, List, Tuple, Union
 
@@ -356,24 +357,20 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
 
         stakers_population = self.get_staker_population()
-        if quantity > stakers_population:
-            raise self.NotEnoughStakers(f'There are {stakers_population} published stakers, need a total of {quantity}.')
+        n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
+        if n_select > stakers_population:
+            raise self.NotEnoughStakers(f'There are {stakers_population} active stakers, need at least {n_select}.')
 
         system_random = random.SystemRandom()
-        n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
-
         if n_tokens == 0:
             raise self.NotEnoughStakers('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
-            points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
+            points = sorted(system_random.randrange(n_tokens) for _ in range(n_select))
+            self.log.debug(f"Sampling {n_select} stakers with random points: {points}")
 
-            deltas = []
-            for next_point, previous_point in zip(points[1:], points[:-1]):
-                deltas.append(next_point - previous_point)
-
-            addresses = set(self.contract.functions.sample(deltas, duration).call())
+            addresses = set(self.contract.functions.sample(points, duration).call())
             addresses.discard(str(BlockchainInterface.NULL_ADDRESS))
 
             if len(addresses) >= quantity:

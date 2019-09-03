@@ -377,23 +377,16 @@ class Policy(ABC):
         raise NotImplementedError
 
     def sample(self, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
-        if not handpicked_ursulas:
-            handpicked_ursulas = set()
-        else:
-            handpicked_ursulas = set(handpicked_ursulas)
+        selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
-        ADDITIONAL_URSULAS = self.selection_buffer
-        target_sample_quantity = self.n - len(handpicked_ursulas)
-        actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
+        target_sample_quantity = self.n - len(selected_ursulas)
+        if target_sample_quantity > 0:
+            sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
+                                                    handpicked_ursulas=handpicked_ursulas)
+            selected_ursulas.update(sampled_ursulas)
 
-        if actual_sample_quantity > 0:
-            selected_ursulas = self.sample_essential(quantity=actual_sample_quantity,
-                                                     handpicked_ursulas=handpicked_ursulas)
-            handpicked_ursulas.update(selected_ursulas)
-
-        final_ursulas = handpicked_ursulas
-        return final_ursulas
+        return selected_ursulas
 
     def _consider_arrangements(self,
                                network_middleware: RestMiddleware,
@@ -597,8 +590,9 @@ class BlockchainPolicy(Policy):
         # TODO: Prevent re-sampling of handpicked ursulas.
         selected_addresses = set()
         try:
-            # Sample by reading from the Blockchain
-            sampled_addresses = self.alice.recruit(quantity=quantity, duration=self.duration_periods)
+            sampled_addresses = self.alice.recruit(quantity=quantity,
+                                                   duration=self.duration_periods,
+                                                   additional_ursulas=self.selection_buffer)
         except StakingEscrowAgent.NotEnoughStakers as e:
             error = f"Cannot create policy with {quantity} arrangements: {e}"
             raise self.NotEnoughBlockchainUrsulas(error)
