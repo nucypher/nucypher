@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
-def test_token_deployer_and_agent(testerchain, test_registry, agency, token_economics):
+def test_token_deployer(testerchain, test_registry, agency, token_economics):
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails
@@ -32,7 +32,7 @@ def test_token_deployer_and_agent(testerchain, test_registry, agency, token_econ
         WorkLockAgent(registry=test_registry)
 
     # Generate WorkLock params
-    # TODO: Move to "economics" class?
+    # TODO: Move to "WorkLockEconomics" class #1126
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
     start_bid_date = now + (60 * 60)  # 1 Hour
     end_bid_date = start_bid_date + (60 * 60)
