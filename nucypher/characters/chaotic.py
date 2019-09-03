@@ -419,17 +419,14 @@ class Felix(Character, NucypherTokenActor):
                            'gasPrice': self.blockchain.client.gas_price}
             ether_txhash = self.blockchain.client.send_transaction(transaction)
 
-            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
+            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:-6]} "
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
 
         else:
             self.log.info(
                 f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
                 f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
-
-        self.log.info(
-            f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
-            f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
+                
         return txhash
 
     def airdrop_tokens(self):
