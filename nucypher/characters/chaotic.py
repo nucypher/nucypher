@@ -190,6 +190,7 @@ class Felix(Character, NucypherTokenActor):
         self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        self.blockchain = self.token_agent.blockchain
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
@@ -315,7 +316,7 @@ class Felix(Character, NucypherTokenActor):
                 return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
             else:
                 new_address = eth_utils.to_checksum_address(new_address)
-                    
+
             if new_address in self.reserved_addresses:
                 return Response(response="sorry, that address is reserved and cannot receive funds.", status=403)
 
