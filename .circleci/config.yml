@@ -485,7 +485,7 @@ jobs:
     working_directory: ~/nucypher
     <<: *python_37_base
     steps:
-      - prepare_environment
+      - checkout
       - run:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
