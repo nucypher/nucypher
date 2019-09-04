@@ -2,7 +2,7 @@
 
 
 SOLC_VER="0.5.9"
-SOL_BIN_PATH="$(pipenv --venv)/bin/solc"
+SOL_BIN_PATH=~/.local/bin/solc
 
 echo "Downloading solidity compiler binary to: ${SOL_BIN_PATH}"
 wget "https://github.com/ethereum/solidity/releases/download/v${SOLC_VER}/solc-static-linux" -O ${SOL_BIN_PATH}
