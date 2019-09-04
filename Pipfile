@@ -47,7 +47,7 @@ mypy = "*"
 # Coverage
 coverage = "*"
 # Deployment
-py-solc = {editable = true,git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
+py-solc = {git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"
 bumpversion = "*"
 # Documentation
