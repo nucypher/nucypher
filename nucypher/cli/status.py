@@ -41,7 +41,15 @@ from nucypher.config.characters import UrsulaConfiguration
 @nucypher_click_config
 def status(click_config, action, provider_uri, sync, geth, poa, periods, staking_address):
     """
-    Echo a snapshot of live network metadata.
+    Echo a snapshot of live NuCypher Network metadata.
+
+    \b
+    Actions
+    -------------------------------------------------
+    view           Overall information of the NuCypher Network
+    stakers        Show relevant information about stakers
+    locked-tokens  Display a graph of evolution of locked tokens
+
     """
 
     emitter = click_config.emitter
