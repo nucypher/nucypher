@@ -481,10 +481,13 @@ class ContractAdministrator(NucypherTokenActor):
                                                      allocation_outfile=allocation_outfile,
                                                      emitter=emitter,
                                                      interactive=interactive)
+        # Save transaction metadata
+        receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
+        emitter.echo(f"Saved allocation receipts to {receipts_filepath}", color='blue', bold=True)
         return receipts
 
-    def save_deployment_receipts(self, receipts: dict) -> str:
-        filename = f'deployment-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
+    def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
+        filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
         filepath = os.path.join(DEFAULT_CONFIG_ROOT, filename)
         # TODO: Do not assume default config root
         os.makedirs(DEFAULT_CONFIG_ROOT, exist_ok=True)
