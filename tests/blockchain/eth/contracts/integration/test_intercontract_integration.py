@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from mock import Mock
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
@@ -163,7 +162,7 @@ def worklock(testerchain, token, escrow, deploy_contract):
     return contract
 
 
-def mock_ursula(testerchain, account):
+def mock_ursula(testerchain, account, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
@@ -171,7 +170,7 @@ def mock_ursula(testerchain, account):
     signed_stamp = testerchain.client.sign_message(account=account,
                                                    message=bytes(ursula_stamp))
 
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
 
 
@@ -255,7 +254,8 @@ def test_all(testerchain,
              user_escrow_proxy,
              multisig,
              mock_ursula_reencrypts,
-             deploy_contract):
+             deploy_contract,
+             mocker):
 
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
@@ -269,9 +269,9 @@ def test_all(testerchain,
     contracts_owners = sorted(contracts_owners)
 
     # We'll need this later for slashing these Ursulas
-    ursula1_with_stamp = mock_ursula(testerchain, ursula1)
-    ursula2_with_stamp = mock_ursula(testerchain, ursula2)
-    ursula3_with_stamp = mock_ursula(testerchain, ursula3)
+    ursula1_with_stamp = mock_ursula(testerchain, ursula1, mocker=mocker)
+    ursula2_with_stamp = mock_ursula(testerchain, ursula2, mocker=mocker)
+    ursula3_with_stamp = mock_ursula(testerchain, ursula3, mocker=mocker)
 
     # Give clients some ether
     tx = testerchain.client.send_transaction(

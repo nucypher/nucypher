@@ -242,8 +242,6 @@ def test_autodetect_provider_type_file_none_existent():
         interface = BlockchainInterfaceTestBase(provider_uri='/none_existent.ipc.geth')
         interface.connect()
 
-    assert "invalid or unsupported blockchain provider URI" in str(e)
-
 
 def test_detect_provider_type_file():
     interface = ProviderTypeTestClient(provider_uri='file:///ipc.geth',
