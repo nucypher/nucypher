@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+import binascii
 import click
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
@@ -25,6 +26,7 @@ from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_contract_status, paint_stakers, paint_locked_tokens_status, paint_known_nodes
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import UrsulaConfiguration
 
 
@@ -35,8 +37,9 @@ from nucypher.config.characters import UrsulaConfiguration
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
 @click.option('--periods', help="Number of periods", type=click.INT, default=90)
+@click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 @nucypher_click_config
-def status(click_config, action, provider_uri, sync, geth, poa, periods):
+def status(click_config, action, provider_uri, sync, geth, poa, periods, staking_address):
     """
     Echo a snapshot of live network metadata.
     """
@@ -71,11 +74,13 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods):
         if not ursula_config.federated_only:
             paint_contract_status(registry, emitter=emitter)
 
+        # TODO: Handle failure to paint known nodes when there's no known nodes metadata stored
         paint_known_nodes(emitter=click_config.emitter, ursula=ursula_config)
         return  # Exit
 
     if action == 'stakers':
-        paint_stakers(emitter=emitter, stakers=staking_agent.get_stakers(), agent=staking_agent)
+        stakers = [staking_address] if staking_address else staking_agent.get_stakers()
+        paint_stakers(emitter=emitter, stakers=stakers, agent=staking_agent)
         return  # Exit
 
     elif action == 'locked-tokens':

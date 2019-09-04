@@ -510,12 +510,14 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
     emitter.echo('=' * (42 + 2 + 53))
 
     for staker in stakers:
-        nickname, _ = nickname_from_seed(staker)
-        emitter.echo(f"{staker}  {'Nickname:':10} {nickname}")
+        nickname, pairs = nickname_from_seed(staker)
+        symbols = f"{pairs[0][1]}  {pairs[1][1]}"
+        emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
         tab = " " * len(staker)
         info = agent.get_staker_info(staker)
         stake, confirmed1, confirmed2, restake, *remaining_info = info
         locked_restake_until_period, worker, worker_start, last_active = remaining_info
+
         last_confirmed_period = max(confirmed1, confirmed2)
         missing_confirmations = current_period - last_confirmed_period
         stake_in_nu = round(NU.from_nunits(stake), 2)
@@ -533,7 +535,12 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         else:
             emitter.echo(f"Missing {missing_confirmations} confirmations "
                          f"(last time for period #{last_confirmed_period})", color='red')
-        emitter.echo(f"{tab}  {'Worker:':10} {worker}\n")
+
+        emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
+        if worker == BlockchainInterface.NULL_ADDRESS:
+            emitter.echo(f"No worker set\n", color='red')
+        else:
+            emitter.echo(f"{worker}\n")
 
 
 def paint_locked_tokens_status(emitter, agent, periods) -> None:
