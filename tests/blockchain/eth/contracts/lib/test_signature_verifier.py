@@ -38,8 +38,8 @@ ALGORITHM_RIPEMD160 = 2
 
 
 @pytest.fixture()
-def signature_verifier(testerchain):
-    contract, _ = testerchain.deploy_contract('SignatureVerifierMock')
+def signature_verifier(testerchain, deploy_contract):
+    contract, _ = deploy_contract('SignatureVerifierMock')
     return contract
 
 

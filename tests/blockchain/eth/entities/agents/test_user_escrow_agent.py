@@ -39,42 +39,41 @@ def allocation_value(token_economics):
 
 
 @pytest.fixture(scope='module')
-def proxy_deployer(testerchain, agency) -> UserEscrowAgent:
+def proxy_deployer(testerchain, agency, test_registry) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Proxy
     proxy_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
-    proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address, blockchain=testerchain)
+    proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address, registry=test_registry)
 
     proxy_deployer.deploy(secret_hash=proxy_secret)
     yield proxy_deployer
 
 
 @pytest.fixture(scope='function')
-def agent(testerchain, proxy_deployer, allocation_value, agency) -> UserEscrowAgent:
+def agent(testerchain, test_registry, proxy_deployer, allocation_value, agency) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=deployer_address)
     testerchain.transacting_power.activate()
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
-                                         blockchain=testerchain,
+                                         registry=test_registry,
                                          allocation_registry=TEST_ALLOCATION_REGISTRY)
 
     _txhash = escrow_deployer.deploy()
 
-    escrow_deployer.initial_deposit(value=allocation_value, duration=TEST_DURATION)
+    escrow_deployer.initial_deposit(value=allocation_value, duration_seconds=TEST_DURATION)
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
     assert escrow_deployer.contract.functions.getLockedTokens().call() == allocation_value
     _agent = escrow_deployer.make_agent()
 
-    _direct_agent = UserEscrowAgent(blockchain=testerchain,
+    _direct_agent = UserEscrowAgent(registry=test_registry,
                                     allocation_registry=TEST_ALLOCATION_REGISTRY,
                                     beneficiary=beneficiary_address)
 
@@ -143,8 +142,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
     # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
@@ -164,8 +162,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
 
     # Mock Powerup consumption (Beneficiary-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
@@ -175,8 +172,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     testerchain.time_travel(periods=1)
 
     # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
@@ -191,7 +187,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     # Release worker
     _txhash = agent.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
 
-    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(address=agent.contract_address))
+    txhash = agent.withdraw_as_staker(value=staking_agent.owned_tokens(staker_address=agent.contract_address))
     assert txhash
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
@@ -201,8 +197,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
@@ -215,8 +210,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     testerchain.time_travel(periods=1)
 
     # Mock Powerup consumption (Alice)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=author)
     testerchain.transacting_power.activate()
 
@@ -224,12 +218,11 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                          author_address=author,
                                          value=to_wei(1, 'ether'),
                                          periods=2,
-                                         initial_reward=0,
+                                         first_period_reward=0,
                                          node_addresses=[agent.contract_address])
 
     # Mock Powerup consumption (Beneficiary-Worker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
@@ -240,8 +233,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
     # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
@@ -255,8 +247,7 @@ def test_withdraw_tokens(testerchain, agent, agency, allocation_value):
     deployer_address, beneficiary_address, *everybody_else = testerchain.client.accounts
 
     # Mock Powerup consumption (Beneficiary)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 

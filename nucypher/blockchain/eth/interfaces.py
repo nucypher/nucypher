@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import collections
+import os
 import pprint
 import time
 from typing import List
@@ -26,13 +27,12 @@ import requests
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
-    NO_DEPLOYER_CONFIGURED,
     UNKNOWN_TX_STATUS,
     NO_PROVIDER_PROCESS,
     READ_ONLY_INTERFACE
 )
 from eth_tester import EthereumTester
-from eth_utils import to_checksum_address
+from eth_utils import to_checksum_address, is_checksum_address
 from twisted.logger import Logger
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
@@ -53,10 +53,10 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
     _get_HTTP_provider
 )
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.crypto.powers import TransactingPower
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.utilities.logging import console_observer, GlobalLoggerSettings
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -70,7 +70,6 @@ class BlockchainInterface:
     TIMEOUT = 180  # seconds
     NULL_ADDRESS = '0x' + '0' * 40
 
-    _instance = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
 
@@ -80,6 +79,9 @@ class BlockchainInterface:
         pass
 
     class NoProvider(InterfaceError):
+        pass
+
+    class UnsupportedProvider(InterfaceError):
         pass
 
     class ConnectionFailed(InterfaceError):
@@ -92,46 +94,46 @@ class BlockchainInterface:
                  poa: bool = True,
                  provider_process: NuCypherGethProcess = NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 transacting_power: TransactingPower = READ_ONLY_INTERFACE,
-                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
-                 registry: EthereumContractRegistry = None):
+                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION):
 
         """
         A blockchain "network interface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
+        TODO: Move me to docs.
+
          Filesystem          Configuration           Node              Client                  EVM
         ================ ====================== =============== =====================  ===========================
 
-         Solidity Files -- SolidityCompiler ---                  --- HTTPProvider ------ ...
-                                               |                |
-                                               |                |
-
-                                                 *Blockchain* -- IPCProvider ----- External EVM (geth, parity...)
-
-                                               |      |         |
-                                               |      |         |
-         Registry File -- ContractRegistry ---        |          ---- TestProvider ----- EthereumTester
-                                                      |
-                        |                             |                                         |
-                        |                             |
+         Solidity Files -- SolidityCompiler -                      --- HTTPProvider ------ ...
+                                            |                    |
+                                            |                    |
+                                            |                    |
+                                            - *BlockchainInterface* -- IPCProvider ----- External EVM (geth, parity...)
+                                                       |         |
+                                                       |         |
+                                                 TestProvider ----- EthereumTester -------------
+                                                                                                |
+                                                                                                |
                                                                                         PyEVM (Development Chain)
-         Runtime Files --                 -------- Blockchain
-                                         |
+
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+         Runtime Files --                 --BlockchainInterface ----> Registry
+                        |                |             ^
                         |                |             |
-
-         Key Files ------ CharacterConfiguration -------- Agent ... (Contract API)
-
                         |                |             |
-                        |                |
-                        |                 ---------- Actor ... (Blockchain-Character API)
-                        |
-                        |                              |
-                        |
-         Config File ---                           Character ... (Public API)
-
+         Key Files ------ CharacterConfiguration     Agent                          ... (Contract API)
+                        |                |             ^
+                        |                |             |
+                        |                |             |
+                        |                |           Actor                          ...Blockchain-Character API)
+                        |                |             ^
+                        |                |             |
+                        |                |             |
+         Config File ---                  --------- Character                       ... (Public API)
+                                                       ^
                                                        |
-
                                                      Human
 
 
@@ -165,10 +167,9 @@ class BlockchainInterface:
         self.provider_uri = provider_uri
         self._provider = provider
         self._provider_process = provider_process
+        self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
-        self.transacting_power = transacting_power
-        self.registry = registry
-        BlockchainInterface._instance = self
+        self.transacting_power = READ_ONLY_INTERFACE
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -176,28 +177,13 @@ class BlockchainInterface:
 
     @classmethod
     def from_dict(cls, payload: dict, **overrides) -> 'BlockchainInterface':
-
-        # Apply overrides
         payload.update({k: v for k, v in overrides.items() if v is not None})
-
-        registry = EthereumContractRegistry(registry_filepath=payload['registry_filepath'])
-        blockchain = cls(provider_uri=payload['provider_uri'], registry=registry)
+        blockchain = cls(**payload)
         return blockchain
 
     def to_dict(self) -> dict:
-        payload = dict(provider_uri=self.provider_uri,
-                       poa=self.poa,
-                       registry_filepath=self.registry.filepath)
+        payload = dict(provider_uri=self.provider_uri, poa=self.poa)
         return payload
-
-    def _configure_registry(self, fetch_registry: bool = True) -> None:
-        RegistryClass = EthereumContractRegistry._get_registry_class(local=self.client.is_local)
-        if fetch_registry:
-            registry = RegistryClass.from_latest_publication()
-        else:
-            registry = RegistryClass()
-        self.registry = registry
-        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
     @property
     def is_connected(self) -> bool:
@@ -208,17 +194,6 @@ class BlockchainInterface:
             return False
         return self.client.is_connected
 
-    def disconnect(self) -> None:
-        if self._provider_process:
-            self._provider_process.stop()
-        self._provider_process = NO_PROVIDER_PROCESS
-        self._provider = NO_BLOCKCHAIN_CONNECTION
-        BlockchainInterface._instance = NO_BLOCKCHAIN_CONNECTION
-
-    @classmethod
-    def reconnect(cls, *args, **kwargs) -> 'BlockchainInterface':
-        return cls._instance
-
     def attach_middleware(self):
 
         # For use with Proof-Of-Authority test-blockchains
@@ -226,7 +201,7 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-    def connect(self, fetch_registry: bool = True, sync_now: bool = False, emitter: StdoutEmitter = None):
+    def connect(self):
 
         # Spawn child process
         if self._provider_process:
@@ -253,50 +228,54 @@ class BlockchainInterface:
         else:
             self.attach_middleware()
 
-        # Establish contact with NuCypher contracts
-        if not self.registry:
-            self._configure_registry(fetch_registry=fetch_registry)
+        return self.is_connected
 
-        # Wait for chaindata sync
-        if sync_now:
-            sync_state = self.client.sync()
-            if emitter:
-                import click
-                emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
+    def sync(self, show_progress: bool = False) -> None:
 
-                while not len(self.client.peers):
-                    emitter.echo("waiting for peers...")
-                    time.sleep(5)
+        sync_state = self.client.sync()
+        if show_progress:
+            import click
+            # TODO: It is possible that output has been redirected from a higher-level emitter.
+            # TODO: Use console logging instead of StdOutEmitter here.
+            emitter = StdoutEmitter()
 
-                peer_count = len(self.client.peers)
-                emitter.echo(f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count>1 else '')}.")
+            emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.")
 
-                try:
-                    emitter.echo("Beginning sync...")
-                    initial_state = next(sync_state)
-                except StopIteration:  # will occur if no syncing needs to happen
-                    emitter.echo("Local blockchain data is already synced.")
-                    return True
+            while not len(self.client.peers):
+                emitter.echo("waiting for peers...")
+                time.sleep(5)
 
-                prior_state = initial_state
-                total_blocks_to_sync = int(initial_state.get('highestBlock', 0)) - int(initial_state.get('currentBlock', 0))
-                with click.progressbar(
+            peer_count = len(self.client.peers)
+            emitter.echo(
+                f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count > 1 else '')}.")
+
+            try:
+                emitter.echo("Beginning sync...")
+                initial_state = next(sync_state)
+            except StopIteration:  # will occur if no syncing needs to happen
+                emitter.echo("Local blockchain data is already synced.")
+                return
+
+            prior_state = initial_state
+            total_blocks_to_sync = int(initial_state.get('highestBlock', 0)) - int(
+                initial_state.get('currentBlock', 0))
+            with click.progressbar(
                     length=total_blocks_to_sync,
                     label="sync progress"
-                ) as bar:
-                    for syncdata in sync_state:
-                        if syncdata:
-                            blocks_accomplished = int(syncdata['currentBlock']) - int(prior_state.get('currentBlock', 0))
-                            bar.update(blocks_accomplished)
-                            prior_state = syncdata
-            else:
-                try:
-                    for syncdata in sync_state:
-                        self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
-                except TypeError:  # it's already synced
-                    return True
-
-        return self.is_connected
+            ) as bar:
+                for syncdata in sync_state:
+                    if syncdata:
+                        blocks_accomplished = int(syncdata['currentBlock']) - int(
+                            prior_state.get('currentBlock', 0))
+                        bar.update(blocks_accomplished)
+                        prior_state = syncdata
+        else:
+            try:
+                for syncdata in sync_state:
+                    self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
+            except TypeError:  # it's already synced
+                return
+        return
 
     @property
     def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
@@ -334,10 +313,18 @@ class BlockchainInterface:
                     'https': _get_HTTP_provider,
                 }
                 provider_scheme = uri_breakdown.scheme
+
+            # auto-detect for file based ipc
+            if not provider_scheme:
+                if os.path.exists(provider_uri):
+                    # file is available - assume ipc/file scheme
+                    provider_scheme = 'file'
+                    self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")
+
             try:
                 self._provider = providers[provider_scheme](provider_uri)
             except KeyError:
-                raise ValueError(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
+                raise self.UnsupportedProvider(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
             else:
                 self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         else:
@@ -402,7 +389,6 @@ class BlockchainInterface:
         signed_raw_transaction = self.transacting_power.sign_transaction(unsigned_transaction)
         txhash = self.client.send_raw_transaction(signed_raw_transaction)
 
-
         try:
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT)
         except TimeExhausted:
@@ -434,6 +420,7 @@ class BlockchainInterface:
         return receipt
 
     def get_contract_by_name(self,
+                             registry: BaseContractRegistry,
                              name: str,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
@@ -443,7 +430,7 @@ class BlockchainInterface:
         and assimilate it with its proxy if it is upgradeable,
         or return all registered records if use_proxy_address is False.
         """
-        target_contract_records = self.registry.search(contract_name=name)
+        target_contract_records = registry.search(contract_name=name)
 
         if not target_contract_records:
             raise self.UnknownContract(f"No such contract records with name {name}.")
@@ -451,7 +438,7 @@ class BlockchainInterface:
         if proxy_name:  # It's upgradeable
             # Lookup proxies; Search for a published proxy that targets this contract record
 
-            proxy_records = self.registry.search(contract_name=proxy_name)
+            proxy_records = registry.search(contract_name=proxy_name)
 
             results = list()
             for proxy_name, proxy_addr, proxy_abi in proxy_records:
@@ -506,35 +493,23 @@ class BlockchainDeployerInterface(BlockchainInterface):
     class DeploymentFailed(RuntimeError):
         pass
 
-    def __init__(self,
-                 deployer_address: str = None,
-                 compiler: SolidityCompiler = None,
-                 *args, **kwargs):
+    def __init__(self, compiler: SolidityCompiler = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.compiler = compiler or SolidityCompiler()
-        self.__deployer_address = deployer_address or NO_DEPLOYER_CONFIGURED
 
-    def connect(self, fetch_registry: bool = False, *args, **kwargs):
-        super().connect(fetch_registry=fetch_registry, *args, **kwargs)
+    def connect(self):
+        super().connect()
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
 
-    @property
-    def deployer_address(self):
-        return self.__deployer_address
-
-    @deployer_address.setter
-    def deployer_address(self, checksum_address: str) -> None:
-        self.__deployer_address = checksum_address
-
     def _setup_solidity(self, compiler: SolidityCompiler = None):
 
-        # if a SolidityCompiler class instance was passed, compile from solidity source code
+        # if a SolidityCompiler class instance was passed,
+        # compile from solidity source code.
         self.__sol_compiler = compiler
         if compiler:
             # Execute the compilation if we're recompiling
-            # Otherwise read compiled contract data from the registry
+            # Otherwise read compiled contract data from the registry.
             interfaces = self.__sol_compiler.compile()
             __raw_contract_cache = interfaces
         else:
@@ -542,18 +517,21 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.__raw_contract_cache = __raw_contract_cache
 
     def deploy_contract(self,
+                        deployer_address: str,
+                        registry: BaseContractRegistry,
                         contract_name: str,
                         *constructor_args,
                         enroll: bool = True,
                         gas_limit: int = None,
-                        **kwargs
+                        **constructor_kwargs
                         ) -> Tuple[Contract, dict]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
-        if self.__deployer_address is NO_DEPLOYER_CONFIGURED:
-            raise self.NoDeployerAddress
+
+        if not is_checksum_address(deployer_address):
+            raise ValueError(f"{deployer_address} is not a valid EIP-55 checksum address.")
 
         #
         # Build the deployment transaction #
@@ -566,18 +544,18 @@ class BlockchainDeployerInterface(BlockchainInterface):
         pprint_args = str(tuple(constructor_args))
         pprint_args = pprint_args.replace("{", "{{").replace("}", "}}")  # See #724
         self.log.info(f"Deploying contract {contract_name} with "
-                      f"deployer address {self.deployer_address} "
+                      f"deployer address {deployer_address} "
                       f"and parameters {pprint_args}")
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        transaction_function = contract_factory.constructor(*constructor_args, **kwargs)
+        transaction_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
 
         #
         # Transmit the deployment tx #
         #
 
         receipt = self.send_transaction(contract_function=transaction_function,
-                                        sender_address=self.deployer_address,
+                                        sender_address=deployer_address,
                                         payload=deploy_transaction)
 
         #
@@ -586,7 +564,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         # Success
         address = receipt['contractAddress']
-        self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
+        self.log.info(f"Confirmed {contract_name} deployment: new address {address}")
 
         #
         # Instantiate & Enroll contract
@@ -595,9 +573,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
         contract = self.client.w3.eth.contract(address=address, abi=contract_factory.abi)
 
         if enroll is True:
-            self.registry.enroll(contract_name=contract_name,
-                                 contract_address=contract.address,
-                                 contract_abi=contract_factory.abi)
+            registry.enroll(contract_name=contract_name,
+                            contract_address=contract.address,
+                            contract_abi=contract_factory.abi)
 
         return contract, receipt  # receipt
 
@@ -630,10 +608,13 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                        ContractFactoryClass=self._contract_factory)
         return wrapped_contract
 
-    def get_proxy(self, target_address: str, proxy_name: str) -> Contract:
+    def get_proxy(self,
+                  registry: BaseContractRegistry,
+                  target_address: str,
+                  proxy_name: str) -> Contract:
 
         # Lookup proxies; Search for a registered proxy that targets this contract record
-        records = self.registry.search(contract_name=proxy_name)
+        records = registry.search(contract_name=proxy_name)
 
         dispatchers = list()
         for name, addr, abi in records:
@@ -655,3 +636,95 @@ class BlockchainDeployerInterface(BlockchainInterface):
             return dispatchers[0]
         except IndexError:
             raise self.UnknownContract(f"No registered Dispatcher deployments target {target_address}")
+
+
+Interfaces = Union[BlockchainInterface, BlockchainDeployerInterface]
+
+
+class BlockchainInterfaceFactory:
+    """
+    Canonical source of bound blockchain interfaces.
+    """
+
+    _instance = None
+    _interfaces = dict()
+    _default_interface_class = BlockchainInterface
+
+    CachedInterface = collections.namedtuple('CachedInterface', ['interface',    # type: BlockchainInterface
+                                                                 'sync',
+                                                                 'show_sync_progress'])
+
+    class FactoryError(Exception):
+        pass
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    @classmethod
+    def is_interface_initialized(cls, provider_uri: str) -> bool:
+        """
+        Returns True if there is an existing connection with an equal provider_uri.
+        """
+        return bool(cls._interfaces.get(provider_uri, False))
+
+    @classmethod
+    def register_interface(cls,
+                           interface: BlockchainInterface,
+                           sync: bool = False,
+                           show_sync_progress: bool = False
+                           ) -> None:
+
+        provider_uri = interface.provider_uri
+        if provider_uri in cls._interfaces:
+            raise cls.FactoryError(f"A connection already exists for {provider_uri}.  Use .get_interface instead.")
+        cached = cls.CachedInterface(interface=interface, sync=sync, show_sync_progress=show_sync_progress)
+        cls._interfaces[provider_uri] = cached
+
+    @classmethod
+    def initialize_interface(cls,
+                             provider_uri: str,
+                             sync: bool = False,
+                             show_sync_progress: bool = False,
+                             interface_class: Interfaces = None,
+                             *interface_args,
+                             **interface_kwargs
+                             ) -> None:
+
+        if provider_uri in cls._interfaces:
+            raise cls.FactoryError(f"A connection already exists for {provider_uri}.  Use .get_interface instead.")
+
+        # Interface does not exist, initialize a new one.
+        if not interface_class:
+            interface_class = cls._default_interface_class
+        interface = interface_class(provider_uri=provider_uri, *interface_args, **interface_kwargs)
+        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,
+                                                            sync=sync,
+                                                            show_sync_progress=show_sync_progress)
+
+    @classmethod
+    def get_interface(cls, provider_uri: str = None) -> Interfaces:
+
+        # Try to get an existing cached interface.
+        if provider_uri:
+            try:
+                cached_interface = cls._interfaces[provider_uri]
+            except KeyError:
+                raise cls.FactoryError(f"There is no connection for {provider_uri}. "
+                                       f"Call .initialize_connection, then try again.")
+
+        # Try to use the most recently created interface by default.
+        else:
+            try:
+                cached_interface = list(cls._interfaces.values())[-1]
+            except IndexError:
+                raise cls.FactoryError(f"There is no existing blockchain connection.")
+
+        # Connect and Sync
+        interface, sync, show_sync_progress = cached_interface
+        if not interface.is_connected:
+            interface.connect()
+            if sync:
+                interface.sync(show_progress=show_sync_progress)
+        return interface

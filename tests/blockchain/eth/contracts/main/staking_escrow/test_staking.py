@@ -307,9 +307,9 @@ def test_mining(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_slashing(testerchain, token, escrow_contract):
+def test_slashing(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(1500)
-    adjudicator, _ = testerchain.deploy_contract(
+    adjudicator, _ = deploy_contract(
         'AdjudicatorForStakingEscrowMock', escrow.address
     )
     tx = escrow.functions.setAdjudicator(adjudicator.address).transact()

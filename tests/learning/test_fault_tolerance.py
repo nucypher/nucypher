@@ -57,6 +57,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas):
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_invalid_workers_tolerance(testerchain,
+                                   test_registry,
                                    blockchain_ursulas,
                                    agency,
                                    idle_staker,
@@ -84,8 +85,7 @@ def test_invalid_workers_tolerance(testerchain,
     periods = token_economics.minimum_locked_periods
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     account=idle_staker.checksum_address)
+    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
 
     idle_staker.initialize_stake(amount=amount, lock_periods=periods)
 
@@ -107,8 +107,8 @@ def test_invalid_workers_tolerance(testerchain,
     # The worker is valid and can be verified (even with the force option)
     worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
     # In particular, we know that it's bonded to a staker who is really staking.
-    assert worker._worker_is_bonded_to_staker()
-    assert worker._staker_is_really_staking()
+    assert worker._worker_is_bonded_to_staker(registry=test_registry)
+    assert worker._staker_is_really_staking(registry=test_registry)
 
     # OK. Now we learn about this worker.
     lonely_blockchain_learner.remember_node(worker)
@@ -122,8 +122,7 @@ def test_invalid_workers_tolerance(testerchain,
     # She withdraws up to the last penny (well, last nunit, actually).
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                    account=idle_staker.checksum_address)
+    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
     idle_staker.mint()
     testerchain.time_travel(periods=1)
     i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)

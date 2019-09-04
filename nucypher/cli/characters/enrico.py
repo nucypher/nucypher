@@ -30,6 +30,15 @@ def enrico(click_config, action, options, policy_encrypting_key, dry_run, http_p
 
     """
 
+    \b
+    Actions
+    -------------------------------------------------
+    \b
+    run       Start Enrico's controller.
+    encrypt   Encrypt a message under a given policy public key
+
+    """
+
     # Banner
     emitter = click_config.emitter
     emitter.clear()

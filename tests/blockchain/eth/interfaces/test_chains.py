@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain as _TesterBlockchain
 from nucypher.utilities.sandbox.constants import (
@@ -36,7 +36,6 @@ def another_testerchain(solidity_compiler):
     testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True)
     testerchain.deployer_address = testerchain.etherbase_account
     yield testerchain
-    testerchain.disconnect()
 
 
 def test_testerchain_creation(testerchain, another_testerchain):

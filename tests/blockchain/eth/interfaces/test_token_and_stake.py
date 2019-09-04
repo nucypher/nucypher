@@ -100,6 +100,7 @@ def test_NU(token_economics):
 
 
 def test_stake(testerchain, agency):
+    token_agent, staking_agent, _policy_agent = agency
 
     class FakeUrsula:
         token_agent, staking_agent, _policy_agent = agency
@@ -113,10 +114,11 @@ def test_stake(testerchain, agency):
 
     ursula = FakeUrsula()
     stake = Stake(checksum_address=ursula.checksum_address,
-                  start_period=1,
-                  end_period=100,
+                  first_locked_period=1,
+                  final_locked_period=100,
                   value=NU(100, 'NU'),
-                  index=0)
+                  index=0,
+                  staking_agent=staking_agent)
 
     assert stake.value, 'NU' == NU(100, 'NU')
 
@@ -135,7 +137,7 @@ def test_stake_integration(stakers):
 
     blockchain_stakes = staker.staking_agent.get_all_stakes(staker_address=staker.checksum_address)
 
-    stake_info = (stake.start_period, stake.end_period, int(stake.value))
+    stake_info = (stake.first_locked_period, stake.final_locked_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]
     assert stake_info == published_stake_info
     assert stake_info == stake.to_stake_info()

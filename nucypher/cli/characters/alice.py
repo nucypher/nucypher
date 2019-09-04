@@ -3,6 +3,7 @@ from itertools import chain
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.characters.banners import ALICE_BANNER
 from nucypher.characters.control.specifications import AliceSpecification, CharacterSpecification
 from nucypher.cli import actions, painting, types
@@ -11,7 +12,6 @@ from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.types import NETWORK_PORT, EXISTING_READABLE_FILE, EIP55_CHECKSUM_ADDRESS
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.keyring import NucypherKeyring
-
 
 
 @click.command()
@@ -42,7 +42,7 @@ from nucypher.config.keyring import NucypherKeyring
 @click.option('--n', help="N-Total KFrags", type=click.INT)
 @click.option('--value', help="Total policy value (in Wei)", type=types.WEI)
 @click.option('--rate', help="Policy rate per period in wei", type=click.FLOAT)
-@click.option('--duration', help="Policy duration in periods", type=click.FLOAT)
+@click.option('--duration-periods', help="Policy duration in periods", type=click.FLOAT)
 @click.option('--expiration', help="Expiration Datetime of a policy", type=click.STRING)  # TODO: click.DateTime()
 @click.option('--message-kit', help="The message kit unicode string encoded in base64", type=click.STRING)
 @nucypher_click_config
@@ -84,7 +84,7 @@ def alice(click_config,
           n,
           value,
           rate,
-          duration,
+          duration_periods,
           expiration,
           message_kit,
 
@@ -153,15 +153,7 @@ def alice(click_config,
             config_root = click_config.config_file  # Envvar
 
         if not pay_with and not federated_only:
-            # Connect to Blockchain
-            fetch_registry = registry_filepath is None and not click_config.no_registry
-            registry = None
-            if registry_filepath:
-                registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            blockchain = BlockchainInterface(provider_uri=provider_uri, registry=registry, poa=poa)
-            blockchain.connect(fetch_registry=fetch_registry, sync_now=sync, emitter=emitter)
-
-            pay_with = select_client_account(emitter=emitter, blockchain=blockchain)
+            pay_with = select_client_account(emitter=emitter, provider_uri=provider_uri)
 
         download_registry = not federated_only and not click_config.no_registry
         new_alice_config = AliceConfiguration.generate(password=get_nucypher_password(confirm=True),
@@ -169,14 +161,13 @@ def alice(click_config,
                                                        checksum_address=pay_with,
                                                        domains={network} if network else None,
                                                        federated_only=federated_only,
-                                                       download_registry=download_registry,
                                                        registry_filepath=registry_filepath,
                                                        provider_process=ETH_NODE,
                                                        poa=poa,
                                                        provider_uri=provider_uri,
                                                        m=m,
                                                        n=n,
-                                                       duration=duration,
+                                                       duration_periods=duration_periods,
                                                        rate=rate)
 
         painting.paint_new_installation_help(emitter, new_configuration=new_alice_config)
@@ -210,7 +201,8 @@ def alice(click_config,
                 rest_port=discovery_port,
                 checksum_address=pay_with,
                 provider_process=ETH_NODE,
-                provider_uri=provider_uri)
+                provider_uri=provider_uri,
+                registry_filepath=registry_filepath)
         except FileNotFoundError:
             return actions.handle_missing_configuration_file(character_config_class=AliceConfiguration,
                                                              config_file=config_file)

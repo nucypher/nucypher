@@ -26,8 +26,8 @@ from umbral.signing import Signer
 
 
 @pytest.fixture()
-def deserializer(testerchain):
-    contract, _ = testerchain.deploy_contract('UmbralDeserializerMock')
+def deserializer(testerchain, deploy_contract):
+    contract, _ = deploy_contract('UmbralDeserializerMock')
     return contract
 
 

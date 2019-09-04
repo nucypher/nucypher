@@ -386,7 +386,7 @@ def test_evaluate_cfrag(testerchain,
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain):
+def test_upgrading(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
 
     secret_hash = keccak(secret)
@@ -394,19 +394,19 @@ def test_upgrading(testerchain):
 
     # Only escrow contract is allowed in Adjudicator constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        testerchain.deploy_contract('Adjudicator', creator, ALGORITHM_KECCAK256, 1, 2, 3, 4)
+        deploy_contract('Adjudicator', creator, ALGORITHM_KECCAK256, 1, 2, 3, 4)
 
     # Deploy contracts
-    escrow1, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
-    escrow2, _ = testerchain.deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow1, _ = deploy_contract('StakingEscrowForAdjudicatorMock')
+    escrow2, _ = deploy_contract('StakingEscrowForAdjudicatorMock')
     address1 = escrow1.address
     address2 = escrow2.address
-    contract_library_v1, _ = testerchain.deploy_contract(
+    contract_library_v1, _ = deploy_contract(
         'Adjudicator', address1, ALGORITHM_KECCAK256, 1, 2, 3, 4)
-    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.deploy_contract(
+    contract_library_v2, _ = deploy_contract(
         'AdjudicatorV2Mock', address2, ALGORITHM_SHA256, 5, 6, 7, 8)
     contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
@@ -444,7 +444,7 @@ def test_upgrading(testerchain):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.deploy_contract('AdjudicatorBad')
+    contract_library_bad, _ = deploy_contract('AdjudicatorBad')
     with pytest.raises(TransactionFailed):
         tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash) \
             .transact({'from': creator})

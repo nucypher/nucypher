@@ -24,17 +24,17 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.token import NU
 
 @pytest.fixture()
-def token(testerchain):
+def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = testerchain.deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
     return token
 
 
 @pytest.fixture()
-def escrow(testerchain, token):
+def escrow(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     # Creator deploys the escrow
-    contract, _ = testerchain.deploy_contract('StakingEscrowForUserEscrowMock', token.address)
+    contract, _ = deploy_contract('StakingEscrowForUserEscrowMock', token.address)
 
     # Give some coins to the escrow
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
@@ -44,33 +44,33 @@ def escrow(testerchain, token):
 
 
 @pytest.fixture()
-def policy_manager(testerchain):
-    contract, _ = testerchain.deploy_contract('PolicyManagerForUserEscrowMock')
+def policy_manager(testerchain, deploy_contract):
+    contract, _ = deploy_contract('PolicyManagerForUserEscrowMock')
     return contract
 
 
 @pytest.fixture()
-def proxy(testerchain, token, escrow, policy_manager):
+def proxy(testerchain, token, escrow, policy_manager, deploy_contract):
     # Creator deploys the user escrow proxy
-    contract, _ = testerchain.deploy_contract(
+    contract, _ = deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     return contract
 
 
 @pytest.fixture()
-def linker(testerchain, proxy):
+def linker(testerchain, proxy, deploy_contract):
     secret = os.urandom(32)
     secret_hash = keccak(secret)
-    linker, _ = testerchain.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
+    linker, _ = deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker
 
 
 @pytest.fixture()
-def user_escrow(testerchain, token, linker):
+def user_escrow(testerchain, token, linker, deploy_contract):
     creator = testerchain.client.accounts[0]
     user = testerchain.client.accounts[1]
 
-    contract, _ = testerchain.deploy_contract('UserEscrow', linker.address, token.address)
+    contract, _ = deploy_contract('UserEscrow', linker.address, token.address)
 
     # Transfer ownership
     tx = contract.functions.transferOwnership(user).transact({'from': creator})

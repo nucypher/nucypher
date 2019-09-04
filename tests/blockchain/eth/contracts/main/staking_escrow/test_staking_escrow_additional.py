@@ -22,6 +22,7 @@ from eth_utils import keccak
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.token import NU
 
 RE_STAKE_FIELD = 3
 LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
@@ -31,7 +32,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token):
+def test_upgrading(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
 
@@ -39,7 +40,7 @@ def test_upgrading(testerchain, token):
     secret2_hash = keccak(secret2)
 
     # Deploy contract
-    contract_library_v1, _ = testerchain.deploy_contract(
+    contract_library_v1, _ = deploy_contract(
         contract_name='StakingEscrow',
         _token=token.address,
         _hoursPerPeriod=1,
@@ -51,10 +52,10 @@ def test_upgrading(testerchain, token):
         _maxAllowableLockedTokens=1500,
         _minWorkerPeriods=1
     )
-    dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+    dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = testerchain.deploy_contract(
+    contract_library_v2, _ = deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -83,10 +84,15 @@ def test_upgrading(testerchain, token):
         testerchain.wait_for_receipt(tx)
 
     # Initialize contract and staker
-    policy_manager, _ = testerchain.deploy_contract(
+    policy_manager, _ = deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
+    testerchain.wait_for_receipt(tx)
+    worklock, _ = deploy_contract(
+        'WorkLockForStakingEscrowMock', contract.address
+    )
+    tx = contract.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
     tx = contract.functions.initialize().transact({'from': creator})
@@ -101,6 +107,8 @@ def test_upgrading(testerchain, token):
     tx = contract.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = worklock.functions.setWorkMeasurement(staker, True).transact()
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
@@ -117,7 +125,7 @@ def test_upgrading(testerchain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = testerchain.deploy_contract(
+    contract_library_bad, _ = deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
         _hoursPerPeriod=2,
@@ -337,7 +345,7 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
 
     # Prepares test case:
-    # two Ursula with the same sum of sub stakes and duration with two confirmed period in a past
+    # two Ursula with the stake value and duration, that have both confirmed two subsequent past periods
     sub_stake_1 = new_sub_stake
     sub_stake_2 = sub_stake_1 // 2
     stake = sub_stake_1 + sub_stake_2
@@ -445,7 +453,7 @@ def test_re_stake(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_worker(testerchain, token, escrow_contract):
+def test_worker(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(10000)
     creator, ursula1, ursula2, ursula3, worker1, worker2, worker3, *everyone_else = \
         testerchain.client.accounts
@@ -457,9 +465,9 @@ def test_worker(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
-    intermediary1, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary2, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
-    intermediary3, _ = testerchain.deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary1, _ = deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary2, _ = deploy_contract('Intermediary', token.address, escrow.address)
+    intermediary3, _ = deploy_contract('Intermediary', token.address, escrow.address)
 
     # Prepare stakers: two with intermediary contract and one just a staker
     sub_stake = 1000
@@ -525,11 +533,6 @@ def test_worker(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Worker can't be a staker
-    tx = token.functions.approve(escrow.address, sub_stake).transact()
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
-        testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(worker1, sub_stake).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -623,12 +626,10 @@ def test_worker(testerchain, token, escrow_contract):
     assert escrow.functions.getCurrentPeriod().call() == event_args['startPeriod']
 
     # The first worker is free and can deposit tokens and become a staker
-    tx = escrow.functions.preDeposit([worker1], [sub_stake], [duration]).transact()
-    testerchain.wait_for_receipt(tx)
     tx = token.functions.approveAndCall(escrow.address, sub_stake, testerchain.w3.toBytes(duration)) \
         .transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
-    assert 2 * sub_stake == escrow.functions.getAllTokens(worker1).call()
+    assert sub_stake == escrow.functions.getAllTokens(worker1).call()
     assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getStakerFromWorker(worker1).call()
     assert BlockchainInterface.NULL_ADDRESS == escrow.functions.getWorkerFromStaker(worker1).call()
 
@@ -692,3 +693,97 @@ def test_worker(testerchain, token, escrow_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = intermediary3.functions.confirmActivity().transact({'from': ursula3})
         testerchain.wait_for_receipt(tx)
+
+
+@pytest.mark.slow
+def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
+    escrow = escrow_contract(10000)
+    creator, ursula, *everyone_else = testerchain.w3.eth.accounts
+    work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
+
+    # Initialize escrow contract
+    tx = token.functions.transfer(escrow.address, int(NU(10 ** 9, 'NuNit'))).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Deploy WorkLock mock
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
+    tx = escrow.functions.setWorkLock(worklock.address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Prepare Ursula
+    stake = 1000
+    duration = 100
+    tx = token.functions.transfer(ursula, stake).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, stake).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(stake, duration).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWorker(ursula).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getCompletedWork(ursula).call() == 0
+
+    # Confirm activity and mint to check that work is not measured by default
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
+    tx = escrow.functions.mint().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(ursula).call() > stake
+    assert escrow.functions.getCompletedWork(ursula).call() == 0
+
+    # Start work measurement
+    stake = escrow.functions.getAllTokens(ursula).call()
+    tx = worklock.functions.setWorkMeasurement(ursula, True).transact()
+    testerchain.wait_for_receipt(tx)
+
+    events = work_measurement_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula == event_args['staker']
+    assert event_args['measureWork']
+
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
+    tx = escrow.functions.mint().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
+    assert reward > 0
+    assert escrow.functions.getCompletedWork(ursula).call() == reward
+
+    # Mint again and check work done
+    stake = escrow.functions.getAllTokens(ursula).call()
+    work_done = escrow.functions.getCompletedWork(ursula).call()
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
+    tx = escrow.functions.mint().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
+    assert reward > 0
+    assert escrow.functions.getCompletedWork(ursula).call() == work_done + reward
+
+    # Stop work measurement
+    stake = escrow.functions.getAllTokens(ursula).call()
+    work_done = escrow.functions.getCompletedWork(ursula).call()
+    tx = worklock.functions.setWorkMeasurement(ursula, False).transact()
+    testerchain.wait_for_receipt(tx)
+
+    events = work_measurement_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert ursula == event_args['staker']
+    assert not event_args['measureWork']
+
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
+    tx = escrow.functions.mint().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    reward = escrow.functions.getAllTokens(ursula).call() - stake
+    assert reward > 0
+    assert escrow.functions.getCompletedWork(ursula).call() == work_done
+

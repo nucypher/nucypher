@@ -14,7 +14,7 @@ class StdoutEmitter:
     transport_serializer = str
     default_color = 'white'
 
-    # sys.stdout.write() doesn't work well with click_runner's output capture
+    # sys.stdout.write() TODO: doesn't work well with click_runner's output capture
     default_sink_callable = print
 
     def __init__(self,

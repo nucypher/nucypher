@@ -6,6 +6,7 @@ import eth_utils
 import math
 import maya
 import time
+from decimal import Decimal
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
 from flask import Flask, render_template, Response
@@ -21,8 +22,9 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
@@ -132,15 +134,16 @@ class Felix(Character, NucypherTokenActor):
     TEMPLATE_NAME = 'felix.html'
 
     # Intervals
-    DISTRIBUTION_INTERVAL = 60*60   # seconds (60*60=1Hr)
-    DISBURSEMENT_INTERVAL = 24      # (24) hours
-    STAGING_DELAY = 10              # seconds
+    DISTRIBUTION_INTERVAL = 60  # seconds
+    DISBURSEMENT_INTERVAL = 24 * 365  # only distribute tokens to the same address once each YEAR.
+    STAGING_DELAY = 10        # seconds
 
     # Disbursement
     BATCH_SIZE = 10                 # transactions
-    MULTIPLIER = 0.95               # 5% reduction of previous stake is 0.95, for example
-    MINIMUM_DISBURSEMENT = 1e18     # NuNits
-    ETHER_AIRDROP_AMOUNT = int(2e18)  # Wei
+    MULTIPLIER = Decimal('0.9')     # 10% reduction of previous disbursement is 0.9
+                                    # this is not relevant until the year of time declared above, passes.
+    MINIMUM_DISBURSEMENT = int(1e18)     # NuNits (1 NU)
+    ETHER_AIRDROP_AMOUNT = int(1e17)     # Wei (.1 ether)
 
     # Node Discovery
     LEARNING_TIMEOUT = 30           # seconds
@@ -163,10 +166,11 @@ class Felix(Character, NucypherTokenActor):
                  crash_on_error: bool = False,
                  economics: TokenEconomics = None,
                  distribute_ether: bool = True,
+                 registry: BaseContractRegistry = None,
                  *args, **kwargs):
 
         # Character
-        super().__init__(*args, **kwargs)
+        super().__init__(registry=registry, *args, **kwargs)
         self.log = Logger(f"felix-{self.checksum_address[-6::]}")
 
         # Network
@@ -181,16 +185,16 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(blockchain=self.blockchain,
-                                             password=client_password,
+        transacting_power = TransactingPower(password=client_password,
                                              account=self.checksum_address)
         self._crypto_power.consume_power_up(transacting_power)
 
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        self.blockchain = self.token_agent.blockchain
         self.reserved_addresses = [self.checksum_address, BlockchainInterface.NULL_ADDRESS]
 
         # Update reserved addresses with deployed contracts
-        existing_entries = list(self.blockchain.registry.enrolled_addresses)
+        existing_entries = list(registry.enrolled_addresses)
         self.reserved_addresses.extend(existing_entries)
 
         # Distribution
@@ -206,11 +210,10 @@ class Felix(Character, NucypherTokenActor):
         self.economics = economics
 
         self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked
-        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked
+        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked * 3
 
         # Optionally send ether with each token transaction
         self.distribute_ether = distribute_ether
-
         # Banner
         self.log.info(FELIX_BANNER.format(self.checksum_address))
 
@@ -263,27 +266,59 @@ class Felix(Character, NucypherTokenActor):
         #
         # REST Routes
         #
+        @rest_app.route("/status", methods=['GET'])
+        def status():
+            with ThreadedSession(self.db_engine) as session:
+                total_recipients = session.query(self.Recipient).count()
+                last_recipient = session.query(self.Recipient).filter(
+                    self.Recipient.last_disbursement_time.isnot(None)
+                ).order_by('last_disbursement_time').first()
+
+                last_address = last_recipient.address if last_recipient else None
+                last_transaction_date = last_recipient.last_disbursement_time.isoformat() if last_recipient else None
+
+                unfunded = session.query(self.Recipient).filter(
+                    self.Recipient.last_disbursement_time.is_(None)).count()
+
+                return json.dumps(
+                        {
+                            "total_recipients": total_recipients,
+                            "latest_recipient": last_address,
+                            "latest_disburse_date": last_transaction_date,
+                            "unfunded_recipients": unfunded,
+                            "state": {
+                                "eth": str(self.eth_balance),
+                                "NU": str(self.token_balance),
+                                "address": self.checksum_address,
+                                "contract_address": self.token_agent.contract_address,
+                            }
+                        }
+                    )
 
         @rest_app.route("/", methods=['GET'])
-        @limiter.limit("100/day;20/hour;1/minute")
         def home():
             rendering = render_template(self.TEMPLATE_NAME)
             return rendering
 
         @rest_app.route("/register", methods=['POST'])
-        @limiter.limit("5 per day")
         def register():
             """Handle new recipient registration via POST request."""
-            try:
-                new_address = request.form['address']
-            except KeyError:
-                return Response(status=400)  # TODO
 
-            if not eth_utils.is_checksum_address(new_address):
-                return Response(status=400)  # TODO
+            new_address = (
+                request.form.get('address') or
+                request.get_json().get('address')
+            )
+
+            if not new_address:
+                return Response(response="no address was supplied", status=411)
+
+            if not eth_utils.is_address(new_address):
+                return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
+            else:
+                new_address = eth_utils.to_checksum_address(new_address)
 
             if new_address in self.reserved_addresses:
-                return Response(status=400)  # TODO
+                return Response(response="sorry, that address is reserved and cannot receive funds.", status=403)
 
             try:
                 with ThreadedSession(self.db_engine) as session:
@@ -292,7 +327,7 @@ class Felix(Character, NucypherTokenActor):
                     if existing:
                         # Address already exists; Abort
                         self.log.debug(f"{new_address} is already enrolled.")
-                        return Response(status=400)
+                        return Response(response="That address is already enrolled.", status=409)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
@@ -371,7 +406,6 @@ class Felix(Character, NucypherTokenActor):
 
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
-
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
@@ -382,17 +416,17 @@ class Felix(Character, NucypherTokenActor):
             transaction = {'to': recipient_address,
                            'from': self.checksum_address,
                            'value': ether,
-                           'gasPrice': self.blockchain.client.gasPrice}
+                           'gasPrice': self.blockchain.client.gas_price}
             ether_txhash = self.blockchain.client.send_transaction(transaction)
 
-            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:6]} "
+            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:-6]} "
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
 
         else:
             self.log.info(
                 f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
                 f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
-
+                
         return txhash
 
     def airdrop_tokens(self):
@@ -502,4 +536,3 @@ class Felix(Character, NucypherTokenActor):
 
         del self._AIRDROP_QUEUE[self.__airdrop]
         self.__airdrop += 1
-

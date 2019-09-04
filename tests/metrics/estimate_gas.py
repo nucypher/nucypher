@@ -34,8 +34,10 @@ from zope.interface import provider
 
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.policy.models import Policy
+from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 # FIXME: Needed to use a fixture here, but now estimate_gas.py only runs if executed from main directory
@@ -153,7 +155,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    testerchain = TesterBlockchain.bootstrap_network()
+    testerchain, registry = TesterBlockchain.bootstrap_network()
     web3 = testerchain.w3
 
     # Accounts
@@ -162,10 +164,10 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     ursula_with_stamp = mock_ursula(testerchain, ursula1)
 
     # Contracts
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
-    staking_agent = StakingEscrowAgent(blockchain=testerchain)
-    policy_agent = PolicyManagerAgent(blockchain=testerchain)
-    adjudicator_agent = AdjudicatorAgent(blockchain=testerchain)
+    token_agent = NucypherTokenAgent(registry=registry)
+    staking_agent = StakingEscrowAgent(registry=registry)
+    policy_agent = PolicyManagerAgent(registry=registry)
+    adjudicator_agent = AdjudicatorAgent(registry=registry)
 
     # Contract Callers
     token_functions = token_agent.contract.functions
@@ -175,16 +177,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     analyzer.start_collection()
     print("********* Estimating Gas *********")
-
-    #
-    # Pre deposit tokens
-    #
-    tx = token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
-    testerchain.wait_for_receipt(tx)
-    log.info("Pre-deposit tokens for 5 owners = " + str(staker_functions.preDeposit(everyone_else[0:5],
-                                                                                   [MIN_ALLOWED_LOCKED] * 5,
-                                                                                   [MIN_LOCKED_PERIODS] * 5)
-                                                        .estimateGas({'from': origin})))
 
     #
     # Give Ursula and Alice some coins

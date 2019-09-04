@@ -29,7 +29,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.policy.models import Revocation
+from nucypher.policy.collections import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
@@ -48,7 +48,7 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
                                     label=label,
                                     m=2,
                                     n=n,
-                                    value=int(1e18),  # one ether
+                                    rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
     # Check the policy ID

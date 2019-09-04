@@ -25,18 +25,18 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
-def escrow(testerchain):
+def escrow(testerchain, deploy_contract):
     # Creator deploys the escrow
-    escrow, _ = testerchain.deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
     return escrow
 
 
 @pytest.fixture(params=[False, True])
-def policy_manager(testerchain, escrow, request):
+def policy_manager(testerchain, escrow, request, deploy_contract):
     creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
 
     # Creator deploys the policy manager
-    contract, _ = testerchain.deploy_contract('PolicyManager', escrow.address)
+    contract, _ = deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
     tx = testerchain.client.send_transaction(
@@ -45,7 +45,7 @@ def policy_manager(testerchain, escrow, request):
 
     if request.param:
         secret_hash = keccak(secret)
-        dispatcher, _ = testerchain.deploy_contract('Dispatcher', contract.address, secret_hash)
+        dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
         contract = testerchain.client.get_contract(

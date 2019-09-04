@@ -26,7 +26,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
@@ -209,7 +209,7 @@ def paint_staged_stake(emitter,
                        stakeholder,
                        staking_address,
                        stake_value,
-                       duration,
+                       lock_periods,
                        start_period,
                        end_period,
                        division_message: str = None):
@@ -222,12 +222,14 @@ def paint_staged_stake(emitter,
 
     emitter.echo(f"""
 Staking address: {staking_address}
-~ Chain      -> ID # {stakeholder.blockchain.client.chain_id} | {stakeholder.blockchain.client.chain_name}
+~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
-~ Duration   -> {duration} Days ({duration} Periods)
+~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
 ~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
     """)
+
+    # TODO: periods != Days - Do we inform the user here?
 
     emitter.echo('=========================================================================', bold=True)
 
@@ -246,15 +248,14 @@ or set your Ursula worker node address by running 'nucypher stake set-worker'.
 
 
 def prettify_stake(stake, index: int = None) -> str:
-
     start_datetime = stake.start_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
-    expiration_datetime = stake.end_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
+    expiration_datetime = stake.unlock_datetime.local_datetime().strftime("%b %d %H:%M:%S %Z")
     duration = stake.duration
 
     pretty_periods = f'{duration} periods {"." if len(str(duration)) == 2 else ""}'
 
     pretty = f'| {index if index is not None else "-"} ' \
-             f'| {stake.owner_address[:6]} ' \
+             f'| {stake.staker_address[:6]} ' \
              f'| {stake.worker_address[:6]} ' \
              f'| {stake.index} ' \
              f'| {str(stake.value)} ' \
@@ -288,7 +289,7 @@ def paint_staged_stake_division(emitter,
                                 extension):
 
     new_end_period = original_stake.end_period + extension
-    new_duration = new_end_period - original_stake.start_period
+    new_duration_periods = new_end_period - original_stake.start_period
     staking_address = original_stake.owner_address
 
     division_message = f"""
@@ -300,7 +301,7 @@ Staking address: {staking_address}
                        stakeholder=stakeholder,
                        staking_address=staking_address,
                        stake_value=target_value,
-                       duration=new_duration,
+                       lock_periods=new_duration_periods,
                        start_period=original_stake.start_period,
                        end_period=new_end_period,
                        division_message=division_message)
@@ -363,17 +364,17 @@ def paint_contract_deployment(emitter,
             webbrowser.open_new_tab(url)
 
 
-def paint_staged_deployment(emitter, deployer) -> None:
+def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.clear()
     emitter.banner(NU_BANNER)
     emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
-    emitter.echo(f"Web3 Provider ....... {deployer.blockchain.provider_uri}")
-    emitter.echo(f"Block ............... {deployer.blockchain.client.block_number}")
-    emitter.echo(f"Gas Price ........... {deployer.blockchain.client.gas_price}")
-    emitter.echo(f"Deployer Address .... {deployer.checksum_address}")
-    emitter.echo(f"ETH ................. {deployer.eth_balance}")
-    emitter.echo(f"Chain ID ............ {deployer.blockchain.client.chain_id}")
-    emitter.echo(f"Chain Name .......... {deployer.blockchain.client.chain_name}")
+    emitter.echo(f"Web3 Provider ....... {deployer_interface.provider_uri}")
+    emitter.echo(f"Block ............... {deployer_interface.client.block_number}")
+    emitter.echo(f"Gas Price ........... {deployer_interface.client.gas_price}")
+    emitter.echo(f"Deployer Address .... {administrator.checksum_address}")
+    emitter.echo(f"ETH ................. {administrator.eth_balance}")
+    emitter.echo(f"Chain ID ............ {deployer_interface.client.chain_id}")
+    emitter.echo(f"Chain Name .......... {deployer_interface.client.chain_name}")
 
     # Ask - Last chance to gracefully abort. This step cannot be forced.
     emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')

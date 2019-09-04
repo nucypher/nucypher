@@ -47,7 +47,8 @@ def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,
                              token_economics,
-                             slashing_economics):
+                             slashing_economics,
+                             test_registry):
 
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
@@ -59,8 +60,7 @@ def test_adjudicator_slashes(agency,
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
 
@@ -70,13 +70,12 @@ def test_adjudicator_slashes(agency,
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=staker_account)
     testerchain.transacting_power.activate()
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
-    staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
+    staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
     staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
                             lock_periods=token_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
@@ -92,9 +91,9 @@ def test_adjudicator_slashes(agency,
 
     ###### END OF STAKING ESCROW STUFF ####
 
-    adjudicator_agent = AdjudicatorAgent()
+    adjudicator_agent = AdjudicatorAgent(registry=test_registry)
     bob_account = testerchain.bob_account
-    bobby = NucypherTokenActor(blockchain=testerchain, checksum_address=bob_account)
+    bobby = NucypherTokenActor(checksum_address=bob_account, registry=test_registry)
     ursula = mock_ursula(testerchain, worker_account)
 
     # Let's create a bad cfrag
@@ -104,8 +103,7 @@ def test_adjudicator_slashes(agency,
     bobby_old_balance = bobby.token_balance
 
     # Mock Powerup consumption (Bob)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=bob_account)
     testerchain.transacting_power.activate()
 

@@ -26,12 +26,12 @@ from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_IP_ADDRES
 
 
 @pytest.mark.slow()
-def test_seeder(testerchain):
+def test_seeder(testerchain, deploy_contract):
     origin, seed_address, another_seed_address, *everyone_else = testerchain.client.accounts
     seed = (MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT)
     another_seed = (MOCK_IP_ADDRESS_2, MOCK_URSULA_STARTING_PORT + 1)
 
-    contract, _txhash = testerchain.deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
+    contract, _txhash = deploy_contract('Seeder', MAX_TEST_SEEDER_ENTRIES)
 
     assert contract.functions.getSeedArrayLength().call() == MAX_TEST_SEEDER_ENTRIES
     assert contract.functions.owner().call() == origin

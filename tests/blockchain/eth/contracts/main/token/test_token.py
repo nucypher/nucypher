@@ -21,7 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.mark.slow()
-def test_create_token(testerchain, token_economics):
+def test_create_token(testerchain, token_economics, deploy_contract):
     """
     These are tests for standard tokens taken from Consensys github:
     https://github.com/ConsenSys/Tokens/
@@ -35,7 +35,7 @@ def test_create_token(testerchain, token_economics):
     assert creator == testerchain.client.coinbase
 
     # Create an ERC20 token
-    token, txhash = testerchain.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    token, txhash = deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
     assert txhash is not None
 
     # Account balances
@@ -70,13 +70,13 @@ def test_create_token(testerchain, token_economics):
 
 
 @pytest.mark.slow()
-def test_approve_and_call(testerchain, token_economics):
+def test_approve_and_call(testerchain, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     account1 = testerchain.client.accounts[1]
     account2 = testerchain.client.accounts[2]
 
-    token, _ = testerchain.deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
-    mock, _ = testerchain.deploy_contract('ReceiveApprovalMethodMock')
+    token, _ = deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    mock, _ = deploy_contract('ReceiveApprovalMethodMock')
 
     # Approve some value and check allowance
     tx = token.functions.approve(account1, 100).transact({'from': creator})

@@ -79,7 +79,6 @@ class Web3Client:
     class SyncTimeout(RuntimeError):
         pass
 
-
     def __init__(self,
                  w3,
                  node_technology: str,
@@ -160,13 +159,15 @@ class Web3Client:
     def syncing(self) -> Union[bool, dict]:
         return self.w3.eth.syncing
 
-    def lock_account(self, address):
-        if not self.is_local:
-            return self.lock_account(address=address)
+    def lock_account(self, address) -> bool:
+        if self.is_local:
+            return True
+        return NotImplemented
 
-    def unlock_account(self, address, password) -> bool:
-        if not self.is_local:
-            return self.unlock_account(address, password)
+    def unlock_account(self, address, password, duration=None) -> bool:
+        if self.is_local:
+            return True
+        return NotImplemented
 
     @property
     def is_connected(self):
@@ -188,10 +189,7 @@ class Web3Client:
 
     @property
     def chain_id(self) -> int:
-        try:
-            return int(self.w3.eth.chainId, 16)
-        except TypeError:
-            return int(self.w3.eth.chainId)
+        return int(self.w3.eth.chainId, 16)
 
     @property
     def net_version(self) -> int:
@@ -310,16 +308,19 @@ class GethClient(Web3Client):
         new_account = self.w3.geth.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address, password):
+    def unlock_account(self, address: str, password: str, duration: int = None):
         if self.is_local:
             # TODO: Is there a more formalized check here for geth --dev mode?
             # Geth --dev accounts are unlocked by default.
             return True
         debug_message = f"Unlocking account {address}"
         if password is None:
-            debug_message += " without a password."
+            debug_message += " with no password."
         self.log.debug(debug_message)
-        return self.w3.geth.personal.unlockAccount(address, password)
+        return self.w3.geth.personal.unlockAccount(address, password, duration)
+
+    def lock_account(self, address):
+        return self.w3.geth.personal.lockAccount(address)
 
     def sign_transaction(self, transaction: dict) -> bytes:
 
@@ -348,15 +349,29 @@ class ParityClient(Web3Client):
         new_account = self.w3.parity.personal.newAccount(password)
         return to_checksum_address(new_account)  # cast and validate
 
-    def unlock_account(self, address, password) -> bool:
-        return self.w3.parity.unlockAccount.unlockAccount(address, password)
+    def unlock_account(self, address, password, duration: int = None) -> bool:
+        return self.w3.parity.unlockAccount.unlockAccount(address, password, duration)
+
+    def lock_account(self, address):
+        return self.w3.parity.personal.lockAccount(address)
 
 
 class GanacheClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password) -> bool:
+    def unlock_account(self, *args, **kwargs) -> bool:
+        return True
+
+    def sync(self, *args, **kwargs) -> bool:
+        return True
+
+
+class InfuraClient(Web3Client):
+
+    is_local = False
+
+    def unlock_account(self, *args, **kwargs) -> bool:
         return True
 
     def sync(self, *args, **kwargs) -> bool:
@@ -378,14 +393,25 @@ class EthereumTesterClient(Web3Client):
 
     is_local = True
 
-    def unlock_account(self, address, password) -> bool:
+    def unlock_account(self, address, password, duration: int = None) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""
         address = to_canonical_address(address)
         keystore = self.w3.provider.ethereum_tester.backend._key_lookup
         if address in keystore:
             return True
         else:
-            return self.w3.provider.ethereum_tester.unlock_account(account=address, password=password)
+            return self.w3.provider.ethereum_tester.unlock_account(account=address,
+                                                                   password=password,
+                                                                   unlock_seconds=duration)
+
+    def lock_account(self, address) -> bool:
+        """Returns True if the testing backend keyring has control of the given address."""
+        address = to_canonical_address(address)
+        keystore = self.w3.provider.ethereum_tester.backend._key_lookup
+        if address in keystore:
+            return True
+        else:
+            return self.w3.provider.ethereum_tester.lock_account(account=address)
 
     def sync(self, *args, **kwargs):
         return True

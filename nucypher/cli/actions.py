@@ -32,8 +32,12 @@ from constant_sorrow.constants import (
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.characters.control.specifications import CharacterSpecification
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -105,7 +109,7 @@ def load_seednodes(emitter,
                    network_domains: set,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None,
-                   blockchain=None,
+                   registry: BaseContractRegistry = None,
                    ) -> List[Ursula]:
 
     # Set domains
@@ -134,7 +138,7 @@ def load_seednodes(emitter,
                                                    min_stake=min_stake,
                                                    federated_only=federated_only,
                                                    network_middleware=network_middleware,
-                                                   blockchain=blockchain)
+                                                   registry=registry)
             teacher_nodes.append(teacher_node)
 
     if not teacher_nodes:
@@ -199,7 +203,7 @@ def forget(emitter, configuration):
     emitter.message(message, color='red')
 
 
-def confirm_staged_stake(staker_address, value, duration) -> None:
+def confirm_staged_stake(staker_address, value, lock_periods) -> None:
     click.confirm(f"""
 * Ursula Node Operator Notice *
 -------------------------------
@@ -210,7 +214,7 @@ By agreeing to stake {str(value)} ({str(value.to_nunits())} NuNits):
 
 - You are obligated to maintain a networked and available Ursula-Worker node 
   bonded to the staker address {staker_address} for the duration 
-  of the stake(s) ({duration} periods).
+  of the stake(s) ({lock_periods} periods).
 
 - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
   work orders at-will without interference.
@@ -262,11 +266,6 @@ def make_cli_character(character_config,
     # Pre-Init
     #
 
-    # Handle Blockchain
-    if not character_config.federated_only:
-        character_config.get_blockchain_interface()
-        character_config.blockchain.connect(fetch_registry=False)
-
     # Handle Keyring
 
     if not dev:
@@ -282,7 +281,7 @@ def make_cli_character(character_config,
                                    federated_only=character_config.federated_only,
                                    network_domains=character_config.domains,
                                    network_middleware=character_config.network_middleware,
-                                   blockchain=character_config.blockchain)
+                                   registry=character_config.registry)
 
     #
     # Character Init
@@ -310,31 +309,66 @@ def make_cli_character(character_config,
 
 
 def select_stake(stakeholder, emitter) -> Stake:
-    enumerated_stakes = dict(enumerate(stakeholder.stakes))
-    painting.paint_stakes(stakes=stakeholder.stakes, emitter=emitter)
+    stakes = stakeholder.all_stakes
+    enumerated_stakes = dict(enumerate(stakes))
+    painting.paint_stakes(stakes=stakes, emitter=emitter)
     choice = click.prompt("Select Stake", type=click.IntRange(min=0, max=len(enumerated_stakes)-1))
     chosen_stake = enumerated_stakes[choice]
     return chosen_stake
 
 
-def select_client_account(emitter, blockchain, prompt: str = None, default=0) -> str:
+def select_client_account(emitter,
+                          provider_uri: str,
+                          prompt: str = None,
+                          default: int = 0,
+                          registry=None,
+                          show_balances: bool = True
+                          ) -> str:
+    """
+    Note: Setting show_balances to True, causes an eager contract and blockchain connection.
+    """
+
+    if not provider_uri:
+        raise ValueError("Provider URI must be provided to select a wallet account.")
+
+    # Lazy connect the blockchain interface
+    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+
+    # Lazy connect to contracts
+    token_agent = None
+    if show_balances:
+        if not registry:
+            registry = InMemoryContractRegistry.from_latest_publication()
+        token_agent = NucypherTokenAgent(registry=registry)
+
+    # Real wallet accounts
     enumerated_accounts = dict(enumerate(blockchain.client.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo("No ETH accounts were found.", color='red', bold=True)
         raise click.Abort()
+
+    # Display account info
     for index, account in enumerated_accounts.items():
-        emitter.echo(f"{index} | {account}")
+        message = f"{index} | {account} "
+        if show_balances:
+            message += f" | {NU.from_nunits(token_agent.get_balance(address=account))}"
+        emitter.echo(message)
+
+    # Prompt the user for selection, and return
     prompt = prompt or "Select Account"
-    choice = click.prompt(prompt, type=click.IntRange(min=0, max=len(enumerated_accounts)-1), default=default)
+    account_range = click.IntRange(min=0, max=len(enumerated_accounts)-1)
+    choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
     return chosen_account
 
 
-def confirm_deployment(emitter, deployer) -> bool:
-    if deployer.blockchain.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer.blockchain.client.is_local:
+def confirm_deployment(emitter, deployer_interface) -> bool:
+    if deployer_interface.client.chain_name == UNKNOWN_DEVELOPMENT_CHAIN_ID or deployer_interface.client.is_local:
         expected_chain_name = 'DEPLOY'
     else:
-        expected_chain_name = deployer.blockchain.client.chain_name
+        expected_chain_name = deployer_interface.client.chain_name
 
     if click.prompt(f"Type '{expected_chain_name}' to continue") != expected_chain_name:
         emitter.echo("Aborting Deployment", color='red', bold=True)

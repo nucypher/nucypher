@@ -41,12 +41,13 @@ def mock_ursula(testerchain, account):
 
 
 @pytest.mark.slow()
-def test_investigator_requests_slashing(session_testerchain,
+def test_investigator_requests_slashing(testerchain,
+                                        test_registry,
                                         session_agency,
                                         mock_ursula_reencrypts,
                                         token_economics,
                                         slashing_economics):
-    testerchain = session_testerchain
+    testerchain = testerchain
 
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
@@ -58,7 +59,7 @@ def test_investigator_requests_slashing(session_testerchain,
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
     # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=testerchain.etherbase_account)
+    testerchain.transacting_power = TransactingPower(account=testerchain.etherbase_account)
     testerchain.transacting_power.activate()
 
     # The staker receives an initial amount of tokens
@@ -67,11 +68,11 @@ def test_investigator_requests_slashing(session_testerchain,
                                    sender_address=testerchain.etherbase_account)
 
     # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=staker_account)
+    testerchain.transacting_power = TransactingPower(account=staker_account)
     testerchain.transacting_power.activate()
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
-    staker = Staker(checksum_address=staker_account, is_me=True, blockchain=testerchain)
+    staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
     staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
                             lock_periods=token_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
@@ -89,7 +90,7 @@ def test_investigator_requests_slashing(session_testerchain,
 
     bob_account = testerchain.bob_account
 
-    investigator = Investigator(blockchain=testerchain, checksum_address=bob_account)
+    investigator = Investigator(registry=test_registry, checksum_address=bob_account)
     ursula = mock_ursula(testerchain, worker_account)
 
     # Let's create a bad cfrag
@@ -99,7 +100,7 @@ def test_investigator_requests_slashing(session_testerchain,
     bobby_old_balance = investigator.token_balance
 
     # Mock Powerup consumption (Bob)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain, account=bob_account)
+    testerchain.transacting_power = TransactingPower(account=bob_account)
     testerchain.transacting_power.activate()
 
     investigator.request_evaluation(evidence=evidence)

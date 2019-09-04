@@ -31,15 +31,13 @@ from constant_sorrow.constants import (
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import FleetStateTracker
 
 
 class CharacterConfiguration(BaseConfiguration):
@@ -49,7 +47,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
-    DEFAULT_PROVIDER_URI = 'http://localhost:8545'
     DEFAULT_DOMAIN = 'goerli'
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
@@ -91,16 +88,17 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Blockchain
                  poa: bool = False,
+                 sync: bool = False,
                  provider_uri: str = None,
-                 provider_process = None,
+                 provider_process=None,
 
                  # Registry
+                 registry: BaseContractRegistry = None,
                  registry_filepath: str = None,
-                 download_registry: bool = True
-
-                 ) -> None:
+                 ):
 
         self.log = Logger(self.__class__.__name__)
+        UNINITIALIZED_CONFIGURATION.bool_value(False)
 
         # Identity
         # NOTE: NodeConfigurations can only be used with Self-Characters
@@ -135,17 +133,19 @@ class CharacterConfiguration(BaseConfiguration):
             download_registry = False
 
         # Contract Registry
-        self.download_registry = download_registry
+        if registry and registry_filepath:
+            if registry.filepath != registry_filepath:
+                error = f"Inconsistent registry filepaths for '{registry.filepath}' and '{registry_filepath}'."
+                raise ValueError(error)
+            else:
+                self.log.warn(f"Registry and registry filepath were both passed.")
+        self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
         self.poa = poa
-        self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
+        self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
-        self.blockchain = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-        self.token_agent = NO_BLOCKCHAIN_CONNECTION
-        self.staking_agent = NO_BLOCKCHAIN_CONNECTION
-        self.policy_agent = NO_BLOCKCHAIN_CONNECTION
 
         # Learner
         self.federated_only = federated_only
@@ -155,13 +155,64 @@ class CharacterConfiguration(BaseConfiguration):
         self.start_learning_now = start_learning_now
         self.save_metadata = save_metadata
         self.reload_metadata = reload_metadata
-        self.__known_nodes = known_nodes or set()  # handpicked
-        self.__fleet_state = FleetStateTracker()
+        self.known_nodes = known_nodes or set()  # handpicked
 
         # Configuration
         self.__dev_mode = dev_mode
         self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
+
+        #
+        # Federated vs. Blockchain arguments consistency
+        #
+
+        #
+        # Federated
+        #
+
+        if self.federated_only:
+            # Check for incompatible values
+            blockchain_args = {'filepath': registry_filepath,
+                               'poa': poa,
+                               'provider_process': provider_process,
+                               'provider_uri': provider_uri}
+            if any(blockchain_args.values()):
+                bad_args = (f"{arg}={val}" for arg, val in blockchain_args.items() if val)
+                self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
+                              f"Overridden with a sane default.")
+
+                # Clear decentralized attributes to ensure consistency with a
+                # federated configuration.
+                self.poa = False
+                self.provider_uri = None
+                self.provider_process = None
+                self.registry_filepath = None
+
+        #
+        # Decentralized
+        #
+
+        else:
+            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
+            if not is_initialized and provider_uri:
+                from nucypher.cli.config import NucypherClickConfig  # TODO: Need a better place for global verbosity, non-local to the CLI.
+
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
+                                                                poa=self.poa,
+                                                                provider_process=self.provider_process,
+                                                                sync=sync,
+                                                                show_sync_progress=NucypherClickConfig.verbosity)
+            else:
+                self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
+
+            if not self.registry:
+                # TODO: These two code blocks are untested.
+                if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
+                    self.log.info(f"Fetching latest registry from source.")
+                    self.registry = InMemoryContractRegistry.from_latest_publication()
+                else:
+                    self.registry = LocalContractRegistry(filepath=self.registry_filepath)
+                    self.log.info(f"Using local registry ({self.registry}).")
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -177,6 +228,18 @@ class CharacterConfiguration(BaseConfiguration):
 
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
+
+    def update(self, update_dict: dict) -> None:
+        """
+        A facility for updating existing attributes on existing configuration instances.
+
+        Warning: This method allows mutation and may result in an inconsistent configuration.
+        """
+        for field, attr in update_dict.items():
+            if not hasattr(self, field):
+                raise AttributeError(f"Only existing fields can be updated.  Got '{field}'.")
+            else:
+                setattr(self, field, attr)
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):
@@ -194,48 +257,14 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def get_blockchain_interface(self) -> None:
-        if self.federated_only:
-            raise CharacterConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
-
-        registry = None
-        if self.registry_filepath:
-            registry = EthereumContractRegistry(registry_filepath=self.registry_filepath)
-
-        self.blockchain = BlockchainInterface(provider_uri=self.provider_uri,
-                                              poa=self.poa,
-                                              registry=registry,
-                                              provider_process=self.provider_process)
-
-    def acquire_agency(self) -> None:
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-        self.policy_agent = PolicyManagerAgent(blockchain=self.blockchain)
-        self.log.debug("Established connection to nucypher contracts")
-
-    @property
-    def known_nodes(self) -> FleetStateTracker:
-        return self.__fleet_state
-
     def __setup_node_storage(self, node_storage=None) -> None:
         if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(blockchain=self.blockchain,
-                                                federated_only=self.federated_only)
+            node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
         elif not node_storage:
-            node_storage = LocalFileBasedNodeStorage(blockchain=self.blockchain,
-                                                     federated_only=self.federated_only,
-                                                     config_root=self.config_root)
+            node_storage = LocalFileBasedNodeStorage(registry=self.registry,
+                                                     config_root=self.config_root,
+                                                     federated_only=self.federated_only)
         self.node_storage = node_storage
-
-    def read_known_nodes(self, additional_nodes=None) -> None:
-        known_nodes = self.node_storage.all(federated_only=self.federated_only)
-        known_nodes = {node.checksum_address: node for node in known_nodes}
-        if additional_nodes:
-            known_nodes.update({node.checksum_address: node for node in additional_nodes})
-        if self.__known_nodes:
-            known_nodes.update({node.checksum_address: node for node in self.__known_nodes})
-        self.__fleet_state._nodes.update(known_nodes)
-        self.__fleet_state.record_fleet_state(additional_nodes_to_track=self.__known_nodes)
 
     def forget_nodes(self) -> None:
         self.node_storage.clear()
@@ -249,8 +278,11 @@ class CharacterConfiguration(BaseConfiguration):
         os.remove(self.config_file_location)
 
     def generate_parameters(self, **overrides) -> dict:
+        """
+        Warning: This method allows mutation and may result in an inconsistent configuration.
+        """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
-        non_init_params = ('config_root', 'poa', 'provider_uri')
+        non_init_params = ('config_root', 'poa', 'provider_uri', 'registry_filepath')
         character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
         return dict(character_init_params)
 
@@ -262,6 +294,9 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def assemble(cls, filepath: str = None, **overrides) -> dict:
+        """
+        Warning: This method allows mutation and may result in an inconsistent configuration.
+        """
 
         payload = cls._read_configuration_file(filepath=filepath)
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
@@ -277,7 +312,11 @@ class CharacterConfiguration(BaseConfiguration):
         return payload
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, provider_process=None, **overrides) -> 'CharacterConfiguration':
+    def from_configuration_file(cls,
+                                filepath: str = None,
+                                provider_process=None,
+                                **overrides  # < ---- Inlet for CLI Flags
+                                ) -> 'CharacterConfiguration':
         """Initialize a CharacterConfiguration from a JSON file."""
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
@@ -288,7 +327,7 @@ class CharacterConfiguration(BaseConfiguration):
             raise cls.ConfigurationError(f"Your configuration file may be out of date: {e}")
         return node_configuration
 
-    def validate(self, no_registry: bool = False) -> bool:
+    def validate(self) -> bool:
 
         # Top-level
         if not os.path.exists(self.config_root):
@@ -296,11 +335,8 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Sub-paths
         filepaths = self.runtime_filepaths
-        if no_registry:
-            del filepaths['registry_filepath']
-
         for field, path in filepaths.items():
-            if not os.path.exists(path):
+            if path and not os.path.exists(path):
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
                     message += ' Did you mean to pass --federated-only?'
@@ -319,7 +355,6 @@ class CharacterConfiguration(BaseConfiguration):
 
             # Behavior
             domains=list(self.domains),  # From Set
-            provider_uri=self.provider_uri,
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
@@ -329,7 +364,10 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Optional values (mode)
         if not self.federated_only:
-            payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+            if self.provider_uri:
+                payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
+            if self.registry_filepath:
+                payload.update(dict(registry_filepath=self.registry_filepath))
 
         # Merge with base payload
         base_payload = super().static_payload()
@@ -337,20 +375,17 @@ class CharacterConfiguration(BaseConfiguration):
 
         return payload
 
-    @property
+    @property  # TODO: Graduate to a method and "derive" dynamic from static payload.
     def dynamic_payload(self) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            self.get_blockchain_interface()
-            self.blockchain.connect()
-            payload.update(blockchain=self.blockchain)
+            payload.update(dict(registry=self.registry))
 
-        #self.read_known_nodes()   # FIXME: Requires a connected blockchain - #1202
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
-                       known_nodes=self.known_nodes,
-                       node_storage=self.node_storage,
-                       crypto_power_ups=self.derive_node_power_ups()))
+                            known_nodes=self.known_nodes,
+                            node_storage=self.node_storage,
+                            crypto_power_ups=self.derive_node_power_ups()))
         return payload
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
@@ -370,8 +405,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
                          config_file_location=os.path.join(config_root, cls.generate_filename()),
-                         keyring_root=os.path.join(config_root, 'keyring'),
-                         registry_filepath=os.path.join(config_root, EthereumContractRegistry.REGISTRY_NAME))
+                         keyring_root=os.path.join(config_root, 'keyring'))
         return filepaths
 
     def _cache_runtime_filepaths(self) -> None:
@@ -414,13 +448,10 @@ class CharacterConfiguration(BaseConfiguration):
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
-        init_registry = self.download_registry and not self.federated_only
-        if init_registry:
-            self.registry_filepath = EthereumContractRegistry.download_latest_publication()
 
         # Validate
         if not self.__dev_mode:
-            self.validate(no_registry=not init_registry)
+            self.validate()
 
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)

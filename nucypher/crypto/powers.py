@@ -24,6 +24,7 @@ from hexbytes import HexBytes
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
@@ -111,14 +112,11 @@ class TransactingPower(CryptoPowerUp):
     class InvalidSigningRequest(PowerUpError):
         pass
 
-    def __init__(self,
-                 blockchain,
-                 account: str,
-                 password: str = None):
+    def __init__(self, account: str, password: str = None, cache: bool = False):
         """
         Instantiates a TransactingPower for the given checksum_address.
         """
-        self.blockchain = blockchain
+        self.blockchain = BlockchainInterfaceFactory.get_interface()
         self.__account = account
 
         # TODO: Is there a better way to design this Flag?
@@ -127,6 +125,7 @@ class TransactingPower(CryptoPowerUp):
         self.__password = password
         self.__unlocked = False
         self.__activated = False
+        self.__cache = cache
 
     @property
     def is_unlocked(self) -> bool:
@@ -143,27 +142,29 @@ class TransactingPower(CryptoPowerUp):
 
     def activate(self, password: str = None):
         """Be Consumed"""
-        self.blockchain.connect(fetch_registry=True, sync_now=False)
-        self.unlock_account(password=password or self.__password)
-        self.__password = None
+        self.unlock_account(password=password)
+        if self.__cache is False:
+            self.__password = None
         self.blockchain.transacting_power = self
 
     def lock_account(self):
         if self.device:
-            # TODO: Force Disconnect Devices?
-            pass
+            pass  # TODO: Force Disconnect Devices?
         else:
             _result = self.blockchain.client.lock_account(address=self.account)
         self.__unlocked = False
+        return self.__unlocked
 
-    def unlock_account(self, password: str = None):
+    def unlock_account(self, password: str = None, duration: int = None):
+        password = password or self.__password
         if self.device:
             unlocked = True
         else:
             if self.blockchain.client is NO_BLOCKCHAIN_CONNECTION:
                 raise self.NoBlockchainConnection
-            unlocked = self.blockchain.client.unlock_account(address=self.account, password=password)
+            unlocked = self.blockchain.client.unlock_account(address=self.account, password=password, duration=duration)
         self.__unlocked = unlocked
+        return self.__unlocked
 
     def sign_message(self, message: bytes) -> bytes:
         """
@@ -182,6 +183,12 @@ class TransactingPower(CryptoPowerUp):
             raise self.AccountLocked("Failed to unlock account {}".format(self.account))
         signed_raw_transaction = self.blockchain.client.sign_transaction(transaction=unsigned_transaction)
         return signed_raw_transaction
+
+    def __enter__(self):
+        return self.unlock_account()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.lock_account()
 
 
 class KeyPairBasedPower(CryptoPowerUp):
@@ -264,7 +271,13 @@ class DelegatingPower(DerivedKeyBasedPower):
     def get_pubkey_from_label(self, label):
         return self._get_privkey_from_label(label).get_pubkey()
 
-    def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Tuple[UmbralPublicKey, List]:
+    def generate_kfrags(self,
+                        bob_pubkey_enc,
+                        signer,
+                        label: bytes,
+                        m: int,
+                        n: int
+                        ) -> Tuple[UmbralPublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
