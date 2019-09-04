@@ -31,56 +31,56 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - basics:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - network:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - character:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - agents:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - deployers:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - cli:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - tests_ok:
           context: "NuCypher Tests"
           filters:
@@ -257,29 +257,22 @@ commands:
     description: "Cache python installation files"
     steps:
       - save_cache:
-          key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v4-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
-            - ".venv"
-            - "/usr/local/bin"
-            - "/usr/local/lib/python3.7/site-packages"
+            - "~/.local/bin"
+            - "~/.local/lib/python3.7/site-packages"
 
   restore_dependency_cache:
     description: "Own and restore cached python installation files"
     steps:
-      - run:
-          name: "Chown python installation directories"
-          command: |
-            sudo chown -R circleci:circleci /usr/local/bin
-            sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v4-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
 
   prepare_environment:
     description: "Checkout application code and Attach the Workspace"
     steps:
       - checkout
       - restore_dependency_cache
-      - pip_install
       - run:
           name: "Create directory for test reports"
           command: mkdir reports
