@@ -115,13 +115,6 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-#      - mypy:  # Disable mypy for the moment as it was wasting a CircleCI container for nothing
-#          context: "NuCypher Tests"
-#          filters:
-#            tags:
-#              only: /.*/
-#          requires:
-#            - tests_ok
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
@@ -490,28 +483,10 @@ jobs:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
 
-  mypy:
-    <<: *python_37_base
-    steps:
-      - prepare_environment
-      - run:
-          name: Install mypy
-          command: |
-              pip install lxml
-              pip install mypy
-      - run:
-          name: Run Mypy Static Type Checks (Always Succeed)
-          command: |
-              mkdir ./mypy_reports ./mypy_results
-              export MYPYPATH=./nucypher
-              mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount || true
-      - store_artifacts:
-          path: ./mypy_reports
-
   estimate_gas:
     <<: *python_37_base
     steps:
-      - checkout
+      - prepare_environment
       - run:
           name: Estimate Gas
           command: |
