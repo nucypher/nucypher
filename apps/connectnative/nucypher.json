@@ -1,0 +1,7 @@
+{
+    "name": "nucypher",
+    "description": "Native messaging client for Nucypher",
+    "path": "/Users/damon/.local/share/virtualenvs/nucypher-foQGFZkM/bin/nucypher-stdio-receiver",
+    "type": "stdio",
+    "allowed_extensions": [ "nucypher@nucypher.com" ]
+  }
