@@ -224,9 +224,6 @@ commands:
       - run:
           name: Check NuCypher Python API Entrypoint
           command: pipenv run python3 -c "import nucypher; print(nucypher.__version__)"
-      - run:
-          name: Check NuCypher CLI Entrypoint
-          command: pipenv run nucypher --help
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
@@ -275,7 +272,7 @@ commands:
     steps:
       - checkout
       - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+          at: ~/.local/bin/
       - run:
           name: "Create directory for test reports"
           command: mkdir reports
@@ -343,16 +340,16 @@ jobs:
     steps:
       - pipenv_install:
           python_version: "3.6"
-      - persist_to_workspace:
-          root: ~/.local/share/virtualenvs/
-          paths:
-            - nucypher-*
 
   # Python 3.7
   pip_install_37:
     <<: *python_37_base
     steps:
       - pip_install
+      - persist_to_workspace:
+          root: ~/.local/bin
+          paths:
+            - nucypher-*
   pipenv_install_37:
     <<: *python_37_base
     steps:
@@ -513,7 +510,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+          at: ~/.local/bin/
       - run:
           name: Estimate Gas
           command: |
@@ -526,7 +523,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+          at: ~/.local/bin/
       - run:
           name: Install Documentation Build Dependencies
           command: pip3 install --user sphinx recommonmark sphinx-rtd-theme aafigure
