@@ -257,7 +257,7 @@ commands:
     description: "Cache python installation files"
     steps:
       - save_cache:
-          key: pip-v4-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
+          key: pip-v5-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
           paths:
             - "/usr/local/bin/solc"
             - "~/.local/bin"
@@ -267,7 +267,7 @@ commands:
     description: "Own and restore cached python installation files"
     steps:
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v4-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
+          key: pip-v5-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
 
   prepare_environment:
     description: "Checkout application code and Attach the Workspace"

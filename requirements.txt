@@ -56,7 +56,7 @@ pathtools==0.1.2
 pendulum==2.0.5
 protobuf==3.9.1
 py-ecc==1.7.1
-py-evm==0.3.0a5
+py-evm==0.3.0a1
 py-geth==2.1.0
 pyasn1-modules==0.2.6
 pyasn1==0.4.7

@@ -534,11 +534,11 @@
         },
         "py-evm": {
             "hashes": [
-                "sha256:399ca6bd182cdee9fb3c42877223d3adc3a91c4fe54c23bc8eaaf7a1226679a4",
-                "sha256:c117f7ea13958fee38460dc465b79b730842e9d66fb82518a25086d717f39318"
+                "sha256:3e1f39a74bbee0403ddddc28170950c576060f8d3b9a19e5ebf4980f2717d4b6",
+                "sha256:8e500e2691ee805ba71127cf8acb412ccd323e567a94d6ad63355774cd0d768f"
             ],
             "index": "pypi",
-            "version": "==0.3.0a5"
+            "version": "==0.3.0a1"
         },
         "py-geth": {
             "hashes": [
