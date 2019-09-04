@@ -9,7 +9,9 @@ mkdir /tmp/ursulas-logs
 
 # Set PATH
 export PATH=~/.local/bin:$PATH
-source ~/.bashrc
+if [ -f ~/.bashrc ]; then
+    source ~/.bashrc
+fi
 
 # Disable logging
 export NUCYPHER_SENTRY_LOGS=0
