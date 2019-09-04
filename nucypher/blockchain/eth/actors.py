@@ -33,7 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak
 from twisted.logger import Logger
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -210,7 +210,11 @@ class ContractAdministrator(NucypherTokenActor):
                         ) -> Tuple[dict, ContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address, *args, **kwargs)
+        deployer = Deployer(registry=self.registry,
+                            deployer_address=self.deployer_address,
+                            economics=self.economics,
+                            *args,
+                            **kwargs)
         if Deployer._upgradeable:
             if not plaintext_secret:
                 raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
@@ -287,14 +291,12 @@ class ContractAdministrator(NucypherTokenActor):
                 if deployer_class in self.standard_deployer_classes:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               gas_limit=gas_limit,
-                                                              progress=bar,
-                                                              economics=self.economics)
+                                                              progress=bar)
                 else:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               plaintext_secret=secrets[deployer_class.contract_name],
                                                               gas_limit=gas_limit,
-                                                              progress=bar,
-                                                              economics=self.economics)
+                                                              progress=bar)
 
                 if emitter:
                     blockchain = BlockchainInterfaceFactory.get_interface()
@@ -401,10 +403,7 @@ class Staker(NucypherTokenActor):
     class InsufficientTokens(StakerError):
         pass
 
-    def __init__(self,
-                 is_me: bool,
-                 economics: TokenEconomics = None,
-                 *args, **kwargs) -> None:
+    def __init__(self, is_me: bool, *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.log = Logger("staker")
@@ -415,7 +414,7 @@ class Staker(NucypherTokenActor):
         # Blockchain
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.economics = economics or StandardTokenEconomics()
+        self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
     def to_dict(self) -> dict:
@@ -657,7 +656,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def __init__(self,
                  checksum_address: str,
-                 economics: TokenEconomics = None,
                  rate: int = None,
                  duration_periods: int = None,
                  first_period_reward: int = None,
@@ -674,7 +672,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
 
-        self.economics = economics or StandardTokenEconomics()
+        self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.rate = rate
         self.duration_periods = duration_periods
         self.first_period_reward = first_period_reward
@@ -706,7 +704,8 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
         # Calculate duration in periods and expiration datetime
         if expiration:
-            duration_periods = calculate_period_duration(future_time=expiration)
+            duration_periods = calculate_period_duration(future_time=expiration,
+                                                         seconds_per_period=self.economics.seconds_per_period)
         else:
             duration_periods = duration_periods or self.duration_periods
             expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods)

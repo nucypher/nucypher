@@ -206,7 +206,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls, economics: TokenEconomics = None) -> 'TesterBlockchain':
+    def bootstrap_network(cls,
+                          economics: TokenEconomics = None
+                          ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()

@@ -51,7 +51,7 @@ def token_economics():
                                locked_periods_coefficient=4,
                                maximum_rewarded_periods=4,
                                hours_per_period=1,
-                               minimum_locked_periods=2,
+                               minimum_locked_periods=6,
                                minimum_allowed_locked=100,
                                maximum_allowed_locked=2000,
                                minimum_worker_periods=2,
@@ -363,7 +363,7 @@ def test_all(testerchain,
     tx = worklock.functions.claim().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
-    assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 1000 == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.getAllTokens(ursula2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()

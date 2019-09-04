@@ -1,3 +1,20 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from _pydecimal import Decimal
 from collections import UserList
 from typing import Union, Tuple, List
@@ -151,7 +168,7 @@ class Stake:
                  first_locked_period: int,
                  final_locked_period: int,
                  index: int,
-                 economics=None,
+                 economics,
                  validate_now: bool = True):
 
         self.log = Logger(f'stake-{checksum_address}-{index}')
@@ -174,14 +191,19 @@ class Stake:
         # and no confirmation can be performed in this period for this stake.
         self.final_locked_period = final_locked_period
 
+        # Blockchain
+        self.staking_agent = staking_agent
+
+        # Economics
+        self.economics = economics
+        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), 'NuNit')
+        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), 'NuNit')
+
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
                                                  seconds_per_period=self.economics.seconds_per_period)
         self.unlock_datetime = datetime_at_period(period=final_locked_period + 1,
                                                   seconds_per_period=self.economics.seconds_per_period)
-
-        # Blockchain
-        self.staking_agent = staking_agent
 
         if validate_now:
             self.validate_duration()
@@ -215,6 +237,7 @@ class Stake:
                         checksum_address: str,
                         index: int,
                         stake_info: Tuple[int, int, int],
+                        economics,
                         *args, **kwargs
                         ) -> 'Stake':
 
@@ -226,6 +249,7 @@ class Stake:
                        first_locked_period=first_locked_period,
                        final_locked_period=final_locked_period,
                        value=NU(value, 'NuNit'),
+                       economics=economics,
                        *args, **kwargs)
 
         instance.worker_address = instance.staking_agent.get_worker_from_staker(staker_address=checksum_address)
@@ -374,7 +398,8 @@ class Stake:
                                first_locked_period=self.first_locked_period,
                                final_locked_period=self.final_locked_period,
                                value=remaining_stake_value,
-                               staking_agent=self.staking_agent)
+                               staking_agent=self.staking_agent,
+                               economics=self.economics)
 
         # New Derived Stake
         end_period = self.final_locked_period + additional_periods
@@ -383,7 +408,8 @@ class Stake:
                           final_locked_period=end_period,
                           value=target_value,
                           index=NEW_STAKE,
-                          staking_agent=self.staking_agent)
+                          staking_agent=self.staking_agent,
+                          economics=self.economics)
 
         #
         # Validate
@@ -421,7 +447,8 @@ class Stake:
                       final_locked_period=final_locked_period,
                       value=amount,
                       index=NEW_STAKE,
-                      staking_agent=staker.staking_agent)
+                      staking_agent=staker.staking_agent,
+                      economics=staker.economics)
 
         # Validate
         stake.validate_value()
@@ -546,6 +573,8 @@ class StakeList(UserList):
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        from nucypher.blockchain.economics import TokenEconomicsFactory
+        self.economics = TokenEconomicsFactory.get_economics(registry=registry)
 
         self.__terminal_period = NOT_STAKING
 
@@ -586,7 +615,8 @@ class StakeList(UserList):
                 onchain_stake = Stake.from_stake_info(checksum_address=self.checksum_address,
                                                       stake_info=stake_info,
                                                       staking_agent=self.staking_agent,
-                                                      index=onchain_index)
+                                                      index=onchain_index,
+                                                      economics=self.economics)
 
                 # rack the latest terminal period
                 if onchain_stake.final_locked_period > terminal_period:

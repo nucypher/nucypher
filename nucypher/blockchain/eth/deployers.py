@@ -67,10 +67,6 @@ class ContractDeployer:
         if not isinstance(self.blockchain, BlockchainDeployerInterface):
             raise ValueError("No deployer interface connection available.")
 
-        if not economics:
-            economics = TokenEconomics()
-        self.__economics = economics
-
         #
         # Defaults
         #
@@ -101,10 +97,6 @@ class ContractDeployer:
     @property
     def contract(self):
         return self._contract
-
-    @property
-    def economics(self):
-        return self.__economics
 
     @property
     def dispatcher(self):
@@ -447,11 +439,6 @@ class PolicyManagerDeployer(ContractDeployer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        token_contract_name = NucypherTokenDeployer.contract_name
-        self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=token_contract_name)
-
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         staking_contract_name = StakingEscrowDeployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
@@ -813,8 +800,8 @@ class AdjudicatorDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, economics: TokenEconomics = None, *args, **kwargs):
-        super().__init__(*args, economics=economics, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         staking_contract_name = StakingEscrowDeployer.contract_name
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,

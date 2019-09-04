@@ -42,7 +42,6 @@ from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
-from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.decorators import validate_checksum_address

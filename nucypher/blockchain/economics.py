@@ -21,6 +21,8 @@ from typing import Tuple
 
 from math import log
 
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 
 
@@ -290,3 +292,47 @@ class StandardTokenEconomics(TokenEconomics):
 
     def rewards_during_period(self, period: int) -> int:
         return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
+
+
+class TokenEconomicsFactory:
+    # TODO: Enforce singleton
+
+    __economics = dict()
+
+    @classmethod
+    def get_economics(cls, registry: BaseContractRegistry) -> TokenEconomics:
+        registry_id = registry.id
+        try:
+            return cls.__economics[registry_id]
+        except KeyError:
+            economics = TokenEconomicsFactory.make_economics(registry=registry)
+            cls.__economics[registry_id] = economics
+            return economics
+
+    @staticmethod
+    def make_economics(registry: BaseContractRegistry) -> TokenEconomics:
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
+        total_supply = token_agent.contract.functions.totalSupply().call()
+        reward_supply = staking_agent.contract.functions.getReservedReward().call()
+        economics = TokenEconomics(
+            # it's not real initial_supply value because used current reward instead of initial
+            initial_supply=total_supply - reward_supply,
+            total_supply=total_supply,
+            staking_coefficient=staking_agent.contract.functions.miningCoefficient().call(),
+            locked_periods_coefficient=staking_agent.contract.functions.lockedPeriodsCoefficient().call(),
+            maximum_rewarded_periods=staking_agent.contract.functions.rewardedPeriods().call(),
+            hours_per_period=staking_agent.contract.functions.secondsPerPeriod().call() // 60 // 60,
+            minimum_locked_periods=staking_agent.contract.functions.minLockedPeriods().call(),
+            minimum_allowed_locked=staking_agent.contract.functions.minAllowableLockedTokens().call(),
+            maximum_allowed_locked=staking_agent.contract.functions.maxAllowableLockedTokens().call(),
+            minimum_worker_periods=staking_agent.contract.functions.minWorkerPeriods().call(),
+
+            hash_algorithm=adjudicator_agent.contract.functions.hashAlgorithm().call(),
+            base_penalty=adjudicator_agent.contract.functions.basePenalty().call(),
+            penalty_history_coefficient=adjudicator_agent.contract.functions.penaltyHistoryCoefficient().call(),
+            percentage_penalty_coefficient=adjudicator_agent.contract.functions.percentagePenaltyCoefficient().call(),
+            reward_coefficient=adjudicator_agent.contract.functions.rewardCoefficient().call()
+        )
+        return economics

@@ -36,8 +36,7 @@ def test_reward(testerchain, agency, token_economics):
     _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
                                    target_address=ursula,
                                    sender_address=origin)
-    testerchain.transacting_power = TransactingPower(blockchain=testerchain,
-                                                     password=INSECURE_DEVELOPMENT_PASSWORD,
+    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=ursula)
     testerchain.transacting_power.activate()
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,

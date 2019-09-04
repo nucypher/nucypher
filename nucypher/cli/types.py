@@ -43,13 +43,7 @@ class IPv4Address(click.ParamType):
             return value
 
 
-token_economics = StandardTokenEconomics()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
-
-# Staking
-STAKE_DURATION = click.IntRange(min=token_economics.minimum_locked_periods, clamp=False)
-STAKE_EXTENSION = click.IntRange(min=1, max=token_economics.maximum_allowed_locked, clamp=False)
-STAKE_VALUE = click.FloatRange(min=NU.from_nunits(token_economics.minimum_allowed_locked).to_tokens(), clamp=False)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
