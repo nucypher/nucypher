@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import time
 import webbrowser
+from collections import Counter
 from decimal import Decimal
 from typing import List
 
@@ -535,11 +536,11 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
         emitter.echo(f"{tab}  {'Worker:':10} {worker}\n")
 
 
-def paint_locked_tokens_status(emitter, agent) -> None:
-    emitter.echo("\n| Locked Tokens |\n")
+def paint_locked_tokens_status(emitter, agent, periods) -> None:
 
-    from collections import Counter
-    token_counter = Counter({day: agent.get_all_locked_tokens(day) for day in range(1, 61)})
+    MAX_ROWS = 30
+    period_range = list(range(1, periods + 1))
+    token_counter = Counter({day: agent.get_all_locked_tokens(day) for day in period_range})
 
     width = 60  # Adjust to desired width
     longest_key = max(len(str(key)) for key in token_counter)
@@ -547,5 +548,22 @@ def paint_locked_tokens_status(emitter, agent) -> None:
     widest = token_counter.most_common(1)[0][1]
     scale = graph_width / float(widest)
 
-    for key, size in sorted(token_counter.items()):
-        emitter.echo(f"{key:2}: {int(size * scale) * '*'} {NU.from_nunits(size)}")
+    bucket_size = periods // MAX_ROWS if periods > MAX_ROWS else 1
+
+    emitter.echo(f"\n| Locked Tokens for next {periods} periods |\n")
+
+    buckets = [period_range[i:i + bucket_size] for i in range(0, len(period_range), bucket_size)]
+
+    for bucket in buckets:
+        bucket_start = bucket[0]
+        bucket_end = bucket[-1]
+
+        bucket_max = max([token_counter[period] for period in bucket])
+        bucket_min = min([token_counter[period] for period in bucket])
+        delta = bucket_max - bucket_min
+
+        bucket_range = f"{bucket_start} - {bucket_end}"
+        box_plot = f"{int(bucket_min * scale) * '■'}{int(delta * scale) * '□'}"
+        emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
+                     f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
+

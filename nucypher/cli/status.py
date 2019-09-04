@@ -34,8 +34,9 @@ from nucypher.config.characters import UrsulaConfiguration
 @click.option('--sync/--no-sync', default=False)
 @click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
+@click.option('--periods', help="Number of periods", type=click.INT, default=90)
 @nucypher_click_config
-def status(click_config, action, provider_uri, sync, geth, poa):
+def status(click_config, action, provider_uri, sync, geth, poa, periods):
     """
     Echo a snapshot of live network metadata.
     """
@@ -78,7 +79,7 @@ def status(click_config, action, provider_uri, sync, geth, poa):
         return  # Exit
 
     elif action == 'locked-tokens':
-        paint_locked_tokens_status(emitter=emitter, agent=staking_agent)
+        paint_locked_tokens_status(emitter=emitter, agent=staking_agent, periods=periods)
         return  # Exit
 
     else:
