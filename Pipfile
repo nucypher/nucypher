@@ -33,6 +33,10 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 flask-limiter = "*"
+dash = "*"
+dash-core-components = "*"
+dash-html-components = "*"
+dash-dangerously-set-inner-html = "==0.0.2"
 
 [dev-packages]
 # Pytest
@@ -55,6 +59,7 @@ sphinx = "*"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
 aafigure = "*"
+pytest-dash = "*"
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"

@@ -19,6 +19,11 @@ constant-sorrow==0.1.0a8
 constantly==15.1.0
 cryptography==2.7
 cytoolz==0.10.0 ; implementation_name == 'cpython'
+dash-core-components==0.41.0
+dash-dangerously-set-inner-html==0.0.2
+dash-html-components==0.13.4
+dash-renderer==1.0.0a2
+dash==0.34.0
 dateparser==0.7.1
 eth-abi==2.0.0
 eth-account==0.4.0
@@ -30,9 +35,11 @@ eth-rlp==0.1.2
 eth-tester==0.2.0b2
 eth-typing==2.1.0
 eth-utils==1.6.4
+flask-compress==1.4.0
 flask-limiter==1.0.1
 flask-sqlalchemy==2.4.0
 flask==1.1.1
+future==0.17.1
 hendrix==3.2.5
 hexbytes==0.2.0
 humanize==0.5.1
@@ -54,6 +61,7 @@ netaddr==0.7.19
 parsimonious==0.8.1
 pathtools==0.1.2
 pendulum==2.0.5
+plotly==4.1.1
 protobuf==3.9.1
 py-ecc==1.7.1
 py-evm==0.3.0a1
@@ -74,6 +82,7 @@ pytzdata==2019.2
 pyyaml==5.1.2
 regex==2019.8.19
 requests==2.22.0
+retrying==1.3.3
 rlp==1.1.0
 semantic-version==2.8.1
 sentry-sdk==0.9.0
