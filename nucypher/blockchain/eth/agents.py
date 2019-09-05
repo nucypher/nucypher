@@ -199,8 +199,8 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     def get_all_locked_tokens(self, periods: int) -> int:
         """Returns the current period"""
-        if periods < 1:
-            raise ValueError("Period must be > 1")
+        if not periods > 0:
+            raise ValueError("Period must be > 0")
 
         return self.contract.functions.getAllLockedTokens(periods).call()
 
@@ -244,8 +244,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
     def owned_tokens(self, staker_address: str) -> int:
-        staker_info = self.get_staker_info(staker_address)
-        return staker_info[0]
+        """
+        Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
+        """
+        return self.contract.functions.getAllTokens(staker_address).call()
 
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
@@ -391,7 +393,9 @@ class StakingEscrowAgent(EthereumContractAgent):
         stakers_population = self.get_staker_population()
         n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
         if n_select > stakers_population:
-            raise self.NotEnoughStakers(f'There are {stakers_population} active stakers, need at least {n_select}.')
+            raise self.NotEnoughStakers(
+                f'There are {stakers_population} active stakers - '
+                f'for {quantity} stakers we need a sample size of at least {n_select}.')
 
         system_random = random.SystemRandom()
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()

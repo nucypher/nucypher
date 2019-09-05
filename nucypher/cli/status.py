@@ -70,7 +70,7 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods, staking
         if click_config.debug:
             raise
         click.secho(str(e), bold=True, fg='red')
-        return  # Exit
+        raise click.Abort
 
     if registry_filepath:
         registry = LocalContractRegistry(filepath=registry_filepath)
@@ -93,4 +93,4 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods, staking
 
     else:
         ctx = click.get_current_context()
-        click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx).show()
+        raise click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx)
