@@ -25,14 +25,12 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli import actions
-from nucypher.cli.actions import get_client_password, select_client_account
-from nucypher.cli.actions import get_nucypher_password
-from nucypher.cli.actions import select_client_account
-from nucypher.cli.painting import paint_contract_deployment, paint_deployer_contract_status
+from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment
 from nucypher.cli.painting import (
     paint_staged_deployment,
-    paint_deployment_delay
+    paint_deployment_delay,
+    paint_contract_deployment,
+    paint_deployer_contract_status
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -249,7 +247,7 @@ def deploy(action,
         paint_staged_deployment(deployer_interface=deployer_interface, administrator=ADMINISTRATOR, emitter=emitter)
 
         # Confirm Trigger Deployment
-        if not actions.confirm_deployment(emitter=emitter, deployer_interface=deployer_interface):
+        if not confirm_deployment(emitter=emitter, deployer_interface=deployer_interface):
             raise click.Abort()
 
         # Delay - Last chance to abort via KeyboardInterrupt
@@ -288,7 +286,7 @@ def deploy(action,
         if missing_options:
             raise click.BadArgumentUsage(message=f"Need {' and '.join(missing_options)} to transfer tokens.")
 
-        click.confirm(f"Transfer {value} from {token_agent.contract_address} to {target_address}?", abort=True)
+        click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
         receipt = token_agent.transfer(amount=value,
                                        sender_address=deployer_address,
                                        target_address=target_address)

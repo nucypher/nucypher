@@ -23,7 +23,7 @@ from eth_utils import is_checksum_address
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.economics import TokenEconomics, Economics
+from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -57,7 +57,7 @@ class ContractDeployer:
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: Economics = None,
+                 economics: TokenEconomics = None,
                  deployer_address: str = None):
 
         #
