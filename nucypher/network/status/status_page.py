@@ -17,20 +17,19 @@ from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 class NetworkStatusPage:
     COLUMNS = ['Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
 
-    def __init__(self,
-                 title: str,
-                 flask_server: Flask,
-                 route_url: str,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(self, title: str, flask_server: Flask, route_url: str):
         self.log = Logger(self.__class__.__name__)
-
+        self.assets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
         self.dash_app = Dash(name=__name__,
                              server=flask_server,
-                             assets_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets'),
+                             assets_folder=self.assets_path,
                              url_base_pathname=route_url,
                              suppress_callback_exceptions=True)
         self.dash_app.title = title
+
+    @property
+    def title(self) -> str:
+        return self.dash_app.title
 
     @staticmethod
     def header(title) -> html.Div:
@@ -75,8 +74,7 @@ class NetworkStatusPage:
             ], className='nucypher-nickname-icon', style={'border-color': state["color_hex"]})
         ], className='state')
 
-    @staticmethod
-    def known_nodes(learner: Learner, title='Network Nodes') -> html.Div:
+    def known_nodes(self, learner: Learner, title='Network Nodes') -> html.Div:
         nodes = list()
 
         nodes_dict = learner.known_nodes.abridged_nodes_dict()
@@ -98,66 +96,73 @@ class NetworkStatusPage:
             ], className='row'),
             html.Br(),
             html.Div([
-                NetworkStatusPage.nodes_table(nodes, teacher_index)
+                self.nodes_table(nodes, teacher_index)
             ], className='row')
         ], className='row')
 
-    @staticmethod
-    def nodes_table(nodes, teacher_index) -> html.Table:
+    def nodes_table(self, nodes, teacher_index) -> html.Table:
         rows = []
-
-        for i in range(len(nodes)):
+        for node_info in nodes:
             row = []
-            node_dict = nodes[i]
             for col in NetworkStatusPage.COLUMNS:
-                # update this depending on which
-                # columns you want to show links for
-                # and what you want those links to be
-                cell = None
-                if col == 'Icon':
-                    icon_details = node_dict['icon_details']
-                    cell = html.Td(children=html.Div([
-                        html.Span(f'{icon_details["first_symbol"]}',
-                                  className='single-symbol',
-                                  style={'color': icon_details['first_color']}),
-                        html.Span(f'{icon_details["second_symbol"]}',
-                                  className='single-symbol',
-                                  style={'color': icon_details['second_color']})
-                    ], className='symbols'))
-                elif col == 'Checksum':
-                    cell = html.Td(f'{node_dict["checksum_address"][:10]}...')
-                elif col == 'Nickname':
-                    cell = html.Td(html.A(node_dict['nickname'],
-                                          href='https://{}/status'.format(node_dict['rest_url']),
-                                          target='_blank'))
-                elif col == 'Timestamp':
-                    cell = html.Td(node_dict['timestamp'])
-                elif col == 'Last Seen':
-                    cell = html.Td(node_dict['last_seen'])
-                elif col == 'Fleet State':
-                    # render html value directly
-                    fleet_state_div = []
-                    fleet_state_icon = node_dict['fleet_state_icon']
-                    if fleet_state_icon is not UNKNOWN_FLEET_STATE:
-                        fleet_state_div = [dash_dangerously_set_inner_html.DangerouslySetInnerHTML(
-                                                node_dict['fleet_state_icon']
-                                          )]
-                    cell = html.Td(children=html.Div(fleet_state_div))
+                cell = self.generate_cell(column_name=col, node_info=node_info)
                 if cell is not None:
                     row.append(cell)
 
             style_dict = {'overflowY': 'scroll'}
-            if i == teacher_index:
-                # highlight teacher
-                style_dict['backgroundColor'] = '#1E65F3'
-                style_dict['color'] = 'white'
+            # TODO: Restore
+            # if i == teacher_index:
+            #     # highlight teacher
+            #     style_dict['backgroundColor'] = '#1E65F3'
+            #     style_dict['color'] = 'white'
 
             rows.append(html.Tr(row, style=style_dict, className='row'))
-        return html.Table(
+
+        table = html.Table(
             # header
             [html.Tr([html.Th(col) for col in NetworkStatusPage.COLUMNS], className='row')] +
             rows,
-            id='node-table')
+            id='node-table'
+        )
+        return table
+
+    @staticmethod
+    def generate_cell(column_name: str, node_info: dict):
+        """
+        Update this depending on which columns you want to show links for
+        and what you want those links to be.
+        """
+        icon = html.Td(children=html.Div([html.Span(f'{node_info["icon_details"]["first_symbol"]}',
+                                                    className='single-symbol',
+                                                    style={'color': node_info["icon_details"]['first_color']}),
+                                          html.Span(f'{node_info["icon_details"]["second_symbol"]}',
+                                                    className='single-symbol',
+                                                    style={'color': node_info["icon_details"]['second_color']})],
+                                         className='symbols'))
+
+        nickname = html.Td(html.A(node_info['nickname'],
+                                  href=f'https://{node_info["rest_url"]}/status',
+                                  target='_blank'))
+
+        # Fleet State
+        fleet_state_div = []
+        fleet_state_icon = node_info['fleet_state_icon']
+        if fleet_state_icon is not UNKNOWN_FLEET_STATE:
+            icon_list = [dash_dangerously_set_inner_html.DangerouslySetInnerHTML(node_info['fleet_state_icon'])]
+            fleet_state_div = icon_list
+        fleet_state = html.Td(children=html.Div(fleet_state_div))
+
+        components = {
+            'Icon': icon,
+            'Checksum': html.Td(f'{node_info["checksum_address"][:10]}...'),
+            'Nickname': nickname,
+            'Timestamp': html.Td(node_info['timestamp']),
+            'Last Seen': html.Td(node_info['last_seen']),
+            'Fleet State': fleet_state
+        }
+
+        cell = components[column_name]
+        return cell
 
 
 class MoeStatusPage(NetworkStatusPage):
@@ -165,19 +170,12 @@ class MoeStatusPage(NetworkStatusPage):
     Status application for 'Moe' monitoring node.
     """
 
-    def __init__(self,
-                 moe: Learner,
-                 title: str,
-                 flask_server: Flask,
-                 route_url: str,
-                 ws_port: int,
-                 *args,
-                 **kwargs) -> None:
-        NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
+    def __init__(self, moe: Learner, ws_port: int, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
 
         # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
-        self.dash_app.index_string = '''
+        self.dash_app.index_string = r'''
         <!DOCTYPE html>
         <html>
             <head>
@@ -245,10 +243,9 @@ class MoeStatusPage(NetworkStatusPage):
             html.Div(id='known-nodes'),
         ])
 
-        @self.dash_app.callback(Output('header', 'children'),
-                                [Input('url', 'pathname')])  # on page-load
+        @self.dash_app.callback(Output('header', 'children'), [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return NetworkStatusPage.header(title)
+            return NetworkStatusPage.header(self.title)
 
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
@@ -260,7 +257,7 @@ class MoeStatusPage(NetworkStatusPage):
                                 [Input('url', 'pathname')],  # on page-load
                                 events=[Event('hidden-node-button', 'click')])  # when notified by websocket message
         def known_nodes(pathname):
-            return NetworkStatusPage.known_nodes(moe)
+            return self.known_nodes(moe)
 
 
 class UrsulaStatusPage(NetworkStatusPage):
@@ -268,14 +265,8 @@ class UrsulaStatusPage(NetworkStatusPage):
     Status application for Ursula node.
     """
 
-    def __init__(self,
-                 ursula: Character,
-                 title: str,
-                 flask_server: Flask,
-                 route_url: str,
-                 *args,
-                 **kwargs) -> None:
-        NetworkStatusPage.__init__(self, title, flask_server, route_url, args, kwargs)
+    def __init__(self, ursula: Character, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.dash_app.assets_ignore = 'hendrix-update.js'  # javascript not needed for Ursula
         self.dash_app.layout = html.Div([
@@ -288,19 +279,16 @@ class UrsulaStatusPage(NetworkStatusPage):
             dcc.Interval(id='status-update', interval=2000, n_intervals=0),
         ])
 
-        @self.dash_app.callback(Output('header', 'children'),
-                                [Input('url', 'pathname')])  # on page-load
+        @self.dash_app.callback(Output('header', 'children'), [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return NetworkStatusPage.header(title)
+            return self.header(self.title)
 
-        @self.dash_app.callback(Output('ursula_info', 'children'),
-                                [Input('url', 'pathname')])  # on page-load
+        @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
         def ursula_info(pathname):
             domains = ''
             for domain in ursula.learning_domains:
-                domains += f'  {domain.decode("utf-8")}  '
-
-            return html.Div([
+                domains += f' | {domain} '
+            info = html.Div([
                 html.Div([
                     html.H4('Icon', className='one column'),
                     html.Div([
@@ -314,13 +302,14 @@ class UrsulaStatusPage(NetworkStatusPage):
                     html.H4(domains, className='eleven columns'),
                 ], className='row')
             ], className='row')
+            return info
 
-        @self.dash_app.callback(Output('prev-states', 'children'),
-                                events=[Event('status-update', 'interval')])  # simply update periodically
+        @self.dash_app.callback(Output('prev-states', 'children'), events=[Event('status-update', 'interval')])
         def state():
-            return NetworkStatusPage.previous_states(ursula)
+            """Simply update periodically"""
+            return self.previous_states(ursula)
 
-        @self.dash_app.callback(Output('known-nodes', 'children'),
-                                events=[Event('status-update', 'interval')])  # simply update periodically
+        @self.dash_app.callback(Output('known-nodes', 'children'), events=[Event('status-update', 'interval')])
         def known_nodes():
-            return NetworkStatusPage.known_nodes(ursula, title='Peers')
+            """Simply update periodically"""
+            return self.known_nodes(ursula, title='Peers')
