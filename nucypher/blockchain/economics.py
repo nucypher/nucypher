@@ -305,34 +305,28 @@ class TokenEconomicsFactory:
         try:
             return cls.__economics[registry_id]
         except KeyError:
-            economics = TokenEconomicsFactory.make_economics(registry=registry)
+            economics = TokenEconomicsFactory.retrieve_from_blockchain(registry=registry)
             cls.__economics[registry_id] = economics
             return economics
 
     @staticmethod
-    def make_economics(registry: BaseContractRegistry) -> TokenEconomics:
+    def retrieve_from_blockchain(registry: BaseContractRegistry) -> TokenEconomics:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
+
         total_supply = token_agent.contract.functions.totalSupply().call()
         reward_supply = staking_agent.contract.functions.getReservedReward().call()
-        economics = TokenEconomics(
-            # it's not real initial_supply value because used current reward instead of initial
-            initial_supply=total_supply - reward_supply,
-            total_supply=total_supply,
-            staking_coefficient=staking_agent.contract.functions.miningCoefficient().call(),
-            locked_periods_coefficient=staking_agent.contract.functions.lockedPeriodsCoefficient().call(),
-            maximum_rewarded_periods=staking_agent.contract.functions.rewardedPeriods().call(),
-            hours_per_period=staking_agent.contract.functions.secondsPerPeriod().call() // 60 // 60,
-            minimum_locked_periods=staking_agent.contract.functions.minLockedPeriods().call(),
-            minimum_allowed_locked=staking_agent.contract.functions.minAllowableLockedTokens().call(),
-            maximum_allowed_locked=staking_agent.contract.functions.maxAllowableLockedTokens().call(),
-            minimum_worker_periods=staking_agent.contract.functions.minWorkerPeriods().call(),
+        # it's not real initial_supply value because used current reward instead of initial
+        initial_supply = total_supply - reward_supply
 
-            hash_algorithm=adjudicator_agent.contract.functions.hashAlgorithm().call(),
-            base_penalty=adjudicator_agent.contract.functions.basePenalty().call(),
-            penalty_history_coefficient=adjudicator_agent.contract.functions.penaltyHistoryCoefficient().call(),
-            percentage_penalty_coefficient=adjudicator_agent.contract.functions.percentagePenaltyCoefficient().call(),
-            reward_coefficient=adjudicator_agent.contract.functions.rewardCoefficient().call()
-        )
+        staking_parameters = list(staking_agent.staking_parameters())
+        seconds_per_period = staking_parameters.pop(0)
+        staking_parameters.insert(3, seconds_per_period // 60 // 60)  # hours_per_period
+        slashing_parameters = adjudicator_agent.slashing_parameters()
+        economics_parameters = (initial_supply,
+                                total_supply,
+                                *staking_parameters,
+                                *slashing_parameters)
+        economics = TokenEconomics(*economics_parameters)
         return economics

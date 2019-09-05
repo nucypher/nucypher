@@ -621,3 +621,17 @@ class AdjudicatorAgent(EthereumContractAgent):
     def penalty_history(self, staker_address: str) -> int:
         return self.contract.functions.penaltyHistory(staker_address).call()
 
+    def slashing_parameters(self) -> Tuple:
+        parameter_signatures = (
+            'hashAlgorithm',                    # Hashing algorithm
+            'basePenalty',                      # Base for the penalty calculation
+            'penaltyHistoryCoefficient',        # Coefficient for calculating the penalty depending on the history
+            'percentagePenaltyCoefficient',     # Coefficient for calculating the percentage penalty
+            'rewardCoefficient',                # Coefficient for calculating the reward
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return staking_parameters
