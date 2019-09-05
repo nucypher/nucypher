@@ -18,3 +18,27 @@
 .onlyifpassword.nopassword {
     visibility:hidden;
 }
+
+.bottombar{
+    position:absolute;
+    bottom:0px;
+    left:0px;
+    padding:5px;
+    background:white;
+}
+
+.status{
+    visibility: hidden;
+    height:0px;
+    margin-bottom:5px;
+}
+
+.status.bad.error{
+    visibility:visible;
+    color: red;
+    height:unset;
+}
+.status.good.ready{
+    visibility:visible;
+    color: green;
+}

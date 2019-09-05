@@ -5,7 +5,11 @@ var popupWindow;
 var password;
 
 nucypher.onMessage.addListener((response) => {
-  // response is a key which can be used to decrypt the original image.
+  /*
+    routes stdio responses from the NuCypher CLI to the
+    right places.
+  */
+
   let route = response.route;
   if (response.input.options){
     route = "options";
@@ -23,15 +27,23 @@ nucypher.onMessage.addListener((response) => {
     });
   }
 });
-// encd connect native
+
 
 //callbacks
-
 function NucypherExecute(request) {
   if (request.character === "undefined") {
     delete request.character;
   }
-  nucypher.postMessage(request);
+  try {
+    nucypher.postMessage(request);
+  } catch (err) {
+    if (request.action === "status"){
+      ports['panel-messages'].postMessage({
+        route: "status",
+        data: "error",
+      });
+    }
+  }
 };
 
 function NucypherOptions(request) {
@@ -78,7 +90,6 @@ function Dispatcher(message){
 function connected(p) {
   ports[p.name] = p;
   ports[p.name].onMessage.addListener(Dispatcher);
-  console.log(ports)
 }
 browser.runtime.onConnect.addListener(connected);
 

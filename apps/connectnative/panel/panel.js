@@ -4,6 +4,18 @@ const prevdata = {};
 
 //callbacks
 
+function onStatus(data){
+    // just checks that we have communication with NuCypher stdio.
+
+    if (data === "error"){
+        $('.status').addClass("error");
+        return
+    }
+    if (data.route && data.route == "status"){
+        $('.status').addClass("ready");
+    }
+}
+
 function onGenericNucypherReturn(data){
     try {
         clearResults();
@@ -17,8 +29,6 @@ function onDecrypt(data){
     try {
         results = JSON.parse(data.result).result;
         const cleartexts = results.cleartexts;
-
-        console.log()
         var lg = $('<ul class="list-group"></ul>')
         $('#output').append(lg);
         $.each(cleartexts, function(i, d){
@@ -64,6 +74,9 @@ function onGetPassword(){
 
 
 function onOptions(data){
+    if (data){
+        installIsGood();
+    }
     clearResults()
     if (data.error && data.error === "keyring password is required"){
         return onGetPassword();
@@ -139,7 +152,7 @@ function fDispatcher(message){
         'alice.decrypt': onDecrypt,
         'enrico.encrypt': onGenericNucypherReturn,
         'need-password': onGetPassword,
-        'status': onGenericNucypherReturn,
+        'status': onStatus,
         'options': onOptions,
     }
     if (callbacks[message.route] !== undefined){
@@ -171,3 +184,8 @@ function displayError(result){
 
 var bgPort = browser.runtime.connect({name: "panel-messages"});
 bgPort.onMessage.addListener(fDispatcher);
+
+// startup installation check
+setTimeout(()=>{
+    bgPort.postMessage({route: "execute", data: {action: "status"}});
+}, 500)

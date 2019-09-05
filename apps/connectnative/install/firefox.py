@@ -29,14 +29,14 @@ def install():
     this_os = platform.system()
     home = expanduser("~")
 
-    stdio_cli = shutil.which('nucypher-stdio-receiverx')
+    stdio_cli = shutil.which('nucypher-stdio-receiver')
     if not stdio_cli:
         raise NotImplementedError(
             "Can't find stdio executable.  You need to run a `pip install .` to install the cli "
             "executable needed to run this extension (look in setup.py)"
         )
     install_data = EXTENSION_DATA
-    install_data['path'] = stdio_cli
+    install_data['path'] = stdio_cli +'x'
 
     for dest in FILE_LOCATIONS[this_os]:
         location = os.path.join(home, dest, 'nucypher.json')
