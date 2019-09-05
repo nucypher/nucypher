@@ -11,6 +11,7 @@ from twisted.logger import Logger
 import nucypher
 from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
+from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 
 
 class NetworkStatusPage:
@@ -83,7 +84,7 @@ class NetworkStatusPage:
         teacher_index = None
         for checksum in nodes_dict:
             node_data = nodes_dict[checksum]
-            if checksum == teacher_node.checksum_public_address:
+            if checksum == teacher_node.checksum_address:
                 teacher_index = len(nodes)
 
             nodes.append(node_data)
@@ -135,10 +136,13 @@ class NetworkStatusPage:
                     cell = html.Td(node_dict['last_seen'])
                 elif col == 'Fleet State':
                     # render html value directly
-                    cell = html.Td(children=html.Div([
-                        dash_dangerously_set_inner_html.DangerouslySetInnerHTML(node_dict['fleet_state_icon'])
-                    ]))
-
+                    fleet_state_div = []
+                    fleet_state_icon = node_dict['fleet_state_icon']
+                    if fleet_state_icon is not UNKNOWN_FLEET_STATE:
+                        fleet_state_div = [dash_dangerously_set_inner_html.DangerouslySetInnerHTML(
+                                                node_dict['fleet_state_icon']
+                                          )]
+                    cell = html.Td(children=html.Div(fleet_state_div))
                 if cell is not None:
                     row.append(cell)
 
