@@ -1,12 +1,12 @@
-name: Pull Request Labeler
-on: [pull_request]
+# name: Pull Request Labeler
+# on: [pull_request]
 
-jobs:
-  label:
+# jobs:
+#   label:
 
-    runs-on: ubuntu-latest
+#     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/labeler@v2
-      with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+#     steps:
+#     - uses: actions/labeler@v2
+#       with:
+#         repo-token: "${{ secrets.GITHUB_TOKEN }}"
