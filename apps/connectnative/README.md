@@ -12,4 +12,3 @@
     *  https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#Installing
     * you can select any file in this directory
 5. That should be all!
-
