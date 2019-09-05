@@ -130,9 +130,10 @@ setup(name=ABOUT['__title__'],
           'blockchain/eth/sol/source/contracts/*',
           'blockchain/eth/sol/source/contracts/lib/*',
           'blockchain/eth/sol/source/contracts/proxy/*',
-          'blockchain/eth/sol/source/zepellin/math/*',
-          'blockchain/eth/sol/source/zepellin/ownership/*',
-          'blockchain/eth/sol/source/zepellin/token/*']},
+          'blockchain/eth/sol/source/zeppelin/math/*',
+          'blockchain/eth/sol/source/zeppelin/utils/*',
+          'blockchain/eth/sol/source/zeppelin/ownership/*',
+          'blockchain/eth/sol/source/zeppelin/token/ERC20/*']},
       include_package_data=True,
 
       # Entry Points
