@@ -63,10 +63,12 @@ function getPassword(request){
 
 function setPassword(data){
   password = data;
-  ports['content-messages'].postMessage({
-    route: 'setPassword',
-    data: data,
-  });
+  if(ports['content-messages']){
+    ports['content-messages'].postMessage({
+      route: 'setPassword',
+      data: data,
+    });
+  }
 }
 
 // browser interaction

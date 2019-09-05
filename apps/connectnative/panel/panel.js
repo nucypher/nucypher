@@ -145,7 +145,7 @@ $('#passwordbutton').on("click", function(){
 // internal workings
 function fDispatcher(message){
     const callbacks = {
-        'bob.retrieve': onGenericNucypherReturn,
+        'bob.retrieve': onDecrypt,
         'alice.grant': onGenericNucypherReturn,
         'alice.decrypt': onDecrypt,
         'enrico.encrypt': onGenericNucypherReturn,
