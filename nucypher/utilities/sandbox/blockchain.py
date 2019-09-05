@@ -17,7 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List, Tuple
+from typing import List
+from typing import Tuple
 
 import maya
 from eth_tester.exceptions import TransactionFailed

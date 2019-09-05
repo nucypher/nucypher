@@ -275,8 +275,11 @@ class StandardTokenEconomics(TokenEconomics):
         with localcontext() as ctx:
             ctx.prec = self._precision
 
+            #
             # Eq. 3 of the mining paper
             # https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf
+            #
+
             t = Decimal(period)
             S_0 = self.erc20_initial_supply
             i_0 = 1

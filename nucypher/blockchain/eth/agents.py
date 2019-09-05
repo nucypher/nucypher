@@ -750,7 +750,8 @@ class WorkLockAgent(EthereumContractAgent):
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
         """
         contract_function = self.contract.functions.claim()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address)
         return receipt
 
     def refund(self, sender_address: str) -> dict:

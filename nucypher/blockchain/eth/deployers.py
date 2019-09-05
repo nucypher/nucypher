@@ -1027,21 +1027,22 @@ class WorklockDeployer(BaseContractDeployer):
         _refundRate Work -> ETH rate
         _lockedPeriods Number of periods during which claimed tokens will be locked
 
-
         """
         self.check_deployment_readiness()
 
         # Deploy
+        constructor_args = (self.token_agent.contract_address,
+                            self.staking_agent.contract_address,
+                            self.start_date,
+                            self.end_date,
+                            self.deposit_rate,
+                            self.refund_rate,
+                            self.locked_periods)
+
         worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
                                                                            self.registry,
                                                                            self.contract_name,
-                                                                           self.token_agent.contract_address,
-                                                                           self.staking_agent.contract_address,
-                                                                           self.start_date,
-                                                                           self.end_date,
-                                                                           self.deposit_rate,
-                                                                           self.refund_rate,
-                                                                           self.locked_periods,
+                                                                           *constructor_args,
                                                                            gas_limit=gas_limit)
 
         # Gather the transaction hashes
