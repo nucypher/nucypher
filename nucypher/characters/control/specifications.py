@@ -124,4 +124,4 @@ class EnricoSpecification(CharacterSpecification):
     __encrypt_message = {'input': ('message', ),
                          'output': ('message_kit', 'signature')}
 
-    _specifications = {'encrypt_message': __encrypt_message}
+    _specifications = {'encrypt_message': __encrypt_message, 'encrypt': __encrypt_message}

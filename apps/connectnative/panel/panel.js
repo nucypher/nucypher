@@ -115,7 +115,7 @@ function onOptions(data){
             submitdata = Object.assign(submitdata, $('#commandform').serializeObject())
             bgPort.postMessage({route: "execute", data: submitdata});
         });
-    } catch {
+    } catch (err) {
         // json can't be parsed?
         var data = data.result || "NuCypher returned an empty result.";
         displayError(data);
