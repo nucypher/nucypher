@@ -6,6 +6,7 @@ import os
 
 import click
 
+from nucypher.cli.config import nucypher_click_config
 from nucypher.characters.lawful import Enrico
 from nucypher.cli.actions import make_cli_character
 from nucypher.config.characters import AliceConfiguration
@@ -17,11 +18,12 @@ from nucypher.crypto.powers import SigningPower
 @click.option('--outfile', type=click.STRING)
 @click.option('--alice-config', type=click.STRING)
 @click.option('--label', type=click.STRING, required=True)
-def mario_box_cli(plaintext_dir, alice_config, label, outfile):
+@nucypher_click_config
+def mario_box_cli(click_config, plaintext_dir, alice_config, label, outfile):
 
     # Derive Policy Encrypting Key
     alice_configuration = AliceConfiguration.from_configuration_file(filepath=alice_config)
-    alice = make_cli_character(character_config=alice_configuration)
+    alice = make_cli_character(character_config=alice_configuration, click_config=click_config)
     alice_signing_key = alice.public_keys(SigningPower)
     policy_encrypting_key = alice.get_policy_encrypting_key_from_label(label=label.encode())
     policy_encrypting_key_hex = bytes(policy_encrypting_key).hex()
