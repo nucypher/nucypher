@@ -43,8 +43,6 @@ All staking-related operations done by StakeHolder are performed through the ``n
 +----------------------+-------------------------------------------------------------------------------+
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
-| ``collect-reward``   | Withdraw staking or policy rewards                                            |
-+----------------------+-------------------------------------------------------------------------------+
 
 
 **Stake Command Options**
@@ -240,11 +238,11 @@ Choose your staking address to withdraw compensation from
 (``nucypher stake accounts`` will show). Then, use
 ``nucypher stake collect-reward`` with an option ``--staking-reward`` to collect
 inflation rewards in NU or ``--policy-reward`` to collect Ethers earned as
-fees:
+fees, or both:
 
 .. code:: bash
 
-    nucypher stake collect-reward --staking-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+    nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
 
      ____    __            __
     /\  _`\ /\ \__        /\ \
@@ -256,14 +254,21 @@ fees:
 
     The Holder of Stakes.
 
-    OK | 0x0c936dc61634f42a691051faf44f71e2f72c001b39a49fdccb0a820dac0ad109 (70062 gas)
-    Block #1221942 | 0x5ac3e2e7133db8b9cdf71f8ff4a02dc99af08bce9bd325b72858da7732fa4ce9
-     See https://goerli.etherscan.io/tx/0x0c936dc61634f42a691051faf44f71e2f72c001b39a49fdccb0a820dac0ad109
+    OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
+    Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
+     See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
+
+    OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
+    Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
+     See https://goerli.etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
 
 You can run ``nuycpher stake accounts`` to verify that your staking compensation
 is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask
 are suitable) to transfer out the compensation earned (NU tokens or ETH) after
 that.
+
+Note that you will need to confirm two transactions if you collect both types of
+staking compensation if you use a hardware wallet.
 
 
 Divide an existing stake
