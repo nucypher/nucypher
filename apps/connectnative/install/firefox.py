@@ -36,7 +36,7 @@ def install():
             "executable needed to run this extension (look in setup.py)"
         )
     install_data = EXTENSION_DATA
-    install_data['path'] = stdio_cli +'x'
+    install_data['path'] = stdio_cli
 
     for dest in FILE_LOCATIONS[this_os]:
         location = os.path.join(home, dest, 'nucypher.json')

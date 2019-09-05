@@ -74,9 +74,7 @@ function onGetPassword(){
 
 
 function onOptions(data){
-    if (data){
-        installIsGood();
-    }
+
     clearResults()
     if (data.error && data.error === "keyring password is required"){
         return onGetPassword();
