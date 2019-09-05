@@ -51,7 +51,7 @@ Here is the recommended procedure for setting up `nucypher` in this fashion:
     $(nucypher-venv)
     ```
 
-    ``` note:: Successful virtualenv activation is indicated by '(nucypher-venv)$' prepending your console's prompt
+    ``` note:: Successful virtualenv activation is indicated by '(nucypher-venv)$' prepended to your console's prompt
     ```
 
 

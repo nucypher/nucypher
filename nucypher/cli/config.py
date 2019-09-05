@@ -19,12 +19,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import functools
 import os
+from distutils.util import strtobool
 
 import click
 from twisted.logger import Logger
-
-import collections
-from distutils.util import strtobool
 
 from nucypher.characters.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
@@ -37,7 +35,7 @@ def get_env_bool(var_name: str, default: bool) -> bool:
     if var_name in os.environ:
         # TODO: which is better: to fail on an incorrect envvar, or to use the default?
         # Currently doing the former.
-        return strtoobool(os.environ[var_name])
+        return strtobool(os.environ[var_name])
     else:
         return default
 
