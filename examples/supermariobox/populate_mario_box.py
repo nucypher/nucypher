@@ -41,7 +41,7 @@ def mario_box_cli(click_config, plaintext_dir, alice_config, label, outfile):
 
                 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
                 message_kit, _signature = enrico.encrypt_message(message=encoded_plaintext)
-                base64_message_kit = base64.b64encode(bytes(message_kit)).decode()
+                base64_message_kit = base64.b64encode(message_kit.to_bytes()).decode()
 
                 # Collect Bob Retrieve JSON Requests
                 retrieve_payload = {'label': label,
