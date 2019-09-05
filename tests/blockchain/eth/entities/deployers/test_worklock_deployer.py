@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.deployers import WorklockDeployer
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
-def test_token_deployer(testerchain, test_registry, agency, token_economics):
+def test_worklock_deployer(testerchain, test_registry, agency, token_economics):
     origin = testerchain.etherbase_account
 
     # Trying to get token from blockchain before it's been published fails
