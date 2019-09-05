@@ -63,16 +63,12 @@ class Moe(Character):
     def remember_node(self, *args, **kwargs):
         new_node_or_none = super().remember_node(*args, **kwargs)
         if new_node_or_none:
-            hey_joe.send(
-                {new_node_or_none.checksum_address: Moe.MonitoringTracker.abridged_node_details(new_node_or_none)},
-                "nodes")
+            hey_joe.send(None, topic="nodes")
         return new_node_or_none
 
     def learn_from_teacher_node(self, *args, **kwargs):
         new_nodes = super().learn_from_teacher_node(*args, **kwargs)
-        hey_joe.send({teacher.checksum_address: Moe.MonitoringTracker.abridged_node_details(teacher)}, "nodes")
-        new_teacher = self.current_teacher_node(cycle=False)
-        hey_joe.send({"current_teacher": new_teacher.checksum_address}, "teachers")
+        hey_joe.send(None, topic="nodes")
         return new_nodes
 
     def start(self, ws_port: int, http_port: int, dry_run: bool = False):

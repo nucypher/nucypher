@@ -16,16 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import binascii
-import os
 from typing import Tuple
 
+import os
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from flask import Flask, Response
 from flask import request
 from hendrix.experience import crosstown_traffic
-from jinja2 import Template
 from twisted.logger import Logger
 from umbral import pre
 from umbral.keys import UmbralPublicKey
@@ -42,13 +41,6 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-
-HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-TEMPLATES_DIR = os.path.join(HERE, "templates")
-
-with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
-    _status_template_content = f.read()
-status_template = Template(_status_template_content)
 
 
 class ProxyRESTServer:
