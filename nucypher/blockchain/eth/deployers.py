@@ -1045,7 +1045,14 @@ class WorklockDeployer(BaseContractDeployer):
                                                                            gas_limit=gas_limit)
 
         # Gather the transaction hashes
-        deployment_transactions = {'deployment': deploy_txhash}
-        self.deployment_transactions = deployment_transactions
+        self.deployment_transactions = {'deployment': deploy_txhash}
         self._contract = worklock_contract
-        return deployment_transactions
+        return self.deployment_transactions
+
+    def fund(self, sender_address: str, value: int) -> dict:
+        """Convenience method for funding the contract."""
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        receipt = token_agent.transfer(sender_address=sender_address,
+                                       target_address=self.contract_address,
+                                       amount=value)
+        return receipt

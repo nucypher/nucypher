@@ -1,7 +1,8 @@
 import pytest
+from eth_tester.exceptions import TransactionFailed
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
+from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.token import NU
 
@@ -26,6 +27,7 @@ def deploy_worklock(testerchain, agency, test_registry, token_economics):
                                 deposit_rate=deposit_rate,
                                 locked_periods=locked_periods)
     _deployment_receipts = deployer.deploy()
+    return deployer
 
 
 def test_create_worklock_agent(testerchain, test_registry, agency, token_economics, deploy_worklock):
@@ -33,6 +35,28 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     assert agent == same_agent
+
+
+def test_bid_rejection_before_funding(testerchain, agency, token_economics, test_registry):
+    agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    big_bidder = testerchain.unassigned_accounts[-1]
+    with pytest.raises(TransactionFailed):
+        receipt = agent.bid(sender_address=big_bidder,
+                            eth_amount=int(Web3.fromWei(1, 'ether')))
+
+
+def test_funding_worklock_contract(testerchain, test_registry, agency, token_economics, deploy_worklock):
+    deployer = deploy_worklock
+    funded = 2_000_000
+
+    receipt = deployer.fund(sender_address=testerchain.etherbase_account,
+                            value=NU.from_tokens(funded).to_nunits())
+    assert receipt
+
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    eth_balance = token_agent.blockchain.client.get_balance(deployer.contract_address)
+    token_balance = token_agent.get_balance(address=token_agent.contract_address)
+    assert funded == token_balance
 
 
 def test_bid(testerchain, agency, token_economics, test_registry):
