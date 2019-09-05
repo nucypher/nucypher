@@ -39,3 +39,4 @@ variables*.yml
 /tests/metrics/results/
 /docs/build
 .python-version
+*.DS_Store
