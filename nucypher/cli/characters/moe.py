@@ -12,8 +12,8 @@ from nucypher.network.middleware import RestMiddleware
 @click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
-@click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT)
-@click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT)
+@click.option('--http-port', help="The host port to run Moe HTTP services on", type=NETWORK_PORT, default=12500)
+@click.option('--ws-port', help="The host port to run websocket network services on", type=NETWORK_PORT, default=9000)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--learn-on-launch', help="Conduct first learning loop on main thread at launch.", is_flag=True)
 @nucypher_click_config

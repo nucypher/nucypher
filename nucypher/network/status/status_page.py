@@ -47,13 +47,20 @@ class NetworkStatusPage:
 
     @staticmethod
     def previous_states(learner: Learner) -> html.Div:
+        domains = learner.learning_domains
         states_dict = learner.known_nodes.abridged_states_dict()
         return html.Div([
-            html.H2('Previous States'),
             html.Div([
-                NetworkStatusPage.states_table(states_dict)
-            ]),
-        ], className='row')
+                html.H2('Domains'),
+                html.Div(f'{", ".join(domains)}')
+            ], className='row'),
+            html.Div([
+                html.H2('Previous States'),
+                html.Div([
+                    NetworkStatusPage.states_table(states_dict)
+                ]),
+            ], className='row')
+        ])
 
     @staticmethod
     def states_table(states_dict) -> html.Table:
