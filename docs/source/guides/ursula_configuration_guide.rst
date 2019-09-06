@@ -7,7 +7,7 @@ Ursula Configuration Guide
 1. Install NuCypher and geth
 ------------------------------
 
-If you want to run a NuCypher node which participates in decentralized network,
+If you want to run a NuCypher node that participates in the decentralized network,
 you need to install it first. The installation procedure for the Ursula (Worker)
 node is exactly the same as for Staker.
 
@@ -49,7 +49,7 @@ a dedicated instance or container, or with a ``virtualenv``:
 
 Before continuing, Verify your ``nucypher`` installation and entry points are functional:
 
-Activate your virtual environment (if you already didn't) and run the ``nucypher --help`` command
+Activate your virtual environment (if you haven't already) and run the ``nucypher --help`` command
 
 .. code:: bash
 

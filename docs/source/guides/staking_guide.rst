@@ -4,13 +4,13 @@
 NuCypher Staking Guide
 =======================
 
-The account which is actively doing staking operations is necessary to be a hot
-wallet. But it doesn't have to be the same account as the one which receives and
+The account which is actively doing work for the network (re-encryptions) needs to be a hot
+wallet. However, it doesn't have to be the same account as the one which receives and
 sends NU tokens. The account which holds NU tokens is called StakeHolder, or
-Staker, and the account which participates in the network as Ursula node is
+Staker, and the account which participates in the network as an Ursula node is
 called Worker.
-StakeHolder and Worker can have the same Ethereum account, but it's better to
-have them separate: StakeHolder controlled by a hardware wallet, and Worker
+It is highly recommended that StakeHolder and Worker have separate Ethereum
+accounts: StakeHolder controlled by a hardware wallet, and Worker
 having an address controlled by geth.
 
 All staking-related operations done by StakeHolder are performed through the ``nucypher stake`` command:
@@ -67,12 +67,12 @@ Staking Overview
 Most stakers on the Goerli testnet will complete the following steps:
 
 1) Install nucypher on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
-2) Install and run Geth, Parity or another ethereum node (can use with software or hardware Ethereum wallet).
+2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet).
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
 5) Install another Ethereum node at the Worker instance
-6) Initialize a Worker node and bond it to your Staker (``set-worker``) :ref:`ursula-config-guide`
-7) Configure and run the Worker, and keep it online (See Below)!
+6) Initialize a Worker node [:ref:`ursula-config-guide`] and bond it to your Staker (``set-worker``)
+7) Configure and run the Worker, and keep it online [:ref:`ursula-config-guide`]!
 
 Interactive Method
 ------------------
@@ -194,15 +194,15 @@ List existing stakes
     | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
     | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
-If the Worker in the list is shown as ``0x0000``, it means that you didn't yet
-attach any node to your Staker, so you still have to do it!
+If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
+attach attached a Worker node to your Staker, so you still have to do it!
 
 
 Bond an Ursula to a Staker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After you created an Ethereum node for your worker (see below about the worker),
-you can set the worker. The stake which doesn't yet have a worker will be
+After you create an Ethereum node for your worker (see below about the worker),
+you can set the worker. Stakes which don't yet have a worker will be
 highlighted in yellow:
 
 .. code:: bash
@@ -350,4 +350,4 @@ Divide stake at index 0, at 15000 NU for 30 additional Periods
 Worker configuration
 ------------------------
 
-Please go to :ref:`ursula-config-guide`.
+See :ref:`ursula-config-guide`.
