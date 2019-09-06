@@ -109,7 +109,7 @@ class NetworkStatusPage:
 
     def nodes_table(self, nodes, teacher_index) -> html.Table:
         rows = []
-        for node_info in nodes:
+        for index, node_info in enumerate(nodes):
             row = []
             for col in NetworkStatusPage.COLUMNS:
                 cell = self.generate_cell(column_name=col, node_info=node_info)
@@ -117,11 +117,10 @@ class NetworkStatusPage:
                     row.append(cell)
 
             style_dict = {'overflowY': 'scroll'}
-            # TODO: Restore
-            # if i == teacher_index:
-            #     # highlight teacher
-            #     style_dict['backgroundColor'] = '#1E65F3'
-            #     style_dict['color'] = 'white'
+            if index == teacher_index:
+                # highlight teacher
+                style_dict['backgroundColor'] = '#1E65F3'
+                style_dict['color'] = 'white'
 
             rows.append(html.Tr(row, style=style_dict, className='row'))
 
