@@ -881,7 +881,10 @@ class Ursula(Teacher, Character, Worker):
                     serving_domains=domains,
                 )
                 # attach status app to rest_app
-                UrsulaStatusPage(self, self.nickname, rest_app, '/status/')
+                UrsulaStatusPage(ursula=self,
+                                 title=self.nickname,
+                                 flask_server=rest_app,
+                                 route_url='/status/')
 
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
