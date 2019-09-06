@@ -34,15 +34,10 @@ class NetworkStatusPage:
         return self.dash_app.title
 
     @staticmethod
-    def header(title) -> html.Div:
-        return html.Div([
-            html.Div([
-                html.Div([
-                    html.Img(src='/assets/nucypher_logo.png'),
-                ], className='banner'),
-                html.Div(f'v{nucypher.__version__}', className='row')
-            ]),
-        ])
+    def header() -> html.Div:
+        return html.Div([html.Img(src='/assets/nucypher_logo.png', className='banner'),
+                         html.Span(f'v{nucypher.__version__}', id='version')],
+                        className="logo-widget")
 
     def previous_states(self, learner: Learner) -> html.Div:
         domains = learner.learning_domains
@@ -175,18 +170,22 @@ class MoeStatusPage(NetworkStatusPage):
             self.dash_app.index_string = file.read()
 
         self.dash_app.layout = html.Div([
+
             # hidden update buttons for hendrix notifications
             html.Div([
                 html.Button("Refresh States", id='hidden-state-button', type='submit'),
                 html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
             ]),
-
             dcc.Location(id='url', refresh=False),
-            html.Div(id='header'),
-            html.Div(id='current-period'),
-            html.Div(id='time-remaining'),
+
+            html.Div([
+                html.Div(id='header'),
+                html.Div(id='current-period'),
+                html.Div(id='time-remaining'),
+            ], id='widgets'),
             html.Div(id='prev-states'),
             html.Div(id='known-nodes'),
+
             dcc.Interval(
                 id='interval-component',
                 interval=15 * 1000,
@@ -197,7 +196,7 @@ class MoeStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('header', 'children'),
                                 [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return self.header(self.title)
+            return self.header()
 
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 [Input('url', 'pathname')])
@@ -245,7 +244,7 @@ class UrsulaStatusPage(NetworkStatusPage):
 
         @self.dash_app.callback(Output('header', 'children'), [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return self.header(self.title)
+            return self.header()
 
         @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
         def ursula_info(pathname):
