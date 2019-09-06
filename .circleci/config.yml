@@ -236,11 +236,11 @@ commands:
     steps:
       - run:
           name: Install Python Dependencies with Pip
-          command: pip3 install --user .
+          command: pip3 install --user -e .
       - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
       - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install -r dev-requirements.txt --user .
+          command: pip3 install -r dev-requirements.txt --user -e .
       - run:
           name: Install Solidity Compiler
           command: ./scripts/installation/install_solc.sh
@@ -250,7 +250,7 @@ commands:
     description: "Cache python installation files"
     steps:
       - save_cache:
-          key: pip-v7-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
+          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
             - "/usr/local/bin/solc"
             - "~/.local/bin"
@@ -260,7 +260,7 @@ commands:
     description: "Own and restore cached python installation files"
     steps:
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v7-{{ .Branch }}-{{ checksum "Pipfile.lock" }}-{{ checksum "scripts/installation/install_solc.sh" }}
+          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
 
   prepare_environment:
     description: "Checkout application code and Attach the Workspace"
