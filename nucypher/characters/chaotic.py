@@ -33,13 +33,14 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.nodes import FleetStateTracker, Learner
 from nucypher.network.status.status_page import MoeStatusPage
 
 
 class Moe(Character):
     """
     A monitor (lizard?)
+    # TODO: Inherit directly from Learner
     """
     banner = MOE_BANNER
 
