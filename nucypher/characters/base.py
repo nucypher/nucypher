@@ -209,10 +209,11 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
-            if not checksum_address:
-                raise ValueError("No checksum_address provided to run in decentralized mode.")
-            else:
-                self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
+            # TODO: WHY MOE?
+            # if not checksum_address:
+            #     raise ValueError("No checksum_address provided to run in decentralized mode.")
+            # else:
+            self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
         #
         # Federated
         #
@@ -230,13 +231,14 @@ class Character(Learner):
         #
         # Nicknames
         #
-        try:
-            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
-        except SigningPower.not_found_error:
-            if self.federated_only:
-                self.nickname = self.nickname_metadata = NO_NICKNAME
-            else:
-                raise
+        if checksum_address:  # TODO WHY MOE??
+            try:
+                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+            except SigningPower.not_found_error:
+                if self.federated_only:
+                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                else:
+                    raise
 
         #
         # Fleet state
