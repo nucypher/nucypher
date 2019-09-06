@@ -1,5 +1,5 @@
 body{
-    font-size: 1.5em;
+    font-size: 14px;
     line-height: 1.6;
     font-weight: 400;
     font-family: Arial,sans-serif;
@@ -33,15 +33,25 @@ body{
 }
 
 .nucypher-nickname-icon {
-    border-width: 10px;
+    border-width: 1px;
     border-style: solid;
     margin: 3px;
     padding: 3px;
     text-align: center;
     box-shadow: 1px 1px black, -1px -1px black;
-    width: 100px;
-    height: 130px;
+    width: 70px;
+    height: 70px;
 }
+
+#node-table {
+    width: 100%;
+}
+
+
+#node-table.row {
+    height: 2em;
+}
+
 
 .small {
     float: left;
@@ -57,9 +67,10 @@ body{
 }
 
 .single-symbol {
-    font-size: 3em;
+    font-size: 20px;
     color: black;
     text-shadow: 1px 1px black, -1px -1px black;
+    margin-right: 2px;
 }
 
 .address, .small-address {
