@@ -195,7 +195,7 @@ List existing stakes
     | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
 If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
-attach attached a Worker node to your Staker, so you still have to do it!
+attached a Worker node to your Staker, so you still have to do it!
 
 
 Bond an Ursula to a Staker
