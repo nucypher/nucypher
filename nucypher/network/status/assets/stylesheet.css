@@ -8,22 +8,6 @@ body{
 
 .banner {
     height: 150px;
-    margin: 0px -10px 10px;
-    background-color: rgb(255, 255, 255);
-    border-radius: 2px;
-}
-
-.banner h2{
-    color: rgb(30,101,243);
-    padding-top: 10px;
-    margin-left: 2%;
-    display: inline-block;
-}
-
-.banner Img{
-    float: left;
-    right: 20px;
-    height: 150px;
 }
 
 .app_name {
@@ -38,8 +22,6 @@ body{
     margin: 3px;
     padding: 3px;
     text-align: center;
-    box-shadow: 1px 1px black, -1px -1px black;
-    /* width: 70px; */
     height: 50px;
 }
 
@@ -69,7 +51,6 @@ body{
 .single-symbol {
     font-size: 20px;
     color: black;
-    text-shadow: 1px 1px black, -1px -1px black;
     margin-right: 2px;
 }
 
@@ -98,14 +79,15 @@ body{
 }
 
 
-#widgets div {
-    width: 15%;
-    border: 1px solid black;
+#widgets>div {
+    width: 33%;
+    border: 1px solid #e5e6ec;
     text-align: center;
     display: flex;
     justify-content: center;
     flex-direction: column;
     align-items: center;
+    flex-grow: 2;
 }
 
 #version {
