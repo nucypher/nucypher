@@ -86,5 +86,29 @@ body{
 }
 
 .logo-box {
-    padding: 0;
+}
+
+#widgets {
+    display: flex;
+    flex-flow: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    width: 100%;
+    margin-top: 5em;
+}
+
+
+#widgets div {
+    width: 15%;
+    border: 1px solid black;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+}
+
+#version {
+    width: 100%;
+    font-size: 2em;
 }
