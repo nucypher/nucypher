@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List
+from typing import List, Tuple
 
 import maya
 from twisted.logger import Logger
