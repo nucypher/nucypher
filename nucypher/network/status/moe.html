@@ -23,16 +23,18 @@
                 };
 
                 socket.addEventListener('message', function (event) {
-                    console.log("Message from server ", event.data);
-                    if (event.data.startsWith("[states]")) {
+                    // console.log("Message from server ", event.data);
+                    var message = JSON.parse(event.data);
+                    var topic = message[0];
+                    if (topic === "states") {
                         var hidden_state_button = document.getElementById("hidden-state-button");
-                        // weird timing issue with onload and DOM element potentially not being created as yet
+                        // prevent race condition onload and DOM element potentially not being created as yet
                         if( hidden_state_button != null ) {
                             hidden_state_button.click(); // Update states
                         }
-                    } else if (event.data.startsWith("['nodes']")) {
+                    } else if (topic === "nodes") {
                         var hidden_node_button = document.getElementById("hidden-node-button");
-                        // weird timing issue with onload and DOM element potentially not being created as yet
+                        // prevent race condition onload and DOM element potentially not being created as yet
                         if( hidden_node_button != null ) {
                             hidden_node_button.click(); // Update nodes
                         }
@@ -47,6 +49,7 @@
         <footer>
             {%config%}
             {%scripts%}
+            {%renderer%}
         </footer>
     </body>
 </html>
