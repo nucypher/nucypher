@@ -47,7 +47,7 @@ a dedicated instance or container, or with a ``virtualenv``:
     $ source nucypher/bin/activate
     (nu)$ pip3 install nucypher
 
-Before continuing, Verify your ``nucypher`` installation and entry points are functional:
+Before continuing, verify that your ``nucypher`` installation and entry points are functional:
 
 Activate your virtual environment (if you haven't already) and run the ``nucypher --help`` command
 
