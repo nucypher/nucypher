@@ -178,7 +178,7 @@ class MoeStatusPage(NetworkStatusPage):
     """
 
     def __init__(self, moe: Learner, ws_port: int, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
