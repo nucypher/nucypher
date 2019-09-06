@@ -22,7 +22,7 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from eth_utils import is_checksum_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -67,10 +67,6 @@ class ContractDeployer:
         if not isinstance(self.blockchain, BlockchainDeployerInterface):
             raise ValueError("No deployer interface connection available.")
 
-        if not economics:
-            economics = TokenEconomics()
-        self.__economics = economics
-
         #
         # Defaults
         #
@@ -80,6 +76,7 @@ class ContractDeployer:
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
         self.__ready_to_deploy = False
+        self.__economics = economics or StandardTokenEconomics()
 
     @property
     def economics(self) -> TokenEconomics:
@@ -272,11 +269,8 @@ class StakingEscrowDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self,  economics: TokenEconomics = None, *args, **kwargs):
+    def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not economics:
-            economics = TokenEconomics()
-        self.__economics = economics
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
@@ -289,7 +283,7 @@ class StakingEscrowDeployer(ContractDeployer):
             raise RuntimeError("PolicyManager contract is not initialized.")
 
     def _deploy_essential(self, gas_limit: int = None):
-        escrow_constructor_args = (self.token_contract.address, *self.__economics.staking_deployment_parameters)
+        escrow_constructor_args = (self.token_contract.address, *self.economics.staking_deployment_parameters)
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             self.deployer_address,
             self.registry,
@@ -352,7 +346,7 @@ class StakingEscrowDeployer(ContractDeployer):
 
         # 3 - Transfer the reward supply tokens to StakingEscrow #
         reward_function = self.token_contract.functions.transfer(the_escrow_contract.address,
-                                                                 self.__economics.erc20_reward_supply)
+                                                                 self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??
         reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
@@ -430,7 +424,6 @@ class StakingEscrowDeployer(ContractDeployer):
         return rollback_receipt
 
 
-
 class PolicyManagerDeployer(ContractDeployer):
     """
     Depends on StakingEscrow and NucypherTokenAgent
@@ -446,11 +439,6 @@ class PolicyManagerDeployer(ContractDeployer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        token_contract_name = NucypherTokenDeployer.contract_name
-        self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   name=token_contract_name)
-
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         staking_contract_name = StakingEscrowDeployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
@@ -812,10 +800,8 @@ class AdjudicatorDeployer(ContractDeployer):
     _upgradeable = True
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, economics: SlashingEconomics = None, *args, **kwargs):
-        if not economics:
-            economics = SlashingEconomics()
-        super().__init__(*args, economics=economics, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         staking_contract_name = StakingEscrowDeployer.contract_name
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
@@ -824,7 +810,7 @@ class AdjudicatorDeployer(ContractDeployer):
 
     def _deploy_essential(self, gas_limit: int = None):
         constructor_args = (self.staking_contract.address,
-                            *self.economics.deployment_parameters)
+                            *self.economics.slashing_deployment_parameters)
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                self.registry,
                                                                                self.contract_name,
@@ -840,8 +826,8 @@ class AdjudicatorDeployer(ContractDeployer):
             progress.update(1)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                               target_contract=adjudicator_contract,
-                                               deployer_address=self.deployer_address)
+                                              target_contract=adjudicator_contract,
+                                              deployer_address=self.deployer_address)
 
         proxy_deploy_receipts = proxy_deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit)
         proxy_deploy_receipt = proxy_deploy_receipts[proxy_deployer.deployment_steps[0]]
@@ -888,9 +874,9 @@ class AdjudicatorDeployer(ContractDeployer):
                                                                       use_proxy_address=False)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                               target_contract=existing_bare_contract,
-                                               deployer_address=self.deployer_address,
-                                               bare=True)
+                                              target_contract=existing_bare_contract,
+                                              deployer_address=self.deployer_address,
+                                              bare=True)
 
         adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
 

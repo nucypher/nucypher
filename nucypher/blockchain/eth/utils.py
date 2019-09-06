@@ -20,23 +20,22 @@ from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_utils import is_address, to_checksum_address, is_hex
 
 
-def epoch_to_period(epoch: int) -> int:
-    from nucypher.blockchain.economics import TokenEconomics
-    period = epoch // int(TokenEconomics.seconds_per_period)
+def epoch_to_period(epoch: int, seconds_per_period: int) -> int:
+    period = epoch // seconds_per_period
     return period
 
 
-def datetime_to_period(datetime: maya.MayaDT) -> int:
+def datetime_to_period(datetime: maya.MayaDT, seconds_per_period: int) -> int:
     """Converts a MayaDT instance to a period number."""
-    future_period = epoch_to_period(epoch=datetime.epoch)
+    future_period = epoch_to_period(epoch=datetime.epoch, seconds_per_period=seconds_per_period)
     return int(future_period)
 
 
-def datetime_at_period(period: int) -> maya.MayaDT:
+def datetime_at_period(period: int, seconds_per_period: int) -> maya.MayaDT:
     """Returns the datetime object at a given period, future, or past."""
 
     now = maya.now()
-    current_period = datetime_to_period(datetime=now)
+    current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
     delta_periods = period - current_period
 
     # +
@@ -50,10 +49,10 @@ def datetime_at_period(period: int) -> maya.MayaDT:
     return target_period
 
 
-def calculate_period_duration(future_time: maya.MayaDT) -> int:
+def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int) -> int:
     """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
-    future_period = datetime_to_period(datetime=future_time)
-    current_period = datetime_to_period(datetime=maya.now())
+    future_period = datetime_to_period(datetime=future_time, seconds_per_period=seconds_per_period)
+    current_period = datetime_to_period(datetime=maya.now(), seconds_per_period=seconds_per_period)
     periods = future_period - current_period
     return periods
 

@@ -20,7 +20,7 @@ from twisted.logger import Logger
 
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -164,7 +164,6 @@ class Felix(Character, NucypherTokenActor):
                  rest_port: int,
                  client_password: str = None,
                  crash_on_error: bool = False,
-                 economics: TokenEconomics = None,
                  distribute_ether: bool = True,
                  registry: BaseContractRegistry = None,
                  *args, **kwargs):
@@ -205,12 +204,9 @@ class Felix(Character, NucypherTokenActor):
         self._distribution_task.clock = self._CLOCK
         self.start_time = NOT_RUNNING
 
-        if not economics:
-            economics = TokenEconomics()
-        self.economics = economics
-
-        self.MAXIMUM_DISBURSEMENT = economics.maximum_allowed_locked
-        self.INITIAL_DISBURSEMENT = economics.minimum_allowed_locked * 3
+        self.economics = TokenEconomicsFactory.get_economics(registry=registry)
+        self.MAXIMUM_DISBURSEMENT = self.economics.maximum_allowed_locked
+        self.INITIAL_DISBURSEMENT = self.economics.minimum_allowed_locked * 3
 
         # Optionally send ether with each token transaction
         self.distribute_ether = distribute_ether

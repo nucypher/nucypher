@@ -83,7 +83,7 @@ def test_rapid_deployment(token_economics, test_registry):
         beneficiary_address = acct.address
         amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
         duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
-                                  (token_economics.maximum_locked_periods*ONE_YEAR_IN_SECONDS)*3)
+                                  (token_economics.maximum_rewarded_periods*ONE_YEAR_IN_SECONDS)*3)
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 

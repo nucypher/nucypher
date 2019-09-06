@@ -32,7 +32,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -343,13 +343,7 @@ def federated_ursulas(ursula_federated_test_config):
 
 @pytest.fixture(scope='session')
 def token_economics():
-    economics = TokenEconomics()
-    return economics
-
-
-@pytest.fixture(scope='session')
-def slashing_economics():
-    economics = SlashingEconomics()
+    economics = StandardTokenEconomics()
     return economics
 
 
@@ -432,7 +426,7 @@ def _make_agency(testerchain, test_registry):
     adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
 
     token_agent = token_deployer.make_agent()              # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()   # 2 Miner Escrow
+    staking_agent = staking_escrow_deployer.make_agent()   # 2 Staking Escrow
     policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
     _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
 
@@ -493,7 +487,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         amount = random.randint(min_stake, balance)
 
         # for a random lock duration
-        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
+        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods
         periods = random.randint(min_locktime, max_locktime)
 
         staker.initialize_stake(amount=amount, lock_periods=periods)

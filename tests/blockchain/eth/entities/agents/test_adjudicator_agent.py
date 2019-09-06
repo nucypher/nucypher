@@ -47,7 +47,6 @@ def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,
                              token_economics,
-                             slashing_economics,
                              test_registry):
 
     staker_account = testerchain.staker_account(0)
@@ -113,5 +112,5 @@ def test_adjudicator_slashes(agency,
     investigator_reward = bobby.token_balance - bobby_old_balance
 
     assert investigator_reward > 0
-    assert investigator_reward == slashing_economics.base_penalty / slashing_economics.reward_coefficient
+    assert investigator_reward == token_economics.base_penalty / token_economics.reward_coefficient
     assert staker.locked_tokens(periods=1) < locked_tokens

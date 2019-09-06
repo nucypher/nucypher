@@ -81,7 +81,8 @@ def test_staker_divides_stake(staker, token_economics):
                                        value=yet_another_stake_value,
                                        checksum_address=staker.checksum_address,
                                        index=3,
-                                       staking_agent=staker.staking_agent)
+                                       staking_agent=staker.staking_agent,
+                                       economics=token_economics)
 
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'

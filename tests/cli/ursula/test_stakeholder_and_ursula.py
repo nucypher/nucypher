@@ -133,7 +133,8 @@ def test_stake_init(click_runner,
     stake = Stake.from_stake_info(index=0,
                                   checksum_address=manual_staker,
                                   stake_info=stakes[0],
-                                  staking_agent=staking_agent)
+                                  staking_agent=staking_agent,
+                                  economics=token_economics)
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
 
