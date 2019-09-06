@@ -36,7 +36,6 @@ flask-limiter = "*"
 dash = "*"
 dash-core-components = "*"
 dash-html-components = "*"
-dash-dangerously-set-inner-html = "==0.0.2"
 
 [dev-packages]
 # Pytest
