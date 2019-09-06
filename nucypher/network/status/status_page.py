@@ -36,24 +36,17 @@ class NetworkStatusPage:
     @staticmethod
     def header() -> html.Div:
         return html.Div([html.Img(src='/assets/nucypher_logo.png', className='banner'),
-                         html.Span(f'v{nucypher.__version__}', id='version')],
+                         html.Div(f'v{nucypher.__version__}', id='version')],
                         className="logo-widget")
 
     def previous_states(self, learner: Learner) -> html.Div:
-        domains = learner.learning_domains
         states_dict = learner.known_nodes.abridged_states_dict()
         return html.Div([
-            html.Div([
-                html.H2('Domains'),
-                html.Div(f'{", ".join(domains)}')
-            ], className='row'),
-            html.Div([
                 html.H2('Previous States'),
                 html.Div([
                     self.states_table(states_dict)
                 ]),
             ], className='row')
-        ])
 
     def states_table(self, states_dict) -> html.Table:
         previous_states = list(states_dict.values())[:5]   # only latest 5
@@ -73,7 +66,7 @@ class NetworkStatusPage:
             ], className='nucypher-nickname-icon', style={'border-color': state["color_hex"]})
         ], className='state')
 
-    def known_nodes(self, learner: Learner, title='Network Nodes') -> html.Div:
+    def known_nodes(self, learner: Learner) -> html.Div:
         nodes = list()
         nodes_dict = learner.known_nodes.abridged_nodes_dict()
         teacher_node = learner.current_teacher_node()
@@ -85,7 +78,6 @@ class NetworkStatusPage:
             nodes.append(node_data)
 
         return html.Div([
-            html.H2(title),
             html.Div([self.nodes_table(nodes, teacher_index)], className='row')
         ], className='row')
 
@@ -170,20 +162,22 @@ class MoeStatusPage(NetworkStatusPage):
             self.dash_app.index_string = file.read()
 
         self.dash_app.layout = html.Div([
+            dcc.Location(id='url', refresh=False),
 
-            # hidden update buttons for hendrix notifications
+            # Update buttons also used for hendrix WS topic notifications
             html.Div([
                 html.Button("Refresh States", id='hidden-state-button', type='submit'),
                 html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
             ]),
-            dcc.Location(id='url', refresh=False),
 
             html.Div([
                 html.Div(id='header'),
                 html.Div(id='current-period'),
                 html.Div(id='time-remaining'),
+                html.Div(id='domains'),
+                html.Div(id='prev-states'),
             ], id='widgets'),
-            html.Div(id='prev-states'),
+
             html.Div(id='known-nodes'),
 
             dcc.Interval(
@@ -211,7 +205,8 @@ class MoeStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('current-period', 'children'),
                                 [Input('url', 'pathname')])
         def current_period(pathname):
-            return html.Div([html.H4(moe.staking_agent.get_current_period())])
+            return html.Div([html.H4("Current Period"),
+                             html.H4(moe.staking_agent.get_current_period())])
 
         @self.dash_app.callback(Output('time-remaining', 'children'),
                                 [Input('interval-component', 'n_intervals')])
@@ -220,7 +215,16 @@ class MoeStatusPage(NetworkStatusPage):
             midnight = datetime(year=tomorrow.year, month=tomorrow.month,
                                 day=tomorrow.day, hour=0, minute=0, second=0)
             seconds_remaining = MayaDT.from_datetime(midnight).slang_time()
-            return html.Div([html.H4(seconds_remaining)])
+            return html.Div([html.H4("Next Period"),
+                             html.H4(seconds_remaining)])
+
+        @self.dash_app.callback(Output('domains', 'children'), [Input('url', 'pathname')])  # on page-load
+        def domains(pathname):
+            domains = ' | '.join(moe.learning_domains)
+            return html.Div([
+                html.H4('Learning Domains'),
+                html.H4(domains),
+            ])
 
 
 class UrsulaStatusPage(NetworkStatusPage):
@@ -247,10 +251,17 @@ class UrsulaStatusPage(NetworkStatusPage):
             return self.header()
 
         @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
-        def ursula_info(pathname):
+        def domains():
             domains = ''
             for domain in ursula.learning_domains:
                 domains += f' | {domain} '
+            return html.Div([
+                html.H4('Domains', className='one column'),
+                html.H4(domains, className='eleven columns'),
+            ], className='row')
+
+        @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
+        def ursula_info(pathname):
             info = html.Div([
                 html.Div([
                     html.H4('Icon', className='one column'),
@@ -260,10 +271,6 @@ class UrsulaStatusPage(NetworkStatusPage):
                     ], className='symbols three columns'),
 
                 ], className='row'),
-                html.Div([
-                    html.H4('Domains', className='one column'),
-                    html.H4(domains, className='eleven columns'),
-                ], className='row')
             ], className='row')
             return info
 
