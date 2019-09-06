@@ -21,8 +21,6 @@ import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from twisted.internet import stdio
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.banners import URSULA_BANNER
 from nucypher.cli import actions, painting
