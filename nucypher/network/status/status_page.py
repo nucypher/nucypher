@@ -1,12 +1,13 @@
 import os
+from datetime import datetime, timedelta
 from os.path import dirname, abspath
 
 import dash_core_components as dcc
-import dash_dangerously_set_inner_html
 import dash_html_components as html
 from dash import Dash
-from dash.dependencies import Output, Input, Event
+from dash.dependencies import Output, Input
 from flask import Flask
+from maya import MayaDT
 from twisted.logger import Logger
 
 import nucypher
@@ -39,9 +40,6 @@ class NetworkStatusPage:
                 html.Div([
                     html.Img(src='/assets/nucypher_logo.png'),
                 ], className='banner'),
-                html.Div([
-                    html.H1(title, id='status-title', className='app_name'),
-                ], className='row'),
                 html.Div(f'v{nucypher.__version__}', className='row')
             ]),
         ])
@@ -101,8 +99,9 @@ class NetworkStatusPage:
         for index, node_info in enumerate(nodes):
             row = []
             for col in self.COLUMNS:
-                cell = self.generate_cell(column_name=col, node_info=node_info)
-                if cell is not None:
+                components = self.generate_components(node_info=node_info)
+                cell = components[col]
+                if cell:
                     row.append(cell)
 
             style_dict = {'overflowY': 'scroll'}
@@ -122,7 +121,7 @@ class NetworkStatusPage:
         return table
 
     @staticmethod
-    def generate_cell(column_name: str, node_info: dict):
+    def generate_components(node_info: dict):
         """
         Update this depending on which columns you want to show links for
         and what you want those links to be.
@@ -156,8 +155,7 @@ class NetworkStatusPage:
             'Fleet State': fleet_state
         }
 
-        cell = components[column_name]
-        return cell
+        return components
 
 
 class MoeStatusPage(NetworkStatusPage):
@@ -165,12 +163,13 @@ class MoeStatusPage(NetworkStatusPage):
     Status application for 'Moe' monitoring node.
     """
 
-    def __init__(self, moe: Learner, ws_port: int, *args, **kwargs):
+    def __init__(self, moe, ws_port: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ws_port = ws_port
 
         # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
+        # TODO: Configurable template path
         template_path = os.path.join(abspath(dirname(__file__)), 'moe.html')
         with open(template_path, 'r') as file:
             self.dash_app.index_string = file.read()
@@ -178,31 +177,51 @@ class MoeStatusPage(NetworkStatusPage):
         self.dash_app.layout = html.Div([
             # hidden update buttons for hendrix notifications
             html.Div([
-                html.Button(id='hidden-state-button', type='submit', hidden=True),
-                html.Button(id='hidden-node-button', type='submit', hidden=True),
-            ], hidden=True),
+                html.Button("Refresh States", id='hidden-state-button', type='submit'),
+                html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
+            ]),
 
             dcc.Location(id='url', refresh=False),
             html.Div(id='header'),
+            html.Div(id='current-period'),
+            html.Div(id='time-remaining'),
             html.Div(id='prev-states'),
             html.Div(id='known-nodes'),
+            dcc.Interval(
+                id='interval-component',
+                interval=15 * 1000,
+                n_intervals=0
+            ),
         ])
 
-        @self.dash_app.callback(Output('header', 'children'), [Input('url', 'pathname')])  # on page-load
+        @self.dash_app.callback(Output('header', 'children'),
+                                [Input('url', 'pathname')])  # on page-load
         def header(pathname):
             return self.header(self.title)
 
         @self.dash_app.callback(Output('prev-states', 'children'),
-                                [Input('url', 'pathname')],  # on page-load
-                                events=[Event('hidden-state-button', 'click')])  # when notified by websocket message
+                                [Input('url', 'pathname')])
         def state(pathname):
             return self.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
-                                [Input('url', 'pathname')],  # on page-load
-                                events=[Event('hidden-node-button', 'click')])  # when notified by websocket message
-        def known_nodes(pathname):
+                                [Input('hidden-node-button', 'n_clicks')])
+        def known_nodes(n):
             return self.known_nodes(moe)
+
+        @self.dash_app.callback(Output('current-period', 'children'),
+                                [Input('url', 'pathname')])
+        def current_period(pathname):
+            return html.Div([html.H4(moe.staking_agent.get_current_period())])
+
+        @self.dash_app.callback(Output('time-remaining', 'children'),
+                                [Input('interval-component', 'n_intervals')])
+        def time_remaining(n):
+            tomorrow = datetime.now() + timedelta(1)
+            midnight = datetime(year=tomorrow.year, month=tomorrow.month,
+                                day=tomorrow.day, hour=0, minute=0, second=0)
+            seconds_remaining = MayaDT.from_datetime(midnight).slang_time()
+            return html.Div([html.H4(seconds_remaining)])
 
 
 class UrsulaStatusPage(NetworkStatusPage):
@@ -249,12 +268,12 @@ class UrsulaStatusPage(NetworkStatusPage):
             ], className='row')
             return info
 
-        @self.dash_app.callback(Output('prev-states', 'children'), events=[Event('status-update', 'interval')])
+        @self.dash_app.callback(Output('prev-states', 'children'))
         def state():
             """Simply update periodically"""
             return self.previous_states(ursula)
 
-        @self.dash_app.callback(Output('known-nodes', 'children'), events=[Event('status-update', 'interval')])
+        @self.dash_app.callback(Output('known-nodes', 'children'))
         def known_nodes():
             """Simply update periodically"""
             return self.known_nodes(ursula, title='Peers')

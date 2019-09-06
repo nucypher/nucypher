@@ -24,7 +24,7 @@ from hendrix.experience import hey_joe
 from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.economics import TokenEconomics
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
@@ -47,6 +47,7 @@ class Moe(Character):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.log.info(self.banner)
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
     class MonitoringTracker(FleetStateTracker):
         def record_fleet_state(self, *args, **kwargs):
