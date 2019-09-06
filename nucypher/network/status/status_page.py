@@ -1,4 +1,5 @@
 import os
+from os.path import dirname, abspath
 
 import dash_core_components as dcc
 import dash_dangerously_set_inner_html
@@ -24,7 +25,7 @@ class NetworkStatusPage:
                              server=flask_server,
                              assets_folder=self.assets_path,
                              url_base_pathname=route_url,
-                             suppress_callback_exceptions=True)
+                             suppress_callback_exceptions=False)  # TODO: Set to True by default or make configurable
         self.dash_app.title = title
 
     @property
@@ -45,8 +46,7 @@ class NetworkStatusPage:
             ]),
         ])
 
-    @staticmethod
-    def previous_states(learner: Learner) -> html.Div:
+    def previous_states(self, learner: Learner) -> html.Div:
         domains = learner.learning_domains
         states_dict = learner.known_nodes.abridged_states_dict()
         return html.Div([
@@ -57,24 +57,23 @@ class NetworkStatusPage:
             html.Div([
                 html.H2('Previous States'),
                 html.Div([
-                    NetworkStatusPage.states_table(states_dict)
+                    self.states_table(states_dict)
                 ]),
             ], className='row')
         ])
 
-    @staticmethod
-    def states_table(states_dict) -> html.Table:
+    def states_table(self, states_dict) -> html.Table:
         previous_states = list(states_dict.values())[:5]   # only latest 5
         row = []
         for state in previous_states:
             # store previous states in reverse order
-            row.insert(0, html.Td(NetworkStatusPage.state_detail(state)))
+            row.insert(0, html.Td(self.state_detail(state)))
         return html.Table([html.Tr(row, id='state-table', className='row')])
 
     @staticmethod
     def state_detail(state) -> html.Div:
         return html.Div([
-            html.H5(state['nickname']),
+            html.Span(state['nickname']),
             html.Div([
                 html.Div(state['symbol'], className='single-symbol'),
                 html.Span(state['updated'], className='small'),
@@ -83,7 +82,6 @@ class NetworkStatusPage:
 
     def known_nodes(self, learner: Learner, title='Network Nodes') -> html.Div:
         nodes = list()
-
         nodes_dict = learner.known_nodes.abridged_nodes_dict()
         teacher_node = learner.current_teacher_node()
         teacher_index = None
@@ -91,34 +89,25 @@ class NetworkStatusPage:
             node_data = nodes_dict[checksum]
             if checksum == teacher_node.checksum_address:
                 teacher_index = len(nodes)
-
             nodes.append(node_data)
 
         return html.Div([
             html.H2(title),
-            html.Div([
-                html.Div('* Current Teacher',
-                         style={'backgroundColor': '#1E65F3', 'color': 'white'},
-                         className='two columns'),
-            ], className='row'),
-            html.Br(),
-            html.Div([
-                self.nodes_table(nodes, teacher_index)
-            ], className='row')
+            html.Div([self.nodes_table(nodes, teacher_index)], className='row')
         ], className='row')
 
     def nodes_table(self, nodes, teacher_index) -> html.Table:
         rows = []
         for index, node_info in enumerate(nodes):
             row = []
-            for col in NetworkStatusPage.COLUMNS:
+            for col in self.COLUMNS:
                 cell = self.generate_cell(column_name=col, node_info=node_info)
                 if cell is not None:
                     row.append(cell)
 
             style_dict = {'overflowY': 'scroll'}
+            # highlight teacher
             if index == teacher_index:
-                # highlight teacher
                 style_dict['backgroundColor'] = '#1E65F3'
                 style_dict['color'] = 'white'
 
@@ -126,7 +115,7 @@ class NetworkStatusPage:
 
         table = html.Table(
             # header
-            [html.Tr([html.Th(col) for col in NetworkStatusPage.COLUMNS], className='row')] +
+            [html.Tr([html.Th(col) for col in self.COLUMNS], className='row')] +
             rows,
             id='node-table'
         )
@@ -154,7 +143,7 @@ class NetworkStatusPage:
         fleet_state_div = []
         fleet_state_icon = node_info['fleet_state_icon']
         if fleet_state_icon is not UNKNOWN_FLEET_STATE:
-            icon_list = [dash_dangerously_set_inner_html.DangerouslySetInnerHTML(node_info['fleet_state_icon'])]
+            icon_list = node_info['fleet_state_icon']
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
@@ -178,63 +167,13 @@ class MoeStatusPage(NetworkStatusPage):
 
     def __init__(self, moe: Learner, ws_port: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.ws_port = ws_port
 
         # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
-        self.dash_app.index_string = r'''
-        <!DOCTYPE html>
-        <html>
-            <head>
-                {%metas%}
-                <title>{%title%}</title>
-                {%favicon%}
-                {%css%}
-            </head>
-            <body>
-                {%app_entry%}
-                
-                <script>
-                    window.onload = function () {
-                        const ws_port = "''' + str(ws_port) + '''";
-                        const origin_hostname = window.location.hostname;
-                        const socket = new WebSocket("ws://"+ origin_hostname + ":" + ws_port);
-                        socket.binaryType = "arraybuffer";
-                                    
-                        socket.onopen = function () {
-                            socket.send(JSON.stringify({'hx_subscribe': 'states'}));
-                            socket.send(JSON.stringify({'hx_subscribe': 'nodes'}));
-                            isopen = true;
-                        }
-                        
-                        socket.addEventListener('message', function (event) {
-                            console.log("Message from server ", event.data);
-                            if (event.data.startsWith("[\\"states\\"")) {
-                                var hidden_state_button = document.getElementById("hidden-state-button");
-                                // weird timing issue with onload and DOM element potentially not being created as yet
-                                if( hidden_state_button != null ) {
-                                    hidden_state_button.click(); // Update states
-                                }
-                            } else if (event.data.startsWith("[\\"nodes\\"")) {
-                                var hidden_node_button = document.getElementById("hidden-node-button");
-                                // weird timing issue with onload and DOM element potentially not being created as yet
-                                if( hidden_node_button != null ) {
-                                    hidden_node_button.click(); // Update nodes
-                                }
-                            }
-                        });
-                        
-                        socket.onerror = function (error) {
-                            console.log(error.data);
-                        }
-                    }
-                </script>
-                <footer>
-                    {%config%}
-                    {%scripts%}
-                </footer>
-            </body>
-        </html>
-        '''
+        template_path = os.path.join(abspath(dirname(__file__)), 'moe.html')
+        with open(template_path, 'r') as file:
+            self.dash_app.index_string = file.read()
 
         self.dash_app.layout = html.Div([
             # hidden update buttons for hendrix notifications
@@ -251,13 +190,13 @@ class MoeStatusPage(NetworkStatusPage):
 
         @self.dash_app.callback(Output('header', 'children'), [Input('url', 'pathname')])  # on page-load
         def header(pathname):
-            return NetworkStatusPage.header(self.title)
+            return self.header(self.title)
 
         @self.dash_app.callback(Output('prev-states', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
                                 events=[Event('hidden-state-button', 'click')])  # when notified by websocket message
         def state(pathname):
-            return NetworkStatusPage.previous_states(moe)
+            return self.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
                                 [Input('url', 'pathname')],  # on page-load
