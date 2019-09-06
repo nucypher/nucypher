@@ -225,5 +225,5 @@ class WebEmitter:
         serialized_response = WebEmitter.transport_serializer(assembled_response)
 
         # ---------- HTTP OUTPUT
-        response = drone_character.sink(response=serialized_response, status=200, content_type="application/json")
+        response = drone_character.sink(response=serialized_response, status=200, content_type="application/javascript")
         return response

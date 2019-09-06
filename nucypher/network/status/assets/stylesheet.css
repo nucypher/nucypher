@@ -39,8 +39,8 @@ body{
     padding: 3px;
     text-align: center;
     box-shadow: 1px 1px black, -1px -1px black;
-    width: 70px;
-    height: 70px;
+    /* width: 70px; */
+    height: 50px;
 }
 
 #node-table {
@@ -83,4 +83,8 @@ body{
 
 .state {
     float:left;
+}
+
+.logo-box {
+    padding: 0;
 }
