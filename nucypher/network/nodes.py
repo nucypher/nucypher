@@ -238,14 +238,18 @@ class FleetStateTracker:
             last_seen = node.last_seen.iso8601()
         except AttributeError:  # TODO: This logic belongs somewhere - anywhere - else.
             last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
-        return {
-                "icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
+        fleet_icon = node.fleet_state_nickname_metadata
+        if fleet_icon is UNKNOWN_FLEET_STATE:
+            fleet_icon = "?"  # TODO
+        else:
+            fleet_icon = fleet_icon[0][1]
+        return {"icon_details": node.nickname_icon_details(),  # TODO: Mix this in better.
                 "rest_url": node.rest_url(),
                 "nickname": node.nickname,
                 "checksum_address": node.checksum_address,
                 "timestamp": node.timestamp.iso8601(),
                 "last_seen": last_seen,
-                "fleet_state_icon": node.fleet_state_icon,
+                "fleet_state_icon": fleet_icon,
                 }
 
 
