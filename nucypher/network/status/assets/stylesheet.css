@@ -3,17 +3,85 @@ body{
     line-height: 1.6;
     font-weight: 400;
     font-family: Arial,sans-serif;
-    color: #222;
+    color: #4d525a;
+}
+
+
+a { color: slategrey;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+#react-entry-point {
+    display: flex;
+    width: 99%;
+    height: 99%;
+    flex-flow: column;
+    justify-content: space-between;
+    position: absolute;
+}
+
+#react-entry-point>div {
+    height: 90%;
+}
+
+#main {
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: space-between;
+    align-items: stretch;
+    margin: 1em;
+    height: 100%;
+}
+
+#controls {
+    display: flex;
+    border-bottom: 1px solid #e5e6ec;
+    padding: 1em;
+}
+
+#widgets {
+    display: flex;
+    flex-flow: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    width: 100%;
+    margin-top: 5em;
+}
+
+#widgets>div {
+    width: 33%;
+    border: 1px solid #e5e6ec;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 2;
+    padding-bottom: 20px;
 }
 
 .banner {
-    height: 150px;
+    height: 3em;
+    margin-right: 1em;
 }
 
 .app_name {
     color: rgb(30,101,243);
     padding-top: 10px;
     display: inline-block;
+}
+
+
+.symbols {
+    float: left;
+    width: 100%;
+}
+
+.single-symbol {
+    font-size: 20px;
+    color: black;
+    margin-right: 2px;
 }
 
 .nucypher-nickname-icon {
@@ -39,19 +107,7 @@ body{
     float: left;
     width: 100%;
     text-shadow: none;
-    font-family: sans;
     font-size: 10px;
-}
-
-.symbols {
-    float: left;
-    width: 100%;
-}
-
-.single-symbol {
-    font-size: 20px;
-    color: black;
-    margin-right: 2px;
 }
 
 .address, .small-address {
@@ -69,28 +125,14 @@ body{
 .logo-box {
 }
 
-#widgets {
-    display: flex;
-    flex-flow: row;
-    flex-wrap: wrap;
-    justify-content: space-around;
-    width: 100%;
-    margin-top: 5em;
-}
-
-
-#widgets>div {
-    width: 33%;
-    border: 1px solid #e5e6ec;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    flex-direction: column;
-    align-items: center;
-    flex-grow: 2;
-}
-
 #version {
     width: 100%;
     font-size: 2em;
+}
+
+.stacked-widget {
+    width: 100%;
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
 }
