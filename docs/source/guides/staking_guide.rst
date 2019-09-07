@@ -225,8 +225,14 @@ highlighted in yellow:
 
 Please note that the address should be in the format where checksum is encoded
 in the address. However, geth shows addresses in the lower case. You can convert
-by copying and pasting the address to `Goerli Etherscan <https://goerli.etherscan.io/>`_, e.g.
-``0x287a817426dd1ae78ea23e9918e2273b6733a43d -> 0x287A817426DD1AE78ea23e9918e2273b6733a43D``.
+the address to checksum format in geth console:
+
+.. code:: bash
+    $ geth attach ~/.ethereum/goerli/geth.ipc
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
+    > web3.toChecksumAddress(eth.accounts[0])
+    "0x287A817426DD1AE78ea23e9918e2273b6733a43D"
 
 After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
 
