@@ -11,6 +11,7 @@ from maya import MayaDT
 from twisted.logger import Logger
 
 import nucypher
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
 from constant_sorrow.constants import UNKNOWN_FLEET_STATE
@@ -35,14 +36,13 @@ class NetworkStatusPage:
 
     @staticmethod
     def header() -> html.Div:
-        return html.Div([html.Img(src='/assets/nucypher_logo.png', className='banner'),
-                         html.Div(f'v{nucypher.__version__}', id='version')],
+        return html.Div([html.Div(f'v{nucypher.__version__}', id='version')],
                         className="logo-widget")
 
     def previous_states(self, learner: Learner) -> html.Div:
         states_dict = learner.known_nodes.abridged_states_dict()
         return html.Div([
-                html.H2('Previous States'),
+                html.H4('Previous States'),
                 html.Div([
                     self.states_table(states_dict)
                 ]),
@@ -133,9 +133,10 @@ class NetworkStatusPage:
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
+        etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
             'Icon': icon,
-            'Checksum': html.Td(f'{node_info["checksum_address"][:10]}...'),
+            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...', href=etherscan_url)),
             'Nickname': nickname,
             'Timestamp': html.Td(node_info['timestamp']),
             'Last Seen': html.Td(node_info['last_seen']),
@@ -166,19 +167,27 @@ class MoeStatusPage(NetworkStatusPage):
 
             # Update buttons also used for hendrix WS topic notifications
             html.Div([
+                html.Img(src='/assets/nucypher_logo.png', className='banner'),
                 html.Button("Refresh States", id='hidden-state-button', type='submit'),
                 html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
-            ]),
+            ], id="controls"),
+
+            ###############################################################
 
             html.Div([
-                html.Div(id='header'),
-                html.Div(id='current-period'),
-                html.Div(id='time-remaining'),
-                html.Div(id='domains'),
-                html.Div(id='prev-states'),
-            ], id='widgets'),
+                html.Div([
+                    html.Div(id='header'),
+                    html.Div(id='current-period'),
+                    html.Div(id='time-remaining'),
+                    html.Div(id='domains'),
+                    html.Div(id='prev-states'),
+                    html.Div(id='active-stakers'),
+                    html.Div(id='registry-uri'),
+                    html.Div(id='staked-tokens'),
+                ], id='widgets'),
 
-            html.Div(id='known-nodes'),
+                html.Div(id='known-nodes'),
+            ], id='main'),
 
             dcc.Interval(
                 id='interval-component',
@@ -201,6 +210,11 @@ class MoeStatusPage(NetworkStatusPage):
                                 [Input('hidden-node-button', 'n_clicks')])
         def known_nodes(n):
             return self.known_nodes(moe)
+
+        @self.dash_app.callback(Output('active-stakers', 'children'),
+                                [Input('hidden-node-button', 'n_clicks')])
+        def active_stakers(n):
+            return html.Div([html.H4(f"{len(moe.known_nodes)} Nodes")])
 
         @self.dash_app.callback(Output('current-period', 'children'),
                                 [Input('url', 'pathname')])
@@ -225,6 +239,32 @@ class MoeStatusPage(NetworkStatusPage):
                 html.H4('Learning Domains'),
                 html.H4(domains),
             ])
+
+        @self.dash_app.callback(Output('staked-tokens', 'children'),
+                                [Input('hidden-node-button', 'n_clicks')])
+        def staked_tokens(pathname):
+            nu = NU.from_nunits(moe.staking_agent.get_global_locked_tokens())
+            return html.Div([
+                html.H4('Staked Tokens'),
+                html.H4(f"{nu}"),
+            ])
+
+        @self.dash_app.callback(Output('registry-uri', 'children'),
+                                [Input('hidden-node-button', 'n_clicks')])
+        def contract_status(pathname):
+            uri = moe.registry.id[:16]
+            return html.Div([
+                html.H4('Registry Checksum'),
+                html.H4(f"{uri}"),
+                html.A(f'{moe.token_agent.contract_name} - {moe.token_agent.contract_address}',
+                       href=f'https://goerli.etherscan.io/address/{moe.token_agent.contract_address}'),
+                html.A(f'{moe.staking_agent.contract_name} - {moe.staking_agent.contract_address}',
+                       href=f'https://goerli.etherscan.io/address/{moe.staking_agent.contract_address}'),
+                html.A(f'{moe.policy_agent.contract_name} - {moe.policy_agent.contract_address}',
+                       href=f'https://goerli.etherscan.io/address/{moe.policy_agent.contract_address}'),
+                html.A(f'{moe.adjudicator_agent.contract_name} - {moe.adjudicator_agent.contract_address}',
+                       href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}'),
+            ], className='stacked-widget')
 
 
 class UrsulaStatusPage(NetworkStatusPage):
@@ -282,4 +322,4 @@ class UrsulaStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('known-nodes', 'children'))
         def known_nodes():
             """Simply update periodically"""
-            return self.known_nodes(ursula, title='Peers')
+            return self.known_nodes(ursula)
