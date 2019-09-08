@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import NU_BANNER
 from nucypher.cli.actions import get_provider_process
@@ -55,15 +55,25 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods, staking
     click.clear()
     emitter.banner(NU_BANNER)
 
+    #
+    # Connect to Blockchain
+    #
+
     try:
         ETH_NODE = None
         if geth:
             ETH_NODE = get_provider_process()
 
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
-                                                        provider_process=ETH_NODE,
-                                                        poa=poa)
-        blockchain = BlockchainInterfaceFactory.get_interface()
+        # Note: For test compatibility.
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
+                                                            provider_process=ETH_NODE,
+                                                            poa=poa,
+                                                            sync=False,
+                                                            show_sync_progress=False)
+
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+
         emitter.echo(message="Reading Latest Chaindata...")
         blockchain.connect()
     except Exception as e:
@@ -76,6 +86,7 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods, staking
         registry = LocalContractRegistry(filepath=registry_filepath)
     else:
         registry = InMemoryContractRegistry.from_latest_publication()
+
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
 
     if action == 'network':
