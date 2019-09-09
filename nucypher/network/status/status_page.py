@@ -1,9 +1,11 @@
 import os
 from datetime import datetime, timedelta
 from os.path import dirname, abspath
+from string import Template
 
 import dash_core_components as dcc
 import dash_html_components as html
+from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 from dash import Dash
 from dash.dependencies import Output, Input
 from flask import Flask
@@ -14,7 +16,6 @@ import nucypher
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
-from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 
 
 class NetworkStatusPage:
@@ -155,12 +156,12 @@ class MoeStatusPage(NetworkStatusPage):
         super().__init__(*args, **kwargs)
         self.ws_port = ws_port
 
-        # modify index_string page template so that the websocket port for hendrix
         # updates can be directly provided included in javascript snippet
         # TODO: Configurable template path
         template_path = os.path.join(abspath(dirname(__file__)), 'moe.html')
         with open(template_path, 'r') as file:
-            self.dash_app.index_string = file.read()
+            moe_template = file.read()
+            self.dash_app.index_string = Template(moe_template).substitute(ws_port=ws_port)
 
         self.dash_app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
