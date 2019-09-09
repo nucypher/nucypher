@@ -100,6 +100,18 @@ class UmbralMessageKit:
                           signature=signature)
         return message_kit
 
+    def __eq__(self, other):
+        eq_conditions = (self.ciphertext == other.ciphertext,
+                         self.capsule == other.capsule,
+                         self.sender_verifying_key == other.sender_verifying_key)
+        return all(eq_conditions)
+
+    def __hash__(self):
+        return hash(bytes(self))
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}:{hex(hash(self) & 0xFFFFFFFF)[2:]}'
+
 
 class RevocationKit:
 
