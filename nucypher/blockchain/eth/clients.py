@@ -189,7 +189,12 @@ class Web3Client:
 
     @property
     def chain_id(self) -> int:
-        return int(self.w3.eth.chainId, 16)
+        try:
+            # from hex-str
+            return int(self.w3.eth.chainId, 16)
+        except TypeError:
+            # from str
+            return int(self.w3.eth.chainId)
 
     @property
     def net_version(self) -> int:

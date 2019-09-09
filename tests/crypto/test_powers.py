@@ -107,7 +107,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
     token_agent = NucypherTokenAgent(registry=test_registry)
     contract_function = token_agent.contract.functions.approve(testerchain.etherbase_account, 100)
 
-    payload = {'chainId': int(testerchain.client.net_version),
+    payload = {'chainId': int(testerchain.client.chain_id),
                'nonce': testerchain.client.w3.eth.getTransactionCount(testerchain.etherbase_account),
                'from': testerchain.etherbase_account,
                'gasPrice': testerchain.client.gas_price}

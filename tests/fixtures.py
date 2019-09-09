@@ -62,7 +62,8 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT
                                                   NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEMPORARY_DOMAIN,
                                                   TEST_PROVIDER_URI,
-                                                  INSECURE_DEVELOPMENT_PASSWORD, MOCK_REGISTRY_FILEPATH,
+                                                  INSECURE_DEVELOPMENT_PASSWORD,
+                                                  MOCK_REGISTRY_FILEPATH,
                                                   TEST_GAS_LIMIT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label

@@ -25,8 +25,8 @@ import re
 import sys
 import time
 from os.path import abspath, dirname
+from unittest.mock import Mock
 
-from mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
@@ -34,8 +34,6 @@ from zope.interface import provider
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain

@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from mock import Mock
 
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
@@ -30,7 +29,7 @@ from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def mock_ursula(testerchain, account):
+def mock_ursula(testerchain, account, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
@@ -38,7 +37,7 @@ def mock_ursula(testerchain, account):
     signed_stamp = testerchain.client.sign_message(account=account,
                                                    message=bytes(ursula_stamp))
 
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
 
 
@@ -47,7 +46,8 @@ def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,
                              token_economics,
-                             test_registry):
+                             test_registry,
+                             mocker):
 
     staker_account = testerchain.staker_account(0)
     worker_account = testerchain.ursula_account(0)
@@ -93,7 +93,7 @@ def test_adjudicator_slashes(agency,
     adjudicator_agent = AdjudicatorAgent(registry=test_registry)
     bob_account = testerchain.bob_account
     bobby = NucypherTokenActor(checksum_address=bob_account, registry=test_registry)
-    ursula = mock_ursula(testerchain, worker_account)
+    ursula = mock_ursula(testerchain, worker_account, mocker=mocker)
 
     # Let's create a bad cfrag
     evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=True)

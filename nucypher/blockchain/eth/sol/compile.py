@@ -37,7 +37,7 @@ class SolidityCompiler:
 
     # TODO: Integrate with config classes
 
-    __default_version = 'v0.5.3'
+    __default_version = 'v0.5.9'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
     __default_sol_binary_path = shutil.which('solc')

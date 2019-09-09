@@ -8,10 +8,10 @@ python_version = "3"
 
 [packages]
 # NuCypher
-umbral = "==0.1.3a0"
+umbral = "==0.1.3a2"
 constant-sorrow = ">=0.1.0a8"
 bytestring-splitter = ">=1.0.0a4"
-hendrix = ">=3.2.3"
+hendrix = ">=3.2.5"
 # Third-Party
 pyopenssl = "*"
 cryptography = ">=2.3"
@@ -22,16 +22,16 @@ maya = "*"
 flask = "*"
 flask_sqlalchemy = "*"
 # Third-Party Ethereum
-py-evm = "==0.2.0a42"
+py-evm = "==0.3.0a1"
 eth-tester = "*"
 coincurve = "*"
 web3 = "*"
+py-geth = "*"
 # CLI / Configuration
 sentry-sdk = "==0.9.0"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
-boto3 = "*"
 flask-limiter = "*"
 
 [dev-packages]
@@ -43,12 +43,11 @@ pytest-twisted = "*"
 pytest-cov = "*"
 pytest-mock = "*"
 # Tools
-moto = "*"
 mypy = "*"
 # Coverage
 coverage = "*"
 # Deployment
-py-solc = {editable = true,git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
+py-solc = {git = "https://github.com/nucypher/py-solc.git",ref = "v5.0.0-eol.0"}
 ansible = "*"
 bumpversion = "*"
 # Documentation
@@ -56,8 +55,6 @@ sphinx = "*"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
 aafigure = "*"
-# CLI
-nucypher = {editable = true,path = "."}
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
