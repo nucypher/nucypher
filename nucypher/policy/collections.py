@@ -93,7 +93,7 @@ class TreasureMap:
 
         self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
                                                                 plaintext=plaintext,
-                                                                signer=alice_stamp,
+                                                                stamp=alice_stamp,
                                                                 )
         """
         Here's our "hashed resource access code".

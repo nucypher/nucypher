@@ -201,23 +201,23 @@ def generate_self_signed_certificate(host: str,
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
                      plaintext: bytes,
-                     signer: 'SignatureStamp',
+                     stamp: 'SignatureStamp',
                      sign_plaintext: bool = True
                      ) -> Tuple[UmbralMessageKit, Signature]:
-    if signer is not constants.DO_NOT_SIGN:
+    if stamp is not constants.DO_NOT_SIGN:
         # The caller didn't expressly tell us not to sign; we'll sign.
         if sign_plaintext:
             # Sign first, encrypt second.
             sig_header = constants.SIGNATURE_TO_FOLLOW
-            signature = signer(plaintext)
+            signature = stamp(plaintext)
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + signature + plaintext)
         else:
             # Encrypt first, sign second.
             sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-            signature = signer(ciphertext)
+            signature = stamp(ciphertext)
         message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule,
-                                       sender_verifying_key=signer.as_umbral_pubkey(),
+                                       sender_verifying_key=stamp.as_umbral_pubkey(),
                                        signature=signature)
     else:
         # Don't sign.

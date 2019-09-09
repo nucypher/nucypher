@@ -15,76 +15,90 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
+from constant_sorrow.constants import NOT_SIGNED
 
-from nucypher.crypto.splitters import key_splitter, capsule_splitter
-
-
-class CryptoKit:
-    splitter = None
-
-    @classmethod
-    def split_bytes(cls, some_bytes):
-        if not cls.splitter:
-            raise TypeError("This kit doesn't have a splitter defined.")
-
-        return cls.splitter(some_bytes,
-                            return_remainder=cls.return_remainder_when_splitting)
-
-    @classmethod
-    def from_bytes(cls, some_bytes):
-        constituents = cls.split_bytes(some_bytes)
-        return cls(*constituents)
+from nucypher.crypto.splitters import key_splitter, capsule_splitter, signature_splitter
 
 
-class MessageKit(CryptoKit):
+KIT_NOT_SIGNED = b"\x00"
+KIT_SIGNED_BUT_NO_SIGNATURE = b"\x01"  # includes verifying key
+KIT_INCLUDES_SIGNATURE = b"\x02"  # includes verifying key
+
+
+class UmbralMessageKit:
+
+    base_splitter = BytestringSplitter((bytes, 1)) + capsule_splitter
 
     def __init__(self,
                  capsule,
                  sender_verifying_key=None,
                  ciphertext=None,
-                 signature=constants.NOT_SIGNED) -> None:
+                 signature=NOT_SIGNED) -> None:
+
+        if not sender_verifying_key and signature is not NOT_SIGNED:
+            raise ValueError("You can't pass a signature without it's verifying key.")
 
         self.ciphertext = ciphertext
         self.capsule = capsule
         self.sender_verifying_key = sender_verifying_key
         self._signature = signature
 
-    def to_bytes(self, include_alice_pubkey=True):
-        # We include the capsule first.
-        as_bytes = bytes(self.capsule)
-
-        # Then, before the ciphertext, we see if we're including alice's public key.
-        # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.sender_verifying_key:
-            as_bytes += bytes(self.sender_verifying_key)
-
-        as_bytes += self.ciphertext
-        return as_bytes
-
     @property
     def signature(self):
         return self._signature
 
+    def to_bytes(self, include_sender_verifying_key=True, include_signature=False):
+        if include_signature and self.signature is NOT_SIGNED:
+            raise ValueError("Cannot include a signature because this MessageKit is not signed.")
+
+        if include_sender_verifying_key and self.sender_verifying_key is None:
+            raise ValueError("Cannot include a verifying key. None was included in the MessageKit.")
+
+        if include_sender_verifying_key:
+            header = KIT_INCLUDES_SIGNATURE if include_signature else KIT_SIGNED_BUT_NO_SIGNATURE
+        else:
+            header = KIT_NOT_SIGNED
+
+        # We include the header first, next the capsule.
+        as_bytes = header + bytes(self.capsule)
+
+        # Then, before the ciphertext, we see if we're including the sender's public key.
+        # We want to put that first because it's typically of known length.
+        if include_sender_verifying_key:
+            as_bytes += bytes(self.sender_verifying_key)
+
+        if include_signature:
+            as_bytes += bytes(self.signature)
+
+        as_bytes += self.ciphertext
+
+        return as_bytes
+
     def __bytes__(self):
-        return bytes(self.capsule) + self.ciphertext
-
-
-class UmbralMessageKit(MessageKit):
-
-    return_remainder_when_splitting = True
-    splitter = capsule_splitter + key_splitter
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.policy_pubkey = None
+        it_has_a_key = self.sender_verifying_key is not None
+        return self.to_bytes(include_sender_verifying_key=it_has_a_key,
+                             include_signature=False)
 
     @classmethod
     def from_bytes(cls, some_bytes):
-        capsule, sender_verifying_key, ciphertext = cls.split_bytes(some_bytes)
-        return cls(capsule=capsule, sender_verifying_key=sender_verifying_key, ciphertext=ciphertext)
+        header, capsule, remainder = cls.base_splitter(some_bytes, return_remainder=True)
+        if header == KIT_NOT_SIGNED:
+            sender_verifying_key = None
+            signature = NOT_SIGNED
+            ciphertext = remainder
+        elif header == KIT_SIGNED_BUT_NO_SIGNATURE:
+            sender_verifying_key, ciphertext = key_splitter(remainder, return_remainder=True)
+            signature = NOT_SIGNED
+        elif header == KIT_INCLUDES_SIGNATURE:
+            splitter = key_splitter + signature_splitter
+            sender_verifying_key, signature, ciphertext = splitter(remainder, return_remainder=True)
+
+        message_kit = cls(capsule=capsule,
+                          sender_verifying_key=sender_verifying_key,
+                          ciphertext=ciphertext,
+                          signature=signature)
+        return message_kit
 
 
 class RevocationKit:

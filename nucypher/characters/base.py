@@ -348,7 +348,7 @@ class Character(Learner):
 
         message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
                                                   plaintext=plaintext,
-                                                  signer=signer,
+                                                  stamp=signer,
                                                   sign_plaintext=sign_plaintext
                                                   )
         return message_kit, signature

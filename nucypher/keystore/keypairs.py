@@ -30,7 +30,7 @@ from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.kits import MessageKit
+from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
 
@@ -93,7 +93,7 @@ class DecryptingKeypair(Keypair):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: UmbralMessageKit) -> bytes:
         """
         Decrypt data encrypted with Umbral.
 

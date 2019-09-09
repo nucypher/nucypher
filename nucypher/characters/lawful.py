@@ -1282,8 +1282,7 @@ class Enrico(Character):
                         ) -> Tuple[UmbralMessageKit, Signature]:
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=message,
-                                                  signer=self.stamp)
-        message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.
+                                                  stamp=self.stamp)
         return message_kit, signature
 
     @classmethod
