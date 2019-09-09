@@ -23,6 +23,8 @@ import tempfile
 
 import maya
 import pytest
+from eth_tester import PyEVMBackend
+
 from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
@@ -72,6 +74,7 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH,
     TEST_GAS_LIMIT,
     INSECURE_DEPLOYMENT_SECRET_HASH,
+    NUMBER_OF_ETH_TEST_ACCOUNTS,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
@@ -386,6 +389,11 @@ def _testerchain():
 @pytest.fixture(scope='module')
 def testerchain(_testerchain):
     testerchain = _testerchain
+
+    # Reset chain state
+    pyevm_backend = testerchain.provider.ethereum_tester.backend
+    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': TEST_GAS_LIMIT})
+    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
 
     coinbase, *addresses = testerchain.client.accounts
 
