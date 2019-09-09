@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import os
 import socket
+import tempfile
 import time
 from datetime import datetime
 from random import SystemRandom
@@ -105,19 +106,20 @@ ADJUDICATOR_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(1
 # Temporary Directories and Files
 #
 
-BASE_TEMP_DIR = os.path.join('/', 'tmp')
+BASE_TEMP_DIR = tempfile.gettempdir()
 
 BASE_TEMP_PREFIX = 'nucypher-tmp-'
+DATETIME_FORMAT = "%Y-%m-%d_%H-%M-%S.%f"
 
-MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{str(datetime.now())}')
+MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{str(datetime.now().strftime(DATETIME_FORMAT))}')
 
-MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{str(datetime.now())}.json')
+MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
-MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now())}.json')
+MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
 
-MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
+MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
 TEMPORARY_DOMAIN = ':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
 
