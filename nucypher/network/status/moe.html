@@ -11,7 +11,7 @@
 
         <script>
             window.onload = function () {
-                const ws_port = 9000;
+                const ws_port = $ws_port;
                 const origin_hostname = window.location.hostname;
                 const socket = new WebSocket("ws://"+ origin_hostname + ":" + ws_port);
                 socket.binaryType = "arraybuffer";
