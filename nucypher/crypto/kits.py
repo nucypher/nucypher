@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import base64
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NOT_SIGNED
 
@@ -80,8 +81,11 @@ class UmbralMessageKit:
         return self.to_bytes(include_sender_verifying_key=it_has_a_key,
                              include_signature=False)
 
+    def to_base64(self):
+        return base64.b64encode(bytes(self)).decode("utf-8")
+
     @classmethod
-    def from_bytes(cls, some_bytes):
+    def from_bytes(cls, some_bytes: bytes):
         header, capsule, remainder = cls.base_splitter(some_bytes, return_remainder=True)
         if header == KIT_NOT_SIGNED:
             sender_verifying_key = None
@@ -98,6 +102,12 @@ class UmbralMessageKit:
                           sender_verifying_key=sender_verifying_key,
                           ciphertext=ciphertext,
                           signature=signature)
+        return message_kit
+
+    @classmethod
+    def from_base64(cls, some_b64_str: str):
+        some_bytes = base64.b64decode(some_b64_str)
+        message_kit = cls.from_bytes(some_bytes)
         return message_kit
 
     def __eq__(self, other):

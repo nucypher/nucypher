@@ -44,6 +44,9 @@ def test_message_kit_serialization(stamp):
     assert bytes(message_kit) == serialized_kit
     deserialized_kit = UmbralMessageKit.from_bytes(serialized_kit)
     assert message_kit == deserialized_kit
+    b64_kit = message_kit.to_base64()
+    deserialized_kit = UmbralMessageKit.from_base64(b64_kit)
+    assert message_kit == deserialized_kit
 
     message_kit, _ = encrypt_and_sign(recipient_pubkey_enc=privkey.pubkey,
                                       plaintext=message,
@@ -55,3 +58,7 @@ def test_message_kit_serialization(stamp):
     assert bytes(message_kit) == serialized_kit
     deserialized_kit = UmbralMessageKit.from_bytes(serialized_kit)
     assert message_kit == deserialized_kit
+    b64_kit = message_kit.to_base64()
+    deserialized_kit = UmbralMessageKit.from_base64(b64_kit)
+    assert message_kit == deserialized_kit
+    
