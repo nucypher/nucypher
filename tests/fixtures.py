@@ -453,13 +453,6 @@ def agency(testerchain, test_registry):
     yield agents
 
 
-@pytest.fixture(scope='module')
-def session_agency(_testerchain, test_registry):
-    testerchain = _testerchain
-    agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
-    yield agents
-
-
 @pytest.fixture(scope="module")
 def stakers(testerchain, agency, token_economics, test_registry):
     token_agent, _staking_agent, _policy_agent = agency
