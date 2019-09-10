@@ -64,10 +64,12 @@ def moe(click_config,
               network_middleware=RestMiddleware(),
               known_nodes=teacher_nodes,
               registry=registry,
-              federated_only=federated_only)
+              federated_only=federated_only,
+              host='0.0.0.0',
+              port=http_port)
 
     # Run
 
     MOE.start_learning_loop(now=learn_on_launch)
     emitter.message(f"Running Moe on 127.0.0.1:{http_port}")
-    MOE.start(http_port=http_port, ws_port=ws_port, dry_run=dry_run)
+    MOE.start(ws_port=ws_port, dry_run=dry_run)

@@ -185,8 +185,11 @@ def generate_self_signed_certificate(host: str,
     now = datetime.datetime.utcnow()
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, host),
-        x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
     ])
+
+    if checksum_address:
+        x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
+
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)
     cert = cert.public_key(public_key)
