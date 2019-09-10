@@ -46,6 +46,7 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.clients import NuCypherGethProcess
 from nucypher.blockchain.eth.clients import Web3Client
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_tester_pyevm,
     _get_test_geth_parity_provider,
@@ -332,6 +333,7 @@ class BlockchainInterface:
         else:
             self._provider = provider
 
+    @validate_checksum_address
     def send_transaction(self,
                          contract_function: ContractFunction,
                          sender_address: str,
@@ -552,6 +554,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
             __raw_contract_cache = NO_COMPILATION_PERFORMED
         self.__raw_contract_cache = __raw_contract_cache
 
+    @validate_checksum_address
     def deploy_contract(self,
                         deployer_address: str,
                         registry: BaseContractRegistry,
@@ -644,6 +647,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                        ContractFactoryClass=self._contract_factory)
         return wrapped_contract
 
+    @validate_checksum_address
     def get_proxy_contract(self,
                            registry: BaseContractRegistry,
                            target_address: str,

@@ -7,15 +7,19 @@ import eth_utils
 
 from nucypher.crypto.api import keccak_digest
 
-VERIFIED_ADDRESSES = set()
+__VERIFIED_ADDRESSES = set()
+
+
+class InvalidChecksumAddress(eth_utils.exceptions.ValidationError):
+    pass
 
 
 def validate_checksum_address(func: Callable) -> Callable:
     """
     EIP-55 Checksum address validation decorator.
 
-    Inspects the decorated function for an input parameter "checksum_address",
-    then uses `eth_utils` to validate the address EIP-55 checksum,
+    Inspects the decorated function for input parameters ending with "_address",
+    then uses `eth_utils` to validate the addresses' EIP-55 checksum,
     verifying the input type on failure; Raises TypeError
     or InvalidChecksumAddress if validation fails, respectively.
 
@@ -24,52 +28,46 @@ def validate_checksum_address(func: Callable) -> Callable:
 
     """
 
-    parameter_name = 'checksum_address'
+    parameter_name_suffix = '_address'
     log = Logger('EIP-55-validator')
-
-    class InvalidChecksumAddress(eth_utils.exceptions.ValidationError):
-        pass
 
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
 
-        # Check for the presence of a checksum address in this call
+        # Check for the presence of checksum addresses in this call
         params = inspect.getcallargs(func, *args, **kwargs)
-        try:
+        addresses_as_parameters = (parameter_name for parameter_name in params
+                                   if parameter_name.endswith(parameter_name_suffix))
+        for parameter_name in addresses_as_parameters:
             checksum_address = params[parameter_name]
 
-        # No checksum_address present in this call
-        except KeyError:
-            return func(*args, **kwargs)  # ... don't mind me!
+            if checksum_address in __VERIFIED_ADDRESSES:
+                continue
 
-        if checksum_address in VERIFIED_ADDRESSES:
-            return func(*args, **kwargs)  # ... nothing to validate
+            signature = inspect.signature(func)
+            parameter_is_optional = signature.parameters[parameter_name].default is None
+            if parameter_is_optional and checksum_address is None:
+                continue
 
-        # Optional checksum_address present in this call
-        signature = inspect.signature(func)
-        checksum_address_is_optional = signature.parameters[parameter_name].default is None
-        if checksum_address_is_optional and checksum_address is None:
-            return func(*args, **kwargs)  # ... nothing to validate
+            address_is_valid = eth_utils.is_checksum_address(checksum_address)
+            # OK!
+            if address_is_valid:
+                __VERIFIED_ADDRESSES.add(checksum_address)
+                continue
 
-        # Validate
-        address_is_valid = eth_utils.is_checksum_address(checksum_address)
-        VERIFIED_ADDRESSES.add(checksum_address)
+            # Invalid Type
+            if not isinstance(checksum_address, str):
+                actual_type_name = checksum_address.__class__.__name__
+                message = '{} is an invalid type for parameter "{}".'.format(actual_type_name, parameter_name)
+                log.debug(message)
+                raise TypeError(message)
 
-        # OK!
-        if address_is_valid:
-            return func(*args, **kwargs)
-
-        # Invalid Type
-        if not isinstance(checksum_address, str):
-            actual_type_name = checksum_address.__class__.__name__
-            message = '{} is an invalid type for parameter "{}".'.format(actual_type_name, parameter_name)
+            # Invalid Value
+            message = '"{}" is not a valid EIP-55 checksum address.'.format(checksum_address)
             log.debug(message)
-            raise TypeError(message)
-
-        # Invalid Value
-        message = '"{}" is not a valid EIP-55 checksum address.'.format(checksum_address)
-        log.debug(message)
-        raise InvalidChecksumAddress(message)
+            raise InvalidChecksumAddress(message)
+        else:
+            return func(*args, **kwargs)
 
     return wrapped
 

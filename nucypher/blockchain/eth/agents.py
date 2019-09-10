@@ -156,12 +156,14 @@ class NucypherTokenAgent(EthereumContractAgent):
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
+    @validate_checksum_address
     def increase_allowance(self, sender_address: str, target_address: str, increase: int):
         contract_function = self.contract.functions.increaseAllowance(target_address, increase)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address)
         return receipt
 
+    @validate_checksum_address
     def approve_transfer(self, amount: int, target_address: str, sender_address: str):
         """Approve the transfer of tokens from the sender address to the target address."""
         payload = {'gas': 500_000}  # TODO #413: gas needed for use with geth.
@@ -171,6 +173,7 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
+    @validate_checksum_address
     def transfer(self, amount: int, target_address: str, sender_address: str):
         contract_function = self.contract.functions.transfer(target_address, amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
@@ -259,9 +262,11 @@ class StakingEscrowAgent(EthereumContractAgent):
             at_period = self.contract.functions.getCurrentPeriod().call()
         return self.contract.functions.lockedPerPeriod(at_period).call()
 
+    @validate_checksum_address
     def get_staker_info(self, staker_address: str):
         return self.contract.functions.stakerInfo(staker_address).call()
 
+    @validate_checksum_address
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
         Returns the amount of tokens this staker has locked
@@ -271,22 +276,26 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
+    @validate_checksum_address
     def owned_tokens(self, staker_address: str) -> int:
         """
         Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
         """
         return self.contract.functions.getAllTokens(staker_address).call()
 
+    @validate_checksum_address
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
         first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         last_period = self.contract.functions.getLastPeriodOfSubStake(staker_address, stake_index).call()
         return first_period, last_period, locked_value
 
+    @validate_checksum_address
     def get_raw_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int, int]:
         result = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
         first_period, last_period, periods, locked = result
         return first_period, last_period, periods, locked
 
+    @validate_checksum_address
     def get_all_stakes(self, staker_address: str):
         stakes_length = self.contract.functions.getSubStakesLength(staker_address).call()
         if stakes_length == 0:
@@ -294,6 +303,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         for stake_index in range(stakes_length):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
+    @validate_checksum_address
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
         """Send tokens to the escrow from the staker's address"""
         contract_function = self.contract.functions.deposit(amount, lock_periods)
@@ -301,31 +311,38 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=sender_address)
         return receipt
 
+    @validate_checksum_address
     def divide_stake(self, staker_address: str, stake_index: int, target_value: int, periods: int):
         contract_function = self.contract.functions.divideStake(stake_index, target_value, periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
-    def get_last_active_period(self, address: str) -> int:
-        period = self.contract.functions.getLastActivePeriod(address).call()
+    @validate_checksum_address
+    def get_last_active_period(self, staker_address: str) -> int:
+        period = self.contract.functions.getLastActivePeriod(staker_address).call()
         return int(period)
 
+    @validate_checksum_address
     def get_worker_from_staker(self, staker_address: str) -> str:
         worker = self.contract.functions.getWorkerFromStaker(staker_address).call()
         return to_checksum_address(worker)
 
+    @validate_checksum_address
     def get_staker_from_worker(self, worker_address: str) -> str:
         staker = self.contract.functions.getStakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
+    @validate_checksum_address
     def set_worker(self, staker_address: str, worker_address: str):
         contract_function = self.contract.functions.setWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
+    @validate_checksum_address
     def release_worker(self, staker_address: str):
         return self.set_worker(staker_address=staker_address, worker_address=BlockchainInterface.NULL_ADDRESS)
 
+    @validate_checksum_address
     def confirm_activity(self, worker_address: str):
         """
         For each period that the worker confirms activity, the staker is rewarded.
@@ -334,6 +351,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=worker_address)
         return receipt
 
+    @validate_checksum_address
     def mint(self, staker_address: str):
         """
         Computes reward tokens for the staker's account;
@@ -484,6 +502,7 @@ class PolicyManagerAgent(EthereumContractAgent):
     registry_contract_name = POLICY_MANAGER_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
+    @validate_checksum_address
     def create_policy(self,
                       policy_id: str,
                       author_address: str,
@@ -504,12 +523,14 @@ class PolicyManagerAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
+    @validate_checksum_address
     def revoke_policy(self, policy_id: bytes, author_address: str):
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
         contract_function = self.contract.functions.revokePolicy(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
+    @validate_checksum_address
     def collect_policy_reward(self, collector_address: str, staker_address: str):
         """Collect rewarded ETH"""
         contract_function = self.contract.functions.withdraw(collector_address)
@@ -522,16 +543,19 @@ class PolicyManagerAgent(EthereumContractAgent):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
+    @validate_checksum_address
     def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
         contract_function = self.contract.functions.revokeArrangement(policy_id, node_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
+    @validate_checksum_address
     def calculate_refund(self, policy_id: str, author_address: str):
         contract_function = self.contract.functions.calculateRefundValue(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt
 
+    @validate_checksum_address
     def collect_refund(self, policy_id: str, author_address: str):
         contract_function = self.contract.functions.refund(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
@@ -550,6 +574,7 @@ class UserEscrowAgent(EthereumContractAgent):
         _proxy_name = LIBRARY_LINKER_CONTRACT_NAME
         _forward_address = False
 
+        @validate_checksum_address
         def _generate_beneficiary_agency(self, principal_address: str):
             contract = self.blockchain.client.get_contract(address=principal_address, abi=self.contract.abi)
             return contract
@@ -576,6 +601,7 @@ class UserEscrowAgent(EthereumContractAgent):
         contract = self.__proxy_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
         self.__proxy_contract = contract
 
+    @validate_checksum_address
     def __fetch_principal_contract(self, contract_address: str = None) -> None:
         """Fetch the UserEscrow deployment directly from the AllocationRegistry."""
         if contract_address is not None:
@@ -590,6 +616,7 @@ class UserEscrowAgent(EthereumContractAgent):
     def __set_owner(self) -> None:
         self.__beneficiary = self.owner
 
+    @validate_checksum_address
     def __read_principal(self, contract_address: str = None) -> None:
         self.__fetch_principal_contract(contract_address=contract_address)
         self.__set_owner()
@@ -649,11 +676,13 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
+    @validate_checksum_address
     def set_worker(self, worker_address: str):
         contract_function = self.__proxy_contract.functions.setWorker(worker_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
+    @validate_checksum_address
     def release_worker(self):
         receipt = self.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
         return receipt
@@ -663,6 +692,7 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
+    @validate_checksum_address
     def collect_policy_reward(self, collector_address: str):
         contract_function = self.__proxy_contract.functions.withdrawPolicyReward(collector_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
@@ -679,6 +709,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     registry_contract_name = ADJUDICATOR_CONTRACT_NAME
     _proxy_name = DISPATCHER_CONTRACT_NAME
 
+    @validate_checksum_address
     def evaluate_cfrag(self, evidence, sender_address: str):
         """
         Submits proof that a worker created wrong CFrag
@@ -721,6 +752,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     def reward_coefficient(self) -> int:
         return self.contract.functions.rewardCoefficient().call()
 
+    @validate_checksum_address
     def penalty_history(self, staker_address: str) -> int:
         return self.contract.functions.penaltyHistory(staker_address).call()
 
