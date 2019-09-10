@@ -862,6 +862,7 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
                                           contract_address=self.contract.address,
                                           contract_abi=self.contract.abi)
 
+    @validate_checksum_address
     def deliver(self, value: int, duration: int, beneficiary_address: str, progress=None) -> dict:
         """
         Transfer allocated tokens and hand-off the contract to the beneficiary.
