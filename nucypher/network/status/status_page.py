@@ -137,7 +137,9 @@ class NetworkStatusPage:
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
             'Icon': icon,
-            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...', href=etherscan_url)),
+            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...',
+                                       href=etherscan_url,
+                                       target='_blank')),
             'Nickname': nickname,
             'Timestamp': html.Td(node_info['timestamp']),
             'Last Seen': html.Td(node_info['last_seen']),
@@ -259,13 +261,17 @@ class MoeStatusPage(NetworkStatusPage):
                 html.H4('Registry Checksum'),
                 html.H5(f"{uri}"),
                 html.A(f'{moe.token_agent.contract_name} - {moe.token_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.token_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.token_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.staking_agent.contract_name} - {moe.staking_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.staking_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.staking_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.policy_agent.contract_name} - {moe.policy_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.policy_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.policy_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.adjudicator_agent.contract_name} - {moe.adjudicator_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}',
+                       target='_blank'),
             ], className='stacked-widget')
 
 
