@@ -13,7 +13,7 @@
             window.onload = function () {
                 const ws_port = $ws_port;
                 const origin_hostname = window.location.hostname;
-                const socket = new WebSocket("ws://"+ origin_hostname + ":" + ws_port);
+                const socket = new WebSocket("wss://"+ origin_hostname + ":" + ws_port);
                 socket.binaryType = "arraybuffer";
 
                 socket.onopen = function () {
