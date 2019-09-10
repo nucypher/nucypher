@@ -164,6 +164,7 @@ class Stake:
     class StakingError(Exception):
         """Raised when a staking operation cannot be executed due to failure."""
 
+    @validate_checksum_address
     def __init__(self,
                  staking_agent: StakingEscrowAgent,
                  checksum_address: str,
@@ -568,6 +569,7 @@ class WorkTracker:
 
 class StakeList(UserList):
 
+    @validate_checksum_address
     def __init__(self,
                  registry: BaseContractRegistry,
                  checksum_address: str = None,
@@ -593,12 +595,10 @@ class StakeList(UserList):
     def updated(self) -> maya.MayaDT:
         return self.__updated
 
-    @validate_checksum_address
     def refresh(self, checksum_addresses: List[str] = None) -> None:
         """Public staking cache invalidation method"""
         return self.__read_stakes()
 
-    @validate_checksum_address
     def __read_stakes(self,) -> None:
         """Rewrite the local staking cache by reading on-chain stakes"""
 
