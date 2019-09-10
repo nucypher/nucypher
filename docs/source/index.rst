@@ -1,6 +1,6 @@
 NuCypher
 ========
-*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management, secure data exchange, and secure computation.*
+*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.*
 
 
 ----
@@ -31,7 +31,7 @@ NuCypher
 
 .. _Umbral: https://github.com/nucypher/pyUmbral
 
-The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces for secrets management, secure data exchange, and secure computation.
+The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.
 * Accessible - The network is permissionless and censorship-resistant.
 There are no gate-keepers and anyone can use it.
 * Intuitive - The network leverages the classic cryptological narrative of Alice and Bob

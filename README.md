@@ -1,6 +1,6 @@
 ![](/docs/source/.static/img/nucypher.png)
 
-*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management, secure data exchange, and secure computation.*
+*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.*
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
 [![pyversions](https://img.shields.io/pypi/pyversions/nucypher.svg)](https://pypi.org/project/nucypher/)
@@ -13,7 +13,7 @@
 ----
 
 The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces
-for secrets management, secure data exchange, and secure computation.
+for secrets management and dynamic access control.
 * Accessible - The network is permissionless and censorship-resistant.
 There are no gate-keepers and anyone can use it.
 * Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
