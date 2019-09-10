@@ -21,12 +21,17 @@ import pytest
 from nucypher.blockchain.eth.deployers import (
     UserEscrowDeployer,
     UserEscrowProxyDeployer,
-    LibraryLinkerDeployer
+    LibraryLinkerDeployer,
+    NucypherTokenDeployer,
+    StakingEscrowDeployer,
+    PolicyManagerDeployer,
+    AdjudicatorDeployer
 )
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.sandbox.constants import (
     USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
-    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
+    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT,
+    INSECURE_DEPLOYMENT_SECRET_HASH
 )
 
 user_escrow_contracts = list()
@@ -34,18 +39,44 @@ NUMBER_OF_PREALLOCATIONS = 50
 
 
 @pytest.mark.slow()
-def test_user_escrow_deployer(testerchain,
-                              agency,
-                              deployment_progress,
-                              test_registry):
+def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_registry):
 
-    deployer = UserEscrowDeployer(deployer_address=testerchain.etherbase_account, registry=test_registry)
-    receipt = deployer.deploy()
-    assert receipt['status'] == 1
+    #
+    # Setup
+    #
+
+    origin = testerchain.etherbase_account
+
+    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer.deploy()
+
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
+    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
+
+    #
+    # Test
+    #
+
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
+    user_escrow_proxy_receipts = user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH,
+                                                                   progress=deployment_progress)
+
+    # deployment steps must match expected number of steps
+    assert deployment_progress.num_steps == len(user_escrow_proxy_deployer.deployment_steps) == 2
+    assert len(user_escrow_proxy_receipts) == 2
+
+    for step in user_escrow_proxy_deployer.deployment_steps:
+        assert user_escrow_proxy_receipts[step]['status'] == 1
 
 
 @pytest.mark.slow()
-def test_deploy_multiple(testerchain, agency, test_registry):
+def test_deploy_multiple_preallocations(testerchain, test_registry):
     testerchain = testerchain
     deployer_account = testerchain.etherbase_account
 
@@ -72,9 +103,7 @@ def test_deploy_multiple(testerchain, agency, test_registry):
 
 
 @pytest.mark.slow()
-def test_upgrade_user_escrow_proxy(testerchain,
-                                   agency,
-                                   test_registry):
+def test_upgrade_user_escrow_proxy(testerchain, test_registry):
 
     old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
     new_secret = 'new' + USER_ESCROW_PROXY_DEPLOYMENT_SECRET
