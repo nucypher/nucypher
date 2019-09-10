@@ -47,7 +47,7 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
     AdjudicatorDeployer,
-    ContractDeployer
+    BaseContractDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -212,7 +212,7 @@ class ContractAdministrator(NucypherTokenActor):
                         progress=None,
                         *args,
                         **kwargs,
-                        ) -> Tuple[dict, ContractDeployer]:
+                        ) -> Tuple[dict, BaseContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry,

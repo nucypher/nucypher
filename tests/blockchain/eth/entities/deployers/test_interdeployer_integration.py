@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                AdjudicatorDeployer,
-                                               ContractDeployer,
+                                               BaseContractDeployer,
                                                DispatcherDeployer)
 
 
@@ -43,7 +43,7 @@ def test_deploy_ethereum_contracts(testerchain,
     token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
     assert token_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not token_deployer.is_deployed
 
@@ -68,7 +68,7 @@ def test_deploy_ethereum_contracts(testerchain,
         deployer_address=origin)
     assert staking_escrow_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed
 
@@ -95,7 +95,7 @@ def test_deploy_ethereum_contracts(testerchain,
 
     assert policy_manager_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed
 
@@ -122,7 +122,7 @@ def test_deploy_ethereum_contracts(testerchain,
 
     assert adjudicator_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed
 
