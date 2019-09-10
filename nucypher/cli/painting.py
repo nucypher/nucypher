@@ -23,16 +23,21 @@ from decimal import Decimal
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
+from web3 import Web3
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.agents import UserEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
-from nucypher.blockchain.eth.token import NU
-from web3 import Web3
 
 
 def echo_version(ctx, param, value):
@@ -173,36 +178,138 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(blockchain, emitter):
+def paint_contract_status(emitter, registry):
 
-    token_agent = NucypherTokenAgent(blockchain=blockchain)
-    staking_agent = StakingEscrowAgent(blockchain=blockchain)
-    policy_agent = PolicyManagerAgent(blockchain=blockchain)
-    adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
 
-    contract_payload = f"""
-| NuCypher Contracts |
-
-Chain .................... {blockchain.client.chain_name}
-Provider URI ............. {blockchain.provider_uri}
-Registry Path ............ {blockchain.registry.filepath}
-
+    contracts = f"""
+| Contract Deployments |
 NucypherToken ............ {token_agent.contract_address}
 StakingEscrow ............ {staking_agent.contract_address}
 PolicyManager ............ {policy_agent.contract_address}
 Adjudicator .............. {adjudicator_agent.contract_address} 
     """
 
-    network_payload = f"""
-| Staking |
+    blockchain = f"""    
+| '{blockchain.client.chain_name}' Blockchain Network |
+Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {registry.filepath}
+    """
 
+    staking = f"""
+| Staking |
 Current Period ........... {staking_agent.get_current_period()}
 Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
 Published Stakes ......... {staking_agent.get_staker_population()}
-Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
+Active Staking Ursulas ... {staking_agent.get_staker_population()}
     """
+
+    sep = '-' * 45
+    emitter.echo(sep)
+    emitter.echo(contracts)
+    emitter.echo(sep)
+    emitter.echo(blockchain)
+    emitter.echo(sep)
+    emitter.echo(staking)
+    emitter.echo(sep)
+
+
+def paint_deployer_contract_inspection(emitter, administrator) -> None:
+
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=administrator.registry)
+
+    sep = '-' * 45
+    emitter.echo(sep)
+
+    contract_payload = f"""
+
+* Web3 Provider
+====================================================================
+
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {administrator.registry.filepath}
+
+* Standard Deployments
+=====================================================================
+
+NucypherToken ........... {token_agent.contract_address}
+    ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
+    ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
     emitter.echo(contract_payload)
-    emitter.echo(network_payload)
+
+    banner = """
+* Proxy-Contract Deployments
+====================================================================="""
+    emitter.echo(banner)
+
+    for contract_deployer_class in administrator.dispatched_upgradeable_deployer_classes:
+        try:
+            bare_contract = blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
+                                                            proxy_name=DispatcherDeployer.contract_name,
+                                                            registry=administrator.registry,
+                                                            use_proxy_address=False)
+
+            dispatcher_deployer = DispatcherDeployer(registry=administrator.registry,
+                                                     target_contract=bare_contract,
+                                                     deployer_address=administrator.deployer_address,
+                                                     bare=True)  # acquire agency for the dispatcher itself.
+
+            agent = contract_deployer_class.agency(registry=administrator.registry, contract=bare_contract)
+
+            proxy_payload = f"""
+{agent.contract_name} .... {bare_contract.address}
+    ~ Owner .............. {bare_contract.functions.owner().call()}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}
+    ~ Dispatcher ......... {dispatcher_deployer.contract_address}
+        ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
+        ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
+        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
+            emitter.echo(proxy_payload)
+            emitter.echo(sep, nl=False)
+
+        except BaseContractRegistry.UnknownContract:
+            message = f"\n{contract_deployer_class.contract_name} is not enrolled in {administrator.registry.filepath}"
+            emitter.echo(message, color='yellow')
+            emitter.echo(sep, nl=False)
+
+    try:
+
+        #
+        # UserEscrowProxy
+        #
+
+        user_escrow_proxy_agent = UserEscrowAgent.UserEscrowProxyAgent(registry=administrator.registry)
+        bare_contract = blockchain.get_contract_by_name(name=user_escrow_proxy_agent.contract_name,
+                                                        proxy_name=LibraryLinkerDeployer.contract_name,
+                                                        use_proxy_address=False,
+                                                        registry=administrator.registry)
+
+        linker_deployer = LibraryLinkerDeployer(registry=administrator.registry,
+                                                target_contract=bare_contract,
+                                                deployer_address=administrator.deployer_address,
+                                                bare=True)  # acquire agency for the dispatcher itself.
+
+        user_escrow_payload = f"""
+UserEscrowProxy .......... {bare_contract.address}
+    ~ LibraryLinker ...... {linker_deployer.contract.address}
+        ~ Owner .......... {linker_deployer.contract.functions.owner().call()}
+        ~ Target ......... {linker_deployer.contract.functions.target().call()}"""
+        emitter.echo(user_escrow_payload)
+        emitter.echo(sep)
+
+    except BaseContractRegistry.UnknownContract:
+        message = f"\nUserEscrowProxy is not enrolled in {administrator.registry.filepath}"
+        emitter.echo(message, color='yellow')
+
+    return
 
 
 def paint_staged_stake(emitter,
@@ -225,8 +332,10 @@ Staking address: {staking_address}
 ~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
-~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
-~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
+~ Enactment  -> {datetime_at_period(period=start_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{start_period})
+~ Expiration -> {datetime_at_period(period=end_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{end_period})
     """)
 
     # TODO: periods != Days - Do we inform the user here?

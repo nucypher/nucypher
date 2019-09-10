@@ -12,9 +12,12 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent,
     PolicyManagerAgent,
     AdjudicatorAgent,
-    EthereumContractAgent, ContractAgency)
+    ContractAgency,
+    EthereumContractAgent
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -34,7 +37,7 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 
 
 @pytest.fixture(scope="module")
-def registry_filepath():
+def registry_filepath(test_registry):
     # TODO: Use temp module
     registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
     if os.path.exists(registry_filepath):
@@ -122,9 +125,9 @@ def test_transfer_tokens(click_runner, registry_filepath):
     token_agent = NucypherTokenAgent(registry=registry)
     assert token_agent.get_balance(address=recipient_address) == 0
 
-    command = ['transfer',
-               '--recipient-address', recipient_address,
-               '--amount', 42,
+    command = ['transfer-tokens',
+               '--target-address', recipient_address,
+               '--value', 42,
                '--registry-infile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa']
