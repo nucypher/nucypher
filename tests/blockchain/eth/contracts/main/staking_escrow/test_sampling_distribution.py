@@ -21,7 +21,8 @@ from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 
 
 # TODO: #1288 - Consider moving this test out from regular CI workflow to a scheduled workflow (e.g., nightly)
-@pytest.mark.slow
+# @pytest.mark.slow
+@pytest.mark.skip("Until SAMPLES can be raised. See #1288")
 def test_sampling_distribution(testerchain, token, deploy_contract):
 
     #

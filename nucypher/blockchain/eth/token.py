@@ -145,6 +145,9 @@ class NU:
         """Cast to smallest denomination"""
         return int(self.to_nunits())
 
+    def __round__(self, decimals: int = 0):
+        return NU.from_tokens(round(self.to_tokens(), decimals))
+
     def __repr__(self) -> str:
         r = f'{self.__symbol}(value={str(self.__value)})'
         return r

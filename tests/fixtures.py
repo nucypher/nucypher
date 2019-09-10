@@ -61,6 +61,8 @@ from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchai
 from nucypher.utilities.sandbox.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+    MIN_STAKE_FOR_TESTS,
+    BONUS_TOKENS_FOR_TESTS,
     MOCK_POLICY_DEFAULT_M,
     MOCK_URSULA_STARTING_PORT,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
@@ -69,7 +71,7 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_REGISTRY_FILEPATH,
     TEST_GAS_LIMIT,
-    INSECURE_DEPLOYMENT_SECRET_HASH
+    INSECURE_DEPLOYMENT_SECRET_HASH,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
@@ -451,13 +453,6 @@ def agency(testerchain, test_registry):
     yield agents
 
 
-@pytest.fixture(scope='module')
-def session_agency(_testerchain, test_registry):
-    testerchain = _testerchain
-    agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
-    yield agents
-
-
 @pytest.fixture(scope="module")
 def stakers(testerchain, agency, token_economics, test_registry):
     token_agent, _staking_agent, _policy_agent = agency
@@ -481,8 +476,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=account)
         staker.transacting_power.activate()
 
-        min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
-        amount = random.randint(min_stake, balance)
+        amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
         # for a random lock duration
         min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods

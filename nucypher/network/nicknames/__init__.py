@@ -34,6 +34,7 @@ symbols_tuple = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", 
                  "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "🟒", "⚛", "⚙", "⎈",
                  "☮", "☕", "☈", "♯", "♭")
 
+
 def nicename(symbol):
     unicode_name = unicodedata.name(symbol)
     final_word = unicode_name.split()[-1]
