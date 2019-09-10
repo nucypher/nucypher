@@ -192,10 +192,32 @@ class StakingEscrowAgent(EthereumContractAgent):
         return self.contract.functions.getCurrentPeriod().call()
 
     def get_stakers(self) -> List[str]:
-        """Returns a list of active stakers"""
-        num_stakers = self.contract.functions.getStakersLength().call()
+        """Returns a list of stakers"""
+        num_stakers = self.get_staker_population()
         stakers = [self.contract.functions.stakers(i).call() for i in range(num_stakers)]
         return stakers
+
+    def partition_stakers_by_activity(self) -> Tuple[List[str], List[str], List[str]]:
+        """Returns three lists of stakers depending on how they confirmed activity:
+        The first list contains stakers that already confirmed next period.
+        The second, stakers that confirmed for current period but haven't confirmed next yet.
+        The third contains stakers that have missed activity confirmation before current period"""
+
+        num_stakers = self.get_staker_population()
+        current_period = self.get_current_period()
+
+        active_stakers, pending_stakers, missing_stakers = [], [], []
+        for i in range(num_stakers):
+            staker = self.contract.functions.stakers(i).call()
+            last_active_period = self.get_last_active_period(staker)
+            if last_active_period == current_period + 1:
+                active_stakers.append(staker)
+            elif last_active_period == current_period:
+                pending_stakers.append(staker)
+            else:
+                missing_stakers.append(staker)
+
+        return active_stakers, pending_stakers, missing_stakers
 
     def get_all_locked_tokens(self, periods: int) -> int:
         """Returns the current period"""

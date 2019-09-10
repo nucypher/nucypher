@@ -211,12 +211,17 @@ Provider URI ............. {blockchain.provider_uri}
 Registry  ................ {registry.filepath}
     """
 
+    confirmed, pending, inactive = staking_agent.partition_stakers_by_activity()
+
     staking = f"""
 | Staking |
 Current Period ........... {staking_agent.get_current_period()}
 Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
-Published Stakes ......... {staking_agent.get_staker_population()}
-Active Staking Ursulas ... {staking_agent.get_staker_population()}
+Stakers population ....... {staking_agent.get_staker_population()}
+   Confirmed ............. {len(confirmed)}
+   Pending confirmation .. {len(pending)}
+   Inactive .............. {len(inactive)}
+
     """
 
     sep = '-' * 45
