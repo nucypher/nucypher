@@ -189,6 +189,7 @@ class HostingKeypair(Keypair):
         self.certificate_filepath = certificate_filepath
 
     def generate_self_signed_cert(self, common_name):
+        # TODO: This function is unused
         cryptography_key = self._privkey.to_cryptography_privkey()
         return generate_self_signed_certificate(host=common_name,
                                                 curve=self.curve,
