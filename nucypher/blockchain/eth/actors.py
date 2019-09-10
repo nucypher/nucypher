@@ -90,6 +90,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
+    @validate_checksum_address
     def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):
 
         # TODO: Consider this pattern - None for address?.
@@ -710,6 +711,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
+    @validate_checksum_address
     def set_worker(self, worker_address: str) -> str:
         if self.is_contract:
             receipt = self.user_escrow_agent.set_worker(worker_address=worker_address)
@@ -747,6 +749,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
+    @validate_checksum_address
     def collect_policy_reward(self, collector_address=None) -> dict:
         """Collect rewarded ETH."""
         withdraw_address = collector_address or self.checksum_address
@@ -827,7 +830,7 @@ class Worker(NucypherTokenActor):
 
     @property
     def last_active_period(self) -> int:
-        period = self.staking_agent.get_last_active_period(address=self.checksum_address)
+        period = self.staking_agent.get_last_active_period(staker_address=self.checksum_address)
         return period
 
     @only_me
