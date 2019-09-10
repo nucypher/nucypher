@@ -424,7 +424,7 @@ def _make_agency(testerchain, test_registry):
     user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     token_agent = token_deployer.make_agent()                           # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()                # 2 Miner Escrow
+    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
     policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
     _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
 

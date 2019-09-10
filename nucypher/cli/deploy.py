@@ -24,13 +24,14 @@ from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
     paint_contract_deployment,
-    paint_deployer_contract_status
+    paint_deployer_contract_inspection
 )
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -133,7 +134,7 @@ def deploy(action,
         else:
             registry = InMemoryContractRegistry.from_latest_publication()
         administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
-        paint_deployer_contract_status(emitter=emitter, administrator=administrator)
+        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
         return  # Exit
 
     #
@@ -278,13 +279,11 @@ def deploy(action,
 
     elif action == "transfer-tokens":
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-        missing_options = list()
-        if target_address is None:
-            missing_options.append("--target-address")
-        if value is None:
-            missing_options.append("--value")
-        if missing_options:
-            raise click.BadArgumentUsage(message=f"Need {' and '.join(missing_options)} to transfer tokens.")
+        if not target_address:
+            target_address = click.prompt("Enter recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+        if not value:
+            stake_value_range = click.FloatRange(min=0, clamp=False)
+            value = NU.from_tokens(click.prompt(f"Enter value in NU", type=stake_value_range))
 
         click.confirm(f"Transfer {value} from {deployer_address} to {target_address}?", abort=True)
         receipt = token_agent.transfer(amount=value,
@@ -308,11 +307,11 @@ def deploy(action,
                 contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
                                                             deployer_address=ADMINISTRATOR.deployer_address)
                 receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
-                emitter.ipc(receipt, request_id=0, duration=0)  # TODO: eh?
+                emitter.ipc(receipt, request_id=0, duration=0)  # TODO: #1216
                 return  # Exit
         else:
             receipts = ADMINISTRATOR.relinquish_ownership(new_owner=target_address, transaction_gas_limit=gas)
-            emitter.ipc(receipts, request_id=0, duration=0)  # TODO: eh?
+            emitter.ipc(receipts, request_id=0, duration=0)  # TODO: #1216
             return  # Exit
 
     else:

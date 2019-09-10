@@ -42,7 +42,6 @@ def registry_filepath(test_registry):
     registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)
-    # test_registry.commit(registry_filepath)
     yield registry_filepath
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)

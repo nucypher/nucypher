@@ -219,7 +219,7 @@ Active Staking Ursulas ... {staking_agent.get_staker_population()}
     emitter.echo(sep)
 
 
-def paint_deployer_contract_status(emitter, administrator) -> None:
+def paint_deployer_contract_inspection(emitter, administrator) -> None:
 
     blockchain = BlockchainInterfaceFactory.get_interface()
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=administrator.registry)
@@ -239,8 +239,8 @@ Registry  ................ {administrator.registry.filepath}
 =====================================================================
 
 NucypherToken ........... {token_agent.contract_address}
-    ~ Ethers ............ {blockchain.client.get_balance(token_agent.contract_address)} wei
-    ~ Tokens ............ {token_agent.get_balance(token_agent.contract_address)} wei"""
+    ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
+    ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
     emitter.echo(contract_payload)
 
     banner = """
@@ -265,13 +265,13 @@ NucypherToken ........... {token_agent.contract_address}
             proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
     ~ Owner .............. {bare_contract.functions.owner().call()}
-    ~ Ethers ............. {blockchain.client.get_balance(dispatcher_deployer.contract_address)} wei
-    ~ Tokens ............. {token_agent.get_balance(dispatcher_deployer.contract_address)} wei
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}
     ~ Dispatcher ......... {dispatcher_deployer.contract_address}
         ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
-        ~ Ethers ......... {blockchain.client.get_balance(dispatcher_deployer.contract_address)} wei
-        ~ Tokens ......... {token_agent.get_balance(dispatcher_deployer.contract_address)} wei"""
+        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
             emitter.echo(proxy_payload)
             emitter.echo(sep, nl=False)
 
@@ -306,7 +306,7 @@ UserEscrowProxy .......... {bare_contract.address}
         emitter.echo(sep)
 
     except BaseContractRegistry.UnknownContract:
-        message = f"UserEscrowProxy is not enrolled in {administrator.registry.filepath}"
+        message = f"\nUserEscrowProxy is not enrolled in {administrator.registry.filepath}"
         emitter.echo(message, color='yellow')
 
     return
@@ -332,8 +332,10 @@ Staking address: {staking_address}
 ~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
-~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
-~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
+~ Enactment  -> {datetime_at_period(period=start_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{start_period})
+~ Expiration -> {datetime_at_period(period=end_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{end_period})
     """)
 
     # TODO: periods != Days - Do we inform the user here?
