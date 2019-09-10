@@ -190,18 +190,12 @@ def paint_contract_status(registry, emitter):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
 
-
-    try:
-        registry_filepath = registry.filepath
-    except AttributeError:
-        registry_filepath = "No filepath"
-
     contracts = f"""
 | Contract Deployments |
-NucypherToken ............ {token_agent.contract_address}
-StakingEscrow ............ {staking_agent.contract_address}
-PolicyManager ............ {policy_agent.contract_address}
-Adjudicator .............. {adjudicator_agent.contract_address} 
+{token_agent.contract_name} ............ {token_agent.contract_address}
+{staking_agent.contract_name} ............ {staking_agent.contract_address}
+{policy_agent.contract_name} ............ {policy_agent.contract_address}
+{adjudicator_agent.contract_name} .............. {adjudicator_agent.contract_address} 
     """
 
     blockchain = f"""    
