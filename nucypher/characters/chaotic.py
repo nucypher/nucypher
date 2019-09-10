@@ -8,13 +8,13 @@ from decimal import Decimal
 import eth_utils
 import maya
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
+from cryptography.hazmat.primitives.asymmetric import ec
 from flask import Flask, render_template, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.experience import hey_joe
 from nacl.hash import sha256
-from nucypher.network.status_app.moe import MoeStatusApp
 from sqlalchemy import create_engine, or_
 from twisted.internet import threads, reactor
 from twisted.internet.task import LoopingCall
@@ -36,8 +36,11 @@ from nucypher.characters.banners import MOE_BANNER, FELIX_BANNER, NU_BANNER
 from nucypher.characters.base import Character
 from nucypher.config.constants import TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
+from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.server import TLSHostingPower
+from nucypher.network.status_app.moe import MoeStatusApp
 
 
 class Moe(Character):
@@ -47,8 +50,16 @@ class Moe(Character):
     """
     banner = MOE_BANNER
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, host: str, port: int, *args, **kwargs):
+        self.host = host
+        self.port = port
+
+        # TLSHostingPower (Ephemeral Self-Ursula)
+        tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1, host=self.host)
+        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=self.host)
+        super().__init__(*args, crypto_power_ups=[tls_hosting_power], **kwargs)
+
+        self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         self.log.info(self.banner)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
@@ -79,7 +90,7 @@ class Moe(Character):
         hey_joe.send(None, topic="nodes")
         return new_nodes
 
-    def start(self, ws_port: int, http_port: int, dry_run: bool = False):
+    def start(self, ws_port: int, dry_run: bool = False):
 
         #
         # Websocket Service
@@ -113,7 +124,7 @@ class Moe(Character):
         # Server
         #
 
-        deployer = HendrixDeploy(action="start", options={"wsgi": rest_app, "http_port": http_port})
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.port)
         deployer.add_non_tls_websocket_service(websocket_service)
 
         if not dry_run:
