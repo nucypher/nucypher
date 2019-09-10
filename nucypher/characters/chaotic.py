@@ -54,7 +54,6 @@ class Moe(Character):
         self.host = host
         self.port = port
 
-        # TLSHostingPower (Ephemeral Self-Ursula)
         tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1, host=self.host)
         tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=self.host)
         super().__init__(*args, crypto_power_ups=[tls_hosting_power], **kwargs)
@@ -125,7 +124,10 @@ class Moe(Character):
         #
 
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=rest_app, port=self.port)
-        deployer.add_non_tls_websocket_service(websocket_service)
+        wss_service = hey_joe.WSSWebSocketService(host_address=self.host,
+                                                  port=ws_port,
+                                                  allowedOrigins=[f"https://{self.host}:{self.port}"])
+        deployer.add_tls_websocket_service(wss_service)
 
         if not dry_run:
             deployer.run()
