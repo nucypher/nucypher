@@ -369,6 +369,14 @@ def _make_testerchain():
     eth._utils.headers.GAS_LIMIT_MINIMUM = TEST_GAS_LIMIT
     eth._utils.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
     eth.vm.forks.frontier.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
+
+    # Monkey patch to prevent gas estimates
+    def _get_buffered_gas_estimate(web3, transaction, gas_buffer=100000):
+        return TEST_GAS_LIMIT
+
+    import web3
+    web3.eth.get_buffered_gas_estimate = _get_buffered_gas_estimate
+
     # Create the blockchain
     testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
     BlockchainInterfaceFactory.register_interface(interface=testerchain)

@@ -20,6 +20,7 @@ import os
 from typing import List, Tuple
 
 import maya
+from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
 
@@ -265,5 +266,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """Wait for a transaction receipt and return it"""
         timeout = timeout or self.TIMEOUT
         result = self.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
+        if result.status == 0:
+            raise TransactionFailed()
         return result
 
