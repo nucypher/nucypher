@@ -40,14 +40,16 @@ from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractReg
 
 class BaseContractDeployer:
 
+    _interface_class = BlockchainDeployerInterface
+
     agency = NotImplemented
     contract_name = NotImplemented
     deployment_steps = NotImplemented
     upgrade_steps = NotImplemented
     rollback_steps = NotImplemented
 
-    _interface_class = BlockchainDeployerInterface
     _upgradeable = NotImplemented
+    _ownable = NotImplemented
     _proxy_deployer = NotImplemented
 
     class ContractDeploymentError(Exception):
@@ -152,13 +154,11 @@ class BaseContractDeployer:
             raise self.ContractDeploymentError(message)
         return True
 
-    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
+    def deploy(self, gas_limit: int, progress) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
         """
-        # TODO: Consider splitting this into to classes upgradeable v non-upgraeable.
-        #       Alternately, just remove deployment secrets alltogether.
         raise NotImplementedError
 
     def make_agent(self) -> EthereumContractAgent:
@@ -169,49 +169,70 @@ class BaseContractDeployer:
 class UpgradeableContractDeployer(BaseContractDeployer):
 
     _upgradeable = True
+    
     _proxy_deployer = NotImplemented
+    _ownable = NotImplemented
+    
+    class NotUpgradeable(RuntimeError):
+        pass
+    
+    class NotOwnable(RuntimeError):
+        pass
+
+    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
+        """
+        Provides for the setup, deployment, and initialization of ethereum smart contracts.
+        Emits the configured blockchain network transactions for single contract instance publication.
+        """
+        if not cls._upgradeable:
+            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+        raise NotImplementedError
 
     @classmethod
     def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
-        """
-        Get the latest version of the contract without assembling it with it's proxy.
-        """
+        """Get the latest version of the contract without assembling it with it's proxy."""
         if not cls._upgradeable:
-            raise RuntimeError(f"{cls.contract_name} is not upgradeable.")
+            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         contract = blockchain.get_contract_by_name(name=cls.contract_name,
+                                                   registry=registry,
                                                    proxy_name=cls._proxy_deployer.contract_name,
                                                    use_proxy_address=False)
         return contract
 
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None):
-        if not self._upgradeable:
-            raise RuntimeError(f"{self.contract_name} is not upgradeable.")
+        if not self._ownable:
+            raise self.NotOwnable(f"{self.contract_name} is not ownable.")
 
+        # Get Bare Contracts
         existing_bare_contract = self.get_latest_version(registry=self.registry,
                                                          provider_uri=self.blockchain.provider_uri)
 
-        dispatcher_deployer = self._proxy_deployer(registry=self.registry,
-                                                   target_contract=existing_bare_contract,
-                                                   deployer_address=self.deployer_address,
-                                                   bare=True)  # acquire agency for the dispatcher itself.
+        proxy_deployer = self._proxy_deployer(registry=self.registry,
+                                              target_contract=existing_bare_contract,
+                                              deployer_address=self.deployer_address,
+                                              bare=True)  # acquire agency for the dispatcher itself.
 
+        # Stage
         contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
+        proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
+
+        # Execute
         principal_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                              contract_function=contract_function,
                                                              transaction_gas_limit=transaction_gas_limit)
 
-        proxy_contract_function = dispatcher_deployer.contract.functions.transferOwnership(new_owner)
         proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                          contract_function=proxy_contract_function,
                                                          transaction_gas_limit=transaction_gas_limit)
 
+        # Report
         receipts = {'principal': principal_receipt, 'proxy': proxy_receipt}
         return receipts
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
-            raise RuntimeError(f"{self.contract_name} is not upgradeable.")
+            raise self.NotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         # 1 - Raise if not all-systems-go #
         # TODO: Fails when this same object was used previously to deploy
@@ -246,7 +267,7 @@ class UpgradeableContractDeployer(BaseContractDeployer):
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
-            raise RuntimeError(f"{self.contract_name} is not upgradeable.")
+            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
 
         existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                       name=self.contract_name,
@@ -271,6 +292,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
+    _ownable = False
 
     def deploy(self, gas_limit: int = None, progress=None) -> dict:
         """
@@ -302,8 +324,8 @@ class DispatcherDeployer(BaseContractDeployer):
     contract_name = DISPATCHER_CONTRACT_NAME
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
-
-    DISPATCHER_SECRET_LENGTH = 32
+    _ownable = True
+    _secret_length = 32
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -366,6 +388,7 @@ class StakingEscrowDeployer(UpgradeableContractDeployer):
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
     _proxy_deployer = DispatcherDeployer
+    _ownable = True
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -479,10 +502,10 @@ class PolicyManagerDeployer(UpgradeableContractDeployer):
 
     agency = PolicyManagerAgent
     contract_name = agency.registry_contract_name
-
-    _proxy_deployer = DispatcherDeployer
-
     deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
+    _proxy_deployer = DispatcherDeployer
+    _ownable = True
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -549,6 +572,7 @@ class LibraryLinkerDeployer(BaseContractDeployer):
 
     contract_name = 'UserEscrowLibraryLinker'
     deployment_steps = ('contract_deployment', )
+    _ownable = True
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         self.target_contract = target_contract
@@ -594,6 +618,8 @@ class UserEscrowProxyDeployer(UpgradeableContractDeployer):
     deployment_steps = ('contract_deployment', 'linker_deployment')
     number_of_deployment_transactions = 2
     _proxy_deployer = LibraryLinkerDeployer
+    _ownable = False
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -662,6 +688,7 @@ class UserEscrowDeployer(UpgradeableContractDeployer):
     deployment_steps = ('contract_deployment', )
     _linker_deployer = LibraryLinkerDeployer
     __allocation_registry = AllocationRegistry
+    _ownable = True
 
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -766,6 +793,7 @@ class AdjudicatorDeployer(UpgradeableContractDeployer):
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'set_adjudicator')
     _proxy_deployer = DispatcherDeployer
+    _ownable = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

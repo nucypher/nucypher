@@ -62,7 +62,7 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # StakingEscrow
     #
-    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
     staking_escrow_deployer = StakingEscrowDeployer(
         registry=test_registry,
         deployer_address=origin)
@@ -88,7 +88,7 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Policy Manager
     #
-    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DispatcherDeployer._secret_length)
     policy_manager_deployer = PolicyManagerDeployer(
         registry=test_registry,
         deployer_address=origin)
@@ -115,7 +115,7 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Adjudicator
     #
-    adjudicator_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    adjudicator_secret = os.urandom(DispatcherDeployer._secret_length)
     adjudicator_deployer = AdjudicatorDeployer(
         registry=test_registry,
         deployer_address=origin)
