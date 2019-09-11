@@ -6,6 +6,7 @@ from string import ascii_uppercase, digits
 import pytest
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -13,8 +14,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    EthereumContractAgent
-)
+    EthereumContractAgent,
+    WorkLockAgent)
+from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -69,7 +71,7 @@ def test_nucypher_deploy_contracts(click_runner,
     assert result.exit_code == 0
 
     # Ensure there is a report on each contract
-    contract_names = tuple(a.registry_contract_name for a in EthereumContractAgent.__subclasses__())
+    contract_names = tuple(a.contract_name for a in ContractAdministrator.upgradeable_deployer_classes)
     for registry_name in contract_names:
         assert registry_name in result.output
 
@@ -110,10 +112,23 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # and at least the others can be instantiated
     assert PolicyManagerAgent(registry=registry)
-
-    # This agent wasn't instantiated before, so we have to supply the blockchain
-    blockchain = staking_agent.blockchain
     assert AdjudicatorAgent(registry=registry)
+
+
+def test_deploy_single_contract(click_runner, registry_filepath):
+
+    command = ['contracts',
+               '--contract-name', 'WorkLock',
+               '--registry-outfile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa']
+
+    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0, result.stderr
+    assert WorkLockDeployer.contract_name in result.output
+    agent = WorkLockAgent(registry=LocalContractRegistry(filepath=registry_filepath))
+    assert agent
 
 
 def test_transfer_tokens(click_runner, registry_filepath):

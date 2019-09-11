@@ -47,8 +47,8 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
-    AdjudicatorDeployer
-)
+    AdjudicatorDeployer,
+    WorkLockDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
@@ -142,6 +142,7 @@ class ContractAdministrator(NucypherTokenActor):
         NucypherTokenDeployer,
     )
 
+
     dispatched_upgradeable_deployer_classes = (
         StakingEscrowDeployer,
         PolicyManagerDeployer,
@@ -155,8 +156,15 @@ class ContractAdministrator(NucypherTokenActor):
 
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes, )
 
-    deployer_classes = (*standard_deployer_classes,
-                        *upgradeable_deployer_classes)
+    aux_deployer_classes = (
+        WorkLockDeployer,
+        # SeederDeployer
+    )
+
+    # Used in the automated series, typically.
+    all_deployer_classes = (*standard_deployer_classes,
+                            *upgradeable_deployer_classes,
+                            *aux_deployer_classes)
 
     class UnknownContract(ValueError):
         pass
@@ -178,7 +186,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         self.registry = registry
         self.user_escrow_deployers = dict()
-        self.deployers = {d.contract_name: d for d in self.deployer_classes}
+        self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
 
         self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
         self.transacting_power.activate()
@@ -293,7 +301,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         # deploy contracts
         total_deployment_transactions = 0
-        for deployer_class in self.deployer_classes:
+        for deployer_class in self.all_deployer_classes:
             total_deployment_transactions += len(deployer_class.deployment_steps)
 
         first_iteration = True
@@ -301,7 +309,7 @@ class ContractAdministrator(NucypherTokenActor):
                                label="Deployment progress",
                                show_eta=False) as bar:
             bar.short_limit = 0
-            for deployer_class in self.deployer_classes:
+            for deployer_class in self.all_deployer_classes:
                 if interactive and not first_iteration:
                     click.pause(info=f"\nPress any key to continue with deployment of {deployer_class.contract_name}")
 

@@ -967,13 +967,10 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         adjudicator_contract = wrapped
 
         # Configure the StakingEscrow contract by setting the Adjudicator
-        tx_args = {}
-        if gas_limit:
-            tx_args.update({'gas': gas_limit})
         set_adjudicator_function = self.staking_contract.functions.setAdjudicator(adjudicator_contract.address)
         set_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_adjudicator_function,
                                                                    sender_address=self.deployer_address,
-                                                                   payload=tx_args)
+                                                                   transaction_gas_limit=gas_limit)
         if progress:
             progress.update(1)
 
@@ -987,7 +984,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         return deployment_receipts
 
 
-class WorklockDeployer(BaseContractDeployer):
+class WorkLockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
