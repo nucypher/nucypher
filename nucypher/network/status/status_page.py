@@ -60,11 +60,12 @@ class NetworkStatusPage:
     @staticmethod
     def state_detail(state) -> html.Div:
         return html.Div([
-            html.Span(state['nickname']),
             html.Div([
+                html.Div(className='dot', style={'background-color': state['color_hex']}),
                 html.Div(state['symbol'], className='single-symbol'),
-                html.Span(state['updated'], className='small'),
-            ], className='nucypher-nickname-icon', style={'border-color': state["color_hex"]})
+            ], className='nucypher-nickname-icon', style={'border-color': state['color_hex']}),
+            html.Span(state['nickname']),
+            html.Span(state['updated'], className='small'),
         ], className='state')
 
     def known_nodes(self, learner: Learner) -> html.Div:
