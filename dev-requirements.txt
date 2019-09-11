@@ -47,7 +47,6 @@ pycparser==2.19
 pygments==2.4.2
 pyparsing==2.4.2
 pytest-cov==2.7.1
-pytest-dash==2.1.2
 pytest-forked==1.0.2
 pytest-mock==1.10.4
 pytest-mypy==0.4.0
