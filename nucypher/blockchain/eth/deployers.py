@@ -1074,25 +1074,11 @@ class WorklockDeployer(BaseContractDeployer):
     _upgradeable = False
     __proxy_deployer = NotImplemented
 
-    def __init__(self,
-                 start_date: int,
-                 end_date: int,
-                 deposit_rate: int,
-                 refund_rate: int,
-                 locked_periods: int,
-                 *args, **kwargs):
+    def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.staking_agent = StakingEscrowAgent(blockchain=self.blockchain)
-
-        # Worklock constructor params.
-        # TODO: Do these want to be in an "economics" class?
-        self.start_date = start_date
-        self.end_date = end_date
-        self.deposit_rate = deposit_rate
-        self.refund_rate = refund_rate
-        self.locked_periods = locked_periods
 
     def deploy(self, gas_limit: int = None) -> Dict[str, str]:
         """
@@ -1113,11 +1099,7 @@ class WorklockDeployer(BaseContractDeployer):
         # Deploy
         constructor_args = (self.token_agent.contract_address,
                             self.staking_agent.contract_address,
-                            self.start_date,
-                            self.end_date,
-                            self.deposit_rate,
-                            self.refund_rate,
-                            self.locked_periods)
+                            *self.economics.worklock_deployment_parameters)
 
         worklock_contract, deploy_txhash = self.blockchain.deploy_contract(self.deployer_address,
                                                                            self.registry,
