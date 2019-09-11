@@ -41,13 +41,13 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency)
 from nucypher.blockchain.eth.deployers import (
+    BaseContractDeployer,
     NucypherTokenDeployer,
     StakingEscrowDeployer,
     PolicyManagerDeployer,
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
-    AdjudicatorDeployer,
-    BaseContractDeployer
+    AdjudicatorDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface

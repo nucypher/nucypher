@@ -297,6 +297,35 @@ class StandardTokenEconomics(TokenEconomics):
         return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
 
 
+class WorkLockEconomics:
+
+    def __init__(self,
+                 start_date: int,
+                 end_date: int,
+                 deposit_rate: int,
+                 refund_rate: int,
+                 locked_periods: int):
+
+        self.start_date = start_date
+        self.end_date = end_date
+        self.deposit_rate = deposit_rate
+        self.refund_rate = refund_rate
+        self.locked_periods = locked_periods
+
+    @property
+    def worklock_deployment_parameters(self):
+        params = (self.start_date,
+                  self.end_date,
+                  self.deposit_rate,
+                  self.refund_rate,
+                  self.locked_periods)
+        return params
+
+
+class StandardEconomics(StandardTokenEconomics, WorkLockEconomics):
+    pass
+
+
 class TokenEconomicsFactory:
     # TODO: Enforce singleton
 
