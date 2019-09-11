@@ -100,7 +100,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[2]
+    bidder = testerchain.unassigned_accounts[-1]
     remaining = agent.get_remaining_work(target_address=bidder)
     assert remaining
 
@@ -108,14 +108,13 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 def test_claim(testerchain, agency, token_economics, test_registry):
     testerchain.time_travel(seconds=(60*60)+1)  # Wait exactly 1 hour + 1 second
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[2]
+    bidder = testerchain.unassigned_accounts[-1]
     receipt = agent.claim(sender_address=bidder)
     assert receipt
 
 
-def test_refund(testerchain, agency, token_economics, test_registry):
+def test_refund_rejection_without_work(testerchain, agency, token_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
-    bidder = testerchain.unassigned_accounts[2]
-    receipt = agent.refund(sender_address=bidder)
-    assert receipt
-
+    bidder = testerchain.unassigned_accounts[-1]
+    with pytest.raises(TransactionFailed):
+        _receipt = agent.refund(sender_address=bidder)
