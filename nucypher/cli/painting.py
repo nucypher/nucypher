@@ -202,7 +202,7 @@ def paint_contract_status(registry, emitter):
 | '{blockchain.client.chain_name}' Blockchain Network |
 Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
 Provider URI ............. {blockchain.provider_uri}
-Registry  ................ {registry.filepath}
+Registry ................. {registry.filepath}
     """
 
     confirmed, pending, inactive = staking_agent.partition_stakers_by_activity()
