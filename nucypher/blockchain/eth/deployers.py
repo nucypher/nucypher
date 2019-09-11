@@ -1104,8 +1104,12 @@ class WorklockDeployer(BaseContractDeployer):
                                                                            *constructor_args,
                                                                            gas_limit=gas_limit)
 
+        bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
+        bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                           contract_function=bonding_function)
+
         # Gather the transaction hashes
-        self.deployment_transactions = {'deployment': deploy_txhash}
+        self.deployment_transactions = {'deployment': deploy_txhash, 'bond_escrow': bonding_receipt}
         self._contract = worklock_contract
         return self.deployment_transactions
 
