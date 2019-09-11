@@ -92,10 +92,13 @@ a { color: slategrey;
 }
 
 .dot {
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
+  height: 24px;
+  width: 24px;
   display: inline-block;
+  border-color: black;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 50%;  /* (height/width + border-width) should equate to an even number */
 }
 
 #node-table {
