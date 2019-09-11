@@ -50,7 +50,7 @@ class NetworkStatusPage:
             ], className='row')
 
     def states_table(self, states_dict) -> html.Table:
-        previous_states = list(states_dict.values())[:5]   # only latest 5
+        previous_states = list(states_dict.values())[:3]   # only latest 3
         row = []
         for state in previous_states:
             # store previous states in reverse order
@@ -60,11 +60,12 @@ class NetworkStatusPage:
     @staticmethod
     def state_detail(state) -> html.Div:
         return html.Div([
-            html.Span(state['nickname']),
             html.Div([
+                html.Div(className='dot', style={'background-color': state['color_hex']}),
                 html.Div(state['symbol'], className='single-symbol'),
-                html.Span(state['updated'], className='small'),
-            ], className='nucypher-nickname-icon', style={'border-color': state["color_hex"]})
+            ], className='nucypher-nickname-icon', style={'border-color': state['color_hex']}),
+            html.Span(state['nickname']),
+            html.Span(state['updated'], className='small'),
         ], className='state')
 
     def known_nodes(self, learner: Learner) -> html.Div:
@@ -137,7 +138,9 @@ class NetworkStatusPage:
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
             'Icon': icon,
-            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...', href=etherscan_url)),
+            'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...',
+                                       href=etherscan_url,
+                                       target='_blank')),
             'Nickname': nickname,
             'Timestamp': html.Td(node_info['timestamp']),
             'Last Seen': html.Td(node_info['last_seen']),
@@ -215,13 +218,14 @@ class MoeStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('active-stakers', 'children'),
                                 [Input('hidden-node-button', 'n_clicks')])
         def active_stakers(n):
-            return html.Div([html.H4(f"{len(moe.known_nodes)} Nodes")])
+            return html.Div([html.H4("Active Stakers"),
+                             html.H5(f"{len(moe.known_nodes)} nodes")])
 
         @self.dash_app.callback(Output('current-period', 'children'),
                                 [Input('url', 'pathname')])
         def current_period(pathname):
             return html.Div([html.H4("Current Period"),
-                             html.H4(moe.staking_agent.get_current_period())])
+                             html.H5(moe.staking_agent.get_current_period())])
 
         @self.dash_app.callback(Output('time-remaining', 'children'),
                                 [Input('interval-component', 'n_intervals')])
@@ -231,14 +235,14 @@ class MoeStatusPage(NetworkStatusPage):
                                 day=tomorrow.day, hour=0, minute=0, second=0)
             seconds_remaining = MayaDT.from_datetime(midnight).slang_time()
             return html.Div([html.H4("Next Period"),
-                             html.H4(seconds_remaining)])
+                             html.H5(seconds_remaining)])
 
         @self.dash_app.callback(Output('domains', 'children'), [Input('url', 'pathname')])  # on page-load
         def domains(pathname):
             domains = ' | '.join(moe.learning_domains)
             return html.Div([
                 html.H4('Learning Domains'),
-                html.H4(domains),
+                html.H5(domains),
             ])
 
         @self.dash_app.callback(Output('staked-tokens', 'children'),
@@ -247,7 +251,7 @@ class MoeStatusPage(NetworkStatusPage):
             nu = NU.from_nunits(moe.staking_agent.get_global_locked_tokens())
             return html.Div([
                 html.H4('Staked Tokens'),
-                html.H4(f"{nu}"),
+                html.H5(f"{nu}"),
             ])
 
         @self.dash_app.callback(Output('registry-uri', 'children'),
@@ -256,15 +260,19 @@ class MoeStatusPage(NetworkStatusPage):
             uri = moe.registry.id[:16]
             return html.Div([
                 html.H4('Registry Checksum'),
-                html.H4(f"{uri}"),
+                html.H5(f"{uri}"),
                 html.A(f'{moe.token_agent.contract_name} - {moe.token_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.token_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.token_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.staking_agent.contract_name} - {moe.staking_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.staking_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.staking_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.policy_agent.contract_name} - {moe.policy_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.policy_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.policy_agent.contract_address}',
+                       target='_blank'),
                 html.A(f'{moe.adjudicator_agent.contract_name} - {moe.adjudicator_agent.contract_address}',
-                       href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}'),
+                       href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}',
+                       target='_blank'),
             ], className='stacked-widget')
 
 
@@ -281,6 +289,7 @@ class UrsulaStatusPage(NetworkStatusPage):
             dcc.Location(id='url', refresh=False),
             html.Div(id='header'),
             html.Div(id='ursula_info'),
+            html.Div(id='domains'),
             html.Div(id='prev-states'),
             html.Div(id='known-nodes'),
             # use a periodic update interval (every 2s) instead of notification updates from hendrix used by Moe
@@ -291,14 +300,14 @@ class UrsulaStatusPage(NetworkStatusPage):
         def header(pathname):
             return self.header()
 
-        @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
-        def domains():
+        @self.dash_app.callback(Output('domains', 'children'), [Input('url', 'pathname')])  # on page-load
+        def domains(pathname):
             domains = ''
             for domain in ursula.learning_domains:
                 domains += f' | {domain} '
             return html.Div([
                 html.H4('Domains', className='one column'),
-                html.H4(domains, className='eleven columns'),
+                html.H5(domains, className='eleven columns'),
             ], className='row')
 
         @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
@@ -315,12 +324,12 @@ class UrsulaStatusPage(NetworkStatusPage):
             ], className='row')
             return info
 
-        @self.dash_app.callback(Output('prev-states', 'children'))
-        def state():
+        @self.dash_app.callback(Output('prev-states', 'children'), [Input('status-update', 'n_intervals')])
+        def state(n):
             """Simply update periodically"""
             return self.previous_states(ursula)
 
-        @self.dash_app.callback(Output('known-nodes', 'children'))
-        def known_nodes():
+        @self.dash_app.callback(Output('known-nodes', 'children'), [Input('status-update', 'n_intervals')])
+        def known_nodes(n):
             """Simply update periodically"""
             return self.known_nodes(ursula)
