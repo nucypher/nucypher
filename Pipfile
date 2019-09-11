@@ -58,7 +58,6 @@ sphinx = "*"
 recommonmark = "*"
 sphinx_rtd_theme = "*"
 aafigure = "*"
-pytest-dash = "*"
 
 [scripts]
 install-solc = "scripts/installation/install_solc.sh"
