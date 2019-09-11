@@ -13,8 +13,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    EthereumContractAgent
-)
+    EthereumContractAgent,
+    WorkLockAgent)
+from nucypher.blockchain.eth.deployers import WorklockDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -117,6 +118,22 @@ def test_nucypher_deploy_contracts(click_runner,
 
     # This agent wasn't instantiated before, so we have to supply the blockchain
     assert AdjudicatorAgent(registry=registry)
+
+
+def test_deploy_single_contract(click_runner, registry_filepath):
+
+    command = ['contracts',
+               '--contract-name', 'WorkLock',
+               '--registry-outfile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa']
+
+    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0, result.stderr
+    assert WorklockDeployer.contract_name in result.output
+    agent = WorkLockAgent(registry=LocalContractRegistry(filepath=registry_filepath))
+    assert agent
 
 
 def test_transfer_tokens(click_runner, registry_filepath):
