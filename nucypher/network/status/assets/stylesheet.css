@@ -85,12 +85,17 @@ a { color: slategrey;
 }
 
 .nucypher-nickname-icon {
-    border-width: 1px;
-    border-style: solid;
     margin: 3px;
     padding: 3px;
     text-align: center;
     height: 50px;
+}
+
+.dot {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 #node-table {
@@ -120,6 +125,7 @@ a { color: slategrey;
 
 .state {
     float:left;
+    text-align: center;
 }
 
 .logo-box {
