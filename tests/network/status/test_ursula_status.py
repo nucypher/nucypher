@@ -4,8 +4,8 @@ from flask import Flask
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.network.status.status_page import UrsulaStatusPage
 
-#  TODO: Current issue: https://github.com/InstaPy/instapy-quickstart/issues/63
-@pytest.mark.skip("Issues with compatibility with latest Chrome version")
+
+@pytest.mark.skip("Need to be changed to correctly use dash[testing] and only run on circleci")
 def test_render_lonely_ursula_status_page(dash_duo):
     ursula_config = UrsulaConfiguration(dev_mode=True, federated_only=True)
     ursula = ursula_config()
@@ -22,8 +22,7 @@ def test_render_lonely_ursula_status_page(dash_duo):
     assert title == ursula.nickname
 
 
-#  TODO: Current issue: https://github.com/InstaPy/instapy-quickstart/issues/63
-@pytest.mark.skip("Issues with compatibility with latest Chrome version")
+@pytest.mark.skip("Need to be modified to correctly use dash[testing] and only run on circleci")
 def test_render_ursula_status_page_with_known_nodes(federated_ursulas, dash_duo):
     ursula_config = UrsulaConfiguration(dev_mode=True, federated_only=True, known_nodes=federated_ursulas)
     ursula = ursula_config()
