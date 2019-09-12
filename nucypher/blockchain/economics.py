@@ -343,7 +343,7 @@ class StandardEconomics(BaseEconomics):
 class PyTestEconomics(StandardEconomics):
 
     nickname = 'test-economics'
-    description = f'Identical to {StandardEconomics.nickname} with Instant on-hour worklock.'
+    description = f'Identical to {StandardEconomics.nickname} with Instant one-hour worklock.'
 
     def __init__(self, *args, **kwargs):
 

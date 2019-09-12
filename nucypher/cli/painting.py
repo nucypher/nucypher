@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import time
 import webbrowser
 from collections import Counter
+from datetime import datetime
 from decimal import Decimal
 from typing import List
 
@@ -31,8 +32,8 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     AdjudicatorAgent,
     PolicyManagerAgent,
-    StakingEscrowAgent
-)
+    StakingEscrowAgent,
+    WorkLockAgent)
 from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
@@ -485,14 +486,20 @@ def paint_contract_deployment(emitter,
 def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.clear()
     emitter.banner(NU_BANNER)
+
     emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
     emitter.echo(f"Web3 Provider ....... {deployer_interface.provider_uri}")
     emitter.echo(f"Block ............... {deployer_interface.client.block_number}")
     emitter.echo(f"Gas Price ........... {deployer_interface.client.gas_price}")
+
     emitter.echo(f"Deployer Address .... {administrator.checksum_address}")
     emitter.echo(f"ETH ................. {administrator.eth_balance}")
+
     emitter.echo(f"Chain ID ............ {deployer_interface.client.chain_id}")
     emitter.echo(f"Chain Name .......... {deployer_interface.client.chain_name}")
+
+    emitter.echo(f"Economics ........... {administrator.economics.nickname}")
+    emitter.echo(f"Registry ............ {administrator.registry}")
 
     # Ask - Last chance to gracefully abort. This step cannot be forced.
     emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')
@@ -586,3 +593,40 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
         emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
                      f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
 
+
+def paint_worklock_status(emitter, registry: BaseContractRegistry):
+    from maya import MayaDT
+    WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+    blockchain = WORKLOCK_AGENT.blockchain
+
+    # Agency
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+
+    # Time
+    start = MayaDT(WORKLOCK_AGENT.contract.functions.startBidDate().call())
+    end = MayaDT(WORKLOCK_AGENT.contract.functions.endBidDate().call())
+    duration = end - start
+    remaining = end - datetime.now()
+
+    payload = f"""
+
+Time
+======================================================
+Start Date ........ {start}
+End Date .......... {end}
+Duration .......... {duration}
+Time Remaining .... {remaining} 
+
+Economics
+======================================================            
+Max. Locked ....... {WORKLOCK_AGENT.contract.functions.minAllowableLockedTokens().call()}
+Min. Locked ....... {WORKLOCK_AGENT.contract.functions.maxAllowableLockedTokens().call()}
+Deposit Rate ...... {WORKLOCK_AGENT.contract.functions.depositRate().call()} 
+Refund Rate ....... {WORKLOCK_AGENT.contract.functions.refundRate().call()}
+Total Bids ........ {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
+Claimed Tokens .... {WORKLOCK_AGENT.contract.functions.allClaimedTokens().call()}
+Remaining Tokens .. {token_agent.get_balance(WORKLOCK_AGENT.contract_address)}
+
+    """
+    emitter.message(payload)
+    return

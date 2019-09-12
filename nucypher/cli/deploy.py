@@ -17,19 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import shutil
 
 import click
 
-from nucypher.blockchain.economics import BaseEconomics, StandardEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment, \
-    establish_deployer_registry
+from nucypher.cli.actions import (
+    get_client_password,
+    select_client_account,
+    confirm_deployment,
+    establish_deployer_registry,
+    select_deployment_economics
+)
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
@@ -147,6 +150,10 @@ def deploy(action,
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
+    #
+    # Eager Actions
+    #
+
     if action == "inspect":
         if registry_infile:
             registry = LocalContractRegistry(filepath=registry_infile)
@@ -186,14 +193,9 @@ def deploy(action,
         password = get_client_password(checksum_address=deployer_address)
     transacting_power = TransactingPower(password=password, account=deployer_address)
 
-    if not economics:
-        economic_choices = {e.nickname: e for e in ContractAdministrator.economic_classes}
-        for nickname, economics in economic_choices.items():
-            emitter.message(f'{economics.nickname} - {economics.description}')
-        click_choices = click.Choice(choices=economic_choices.keys())
-        choice = click.prompt("Type your choice", default=StandardEconomics.nickname, type=click_choices)
-        economics_class = economic_choices[choice]
-        economics = economics_class()
+    # Select Economics
+    if economics:
+        economics = select_deployment_economics(emitter=emitter, nickname=economics)
 
     # Produce Actor
     ADMINISTRATOR = ContractAdministrator(registry=local_registry,

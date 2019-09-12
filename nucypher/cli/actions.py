@@ -32,6 +32,8 @@ from constant_sorrow.constants import (
 from nacl.exceptions import CryptoError
 from twisted.logger import Logger
 
+from nucypher.blockchain.economics import StandardEconomics, BaseEconomics
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -419,3 +421,20 @@ def establish_deployer_registry(emitter,
     emitter.message(f"Configured to registry filepath {registry_filepath}")
 
     return registry
+
+
+def select_deployment_economics(emitter, nickname: str = None) -> BaseEconomics:
+    economic_choices = {e.nickname: e for e in ContractAdministrator.economic_classes}
+    if not nickname:
+        for nickname, economics in economic_choices.items():
+            emitter.message(f"""----------------------------------------------
+{economics.nickname} - {economics.description}
+----------------------------------------------""")
+        click_choices = click.Choice(choices=economic_choices.keys())
+        nickname = click.prompt("Type your choice",
+                                default=StandardEconomics.nickname,  # TODO: Move default to Admin / Config
+                                type=click_choices,
+                                show_choices=False)
+    economics_class = economic_choices[nickname]
+    economics = economics_class()
+    return economics

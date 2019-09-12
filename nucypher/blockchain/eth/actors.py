@@ -134,6 +134,7 @@ class ContractAdministrator(NucypherTokenActor):
     """
 
     __interface_class = BlockchainDeployerInterface
+    __default_deployment_economics = StandardEconomics
 
     economic_classes = (
         StandardEconomics,
@@ -179,7 +180,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: BaseEconomics,
+                 economics: BaseEconomics = None,
                  transacting_power: TransactingPower = None,
                  acquire_agency: bool = False):
 
@@ -190,6 +191,8 @@ class ContractAdministrator(NucypherTokenActor):
         super().__init__(checksum_address=self.deployer_address, registry=registry, acquire_agency=acquire_agency)
         self.log = Logger("Deployment-Actor")
 
+        if not economics:
+            economics = self.__default_deployment_economics()
         self.economics = economics
         self.user_escrow_deployers = dict()
 

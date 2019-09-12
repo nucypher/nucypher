@@ -22,12 +22,12 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_receipt_summary
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI
+from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI, EXISTING_READABLE_FILE
 
 
 @click.command()
@@ -36,10 +36,11 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI
 @click.option('--sync/--no-sync', default=False)
 @click.option('--poa', help="Inject POA middleware", is_flag=True, default=False)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
+@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bidder-address', help="Bidding address.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--bid', help="Bid amount in wei", type=WEI)
 @nucypher_click_config
-def worklock(click_config, action, force, provider_uri, sync, poa, bidder_address, bid):
+def worklock(click_config, action, force, provider_uri, sync, registry_filepath, poa, bidder_address, bid):
     """Participate in NU token worklock bidding."""
 
     emitter = click_config.emitter
@@ -48,9 +49,18 @@ def worklock(click_config, action, force, provider_uri, sync, poa, bidder_addres
 
     try:
 
+        #
+        # Connect to Blockchain and Registry
+        #
+
         BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, sync=sync, poa=poa)
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        registry = InMemoryContractRegistry.from_latest_publication()
+        if registry_filepath:
+            registry = LocalContractRegistry(filepath=registry_filepath)
+        else:
+            registry = InMemoryContractRegistry.from_latest_publication()
+
+        # Make Agent
         WORKLOCK_AGENT = ContractAgency.get_agent(WorkLockAgent, registry=registry)
 
         #
@@ -58,38 +68,7 @@ def worklock(click_config, action, force, provider_uri, sync, poa, bidder_addres
         #
 
         if action == "status":
-            from maya import MayaDT
-
-            # Agency
-            token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-
-            # Time
-            start = MayaDT( WORKLOCK_AGENT.contract.functions.startBidDate().call())
-            end = MayaDT(WORKLOCK_AGENT.contract.functions.endBidDate().call())
-            duration = end - start
-            remaining = end - datetime.now()
-
-            payload = f"""
-            
-            Time
-            ======================================================
-            Start Date ........ {start}
-            End Date .......... {end}
-            Duration .......... {duration}
-            Time Remaining .... {remaining} 
-            
-            Economics
-            ======================================================            
-            Max. Locked ....... {WORKLOCK_AGENT.contract.functions.minAllowableLockedTokens().call()}
-            Min. Locked ....... {WORKLOCK_AGENT.contract.functions.maxAllowableLockedTokens().call()}
-            Deposit Rate ...... {WORKLOCK_AGENT.contract.functions.depositRate().call()} 
-            Refund Rate ....... {WORKLOCK_AGENT.contract.functions.refundRate().call()}
-            Total Bids ........ {blockchain.client.get_balance(WORKLOCK_AGENT.contract_address)}
-            Claimed Tokens .... {WORKLOCK_AGENT.contract.functions.allClaimedTokens().call()}
-            Remaining Tokens .. {token_agent.get_balance(WORKLOCK_AGENT.contract_address)}
-
-            """
-            emitter.message(payload)
+            paint_worklock_status(emitter=emitter, registry=registry)
             return  # Exit
 
         #
