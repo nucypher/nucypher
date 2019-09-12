@@ -1,7 +1,6 @@
 pragma solidity ^0.5.3;
 
 
-import "zeppelin/token/ERC20/SafeERC20.sol";
 import "contracts/Issuer.sol";
 
 
@@ -37,7 +36,6 @@ contract WorkLockInterface {
 * @dev |v1.4.1|
 */
 contract StakingEscrow is Issuer {
-    using SafeERC20 for NuCypherToken;
     using AdditionalMath for uint256;
     using AdditionalMath for uint16;
 
