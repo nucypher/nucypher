@@ -20,7 +20,7 @@ from ipaddress import ip_address
 import click
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import StandardEconomics
 from nucypher.blockchain.eth.token import NU
 
 

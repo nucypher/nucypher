@@ -53,6 +53,7 @@ from nucypher.crypto.powers import TransactingPower
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
+@click.option('--economics', help="Deploy with specified economics by nickname", type=click.STRING)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
@@ -68,6 +69,7 @@ def deploy(action,
            gas,
            deployer_address,
            contract_name,
+           economics,
            allocation_infile,
            allocation_outfile,
            registry_infile,
@@ -150,7 +152,7 @@ def deploy(action,
             registry = LocalContractRegistry(filepath=registry_infile)
         else:
             registry = InMemoryContractRegistry.from_latest_publication()
-        administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
+        administrator = ContractAdministrator(registry=registry)
         paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
         return  # Exit
 
@@ -178,14 +180,25 @@ def deploy(action,
     if not force:
         click.confirm("Selected {} - Continue?".format(deployer_address), abort=True)
 
+    # Authenticate
     password = None
     if not hw_wallet and not deployer_interface.client.is_local:
         password = get_client_password(checksum_address=deployer_address)
+    transacting_power = TransactingPower(password=password, account=deployer_address)
+
+    if not economics:
+        economic_choices = {e.nickname: e for e in ContractAdministrator.economic_classes}
+        for nickname, economics in economic_choices.items():
+            emitter.message(f'{economics.nickname} - {economics.description}')
+        click_choices = click.Choice(choices=economic_choices.keys())
+        choice = click.prompt("Type your choice", default=StandardEconomics.nickname, type=click_choices)
+        economics_class = economic_choices[choice]
+        economics = economics_class()
 
     # Produce Actor
     ADMINISTRATOR = ContractAdministrator(registry=local_registry,
-                                          client_password=password,
-                                          deployer_address=deployer_address)
+                                          transacting_power=transacting_power,
+                                          economics=economics)
 
     # Verify ETH Balance
     emitter.echo(f"\n\nDeployer ETH balance: {ADMINISTRATOR.eth_balance}")
