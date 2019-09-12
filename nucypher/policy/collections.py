@@ -209,6 +209,21 @@ class TreasureMap:
         return len(self.destinations)
 
 
+class PolicyCredential:
+    """
+    A portable structure that contains information necessary for Alice or Bob
+    to utilize the policy on the network that the credential describes.
+    """
+
+    def __init__(self, alice_verifying_key, label, expiration, policy_pubkey,
+                 treasure_map=None):
+        self.alice_verifying_key = alice_verifying_key
+        self.label = label
+        self.expiration = expiration
+        self.policy_pubkey = policy_pubkey
+        self.treasure_map = treasure_map
+
+
 class WorkOrder:
 
     class Task:
