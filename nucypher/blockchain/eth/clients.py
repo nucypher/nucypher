@@ -155,7 +155,7 @@ class Web3Client:
     def chain_name(self) -> str:
         if not self.is_local:
             return PUBLIC_CHAINS[int(self.chain_id)]
-        name = LOCAL_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+        name = LOCAL_CHAINS.get(int(self.chain_id), UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
 
     @property
@@ -373,6 +373,11 @@ class GanacheClient(Web3Client):
 
     def sync(self, *args, **kwargs) -> bool:
         return True
+
+    @property
+    def chain_id(self) -> int:
+        # Note: chain ID endpoint is not supported on Ganache, Hence:
+        return int(self.w3.net.version)
 
 
 class InfuraClient(Web3Client):
