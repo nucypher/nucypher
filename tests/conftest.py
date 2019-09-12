@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from instapy_chromedriver import binary_path
 from selenium.webdriver.chrome.options import Options
 
 from nucypher.characters.control.emitters import WebEmitter
@@ -134,7 +133,4 @@ def pytest_setup_options():
     options.add_argument('--window-size=1920,1080')  # required to make elements visible to selenium
     options.add_argument('--start-maximized')
     options.add_argument('--headless')
-    return {
-        'executable_path': binary_path,
-        'options': options,
-    }
+    return options
