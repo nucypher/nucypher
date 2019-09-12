@@ -302,7 +302,7 @@ class StandardEconomics(BaseEconomics):
         self.token_saturation = reward_saturation
         self.small_stake_multiplier = small_stake_multiplier
 
-        super(StandardEconomics, self).__init__(
+        super().__init__(
             initial_supply,
             total_supply,
             staking_coefficient,
@@ -350,6 +350,9 @@ class PyTestEconomics(StandardEconomics):
         super().__init__(worklock_deposit_rate=100,
                          worklock_refund_rate=200,
                          *args, **kwargs)
+
+        self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
+        self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
 
     @property
     def worklock_deployment_parameters(self):

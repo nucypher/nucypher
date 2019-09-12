@@ -59,27 +59,25 @@ def test_funding_worklock_contract(testerchain, agency, test_registry, token_eco
     assert receipt['status'] == 1
 
 
-def test_bidding(testerchain, agency, token_economics, test_registry):
-    maximum_deposit_eth = token_economics.maximum_allowed_locked // DEPOSIT_RATE
-    minimum_deposit_eth = token_economics.minimum_allowed_locked // DEPOSIT_RATE
+def test_bidding(testerchain, agency, test_registry, token_economics, deploy_worklock):
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
-        bid = minimum_deposit_eth * multiplier
-        receipt = agent.bid(sender_address=bidder, eth_amount=bid)
+        bid = token_economics.minimum_bid * multiplier
+        receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     # Round 2
     for multiplier, bidder in enumerate(testerchain.unassigned_accounts[:3], start=1):
-        bid = (minimum_deposit_eth * 2) * multiplier
-        receipt = agent.bid(sender_address=bidder, eth_amount=bid)
+        bid = (token_economics.minimum_bid * 2) * multiplier
+        receipt = agent.bid(sender_address=bidder, value=bid)
         assert receipt['status'] == 1
 
     big_bidder = testerchain.unassigned_accounts[-1]
-    bid_wei = maximum_deposit_eth - 1
-    receipt = agent.bid(sender_address=big_bidder, eth_amount=bid_wei)
+    bid_wei = token_economics.maximum_bid - 1
+    receipt = agent.bid(sender_address=big_bidder, value=bid_wei)
     assert receipt['status'] == 1
 
 
