@@ -22,8 +22,8 @@ from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGU
 from eth_utils import is_checksum_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardTokenEconomics
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import StandardEconomics
+from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     StakingEscrowAgent,
@@ -63,7 +63,7 @@ class BaseContractDeployer:
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 economics: TokenEconomics = None,
+                 economics: BaseEconomics = None,
                  deployer_address: str = None):
 
         #
@@ -82,10 +82,10 @@ class BaseContractDeployer:
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
         self.__ready_to_deploy = False
-        self.__economics = economics or StandardTokenEconomics()
+        self.__economics = economics or StandardEconomics()
 
     @property
-    def economics(self) -> TokenEconomics:
+    def economics(self) -> BaseEconomics:
         """Read-only access for economics instance."""
         return self.__economics
 
@@ -988,6 +988,7 @@ class WorkLockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.registry_contract_name
+    deployment_steps = ('contract_deployment', 'set-worklock')
     _upgradeable = False
     __proxy_deployer = NotImplemented
 
@@ -997,7 +998,7 @@ class WorkLockDeployer(BaseContractDeployer):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.token_agent =  ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
 
-    def deploy(self, gas_limit: int = None) -> Dict[str, str]:
+    def deploy(self, gas_limit: int = None, progress = None) -> Dict[str, str]:
         """
 
         Worklock Constructor Parameters (Ordered)
@@ -1023,10 +1024,14 @@ class WorkLockDeployer(BaseContractDeployer):
                                                                            self.contract_name,
                                                                            *constructor_args,
                                                                            gas_limit=gas_limit)
+        if progress:
+            progress.update(1)
 
         bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
         bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                            contract_function=bonding_function)
+        if progress:
+            progress.update(1)
 
         # Gather the transaction hashes
         self.deployment_transactions = {'deployment': deploy_txhash, 'bond_escrow': bonding_receipt}

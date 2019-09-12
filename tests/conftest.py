@@ -39,6 +39,8 @@ LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
 
+
+
 ##########################################
 
 @pytest.fixture(autouse=True, scope='session')

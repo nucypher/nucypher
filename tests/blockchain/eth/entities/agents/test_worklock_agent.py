@@ -17,23 +17,9 @@ DEPOSIT_RATE = 100
 
 @pytest.fixture(scope="module", autouse=True)
 def deploy_worklock(testerchain, agency, test_registry, token_economics):
-
-    # TODO: Move to "WorkLockEconomics" class #1126
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    start_bid_date = now + (60 * 60)  # 1 Hour
-    end_bid_date = start_bid_date + (60 * 60)
-    deposit_rate = DEPOSIT_RATE
-    refund_rate = 200
-    locked_periods = 2 * token_economics.minimum_locked_periods
-
-    # Deploy
     deployer = WorkLockDeployer(registry=test_registry,
                                 deployer_address=testerchain.etherbase_account,
-                                start_date=start_bid_date,
-                                end_date=end_bid_date,
-                                refund_rate=refund_rate,
-                                deposit_rate=deposit_rate,
-                                locked_periods=locked_periods)
+                                economics=token_economics)
     _deployment_receipts = deployer.deploy()
     return deployer
 
@@ -77,7 +63,6 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
     maximum_deposit_eth = token_economics.maximum_allowed_locked // DEPOSIT_RATE
     minimum_deposit_eth = token_economics.minimum_allowed_locked // DEPOSIT_RATE
 
-    testerchain.time_travel(seconds=3600)  # Wait exactly 1 hour, until bid start time
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1

@@ -32,7 +32,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from zope.interface import provider
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import StandardEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
@@ -44,7 +44,7 @@ from fixtures import _mock_ursula_reencrypts as mock_ursula_reencrypts
 
 
 ALGORITHM_SHA256 = 1
-TOKEN_ECONOMICS = StandardTokenEconomics()
+TOKEN_ECONOMICS = StandardEconomics()
 MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
 MIN_LOCKED_PERIODS = TOKEN_ECONOMICS.minimum_locked_periods
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
@@ -153,7 +153,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    economics = StandardTokenEconomics(
+    economics = StandardEconomics(
         base_penalty=MIN_ALLOWED_LOCKED - 1,
         penalty_history_coefficient=0,
         percentage_penalty_coefficient=2,

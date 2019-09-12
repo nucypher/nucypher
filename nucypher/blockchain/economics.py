@@ -17,19 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from decimal import Decimal, localcontext
-from typing import Tuple, Union
-
 from math import log
+from typing import Tuple
 
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 
-
 LOG2 = Decimal(log(2))
 
 
-class TokenEconomics:
+class BaseEconomics:
     """
     Parameters to use in token and escrow blockchain deployments
     from high-level human-understandable parameters.
@@ -46,6 +44,9 @@ class TokenEconomics:
     kappa * log(2) / halving_delay === (k1 + allLockedPeriods) / k2
 
     """
+
+    nickname = NotImplemented
+    description = NotImplemented
 
     # Token Denomination
     __token_decimals = 18
@@ -74,6 +75,8 @@ class TokenEconomics:
     __default_reward_coefficient = 2
 
     def __init__(self,
+
+                 # StakingEscrow
                  initial_supply: int,
                  total_supply: int,
                  staking_coefficient: int,
@@ -85,12 +88,20 @@ class TokenEconomics:
                  maximum_allowed_locked: int = __default_maximum_allowed_locked,
                  minimum_worker_periods: int = __default_minimum_worker_periods,
 
+                 # Adjudicator
                  hash_algorithm: int = __default_hash_algorithm,
                  base_penalty: int = __default_base_penalty,
                  penalty_history_coefficient: int = __default_penalty_history_coefficient,
                  percentage_penalty_coefficient: int = __default_percentage_penalty_coefficient,
-                 reward_coefficient: int = __default_reward_coefficient
-                 ):
+                 reward_coefficient: int = __default_reward_coefficient,
+
+                 # WorkLock
+                 bidding_start_date: int = NotImplemented,
+                 bidding_end_date: int = NotImplemented,
+                 worklock_deposit_rate: int = NotImplemented,
+                 worklock_refund_rate: int = NotImplemented,
+                 worklock_commitment_duration: int = NotImplemented):
+
         """
         :param initial_supply: Tokens at t=0
         :param total_supply: Tokens at t=8
@@ -110,6 +121,20 @@ class TokenEconomics:
         :param reward_coefficient: Coefficient for calculating the reward
         """
 
+        #
+        # WorkLock
+        #
+
+        self.bidding_start_date = bidding_start_date
+        self.bidding_end_date = bidding_end_date
+        self.worklock_deposit_rate = worklock_deposit_rate
+        self.worklock_refund_rate = worklock_refund_rate
+        self.worklock_commitment_duration = worklock_commitment_duration
+
+        #
+        # NucypherToken & Staking Escrow
+        #
+
         self.initial_supply = initial_supply
         # Remaining / Reward Supply - Escrow Parameter
         self.reward_supply = total_supply - initial_supply
@@ -123,6 +148,10 @@ class TokenEconomics:
         self.maximum_allowed_locked = maximum_allowed_locked
         self.minimum_worker_periods = minimum_worker_periods
         self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
+
+        #
+        # Adjudicator
+        #
 
         self.hash_algorithm = hash_algorithm
         self.base_penalty = base_penalty
@@ -175,10 +204,19 @@ class TokenEconomics:
         ]
         return tuple(map(int, deployment_parameters))
 
+    @property
+    def worklock_deployment_parameters(self):
+        deployment_parameters = [self.bidding_start_date,
+                                 self.bidding_end_date,
+                                 self.worklock_deposit_rate,
+                                 self.worklock_refund_rate,
+                                 self.worklock_commitment_duration]
+        return tuple(map(int, deployment_parameters))
 
-class StandardTokenEconomics(TokenEconomics):
+
+class StandardEconomics(BaseEconomics):
     """
-    Calculate parameters to use in token and escrow blockchain deployments
+    Calculated parameters to use in token and escrow blockchain deployments
     from high-level human-understandable parameters.
 
     --------------------------
@@ -206,6 +244,9 @@ class StandardTokenEconomics(TokenEconomics):
 
     """
 
+    nickname = 'standard-economics'
+    description = 'The same old economics you are used to.'
+
     # Decimal
     _precision = 28
 
@@ -217,6 +258,8 @@ class StandardTokenEconomics(TokenEconomics):
     __default_small_stake_multiplier = Decimal(0.5)
 
     def __init__(self,
+
+                 # Token & Staking
                  initial_supply: int = __default_initial_supply,
                  initial_inflation: int = __default_initial_inflation,
                  halving_delay: int = __default_token_halving,
@@ -259,7 +302,7 @@ class StandardTokenEconomics(TokenEconomics):
         self.token_saturation = reward_saturation
         self.small_stake_multiplier = small_stake_multiplier
 
-        super(StandardTokenEconomics, self).__init__(
+        super(StandardEconomics, self).__init__(
             initial_supply,
             total_supply,
             staking_coefficient,
@@ -297,33 +340,40 @@ class StandardTokenEconomics(TokenEconomics):
         return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
 
 
-class WorkLockEconomics:
+class PyTestEconomics(StandardEconomics):
 
-    def __init__(self,
-                 start_date: int,
-                 end_date: int,
-                 deposit_rate: int,
-                 refund_rate: int,
-                 locked_periods: int):
+    nickname = 'test-economics'
+    description = f'Identical to {StandardEconomics.nickname} with Instant on-hour worklock.'
 
-        self.start_date = start_date
-        self.end_date = end_date
-        self.deposit_rate = deposit_rate
-        self.refund_rate = refund_rate
-        self.locked_periods = locked_periods
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(worklock_deposit_rate=100,
+                         worklock_refund_rate=200,
+                         *args, **kwargs)
 
     @property
     def worklock_deployment_parameters(self):
-        params = (self.start_date,
-                  self.end_date,
-                  self.deposit_rate,
-                  self.refund_rate,
-                  self.locked_periods)
-        return params
+        """Lazy"""
+        from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+        # from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI
 
+        # Get current blocktime
+        blockchain = BlockchainInterfaceFactory.get_interface()
+        now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
-class StandardEconomics(StandardTokenEconomics, WorkLockEconomics):
-    pass
+        # Calculate instant start time
+        one_hour_in_seconds = (60 * 60)
+        start_date = now
+        self.bidding_start_date = start_date
+        self.bidding_end_date = start_date + one_hour_in_seconds
+        self.worklock_commitment_duration = 2 * self.minimum_locked_periods
+
+        deployment_parameters = [self.bidding_start_date,
+                                 self.bidding_end_date,
+                                 self.worklock_deposit_rate,
+                                 self.worklock_refund_rate,
+                                 self.worklock_commitment_duration]
+        return tuple(map(int, deployment_parameters))
 
 
 class TokenEconomicsFactory:
@@ -332,7 +382,7 @@ class TokenEconomicsFactory:
     __economics = dict()
 
     @classmethod
-    def get_economics(cls, registry: BaseContractRegistry) -> TokenEconomics:
+    def get_economics(cls, registry: BaseContractRegistry) -> BaseEconomics:
         registry_id = registry.id
         try:
             return cls.__economics[registry_id]
@@ -342,7 +392,7 @@ class TokenEconomicsFactory:
             return economics
 
     @staticmethod
-    def retrieve_from_blockchain(registry: BaseContractRegistry) -> TokenEconomics:
+    def retrieve_from_blockchain(registry: BaseContractRegistry) -> BaseEconomics:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
@@ -360,5 +410,5 @@ class TokenEconomicsFactory:
                                 total_supply,
                                 *staking_parameters,
                                 *slashing_parameters)
-        economics = TokenEconomics(*economics_parameters)
+        economics = BaseEconomics(*economics_parameters)
         return economics

@@ -25,7 +25,7 @@ from eth_tester.exceptions import TransactionFailed
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import BaseEconomics, StandardEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -84,7 +84,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
     _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
     _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
-    _default_token_economics = StandardTokenEconomics()
+    _default_token_economics = StandardEconomics()
 
     def __init__(self,
                  test_accounts=None,
@@ -204,7 +204,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     @classmethod
     def bootstrap_network(cls,
-                          economics: TokenEconomics = None
+                          economics: BaseEconomics = None
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 

@@ -3,7 +3,7 @@ from decimal import InvalidOperation, Decimal
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import BaseEconomics, StandardEconomics
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 

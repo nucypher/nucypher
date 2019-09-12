@@ -21,6 +21,7 @@ import shutil
 
 import click
 
+from nucypher.blockchain.economics import BaseEconomics, StandardEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -37,6 +38,7 @@ from nucypher.cli.painting import (
     paint_receipt_summary)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.powers import TransactingPower
 
 
 @click.command()

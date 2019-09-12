@@ -23,7 +23,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import BaseEconomics, PyTestEconomics
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -43,19 +43,20 @@ adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
-def token_economics():
-    economics = TokenEconomics(initial_supply=10 ** 9,
-                               total_supply=2 * 10 ** 9,
-                               staking_coefficient=8 * 10 ** 7,
-                               locked_periods_coefficient=4,
-                               maximum_rewarded_periods=4,
-                               hours_per_period=1,
-                               minimum_locked_periods=6,
-                               minimum_allowed_locked=100,
-                               maximum_allowed_locked=2000,
-                               minimum_worker_periods=2,
-                               base_penalty=300,
-                               percentage_penalty_coefficient=2)
+def token_economics(testerchain):
+    economics = PyTestEconomics(initial_supply=10 ** 9,
+                                total_supply=2 * 10 ** 9,
+                                staking_coefficient=8 * 10 ** 7,
+                                locked_periods_coefficient=4,
+                                maximum_rewarded_periods=4,
+                                hours_per_period=1,
+                                minimum_locked_periods=6,
+                                minimum_allowed_locked=100,
+                                maximum_allowed_locked=2000,
+                                minimum_worker_periods=2,
+                                base_penalty=300,
+                                percentage_penalty_coefficient=2,
+                                now=testerchain.w3.eth.getBlock(block_identifier='latest').timestamp)
     return economics
 
 

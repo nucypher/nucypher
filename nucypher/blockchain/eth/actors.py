@@ -33,7 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address
 from twisted.logger import Logger
 
-from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics, TokenEconomicsFactory
+from nucypher.blockchain.economics import BaseEconomics, StandardEconomics, TokenEconomicsFactory, PyTestEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -86,20 +86,21 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, registry: BaseContractRegistry, checksum_address: str = None):
+    def __init__(self, registry: BaseContractRegistry, checksum_address: str = None, acquire_agency: bool = True):
 
         # TODO: Consider this pattern - None for address?.
         # Note: If the base class implements multiple inheritance and already has a checksum address...
         try:
             parent_address = self.checksum_address  # type: str
-            if checksum_address is not None:
+            if checksum_address:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
             self.checksum_address = checksum_address  # type: str
 
         self.registry = registry
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        if acquire_agency:
+            self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -134,6 +135,11 @@ class ContractAdministrator(NucypherTokenActor):
 
     __interface_class = BlockchainDeployerInterface
 
+    economic_classes = (
+        StandardEconomics,
+        PyTestEconomics,
+    )
+
     #
     # Deployer classes sorted by deployment dependency order.
     #
@@ -166,30 +172,26 @@ class ContractAdministrator(NucypherTokenActor):
                             *upgradeable_deployer_classes,
                             *aux_deployer_classes)
 
+    deployers = {d.contract_name: d for d in all_deployer_classes}
+
     class UnknownContract(ValueError):
         pass
 
     def __init__(self,
                  registry: BaseContractRegistry,
-                 deployer_address: str = None,
-                 client_password: str = None,
-                 economics: TokenEconomics = None):
-        """
-        Note: super() is not called here to avoid setting the token agent.
-        TODO: Review this logic ^^ "bare mode".
-        """
+                 economics: BaseEconomics,
+                 transacting_power: TransactingPower = None,
+                 acquire_agency: bool = False):
+
+        if transacting_power:
+            self.transacting_power = transacting_power
+            self.deployer_address = self.transacting_power.account
+            self.transacting_power.activate()
+        super().__init__(checksum_address=self.deployer_address, registry=registry, acquire_agency=acquire_agency)
         self.log = Logger("Deployment-Actor")
 
-        self.deployer_address = deployer_address
-        self.checksum_address = self.deployer_address
-        self.economics = economics or StandardTokenEconomics()
-
-        self.registry = registry
+        self.economics = economics
         self.user_escrow_deployers = dict()
-        self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
-
-        self.transacting_power = TransactingPower(password=client_password, account=deployer_address)
-        self.transacting_power.activate()
 
     def __repr__(self):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)

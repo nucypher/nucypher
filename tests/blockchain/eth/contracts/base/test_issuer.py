@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.token import NU
 
 SECRET_LENGTH = 32
@@ -36,12 +36,12 @@ def token(testerchain, deploy_contract):
 
 @pytest.mark.slow
 def test_issuer(testerchain, token, deploy_contract):
-    economics = TokenEconomics(initial_supply=10 ** 30,
-                               total_supply=TOTAL_SUPPLY,
-                               staking_coefficient=10 ** 43,
-                               locked_periods_coefficient=10 ** 4,
-                               maximum_rewarded_periods=10 ** 4,
-                               hours_per_period=1)
+    economics = BaseEconomics(initial_supply=10 ** 30,
+                              total_supply=TOTAL_SUPPLY,
+                              staking_coefficient=10 ** 43,
+                              locked_periods_coefficient=10 ** 4,
+                              maximum_rewarded_periods=10 ** 4,
+                              hours_per_period=1)
 
     def calculate_reward(locked, total_locked, locked_periods):
         return economics.erc20_reward_supply * locked * \
@@ -130,12 +130,12 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     During one period inflation rate must be the same
     """
 
-    economics = TokenEconomics(initial_supply=10 ** 30,
-                               total_supply=TOTAL_SUPPLY,
-                               staking_coefficient=2 * 10 ** 19,
-                               locked_periods_coefficient=1,
-                               maximum_rewarded_periods=1,
-                               hours_per_period=1)
+    economics = BaseEconomics(initial_supply=10 ** 30,
+                              total_supply=TOTAL_SUPPLY,
+                              staking_coefficient=2 * 10 ** 19,
+                              locked_periods_coefficient=1,
+                              maximum_rewarded_periods=1,
+                              hours_per_period=1)
 
     creator = testerchain.client.accounts[0]
     ursula = testerchain.client.accounts[1]

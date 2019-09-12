@@ -34,7 +34,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import StandardEconomics, PyTestEconomics
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
@@ -364,7 +364,7 @@ def federated_ursulas(ursula_federated_test_config):
 
 @pytest.fixture(scope='session')
 def token_economics():
-    economics = StandardTokenEconomics()
+    economics = PyTestEconomics()
     return economics
 
 

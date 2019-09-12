@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.agents import WorkLockAgent
+from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 
@@ -31,27 +31,18 @@ def test_worklock_deployer(testerchain, test_registry, agency, token_economics):
     with pytest.raises(BaseContractRegistry.UnknownContract):
         WorkLockAgent(registry=test_registry)
 
-    # Generate WorkLock params
-    # TODO: Move to "WorkLockEconomics" class #1126
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    start_bid_date = now + (60 * 60)  # 1 Hour
-    end_bid_date = start_bid_date + (60 * 60)
-    deposit_rate = 100
-    refund_rate = 200
-    locked_periods = 2 * token_economics.minimum_locked_periods
-
     # Create WorkLock Deployer
     deployer = WorkLockDeployer(registry=test_registry,
-                                deployer_address=origin,
-                                start_date=start_bid_date,
-                                end_date=end_bid_date,
-                                refund_rate=refund_rate,
-                                deposit_rate=deposit_rate,
-                                locked_periods=locked_periods)
+                                economics=token_economics,
+                                deployer_address=origin)
 
     # Deploy WorkLock
     deployment_receipts = deployer.deploy()
-    assert len(deployment_receipts) == 1
+    assert len(deployment_receipts) == 2
+
+    # Verify contract is bonded to escrow
+    staking_escrow = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    assert staking_escrow.contract.functions.workLock().call() == deployer.contract_address
 
     # Create a token instance
     assert deployer.contract

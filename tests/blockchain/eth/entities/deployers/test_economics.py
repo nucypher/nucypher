@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from decimal import Decimal, localcontext
 from math import log
 
-from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
+from nucypher.blockchain.economics import LOG2, StandardEconomics
 
 
 def test_rough_economics():
@@ -37,11 +37,11 @@ def test_rough_economics():
     where allLockedPeriods == min(T, T1)
     """
 
-    e = StandardTokenEconomics(initial_supply=int(1e9),
-                               initial_inflation=1,
-                               halving_delay=2,
-                               reward_saturation=1,
-                               small_stake_multiplier=Decimal(0.5))
+    e = StandardEconomics(initial_supply=int(1e9),
+                          initial_inflation=1,
+                          halving_delay=2,
+                          reward_saturation=1,
+                          small_stake_multiplier=Decimal(0.5))
 
     assert float(round(e.erc20_total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
 
@@ -112,7 +112,7 @@ def test_exact_economics():
 
     # Use same precision as economics class
     with localcontext() as ctx:
-        ctx.prec = StandardTokenEconomics._precision
+        ctx.prec = StandardEconomics._precision
 
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
@@ -134,10 +134,10 @@ def test_exact_economics():
     #
 
     # Check creation
-    e = StandardTokenEconomics()
+    e = StandardEconomics()
 
     with localcontext() as ctx:
-        ctx.prec = StandardTokenEconomics._precision
+        ctx.prec = StandardEconomics._precision
 
         # Check that total_supply calculated correctly
         assert Decimal(e.erc20_total_supply) / e.initial_supply == expected_supply_ratio
@@ -183,7 +183,7 @@ def test_exact_economics():
 
 def test_economic_parameter_aliases():
 
-    e = StandardTokenEconomics()
+    e = StandardEconomics()
 
     assert e.locked_periods_coefficient == 365
     assert int(e.staking_coefficient) == 768812
