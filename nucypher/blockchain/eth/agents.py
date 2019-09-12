@@ -735,14 +735,14 @@ class WorkLockAgent(EthereumContractAgent):
 
     registry_contract_name = "WorkLock"
 
-    def bid(self, eth_amount: int,  sender_address: str) -> dict:
+    def bid(self, value: int, sender_address: str) -> dict:
         """
         Bid for tokens with ETH.
         """
         contract_function = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=sender_address,
-                                                   payload={'value': eth_amount})
+                                                   payload={'value': value})
         return receipt
 
     def claim(self, sender_address: str) -> dict:

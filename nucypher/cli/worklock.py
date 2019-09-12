@@ -52,8 +52,8 @@ def worklock(click_config, action, force, provider_uri, sync, registry_filepath,
         #
         # Connect to Blockchain and Registry
         #
-
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, sync=sync, poa=poa)
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, sync=sync, poa=poa)
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         if registry_filepath:
             registry = LocalContractRegistry(filepath=registry_filepath)
@@ -81,21 +81,22 @@ def worklock(click_config, action, force, provider_uri, sync, registry_filepath,
                 raise click.MissingParameter("Missing --bidder-address.")
 
         if action == "remaining-work":
-            remaining_work = WORKLOCK_AGENT.get_remaining_work(sender_address=bidder_address)
-            emitter.message(f"Work Remaining: {remaining_work}")
+            remaining_work = WORKLOCK_AGENT.get_remaining_work(target_address=bidder_address)
+            emitter.message(f"Work Remaining for {bidder_address}: {remaining_work}")
             return  # Exit
 
         #
         # Authenticated Action Switch
         #
 
-        if not bid:
-            bid = Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei')
-            if force:
-                raise click.MissingParameter("Missing --bid.")
-
         if action == "bid":
-            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, eth_amount=bid)
+
+            if not bid:  # TODO: Rename option --bid -> --value
+                bid = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
+                if force:
+                    raise click.MissingParameter("Missing --bid.")
+
+            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, value=bid)
             emitter.message("Publishing Bid...")
             if not force:
                 click.confirm(f"Place bid of {Web3.fromWei(bid, 'ether')} ETH?", abort=True)

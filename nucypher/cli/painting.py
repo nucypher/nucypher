@@ -606,7 +606,7 @@ def paint_worklock_status(emitter, registry: BaseContractRegistry):
     start = MayaDT(WORKLOCK_AGENT.contract.functions.startBidDate().call())
     end = MayaDT(WORKLOCK_AGENT.contract.functions.endBidDate().call())
     duration = end - start
-    remaining = end - datetime.now()
+    remaining = end - maya.now()
 
     payload = f"""
 

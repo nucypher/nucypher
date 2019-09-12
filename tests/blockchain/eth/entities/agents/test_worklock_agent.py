@@ -1,5 +1,3 @@
-import random
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3 import Web3
@@ -7,12 +5,8 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
-
-
-DEPOSIT_RATE = 100
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -35,7 +29,7 @@ def test_bid_rejection_before_funding(testerchain, agency, token_economics, test
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     big_bidder = testerchain.unassigned_accounts[-1]
     with pytest.raises(TransactionFailed):
-        _receipt = agent.bid(sender_address=big_bidder, eth_amount=int(Web3.fromWei(1, 'ether')))
+        _receipt = agent.bid(sender_address=big_bidder, value=int(Web3.fromWei(1, 'ether')))
 
 
 def test_funding_worklock_contract(testerchain, agency, test_registry, token_economics, deploy_worklock):

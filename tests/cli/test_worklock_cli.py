@@ -18,17 +18,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.agents import (
-    StakingEscrowAgent,
-    ContractAgency
+    ContractAgency,
+    WorkLockAgent
 )
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.cli.status import status
+from nucypher.cli.worklock import worklock
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
-# staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 DEPOSIT_RATE = 100
 
 
@@ -48,9 +47,7 @@ def funded_worklock(testerchain, agency, test_registry, token_economics):
 
     # Fund.
     worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
-    receipt = deployer.fund(sender_address=testerchain.etherbase_account, value=worklock_supply)
-    assert receipt['status'] == 1
-
+    deployer.fund(sender_address=testerchain.etherbase_account, value=worklock_supply)
     return deployer
 
 
@@ -65,58 +62,88 @@ def test_status(click_runner, testerchain, test_registry, agency):
     command = ('status',
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--poa',
+               '--debug')
 
-    result = click_runner.invoke(status, command, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
 
 
-def test_bid(click_runner, testerchain, test_registry, agency):
+def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
+
+    # Wait until biding window starts
+    testerchain.time_travel(seconds=90)
+
     bidder = testerchain.unassigned_accounts[-1]
+    bid_value = token_economics.maximum_bid
+
     command = ('bid',
-               'bidder-address', bidder,
+               '--bidder-address', bidder,
+               '--bid', bid_value,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--poa',
+               '--debug',
+               '--force')
 
-    result = click_runner.invoke(status, command, catch_exceptions=False)
+    pre_bid_balance = testerchain.client.get_balance(bidder)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
 
+    post_bid_balance = testerchain.client.get_balance(bidder)
+    difference = pre_bid_balance - post_bid_balance
+    assert difference >= bid_value
 
-def test_remaining_work(click_runner, testerchain, agency):
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    assert testerchain.client.get_balance(worklock_agent.contract_address) == bid_value
+
+
+def test_remaining_work(click_runner, testerchain, test_registry, agency, token_economics):
     bidder = testerchain.unassigned_accounts[-1]
 
     command = ('remaining-work',
-               'bidder-address', bidder,
+               '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--poa',
+               '--debug')
 
-    result = click_runner.invoke(status, command, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
+    assert bidder in result.output
+    expected_work = token_economics.maximum_bid * token_economics.worklock_refund_rate
+    assert str(expected_work) in result.output
 
 
 def test_claim(click_runner, testerchain, agency):
-    bidder = testerchain.unassigned_accounts[-1]
 
+    # Wait until the end of the bidding period
+    testerchain.time_travel((60*60)+2)
+
+    bidder = testerchain.unassigned_accounts[-1]
     command = ('claim',
-               'bidder-address', bidder,
+               '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--poa',
+               '--debug',
+               '--force')
 
-    result = click_runner.invoke(status, command, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
 
 
 def test_refund(click_runner, testerchain, agency):
+    # TODO: Perform work
     bidder = testerchain.unassigned_accounts[-1]
 
     command = ('refund',
-               'bidder-address', bidder,
+               '--bidder-address', bidder,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
-               '--poa')
+               '--poa',
+               '--debug',
+               '--force')
 
-    result = click_runner.invoke(status, command, catch_exceptions=False)
+    result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
