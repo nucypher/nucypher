@@ -87,4 +87,6 @@ def test_rapid_deployment(token_economics, test_registry):
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 
-    deployer.deploy_beneficiary_contracts(allocations=allocation_data, allocation_registry=allocation_registry)
+    deployer.deploy_beneficiary_contracts(allocations=allocation_data,
+                                          allocation_registry=allocation_registry,
+                                          interactive=False)

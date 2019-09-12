@@ -409,6 +409,8 @@ def stake(click_config,
 
         return  # Exit
 
+    # TODO: Action "mint"
+    
     # Catch-All for unknown actions
     else:
         ctx = click.get_current_context()
