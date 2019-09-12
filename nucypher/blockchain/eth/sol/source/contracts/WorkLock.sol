@@ -2,6 +2,7 @@ pragma solidity ^0.5.3;
 
 
 import "zeppelin/math/SafeMath.sol";
+import "zeppelin/token/ERC20/SafeERC20.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/StakingEscrow.sol";
 
@@ -10,11 +11,14 @@ import "contracts/StakingEscrow.sol";
 * @notice The WorkLock distribution contract
 **/
 contract WorkLock {
+    using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
 
+    event Deposited(address indexed sender, uint256 value);
     event Bid(address indexed staker, uint256 depositedETH, uint256 claimedTokens);
     event Claimed(address indexed staker, uint256 claimedTokens);
     event Refund(address indexed staker, uint256 refundETH, uint256 completedWork);
+    event Burn(address indexed sender, uint256 value);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -32,7 +36,7 @@ contract WorkLock {
     uint256 public refundRate;
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
-    uint256 public allClaimedTokens;
+    uint256 public remainingTokens;
     uint16 public lockedPeriods;
     mapping(address => WorkInfo) public workInfo;
 
@@ -75,6 +79,16 @@ contract WorkLock {
     }
 
     /**
+    * @notice Deposit tokens to contract
+    * @param _value Amount of tokens to transfer
+    **/
+    function deposit(uint256 _value) public {
+        token.safeTransferFrom(msg.sender, address(this), _value);
+        remainingTokens += _value;
+        emit Deposited(msg.sender, _value);
+    }
+
+    /**
     * @notice Bid for tokens by transferring ETH
     **/
     function bid() public payable returns (uint256 newClaimedTokens) {
@@ -86,9 +100,7 @@ contract WorkLock {
         require(claimedTokens >= minAllowableLockedTokens && claimedTokens <= maxAllowableLockedTokens,
             "Claimed tokens must be within the allowed limits");
         newClaimedTokens = msg.value.mul(depositRate);
-        allClaimedTokens = allClaimedTokens.add(newClaimedTokens);
-        require(allClaimedTokens <= token.balanceOf(address(this)),
-            "Not enough tokens in the contract");
+        remainingTokens = remainingTokens.sub(newClaimedTokens);
         emit Bid(msg.sender, msg.value, newClaimedTokens);
     }
 
@@ -142,6 +154,17 @@ contract WorkLock {
             return 0;
         }
         return remainingWork.sub(completedWork);
+    }
+
+    /**
+    * @notice Burn unclaimed tokens
+    **/
+    function burnRemaining() public {
+        require(block.timestamp >= endBidDate, "Burning tokens allowed when bidding is over");
+        require(remainingTokens > 0, "There are no tokens that can be burned");
+        token.approve(address(escrow), remainingTokens);
+        escrow.burn(remainingTokens);
+        emit Burn(msg.sender, remainingTokens);
     }
 
 }
