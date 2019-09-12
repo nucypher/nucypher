@@ -33,7 +33,7 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 flask-limiter = "*"
-dash = "*"
+dash = {extras = ["testing"],version = "*"}
 dash-core-components = "*"
 dash-html-components = "*"
 
