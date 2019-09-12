@@ -363,6 +363,8 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                  input=user_input,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+    for allocation_address in testerchain.unassigned_accounts:
+        assert allocation_address in result.output
 
     # ensure that a pre-allocation recipient has the allocated token quantity.
     beneficiary = testerchain.client.accounts[-1]
