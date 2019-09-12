@@ -312,7 +312,6 @@ def deploy(action,
     elif action == "allocations":
         if not allocation_infile:
             allocation_infile = click.prompt("Enter allocation data filepath")
-        click.confirm("Continue deploying and allocating?", abort=True)
         ADMINISTRATOR.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile,
                                                      allocation_outfile=allocation_outfile,
                                                      emitter=emitter,
