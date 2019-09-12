@@ -277,6 +277,22 @@ class Policy(ABC):
         """
         return self.publish_treasure_map(network_middleware=network_middleware)
 
+    def credential(self, with_treasure_map=True):
+        """
+        Creates a PolicyCredential for portable access to the policy via
+        Alice or Bob. By default, it will include the treasure_map for the
+        policy unless `with_treasure_map` is False.
+        """
+        from nucypher.policy.collections import PolicyCredential
+
+        treasure_map = self.treasure_map
+        if not with_treasure_map:
+            treasure_map = None
+
+        return PolicyCredential(self.alice.stamp, self.label, self.expiration,
+                                self.public_key, treasure_map)
+
+
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
         if len(self._accepted_arrangements) < self.n:
