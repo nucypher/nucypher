@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.collections import Revocation, PolicyCredential
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -180,25 +181,26 @@ def test_revocation(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Test that all arrangements are included in the RevocationKit
+    revocation_kit = RevocationKit(policy.treasure_map, federated_alice.stamp)
     for node_id, arrangement_id in policy.treasure_map:
-        assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
+        assert revocation_kit[node_id].arrangement_id == arrangement_id
 
     # Test revocation kit's signatures
-    for revocation in policy.revocation_kit:
+    for revocation in revocation_kit:
         assert revocation.verify_signature(federated_alice.stamp.as_umbral_pubkey())
 
     # Test Revocation deserialization
-    revocation = policy.revocation_kit[node_id]
+    revocation = revocation_kit[node_id]
     revocation_bytes = bytes(revocation)
     deserialized_revocation = Revocation.from_bytes(revocation_bytes)
     assert deserialized_revocation == revocation
 
     # Attempt to revoke the new policy
-    failed_revocations = federated_alice.revoke(policy)
+    failed_revocations = federated_alice.revoke(policy.treasure_map)
     assert len(failed_revocations) == 0
 
     # Try to revoke the already revoked policy
-    already_revoked = federated_alice.revoke(policy)
+    already_revoked = federated_alice.revoke(policy.treasure_map)
     assert len(already_revoked) == 3
 
 

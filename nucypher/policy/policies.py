@@ -17,7 +17,6 @@ from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import secure_random, keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
-from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -332,10 +331,6 @@ class Policy(ABC):
             self.treasure_map.add_arrangement(arrangement)
 
         else:  # ...After *all* the policies are enacted
-            # Create Alice's revocation kit
-            self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.add_active_policy(self)
-
             if publish is True:
                 return self.publish(network_middleware=network_middleware)
 
