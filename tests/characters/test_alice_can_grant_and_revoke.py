@@ -71,6 +71,17 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
         assert kfrag == retrieved_kfrag
 
+    # Check that the PolicyCredential is consistent to the new policy
+    credential = policy.credential()
+    assert credential.alice_verifying_key == policy.alice.stamp
+    assert credential.label == policy.label
+    assert credential.expiration == policy.expiration
+    assert credential.policy_pubkey == policy.public_key
+    assert credential.treasure_map == policy.treasure_map
+
+    credential = policy.credential(with_treasure_map=False)
+    assert credential.treasure_map is None
+
 
 @pytest.mark.usefixtures('federated_ursulas')
 def test_federated_grant(federated_alice, federated_bob):
