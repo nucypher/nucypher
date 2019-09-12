@@ -139,19 +139,6 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
-        self.active_policies = dict()
-        self.revocation_kits = dict()
-
-    def add_active_policy(self, active_policy):
-        """
-        Adds a Policy object that is active on the NuCypher network to Alice's
-        `active_policies` dictionary by the policy ID.
-        The policy ID is a Keccak hash of the policy label and Bob's stamp bytes
-        """
-        if active_policy.id in self.active_policies:
-            raise KeyError("Policy already exists in active_policies.")
-        self.active_policies[active_policy.id] = active_policy
-
     def generate_kfrags(self,
                         bob: 'Bob',
                         label: bytes,
