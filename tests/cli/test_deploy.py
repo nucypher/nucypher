@@ -4,9 +4,8 @@ from random import SystemRandom
 from string import ascii_uppercase, digits
 
 import pytest
-from eth_utils import to_checksum_address
 
-from nucypher.blockchain.economics import PyTestEconomics
+from nucypher.blockchain.economics import TestEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
@@ -89,7 +88,7 @@ def test_nucypher_deploy_contracts(click_runner,
         registry_data = json.loads(raw_registry_data)
 
         # and that is has the correct number of entries
-        assert len(registry_data) == 9
+        assert len(registry_data) == 10
 
         # Read several records
         token_record, escrow_record, dispatcher_record, *other_records = registry_data
@@ -115,33 +114,6 @@ def test_nucypher_deploy_contracts(click_runner,
     assert AdjudicatorAgent(registry=registry)
 
 
-def test_transfer_tokens(click_runner, registry_filepath):
-    #
-    # Setup
-    #
-
-    # Let's transfer some NU to a random stranger
-    recipient_address = to_checksum_address(os.urandom(20))
-
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    token_agent = NucypherTokenAgent(registry=registry)
-    assert token_agent.get_balance(address=recipient_address) == 0
-
-    command = ['transfer-tokens',
-               '--target-address', recipient_address,
-               '--value', 42,
-               '--registry-infile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa']
-
-    user_input = '0\n' + 'Y\n' + 'Y\n'
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Check that the NU has arrived to the recipient
-    assert token_agent.get_balance(address=recipient_address) == 42
-
-
 def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
     #
@@ -149,7 +121,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_enrollments = 9
+    expected_enrollments = 10
     with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
@@ -379,18 +351,19 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
 
 
-def test_deploy_single_contract_with_alternate_economics(click_runner, registry_filepath):
+def test_deploy_single_contract_with_alternate_economics(click_runner, testerchain, registry_filepath):
 
     command = ['contracts',
-               '--economics', PyTestEconomics.nickname,
-               '--contract-name', 'WorkLock',
+               '--economics', TestEconomics.nickname,
+               '--contract-name', UserEscrowAgent.UserEscrowProxyAgent.contract_name,
                '--registry-outfile', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa']
 
-    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0, result.stderr
-    assert WorkLockDeployer.contract_name in result.output
-    agent = WorkLockAgent(registry=LocalContractRegistry(filepath=registry_filepath))
+    assert result.exit_code == 0
+    assert  UserEscrowAgent.UserEscrowProxyAgent.contract_name in result.output
+    agent =  UserEscrowAgent.UserEscrowProxyAgent(registry=LocalContractRegistry(filepath=registry_filepath))
     assert agent
+   # TODO: Examine the registry

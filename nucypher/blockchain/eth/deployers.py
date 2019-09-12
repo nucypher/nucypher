@@ -18,11 +18,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Tuple, Dict
 
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
+from constant_sorrow.constants import (
+    CONTRACT_NOT_DEPLOYED,
+    NO_DEPLOYER_CONFIGURED,
+    NO_BENEFICIARY,
+    NO_ECONOMICS_CONFIGURED
+)
 from eth_utils import is_checksum_address
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import StandardEconomics
 from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
@@ -35,10 +39,10 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_secret
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 
 
 class BaseContractDeployer:
@@ -62,9 +66,9 @@ class BaseContractDeployer:
         pass
 
     def __init__(self,
+                 deployer_address: str,
                  registry: BaseContractRegistry,
-                 economics: BaseEconomics = None,
-                 deployer_address: str = None):
+                 economics: BaseEconomics = NO_ECONOMICS_CONFIGURED):
 
         #
         # Validate
@@ -82,7 +86,7 @@ class BaseContractDeployer:
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
         self.__ready_to_deploy = False
-        self.__economics = economics or StandardEconomics()
+        self.__economics = economics
 
     @property
     def economics(self) -> BaseEconomics:

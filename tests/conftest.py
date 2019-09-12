@@ -18,6 +18,8 @@ import os
 
 import pytest
 
+from nucypher.blockchain.economics import TestEconomics
+from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.cli.config import NucypherClickConfig
 from nucypher.crypto.powers import TransactingPower
@@ -38,7 +40,8 @@ WebEmitter._crash_on_error_default = True
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
-
+# Modified contract constructor parameters in-test; Shadows StandardEconomics
+ContractAdministrator._default_deployment_economics = TestEconomics
 
 
 ##########################################

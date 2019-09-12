@@ -33,7 +33,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address
 from twisted.logger import Logger
 
-from nucypher.blockchain.economics import BaseEconomics, StandardEconomics, TokenEconomicsFactory, PyTestEconomics
+from nucypher.blockchain.economics import BaseEconomics, StandardEconomics, TokenEconomicsFactory, TestEconomics
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     StakingEscrowAgent,
@@ -134,11 +134,11 @@ class ContractAdministrator(NucypherTokenActor):
     """
 
     __interface_class = BlockchainDeployerInterface
-    __default_deployment_economics = StandardEconomics
+    _default_deployment_economics = StandardEconomics
 
     economic_classes = (
         StandardEconomics,
-        PyTestEconomics,
+        TestEconomics,
     )
 
     #
@@ -169,11 +169,11 @@ class ContractAdministrator(NucypherTokenActor):
     )
 
     # Used in the automated series, typically.
-    all_deployer_classes = (*standard_deployer_classes,
-                            *upgradeable_deployer_classes,
-                            *aux_deployer_classes)
+    __deployment_series_classes = (*standard_deployer_classes,
+                                   *upgradeable_deployer_classes,
+                                   *aux_deployer_classes)
 
-    deployers = {d.contract_name: d for d in all_deployer_classes}
+    DEPLOYMENT_SERIES = {d.contract_name: d for d in __deployment_series_classes}
 
     class UnknownContract(ValueError):
         pass
@@ -188,11 +188,14 @@ class ContractAdministrator(NucypherTokenActor):
             self.transacting_power = transacting_power
             self.deployer_address = self.transacting_power.account
             self.transacting_power.activate()
+        else:
+            self.deployer_address = None  # TODO: Hmmm...
+
         super().__init__(checksum_address=self.deployer_address, registry=registry, acquire_agency=acquire_agency)
         self.log = Logger("Deployment-Actor")
 
         if not economics:
-            economics = self.__default_deployment_economics()
+            economics = self._default_deployment_economics()
         self.economics = economics
         self.user_escrow_deployers = dict()
 
@@ -202,7 +205,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     def __get_deployer(self, contract_name: str):
         try:
-            Deployer = self.deployers[contract_name]
+            Deployer = self.DEPLOYMENT_SERIES[contract_name]
         except KeyError:
             raise self.UnknownContract(contract_name)
         return Deployer
@@ -306,7 +309,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         # deploy contracts
         total_deployment_transactions = 0
-        for deployer_class in self.all_deployer_classes:
+        for name, deployer_class in self.DEPLOYMENT_SERIES.items():
             total_deployment_transactions += len(deployer_class.deployment_steps)
 
         first_iteration = True
@@ -314,16 +317,16 @@ class ContractAdministrator(NucypherTokenActor):
                                label="Deployment progress",
                                show_eta=False) as bar:
             bar.short_limit = 0
-            for deployer_class in self.all_deployer_classes:
+            for name, deployer_class in self.DEPLOYMENT_SERIES.items():
                 if interactive and not first_iteration:
-                    click.pause(info=f"\nPress any key to continue with deployment of {deployer_class.contract_name}")
+                    click.pause(info=f"\nPress any key to continue with deployment of {name}:{self.economics}")
 
                 if emitter:
-                    emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
+                    emitter.echo(f"\nDeploying {name} ...")
                     bar._last_line = None
                     bar.render_progress()
 
-                if deployer_class in self.standard_deployer_classes:
+                if not deployer_class._upgradeable:
                     receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
                                                               gas_limit=gas_limit,
                                                               progress=bar)

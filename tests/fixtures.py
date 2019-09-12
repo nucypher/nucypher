@@ -34,14 +34,14 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardEconomics, PyTestEconomics
+from nucypher.blockchain.economics import StandardEconomics, TestEconomics
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               AdjudicatorDeployer, UserEscrowProxyDeployer)
+                                               AdjudicatorDeployer, UserEscrowProxyDeployer, WorkLockDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -363,8 +363,8 @@ def federated_ursulas(ursula_federated_test_config):
 #
 
 @pytest.fixture(scope='session')
-def token_economics():
-    economics = PyTestEconomics()
+def test_economics():
+    economics = TestEconomics()
     return economics
 
 
@@ -440,32 +440,48 @@ def testerchain(_testerchain):
     yield testerchain
 
 
-def _make_agency(testerchain, test_registry):
+def _make_agency(testerchain, test_registry, test_economics):
     """
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin,
+                                           registry=test_registry,
+                                           economics=test_economics)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
+                                               registry=test_registry,
+                                               economics=test_economics)
     adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin,
+                                                         registry=test_registry,
+                                                         economics=test_economics)
     user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    token_agent = token_deployer.make_agent()                           # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+    worklock_deployer = WorkLockDeployer(deployer_address=origin,
+                                         registry=test_registry,
+                                         economics=test_economics)
+    worklock_deployer.deploy()
+
+    token_agent = token_deployer.make_agent()               # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()    # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()     # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
+    _worklock_agent = worklock_deployer.make_agent()        # 5 WorkLock
 
     # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
@@ -485,8 +501,8 @@ def _make_agency(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain, test_registry):
-    agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
+def agency(testerchain, test_registry, test_economics):
+    agents = _make_agency(testerchain=testerchain, test_registry=test_registry, test_economics=test_economics)
     yield agents
 
 

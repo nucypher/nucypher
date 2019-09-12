@@ -1,16 +1,17 @@
 import os
 
-import pytest
+from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent,
     AdjudicatorAgent,
-    ContractAgency
+    ContractAgency,
+    NucypherTokenAgent
 )
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import (
     TEST_PROVIDER_URI,
@@ -173,3 +174,27 @@ def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, toke
     # The proxy target has been updated.
     proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
+
+
+def test_transfer_tokens(click_runner):
+
+    # Let's transfer some NU to a random stranger
+    recipient_address = to_checksum_address(os.urandom(20))
+
+    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+    assert token_agent.get_balance(address=recipient_address) == 0
+
+    command = ['transfer-tokens',
+               '--target-address', recipient_address,
+               '--value', 42,
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa']
+
+    user_input = '0\n' + 'Y\n' + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Check that the NU has arrived to the recipient
+    assert token_agent.get_balance(address=recipient_address) == 42

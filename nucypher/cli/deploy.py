@@ -259,9 +259,10 @@ def deploy(action,
 
         if contract_name:
             try:
-                contract_deployer = ADMINISTRATOR.deployers[contract_name]
+                contract_deployer = ADMINISTRATOR.DEPLOYMENT_SERIES[contract_name]
             except KeyError:
-                message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
+                message = f"No such contract {contract_name}. " \
+                          f"Available contracts are {ADMINISTRATOR.DEPLOYMENT_SERIES.keys()}"
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
 
@@ -275,12 +276,17 @@ def deploy(action,
                                                                 gas_limit=gas,
                                                                 bare=bare)
             else:
-                # Non-Upgradeable or Bare
-                receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
-                                                                gas_limit=gas,
-                                                                bare=bare)
+                emitter.echo(f"Deploying {contract_name}")
+                if contract_deployer._upgradeable:
+                    secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
+                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                    plaintext_secret=secret,
+                                                                    gas_limit=gas)
+                else:
+                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                    gas_limit=gas,
+                                                                    bare=bare)
 
-            # Report
             paint_contract_deployment(contract_name=contract_name,
                                       contract_address=agent.contract_address,
                                       receipts=receipts,
@@ -355,9 +361,10 @@ def deploy(action,
 
         if contract_name:
             try:
-                contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
+                contract_deployer_class = ADMINISTRATOR.DEPLOYMENT_SERIES[contract_name]
             except KeyError:
-                message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
+                message = f"No such contract {contract_name}. " \
+                          f"Available contracts are {ADMINISTRATOR.DEPLOYMENT_SERIES.keys()}"
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
             else:
