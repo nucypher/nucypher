@@ -6,6 +6,7 @@ from string import ascii_uppercase, digits
 import pytest
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.economics import PyTestEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
@@ -14,7 +15,6 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    EthereumContractAgent,
     WorkLockAgent)
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -115,22 +115,6 @@ def test_nucypher_deploy_contracts(click_runner,
     assert AdjudicatorAgent(registry=registry)
 
 
-def test_deploy_single_contract(click_runner, registry_filepath):
-
-    command = ['contracts',
-               '--contract-name', 'WorkLock',
-               '--registry-outfile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI,
-               '--poa']
-
-    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0, result.stderr
-    assert WorkLockDeployer.contract_name in result.output
-    agent = WorkLockAgent(registry=LocalContractRegistry(filepath=registry_filepath))
-    assert agent
-
-
 def test_transfer_tokens(click_runner, registry_filepath):
     #
     # Setup
@@ -176,7 +160,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI, '--poa')
+    base_command = ('--registry-infile', registry_filepath,
+                    '--provider', TEST_PROVIDER_URI,
+                    '--poa')
 
     # Generate user inputs
     yes = 'Y\n'  # :-)
@@ -391,3 +377,20 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                         beneficiary=beneficiary,
                                         allocation_registry=allocation_registry)
     assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
+
+
+def test_deploy_single_contract_with_alternate_economics(click_runner, registry_filepath):
+
+    command = ['contracts',
+               '--economics', PyTestEconomics.nickname,
+               '--contract-name', 'WorkLock',
+               '--registry-outfile', registry_filepath,
+               '--provider', TEST_PROVIDER_URI,
+               '--poa']
+
+    user_input = '0\n' + 'Y\n' + (f'{INSECURE_SECRETS[1]}\n' * 8) + 'DEPLOY'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0, result.stderr
+    assert WorkLockDeployer.contract_name in result.output
+    agent = WorkLockAgent(registry=LocalContractRegistry(filepath=registry_filepath))
+    assert agent
