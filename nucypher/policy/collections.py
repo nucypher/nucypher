@@ -14,8 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import binascii
 
+
+import binascii
+import json
 import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -222,6 +224,52 @@ class PolicyCredential:
         self.expiration = expiration
         self.policy_pubkey = policy_pubkey
         self.treasure_map = treasure_map
+
+    def to_json(self):
+        """
+        Serializes the PolicyCredential to JSON.
+        """
+        cred_dict = {
+            'alice_verifying_key': bytes(self.alice_verifying_key).hex(),
+            'label': self.label.hex(),
+            'expiration': self.expiration.iso8601(),
+            'policy_pubkey': bytes(self.policy_pubkey).hex()
+        }
+
+        if self.treasure_map is not None:
+            cred_dict['treasure_map'] = bytes(self.treasure_map).hex()
+
+        return json.dumps(cred_dict)
+
+    @classmethod
+    def from_json(cls, data: str):
+        """
+        Deserializes the PolicyCredential from JSON.
+        """
+        cred_json = json.loads(data)
+
+        alice_verifying_key = UmbralPublicKey.from_bytes(
+                                    cred_json['alice_verifying_key'],
+                                    decoder=bytes().fromhex)
+        label = bytes().fromhex(cred_json['label'])
+        expiration = maya.MayaDT.from_iso8601(cred_json['expiration'])
+        policy_pubkey = UmbralPublicKey.from_bytes(
+                            cred_json['policy_pubkey'],
+                            decoder=bytes().fromhex)
+        treasure_map = None
+
+        if 'treasure_map' in cred_json:
+            treasure_map = TreasureMap.from_bytes(
+                                bytes().fromhex(cred_json['treasure_map']))
+
+        return cls(alice_verifying_key, label, expiration, policy_pubkey,
+                   treasure_map)
+
+    def __eq__(self, other):
+        return ((self.alice_verifying_key == other.alice_verifying_key) and
+                (self.label == other.label) and
+                (self.expiration == other.expiration) and
+                (self.policy_pubkey == other.policy_pubkey))
 
 
 class WorkOrder:
