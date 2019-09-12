@@ -46,8 +46,7 @@ def funded_worklock(testerchain, agency, test_registry, token_economics):
     _deployment_receipts = deployer.deploy()
 
     # Fund.
-    worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
-    deployer.fund(sender_address=testerchain.etherbase_account, value=worklock_supply)
+    deployer.fund(sender_address=testerchain.etherbase_account)
     return deployer
 
 

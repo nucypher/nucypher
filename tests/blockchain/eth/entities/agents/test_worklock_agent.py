@@ -45,11 +45,10 @@ def test_funding_worklock_contract(testerchain, agency, test_registry, token_eco
     assert token_agent.get_balance(deployer.contract_address) == 0
 
     # Funding account has enough tokens to fund the contract.
-    worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
     assert token_agent.get_balance(testerchain.etherbase_account) > token_economics.maximum_allowed_locked
 
     # Fund.
-    receipt = deployer.fund(sender_address=testerchain.etherbase_account, value=worklock_supply)
+    receipt = deployer.fund(sender_address=testerchain.etherbase_account)
     assert receipt['status'] == 1
 
 

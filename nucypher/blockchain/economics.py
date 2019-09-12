@@ -98,6 +98,7 @@ class BaseEconomics:
                  # WorkLock
                  bidding_start_date: int = NotImplemented,
                  bidding_end_date: int = NotImplemented,
+                 worklock_supply: int = NotImplemented,
                  worklock_deposit_rate: int = NotImplemented,
                  worklock_refund_rate: int = NotImplemented,
                  worklock_commitment_duration: int = NotImplemented):
@@ -127,6 +128,7 @@ class BaseEconomics:
 
         self.bidding_start_date = bidding_start_date
         self.bidding_end_date = bidding_end_date
+        self.worklock_supply = worklock_supply
         self.worklock_deposit_rate = worklock_deposit_rate
         self.worklock_refund_rate = worklock_refund_rate
         self.worklock_commitment_duration = worklock_commitment_duration
@@ -340,17 +342,26 @@ class StandardEconomics(BaseEconomics):
         return self.cumulative_rewards_at_period(period) - self.cumulative_rewards_at_period(period-1)
 
 
-class PyTestEconomics(StandardEconomics):
+class TestEconomics(StandardEconomics):
 
     nickname = 'test-economics'
     description = f'Identical to {StandardEconomics.nickname} with Instant one-hour worklock.'
 
-    def __init__(self, *args, **kwargs):
+    __default_worklock_deposit_rate = 100
+    __default_worklock_refund_rate = 200
 
-        super().__init__(worklock_deposit_rate=100,
-                         worklock_refund_rate=200,
+    def __init__(self,
+                 worklock_deposit_rate=__default_worklock_deposit_rate,
+                 worklock_refund_rate=__default_worklock_refund_rate,
+                 *args, **kwargs):
+
+        # Injected
+        super().__init__(worklock_deposit_rate=worklock_deposit_rate,
+                         worklock_refund_rate=worklock_refund_rate,
                          *args, **kwargs)
 
+        # Calculated
+        self.worklock_supply = 2 * self.maximum_allowed_locked
         self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
         self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
 

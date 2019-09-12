@@ -1038,10 +1038,10 @@ class WorkLockDeployer(BaseContractDeployer):
         self._contract = worklock_contract
         return self.deployment_transactions
 
-    def fund(self, sender_address: str, value: int) -> dict:
-        """Convenience method for funding the contract."""
+    def fund(self, sender_address: str) -> dict:
+        """Convenience method for funding the contract with the supply specified in economcs."""
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
         receipt = token_agent.transfer(sender_address=sender_address,
                                        target_address=self.contract_address,
-                                       amount=value)
+                                       amount=self.economics.worklock_supply)
         return receipt
