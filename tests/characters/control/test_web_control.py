@@ -100,11 +100,10 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
     assert response.status_code == 200
 
     revoke_request_data = {
-        'label': 'test',
-        'bob_verifying_key': bytes(federated_bob.stamp).hex()
+        'treasure_map': response.json['result']['treasure_map']
     }
 
-    response = alice_web_controller_test_client.delete(f'/revoke', data=json.dumps(revoke_request_data))
+    response = alice_web_controller_test_client.delete('/revoke', data=json.dumps(revoke_request_data))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)

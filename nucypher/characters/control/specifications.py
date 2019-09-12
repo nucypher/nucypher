@@ -69,7 +69,7 @@ class AliceSpecification(CharacterSpecification):
     __grant = (('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),  # In
                ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key'))              # Out
 
-    __revoke = (('label', 'bob_verifying_key', ),  # In
+    __revoke = (('treasure_map', ),  # In
                 ('failed_revocations',))     # Out
 
     __decrypt = (

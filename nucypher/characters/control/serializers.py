@@ -140,8 +140,8 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
 
     @staticmethod
     def parse_revoke_input(request: dict):
-        parsed_input = dict(label=request['label'].encode(),
-                            bob_verifying_key=bytes.fromhex(request['bob_verifying_key']))
+        treasure_map_bytes = b64decode(request['treasure_map'])
+        parsed_input = dict(treasure_map=treasure_map_bytes)
         return parsed_input
 
     @staticmethod

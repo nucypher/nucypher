@@ -111,10 +111,6 @@ def test_federated_grant(federated_alice, federated_bob):
     policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
     assert policy_id == policy.id
 
-    # Check Alice's active policies
-    assert policy_id in federated_alice.active_policies
-    assert federated_alice.active_policies[policy_id] == policy
-
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
 
