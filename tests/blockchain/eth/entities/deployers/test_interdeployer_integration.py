@@ -17,8 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import pytest
-from eth_utils import keccak
 from constant_sorrow import constants
+from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
@@ -32,7 +32,8 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain,
                                    deployment_progress,
-                                   test_registry):
+                                   test_registry,
+                                   test_economics):
     testerchain = testerchain
 
     origin, *everybody_else = testerchain.client.accounts
@@ -40,7 +41,10 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Nucypher Token
     #
-    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
+
+    token_deployer = NucypherTokenDeployer(registry=test_registry,
+                                           deployer_address=origin,
+                                           economics=test_economics)
     assert token_deployer.deployer_address == origin
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
@@ -63,9 +67,9 @@ def test_deploy_ethereum_contracts(testerchain,
     # StakingEscrow
     #
     stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
-    staking_escrow_deployer = StakingEscrowDeployer(
-        registry=test_registry,
-        deployer_address=origin)
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
+                                                    deployer_address=origin,
+                                                    economics=test_economics)
     assert staking_escrow_deployer.deployer_address == origin
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
@@ -116,9 +120,9 @@ def test_deploy_ethereum_contracts(testerchain,
     # Adjudicator
     #
     adjudicator_secret = os.urandom(DispatcherDeployer._secret_length)
-    adjudicator_deployer = AdjudicatorDeployer(
-        registry=test_registry,
-        deployer_address=origin)
+    adjudicator_deployer = AdjudicatorDeployer(registry=test_registry,
+                                               deployer_address=origin,
+                                               economics=test_economics)
 
     assert adjudicator_deployer.deployer_address == origin
 

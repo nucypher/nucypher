@@ -21,19 +21,21 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
 
 
 @pytest.fixture(scope="module")
-def token_deployer(testerchain, test_registry):
+def token_deployer(testerchain, test_registry, test_economics):
 
     token_deployer = NucypherTokenDeployer(registry=test_registry,
-                                           deployer_address=testerchain.etherbase_account)
+                                           deployer_address=testerchain.etherbase_account,
+                                           economics=test_economics)
     return token_deployer
 
 
 @pytest.fixture(scope="module")
-def staking_escrow_deployer(testerchain, token_deployer, test_registry):
+def staking_escrow_deployer(testerchain, token_deployer, test_registry, test_economics):
     token_deployer.deploy()
 
     staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
-                                                    deployer_address=testerchain.etherbase_account)
+                                                    deployer_address=testerchain.etherbase_account,
+                                                    economics=test_economics)
     return staking_escrow_deployer
 
 

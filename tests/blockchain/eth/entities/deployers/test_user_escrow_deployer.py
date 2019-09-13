@@ -39,7 +39,7 @@ NUMBER_OF_PREALLOCATIONS = 50
 
 
 @pytest.mark.slow()
-def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_registry):
+def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_registry, test_economics):
 
     #
     # Setup
@@ -47,16 +47,24 @@ def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_regis
 
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin,
+                                           registry=test_registry,
+                                           economics=test_economics)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
+                                               registry=test_registry,
+                                               economics=test_economics)
     adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     #
@@ -76,14 +84,16 @@ def test_user_escrow_proxy_deployer(testerchain, deployment_progress, test_regis
 
 
 @pytest.mark.slow()
-def test_deploy_multiple_preallocations(testerchain, test_registry):
+def test_deploy_multiple_preallocations(testerchain, test_registry, test_economics):
     testerchain = testerchain
     deployer_account = testerchain.etherbase_account
 
     linker = testerchain.get_contract_by_name(registry=test_registry, name=LibraryLinkerDeployer.contract_name)
     linker_address = linker.address
     for index in range(NUMBER_OF_PREALLOCATIONS):
-        deployer = UserEscrowDeployer(deployer_address=deployer_account, registry=test_registry)
+        deployer = UserEscrowDeployer(deployer_address=deployer_account,
+                                      registry=test_registry,
+                                      economics=test_economics)
 
         deployment_receipt = deployer.deploy()
         assert deployment_receipt['status'] == 1

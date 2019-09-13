@@ -36,16 +36,20 @@ def test_adjudicator_deployer(testerchain,
     testerchain = testerchain
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin,
+                                           registry=test_registry,
+                                           economics=test_economics)
     token_deployer.deploy()
 
     stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
 
     staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
-    deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry, economics=test_economics)
     deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer._secret_length),
                                           progress=deployment_progress)
 

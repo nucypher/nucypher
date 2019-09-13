@@ -30,11 +30,12 @@ from nucypher.utilities.sandbox.constants import (POLICY_MANAGER_DEPLOYMENT_SECR
 
 
 @pytest.fixture(scope="module")
-def policy_manager_deployer(staking_escrow_deployer, testerchain, test_registry):
+def policy_manager_deployer(staking_escrow_deployer, testerchain, test_registry, test_economics):
     staking_escrow_deployer.deploy(secret_hash=keccak(text=STAKING_ESCROW_DEPLOYMENT_SECRET))
 
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
-                                                    deployer_address=testerchain.etherbase_account)
+                                                    deployer_address=testerchain.etherbase_account,
+                                                    economics=test_economics)
     return policy_manager_deployer
 
 

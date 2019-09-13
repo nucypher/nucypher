@@ -62,7 +62,7 @@ def test_deployment_parameters(staking_escrow_deployer,
     assert test_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
 
 
-def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry):
+def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry, test_economics):
 
     # Let's get the "bare" StakingEscrow contract (i.e., unwrapped, no dispatcher)
     existing_bare_contract = testerchain.get_contract_by_name(registry=test_registry,
@@ -80,14 +80,14 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
-def test_upgrade(testerchain, test_registry, token_economics):
+def test_upgrade(testerchain, test_registry, test_economics):
     wrong_secret = b"on second thoughts..."
     old_secret = bytes(STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
     new_secret_hash = keccak(b'new'+old_secret)
 
     deployer = StakingEscrowDeployer(registry=test_registry,
-                                     economics=token_economics,
-                                     deployer_address=testerchain.etherbase_account)
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=test_economics)
 
     with pytest.raises(deployer.ContractDeploymentError):
         deployer.upgrade(existing_secret_plaintext=wrong_secret, new_secret_hash=new_secret_hash)
@@ -97,12 +97,13 @@ def test_upgrade(testerchain, test_registry, token_economics):
         assert receipt['status'] == 1
 
 
-def test_rollback(testerchain, test_registry):
+def test_rollback(testerchain, test_registry, test_economics):
     old_secret = bytes('new'+STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
     new_secret_hash = keccak(text="third time's the charm")
 
     deployer = StakingEscrowDeployer(registry=test_registry,
-                                     deployer_address=testerchain.etherbase_account)
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=test_economics)
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_target = staking_agent.contract.functions.target().call()

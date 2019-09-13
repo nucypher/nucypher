@@ -37,19 +37,29 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEPLOYMENT_SECRET_HASH
 def test_worklock_deployer(testerchain, test_registry, test_economics):
     origin = testerchain.etherbase_account
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
+    token_deployer = NucypherTokenDeployer(deployer_address=origin,
+                                           registry=test_registry,
+                                           economics=test_economics)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
+    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
+                                                    registry=test_registry,
+                                                    economics=test_economics)
     policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
+    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
+                                               registry=test_registry,
+                                               economics=test_economics)
     adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin,
+                                                         registry=test_registry,
+                                                         economics=test_economics)
     user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     # Trying to get agent from registry before it's been published fails
@@ -74,11 +84,16 @@ def test_worklock_deployer(testerchain, test_registry, test_economics):
     assert deployer.contract.address == deployer.contract_address
     agent = WorkLockAgent(registry=test_registry)
     assert agent.contract_address == deployer.contract.address == deployer.contract_address
-    assert WorkLockDeployer.contract_name in test_registry.read()
+    assert WorkLockDeployer.contract_name in list(test_registry.enrolled_names)
 
 
-def test_funding_worklock_contract(testerchain, agency, test_registry, test_economics, deploy_worklock):
-    deployer = deploy_worklock
+def test_funding_worklock_contract(testerchain, test_registry, test_economics):
+    # Deploy
+    deployer = WorkLockDeployer(registry=test_registry,
+                                deployer_address=testerchain.etherbase_account,
+                                economics=test_economics,
+                                acquire_agency=True)
+
     assert deployer.contract_address
     assert deployer.contract_address is not BlockchainInterface.NULL_ADDRESS
 

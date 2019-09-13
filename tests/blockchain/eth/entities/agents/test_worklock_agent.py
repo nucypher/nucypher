@@ -25,7 +25,8 @@ def test_bidding(testerchain, agency, test_registry, test_economics):
     # Funded.
     deployer = WorkLockDeployer(registry=test_registry,
                                 deployer_address=testerchain.etherbase_account,
-                                economics=test_economics)
+                                economics=test_economics,
+                                acquire_agency=True)
     deployer.fund(sender_address=testerchain.etherbase_account)
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -43,7 +44,7 @@ def test_bidding(testerchain, agency, test_registry, test_economics):
         assert receipt['status'] == 1
 
     big_bidder = testerchain.unassigned_accounts[-1]
-    bid_wei = test_economics.maximum_bid - 1
+    bid_wei = test_economics.maximum_bid // 2
     receipt = agent.bid(sender_address=big_bidder, value=bid_wei)
     assert receipt['status'] == 1
 

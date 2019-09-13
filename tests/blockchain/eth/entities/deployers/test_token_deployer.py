@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
 
 
-def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry):
+def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry, test_economics):
     testerchain = testerchain
     origin = testerchain.etherbase_account
 
@@ -30,7 +30,7 @@ def test_token_deployer_and_agent(testerchain, deployment_progress, test_registr
         NucypherTokenAgent(registry=test_registry)
 
     # The big day...
-    deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
+    deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin, economics=test_economics)
 
     deployment_receipts = deployer.deploy(progress=deployment_progress)
 
