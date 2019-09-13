@@ -22,7 +22,7 @@ from web3.contract import Contract
 
 
 @pytest.mark.slow
-def test_mining(testerchain, token, escrow_contract, token_economics):
+def test_mining(testerchain, token, escrow_contract, test_economics):
 
     escrow = escrow_contract(1500)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')
@@ -34,12 +34,12 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     ursula1 = testerchain.client.accounts[1]
     ursula2 = testerchain.client.accounts[2]
 
-    current_supply = token_economics.erc20_initial_supply
+    current_supply = test_economics.erc20_initial_supply
 
     def calculate_reward(locked, total_locked, locked_periods):
-        return (token_economics.erc20_total_supply - current_supply) * locked * \
-               (locked_periods + token_economics.locked_periods_coefficient) // \
-               (total_locked * token_economics.staking_coefficient)
+        return (test_economics.erc20_total_supply - current_supply) * locked * \
+               (locked_periods + test_economics.locked_periods_coefficient) // \
+               (total_locked * test_economics.staking_coefficient)
 
     staking_log = escrow.events.Mined.createFilter(fromBlock='latest')
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
@@ -49,7 +49,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, test_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -334,7 +334,7 @@ def test_mining(testerchain, token, escrow_contract, token_economics):
 
 
 @pytest.mark.slow
-def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):
+def test_slashing(testerchain, token, escrow_contract, test_economics, deploy_contract):
     escrow = escrow_contract(1500)
     adjudicator, _ = deploy_contract(
         'AdjudicatorForStakingEscrowMock', escrow.address
@@ -348,7 +348,7 @@ def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_c
     slashing_log = escrow.events.Slashed.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, test_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)

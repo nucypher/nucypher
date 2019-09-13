@@ -54,16 +54,16 @@ def test_token_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_get_balance(agent, token_economics):
+def test_get_balance(agent, test_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == token_economics.erc20_total_supply
+    assert balance == test_economics.erc20_total_supply
 
 
-def test_approve_transfer(agent, token_economics):
+def test_approve_transfer(agent, test_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
 
@@ -73,7 +73,7 @@ def test_approve_transfer(agent, token_economics):
     testerchain.transacting_power.activate()
 
     # Approve
-    receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
+    receipt = agent.approve_transfer(amount=test_economics.minimum_allowed_locked,
                                      target_address=agent.contract_address,
                                      sender_address=someone)
 
@@ -81,7 +81,7 @@ def test_approve_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_transfer(agent, token_economics):
+def test_transfer(agent, test_economics):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
 
@@ -91,7 +91,7 @@ def test_transfer(agent, token_economics):
     testerchain.transacting_power.activate()
 
     old_balance = agent.get_balance(someone)
-    receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
+    receipt = agent.transfer(amount=test_economics.minimum_allowed_locked,
                              target_address=someone,
                              sender_address=origin)
 
@@ -99,4 +99,4 @@ def test_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
-    assert new_balance == old_balance + token_economics.minimum_allowed_locked
+    assert new_balance == old_balance + test_economics.minimum_allowed_locked

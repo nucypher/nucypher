@@ -32,7 +32,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 @pytest.mark.slow
-def test_upgrading(testerchain, token, token_economics, deploy_contract):
+def test_upgrading(testerchain, token, test_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
     worker = testerchain.client.accounts[2]
@@ -42,7 +42,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
 
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
+        'StakingEscrow', token.address, *test_economics.staking_deployment_parameters
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
@@ -65,7 +65,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         abi=contract_library_v2.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
+    assert test_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
@@ -117,7 +117,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
-    assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
+    assert test_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
     # Check new ABI

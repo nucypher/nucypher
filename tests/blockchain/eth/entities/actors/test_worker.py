@@ -15,7 +15,7 @@ def test_worker_auto_confirmations(testerchain,
                                    test_registry,
                                    staker,
                                    agency,
-                                   token_economics,
+                                   test_economics,
                                    ursula_decentralized_test_config):
 
     # Mock Powerup consumption (Ursula-Worker)
@@ -23,8 +23,8 @@ def test_worker_auto_confirmations(testerchain,
                                                      account=staker.checksum_address)
     testerchain.transacting_power.activate()
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
-                            lock_periods=int(token_economics.minimum_locked_periods))
+    staker.initialize_stake(amount=NU(test_economics.minimum_allowed_locked, 'NuNit'),
+                            lock_periods=int(test_economics.minimum_locked_periods))
 
     # Get an unused address and create a new worker
     worker_address = testerchain.unassigned_accounts[-1]

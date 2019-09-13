@@ -37,7 +37,7 @@ from nucypher.utilities.sandbox.constants import (
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry):
+def test_rapid_deployment(test_economics, test_registry):
     compiler = SolidityCompiler()
     allocation_registry = InMemoryAllocationRegistry()
 
@@ -64,15 +64,15 @@ def test_rapid_deployment(token_economics, test_registry):
 
     # Start with some hard-coded cases...
     allocation_data = [{'beneficiary_address': all_yall[1],
-                        'amount': token_economics.maximum_allowed_locked,
+                        'amount': test_economics.maximum_allowed_locked,
                         'duration_seconds': ONE_YEAR_IN_SECONDS},
 
                        {'beneficiary_address': all_yall[2],
-                        'amount': token_economics.minimum_allowed_locked,
+                        'amount': test_economics.minimum_allowed_locked,
                         'duration_seconds': ONE_YEAR_IN_SECONDS*2},
 
                        {'beneficiary_address': all_yall[3],
-                        'amount': token_economics.minimum_allowed_locked*100,
+                        'amount': test_economics.minimum_allowed_locked*100,
                         'duration_seconds': ONE_YEAR_IN_SECONDS*3}
                        ]
 
@@ -81,9 +81,9 @@ def test_rapid_deployment(token_economics, test_registry):
         random_password = ''.join(random.SystemRandom().choice(string.ascii_uppercase+string.digits) for _ in range(16))
         acct = w3.eth.account.create(random_password)
         beneficiary_address = acct.address
-        amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
-        duration = random.randint(token_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
-                                  (token_economics.maximum_rewarded_periods*ONE_YEAR_IN_SECONDS)*3)
+        amount = random.randint(test_economics.minimum_allowed_locked, test_economics.maximum_allowed_locked)
+        duration = random.randint(test_economics.minimum_locked_periods*ONE_YEAR_IN_SECONDS,
+                                  (test_economics.maximum_rewarded_periods*ONE_YEAR_IN_SECONDS)*3)
         random_allocation = {'beneficiary_address': beneficiary_address, 'amount': amount, 'duration_seconds': duration}
         allocation_data.append(random_allocation)
 

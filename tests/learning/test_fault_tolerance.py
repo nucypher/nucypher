@@ -61,7 +61,7 @@ def test_invalid_workers_tolerance(testerchain,
                                    blockchain_ursulas,
                                    agency,
                                    idle_staker,
-                                   token_economics,
+                                   test_economics,
                                    ursula_decentralized_test_config
                                    ):
     #
@@ -81,8 +81,8 @@ def test_invalid_workers_tolerance(testerchain,
 
     # Now let's create an active worker for this staker.
     # First, stake something (e.g. the bare minimum)
-    amount = token_economics.minimum_allowed_locked
-    periods = token_economics.minimum_locked_periods
+    amount = test_economics.minimum_allowed_locked
+    periods = test_economics.minimum_locked_periods
 
     # Mock Powerup consumption (Staker)
     testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)

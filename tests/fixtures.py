@@ -23,9 +23,6 @@ import tempfile
 
 import maya
 import pytest
-from eth_tester import PyEVMBackend
-
-from constant_sorrow.constants import NON_PAYMENT
 from sqlalchemy.engine import create_engine
 from twisted.logger import Logger
 from umbral import pre
@@ -34,14 +31,18 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import StandardEconomics, TestEconomics
+from nucypher.blockchain.economics import TestEconomics
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
-from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
-                                               StakingEscrowDeployer,
-                                               PolicyManagerDeployer,
-                                               AdjudicatorDeployer, UserEscrowProxyDeployer, WorkLockDeployer)
+from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
+    StakingEscrowDeployer,
+    PolicyManagerDeployer,
+    AdjudicatorDeployer,
+    UserEscrowProxyDeployer,
+    WorkLockDeployer
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -246,12 +247,12 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(blockchain_alice, blockchain_bob, token_economics):
+def idle_blockchain_policy(blockchain_alice, blockchain_bob, test_economics):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    days = token_economics.minimum_locked_periods // 2
+    days = test_economics.minimum_locked_periods // 2
     expiration = maya.now().add(days=days)
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
@@ -507,7 +508,7 @@ def agency(testerchain, test_registry, test_economics):
 
 
 @pytest.fixture(scope="module")
-def stakers(testerchain, agency, token_economics, test_registry):
+def stakers(testerchain, agency, test_economics, test_registry):
     token_agent, _staking_agent, _policy_agent = agency
     blockchain = token_agent.blockchain
 
@@ -532,7 +533,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
         # for a random lock duration
-        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods
+        min_locktime, max_locktime = test_economics.minimum_locked_periods, test_economics.maximum_rewarded_periods
         periods = random.randint(min_locktime, max_locktime)
 
         staker.initialize_stake(amount=amount, lock_periods=periods)
@@ -589,8 +590,8 @@ def idle_staker(testerchain, agency):
 
 
 @pytest.fixture(scope='module')
-def stake_value(token_economics):
-    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+def stake_value(test_economics):
+    value = NU(test_economics.minimum_allowed_locked * 2, 'NuNit')
     return value
 
 
@@ -601,13 +602,13 @@ def policy_rate():
 
 
 @pytest.fixture(scope='module')
-def policy_value(token_economics, policy_rate):
-    value = policy_rate * token_economics.minimum_locked_periods
+def policy_value(test_economics, policy_rate):
+    value = policy_rate * test_economics.minimum_locked_periods
     return value
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, agency, token_economics, test_registry):
+def funded_blockchain(testerchain, agency, test_economics, test_registry):
 
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
@@ -619,7 +620,7 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
     token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
                   origin=deployer_address,
                   addresses=everyone_else,
-                  amount=token_economics.minimum_allowed_locked*5)
+                  amount=test_economics.minimum_allowed_locked*5)
 
     # HERE YOU GO
     yield testerchain, deployer_address

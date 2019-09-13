@@ -36,10 +36,10 @@ def test_unknown_contract(testerchain, test_registry):
 
 
 @pytest.mark.slow()
-def test_deposit_tokens(testerchain, agency, token_economics):
+def test_deposit_tokens(testerchain, agency, test_economics):
     token_agent, staking_agent, _policy_agent = agency
 
-    locked_tokens = token_economics.minimum_allowed_locked * 5
+    locked_tokens = test_economics.minimum_allowed_locked * 5
 
     staker_account = testerchain.unassigned_accounts[0]
 
@@ -52,7 +52,7 @@ def test_deposit_tokens(testerchain, agency, token_economics):
     assert balance == 0
 
     # The staker receives an initial amount of tokens
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked * 10,
+    _txhash = token_agent.transfer(amount=test_economics.minimum_allowed_locked * 10,
                                    target_address=staker_account,
                                    sender_address=testerchain.etherbase_account)
 
@@ -66,12 +66,12 @@ def test_deposit_tokens(testerchain, agency, token_economics):
     # Previously, she needs to approve this transfer on the token contract.
     #
 
-    _receipt = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
+    _receipt = token_agent.approve_transfer(amount=test_economics.minimum_allowed_locked * 10,  # Approve
                                             target_address=staking_agent.contract_address,
                                             sender_address=staker_account)
 
     receipt = staking_agent.deposit_tokens(amount=locked_tokens,
-                                           lock_periods=token_economics.minimum_locked_periods,
+                                           lock_periods=test_economics.minimum_locked_periods,
                                            sender_address=staker_account)
 
     # Check the receipt for the contract address success code
@@ -85,15 +85,15 @@ def test_deposit_tokens(testerchain, agency, token_economics):
 
 
 @pytest.mark.slow()
-def test_locked_tokens(testerchain, agency, token_economics):
+def test_locked_tokens(testerchain, agency, test_economics):
     _token_agent, staking_agent, _policy_agent = agency
     staker_account = testerchain.unassigned_accounts[0]
     locked_amount = staking_agent.get_locked_tokens(staker_address=staker_account)
-    assert token_economics.maximum_allowed_locked >= locked_amount >= token_economics.minimum_allowed_locked
+    assert test_economics.maximum_allowed_locked >= locked_amount >= test_economics.minimum_allowed_locked
 
 
 @pytest.mark.slow()
-def test_get_all_stakes(testerchain, agency, token_economics):
+def test_get_all_stakes(testerchain, agency, test_economics):
     _token_agent, staking_agent, _policy_agent = agency
     staker_account = testerchain.unassigned_accounts[0]
 
@@ -103,7 +103,7 @@ def test_get_all_stakes(testerchain, agency, token_economics):
     assert len(stake_info) == 3
     start_period, end_period, value = stake_info
     assert end_period > start_period
-    assert token_economics.maximum_allowed_locked > value > token_economics.minimum_allowed_locked
+    assert test_economics.maximum_allowed_locked > value > test_economics.minimum_allowed_locked
 
 
 @pytest.mark.slow()
@@ -189,7 +189,7 @@ def test_confirm_activity(agency, testerchain):
 
 
 @pytest.mark.skip('To be implemented')
-def test_divide_stake(agency, token_economics):
+def test_divide_stake(agency, test_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = staking_agent
     testerchain = agent.blockchain
@@ -199,13 +199,13 @@ def test_divide_stake(agency, token_economics):
     assert len(stakes) == 1
 
     # Approve
-    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked*2,
+    _txhash = token_agent.approve_transfer(amount=test_economics.minimum_allowed_locked*2,
                                            target_address=agent.contract_address,
                                            sender_address=someone)
 
     # Deposit
-    _txhash = agent.deposit_tokens(amount=token_economics.minimum_allowed_locked*2,
-                                   lock_periods=token_economics.minimum_locked_periods,
+    _txhash = agent.deposit_tokens(amount=test_economics.minimum_allowed_locked*2,
+                                   lock_periods=test_economics.minimum_locked_periods,
                                    sender_address=someone)
 
     # Confirm Activity
@@ -214,7 +214,7 @@ def test_divide_stake(agency, token_economics):
 
     receipt = agent.divide_stake(staker_address=someone,
                                  stake_index=1,
-                                 target_value=token_economics.minimum_allowed_locked,
+                                 target_value=test_economics.minimum_allowed_locked,
                                  periods=1)
 
     assert receipt['status'] == 1, "Transaction Rejected"

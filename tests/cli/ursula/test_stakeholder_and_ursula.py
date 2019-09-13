@@ -91,7 +91,7 @@ def test_stake_init(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
                     mock_registry_filepath,
-                    token_economics,
+                    test_economics,
                     testerchain,
                     test_registry,
                     agency,
@@ -107,7 +107,7 @@ def test_stake_init(click_runner,
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--no-sync',
-                  '--lock-periods', token_economics.minimum_locked_periods,
+                  '--lock-periods', test_economics.minimum_locked_periods,
                   '--force')
 
     # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
@@ -127,16 +127,16 @@ def test_stake_init(click_runner,
     # Test integration with NU
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
-    assert (end_period - start_period) == token_economics.minimum_locked_periods - 1
+    assert (end_period - start_period) == test_economics.minimum_locked_periods - 1
 
     # Test integration with Stake
     stake = Stake.from_stake_info(index=0,
                                   checksum_address=manual_staker,
                                   stake_info=stakes[0],
                                   staking_agent=staking_agent,
-                                  economics=token_economics)
+                                  economics=test_economics)
     assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
+    assert stake.duration == test_economics.minimum_locked_periods
 
 
 def test_stake_list(click_runner,
@@ -156,7 +156,7 @@ def test_stake_list(click_runner,
 
 def test_staker_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
-                              token_economics,
+                              test_economics,
                               manual_staker,
                               testerchain,
                               test_registry):
@@ -167,7 +167,7 @@ def test_staker_divide_stakes(click_runner,
                    '--staking-address', manual_staker,
                    '--index', 0,
                    '--no-sync',
-                   '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
+                   '--value', NU(test_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--lock-periods', 10)
 
     result = click_runner.invoke(nucypher_cli,
@@ -183,7 +183,7 @@ def test_staker_divide_stakes(click_runner,
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
+    assert str(NU(test_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
 def test_stake_set_worker(click_runner,
@@ -354,11 +354,11 @@ def test_collect_rewards_integration(click_runner,
                                      random_policy_label,
                                      manual_staker,
                                      manual_worker,
-                                     token_economics,
+                                     test_economics,
                                      policy_value,
                                      policy_rate):
 
-    half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
+    half_stake_time = test_economics.minimum_locked_periods // 2  # Test setup
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
     current_period = 0  # State the initial period for incrementing
 
@@ -468,7 +468,8 @@ def test_collect_rewards_integration(click_runner,
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
     # At least half of the tokens are unlocked (restaking was enabled for some prior periods)
-    assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
+
+    assert staker.locked_tokens() == test_economics.minimum_allowed_locked
 
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
     testerchain.transacting_power = TransactingPower(account=staker_address,

@@ -26,24 +26,24 @@ MAX_PERIODS = 100
 
 
 @pytest.mark.slow
-def test_reward(testerchain, agency, token_economics):
+def test_reward(testerchain, agency, test_economics):
     testerchain.time_travel(hours=1)
     token_agent, staking_agent, _policy_agent = agency
     origin = testerchain.etherbase_account
     ursula = testerchain.ursula_account(0)
 
     # Prepare one staker
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
+    _txhash = token_agent.transfer(amount=test_economics.minimum_allowed_locked,
                                    target_address=ursula,
                                    sender_address=origin)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=ursula)
     testerchain.transacting_power.activate()
-    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
+    _txhash = token_agent.approve_transfer(amount=test_economics.minimum_allowed_locked,
                                            target_address=staking_agent.contract_address,
                                            sender_address=ursula)
-    _txhash = staking_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
-                                           lock_periods=100 * token_economics.maximum_rewarded_periods,
+    _txhash = staking_agent.deposit_tokens(amount=test_economics.minimum_allowed_locked,
+                                           lock_periods=100 * test_economics.maximum_rewarded_periods,
                                            sender_address=ursula)
     _txhash = staking_agent.set_worker(staker_address=ursula, worker_address=ursula)
 
@@ -56,7 +56,7 @@ def test_reward(testerchain, agency, token_economics):
     _txhash = staking_agent.confirm_activity(worker_address=ursula)
 
     contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
-    calculations_reward = token_economics.cumulative_rewards_at_period(1)
+    calculations_reward = test_economics.cumulative_rewards_at_period(1)
     error = (contract_reward - calculations_reward) / calculations_reward
     assert error > 0
     assert error < MAX_ERROR
@@ -66,7 +66,7 @@ def test_reward(testerchain, agency, token_economics):
         testerchain.time_travel(periods=1)
         _txhash = staking_agent.confirm_activity(worker_address=ursula)
         contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
-        calculations_reward = token_economics.cumulative_rewards_at_period(i + 1)
+        calculations_reward = test_economics.cumulative_rewards_at_period(i + 1)
         next_error = (contract_reward - calculations_reward) / calculations_reward
         assert next_error > 0
         assert next_error < error

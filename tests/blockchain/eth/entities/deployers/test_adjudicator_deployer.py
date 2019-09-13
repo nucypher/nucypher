@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.deployers import (
 
 @pytest.mark.slow()
 def test_adjudicator_deployer(testerchain,
-                              token_economics,
+                              test_economics,
                               deployment_progress,
                               test_registry):
     testerchain = testerchain
@@ -61,11 +61,11 @@ def test_adjudicator_deployer(testerchain,
     # Check default Adjudicator deployment parameters
     assert staking_escrow_deployer.deployer_address != staking_agent.contract_address
     assert adjudicator_agent.staking_escrow_contract == staking_agent.contract_address
-    assert adjudicator_agent.hash_algorithm == token_economics.hash_algorithm
-    assert adjudicator_agent.base_penalty == token_economics.base_penalty
-    assert adjudicator_agent.penalty_history_coefficient == token_economics.penalty_history_coefficient
-    assert adjudicator_agent.percentage_penalty_coefficient == token_economics.percentage_penalty_coefficient
-    assert adjudicator_agent.reward_coefficient == token_economics.reward_coefficient
+    assert adjudicator_agent.hash_algorithm == test_economics.hash_algorithm
+    assert adjudicator_agent.base_penalty == test_economics.base_penalty
+    assert adjudicator_agent.penalty_history_coefficient == test_economics.penalty_history_coefficient
+    assert adjudicator_agent.percentage_penalty_coefficient == test_economics.percentage_penalty_coefficient
+    assert adjudicator_agent.reward_coefficient == test_economics.reward_coefficient
 
     # Retrieve the AdjudicatorAgent singleton
     some_policy_agent = AdjudicatorAgent(registry=test_registry)

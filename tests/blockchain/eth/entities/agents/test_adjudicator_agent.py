@@ -45,7 +45,7 @@ def mock_ursula(testerchain, account, mocker):
 def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,
-                             token_economics,
+                             test_economics,
                              test_registry,
                              mocker):
 
@@ -56,7 +56,7 @@ def test_adjudicator_slashes(agency,
 
     token_agent, staking_agent, _policy_agent = agency
 
-    locked_tokens = token_economics.minimum_allowed_locked * 5
+    locked_tokens = test_economics.minimum_allowed_locked * 5
 
     # Mock Powerup consumption (Deployer)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
@@ -76,7 +76,7 @@ def test_adjudicator_slashes(agency,
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
     staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
-                            lock_periods=token_economics.minimum_locked_periods)
+                            lock_periods=test_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
 
     # The staker hasn't set a worker yet
@@ -112,5 +112,5 @@ def test_adjudicator_slashes(agency,
     investigator_reward = bobby.token_balance - bobby_old_balance
 
     assert investigator_reward > 0
-    assert investigator_reward == token_economics.base_penalty / token_economics.reward_coefficient
+    assert investigator_reward == test_economics.base_penalty / test_economics.reward_coefficient
     assert staker.locked_tokens(periods=1) < locked_tokens

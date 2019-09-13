@@ -24,13 +24,13 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 
 
 @pytest.mark.slow()
-def test_deploy_and_allocate(agency, token_economics, test_registry):
+def test_deploy_and_allocate(agency, test_economics, test_registry):
     token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
 
     deployments = dict()
-    allocation = token_economics.minimum_allowed_locked * 1
+    allocation = test_economics.minimum_allowed_locked * 1
     number_of_deployments = 1
 
     _last_deployment_address = None
@@ -60,7 +60,7 @@ def test_deploy_and_allocate(agency, token_economics, test_registry):
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_rewarded_periods)
+        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=test_economics.maximum_rewarded_periods)
         deposit_receipts.append(deposit_receipt)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)

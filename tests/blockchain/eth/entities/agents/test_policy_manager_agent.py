@@ -27,7 +27,7 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 
 
 @pytest.fixture(scope='function')
-def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
+def policy_meta(testerchain, agency, test_economics, blockchain_ursulas):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
@@ -35,7 +35,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
     staker_addresses = list(staking_agent.sample(quantity=3, duration=1))
     _txhash = agent.create_policy(policy_id=_policy_id,
                                   author_address=testerchain.alice_account,
-                                  value=token_economics.minimum_allowed_locked,
+                                  value=test_economics.minimum_allowed_locked,
                                   periods=10,
                                   first_period_reward=20,
                                   node_addresses=staker_addresses)
@@ -45,7 +45,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, agency, token_economics):
+def test_create_policy(testerchain, agency, test_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
@@ -58,7 +58,7 @@ def test_create_policy(testerchain, agency, token_economics):
     node_addresses = list(staking_agent.sample(quantity=3, duration=1))
     receipt = agent.create_policy(policy_id=policy_id,
                                   author_address=testerchain.alice_account,
-                                  value=token_economics.minimum_allowed_locked,
+                                  value=test_economics.minimum_allowed_locked,
                                   periods=10,
                                   first_period_reward=20,
                                   node_addresses=node_addresses)
@@ -142,7 +142,7 @@ def test_collect_refund(testerchain, agency, policy_meta):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics):
+def test_collect_policy_reward(testerchain, agency, policy_meta, test_economics):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
@@ -156,7 +156,7 @@ def test_collect_policy_reward(testerchain, agency, policy_meta, token_economics
 
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
 
-    for _ in range(token_economics.minimum_locked_periods):
+    for _ in range(test_economics.minimum_locked_periods):
         _receipt = staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
 

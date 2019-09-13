@@ -50,7 +50,7 @@ def test_make_agent(staking_escrow_deployer, test_registry):
 
 def test_deployment_parameters(staking_escrow_deployer,
                                token_deployer,
-                               token_economics,
+                               test_economics,
                                test_registry):
 
     token_address = staking_escrow_deployer.contract.functions.token().call()
@@ -58,8 +58,8 @@ def test_deployment_parameters(staking_escrow_deployer,
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     params = staking_agent.staking_parameters()
-    assert token_economics.staking_deployment_parameters[1:] == params[1:]
-    assert token_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
+    assert test_economics.staking_deployment_parameters[1:] == params[1:]
+    assert test_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
 
 
 def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry):

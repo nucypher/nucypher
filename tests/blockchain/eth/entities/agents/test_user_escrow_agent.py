@@ -33,8 +33,8 @@ TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
 
 
 @pytest.fixture(scope='module')
-def allocation_value(token_economics):
-    allocation = token_economics.minimum_allowed_locked * 10
+def allocation_value(test_economics):
+    allocation = test_economics.minimum_allowed_locked * 10
     return allocation
 
 
@@ -121,7 +121,7 @@ def test_read_timestamp(agent):
 
 
 @pytest.mark.slow()
-def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, token_economics):
+def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_value, test_economics):
     token_agent, staking_agent, policy_agent = agency
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
@@ -135,26 +135,26 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     testerchain.transacting_power.activate()
 
     # Move the tokens to the StakingEscrow
-    receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    receipt = agent.deposit_as_staker(value=test_economics.minimum_allowed_locked, periods=test_economics.minimum_locked_periods)
     assert receipt  # TODO
 
     # User sets a worker in StakingEscrow via UserEscrow
     worker = testerchain.ursula_account(0)
     _receipt = agent.set_worker(worker_address=worker)
 
-    assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
+    assert token_agent.get_balance(address=agent.contract_address) == allocation_value - test_economics.minimum_allowed_locked
     assert agent.unvested_tokens == allocation_value
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
-    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == token_economics.minimum_allowed_locked
-    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods) == token_economics.minimum_allowed_locked
-    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=token_economics.minimum_locked_periods+1) == 0
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=1) == test_economics.minimum_allowed_locked
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=test_economics.minimum_locked_periods) == test_economics.minimum_allowed_locked
+    assert staking_agent.get_locked_tokens(staker_address=agent.contract_address, periods=test_economics.minimum_locked_periods+1) == 0
 
     # Mock Powerup consumption (Beneficiary-Worker)
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      account=worker)
     testerchain.transacting_power.activate()
 
-    for _ in range(token_economics.minimum_locked_periods):
+    for _ in range(test_economics.minimum_locked_periods):
         staking_agent.confirm_activity(worker_address=worker)
         testerchain.time_travel(periods=1)
     testerchain.time_travel(periods=1)
@@ -167,8 +167,8 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     agent.mint()
 
     assert staking_agent.get_locked_tokens(staker_address=agent.contract_address) == 0
-    assert token_agent.get_balance(address=agent.contract_address) == allocation_value - token_economics.minimum_allowed_locked
-    txhash = agent.withdraw_as_staker(value=token_economics.minimum_allowed_locked)
+    assert token_agent.get_balance(address=agent.contract_address) == allocation_value - test_economics.minimum_allowed_locked
+    txhash = agent.withdraw_as_staker(value=test_economics.minimum_allowed_locked)
     assert txhash  # TODO
     assert token_agent.get_balance(address=agent.contract_address) == allocation_value
 
@@ -180,7 +180,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     assert token_agent.get_balance(address=agent.contract_address) > allocation_value
 
 
-def test_collect_policy_reward(testerchain, agent, agency, token_economics):
+def test_collect_policy_reward(testerchain, agent, agency, test_economics):
     _token_agent, staking_agent, policy_agent = agency
     deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.client.accounts
 
@@ -189,7 +189,7 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    _txhash = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    _txhash = agent.deposit_as_staker(value=test_economics.minimum_allowed_locked, periods=test_economics.minimum_locked_periods)
 
     # User sets a worker in StakingEscrow via UserEscrow
     worker = testerchain.ursula_account(0)

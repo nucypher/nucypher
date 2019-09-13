@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import WorkLockAgent, StakingEscrowAgent, ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (
     WorkLockDeployer,
     NucypherTokenDeployer,
@@ -28,11 +28,13 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     UserEscrowProxyDeployer
 )
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.utilities.sandbox.constants import INSECURE_DEPLOYMENT_SECRET_HASH
+from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.sandbox.constants import INSECURE_DEPLOYMENT_SECRET_HASH, INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_worklock_deployer(testerchain, test_registry, token_economics):
+def test_worklock_deployer(testerchain, test_registry, test_economics):
     origin = testerchain.etherbase_account
 
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
@@ -56,7 +58,7 @@ def test_worklock_deployer(testerchain, test_registry, token_economics):
 
     # Create WorkLock Deployer
     deployer = WorkLockDeployer(registry=test_registry,
-                                economics=token_economics,
+                                economics=test_economics,
                                 deployer_address=origin)
 
     # Deploy WorkLock

@@ -36,11 +36,11 @@ def escrow(testerchain, deploy_contract):
 
 
 @pytest.fixture(params=[False, True])
-def adjudicator(testerchain, escrow, request, token_economics, deploy_contract):
+def adjudicator(testerchain, escrow, request, test_economics, deploy_contract):
     contract, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
-        *token_economics.slashing_deployment_parameters)
+        *test_economics.slashing_deployment_parameters)
 
     if request.param:
         secret = os.urandom(DispatcherDeployer._secret_length)

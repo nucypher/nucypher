@@ -8,20 +8,20 @@ from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_NU(token_economics):
+def test_NU(test_economics):
 
     # Starting Small
-    min_allowed_locked = NU(token_economics.minimum_allowed_locked, 'NuNit')
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
+    min_allowed_locked = NU(test_economics.minimum_allowed_locked, 'NuNit')
+    assert test_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
 
-    min_NU_locked = int(str(token_economics.minimum_allowed_locked)[0:-18])
+    min_NU_locked = int(str(test_economics.minimum_allowed_locked)[0:-18])
     expected = NU(min_NU_locked, 'NU')
     assert min_allowed_locked == expected
 
     # Starting Big
     min_allowed_locked = NU(min_NU_locked, 'NU')
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked)
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
+    assert test_economics.minimum_allowed_locked == int(min_allowed_locked)
+    assert test_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
     assert str(min_allowed_locked) == '15000 NU'
 
     # Alternate construction
@@ -104,7 +104,7 @@ def test_NU(token_economics):
     assert round(pi_nus, 0) == round(pi_nus) == NU("3", "NU")
 
 
-def test_stake(testerchain, token_economics, agency):
+def test_stake(testerchain, test_economics, agency):
     token_agent, staking_agent, _policy_agent = agency
 
     class FakeUrsula:
@@ -123,7 +123,7 @@ def test_stake(testerchain, token_economics, agency):
                   value=NU(100, 'NU'),
                   index=0,
                   staking_agent=staking_agent,
-                  economics=token_economics)
+                  economics=test_economics)
 
     assert stake.value, 'NU' == NU(100, 'NU')
 

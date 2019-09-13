@@ -50,7 +50,7 @@ def registry_filepath():
 
 def test_nucypher_deploy_contracts(click_runner,
                                    mock_allocation_infile,
-                                   token_economics,
+                                   test_economics,
                                    registry_filepath):
 
     #
@@ -318,7 +318,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
                                               testerchain,
                                               registry_filepath,
                                               mock_allocation_infile,
-                                              token_economics):
+                                              test_economics):
 
     #
     # Main

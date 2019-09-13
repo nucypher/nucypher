@@ -28,11 +28,10 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
-DEPOSIT_RATE = 100
 
 
 @pytest.fixture(scope="module", autouse=True)
-def funded_worklock(testerchain, agency, test_registry, token_economics):
+def funded_worklock(testerchain, agency, test_registry, test_economics):
 
     # Unlock
     transacting_power = TransactingPower(account=testerchain.etherbase_account,
@@ -68,13 +67,13 @@ def test_status(click_runner, testerchain, test_registry, agency):
     assert result.exit_code == 0
 
 
-def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
+def test_bid(click_runner, testerchain, test_registry, agency, test_economics):
 
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
 
     bidder = testerchain.unassigned_accounts[-1]
-    bid_value = token_economics.maximum_bid
+    bid_value = test_economics.maximum_bid
 
     command = ('bid',
                '--bidder-address', bidder,
@@ -97,7 +96,7 @@ def test_bid(click_runner, testerchain, test_registry, agency, token_economics):
     assert testerchain.client.get_balance(worklock_agent.contract_address) == bid_value
 
 
-def test_remaining_work(click_runner, testerchain, test_registry, agency, token_economics):
+def test_remaining_work(click_runner, testerchain, test_registry, agency, test_economics):
     bidder = testerchain.unassigned_accounts[-1]
 
     command = ('remaining-work',
@@ -110,7 +109,7 @@ def test_remaining_work(click_runner, testerchain, test_registry, agency, token_
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
     assert result.exit_code == 0
     assert bidder in result.output
-    expected_work = token_economics.maximum_bid * token_economics.worklock_refund_rate
+    expected_work = test_economics.maximum_bid * test_economics.worklock_refund_rate
     assert str(expected_work) in result.output
 
 

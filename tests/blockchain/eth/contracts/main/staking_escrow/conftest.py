@@ -29,7 +29,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.fixture()
-def token_economics():
+def test_economics():
     economics = BaseEconomics(initial_supply=10 ** 9,
                               total_supply=2 * 10 ** 9,
                               staking_coefficient=8 * 10 ** 7,
@@ -43,17 +43,17 @@ def token_economics():
 
 
 @pytest.fixture()
-def token(deploy_contract, token_economics):
+def token(deploy_contract, test_economics):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=test_economics.erc20_total_supply)
     return token
 
 
 @pytest.fixture(params=[False, True])
-def escrow_contract(testerchain, token, token_economics, request, deploy_contract):
+def escrow_contract(testerchain, token, test_economics, request, deploy_contract):
     def make_escrow(max_allowed_locked_tokens):
         # Creator deploys the escrow
-        deploy_parameters = list(token_economics.staking_deployment_parameters)
+        deploy_parameters = list(test_economics.staking_deployment_parameters)
         deploy_parameters[-2] = max_allowed_locked_tokens
         contract, _ = deploy_contract('StakingEscrow', token.address, *deploy_parameters)
 

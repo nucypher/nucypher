@@ -20,19 +20,19 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.mark.slow
-def test_worklock(testerchain, token_economics, deploy_contract):
+def test_worklock(testerchain, test_economics, deploy_contract):
     creator, ursula1, ursula2, *everyone_else = testerchain.w3.eth.accounts
 
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupply=test_economics.erc20_total_supply)
 
     # Deploy MinersEscrow mock
     escrow, _ = deploy_contract(
         contract_name='StakingEscrowForWorkLockMock',
         _token=token.address,
-        _minAllowableLockedTokens=token_economics.minimum_allowed_locked,
-        _maxAllowableLockedTokens=token_economics.maximum_allowed_locked,
-        _minLockedPeriods=token_economics.minimum_locked_periods
+        _minAllowableLockedTokens=test_economics.minimum_allowed_locked,
+        _maxAllowableLockedTokens=test_economics.maximum_allowed_locked,
+        _minLockedPeriods=test_economics.minimum_locked_periods
     )
 
     # Deploy WorkLock
@@ -49,12 +49,12 @@ def test_worklock(testerchain, token_economics, deploy_contract):
         _endBidDate=end_bid_date,
         _depositRate=deposit_rate,
         _refundRate=refund_rate,
-        _lockedPeriods=2 * token_economics.minimum_locked_periods
+        _lockedPeriods=2 * test_economics.minimum_locked_periods
     )
     assert worklock.functions.startBidDate().call() == start_bid_date
     assert worklock.functions.endBidDate().call() == end_bid_date
-    assert worklock.functions.minAllowableLockedTokens().call() == token_economics.minimum_allowed_locked
-    assert worklock.functions.maxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
+    assert worklock.functions.minAllowableLockedTokens().call() == test_economics.minimum_allowed_locked
+    assert worklock.functions.maxAllowableLockedTokens().call() == test_economics.maximum_allowed_locked
     assert worklock.functions.depositRate().call() == deposit_rate
     assert worklock.functions.refundRate().call() == refund_rate
 
@@ -63,13 +63,13 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     refund_log = worklock.events.Refund.createFilter(fromBlock='latest')
 
     # Transfer tokens to WorkLock
-    worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
+    worklock_supply = 2 * test_economics.maximum_allowed_locked - 1
     tx = token.functions.transfer(worklock.address, worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Give Ursulas some ETH
-    minimum_deposit_eth = token_economics.minimum_allowed_locked // deposit_rate
-    maximum_deposit_eth = token_economics.maximum_allowed_locked // deposit_rate
+    minimum_deposit_eth = test_economics.minimum_allowed_locked // deposit_rate
+    maximum_deposit_eth = test_economics.maximum_allowed_locked // deposit_rate
     ursula1_balance = 2 * maximum_deposit_eth
     tx = testerchain.w3.eth.sendTransaction(
         {'from': testerchain.etherbase_account, 'to': ursula1, 'value': ursula1_balance})
@@ -107,7 +107,7 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': ursula1, 'value': minimum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.allClaimedTokens().call() == token_economics.minimum_allowed_locked
+    assert worklock.functions.allClaimedTokens().call() == test_economics.minimum_allowed_locked
     assert worklock.functions.workInfo(ursula1).call()[0] == minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == minimum_deposit_eth
 
@@ -116,14 +116,14 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     event_args = events[0]['args']
     assert event_args['staker'] == ursula1
     assert event_args['depositedETH'] == minimum_deposit_eth
-    assert event_args['claimedTokens'] == token_economics.minimum_allowed_locked
+    assert event_args['claimedTokens'] == test_economics.minimum_allowed_locked
 
     # Second Ursula does first bid
     assert worklock.functions.workInfo(ursula2).call()[0] == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': maximum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.allClaimedTokens().call() == \
-           token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+           test_economics.minimum_allowed_locked + test_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula2).call()[0] == maximum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
 
@@ -132,7 +132,7 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     event_args = events[1]['args']
     assert event_args['staker'] == ursula2
     assert event_args['depositedETH'] == maximum_deposit_eth
-    assert event_args['claimedTokens'] == token_economics.maximum_allowed_locked
+    assert event_args['claimedTokens'] == test_economics.maximum_allowed_locked
 
     # Can't bid again with too high ETH
     with pytest.raises((TransactionFailed, ValueError)):
@@ -147,7 +147,7 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     tx = worklock.functions.bid().transact({'from': ursula1, 'value': minimum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.allClaimedTokens().call() == \
-           2 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+           2 * test_economics.minimum_allowed_locked + test_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula1).call()[0] == 2 * minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + 2 * minimum_deposit_eth
 
@@ -156,7 +156,7 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     event_args = events[2]['args']
     assert event_args['staker'] == ursula1
     assert event_args['depositedETH'] == minimum_deposit_eth
-    assert event_args['claimedTokens'] == token_economics.minimum_allowed_locked
+    assert event_args['claimedTokens'] == test_economics.minimum_allowed_locked
 
     # Can't bid again: not enough tokens in worklock
     with pytest.raises((TransactionFailed, ValueError)):
@@ -194,18 +194,18 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula1).call() == 2 * minimum_deposit_eth * refund_rate
     value, measure_work, completed_work, periods = escrow.functions.stakerInfo(ursula1).call()
-    assert value == 2 * token_economics.minimum_allowed_locked
+    assert value == 2 * test_economics.minimum_allowed_locked
     assert measure_work
-    assert periods == 2 * token_economics.minimum_locked_periods
+    assert periods == 2 * test_economics.minimum_locked_periods
     assert token.functions.balanceOf(worklock.address).call() == \
-           worklock_supply - 2 * token_economics.minimum_allowed_locked
-    assert token.functions.balanceOf(escrow.address).call() == 2 * token_economics.minimum_allowed_locked
+           worklock_supply - 2 * test_economics.minimum_allowed_locked
+    assert token.functions.balanceOf(escrow.address).call() == 2 * test_economics.minimum_allowed_locked
 
     events = claim_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert event_args['staker'] == ursula1
-    assert event_args['claimedTokens'] == 2 * token_economics.minimum_allowed_locked
+    assert event_args['claimedTokens'] == 2 * test_economics.minimum_allowed_locked
 
     # Can't claim more than once
     with pytest.raises((TransactionFailed, ValueError)):
@@ -228,19 +228,19 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == maximum_deposit_eth * refund_rate
     value, measure_work, completed_work, periods = escrow.functions.stakerInfo(ursula2).call()
-    assert value == token_economics.maximum_allowed_locked
+    assert value == test_economics.maximum_allowed_locked
     assert measure_work
-    assert periods == 2 * token_economics.minimum_locked_periods
+    assert periods == 2 * test_economics.minimum_locked_periods
     assert token.functions.balanceOf(worklock.address).call() == \
-           worklock_supply - 2 * token_economics.minimum_allowed_locked - token_economics.maximum_allowed_locked
+           worklock_supply - 2 * test_economics.minimum_allowed_locked - test_economics.maximum_allowed_locked
     assert token.functions.balanceOf(escrow.address).call() == \
-           2 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+           2 * test_economics.minimum_allowed_locked + test_economics.maximum_allowed_locked
 
     events = claim_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
     assert event_args['staker'] == ursula2
-    assert event_args['claimedTokens'] == token_economics.maximum_allowed_locked
+    assert event_args['claimedTokens'] == test_economics.maximum_allowed_locked
 
     # "Do" some work and partial refund
     ursula1_balance = testerchain.w3.eth.getBalance(ursula1)
