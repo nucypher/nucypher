@@ -83,7 +83,7 @@ def test_bid(click_runner, testerchain, test_registry, agency, test_economics):
 
     command = ('bid',
                '--bidder-address', bidder,
-               '--bid', bid_value,
+               '--value', bid_value,
                '--registry-filepath', registry_filepath,
                '--provider', TEST_PROVIDER_URI,
                '--poa',

@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-from datetime import datetime
 
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.characters.banners import WORKLOCK_BANNER
@@ -38,9 +37,9 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI, EXISTING_READABLE_FI
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI", type=click.STRING, default="auto://")
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--bidder-address', help="Bidding address.", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--bid', help="Bid amount in wei", type=WEI)
+@click.option('--value', help="Bid amount in wei", type=WEI)
 @nucypher_click_config
-def worklock(click_config, action, force, provider_uri, sync, registry_filepath, poa, bidder_address, bid):
+def worklock(click_config, action, force, provider_uri, sync, registry_filepath, poa, bidder_address, value):
     """Participate in NU token worklock bidding."""
 
     emitter = click_config.emitter
@@ -91,15 +90,15 @@ def worklock(click_config, action, force, provider_uri, sync, registry_filepath,
 
         if action == "bid":
 
-            if not bid:  # TODO: Rename option --bid -> --value
-                bid = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
+            if not value:
+                value = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
                 if force:
                     raise click.MissingParameter("Missing --bid.")
 
-            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, value=bid)
+            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, value=value)
             emitter.message("Publishing Bid...")
             if not force:
-                click.confirm(f"Place bid of {Web3.fromWei(bid, 'ether')} ETH?", abort=True)
+                click.confirm(f"Place bid of {Web3.fromWei(value, 'ether')} ETH?", abort=True)
             paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
             return  # Exit
 
