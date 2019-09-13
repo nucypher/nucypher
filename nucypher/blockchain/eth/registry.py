@@ -102,6 +102,11 @@ class BaseContractRegistry(ABC):
         raise NotImplementedError
 
     @classmethod
+    def get_latest_publication_url(cls, branch: str = 'goerli') -> str:
+        github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.REGISTRY_NAME}'
+        return github_endpoint
+
+    @classmethod
     def fetch_latest_publication(cls, branch: str = 'goerli') -> bytes:
         """
         Get the latest published contract registry from github and save it on the local file system.
@@ -109,7 +114,7 @@ class BaseContractRegistry(ABC):
         """
 
         # Setup
-        github_endpoint = f'https://raw.githubusercontent.com/{cls.__PUBLICATION_REPO}/{branch}/{cls.REGISTRY_NAME}'
+        github_endpoint = cls.get_latest_publication_url(branch=branch)
         cls.logger.debug(f"Downloading contract registry from {github_endpoint}")
         response = requests.get(github_endpoint)
 

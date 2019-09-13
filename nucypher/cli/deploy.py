@@ -49,10 +49,11 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
+@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+@click.option('--registry-branch', help="Name of published registry branch", type=click.STRING, default='goerli')
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
 def deploy(action,
@@ -66,6 +67,7 @@ def deploy(action,
            allocation_outfile,
            registry_infile,
            registry_outfile,
+           registry_branch,
            value,
            target_address,
            config_root,
@@ -78,12 +80,12 @@ def deploy(action,
     \b
     Actions
     -----------------------------------------------------------------------------
-    contracts              Compile and deploy contracts.
-    allocations            Deploy pre-allocation contracts.
-    upgrade                Upgrade NuCypher existing proxy contract deployments.
-    rollback               Rollback a proxy contract's target.
     inspect                Echo owner information and bare contract metadata.
-    transfer-tokens        Transfer tokens from a contract to another address using the owner's address.
+    contracts              Compile and deploy contracts.
+    upgrade                Upgrade existing proxy contract deployments.
+    rollback               Rollback a proxy contract's target.
+    allocations            Deploy pre-allocation contracts.
+    transfer-tokens        Transfer tokens from contract's owner address to another address
     transfer-ownership     Transfer ownership of contracts to another address.
     """
 
@@ -128,27 +130,45 @@ def deploy(action,
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-    if action == "inspect":
-        if registry_infile:
-            registry = LocalContractRegistry(filepath=registry_infile)
-        else:
-            registry = InMemoryContractRegistry.from_latest_publication()
-        administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
-        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
-        return  # Exit
+    deployer_interface.connect()
 
     #
     # Establish Registry
     #
 
-    # Establish a contract registry from disk if specified
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
-    registry_filepath = (registry_outfile or registry_infile) or default_registry_filepath
-    if dev:
+    # FIXME: Revisit all this registry input/output logic - #1329
+    if dev and not registry_infile:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
-    registry = LocalContractRegistry(filepath=registry_filepath)
+        registry_infile = os.path.join(config_root, 'dev_contract_registry.json')
+
+    if action == "contracts":
+        if contract_name and registry_infile is None:  # There's a current deployment and you want to deploy a new contract on it.
+            message = "--registry-infile is required when deploying a contract to an existing registry."
+            raise click.BadArgumentUsage(message)
+        elif not contract_name and registry_infile:  # This is a new deployment but you specified an existing registry.
+            message = "--registry-infile is incompatible with a new deployment"
+            raise click.BadArgumentUsage(message)
+
+    is_brand_new_deployment = action == "contracts" and not contract_name
+    if registry_infile or is_brand_new_deployment:  # Use the specified registry
+        if not registry_outfile:
+            registry_outfile = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+        registry_filepath = registry_infile or registry_outfile
+        registry = LocalContractRegistry(filepath=registry_filepath)
+    else:  # Use the registry published on Github
+        registry_filepath = InMemoryContractRegistry.get_latest_publication_url(branch=registry_branch)
+        registry = InMemoryContractRegistry.from_latest_publication(branch=registry_branch)
+
     emitter.message(f"Configured to registry filepath {registry_filepath}")
+
+    #
+    # Actions that don't require authentication
+    #
+
+    if action == "inspect":
+        administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
+        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
+        return  # Exit
 
     #
     # Make Authenticated Deployment Actor
@@ -237,11 +257,11 @@ def deploy(action,
         #
 
         # Confirm filesystem registry writes.
-        if os.path.isfile(registry_filepath):
-            emitter.echo(f"\nThere is an existing contract registry at {registry_filepath}.\n"
+        if os.path.isfile(registry_outfile):
+            emitter.echo(f"\nThere is an existing contract registry at {registry_outfile}.\n"
                          f"Did you mean 'nucypher-deploy upgrade'?\n", color='yellow')
             click.confirm("*DESTROY* existing local registry and continue?", abort=True)
-            os.remove(registry_filepath)
+            os.remove(registry_outfile)
 
         # Stage Deployment
         secrets = ADMINISTRATOR.collect_deployment_secrets()
@@ -261,7 +281,6 @@ def deploy(action,
                                                                      etherscan=etherscan)
 
         # Paint outfile paths
-        registry_outfile = registry_filepath
         emitter.echo('Generated registry {}'.format(registry_outfile), bold=True, color='blue')
 
         # Save transaction metadata
