@@ -3,7 +3,7 @@
 set -e
 
 # update lock and build requirements files
-yes | ./scripts/installation/rebuild_pipenv.sh circlereqs
+yes | ./scripts/circle/rebuild_pipenv.sh circlereqs
 
 echo "---- validating requirements.txt ----"
 REQSHASH=$(md5sum requirements.txt | cut -d ' ' -f1)
