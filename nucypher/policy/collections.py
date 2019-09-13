@@ -49,17 +49,21 @@ class TreasureMap:
     from nucypher.policy.policies import Arrangement
     ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
 
-    splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )
-
     class NowhereToBeFound(NotFound):
         """
         Called when no known nodes have it.
         """
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
+
+    splitter = BytestringSplitter(Signature,
+                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
+                                  (UmbralMessageKit, VariableLengthBytestring)
+                                  )
+    __plaintext_splitter = BytestringSplitter(Signature,
+                                              (bytes, KECCAK_DIGEST_LENGTH,)  # hrac
+                                              )
+
 
     from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
@@ -162,6 +166,29 @@ class TreasureMap:
         """
         _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
         return _id
+
+    def __serialize(self):
+        """
+        WAIT! This is probably not what you want. In 9/10 times, you'll
+        probably want to use `bytes(my_treasure_map)`. So... do that.
+        """
+        return self._public_signature + self._hrac + self._m.to_bytes(1, 'big') + self.nodes_as_bytes()
+
+    @classmethod
+    def __deserialize(cls, bytes_representation):
+        """
+        WAIT! This is probably not what you want. In 9/10 times, you'll probably
+        want to use `TreasureMap.from_bytes(my_tmap_as_bytes)`. So... do that.
+        """
+        signature, hrac, remainder = cls.__plaintext_splitter(
+                                                        bytes_representation,
+                                                        return_remainder=True)
+        m = remainder[0]
+        destinations = dict(cls.node_id_splitter.repeat(remainder[1:]))
+
+        return cls(m=m, destinations=destinations,
+                   public_signature=signature, hrac=hrac)
+
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
