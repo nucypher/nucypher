@@ -317,7 +317,7 @@ def test_all(testerchain,
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Initialize worklock
-    initial_supply = 1000
+    initial_supply = 2000
     tx = token.functions.approve(worklock.address, initial_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.deposit(initial_supply).transact({'from': creator})
@@ -348,7 +348,8 @@ def test_all(testerchain,
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': deposited_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.remainingTokens().call() == 0
+    remaining_tokens = initial_supply // 2
+    assert worklock.functions.remainingTokens().call() == remaining_tokens
     assert worklock.functions.workInfo(ursula2).call()[0] == deposited_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == deposited_eth
 
@@ -368,8 +369,9 @@ def test_all(testerchain,
     # Ursula claims tokens
     tx = worklock.functions.claim().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    escrow_balance = token_economics.erc20_reward_supply + 1000
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
-    assert token_economics.erc20_reward_supply + 1000 == token.functions.balanceOf(escrow.address).call()
+    assert escrow_balance == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.getAllTokens(ursula2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
@@ -379,6 +381,15 @@ def test_all(testerchain,
 
     tx = escrow.functions.setWorker(ursula2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
+
+    # Burn remaining tokens in WorkLock
+    tx = worklock.functions.burnRemaining().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    escrow_balance += remaining_tokens
+    assert 0 == worklock.functions.remainingTokens().call()
+    assert 0 == token.functions.balanceOf(worklock.address).call()
+    assert escrow_balance == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + remaining_tokens == escrow.functions.getReservedReward().call()
 
     # Ursula prolongs lock duration
     tx = escrow.functions.prolongStake(0, 3).transact({'from': ursula2, 'gas_price': 0})
@@ -482,7 +493,8 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert token_economics.erc20_reward_supply + 2000 == token.functions.balanceOf(escrow.address).call()
+    escrow_balance += 1000
+    assert escrow_balance == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula1, 1).call()
@@ -497,12 +509,13 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
+    escrow_balance += 1000
     assert 1000 == escrow.functions.getAllTokens(user_escrow_1.address).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 10).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address, 11).call()
-    assert token_economics.erc20_reward_supply + 3000 == token.functions.balanceOf(escrow.address).call()
+    assert escrow_balance == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(user_escrow_1.address).call()
 
     # Only user can deposit tokens to the staking escrow
