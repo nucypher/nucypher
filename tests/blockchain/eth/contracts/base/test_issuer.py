@@ -75,14 +75,14 @@ def test_issuer(testerchain, token, deploy_contract):
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
     # Give staker tokens for reward and initialize contract
-    tx = token.functions.transfer(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
+    tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Only owner can initialize
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize().transact({'from': ursula})
+        tx = issuer.functions.initialize(0).transact({'from': ursula})
         testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.initialize().transact({'from': creator})
+    tx = issuer.functions.initialize(economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     events = events.get_all_entries()
@@ -92,7 +92,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     # Can't initialize second time
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = issuer.functions.initialize().transact({'from': creator})
+        tx = issuer.functions.initialize(0).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # Check result of minting tokens
@@ -152,9 +152,9 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     )
 
     # Give staker tokens for reward and initialize contract
-    tx = token.functions.transfer(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
+    tx = token.functions.approve(issuer.address, economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = issuer.functions.initialize().transact({'from': creator})
+    tx = issuer.functions.initialize(economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     reward = issuer.functions.getReservedReward().call()
 
@@ -193,9 +193,20 @@ def test_inflation_rate(testerchain, token, deploy_contract):
     # Return some tokens as a reward
     balance = token.functions.balanceOf(ursula).call()
     reward = issuer.functions.getReservedReward().call()
-    tx = issuer.functions.testUnMint(2 * one_period + 2 * minted_amount).transact()
+    amount_to_burn = 2 * one_period + 2 * minted_amount
+    tx = token.functions.transfer(ursula, amount_to_burn).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert reward + 2 * one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
+    tx = token.functions.approve(issuer.address, amount_to_burn).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    tx = issuer.functions.testBurn(amount_to_burn).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert reward + amount_to_burn == issuer.functions.getReservedReward().call()
+
+    events = issuer.events.Burnt.createFilter(fromBlock=0).get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula == event_args['sender']
+    assert amount_to_burn == event_args['value']
 
     # Rate will be increased because some tokens were returned
     tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
@@ -247,9 +258,9 @@ def test_upgrading(testerchain, token, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
     # Give tokens for reward and initialize contract
-    tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
+    tx = token.functions.approve(contract.address, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = contract.functions.initialize().transact({'from': creator})
+    tx = contract.functions.initialize(10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version, check new and old values of variables

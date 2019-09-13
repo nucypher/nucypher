@@ -20,7 +20,7 @@ contract WorkLock {
     event Bid(address indexed staker, uint256 depositedETH, uint256 claimedTokens);
     event Claimed(address indexed staker, uint256 claimedTokens);
     event Refund(address indexed staker, uint256 refundETH, uint256 completedWork);
-    event Burn(address indexed sender, uint256 value);
+    event Burnt(address indexed sender, uint256 value);
 
     struct WorkInfo {
         uint256 depositedETH;
@@ -166,7 +166,8 @@ contract WorkLock {
         require(remainingTokens > 0, "There are no tokens that can be burned");
         token.approve(address(escrow), remainingTokens);
         escrow.burn(remainingTokens);
-        emit Burn(msg.sender, remainingTokens);
+        emit Burnt(msg.sender, remainingTokens);
+        remainingTokens = 0;
     }
 
 }
