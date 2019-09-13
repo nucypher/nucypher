@@ -247,7 +247,7 @@ Registry  ................ {administrator.registry.filepath}
 * Standard Deployments
 =====================================================================
 
-NucypherToken ........... {token_agent.contract_address}
+{token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
     ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
     emitter.echo(contract_payload)
@@ -307,7 +307,7 @@ NucypherToken ........... {token_agent.contract_address}
                                                 bare=True)  # acquire agency for the dispatcher itself.
 
         user_escrow_payload = f"""
-UserEscrowProxy .......... {bare_contract.address}
+{user_escrow_proxy_agent.contract_name} .......... {bare_contract.address}
     ~ LibraryLinker ...... {linker_deployer.contract.address}
         ~ Owner .......... {linker_deployer.contract.functions.owner().call()}
         ~ Target ......... {linker_deployer.contract.functions.target().call()}"""
