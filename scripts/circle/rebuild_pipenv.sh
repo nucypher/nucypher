@@ -18,7 +18,7 @@ touch $PREFIX.txt
 touch dev-$PREFIX.txt
 
 set -e
-echo "rebuilding pipenv.lock... this will take awhile."
+echo "rebuilding Pipfile.lock... this may take awhile."
 
 echo "bulding dev-$PREFIX.txt"
 pipenv lock --clear --pre --requirements --dev > dev-$PREFIX.txt
