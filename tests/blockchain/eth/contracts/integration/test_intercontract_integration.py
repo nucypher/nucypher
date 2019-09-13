@@ -307,14 +307,20 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Initialize escrow
-    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Initialize worklock
     initial_supply = 1000
-    tx = token.functions.transfer(worklock.address, initial_supply).transact({'from': creator})
+    tx = token.functions.approve(worklock.address, initial_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = worklock.functions.deposit(initial_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Can't do anything before start date
@@ -337,12 +343,12 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Ursula does bid
-    assert worklock.functions.allClaimedTokens().call() == 0
+    assert worklock.functions.remainingTokens().call() == initial_supply
     assert worklock.functions.workInfo(ursula2).call()[0] == 0
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': deposited_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.allClaimedTokens().call() == 1000
+    assert worklock.functions.remainingTokens().call() == 0
     assert worklock.functions.workInfo(ursula2).call()[0] == deposited_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == deposited_eth
 

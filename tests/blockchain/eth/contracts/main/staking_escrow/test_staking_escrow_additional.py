@@ -86,7 +86,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
-    tx = contract.functions.initialize().transact({'from': creator})
+    tx = contract.functions.initialize(0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(staker, 1000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -190,9 +190,10 @@ def test_re_stake(testerchain, token, escrow_contract):
     re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
+    reward = 10 ** 9
+    tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Set re-stake parameter even before initialization
@@ -452,7 +453,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
     worker_log = escrow.events.WorkerSet.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contracts
@@ -693,9 +694,10 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
 
     # Initialize escrow contract
-    tx = token.functions.transfer(escrow.address, int(NU(10 ** 9, 'NuNit'))).transact({'from': creator})
+    reward = 10 ** 9
+    tx = token.functions.approve(escrow.address, int(NU(reward, 'NuNit'))).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock

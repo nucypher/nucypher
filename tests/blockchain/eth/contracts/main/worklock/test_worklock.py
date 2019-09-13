@@ -64,7 +64,9 @@ def test_worklock(testerchain, token_economics, deploy_contract):
 
     # Transfer tokens to WorkLock
     worklock_supply = 2 * token_economics.maximum_allowed_locked - 1
-    tx = token.functions.transfer(worklock.address, worklock_supply).transact({'from': creator})
+    tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = worklock.functions.deposit(worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Give Ursulas some ETH
@@ -102,12 +104,12 @@ def test_worklock(testerchain, token_economics, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
     # Ursula does first bid
-    assert worklock.functions.allClaimedTokens().call() == 0
+    assert worklock.functions.remainingTokens().call() == worklock_supply
     assert worklock.functions.workInfo(ursula1).call()[0] == 0
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
     tx = worklock.functions.bid().transact({'from': ursula1, 'value': minimum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.allClaimedTokens().call() == token_economics.minimum_allowed_locked
+    assert worklock.functions.remainingTokens().call() == worklock_supply - token_economics.minimum_allowed_locked
     assert worklock.functions.workInfo(ursula1).call()[0] == minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == minimum_deposit_eth
 
@@ -122,8 +124,8 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     assert worklock.functions.workInfo(ursula2).call()[0] == 0
     tx = worklock.functions.bid().transact({'from': ursula2, 'value': maximum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.allClaimedTokens().call() == \
-           token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+    assert worklock.functions.remainingTokens().call() == worklock_supply - \
+           token_economics.minimum_allowed_locked - token_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula2).call()[0] == maximum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + minimum_deposit_eth
 
@@ -146,8 +148,8 @@ def test_worklock(testerchain, token_economics, deploy_contract):
     # Ursula does second bid
     tx = worklock.functions.bid().transact({'from': ursula1, 'value': minimum_deposit_eth, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.allClaimedTokens().call() == \
-           2 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
+    assert worklock.functions.remainingTokens().call() == worklock_supply - \
+           2 * token_economics.minimum_allowed_locked - token_economics.maximum_allowed_locked
     assert worklock.functions.workInfo(ursula1).call()[0] == 2 * minimum_deposit_eth
     assert testerchain.w3.eth.getBalance(worklock.address) == maximum_deposit_eth + 2 * minimum_deposit_eth
 

@@ -76,7 +76,7 @@ def test_staking(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Ursula can't deposit and lock too low value (less than _minAllowableLockedTokens coefficient)
@@ -476,7 +476,7 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
     ursula = testerchain.client.accounts[1]
 
     # Initialize Escrow contract
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     # Prepare before deposit

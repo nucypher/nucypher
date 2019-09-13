@@ -27,9 +27,10 @@ def test_sampling(testerchain, token, escrow_contract):
     creator = testerchain.etherbase_account
 
     # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.transfer(escrow.address, 10 ** 9).transact({'from': creator})
+    reward = 10 ** 9
+    tx = token.functions.approve(escrow.address, reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
+    tx = escrow.functions.initialize(reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     stakers = testerchain.stakers_accounts
