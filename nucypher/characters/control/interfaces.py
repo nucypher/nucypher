@@ -120,7 +120,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         Character control endpoint to allow Alice to revoke her policy.
         """
         from nucypher.policy.collections import TreasureMap
-        treasure_map = TreasureMap.from_bytes(treasure_map)
+        treasure_map = TreasureMap._TreasureMap__deserialize(treasure_map)
 
         failed_revocations = self.character.revoke(treasure_map)
         if len(failed_revocations) > 0:

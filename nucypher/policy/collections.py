@@ -264,7 +264,8 @@ class PolicyCredential:
         }
 
         if self.treasure_map is not None:
-            cred_dict['treasure_map'] = bytes(self.treasure_map).hex()
+            breakpoint()
+            cred_dict['treasure_map'] = self.treasure_map._TreasureMap__serialize().hex()
 
         return json.dumps(cred_dict)
 
@@ -286,7 +287,7 @@ class PolicyCredential:
         treasure_map = None
 
         if 'treasure_map' in cred_json:
-            treasure_map = TreasureMap.from_bytes(
+            treasure_map = TreasureMap._TreasureMap__deserialize(
                                 bytes().fromhex(cred_json['treasure_map']))
 
         return cls(alice_verifying_key, label, expiration, policy_pubkey,
