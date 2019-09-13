@@ -20,7 +20,8 @@ from decimal import Decimal, localcontext
 from math import log
 from typing import Tuple
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent, AdjudicatorAgent, \
+    WorkLockAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 
@@ -416,6 +417,7 @@ class TokenEconomicsFactory:
         token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
+        worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
 
         total_supply = token_agent.contract.functions.totalSupply().call()
         reward_supply = staking_agent.contract.functions.getReservedReward().call()
@@ -426,9 +428,15 @@ class TokenEconomicsFactory:
         seconds_per_period = staking_parameters.pop(0)
         staking_parameters.insert(3, seconds_per_period // 60 // 60)  # hours_per_period
         slashing_parameters = adjudicator_agent.slashing_parameters()
+
+        # TODO: How to get worklock supply?
+        worklock_parameters = worklock_agent.worklock_parameters()
+
         economics_parameters = (initial_supply,
                                 total_supply,
                                 *staking_parameters,
-                                *slashing_parameters)
+                                *slashing_parameters,
+                                *worklock_parameters)
+
         economics = BaseEconomics(*economics_parameters)
         return economics
