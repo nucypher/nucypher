@@ -396,6 +396,11 @@ class ContractAdministrator(NucypherTokenActor):
         if interactive:
             click.confirm("Continue with the allocation process?", abort=True)
 
+        total_to_allocate = NU.from_nunits(sum(allocation['amount'] for allocation in allocations))
+        balance = ContractAgency.get_agent(NucypherTokenAgent, self.registry).get_balance(self.deployer_address)
+        if balance < total_to_allocate:
+            raise ValueError(f"Not enough tokens to allocate. We need at least {total_to_allocate}.")
+
         allocation_receipts, failed, allocated = dict(), list(), list()
         total_deployment_transactions = len(allocations) * 4
 

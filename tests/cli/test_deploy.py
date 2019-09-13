@@ -112,7 +112,6 @@ def test_nucypher_deploy_contracts(click_runner,
     assert PolicyManagerAgent(registry=registry)
 
     # This agent wasn't instantiated before, so we have to supply the blockchain
-    blockchain = staking_agent.blockchain
     assert AdjudicatorAgent(registry=registry)
 
 
