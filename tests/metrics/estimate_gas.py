@@ -32,7 +32,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from zope.interface import provider
 
-from nucypher.blockchain.economics import StandardEconomics
+from nucypher.blockchain.economics import StandardEconomics, TestEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
@@ -153,7 +153,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    economics = StandardEconomics(
+    economics = TestEconomics(
         base_penalty=MIN_ALLOWED_LOCKED - 1,
         penalty_history_coefficient=0,
         percentage_penalty_coefficient=2,
