@@ -264,7 +264,6 @@ class PolicyCredential:
         }
 
         if self.treasure_map is not None:
-            breakpoint()
             cred_dict['treasure_map'] = self.treasure_map._TreasureMap__serialize().hex()
 
         return json.dumps(cred_dict)

@@ -112,7 +112,8 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
-                         'alice_verifying_key': new_policy.alice.stamp}
+                         'alice_verifying_key': new_policy.alice.stamp,
+                         'policy_credential': new_policy.credential()}
         return response_data
 
     def revoke(self, treasure_map: bytes) -> dict:

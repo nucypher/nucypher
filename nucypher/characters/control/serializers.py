@@ -134,7 +134,8 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
 
         response_data = {'treasure_map': treasure_map_base64,
                          'policy_encrypting_key': policy_encrypting_key_hex,
-                         'alice_verifying_key': alice_verifying_key_hex}
+                         'alice_verifying_key': alice_verifying_key_hex,
+                         'policy_credential': response['policy_credential'].to_json()}
 
         return response_data
 
