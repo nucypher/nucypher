@@ -39,6 +39,7 @@ WebEmitter._crash_on_error_default = True
 # Dont re-lock account in background during activity confirmations
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
+LOCKED_STATUS_FUNCTION = TransactingPower.is_unlocked
 TransactingPower.is_unlocked = True
 
 # Modified contract constructor parameters in-test; Shadows StandardEconomics
