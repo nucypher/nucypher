@@ -598,8 +598,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer the reward supply tokens to StakingEscrow #
-        reward_function = self.token_contract.functions.transfer(the_escrow_contract.address,
-                                                                 self.economics.erc20_reward_supply)
+        reward_function = self.token_contract.functions.approve(the_escrow_contract.address,
+                                                                self.economics.erc20_reward_supply)
 
         # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
         reward_receipt = self.blockchain.send_transaction(contract_function=reward_function,
@@ -609,7 +609,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             progress.update(1)
 
         # 4 - Initialize the StakingEscrow contract
-        init_function = the_escrow_contract.functions.initialize()
+        init_function = the_escrow_contract.functions.initialize(self.economics.erc20_reward_supply)
 
         init_receipt = self.blockchain.send_transaction(contract_function=init_function,
                                                         sender_address=self.deployer_address,
