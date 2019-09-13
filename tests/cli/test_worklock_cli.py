@@ -17,15 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
 )
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.worklock import worklock
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import (
+    TEST_PROVIDER_URI,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    select_test_port
+)
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
 
@@ -130,9 +137,27 @@ def test_claim(click_runner, testerchain, agency):
     assert result.exit_code == 0
 
 
-def test_refund(click_runner, testerchain, agency):
-    # TODO: Perform work
+def test_refund(click_runner, testerchain, agency, test_registry, test_economics):
     bidder = testerchain.unassigned_accounts[-1]
+
+    #
+    # WorkLock Staker-Worker
+    #
+
+    # No stake initialization is needed, since claiming worklock tokens.
+    staker = Staker(is_me=True, checksum_address=bidder, registry=test_registry)
+    staker.set_worker(worker_address=bidder)
+
+    worker = Ursula(is_me=True,
+                    registry=test_registry,
+                    checksum_address=bidder,
+                    worker_address=bidder,
+                    rest_host=MOCK_IP_ADDRESS,
+                    rest_port=select_test_port())
+
+    for period in range(10):
+        worker.confirm_activity()
+        testerchain.time_travel(periods=1)
 
     command = ('refund',
                '--bidder-address', bidder,

@@ -2,8 +2,11 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3 import Web3
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import WorkLockAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import WorkLockDeployer
+from nucypher.characters.lawful import Ursula
+from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, select_test_port
 
 
 def test_create_worklock_agent(testerchain, test_registry, agency, test_economics):
@@ -61,7 +64,7 @@ def test_claim(testerchain, agency, test_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.unassigned_accounts[-1]
     receipt = agent.claim(sender_address=bidder)
-    assert receipt
+    assert receipt['status'] == 1
 
 
 def test_refund_rejection_without_work(testerchain, agency, test_economics, test_registry):
@@ -69,3 +72,43 @@ def test_refund_rejection_without_work(testerchain, agency, test_economics, test
     bidder = testerchain.unassigned_accounts[-1]
     with pytest.raises(TransactionFailed):
         _receipt = agent.refund(sender_address=bidder)
+
+
+def test_refund_after_working(testerchain, agency, test_economics, test_registry):
+
+    #
+    # WorkLock Staker-Worker
+    #
+
+    bidder = testerchain.unassigned_accounts[-1]
+
+    # No stake initialization is needed, since claiming worklock tokens.
+    staker = Staker(is_me=True, checksum_address=bidder, registry=test_registry)
+    staker.set_worker(worker_address=bidder)
+
+    worker = Ursula(is_me=True,
+                    registry=test_registry,
+                    checksum_address=bidder,
+                    worker_address=bidder,
+                    rest_host=MOCK_IP_ADDRESS,
+                    rest_port=select_test_port())
+
+    periods_to_confirm = 10
+    for period in range(periods_to_confirm):
+        worker.confirm_activity()
+        testerchain.time_travel(periods=1)
+
+    #
+    # Refund
+    #
+
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
+    # token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+
+    pre_refund_balance = testerchain.client.get_balance(bidder)
+
+    receipt = worklock_agent.refund(sender_address=bidder)
+    assert receipt['status'] == 1
+
+    post_refund_balance = testerchain.client.get_balance(bidder)
+    assert post_refund_balance > pre_refund_balance
