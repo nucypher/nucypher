@@ -255,7 +255,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address, economics=self.economics)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         receipts = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
@@ -272,7 +272,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
+        deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address, economics=self.economics)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
         receipts = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                      new_secret_hash=new_secret_hash)

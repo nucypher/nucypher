@@ -75,3 +75,23 @@ def test_worklock_deployer(testerchain, test_registry, test_economics):
     agent = WorkLockAgent(registry=test_registry)
     assert agent.contract_address == deployer.contract.address == deployer.contract_address
     assert WorkLockDeployer.contract_name in test_registry.read()
+
+
+def test_funding_worklock_contract(testerchain, agency, test_registry, test_economics, deploy_worklock):
+    deployer = deploy_worklock
+    assert deployer.contract_address
+    assert deployer.contract_address is not BlockchainInterface.NULL_ADDRESS
+
+    transacting_power = TransactingPower(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
+    transacting_power.activate()
+
+    # WorkLock contract is unfunded.
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    assert token_agent.get_balance(deployer.contract_address) == 0
+
+    # Funding account has enough tokens to fund the contract.
+    assert token_agent.get_balance(testerchain.etherbase_account) > test_economics.maximum_allowed_locked
+
+    # Fund.
+    receipt = deployer.fund(sender_address=testerchain.etherbase_account)
+    assert receipt['status'] == 1

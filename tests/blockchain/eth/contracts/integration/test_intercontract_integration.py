@@ -43,8 +43,8 @@ adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
-def token_economics(testerchain):
-    economics = TestEconomics(initial_supply=10 ** 9,
+def test_economics(testerchain):
+    economics = BaseEconomics(initial_supply=10 ** 9,
                               total_supply=2 * 10 ** 9,
                               staking_coefficient=8 * 10 ** 7,
                               locked_periods_coefficient=4,

@@ -14,6 +14,7 @@ from nucypher.crypto.api import verify_eip_191
 #
 # NOTE: This module is skipped on CI
 #
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -60,9 +61,9 @@ def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
 
     # Make Deployer
     etherbase = to_checksum_address(instant_geth_dev_node.accounts[0].decode())  # TODO: Make property on nucypher geth node instances?
-    administrator = ContractAdministrator(registry=test_registry,
-                                          deployer_address=etherbase,
-                                          client_password=None)  # dev accounts have no password.
+
+    power = TransactingPower(account=etherbase, password=None)   # dev accounts have no password.
+    administrator = ContractAdministrator(registry=test_registry, transacting_power=power)
 
     assert int(blockchain.client.chain_id) == 1337
 

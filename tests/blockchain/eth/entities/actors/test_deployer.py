@@ -51,8 +51,8 @@ def test_rapid_deployment(test_economics, test_registry):
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    deployer = ContractAdministrator(deployer_address=deployer_address,
-                                     registry=test_registry)
+    power = TransactingPower(account=deployer_address, password=None)
+    deployer = ContractAdministrator(transacting_power=power, registry=test_registry)
 
     secrets = dict()
     for deployer_class in deployer.upgradeable_deployer_classes:

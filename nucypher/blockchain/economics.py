@@ -29,8 +29,8 @@ LOG2 = Decimal(log(2))
 
 class BaseEconomics:
     """
-    Parameters to use in token and escrow blockchain deployments
-    from high-level human-understandable parameters.
+    A representation of a contract deployment set's constructor parameters, and the calculations
+    used to generate those values from high-level human-understandable parameters.
 
     --------------------------
 
@@ -218,9 +218,6 @@ class BaseEconomics:
 
 class StandardEconomics(BaseEconomics):
     """
-    Calculated parameters to use in token and escrow blockchain deployments
-    from high-level human-understandable parameters.
-
     --------------------------
 
     Formula for staking in one period:
@@ -260,15 +257,12 @@ class StandardEconomics(BaseEconomics):
     __default_small_stake_multiplier = Decimal(0.5)
 
     def __init__(self,
-
-                 # Token & Staking
                  initial_supply: int = __default_initial_supply,
                  initial_inflation: int = __default_initial_inflation,
                  halving_delay: int = __default_token_halving,
                  reward_saturation: int = __default_reward_saturation,
                  small_stake_multiplier: Decimal = __default_small_stake_multiplier,
-                 **kwargs
-                 ):
+                 **kwargs):
         """
         :param initial_supply: Tokens at t=0
         :param initial_inflation: Inflation on day 1 expressed in units of year**-1
@@ -278,7 +272,7 @@ class StandardEconomics(BaseEconomics):
         """
 
         #
-        # Calculate
+        # Calculated
         #
 
         with localcontext() as ctx:
@@ -298,20 +292,21 @@ class StandardEconomics(BaseEconomics):
             # Awarded periods- Escrow parameter
             maximum_rewarded_periods = reward_saturation * 365
 
+        #
         # Injected
+        #
+
         self.initial_inflation = initial_inflation
         self.token_halving = halving_delay
         self.token_saturation = reward_saturation
         self.small_stake_multiplier = small_stake_multiplier
 
-        super().__init__(
-            initial_supply,
-            total_supply,
-            staking_coefficient,
-            locked_periods_coefficient,
-            maximum_rewarded_periods,
-            **kwargs
-        )
+        super().__init__(initial_supply=initial_supply,
+                         total_supply=total_supply,
+                         staking_coefficient=staking_coefficient,
+                         locked_periods_coefficient=locked_periods_coefficient,
+                         maximum_rewarded_periods=maximum_rewarded_periods,
+                         **kwargs)
 
     def token_supply_at_period(self, period: int) -> int:
         if period < 0:
@@ -349,19 +344,30 @@ class TestEconomics(StandardEconomics):
 
     __default_worklock_deposit_rate = 100
     __default_worklock_refund_rate = 200
+    __default_worklock_supply = NotImplemented
 
     def __init__(self,
-                 worklock_deposit_rate=__default_worklock_deposit_rate,
-                 worklock_refund_rate=__default_worklock_refund_rate,
+                 worklock_deposit_rate: int = __default_worklock_deposit_rate,
+                 worklock_refund_rate: int = __default_worklock_refund_rate,
+                 worklock_supply: int = __default_worklock_supply,
                  *args, **kwargs):
 
+        #
         # Injected
+        #
+
         super().__init__(worklock_deposit_rate=worklock_deposit_rate,
                          worklock_refund_rate=worklock_refund_rate,
+                         worklock_supply=worklock_supply,
                          *args, **kwargs)
 
+        #
         # Calculated
-        self.worklock_supply = 2 * self.maximum_allowed_locked
+        #
+
+        self.worklock_supply = self.maximum_allowed_locked
+
+        # TODO: Move to Standard Economics
         self.maximum_bid = int(self.maximum_allowed_locked // self.worklock_deposit_rate)
         self.minimum_bid = int(self.minimum_allowed_locked // self.worklock_deposit_rate)
 

@@ -24,9 +24,9 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry):
+def agent(testerchain, test_registry, test_economics):
     origin, *everybody_else = testerchain.client.accounts
-    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin, economics=test_economics)
 
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()

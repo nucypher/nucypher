@@ -68,7 +68,9 @@ class BaseContractDeployer:
     def __init__(self,
                  deployer_address: str,
                  registry: BaseContractRegistry,
-                 economics: BaseEconomics = NO_ECONOMICS_CONFIGURED):
+                 economics: BaseEconomics = NO_ECONOMICS_CONFIGURED,
+                 acquire_agency: bool = False,
+                 assemble_proxy: bool = True):
 
         #
         # Validate
@@ -80,6 +82,7 @@ class BaseContractDeployer:
         #
         # Defaults
         #
+
         self.registry = registry
         self.deployment_receipts = dict()
         self._contract = CONTRACT_NOT_DEPLOYED
@@ -87,6 +90,18 @@ class BaseContractDeployer:
         self.__deployer_address = deployer_address
         self.__ready_to_deploy = False
         self.__economics = economics
+
+        if acquire_agency:
+            if self._upgradeable:
+                contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                                registry=self.registry,
+                                                                proxy_name=self._proxy_deployer.contract_name,
+                                                                use_proxy_address=assemble_proxy)
+            else:
+                contract = self.blockchain.get_contract_by_name(name=self.contract_name, registry=self.registry)
+        else:
+            contract = CONTRACT_NOT_DEPLOYED
+        self._contract = contract
 
     @property
     def economics(self) -> BaseEconomics:
