@@ -52,10 +52,10 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
 @click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
+@click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -84,12 +84,12 @@ def deploy(action,
     \b
     Actions
     -----------------------------------------------------------------------------
-    contracts              Compile and deploy contracts.
-    allocations            Deploy pre-allocation contracts.
-    upgrade                Upgrade NuCypher existing proxy contract deployments.
-    rollback               Rollback a proxy contract's target.
     inspect                Echo owner information and bare contract metadata.
-    transfer-tokens        Transfer tokens from a contract to another address using the owner's address.
+    contracts              Compile and deploy contracts.
+    upgrade                Upgrade existing proxy contract deployments.
+    rollback               Rollback a proxy contract's target.
+    allocations            Deploy pre-allocation contracts.
+    transfer-tokens        Transfer tokens from contract's owner address to another address
     transfer-ownership     Transfer ownership of contracts to another address.
     """
 
@@ -143,14 +143,7 @@ def deploy(action,
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-    if action == "inspect":
-        if registry_infile:
-            registry = LocalContractRegistry(filepath=registry_infile)
-        else:
-            registry = InMemoryContractRegistry.from_latest_publication()
-        administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
-        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
-        return  # Exit
+    deployer_interface.connect()
 
     #
     # Establish Registry
@@ -160,6 +153,15 @@ def deploy(action,
                                                  registry_infile=registry_infile,
                                                  registry_outfile=registry_outfile,
                                                  dev=dev)
+
+    #
+    # Actions that don't require authentication
+    #
+
+    if action == "inspect":
+        administrator = ContractAdministrator(registry=local_registry, deployer_address=deployer_address)
+        paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
+        return  # Exit
 
     #
     # Make Authenticated Deployment Actor
