@@ -359,7 +359,8 @@ def ursula(click_config,
         receipt = URSULA.confirm_activity()
 
         confirmed_period = URSULA.staking_agent.get_current_period() + 1
-        date = datetime_at_period(period=confirmed_period)
+        date = datetime_at_period(period=confirmed_period,
+                                  seconds_per_period=URSULA.economics.seconds_per_period)
 
         # TODO: Double-check dates here
         emitter.echo(f'\nActivity confirmed for period #{confirmed_period} '
