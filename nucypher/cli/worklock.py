@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalCont
 from nucypher.characters.banners import WORKLOCK_BANNER
 from nucypher.cli.actions import select_client_account
 from nucypher.cli.config import nucypher_click_config
-from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status
+from nucypher.cli.painting import paint_receipt_summary, paint_worklock_status, paint_worklock_participant_notice
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI, EXISTING_READABLE_FILE
 
 
@@ -89,32 +89,36 @@ def worklock(click_config, action, force, provider_uri, sync, registry_filepath,
         #
 
         if action == "bid":
-
             if not value:
                 value = int(Web3.fromWei(click.prompt("Enter bid amount in ETH", type=click.FloatRange(min=0)), 'wei'))
                 if force:
-                    raise click.MissingParameter("Missing --bid.")
-
-            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, value=value)
-            emitter.message("Publishing Bid...")
+                    raise click.MissingParameter("Missing --value.")
             if not force:
-                click.confirm(f"Place bid of {Web3.fromWei(value, 'ether')} ETH?", abort=True)
+                paint_worklock_participant_notice(emitter=emitter, bidder_address=bidder_address, registry=registry)
+                click.confirm(f"Place WorkLock bid of {Web3.fromWei(value, 'ether')} ETH?", abort=True)
+            receipt = WORKLOCK_AGENT.bid(sender_address=bidder_address, value=value)
+            emitter.message("Publishing WorkLock Bid...")
+
             paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
             return  # Exit
 
         elif action == "claim":
-            receipt = WORKLOCK_AGENT.claim(sender_address=bidder_address)
-            emitter.message("Claiming...")
             if not force:
-                click.confirm(f"Claim tokens for  bidder {bidder_address}?", abort=True)
+                emitter.message("Note: Claiming WorkLock NU tokens will initialize a new stake.", color='blue')
+                click.confirm(f"Continue worklock claim for bidder {bidder_address}?", abort=True)
+            emitter.message("Submitting Claim...")
+            receipt = WORKLOCK_AGENT.claim(sender_address=bidder_address)
             paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+            emitter.message("Successfully claimed WorkLock tokens."
+                            "To create a new stakeholder run 'nucypher stake init-stakeholder' --provider <URI>"
+                            "To bond a worker run 'nucypher stake set-worker' --worker-address <ADDRESS>", color='green')
             return  # Exit
 
         elif action == "refund":
-            receipt = WORKLOCK_AGENT.refund(sender_address=bidder_address)
-            emitter.message("Submitting Refund...")
             if not force:
                 click.confirm(f"Collect ETH refund for bidder {bidder_address}?", abort=True)
+            emitter.message("Submitting WorkLock refund request...")
+            receipt = WORKLOCK_AGENT.refund(sender_address=bidder_address)
             paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
             return  # Exit
 

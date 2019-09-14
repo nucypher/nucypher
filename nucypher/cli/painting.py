@@ -630,3 +630,36 @@ Remaining Tokens .. {token_agent.get_balance(WORKLOCK_AGENT.contract_address)}
     """
     emitter.message(payload)
     return
+
+
+def paint_worklock_participant_notice(emitter, bidder_address, registry):
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+
+    obligation = f"""
+* WorkLock Participant Notice *
+-------------------------------
+
+- By participating in NuCypher's WorkLock you are committing to operating a staking NuCypher
+  node after the bidding window closes.
+
+- WorkLock token rewards are claimed in the form of a stake and will be locked for the stake duration.
+
+- WorkLock ETH deposits will be available for refund at a rate of {worklock_agent.economics.worklock_refund_rate} wei per confirmed period.
+
+- Once claiming WorkLock tokens, you are obligated to maintain a networked
+  and available Ursula-Worker node bonded to the staker address {bidder_address} for the duration 
+  of the stake(s) ({worklock_agent.economics.worklock_commitment_duration} periods).
+
+- Allow NuCypher network users to carry out uninterrupted re-encryption
+  work orders at-will without interference. Failure to keep your node online, 
+  or violation of re-encryption work orders will result in the loss of staked tokens as
+  described in the NuCypher slashing protocol.
+
+- Keeping your Ursula node online during the staking period and successfully
+  producing correct re-encryption work orders will result in rewards
+  paid out in ethers retro-actively and on-demand.
+
+Accept worklock terms and node operator obligation?"""
+
+    emitter.message(obligation)
+    return
