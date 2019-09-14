@@ -6,7 +6,6 @@ from base64 import b64decode
 from collections import namedtuple
 
 import maya
-import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 from web3 import Web3
@@ -309,7 +308,7 @@ def _cli_lifecycle(click_runner,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
-                      '--value', Web3.toWei(1, 'ether'),
+                      '--value', Web3.toWei(9, 'ether'),
                       '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
@@ -373,4 +372,4 @@ def _cli_lifecycle(click_runner,
     d.addCallback(_grant)                       # scene 7
     d.addCallback(_bob_retrieves)               # scene 8
 
-    yield d
+    return d
