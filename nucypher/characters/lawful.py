@@ -68,7 +68,6 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.policy.collections import TreasureMap
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -521,6 +520,8 @@ class Bob(Character):
         return unknown_ursulas, known_ursulas, treasure_map.m
 
     def get_treasure_map(self, alice_verifying_key, label):
+        from nucypher.policy.collections import TreasureMap
+
         _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
