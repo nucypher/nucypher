@@ -15,13 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import random
 import time
 from base64 import b64encode
 from collections import OrderedDict
 from functools import partial
 from json.decoder import JSONDecodeError
-from typing import Dict, Iterable, List, Set, Tuple, Union, Optional
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
@@ -69,6 +68,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.policy.collections import TreasureMap
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -528,13 +528,13 @@ class Bob(Character):
             # plans to learn about any more, than this function will surely fail.
             raise self.NotEnoughTeachers
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_id)
+        treasure_map_bytes = self.get_treasure_map_from_known_ursulas(self.network_middleware,
+                                                                      map_id)
 
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
-            treasure_map.orient(compass)
+            treasure_map = TreasureMap.from_bytes(treasure_map_bytes, compass)
         except treasure_map.InvalidSignature:
             raise  # TODO: Maybe do something here?
         else:
@@ -568,7 +568,7 @@ class Bob(Character):
 
             if response.status_code == 200 and response.content:
                 try:
-                    treasure_map = TreasureMap.from_bytes(response.content)
+                    treasure_map_bytes = response.content
                 except InvalidSignature:
                     # TODO: What if a node gives a bunk TreasureMap?
                     raise
@@ -580,7 +580,7 @@ class Bob(Character):
             #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
             raise TreasureMap.NowhereToBeFound
 
-        return treasure_map
+        return treasure_map_bytes
 
     def generate_work_orders(self, map_id, *capsules, num_ursulas=None, cache=False):
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
@@ -604,7 +604,7 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[node_id]:
+                if capsule not in self._saved_work_orders[node_id]:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
@@ -661,7 +661,7 @@ class Bob(Character):
         cleartexts = []
 
         if must_do_new_retrieval:
-            # TODO: Consider blocking until map is done being followed. #1114 
+            # TODO: Consider blocking until map is done being followed. #1114
 
             work_orders = self.generate_work_orders(map_id, capsule, cache=cache)
             the_airing_of_grievances = []
@@ -1195,7 +1195,6 @@ class Ursula(Teacher, Character, Worker):
                      federated_only: bool = False) -> 'Ursula':
         return node_storage.get(checksum_address=checksum_adress,
                                 federated_only=federated_only)
-
 
     #
     # Properties

@@ -1,23 +1,18 @@
-import math
 import random
 from abc import abstractmethod, ABC
 from collections import OrderedDict, deque
-from random import SystemRandom
 from typing import Generator, Set, List
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
-from nucypher.blockchain.eth.utils import calculate_period_duration
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import secure_random, keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
-from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -183,7 +178,7 @@ class Policy(ABC):
         self.bob = bob                         # type: Bob
         self.kfrags = kfrags                   # type: List[KFrag]
         self.public_key = public_key
-        self.treasure_map = TreasureMap(m=m)
+        self.treasure_map = TreasureMap(m=m, alice=alice, bob=bob)
         self.expiration = expiration
 
         # Keep track of this stuff
@@ -233,10 +228,11 @@ class Policy(ABC):
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     def publish_treasure_map(self, network_middleware: RestMiddleware) -> dict:
-        self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
-                                                  self.bob.public_keys(SigningPower),
-                                                  self.alice.stamp,
-                                                  self.label)
+        tmap_id, tmap_bytes = self.treasure_map.prepare_for_publication(
+                self.alice, self.bob,
+                recipient=self.bob,
+                label=self.label)
+
         if not self.alice.known_nodes:
             # TODO: Optionally, block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
@@ -246,12 +242,10 @@ class Policy(ABC):
             # TODO: # 342 - It's way overkill to push this to every node we know about.  Come up with a system.
 
             try:
-                treasure_map_id = self.treasure_map.public_id()
-
                 # TODO: Certificate filepath needs to be looked up and passed here
                 response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                       map_id=treasure_map_id,
-                                                                       map_payload=bytes(self.treasure_map))
+                                                                       map_id=tmap_id,
+                                                                       map_payload=tmap_bytes)
             except NodeSeemsToBeDown:
                 # TODO: Introduce good failure mode here if too few nodes receive the map.
                 continue
@@ -291,7 +285,6 @@ class Policy(ABC):
         return PolicyCredential(self.alice.stamp, self.label, self.expiration,
                                 self.public_key, treasure_map)
 
-
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
         if len(self._accepted_arrangements) < self.n:
@@ -300,7 +293,7 @@ class Policy(ABC):
 
         for kfrag in self.kfrags:
             for arrangement in self._accepted_arrangements:
-                if not arrangement in self._enacted_arrangements.values():
+                if arrangement not in self._enacted_arrangements.values():
                     arrangement.kfrag = kfrag
                     self._enacted_arrangements[kfrag] = arrangement
                     yield arrangement

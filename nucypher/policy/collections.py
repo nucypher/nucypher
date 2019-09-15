@@ -38,6 +38,7 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
@@ -89,17 +90,22 @@ class TreasureMap:
         self._payload = None
 
     def prepare_for_publication(self,
-                                bob_encrypting_key,
-                                bob_verifying_key,
-                                alice_stamp,
+                                alice, bob,
+                                recipient,
                                 label):
+        """
+        Prepare and encrypt treasure map for recipient.
+        The recipient could be Alice or Bob
+        """
+
+        if recipient not in (alice, bob):
+            raise ValueError('')
 
         plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
 
-        self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
-                                                                plaintext=plaintext,
-                                                                signer=alice_stamp,
-                                                                )
+        message_kit, _signature_for_bob = encrypt_and_sign(recipient.public_keys(DecryptingPower),
+                                                           plaintext=plaintext,
+                                                           signer=alice.stamp)
         """
         Here's our "hashed resource access code".
 
@@ -113,23 +119,14 @@ class TreasureMap:
 
         This way, Bob can generate it and use it to find the TreasureMap.
         """
-        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)
-        self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
-        self._set_payload()
+        hrac = keccak_digest(bytes(alice.stamp) + bytes(self.bob.public_keys(SigningPower)) + label)
+        public_signature = alice.stamp(bytes(alice.stamp) + self._hrac)
 
-    def _set_payload(self):
-        self._payload = self._public_signature + self._hrac + bytes(
-            VariableLengthBytestring(self.message_kit.to_bytes()))
+        payload = public_signature + hrac + bytes(
+                VariableLengthBytestring(message_kit.to_bytes()))
+        public_id = keccak_digest(bytes(message_kit.sender_verifying_key) + bytes(hrac)).hex()
 
-    def __bytes__(self):
-        if self._payload is None:
-            self._set_payload()
-
-        return self._payload
-
-    @property
-    def _verifying_key(self):
-        return self.message_kit.sender_verifying_key
+        return public_id, payload
 
     @property
     def m(self):
@@ -157,74 +154,33 @@ class TreasureMap:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[arrangement.ursula.checksum_address] = arrangement.id
 
-    def public_id(self):
-        """
-        We need an ID that Bob can glean from knowledge he already has *and* which Ursula can verify came from Alice.
-        Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
-        which is included in it,
-        """
-        _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
-        return _id
-
-    def __serialize(self):
-        """
-        WAIT! This is probably not what you want. In 9/10 times, you'll
-        probably want to use `bytes(my_treasure_map)`. So... do that.
-        """
-        return self._public_signature + self._hrac + self._m.to_bytes(1, 'big') + self.nodes_as_bytes()
-
     @classmethod
-    def __deserialize(cls, bytes_representation):
-        """
-        WAIT! This is probably not what you want. In 9/10 times, you'll probably
-        want to use `TreasureMap.from_bytes(my_tmap_as_bytes)`. So... do that.
-        """
-        signature, hrac, remainder = cls.__plaintext_splitter(
-                                                        bytes_representation,
-                                                        return_remainder=True)
-        m = remainder[0]
-        destinations = dict(cls.node_id_splitter.repeat(remainder[1:]))
-
-        return cls(m=m, destinations=destinations,
-                   public_signature=signature, hrac=hrac)
-
-    @classmethod
-    def from_bytes(cls, bytes_representation, verify=True):
+    def from_bytes(cls, bytes_representation, compass, verify=True):
         signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
-
-        treasure_map = cls(
-            message_kit=tmap_message_kit,
-            public_signature=signature,
-            hrac=hrac,
-        )
+        verifying_key = tmap_message_kit.sender_verifying_key
 
         if verify:
-            treasure_map.public_verify()
+            message = bytes(verifying_key) + hrac
+            verified = signature.verify(message, verifying_key)
+            if not verified:
+                raise cls.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
+
+        try:
+            map_in_the_clear = compass(message_kit=tmap_message_kit)
+        except Character.InvalidSignature:
+            raise cls.InvalidSignature(
+                "This TreasureMap does not contain the correct signature from Alice to Bob.")
+
+        m = map_in_the_clear[0]
+        destinations = dict(cls.node_id_splitter.repeat(map_in_the_clear[1:]))
+
+        treasure_map = cls(
+            m=m,
+            destinations=destinations,
+            hrac=hrac,
+            public_signature=signature)
 
         return treasure_map
-
-    def public_verify(self):
-        message = bytes(self._verifying_key) + self._hrac
-        verified = self._public_signature.verify(message, self._verifying_key)
-
-        if verified:
-            return True
-        else:
-            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
-
-    def orient(self, compass):
-        """
-        When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
-        payload message kit).
-        """
-        try:
-            map_in_the_clear = compass(message_kit=self.message_kit)
-        except Character.InvalidSignature:
-            raise self.InvalidSignature(
-                "This TreasureMap does not contain the correct signature from Alice to Bob.")
-        else:
-            self._m = map_in_the_clear[0]
-            self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
