@@ -89,6 +89,10 @@ class TreasureMap:
         self._hrac = hrac
         self._payload = None
 
+    @staticmethod
+    def public_id(hrac, message_kit):
+        return keccak_digest(bytes(message_kit.sender_verifying_key) + bytes(hrac))
+
     def prepare_for_publication(self,
                                 alice, bob,
                                 recipient,
@@ -103,9 +107,9 @@ class TreasureMap:
 
         plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
 
-        message_kit, _signature_for_bob = encrypt_and_sign(recipient.public_keys(DecryptingPower),
-                                                           plaintext=plaintext,
-                                                           signer=alice.stamp)
+        message_kit, _signature_for_recipient = encrypt_and_sign(recipient.public_keys(DecryptingPower),
+                                                                 plaintext=plaintext,
+                                                                 signer=alice.stamp)
         """
         Here's our "hashed resource access code".
 
@@ -119,12 +123,12 @@ class TreasureMap:
 
         This way, Bob can generate it and use it to find the TreasureMap.
         """
-        hrac = keccak_digest(bytes(alice.stamp) + bytes(self.bob.public_keys(SigningPower)) + label)
-        public_signature = alice.stamp(bytes(alice.stamp) + self._hrac)
+        hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.public_keys(SigningPower)) + label)
+        public_signature = alice.stamp(bytes(alice.stamp) + hrac)
 
         payload = public_signature + hrac + bytes(
                 VariableLengthBytestring(message_kit.to_bytes()))
-        public_id = keccak_digest(bytes(message_kit.sender_verifying_key) + bytes(hrac)).hex()
+        public_id = self.public_id(hrac, message_kit).hex()
 
         return public_id, payload
 
@@ -155,7 +159,7 @@ class TreasureMap:
         self.destinations[arrangement.ursula.checksum_address] = arrangement.id
 
     @classmethod
-    def from_bytes(cls, bytes_representation, compass, verify=True):
+    def split_bytes(cls, bytes_representation, verify=True):
         signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
         verifying_key = tmap_message_kit.sender_verifying_key
 
@@ -164,6 +168,12 @@ class TreasureMap:
             verified = signature.verify(message, verifying_key)
             if not verified:
                 raise cls.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
+
+        return signature, hrac, tmap_message_kit
+
+    @classmethod
+    def from_bytes(cls, bytes_representation, compass, verify=True):
+        signature, hrac, tmap_message_kit = cls.split_bytes(bytes_representation, verify=verify)
 
         try:
             map_in_the_clear = compass(message_kit=tmap_message_kit)
@@ -176,9 +186,7 @@ class TreasureMap:
 
         treasure_map = cls(
             m=m,
-            destinations=destinations,
-            hrac=hrac,
-            public_signature=signature)
+            destinations=destinations)
 
         return treasure_map
 

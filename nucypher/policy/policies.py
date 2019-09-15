@@ -178,7 +178,7 @@ class Policy(ABC):
         self.bob = bob                         # type: Bob
         self.kfrags = kfrags                   # type: List[KFrag]
         self.public_key = public_key
-        self.treasure_map = TreasureMap(m=m, alice=alice, bob=bob)
+        self.treasure_map = TreasureMap(m=m)
         self.expiration = expiration
 
         # Keep track of this stuff

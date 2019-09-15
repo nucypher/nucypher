@@ -347,8 +347,8 @@ def make_rest_app(
 
         try:
 
-            treasure_map = this_node.treasure_maps[treasure_map_index]
-            response = Response(bytes(treasure_map), headers=headers)
+            treasure_map_bytes = this_node.treasure_maps[treasure_map_index]
+            response = Response(treasure_map_bytes, headers=headers)
             log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
 
         except KeyError:
@@ -362,20 +362,21 @@ def make_rest_app(
     def receive_treasure_map(treasure_map_id):
         from nucypher.policy.collections import TreasureMap
 
+        treasure_map_bytes = request.data
+        treasure_map_index = bytes.fromhex(treasure_map_id)
         try:
-            treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)
+            _signature, hrac, mkit = TreasureMap.split_bytes(treasure_map_bytes, verify=True)
         except TreasureMap.InvalidSignature:
             do_store = False
         else:
-            do_store = treasure_map.public_id() == treasure_map_id
+            do_store = TreasureMap.public_id(hrac, mkit) == treasure_map_index
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
 
             # TODO 341 - what if we already have this TreasureMap?
-            treasure_map_index = bytes.fromhex(treasure_map_id)
-            this_node.treasure_maps[treasure_map_index] = treasure_map
-            return Response(bytes(treasure_map), status=202)
+            this_node.treasure_maps[treasure_map_index] = treasure_map_bytes
+            return Response(treasure_map_bytes, status=202)
         else:
             # TODO: Make this a proper 500 or whatever.
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
