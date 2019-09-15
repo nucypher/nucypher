@@ -400,8 +400,8 @@ def testerchain(_testerchain):
 
     # Reset chain state
     pyevm_backend = testerchain.provider.ethereum_tester.backend
-    genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': TEST_GAS_LIMIT})
-    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+    snapshot = pyevm_backend.chain.get_canonical_block_by_number(0).hash
+    pyevm_backend.revert_to_snapshot(snapshot)
 
     coinbase, *addresses = testerchain.client.accounts
 
