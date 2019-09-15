@@ -64,7 +64,6 @@ class TreasureMap:
                                               (bytes, KECCAK_DIGEST_LENGTH,)  # hrac
                                               )
 
-
     from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
     def __init__(self,
@@ -188,7 +187,6 @@ class TreasureMap:
 
         return cls(m=m, destinations=destinations,
                    public_signature=signature, hrac=hrac)
-
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
@@ -516,9 +514,10 @@ class Revocation:
     """
     revocation_splitter = BytestringSplitter((bytes, 7), (bytes, 32), Signature)
 
-    def __init__(self, arrangement_id: bytes,
-                       signer: 'SignatureStamp' = None,
-                       signature: Signature = None):
+    def __init__(self,
+                 arrangement_id: bytes,
+                 signer: 'SignatureStamp' = None,
+                 signature: Signature = None):
 
         self.prefix = b'REVOKE-'
         self.arrangement_id = arrangement_id
