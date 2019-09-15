@@ -183,7 +183,7 @@ class TreasureMap:
         return treasure_map
 
     def __eq__(self, other):
-        return bytes(self) == bytes(other)
+        return (self.m, self.nodes_as_bytes()) == (other.m, other.nodes_as_bytes())
 
     def __iter__(self):
         return iter(self.destinations.items())
