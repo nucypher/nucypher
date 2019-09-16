@@ -131,7 +131,7 @@ def _get_staking_agent(click_config, emitter, geth, poa, provider_uri, registry_
                                                             sync=False,
                                                             show_sync_progress=False)
 
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface()
 
         emitter.echo(message="Reading Latest Chaindata...")
         blockchain.connect()

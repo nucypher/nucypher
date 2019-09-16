@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from _pydecimal import Decimal
 from collections import UserList
-from typing import Union, Tuple, List
+from typing import Union, Tuple
 
 import maya
 from constant_sorrow.constants import (
@@ -572,6 +572,7 @@ class StakeList(UserList):
         from nucypher.blockchain.economics import TokenEconomicsFactory
         self.economics = TokenEconomicsFactory.get_economics(registry=registry)
 
+        self.__initial_period = NOT_STAKING
         self.__terminal_period = NOT_STAKING
 
         # "load-in":  Read on-chain stakes
@@ -586,6 +587,15 @@ class StakeList(UserList):
     def updated(self) -> maya.MayaDT:
         return self.__updated
 
+    @property
+    def initial_period(self) -> int:
+        return self.__initial_period
+
+    @property
+    def terminal_period(self) -> int:
+        return self.__terminal_period
+
+    @validate_checksum_address
     def refresh(self) -> None:
         """Public staking cache invalidation method"""
         return self.__read_stakes()
@@ -596,7 +606,8 @@ class StakeList(UserList):
         existing_records = len(self)
 
         # Candidate replacement cache values
-        onchain_stakes, terminal_period = list(), 0
+        current_period = self.staking_agent.get_current_period()
+        onchain_stakes, initial_period, terminal_period = list(), 0, current_period
 
         # Read from blockchain
         stakes_reader = self.staking_agent.get_all_stakes(staker_address=self.checksum_address)
@@ -612,6 +623,11 @@ class StakeList(UserList):
                                                       index=onchain_index,
                                                       economics=self.economics)
 
+                # rack the earliest terminal period
+                if onchain_stake.first_locked_period:
+                    if onchain_stake.first_locked_period < initial_period:
+                        initial_period = onchain_stake.first_locked_period
+
                 # rack the latest terminal period
                 if onchain_stake.final_locked_period > terminal_period:
                     terminal_period = onchain_stake.final_locked_period
@@ -622,9 +638,10 @@ class StakeList(UserList):
         # Commit the new stake and terminal values to the cache
         self.data = onchain_stakes
         if onchain_stakes:
+            self.__initial_period = initial_period
             self.__terminal_period = terminal_period
-            new_records = existing_records - len(onchain_stakes)
-            self.log.debug(f"Updated local staking cache ({new_records} new stakes).")
+            changed_records = abs(existing_records - len(onchain_stakes))
+            self.log.debug(f"Updated {changed_records} local staking cache entries.")
 
         # Record most recent cache update
         self.__updated = maya.now()
