@@ -68,7 +68,7 @@ parsimonious==0.8.1
 pathtools==0.1.2
 pendulum==2.0.5
 percy==2.0.2
-plotly==4.1.1
+plotly==3.10.0
 pluggy==0.13.0
 protobuf==3.10.0rc1
 py-ecc==1.7.1
