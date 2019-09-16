@@ -6,7 +6,6 @@ from base64 import b64decode
 from collections import namedtuple
 
 import maya
-import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 from web3 import Web3
@@ -76,32 +75,34 @@ def test_federated_cli_lifecycle(click_runner,
                                  random_policy_label,
                                  federated_ursulas,
                                  custom_filepath,
-                                 custom_filepath_2,
-                                 mock_primary_registry_filepath):
+                                 custom_filepath_2):
     yield _cli_lifecycle(click_runner,
                          testerchain,
                          random_policy_label,
                          federated_ursulas,
                          custom_filepath,
-                         custom_filepath_2,
-                         mock_primary_registry_filepath)
+                         custom_filepath_2)
 
 
 @pt.inlineCallbacks
 def test_decentralized_cli_lifecycle(click_runner,
                                      testerchain,
+                                     agency,
                                      random_policy_label,
                                      blockchain_ursulas,
                                      custom_filepath,
                                      custom_filepath_2,
+                                     test_registry,
                                      mock_primary_registry_filepath):
+
+    registry_filepath = test_registry.commit(filepath=mock_primary_registry_filepath)
     yield _cli_lifecycle(click_runner,
                          testerchain,
                          random_policy_label,
                          blockchain_ursulas,
                          custom_filepath,
                          custom_filepath_2,
-                         mock_primary_registry_filepath)
+                         registry_filepath)
 
 
 def _cli_lifecycle(click_runner,
@@ -110,7 +111,7 @@ def _cli_lifecycle(click_runner,
                    ursulas,
                    custom_filepath,
                    custom_filepath_2,
-                   mock_primary_registry_filepath):
+                   registry_filepath=None):
     """
     This is an end to end integration test that runs each cli call
     in it's own process using only CLI character control entry points,
@@ -142,7 +143,7 @@ def _cli_lifecycle(click_runner,
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
-                            '--registry-filepath', mock_primary_registry_filepath)
+                            '--registry-filepath', registry_filepath)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -177,6 +178,7 @@ def _cli_lifecycle(click_runner,
         bob_init_args += ('--federated-only', )
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
+                          '--registry-filepath', registry_filepath,
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
@@ -309,7 +311,7 @@ def _cli_lifecycle(click_runner,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
-                      '--value', Web3.toWei(1, 'ether'),
+                      '--value', Web3.toWei(9, 'ether'),
                       '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
@@ -373,4 +375,4 @@ def _cli_lifecycle(click_runner,
     d.addCallback(_grant)                       # scene 7
     d.addCallback(_bob_retrieves)               # scene 8
 
-    yield d
+    return d
