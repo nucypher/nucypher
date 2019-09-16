@@ -359,7 +359,8 @@ class AllocationRegistry(LocalContractRegistry):
 
     def search(self, beneficiary_address: str = None, contract_address: str = None):
         if not (bool(beneficiary_address) ^ bool(contract_address)):
-            raise ValueError("Pass either beneficiary_address or contract_address.")
+            raise ValueError(f"Pass either beneficiary_address or contract_address. "
+                             f"Got {beneficiary_address} and {contract_address}.")
 
         try:
             allocation_data = self.read()
@@ -388,8 +389,9 @@ class AllocationRegistry(LocalContractRegistry):
         contract_data = [contract_address, contract_abi]
         try:
             allocation_data = self.read()
-        except self.RegistryError:
-            self.log.info(f"Blank allocation registry encountered: enrolling {beneficiary_address}:{contract_address}")
+        except self.RegistryError as e:
+            self.log.info(f"Failure while reading allocation registry when "
+                          f"enrolling {beneficiary_address} ({contract_address}): {e}")
             allocation_data = list() if self._multi_contract else dict()  # empty registry
 
         if beneficiary_address in allocation_data:
