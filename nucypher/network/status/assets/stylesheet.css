@@ -2,8 +2,9 @@ body{
     font-size: 14px;
     line-height: 1.6;
     font-weight: 400;
-    font-family: Arial,sans-serif;
     color: #4d525a;
+    font-family: gt-america-mono-regular;
+    /*background-color: rgb(17, 17, 17);*/
 }
 
 
@@ -136,7 +137,10 @@ a { color: slategrey;
 
 #version {
     width: 100%;
-    font-size: 2em;
+    font-size: 1em;
+    vertical-align: middle;
+    margin-top: 0.5em;
+    margin-right: 1em;
 }
 
 .stacked-widget {
@@ -144,4 +148,35 @@ a { color: slategrey;
     display: flex;
     flex-flow: column;
     justify-content: space-between;
+}
+
+
+#graph {
+    width: 100%;
+}
+
+#my-graph {
+    width: 100%;
+}
+
+#prev-states {
+    width: 100% !important;
+}
+
+#schedule {
+    width: 66% !important;
+    flex-grow: 2;
+    padding-left: 2em;
+}
+
+#llamas-graph {
+    width: 100%
+}
+
+.status-indicator {
+    padding-left: 1em !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 6em;
 }

@@ -4,7 +4,10 @@ from os.path import dirname, abspath
 from string import Template
 
 import dash_core_components as dcc
+import dash_daq as daq
 import dash_html_components as html
+import plotly.figure_factory as ff
+import plotly.graph_objs as go
 from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 from dash import Dash
 from dash.dependencies import Output, Input
@@ -13,13 +16,17 @@ from maya import MayaDT
 from twisted.logger import Logger
 
 import nucypher
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.economics import TokenEconomicsFactory
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.token import NU, StakeList
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
 
 
 class NetworkStatusPage:
-    COLUMNS = ['Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
+    COLUMNS = ['Status', 'Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
 
     def __init__(self, title: str, flask_server: Flask, route_url: str):
         self.log = Logger(self.__class__.__name__)
@@ -37,8 +44,7 @@ class NetworkStatusPage:
 
     @staticmethod
     def header() -> html.Div:
-        return html.Div([html.Div(f'v{nucypher.__version__}', id='version')],
-                        className="logo-widget")
+        return html.Div([html.Div(f'v{nucypher.__version__}', id='version')], className="logo-widget")
 
     def previous_states(self, learner: Learner) -> html.Div:
         states_dict = learner.known_nodes.abridged_states_dict()
@@ -83,34 +89,8 @@ class NetworkStatusPage:
             html.Div([self.nodes_table(nodes, teacher_index)], className='row')
         ], className='row')
 
-    def nodes_table(self, nodes, teacher_index) -> html.Table:
-        rows = []
-        for index, node_info in enumerate(nodes):
-            row = []
-            for col in self.COLUMNS:
-                components = self.generate_components(node_info=node_info)
-                cell = components[col]
-                if cell:
-                    row.append(cell)
-
-            style_dict = {'overflowY': 'scroll'}
-            # highlight teacher
-            if index == teacher_index:
-                style_dict['backgroundColor'] = '#1E65F3'
-                style_dict['color'] = 'white'
-
-            rows.append(html.Tr(row, style=style_dict, className='row'))
-
-        table = html.Table(
-            # header
-            [html.Tr([html.Th(col) for col in self.COLUMNS], className='row')] +
-            rows,
-            id='node-table'
-        )
-        return table
-
     @staticmethod
-    def generate_components(node_info: dict):
+    def generate_components(node_info: dict, registry):
         """
         Update this depending on which columns you want to show links for
         and what you want those links to be.
@@ -135,15 +115,38 @@ class NetworkStatusPage:
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
+        agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        current_period = agent.get_current_period()
+
+        last_confirmed_period = agent.get_last_active_period(node_info['staker_address'])
+        missing_confirmations = current_period - last_confirmed_period
+
+        worker = agent.get_worker_from_staker(node_info['staker_address'])
+        if worker == BlockchainInterface.NULL_ADDRESS:
+            missing_confirmations = BlockchainInterface.NULL_ADDRESS
+
+        color_codex = {-1: ('green', ''),                                     # Confirmed Next Period
+                       0: ('#e0b32d', 'Pending'),                             # Pending Confirmation of Next Period
+                       current_period: ('#4d525ae3', 'Idle'),                 # Never confirmed
+                       BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
+                       }
+        try:
+            color, status_message = color_codex[missing_confirmations]
+        except KeyError:
+            color, status_message = 'red', f'{missing_confirmations} Missed Confirmations'
+        status_cell = [daq.Indicator(id='Status', color=color, value=True), status_message]
+        status = html.Td(status_cell, className='status-indicator')
+
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
+            'Status': status,
             'Icon': icon,
             'Checksum': html.Td(html.A(f'{node_info["checksum_address"][:10]}...',
                                        href=etherscan_url,
                                        target='_blank')),
             'Nickname': nickname,
             'Timestamp': html.Td(node_info['timestamp']),
-            'Last Seen': html.Td(node_info['last_seen']),
+            'Last Seen': html.Td([node_info['last_seen'], f" | Period {last_confirmed_period}"]),
             'Fleet State': fleet_state
         }
 
@@ -158,6 +161,7 @@ class MoeStatusPage(NetworkStatusPage):
     def __init__(self, moe, ws_port: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ws_port = ws_port
+        self.moe = moe
 
         # updates can be directly provided included in javascript snippet
         # TODO: Configurable template path
@@ -172,6 +176,7 @@ class MoeStatusPage(NetworkStatusPage):
             # Update buttons also used for hendrix WS topic notifications
             html.Div([
                 html.Img(src='/assets/nucypher_logo.png', className='banner'),
+                html.Div(id='header'),
                 html.Button("Refresh States", id='hidden-state-button', type='submit'),
                 html.Button("Refresh Known Nodes", id='hidden-node-button', type='submit'),
             ], id="controls"),
@@ -180,22 +185,26 @@ class MoeStatusPage(NetworkStatusPage):
 
             html.Div([
                 html.Div([
-                    html.Div(id='header'),
                     html.Div(id='current-period'),
                     html.Div(id='time-remaining'),
                     html.Div(id='domains'),
-                    html.Div(id='prev-states'),
                     html.Div(id='active-stakers'),
                     html.Div(id='registry-uri'),
                     html.Div(id='staked-tokens'),
+                    html.Div(id='graph'),
+                    html.Div(id='schedule'),
                 ], id='widgets'),
 
-                html.Div(id='known-nodes'),
+                html.Div([
+                    html.Div(id='prev-states'),
+                    html.Div(id='known-nodes'),
+                ]),
+
             ], id='main'),
 
             dcc.Interval(
                 id='interval-component',
-                interval=15 * 1000,
+                interval=30 * 1000,
                 n_intervals=0
             ),
         ])
@@ -211,15 +220,16 @@ class MoeStatusPage(NetworkStatusPage):
             return self.previous_states(moe)
 
         @self.dash_app.callback(Output('known-nodes', 'children'),
-                                [Input('hidden-node-button', 'n_clicks')])
+                                [Input('url', 'pathname')])
         def known_nodes(n):
             return self.known_nodes(moe)
 
         @self.dash_app.callback(Output('active-stakers', 'children'),
                                 [Input('hidden-node-button', 'n_clicks')])
         def active_stakers(n):
-            return html.Div([html.H4("Active Stakers"),
-                             html.H5(f"{len(moe.known_nodes)} nodes")])
+            staker_addresses = moe.staking_agent.get_stakers()
+            return html.Div([html.H4("Active Ursulas"),
+                             html.H5(f"{len(moe.known_nodes)}/{len(staker_addresses)}")])
 
         @self.dash_app.callback(Output('current-period', 'children'),
                                 [Input('url', 'pathname')])
@@ -274,6 +284,117 @@ class MoeStatusPage(NetworkStatusPage):
                        href=f'https://goerli.etherscan.io/address/{moe.adjudicator_agent.contract_address}',
                        target='_blank'),
             ], className='stacked-widget')
+
+        @self.dash_app.callback(Output('graph', 'children'),
+                                [Input('url', 'pathname')])
+        def graph(pathname):
+
+            periods = 30
+            period_range = list(range(1, periods + 1))
+            token_counter = {day: moe.staking_agent.get_all_locked_tokens(day) for day in period_range}
+
+            fig = go.Figure(data=[
+                                go.Bar(
+                                    textposition='auto',
+                                    x=period_range,
+                                    y=list(token_counter.values()),
+                                    name='Stake',
+                                    marker=go.bar.Marker(color='rgb(30, 101, 243)')
+                                )
+                            ],
+                            layout=go.Layout(
+                                title='Staked NU over the next 30 days.',
+                                showlegend=False,
+                                legend=go.layout.Legend(x=0, y=1.0),
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(0,0,0,0)'
+                            ))
+
+            config = {"displaylogo": False,
+                      'autosizable': True,
+                      'responsive': True,
+                      'fillFrame': False,
+                      'displayModeBar': False}
+            return dcc.Graph(figure=fig, id='my-graph', config=config)
+
+        @self.dash_app.callback(Output('schedule', 'children'), [Input('url', 'pathname')])
+        def schedule(pathname):
+
+            current_period = moe.staking_agent.get_current_period()
+            staker_addresses = moe.staking_agent.get_stakers()
+
+            df = []
+            for index, address in enumerate(staker_addresses):
+                stakes = StakeList(checksum_address=address, registry=moe.registry)
+                stakes.refresh()
+                end = stakes.terminal_period
+                delta = end - current_period
+
+                economics = TokenEconomicsFactory.get_economics(registry=moe.registry)
+                start_date = datetime_at_period(current_period, seconds_per_period=economics.seconds_per_period)
+                end_date = datetime_at_period(stakes.terminal_period, seconds_per_period=economics.seconds_per_period)
+                stake = moe.staking_agent.get_locked_tokens(staker_address=address, periods=delta)
+                nu_stake = float(NU.from_nunits(stake).to_tokens())
+
+                row = dict(Task=address[:10],
+                           Start=str(start_date.date),
+                           Finish=str(end_date.date),
+                           Stake=nu_stake)
+                df.append(row)
+
+            # Normalize, Scale and Mutate
+            total = sum(row['Stake'] for row in df)
+            for row in df:
+                row['Stake'] = (row['Stake'] // total) * 100
+
+            color_scale = ['rgb(31, 141, 143)', 'rgb(31, 243, 243)']
+            fig = ff.create_gantt(df,
+                                  colors=color_scale,
+                                  index_col='Stake',
+                                  title="Ursula Fleet Staking Schedule",
+                                  bar_width=0.3,
+                                  showgrid_x=True,
+                                  showgrid_y=True.bit_length())
+
+            fig['layout'].update(autosize=True,
+                                 width=None,
+                                 height=None)
+
+            config = {"displaylogo": False,
+                      'autosizable': True,
+                      'responsive': True,
+                      'fillFrame': False,
+                      'displayModeBar': False}
+
+            schedule_graph = dcc.Graph(figure=fig, id='llamas-graph', config=config)
+            return schedule_graph
+
+    def nodes_table(self, nodes, teacher_index) -> html.Table:
+
+        rows = []
+        for index, node_info in enumerate(nodes):
+            row = []
+            for col in self.COLUMNS:
+                components = self.generate_components(node_info=node_info, registry=self.moe.registry)
+                cell = components[col]
+                if cell:
+                    row.append(cell)
+
+            style_dict = {'overflowY': 'scroll'}
+            # highlight teacher
+            if index == teacher_index:
+                style_dict['backgroundColor'] = '#1E65F3'
+                style_dict['color'] = 'white'
+
+            rows.append(html.Tr(row, style=style_dict, className='row'))
+
+        table = html.Table(
+            # header
+            [html.Tr([html.Th(col) for col in self.COLUMNS], className='row')] +
+            rows,
+            id='node-table'
+        )
+        return table
 
 
 class UrsulaStatusPage(NetworkStatusPage):
