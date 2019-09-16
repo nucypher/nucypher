@@ -72,7 +72,7 @@ def status(click_config, action, provider_uri, sync, geth, poa, periods, staking
                                                             sync=False,
                                                             show_sync_progress=False)
 
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface()
 
         emitter.echo(message="Reading Latest Chaindata...")
         blockchain.connect()

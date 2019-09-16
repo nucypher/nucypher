@@ -249,6 +249,7 @@ class FleetStateTracker:
                 "rest_url": node.rest_url(),
                 "nickname": node.nickname,
                 "checksum_address": node.worker_address,
+                "staker_address": node.checksum_address,
                 "timestamp": node.timestamp.iso8601(),
                 "last_seen": last_seen,
                 "fleet_state_icon": fleet_icon,
