@@ -575,6 +575,8 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
 
 
 def paint_input_allocation_file(emitter, allocations) -> None:
+    num_allocations = len(allocations)
+    emitter.echo(f"Found {num_allocations} allocations:")
     emitter.echo(f"\n{'='*46} STAGED ALLOCATIONS {'='*45}", bold=True)
     emitter.echo(f"\n{'Beneficiary':42} | {'Name':20} | {'Duration':20} | {'Amount':20}", bold=True)
     emitter.echo("-"*(42+3+20+3+20+3+20), bold=True)

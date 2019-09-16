@@ -791,7 +791,6 @@ class UserEscrowDeployer(ContractDeployer):
     @validate_checksum_address
     def assign_beneficiary(self, checksum_address: str) -> dict:
         """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
-        checksum_address = checksum_address
         # TODO: #413, #842 - Gas Management
         payload = {'gas': 500_000}
         transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
