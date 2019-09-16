@@ -434,10 +434,10 @@ class ContractAdministrator(NucypherTokenActor):
                                                 duration=duration,
                                                 beneficiary_address=beneficiary,
                                                 progress=bar)
-                except TransactionFailed:
+                except TransactionFailed as e:
                     if crash_on_failure:
                         raise
-                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}")
+                    self.log.debug(f"Failed allocation transaction for {NU.from_nunits(amount)} to {beneficiary}: {e}")
                     failed.append(allocation)
                     continue
 
