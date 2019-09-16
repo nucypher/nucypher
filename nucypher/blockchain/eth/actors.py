@@ -738,7 +738,8 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                                                          seconds_per_period=self.economics.seconds_per_period)
         else:
             duration_periods = duration_periods or self.duration_periods
-            expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods)
+            expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods,
+                                            seconds_per_period=self.economics.seconds_per_period)
 
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
