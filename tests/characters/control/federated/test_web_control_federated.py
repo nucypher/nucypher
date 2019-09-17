@@ -122,7 +122,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
                                          enacted_federated_policy,
                                          capsule_side_channel):
 
-    message_kit, data_source = capsule_side_channel()
+    message_kit = capsule_side_channel()
 
     label = enacted_federated_policy.label.decode()
     policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
