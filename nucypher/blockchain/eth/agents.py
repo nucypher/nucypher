@@ -377,8 +377,8 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=staker_address)
         return receipt
 
-    def lock_restaking(self, staker_address: str, termination_period: int) -> dict:
-        contract_function = self.contract.functions.lockReStake(termination_period)
+    def lock_restaking(self, staker_address: str, release_period: int) -> dict:
+        contract_function = self.contract.functions.lockReStake(release_period)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    sender_address=staker_address)
         return receipt

@@ -17,8 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
+from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.blockchain import token_airdrop
@@ -88,6 +90,32 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
     assert expected_yet_another_stake == staker.stakes[stake_index + 3], 'Third stake values are invalid'
+
+
+def test_staker_manages_restaking(testerchain, test_registry, staker):
+
+    # Enable Restaking
+    receipt = staker.enable_restaking()
+    assert receipt['status'] == 1
+
+    # Enable Restaking Lock
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    current_period = staking_agent.get_current_period()
+    terminal_period = current_period + 2
+
+    assert not staker.restaking_lock_enabled
+    receipt = staker.enable_restaking_lock(release_period=terminal_period)
+    assert receipt['status'] == 1
+    assert staker.restaking_lock_enabled
+
+    with pytest.raises((TransactionFailed, ValueError)):
+      staker.disable_restaking()
+
+    # Wait until terminal period
+    testerchain.time_travel(periods=2)
+    receipt = staker.disable_restaking()
+    assert receipt['status'] == 1
+    assert not staker.restaking_lock_enabled
 
 
 @pytest.mark.slow()

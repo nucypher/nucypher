@@ -238,7 +238,7 @@ def test_lock_restaking(agency, testerchain):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     current_period = staking_agent.get_current_period()
     terminal_period = current_period + 2
-    receipt = staking_agent.lock_restaking(staker_account, termination_period=terminal_period)
+    receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
     assert receipt['status'] == 1, "Transaction Rejected"
 
 
