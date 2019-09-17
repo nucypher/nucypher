@@ -26,6 +26,7 @@ dash-html-components==1.0.1
 dash-renderer==1.0.1
 dash-table==4.2.0
 dash[testing]==1.2.0
+dash_daq==0.1.7
 dateparser==0.7.1
 eth-abi==2.0.0
 eth-account==0.4.0

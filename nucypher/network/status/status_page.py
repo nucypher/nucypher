@@ -26,7 +26,7 @@ from nucypher.network.nodes import Learner
 
 
 class NetworkStatusPage:
-    COLUMNS = ['Status', 'Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
+    NODE_TABLE_COLUMNS = ['Status', 'Icon', 'Checksum', 'Nickname', 'Timestamp', 'Last Seen', 'Fleet State']
 
     def __init__(self, title: str, flask_server: Flask, route_url: str):
         self.log = Logger(self.__class__.__name__)
@@ -74,10 +74,10 @@ class NetworkStatusPage:
             html.Span(state['updated'], className='small'),
         ], className='state')
 
-    def known_nodes(self, learner: Learner) -> html.Div:
+    def known_nodes(self, character: Character) -> html.Div:
         nodes = list()
-        nodes_dict = learner.known_nodes.abridged_nodes_dict()
-        teacher_node = learner.current_teacher_node()
+        nodes_dict = character.known_nodes.abridged_nodes_dict()
+        teacher_node = character.current_teacher_node()
         teacher_index = None
         for checksum in nodes_dict:
             node_data = nodes_dict[checksum]
@@ -86,11 +86,38 @@ class NetworkStatusPage:
             nodes.append(node_data)
 
         return html.Div([
-            html.Div([self.nodes_table(nodes, teacher_index)], className='row')
+            html.Div([self.nodes_table(nodes, teacher_index, character.registry)],
+                     className='row')
         ], className='row')
 
+    def nodes_table(self, nodes, teacher_index, registry) -> html.Table:
+        rows = []
+        for index, node_info in enumerate(nodes):
+            row = []
+            for col in self.NODE_TABLE_COLUMNS:
+                components = self.generate_node_table_components(node_info=node_info, registry=registry)
+                cell = components[col]
+                if cell:
+                    row.append(cell)
+
+            style_dict = {'overflowY': 'scroll'}
+            # highlight teacher
+            if index == teacher_index:
+                style_dict['backgroundColor'] = '#1E65F3'
+                style_dict['color'] = 'white'
+
+            rows.append(html.Tr(row, style=style_dict, className='row'))
+
+        table = html.Table(
+            # header
+            [html.Tr([html.Th(col) for col in self.NODE_TABLE_COLUMNS], className='row')] +
+            rows,
+            id='node-table'
+        )
+        return table
+
     @staticmethod
-    def generate_components(node_info: dict, registry):
+    def generate_node_table_components(node_info: dict, registry):
         """
         Update this depending on which columns you want to show links for
         and what you want those links to be.
@@ -117,25 +144,9 @@ class NetworkStatusPage:
 
         agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = agent.get_current_period()
-
-        last_confirmed_period = agent.get_last_active_period(node_info['staker_address'])
-        missing_confirmations = current_period - last_confirmed_period
-
-        worker = agent.get_worker_from_staker(node_info['staker_address'])
-        if worker == BlockchainInterface.NULL_ADDRESS:
-            missing_confirmations = BlockchainInterface.NULL_ADDRESS
-
-        color_codex = {-1: ('green', ''),                                     # Confirmed Next Period
-                       0: ('#e0b32d', 'Pending'),                             # Pending Confirmation of Next Period
-                       current_period: ('#4d525ae3', 'Idle'),                 # Never confirmed
-                       BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
-                       }
-        try:
-            color, status_message = color_codex[missing_confirmations]
-        except KeyError:
-            color, status_message = 'red', f'{missing_confirmations} Missed Confirmations'
-        status_cell = [daq.Indicator(id='Status', color=color, value=True), status_message]
-        status = html.Td(status_cell, className='status-indicator')
+        staker_address = node_info['staker_address']
+        last_confirmed_period = agent.get_last_active_period(staker_address)
+        status = create_status_component(agent, staker_address, current_period, last_confirmed_period)
 
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
@@ -151,6 +162,28 @@ class NetworkStatusPage:
         }
 
         return components
+
+    @staticmethod
+    def create_status_component(agent, staker_address, current_period, last_confirmed_period):
+
+        missing_confirmations = current_period - last_confirmed_period
+
+        worker = agent.get_worker_from_staker(staker_address)
+        if worker == BlockchainInterface.NULL_ADDRESS:
+            missing_confirmations = BlockchainInterface.NULL_ADDRESS
+
+        color_codex = {-1: ('green', ''),  # Confirmed Next Period
+                       0: ('#e0b32d', 'Pending'),  # Pending Confirmation of Next Period
+                       current_period: ('#4d525ae3', 'Idle'),  # Never confirmed
+                       BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
+                       }
+        try:
+            color, status_message = color_codex[missing_confirmations]
+        except KeyError:
+            color, status_message = 'red', f'{missing_confirmations} Missed Confirmations'
+        status_cell = [daq.Indicator(id='Status', color=color, value=True), status_message]
+        status = html.Td(status_cell, className='status-indicator')
+        return status
 
 
 class MoeStatusPage(NetworkStatusPage):
@@ -240,7 +273,7 @@ class MoeStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('time-remaining', 'children'),
                                 [Input('interval-component', 'n_intervals')])
         def time_remaining(n):
-            tomorrow = datetime.now() + timedelta(1)
+            tomorrow = datetime.now() + timedelta(days=1)
             midnight = datetime(year=tomorrow.year, month=tomorrow.month,
                                 day=tomorrow.day, hour=0, minute=0, second=0)
             seconds_remaining = MayaDT.from_datetime(midnight).slang_time()
@@ -354,7 +387,7 @@ class MoeStatusPage(NetworkStatusPage):
                                   title="Ursula Fleet Staking Schedule",
                                   bar_width=0.3,
                                   showgrid_x=True,
-                                  showgrid_y=True.bit_length())
+                                  showgrid_y=True)
 
             fig['layout'].update(autosize=True,
                                  width=None,
@@ -368,33 +401,6 @@ class MoeStatusPage(NetworkStatusPage):
 
             schedule_graph = dcc.Graph(figure=fig, id='llamas-graph', config=config)
             return schedule_graph
-
-    def nodes_table(self, nodes, teacher_index) -> html.Table:
-
-        rows = []
-        for index, node_info in enumerate(nodes):
-            row = []
-            for col in self.COLUMNS:
-                components = self.generate_components(node_info=node_info, registry=self.moe.registry)
-                cell = components[col]
-                if cell:
-                    row.append(cell)
-
-            style_dict = {'overflowY': 'scroll'}
-            # highlight teacher
-            if index == teacher_index:
-                style_dict['backgroundColor'] = '#1E65F3'
-                style_dict['color'] = 'white'
-
-            rows.append(html.Tr(row, style=style_dict, className='row'))
-
-        table = html.Table(
-            # header
-            [html.Tr([html.Th(col) for col in self.COLUMNS], className='row')] +
-            rows,
-            id='node-table'
-        )
-        return table
 
 
 class UrsulaStatusPage(NetworkStatusPage):
@@ -421,16 +427,6 @@ class UrsulaStatusPage(NetworkStatusPage):
         def header(pathname):
             return self.header()
 
-        @self.dash_app.callback(Output('domains', 'children'), [Input('url', 'pathname')])  # on page-load
-        def domains(pathname):
-            domains = ''
-            for domain in ursula.learning_domains:
-                domains += f' | {domain} '
-            return html.Div([
-                html.H4('Domains', className='one column'),
-                html.H5(domains, className='eleven columns'),
-            ], className='row')
-
         @self.dash_app.callback(Output('ursula_info', 'children'), [Input('url', 'pathname')])  # on page-load
         def ursula_info(pathname):
             info = html.Div([
@@ -444,6 +440,14 @@ class UrsulaStatusPage(NetworkStatusPage):
                 ], className='row'),
             ], className='row')
             return info
+
+        @self.dash_app.callback(Output('domains', 'children'), [Input('url', 'pathname')])  # on page-load
+        def domains(pathname):
+            domains = ' | '.join(ursula.learning_domains)
+            return html.Div([
+                html.H4('Domains', className='one column'),
+                html.H5(domains, className='eleven columns'),
+            ], className='row')
 
         @self.dash_app.callback(Output('prev-states', 'children'), [Input('status-update', 'n_intervals')])
         def state(n):
