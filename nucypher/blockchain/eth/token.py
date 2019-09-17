@@ -358,20 +358,6 @@ class Stake:
         self.value = NU.from_nunits(locked_value)
         self.worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.staker_address)
 
-    @classmethod
-    def __deposit(cls, staker, amount: int, lock_periods: int) -> Tuple[str, str]:
-        """Public facing method for token locking."""
-
-        approve_receipt = staker.token_agent.approve_transfer(amount=amount,
-                                                              target_address=staker.staking_agent.contract_address,
-                                                              sender_address=staker.checksum_address)
-
-        deposit_receipt = staker.staking_agent.deposit_tokens(amount=amount,
-                                                              lock_periods=lock_periods,
-                                                              sender_address=staker.checksum_address)
-
-        return approve_receipt, deposit_receipt
-
     def divide(self, target_value: NU, additional_periods: int = None) -> Tuple['Stake', 'Stake']:
         """
         Modifies the unlocking schedule and value of already locked tokens.
@@ -459,9 +445,7 @@ class Stake:
         stake.validate_duration()
 
         # Transmit
-        approve_receipt, initial_deposit_receipt = stake.__deposit(amount=int(amount),
-                                                                   lock_periods=lock_periods,
-                                                                   staker=staker)
+        approve_receipt, initial_deposit_receipt = staker.deposit(amount=int(amount), lock_periods=lock_periods)
 
         # Store the staking transactions on the instance
         staking_transactions = dict(approve=approve_receipt, deposit=initial_deposit_receipt)
@@ -469,9 +453,7 @@ class Stake:
 
         # Log and return Stake instance
         log = Logger(f'stake-{staker.checksum_address}-creation')
-        log.info("{} Initialized new stake: {} tokens for {} periods".format(staker.checksum_address,
-                                                                             amount,
-                                                                             lock_periods))
+        log.info(f"{staker.checksum_address} Initialized new stake: {amount} tokens for {lock_periods} periods")
         return stake
 
 

@@ -675,6 +675,19 @@ class Staker(NucypherTokenActor):
 
         return new_stake
 
+    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
+        """Public facing method for token locking."""
+
+        approve_receipt = self.token_agent.approve_transfer(amount=amount,
+                                                            target_address=self.staking_agent.contract_address,
+                                                            sender_address=self.checksum_address)
+
+        deposit_receipt = self.staking_agent.deposit_tokens(amount=amount,
+                                                            lock_periods=lock_periods,
+                                                            sender_address=self.checksum_address)
+
+        return approve_receipt, deposit_receipt
+
     @property
     def is_restaking(self) -> bool:
         restaking = self.staking_agent.is_restaking(staker_address=self.checksum_address)
@@ -705,6 +718,7 @@ class Staker(NucypherTokenActor):
     def disable_restaking(self) -> dict:
         receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=False)
         return receipt
+
     #
     # Reward and Collection
     #
