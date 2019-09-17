@@ -53,7 +53,9 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
-@click.option('--enable/--disable', help="Used to enable and disable restaking", is_flag=True)
+@click.option('--enable/--disable', help="Used to enable and disable restaking", is_flag=True, default=True)
+@click.option('--lock', help="Used with restake to enable restaking lock", is_flag=True)
+@click.option('--release-period', help="Period to release restaking lock", type=click.IntRange(min=0))
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -82,6 +84,8 @@ def stake(click_config,
           policy_reward,
           staking_reward,
           enable,
+          lock,
+          release_period
 
           ) -> None:
     """
@@ -294,16 +298,22 @@ def stake(click_config,
         return  # Exit
 
     elif action == "restake":
-        if enable:
+        if lock:
+            if not force:
+                click.confirm(f"Confirm enable restaking lock for staker {staking_address} until {release_period}?", abort=True)
+            if not release_period:
+                current_period = STAKEHOLDER.staking_agent.get_current_period()
+                release_period = click.prompt("Enter release period", type=click.IntRange(min=current_period+1))
+            receipt = STAKEHOLDER.enable_restaking_lock(release_period=release_period)
+        elif enable:
             if not force:
                 click.confirm(f"Confirm enable restaking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.enable_restaking()
-            paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
         else:
             if not force:
                 click.confirm(f"Confirm disable restaking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.enable_restaking()
-            paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+        paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
         return  # Exit
 
     elif action == 'divide':
