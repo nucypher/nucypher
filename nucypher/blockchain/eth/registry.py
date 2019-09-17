@@ -30,6 +30,7 @@ from twisted.logger import Logger
 from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.blockchain.eth.constants import USER_ESCROW_CONTRACT_NAME
 
 
 class BaseContractRegistry(ABC):
@@ -341,9 +342,11 @@ class InMemoryContractRegistry(BaseContractRegistry):
 class AllocationRegistry(LocalContractRegistry):
 
     _multi_contract = False
-    _contract_name = 'UserEscrow'
+    _contract_name = USER_ESCROW_CONTRACT_NAME
 
-    _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'allocation_registry.json')
+    REGISTRY_NAME = 'allocation_registry.json'
+
+    _default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, REGISTRY_NAME)
 
     class NoAllocationRegistry(BaseContractRegistry.NoRegistry):
         pass
@@ -384,6 +387,14 @@ class AllocationRegistry(LocalContractRegistry):
                 contract_data = records[0]
 
         return contract_data
+
+    def is_beneficiary_enrolled(self, beneficiary_address: str) -> bool:
+        try:
+            _ = self.search(beneficiary_address=beneficiary_address)
+            return True
+        except self.UnknownBeneficiary:
+            return False
+        # TODO: Tests!
 
     def enroll(self, beneficiary_address, contract_address, contract_abi) -> None:
         contract_data = [contract_address, contract_abi]
