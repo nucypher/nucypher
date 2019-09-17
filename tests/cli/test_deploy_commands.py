@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency
 )
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
 from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH
 
@@ -32,11 +32,12 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain):
     assert result.exit_code == 0
 
 
-def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, test_registry, agency):
+def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, agency):
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
+    local_registry = LocalContractRegistry(filepath=registry_filepath)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=local_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=local_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=local_registry)
 
     status_command = ('inspect',
                       '--registry-infile', MOCK_REGISTRY_FILEPATH,
@@ -52,11 +53,12 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, test_
     assert adjudicator_agent.owner in result.output
 
 
-def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
+def test_transfer_ownership(click_runner, testerchain, agency):
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=test_registry)
+    local_registry = LocalContractRegistry(filepath=registry_filepath)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=local_registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=local_registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=local_registry)
 
     assert staking_agent.owner == testerchain.etherbase_account
     assert policy_agent.owner == testerchain.etherbase_account
@@ -65,7 +67,7 @@ def test_transfer_ownership(click_runner, testerchain, test_registry, agency):
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
-                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
+                         '--registry-infile', registry_filepath,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', maclane,
                          '--poa')
