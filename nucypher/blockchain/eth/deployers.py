@@ -171,12 +171,12 @@ class OwnableContractMixin:
 
     _ownable = True
 
-    class NotOwnable(RuntimeError):
+    class ContractNotOwnable(RuntimeError):
         pass
 
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None):
         if not self._ownable:
-            raise self.NotOwnable(f"{self.contract_name} is not ownable.")
+            raise self.ContractNotOwnable(f"{self.contract_name} is not ownable.")
 
         # Get Bare Contracts
         existing_bare_contract = self.get_latest_version(registry=self.registry,
@@ -210,7 +210,7 @@ class UpgradeableContractMixin:
     _upgradeable = True
     _proxy_deployer = NotImplemented
 
-    class NotUpgradeable(RuntimeError):
+    class ContractNotUpgradeable(RuntimeError):
         pass
     
     def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
@@ -218,15 +218,15 @@ class UpgradeableContractMixin:
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
         """
-        if not cls._upgradeable:
-            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+        if not self._upgradeable:
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         raise NotImplementedError
 
     @classmethod
     def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
         """Get the latest version of the contract without assembling it with it's proxy."""
         if not cls._upgradeable:
-            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+            raise cls.ContractNotUpgradeable(f"{cls.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         contract = blockchain.get_contract_by_name(name=cls.contract_name,
                                                    registry=registry,
@@ -236,7 +236,7 @@ class UpgradeableContractMixin:
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
-            raise self.NotUpgradeable(f"{self.contract_name} is not upgradeable.")
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         # 1 - Raise if not all-systems-go #
         # TODO: Fails when this same object was used previously to deploy
@@ -271,7 +271,7 @@ class UpgradeableContractMixin:
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
-            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                       name=self.contract_name,
