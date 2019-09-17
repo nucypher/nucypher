@@ -135,7 +135,7 @@ def test_deposit_and_withdraw_as_staker(testerchain, agent, agency, allocation_v
     testerchain.transacting_power.activate()
 
     # Move the tokens to the StakingEscrow
-    receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked, periods=token_economics.minimum_locked_periods)
+    receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked, lock_periods=token_economics.minimum_locked_periods)
     assert receipt  # TODO
 
     # User sets a worker in StakingEscrow via UserEscrow
@@ -189,8 +189,8 @@ def test_collect_policy_reward(testerchain, agent, agency, token_economics):
                                                      account=agent.beneficiary)
     testerchain.transacting_power.activate()
 
-    _receipt = agent.deposit_as_staker(value=token_economics.minimum_allowed_locked,
-                                       periods=token_economics.minimum_locked_periods)
+    _receipt = agent.deposit_as_staker(amount=token_economics.minimum_allowed_locked,
+                                       lock_periods=token_economics.minimum_locked_periods)
 
     # User sets a worker in StakingEscrow via UserEscrow
     worker = testerchain.ursula_account(0)
