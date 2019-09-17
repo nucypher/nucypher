@@ -52,7 +52,6 @@ def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
 
 
 def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
-
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                          stakers_addresses=testerchain.stakers_accounts,
                                          workers_addresses=testerchain.ursulas_accounts,
@@ -87,7 +86,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
     assert first_ursula.verified_stamp
 
 
-@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
+@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ursulas):
     his_target = list(blockchain_ursulas)[4]
 
@@ -118,7 +117,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
         vladimir.validate_metadata()
 
 
-@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
+@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, blockchain_alice):
     his_target = list(blockchain_ursulas)[4]
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
@@ -133,7 +132,7 @@ def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, bloc
         vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")
 
 
-@pytest.mark.skip("See Issue #1075")    # TODO: Issue #1075
+@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
@@ -161,7 +160,6 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
 
 # TODO: Change name of this file, extract this test
 def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, blockchain_bob, policy_value):
-
     label = b'bbo'
 
     # TODO: Make sample selection buffer configurable - #1061
@@ -186,5 +184,6 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     blockchain_bob.join_policy(label, bytes(blockchain_alice.stamp))
 
-    plaintext = blockchain_bob.retrieve(enrico, message_kit, blockchain_alice.stamp, label)
+    plaintext = blockchain_bob.retrieve(message_kit, alice_verifying_key=blockchain_alice.stamp, label=label,
+                                        enrico=enrico)
     assert plaintext[0] == message
