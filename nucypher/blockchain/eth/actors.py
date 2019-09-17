@@ -564,10 +564,19 @@ class Staker(NucypherTokenActor):
 
         return new_stake
 
+    @property
+    def is_restaking(self) -> bool:
+        restaking = self.staking_agent.is_restaking(staker_address=self.checksum_address)
+        return restaking
+
+    @only_me
+    @save_receipt
     def enable_restaking(self) -> dict:
         receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=True)
         return receipt
 
+    @only_me
+    @save_receipt
     def enable_restaking_lock(self, release_period: int):
         current_period = self.staking_agent.get_current_period()
         if release_period < current_period:

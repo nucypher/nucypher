@@ -298,6 +298,16 @@ def stake(click_config,
         return  # Exit
 
     elif action == "restake":
+
+        # Authenticate
+        if not staking_address:
+            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+        password = None
+        if not hw_wallet and not blockchain.client.is_local:
+            password = get_client_password(checksum_address=staking_address)
+        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+
+        # Inner Switch
         if lock:
             if not force:
                 click.confirm(f"Confirm enable restaking lock for staker {staking_address} until {release_period}?", abort=True)
@@ -309,10 +319,13 @@ def stake(click_config,
             if not force:
                 click.confirm(f"Confirm enable restaking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.enable_restaking()
+            emitter.echo(f'Successfully enabled restaking for {staking_address}', color='green', verbosity=1)
         else:
             if not force:
                 click.confirm(f"Confirm disable restaking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.enable_restaking()
+            emitter.echo(f'Successfully disabled restaking for {staking_address}', color='green', verbosity=1)
+
         paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
         return  # Exit
 
