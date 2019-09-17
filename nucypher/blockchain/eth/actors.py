@@ -510,7 +510,7 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - current_stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
                                          f"current stake's end period ({current_stake.final_locked_period}).")
@@ -537,7 +537,8 @@ class Staker(NucypherTokenActor):
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if expiration:
-            lock_periods = calculate_period_duration(future_time=expiration)
+            lock_periods = calculate_period_duration(future_time=expiration,
+                                                     seconds_per_period=self.economics.seconds_per_period)
 
         # Value
         if entire_balance and amount:
