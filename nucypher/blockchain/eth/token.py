@@ -578,11 +578,11 @@ class StakeList(UserList):
     def updated(self) -> maya.MayaDT:
         return self.__updated
 
-    def refresh(self, checksum_addresses: List[str] = None) -> None:
+    def refresh(self) -> None:
         """Public staking cache invalidation method"""
         return self.__read_stakes()
 
-    def __read_stakes(self,) -> None:
+    def __read_stakes(self) -> None:
         """Rewrite the local staking cache by reading on-chain stakes"""
 
         existing_records = len(self)
