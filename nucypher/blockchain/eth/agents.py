@@ -660,8 +660,8 @@ class UserEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
-    def deposit_as_staker(self, value: int, periods: int):
-        contract_function = self.__proxy_contract.functions.depositAsStaker(value, periods)
+    def deposit_as_staker(self, amount: int, lock_periods: int):
+        contract_function = self.__proxy_contract.functions.depositAsStaker(amount, lock_periods)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
         return receipt
 
