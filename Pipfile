@@ -36,6 +36,8 @@ flask-limiter = "*"
 dash = {extras = ["testing"],version = "*"}
 dash-core-components = "*"
 dash-html-components = "*"
+dash_daq = "*"
+plotly = "3.10.0"
 
 [dev-packages]
 # Pytest
