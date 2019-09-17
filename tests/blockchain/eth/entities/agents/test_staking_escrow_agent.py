@@ -225,6 +225,35 @@ def test_divide_stake(agency, token_economics):
 
 
 @pytest.mark.slow()
+def test_enable_restaking(agency, testerchain):
+    token_agent, staking_agent, _policy_agent = agency
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+    receipt = staking_agent.set_restaking(staker_account, value=True)
+    assert receipt['status'] == 1, "Transaction Rejected"
+
+
+@pytest.mark.slow()
+def test_lock_restaking(agency, testerchain):
+    token_agent, staking_agent, _policy_agent = agency
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+    current_period = staking_agent.get_current_period()
+    terminal_period = current_period + 2
+    receipt = staking_agent.lock_restaking(staker_account, termination_period=terminal_period)
+    assert receipt['status'] == 1, "Transaction Rejected"
+
+
+@pytest.mark.slow()
+def test_disable_restaking(agency, testerchain):
+    token_agent, staking_agent, _policy_agent = agency
+    staker_account, worker_account, *other = testerchain.unassigned_accounts
+    assert staking_agent.get_restaking_lock_status(staker_account)
+    testerchain.time_travel(periods=2)  # Wait for restake lock to be released.
+    receipt = staking_agent.set_restaking(staker_account, value=False)
+    assert receipt['status'] == 1, "Transaction Rejected"
+    assert not staking_agent.get_restaking_lock_status(staker_account)
+
+
+@pytest.mark.slow()
 def test_collect_staking_reward(agency, testerchain):
     token_agent, staking_agent, _policy_agent = agency
 

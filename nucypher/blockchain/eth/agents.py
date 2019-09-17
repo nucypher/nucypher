@@ -363,6 +363,26 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=staker_address)
         return receipt
 
+    def get_restaking_lock_status(self, staker_address: str) -> bool:
+        status = self.contract.functions.isReStakeLocked(staker_address).call()
+        return status
+
+    def set_restaking(self, staker_address: str, value: bool) -> dict:
+        """
+        Enable automatic restaking for a fixed duration of lock periods.
+        If set to True, then all staking rewards will be automatically added to locked stake.
+        """
+        contract_function = self.contract.functions.setReStake(value)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        return receipt
+
+    def lock_restaking(self, staker_address: str, termination_period: int) -> dict:
+        contract_function = self.contract.functions.lockReStake(termination_period)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        return receipt
+
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (
             # Period
