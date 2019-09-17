@@ -98,9 +98,6 @@ def deploy(action,
     if not os.path.exists(config_root):
         os.makedirs(config_root)
 
-    if not provider_uri:
-        raise click.BadOptionUsage(message=f"--provider is required to deploy.", option_name="--provider")
-
     #
     # Pre-Launch Warnings
     #
@@ -117,9 +114,21 @@ def deploy(action,
                      "If you want to see deployed contracts and TXs in your browser, activate --etherscan.",
                      color='yellow')
 
+    if action == "download-registry":
+        if not force:
+            prompt = f"Fetch and download latest registry from {BaseContractRegistry._PUBLICATION_ENDPOINT}?"
+            click.confirm(prompt, abort=True)
+        registry = InMemoryContractRegistry.from_latest_publication()
+        output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)
+        emitter.message(f"Successfully downloaded latest registry to {output_filepath}")
+        return  # Exit
+
     #
     # Connect to Blockchain
     #
+
+    if not provider_uri:
+        raise click.BadOptionUsage(message=f"--provider is required to deploy.", option_name="--provider")
 
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         # Note: For test compatibility.
@@ -136,6 +145,7 @@ def deploy(action,
         administrator = ContractAdministrator(registry=registry, deployer_address=deployer_address)
         paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
         return  # Exit
+
 
     #
     # Establish Registry
