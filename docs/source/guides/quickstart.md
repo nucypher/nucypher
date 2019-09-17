@@ -3,12 +3,12 @@
 
 ## A Note about Side-Channels
 
-The NuCypher network does not store your application's data; Instead - it manages access *to* your
-application's data. Management of encrypted secrets and public keys is highly application-specific - 
-In general, nucypher needs to be integrated with a storage or transport layer to function properly.
-Along with the transport of ciphertext, the application also needs to include 
+The NuCypher network does not store or handle an application's data; instead - it manages access *to* application data
+Management of encrypted secrets and public keys tends to be highly domain-specific. In other words, the surrounding architecture will vary greatly depending on the throughput, sensitivity and sharing cadence of the data in question, to name but a few influencing factors.
+In all cases however, NuCypher must be integrated with a storage and transport layer in order to function properly.
+Along with the transport of ciphertexts, the application also needs to include 
 facilities for several other pieces of cryptographic material, specifically, channels
-for Alice and Bob to discover each-others public keys, as well as a way to provide policy public keys 
+for Alice and Bob to discover each other's public keys, as well as a way to provide the policy's public key 
 to Bob and Enrico.
  
 ##### Side Channel Data:
@@ -27,8 +27,8 @@ to Bob and Enrico.
 
 ### Running an Ethereum Node
 
-Operation of nucypher cryptological characters `Alice`, `Bob`, and `Ursula` require
-a running ethereum node and wallet (We recommend Geth).
+Operation of NuCypher cryptological characters [`Alice`, `Bob`, `Ursula`] requires
+a running Ethereum node and wallet (we recommend Geth).
 
 To run a Goerli connected Geth node:
 ```bash
