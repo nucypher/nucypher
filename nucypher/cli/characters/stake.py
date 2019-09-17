@@ -47,10 +47,8 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--hw-wallet/--no-hw-wallet', default=False)  # TODO: Make True or deprecate.
-@click.option('--sync/--no-sync', default=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--offline', help="Operate in offline mode", is_flag=True)
 @click.option('--provider', 'provider_uri', help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'", type=click.STRING)
 @click.option('--staking-address', help="Address to stake NU ERC20 tokens", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--worker-address', help="Address to assign as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
@@ -62,6 +60,8 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @click.option('--enable/--disable', help="Used to enable and disable re-staking", is_flag=True, default=True)
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
+@click.option('--escrow', help="Use a pre-allocation escrow contract", is_flag=True)  # TODO: #1351 - Refactor allocation registry?
+@click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -71,14 +71,12 @@ def stake(click_config,
 
           # Mode
           force,
-          offline,
           hw_wallet,
 
           # Blockchain
           poa,
           registry_filepath,
           provider_uri,
-          sync,
 
           # Stake
           staking_address,
@@ -91,7 +89,8 @@ def stake(click_config,
           staking_reward,
           enable,
           lock_until,
-
+          escrow,
+          beneficiary_address,
           ) -> None:
     """
     Manage stakes and other staker-related operations.
@@ -146,6 +145,12 @@ def stake(click_config,
     #
     # Make Stakeholder
     #
+
+    # First let's check whether we're dealing here with a regular staker or a preallocation staker
+    is_preallocation_staker = escrow or beneficiary_address
+
+    if staking_address and is_preallocation_staker:
+        raise click.BadOptionUsage("--escrow and --beneficiary-address are incompatible with --staking-address")
 
     STAKEHOLDER = stakeholder_config.produce(initial_address=staking_address)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
@@ -242,22 +247,33 @@ def stake(click_config,
         return  # Exit
 
     elif action == 'create':
-        """Initialize a new stake"""
+        """Create a new stake"""
 
         #
         # Get Staking Account
         #
 
         password = None
-        if not staking_address:
-            staking_address = select_client_account(prompt="Select staking account",
-                                                    emitter=emitter,
-                                                    provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
+        if is_preallocation_staker:
+            if beneficiary_address:
+                client_account = beneficiary_address
+            else:
+                client_account = select_client_account(prompt="Select beneficiary account",
+                                                       emitter=emitter,
+                                                       provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
+        else:
+            if staking_address:
+                client_account = staking_address
+            else:
+                client_account = select_client_account(prompt="Select staking account",
+                                                       emitter=emitter,
+                                                       provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
 
         if not hw_wallet and not blockchain.client.is_local:
-            password = click.prompt(f"Enter password to unlock {staking_address}",
+            password = click.prompt(f"Enter password to unlock {client_account}",
                                     hide_input=True,
                                     confirmation_prompt=False)
+
         #
         # Stage Stake
         #
@@ -282,19 +298,19 @@ def stake(click_config,
         if not force:
             painting.paint_staged_stake(emitter=emitter,
                                         stakeholder=STAKEHOLDER,
-                                        staking_address=staking_address,
+                                        staking_address=staking_address,  # FIXME
                                         stake_value=value,
                                         lock_periods=lock_periods,
                                         start_period=start_period,
                                         end_period=end_period)
 
-            confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
+            confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)  # FIXME
 
         # Last chance to bail
         click.confirm("Publish staged stake to the blockchain?", abort=True)
 
         # Execute
-        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
         new_stake = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods)
 
         painting.paint_staking_confirmation(emitter=emitter,
