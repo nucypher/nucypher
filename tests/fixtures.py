@@ -151,8 +151,7 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        reload_metadata=False,
-                                        download_registry=False)
+                                        reload_metadata=False,)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -183,8 +182,7 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True,
                                 save_metadata=False,
-                                reload_metadata=False,
-                                download_registry=False)
+                                reload_metadata=False,)
     yield config
     config.cleanup()
 
@@ -214,8 +212,7 @@ def bob_federated_test_config():
                               abort_on_learning_error=True,
                               federated_only=True,
                               save_metadata=False,
-                              reload_metadata=False,
-                              download_registry=False)
+                              reload_metadata=False,)
     yield config
     config.cleanup()
 
