@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
-import random
 import time
 from base64 import b64encode
 from collections import OrderedDict
@@ -43,10 +42,10 @@ from umbral.signing import Signature
 
 import nucypher
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Staker
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, UserEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, AllocationRegistry
 from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
@@ -1417,8 +1416,13 @@ class StakeHolder(Staker):
                  checksum_addresses: set = None,
                  password: str = None,
                  *args, **kwargs):
+
+        self.user_escrow_agent = None
+
         super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
         self.log = Logger(f"stakeholder")
+
+        self.allocation_registry = AllocationRegistry()  # FIXME
 
         # Wallet
         self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
@@ -1431,11 +1435,25 @@ class StakeHolder(Staker):
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str, password: str = None) -> None:
+        # In case the account stakes via a contract
+        has_staking_contract = self.allocation_registry.is_beneficiary_enrolled(checksum_address)
+        if has_staking_contract:
+            self.beneficiary_address = checksum_address
+            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
+                                                     allocation_registry=self.allocation_registry,
+                                                     beneficiary=self.beneficiary_address)
+            staking_address = self.user_escrow_agent.principal_contract.address
+        else:
+            staking_address = checksum_address
+            self.user_escrow_agent = None
+            self.beneficiary_address = None
+
         self.wallet.activate_account(checksum_address=checksum_address, password=password)
         original_form = self.checksum_address
-        self.checksum_address = checksum_address
-        self.stakes = StakeList(registry=self.registry, checksum_address=checksum_address)
+        self.checksum_address = staking_address
+        self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
         self.stakes.refresh()
+        # TODO: Not sure how to log all this new info (i.e. old or new address may be via contract)
         self.log.info(f"Resistance is futile - Assimilating Staker {original_form} -> {checksum_address}.")
 
     @property
