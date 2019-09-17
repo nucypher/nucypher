@@ -166,39 +166,13 @@ class BaseContractDeployer:
         return agent
 
 
-class UpgradeableContractDeployer(BaseContractDeployer):
 
-    _upgradeable = True
-    
-    _proxy_deployer = NotImplemented
-    _ownable = NotImplemented
-    
-    class NotUpgradeable(RuntimeError):
-        pass
-    
+class OwnableContractMixin:
+
+    _ownable = True
+
     class NotOwnable(RuntimeError):
         pass
-
-    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
-        """
-        Provides for the setup, deployment, and initialization of ethereum smart contracts.
-        Emits the configured blockchain network transactions for single contract instance publication.
-        """
-        if not cls._upgradeable:
-            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
-        raise NotImplementedError
-
-    @classmethod
-    def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
-        """Get the latest version of the contract without assembling it with it's proxy."""
-        if not cls._upgradeable:
-            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        contract = blockchain.get_contract_by_name(name=cls.contract_name,
-                                                   registry=registry,
-                                                   proxy_name=cls._proxy_deployer.contract_name,
-                                                   use_proxy_address=False)
-        return contract
 
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None):
         if not self._ownable:
@@ -230,6 +204,36 @@ class UpgradeableContractDeployer(BaseContractDeployer):
         receipts = {'principal': principal_receipt, 'proxy': proxy_receipt}
         return receipts
 
+
+class UpgradeableContractMixin:
+
+    _upgradeable = True
+    _proxy_deployer = NotImplemented
+
+    class NotUpgradeable(RuntimeError):
+        pass
+    
+    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
+        """
+        Provides for the setup, deployment, and initialization of ethereum smart contracts.
+        Emits the configured blockchain network transactions for single contract instance publication.
+        """
+        if not cls._upgradeable:
+            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+        raise NotImplementedError
+
+    @classmethod
+    def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+        """Get the latest version of the contract without assembling it with it's proxy."""
+        if not cls._upgradeable:
+            raise cls.NotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        contract = blockchain.get_contract_by_name(name=cls.contract_name,
+                                                   registry=registry,
+                                                   proxy_name=cls._proxy_deployer.contract_name,
+                                                   use_proxy_address=False)
+        return contract
+
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
             raise self.NotUpgradeable(f"{self.contract_name} is not upgradeable.")
@@ -238,10 +242,10 @@ class UpgradeableContractDeployer(BaseContractDeployer):
         # TODO: Fails when this same object was used previously to deploy
         self.check_deployment_readiness()
 
-        # Get Bare Contracts
+        # 2 - Get Bare Contracts
         existing_bare_contract = self.get_latest_version(registry=self.registry,
                                                          provider_uri=self.blockchain.provider_uri)
-        
+
         proxy_deployer = self._proxy_deployer(registry=self.registry,
                                               target_contract=existing_bare_contract,
                                               deployer_address=self.deployer_address,
@@ -260,7 +264,7 @@ class UpgradeableContractDeployer(BaseContractDeployer):
                                                   new_secret_hash=new_secret_hash,
                                                   gas_limit=gas_limit)
 
-        # Respond
+        # 5- Respond
         upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
         self._contract = wrapped_contract  # Switch the contract for the wrapped one
         return upgrade_transaction
@@ -315,7 +319,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
         return {self.deployment_steps[0]: deployment_receipt}
 
 
-class DispatcherDeployer(BaseContractDeployer):
+class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
     """
     Ethereum smart contract that acts as a proxy to another ethereum contract,
     used as a means of "dispatching" the correct version of the contract to the client
@@ -324,7 +328,6 @@ class DispatcherDeployer(BaseContractDeployer):
     contract_name = DISPATCHER_CONTRACT_NAME
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
-    _ownable = True
     _secret_length = 32
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
@@ -379,7 +382,7 @@ class DispatcherDeployer(BaseContractDeployer):
         return rollback_receipt
 
 
-class StakingEscrowDeployer(UpgradeableContractDeployer):
+class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
     """
     Deploys the StakingEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
@@ -388,7 +391,6 @@ class StakingEscrowDeployer(UpgradeableContractDeployer):
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'reward_transfer', 'initialize')
     _proxy_deployer = DispatcherDeployer
-    _ownable = True
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -495,7 +497,7 @@ class StakingEscrowDeployer(UpgradeableContractDeployer):
         return deployment_receipts
 
 
-class PolicyManagerDeployer(UpgradeableContractDeployer):
+class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
     """
     Depends on StakingEscrow and NucypherTokenAgent
     """
@@ -504,7 +506,6 @@ class PolicyManagerDeployer(UpgradeableContractDeployer):
     contract_name = agency.registry_contract_name
     deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
     _proxy_deployer = DispatcherDeployer
-    _ownable = True
 
 
     def __init__(self, *args, **kwargs):
@@ -568,11 +569,10 @@ class PolicyManagerDeployer(UpgradeableContractDeployer):
         return deployment_receipts
 
 
-class LibraryLinkerDeployer(BaseContractDeployer):
+class LibraryLinkerDeployer(BaseContractDeployer, OwnableContractMixin):
 
     contract_name = 'UserEscrowLibraryLinker'
     deployment_steps = ('contract_deployment', )
-    _ownable = True
 
     def __init__(self, target_contract: Contract, bare: bool = False, *args, **kwargs):
         self.target_contract = target_contract
@@ -612,14 +612,13 @@ class LibraryLinkerDeployer(BaseContractDeployer):
         return retarget_receipt
 
 
-class UserEscrowProxyDeployer(UpgradeableContractDeployer):
+class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
 
     contract_name = 'UserEscrowProxy'
     deployment_steps = ('contract_deployment', 'linker_deployment')
     number_of_deployment_transactions = 2
     _proxy_deployer = LibraryLinkerDeployer
     _ownable = False
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -681,14 +680,13 @@ class UserEscrowProxyDeployer(UpgradeableContractDeployer):
         return deployment_receipts
 
 
-class UserEscrowDeployer(UpgradeableContractDeployer):
+class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 
     agency = UserEscrowAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', )
     _linker_deployer = LibraryLinkerDeployer
     __allocation_registry = AllocationRegistry
-    _ownable = True
 
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -787,13 +785,12 @@ class UserEscrowDeployer(UpgradeableContractDeployer):
         return deploy_receipt
 
 
-class AdjudicatorDeployer(UpgradeableContractDeployer):
+class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 
     agency = AdjudicatorAgent
     contract_name = agency.registry_contract_name
     deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'set_adjudicator')
     _proxy_deployer = DispatcherDeployer
-    _ownable = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
