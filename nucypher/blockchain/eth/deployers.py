@@ -238,14 +238,14 @@ class UpgradeableContractDeployer(BaseContractDeployer):
         # TODO: Fails when this same object was used previously to deploy
         self.check_deployment_readiness()
 
-        existing_bare_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                      name=self.contract_name,
-                                                                      proxy_name=self._proxy_deployer.contract_name,
-                                                                      use_proxy_address=False)
+        # Get Bare Contracts
+        existing_bare_contract = self.get_latest_version(registry=self.registry,
+                                                         provider_uri=self.blockchain.provider_uri)
+        
         proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                                   target_contract=existing_bare_contract,
-                                                   deployer_address=self.deployer_address,
-                                                   bare=True)  # acquire agency for the dispatcher itself.
+                                              target_contract=existing_bare_contract,
+                                              deployer_address=self.deployer_address,
+                                              bare=True)  # acquire agency for the dispatcher itself.
 
         # 2 - Deploy new version #
         new_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
