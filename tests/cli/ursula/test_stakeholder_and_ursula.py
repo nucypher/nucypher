@@ -275,6 +275,39 @@ def test_ursula_run(click_runner,
     assert result.exit_code == 0
 
 
+def test_stake_restake(click_runner,
+                       manual_staker,
+                       custom_filepath,
+                       testerchain,
+                       stakeholder_configuration_file_location):
+
+    restake_args = ('stake', 'restake',
+                    '--enable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force',
+                    '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    restake_args = ('stake', 'restake',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force',
+                    '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
                                      test_registry,
@@ -397,8 +430,8 @@ def test_collect_rewards_integration(click_runner,
     current_period += 1
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
-    # Half of the tokens are unlocked.
-    assert staker.locked_tokens() == token_economics.minimum_allowed_locked
+    # At least half of the tokens are unlocked (restaking was enabled for some prior periods)
+    assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
 
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
     testerchain.transacting_power = TransactingPower(account=staker_address,

@@ -53,6 +53,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
+@click.option('--enable/--disable', help="Used to enable and disable restaking", is_flag=True)
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -80,6 +81,7 @@ def stake(click_config,
           index,
           policy_reward,
           staking_reward,
+          enable,
 
           ) -> None:
     """
@@ -88,15 +90,16 @@ def stake(click_config,
     \b
     Actions
     -------------------------------------------------
-    init-stakeholder Create a new stakeholder configuration
-    list             List active stakes for current stakeholder
-    accounts         Show ETH and NU balances for stakeholder's accounts
-    sync             Synchronize stake data with on-chain information
-    set-worker       Bond a worker to a staker
-    detach-worker    Detach worker currently bonded to a staker
-    init             Create a new stake
-    divide           Create a new stake from part of an existing one
-    collect-reward   Withdraw staking reward
+    init-stakeholder  Create a new stakeholder configuration
+    list              List active stakes for current stakeholder
+    accounts          Show ETH and NU balances for stakeholder's accounts
+    sync              Synchronize stake data with on-chain information
+    set-worker        Bond a worker to a staker
+    detach-worker     Detach worker currently bonded to a staker
+    init              Create a new stake
+    restake           Manage restaking with --enable or --disable
+    divide            Create a new stake from part of an existing one
+    collect-reward    Withdraw staking reward
 
     """
 
@@ -290,10 +293,23 @@ def stake(click_config,
                                             transactions=new_stake.transactions)
         return  # Exit
 
+    elif action == "restake":
+        if enable:
+            if not force:
+                click.confirm(f"Confirm enable restaking for staker {staking_address}?", abort=True)
+            receipt = STAKEHOLDER.enable_restaking()
+            paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+        else:
+            if not force:
+                click.confirm(f"Confirm disable restaking for staker {staking_address}?", abort=True)
+            receipt = STAKEHOLDER.enable_restaking()
+            paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+        return  # Exit
+
     elif action == 'divide':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        if staking_address and index is not None:
+        if staking_address and index is not None:  # 0 is valid.
             current_stake = STAKEHOLDER.stakes[index]
         else:
             current_stake = select_stake(stakeholder=STAKEHOLDER, emitter=emitter)
