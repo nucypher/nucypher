@@ -28,7 +28,6 @@ import maya
 from constant_sorrow.constants import (
     WORKER_NOT_RUNNING,
     NO_WORKER_ASSIGNED,
-    NOT_STAKING_VIA_USER_ESCROW
 )
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import keccak, is_checksum_address
@@ -41,7 +40,6 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
-    UserEscrowAgent
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
@@ -528,8 +526,6 @@ class Staker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 beneficiary_address: str = None,
-                 allocation_registry=None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -544,18 +540,14 @@ class Staker(NucypherTokenActor):
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
-        if beneficiary_address:
-            self.beneficiary_address = beneficiary_address
-            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
-                                                     allocation_registry=allocation_registry,
-                                                     beneficiary=beneficiary_address)
-        else:
-            self.beneficiary_address = NOT_STAKING_VIA_USER_ESCROW
-            self.user_escrow_agent = NOT_STAKING_VIA_USER_ESCROW
+        # FIXME: I don't like this pattern of setting to None here and changing it in the subclass (StakeHolder),
+        # but my hands are tied at the moment (not literally, you pervs)
+        self.beneficiary_address = None
+        self.user_escrow_agent = None
 
     @property
     def is_contract(self) -> bool:
-        return self.beneficiary_address is not NOT_STAKING_VIA_USER_ESCROW
+        return self.user_escrow_agent is not None
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -567,6 +559,7 @@ class Staker(NucypherTokenActor):
                           'stakes': stake_info}
         return staker_payload
 
+    # TODO: This is unused. Why? Should we remove it?
     @classmethod
     def from_dict(cls, staker_payload: dict) -> 'Staker':
         staker = Staker(is_me=True, checksum_address=staker_payload['checksum_address'])
