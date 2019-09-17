@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
                                                AdjudicatorDeployer,
-                                               ContractDeployer,
+                                               BaseContractDeployer,
                                                DispatcherDeployer)
 
 
@@ -43,7 +43,7 @@ def test_deploy_ethereum_contracts(testerchain,
     token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
     assert token_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not token_deployer.is_deployed
 
@@ -62,13 +62,13 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # StakingEscrow
     #
-    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
     staking_escrow_deployer = StakingEscrowDeployer(
         registry=test_registry,
         deployer_address=origin)
     assert staking_escrow_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed
 
@@ -88,14 +88,14 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Policy Manager
     #
-    policy_manager_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DispatcherDeployer._secret_length)
     policy_manager_deployer = PolicyManagerDeployer(
         registry=test_registry,
         deployer_address=origin)
 
     assert policy_manager_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed
 
@@ -115,14 +115,14 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Adjudicator
     #
-    adjudicator_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    adjudicator_secret = os.urandom(DispatcherDeployer._secret_length)
     adjudicator_deployer = AdjudicatorDeployer(
         registry=test_registry,
         deployer_address=origin)
 
     assert adjudicator_deployer.deployer_address == origin
 
-    with pytest.raises(ContractDeployer.ContractDeploymentError):
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed
 

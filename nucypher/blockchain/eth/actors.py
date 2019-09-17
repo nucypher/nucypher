@@ -47,7 +47,7 @@ from nucypher.blockchain.eth.deployers import (
     UserEscrowProxyDeployer,
     UserEscrowDeployer,
     AdjudicatorDeployer,
-    ContractDeployer
+    BaseContractDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -153,6 +153,8 @@ class ContractAdministrator(NucypherTokenActor):
         UserEscrowProxyDeployer,
     )
 
+    ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes, )
+
     deployer_classes = (*standard_deployer_classes,
                         *upgradeable_deployer_classes)
 
@@ -212,7 +214,7 @@ class ContractAdministrator(NucypherTokenActor):
                         progress=None,
                         *args,
                         **kwargs,
-                        ) -> Tuple[dict, ContractDeployer]:
+                        ) -> Tuple[dict, BaseContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry,
@@ -328,7 +330,7 @@ class ContractAdministrator(NucypherTokenActor):
 
         receipts = dict()
 
-        for contract_deployer in self.upgradeable_deployer_classes:
+        for contract_deployer in self.ownable_deployer_classes:
             deployer = contract_deployer(registry=self.registry, deployer_address=self.deployer_address)
             deployer.transfer_ownership(new_owner=new_owner, transaction_gas_limit=transaction_gas_limit)
 

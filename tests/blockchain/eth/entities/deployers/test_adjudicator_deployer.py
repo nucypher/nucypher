@@ -39,14 +39,14 @@ def test_adjudicator_deployer(testerchain,
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
-    stakers_escrow_secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+    stakers_escrow_secret = os.urandom(DispatcherDeployer._secret_length)
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
 
     staking_escrow_deployer.deploy(secret_hash=keccak(stakers_escrow_secret))
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
     deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH),
+    deployment_receipts = deployer.deploy(secret_hash=os.urandom(DispatcherDeployer._secret_length),
                                           progress=deployment_progress)
 
     # deployment steps must match expected number of steps

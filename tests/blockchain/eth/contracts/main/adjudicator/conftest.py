@@ -43,7 +43,7 @@ def adjudicator(testerchain, escrow, request, token_economics, deploy_contract):
         *token_economics.slashing_deployment_parameters)
 
     if request.param:
-        secret = os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH)
+        secret = os.urandom(DispatcherDeployer._secret_length)
         secret_hash = testerchain.w3.keccak(secret)
         dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
 
