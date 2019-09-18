@@ -108,7 +108,8 @@ def load_seednodes(emitter,
                    network_middleware: RestMiddleware = None,
                    teacher_uris: list = None,
                    registry: BaseContractRegistry = None,
-                   ) -> List[Ursula]:
+                   ) -> List:
+    from nucypher.characters.lawful import Ursula
 
     # Set domains
     if network_domains is None:

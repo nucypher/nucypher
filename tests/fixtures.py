@@ -32,22 +32,25 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics, SlashingEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                StakingEscrowDeployer,
                                                PolicyManagerDeployer,
-                                               DispatcherDeployer,
-                                               AdjudicatorDeployer)
+                                               AdjudicatorDeployer, UserEscrowProxyDeployer)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico, Bob, StakeHolder
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration, \
+from nucypher.config.characters import (
+    UrsulaConfiguration,
+    AliceConfiguration,
+    BobConfiguration,
     StakeHolderConfiguration
+)
 from nucypher.config.node import CharacterConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import canonical_address_from_umbral_key
@@ -55,19 +58,24 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.policy.collections import IndisputableEvidence, WorkOrder
 from nucypher.utilities.sandbox.blockchain import token_airdrop, TesterBlockchain
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-                                                  MOCK_POLICY_DEFAULT_M,
-                                                  MOCK_URSULA_STARTING_PORT,
-                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  TEMPORARY_DOMAIN,
-                                                  TEST_PROVIDER_URI,
-                                                  INSECURE_DEVELOPMENT_PASSWORD, MOCK_REGISTRY_FILEPATH,
-                                                  TEST_GAS_LIMIT)
+from nucypher.utilities.sandbox.constants import (
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+    MIN_STAKE_FOR_TESTS,
+    BONUS_TOKENS_FOR_TESTS,
+    MOCK_POLICY_DEFAULT_M,
+    MOCK_URSULA_STARTING_PORT,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TEMPORARY_DOMAIN,
+    TEST_PROVIDER_URI,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_REGISTRY_FILEPATH,
+    TEST_GAS_LIMIT,
+    INSECURE_DEPLOYMENT_SECRET_HASH,
+)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
-from nucypher.utilities.sandbox.ursula import (make_decentralized_ursulas,
-                                               make_federated_ursulas)
+from nucypher.utilities.sandbox.ursula import make_decentralized_ursulas, make_federated_ursulas
 
 CharacterConfiguration.DEFAULT_DOMAIN = TEMPORARY_DOMAIN
 
@@ -76,6 +84,7 @@ test_logger = Logger("test-logger")
 #
 # Temporary
 #
+
 
 @pytest.fixture(scope="function")
 def tempfile_path():
@@ -90,18 +99,6 @@ def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield temp_dir.name
     temp_dir.cleanup()
-
-
-@pytest.fixture(scope="module")
-def temp_config_root(temp_dir_path):
-    """
-    User is responsible for closing the file given at the path.
-    """
-    default_node_config = CharacterConfiguration(dev_mode=True,
-                                                 config_root=temp_dir_path,
-                                                 download_registry=False)
-    yield default_node_config.config_root
-    default_node_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -343,13 +340,7 @@ def federated_ursulas(ursula_federated_test_config):
 
 @pytest.fixture(scope='session')
 def token_economics():
-    economics = TokenEconomics()
-    return economics
-
-
-@pytest.fixture(scope='session')
-def slashing_economics():
-    economics = SlashingEconomics()
+    economics = StandardTokenEconomics()
     return economics
 
 
@@ -423,20 +414,23 @@ def _make_agency(testerchain, test_registry):
     token_deployer.deploy()
 
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-    staking_escrow_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    staking_escrow_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
-    policy_manager_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    policy_manager_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    adjudicator_deployer.deploy(secret_hash=os.urandom(DispatcherDeployer.DISPATCHER_SECRET_LENGTH))
+    adjudicator_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    token_agent = token_deployer.make_agent()              # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()   # 2 Miner Escrow
-    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()  # 4 Adjudicator
+    user_escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=origin, registry=test_registry)
+    user_escrow_proxy_deployer.deploy(secret_hash=INSECURE_DEPLOYMENT_SECRET_HASH)
 
-    # TODO: Perhaps we should get rid of returning these agents here.
+    token_agent = token_deployer.make_agent()                           # 1 Token
+    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
+    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
+    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
+
+    # TODO: Get rid of returning these agents here.
     # What's important is deploying and creating the first agent for each contract,
     # and since agents are singletons, in tests it's only necessary to call the agent
     # constructor again to receive the existing agent.
@@ -455,13 +449,6 @@ def _make_agency(testerchain, test_registry):
 
 @pytest.fixture(scope='module')
 def agency(testerchain, test_registry):
-    agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
-    yield agents
-
-
-@pytest.fixture(scope='module')
-def session_agency(_testerchain, test_registry):
-    testerchain = _testerchain
     agents = _make_agency(testerchain=testerchain, test_registry=test_registry)
     yield agents
 
@@ -489,11 +476,10 @@ def stakers(testerchain, agency, token_economics, test_registry):
         staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=account)
         staker.transacting_power.activate()
 
-        min_stake, balance = token_economics.minimum_allowed_locked, staker.token_balance
-        amount = random.randint(min_stake, balance)
+        amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
         # for a random lock duration
-        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_locked_periods
+        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods
         periods = random.randint(min_locktime, max_locktime)
 
         staker.initialize_stake(amount=amount, lock_periods=periods)

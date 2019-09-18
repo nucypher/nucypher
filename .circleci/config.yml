@@ -31,56 +31,56 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - basics:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - network:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - character:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - agents:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - deployers:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - cli:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pipenv_install_36
+            - pip_install_37
       - tests_ok:
           context: "NuCypher Tests"
           filters:
@@ -115,13 +115,6 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-#      - mypy:  # Disable mypy for the moment as it was wasting a CircleCI container for nothing
-#          context: "NuCypher Tests"
-#          filters:
-#            tags:
-#              only: /.*/
-#          requires:
-#            - tests_ok
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
@@ -224,9 +217,6 @@ commands:
       - run:
           name: Check NuCypher Python API Entrypoint
           command: pipenv run python3 -c "import nucypher; print(nucypher.__version__)"
-      - run:
-          name: Check NuCypher CLI Entrypoint
-          command: pipenv run nucypher --help
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
@@ -244,38 +234,39 @@ commands:
   pip_install:
     description: "Install NuCypher with Pip"
     steps:
-      - checkout
       - run:
           name: Install Python Dependencies with Pip
-          command: pip3 install --user .
+          command: pip3 install --user -e .
       - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
       - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install -r dev-requirements.txt --user .
+          command: pip3 install -r dev-requirements.txt --user -e .
       - run:
           name: Install Solidity Compiler
           command: ./scripts/installation/install_solc.sh
       - check_nucypher_entrypoints
 
-  pip_install_no_dev:
-    description: "Install NuCypher with Pip (no development dependencies)"
+  save_dependency_cache:
+    description: "Cache python installation files"
     steps:
-    - checkout
-    - run:
-        name: Install Python Dependencies with Pip
-        command: pip3 install --user .
-    - check_nucypher_entrypoints   # Ensure Standard Installation Entry-points Work
-    - run:
-        name: Install Solidity Compiler
-        command: ./scripts/installation/install_solc.sh
-    - check_nucypher_entrypoints
+      - save_cache:
+          key: pip-v10-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          paths:
+            - "/usr/local/bin/solc"
+            - "~/.local/bin"
+            - "~/.local/lib/python3.7/site-packages"
+
+  restore_dependency_cache:
+    description: "Own and restore cached python installation files"
+    steps:
+      - restore_cache:  # ensure this step occurs *before* installing dependencies
+          key: pip-v10-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
 
   prepare_environment:
     description: "Checkout application code and Attach the Workspace"
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - restore_dependency_cache
       - run:
           name: "Create directory for test reports"
           command: mkdir reports
@@ -310,7 +301,6 @@ commands:
       - store_artifacts:
           path: ~/test-logs/
 
-
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
     steps:
@@ -337,22 +327,25 @@ jobs:
   pip_install_36:
     <<: *python_36_base
     steps:
+      - checkout
       - pip_install
+
   pipenv_install_36:
     <<: *python_36_base
     steps:
       - pipenv_install:
           python_version: "3.6"
-      - persist_to_workspace:
-          root: ~/.local/share/virtualenvs/
-          paths:
-            - nucypher-*
 
   # Python 3.7
+  # Note: Use the chown command to grant CircleCI access to dependency locations.
   pip_install_37:
     <<: *python_37_base
     steps:
+      - checkout
+      - restore_dependency_cache  # Depends on above checkout
       - pip_install
+      - save_dependency_cache
+
   pipenv_install_37:
     <<: *python_37_base
     steps:
@@ -360,101 +353,101 @@ jobs:
           python_version: "3.7"
 
   agents:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 4
     steps:
       - prepare_environment
       - run:
           name: Blockchain Agent Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/blockchain/eth/entities/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   actors:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 2
     steps:
       - prepare_environment
       - run:
           name: Blockchain Actor Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/blockchain/eth/entities/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   deployers:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 2
     steps:
       - prepare_environment
       - run:
           name: Contract Deployer Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/entities/deployers/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/blockchain/eth/entities/deployers/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   contracts:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 5
     steps:
       - prepare_environment
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/blockchain/eth/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   basics:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 1
     steps:
       - prepare_environment
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Keystore
           command: |
-            pipenv run pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/config/**/test_*.py" "tests/crypto/**/test_*.py" "tests/keystore/**/test_*.py" "tests/blockchain/eth/interfaces/**/test_*.py" "tests/blockchain/eth/clients/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   network:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - prepare_environment
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/network/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   character:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 4
     steps:
       - prepare_environment
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   cli:
-    <<: *python_36_base
+    <<: *python_37_base
     parallelism: 6
     steps:
       - prepare_environment
       - run:
           name: Nucypher CLI Tests
           command: |
-            pipenv run pytest $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - run:
           name: Nucypher CLI Tests
           command: echo "Test modules succeeded"
 
   build_dev_docker_images:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - build_and_save_test_docker
 
@@ -483,50 +476,28 @@ jobs:
 
   validate_reqs_files:
     working_directory: ~/nucypher
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
-      - prepare_environment
+      - checkout
       - run:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
 
-  mypy:
-    <<: *python_36_base
+  estimate_gas:
+    <<: *python_37_base
     steps:
       - prepare_environment
       - run:
-          name: Install mypy
-          command: |
-              pipenv run pip install lxml
-              pipenv run pip install mypy
-      - run:
-          name: Run Mypy Static Type Checks (Always Succeed)
-          command: |
-              mkdir ./mypy_reports ./mypy_results
-              export MYPYPATH=./nucypher
-              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount || true
-      - store_artifacts:
-          path: ./mypy_reports
-
-  estimate_gas:
-    <<: *python_36_base
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
-      - run:
           name: Estimate Gas
           command: |
-            pipenv run python tests/metrics/estimate_gas.py
+            python tests/metrics/estimate_gas.py
       - store_artifacts:
           path: tests/metrics/results/
 
   build_docs:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
       - run:
           name: Install Documentation Build Dependencies
           command: pip3 install --user sphinx recommonmark sphinx-rtd-theme aafigure
@@ -539,7 +510,7 @@ jobs:
           path: docs/build
 
   test_build:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - checkout
       - pip_install
@@ -549,8 +520,8 @@ jobs:
       - run:
           name: Build Python Distribution Wheel
           command: |
-            pipenv run python setup.py sdist
-            pipenv run python setup.py bdist_wheel
+            python setup.py sdist
+            python setup.py bdist_wheel
 
   build_docker:
     working_directory: ~/nucypher
@@ -584,7 +555,7 @@ jobs:
             - ~/docker/nucypher.tar
 
   test_deploy:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - checkout
       - pip_install
@@ -621,7 +592,7 @@ jobs:
             python3 -c "import nucypher; print(nucypher.__version__)"
 
   publish_pypi:
-    <<: *python_36_base
+    <<: *python_37_base
     steps:
       - checkout
       - pip_install

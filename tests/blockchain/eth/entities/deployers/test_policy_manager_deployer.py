@@ -25,8 +25,8 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     DispatcherDeployer
 )
-from nucypher.utilities.sandbox.blockchain import (POLICY_MANAGER_DEPLOYMENT_SECRET,
-                                                   STAKING_ESCROW_DEPLOYMENT_SECRET)
+from nucypher.utilities.sandbox.constants import (POLICY_MANAGER_DEPLOYMENT_SECRET,
+                                                  STAKING_ESCROW_DEPLOYMENT_SECRET)
 
 
 @pytest.fixture(scope="module")

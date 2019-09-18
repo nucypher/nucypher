@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
-from mock import Mock
 
 from eth_tester.exceptions import TransactionFailed
 
@@ -120,11 +119,11 @@ def test_umbral_constants(testerchain, reencryption_validator):
 
 
 @pytest.mark.slow
-def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, mock_ursula_reencrypts):
+def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, mock_ursula_reencrypts, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=b'')
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=b'')
 
     # Bob prepares supporting Evidence
     evidence = mock_ursula_reencrypts(ursula)
@@ -138,11 +137,11 @@ def test_compute_proof_challenge_scalar(testerchain, reencryption_validator, moc
 
 
 @pytest.mark.slow
-def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencrypts):
+def test_validate_cfrag(testerchain, reencryption_validator, mock_ursula_reencrypts, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=b'')
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=b'')
 
     ###############################
     # Test: Ursula produces correct proof:

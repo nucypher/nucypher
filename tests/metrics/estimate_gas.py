@@ -25,17 +25,15 @@ import re
 import sys
 import time
 from os.path import abspath, dirname
+from unittest.mock import Mock
 
-from mock import Mock
 from twisted.logger import globalLogPublisher, Logger, jsonFileLogObserver, ILogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from zope.interface import provider
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent, AdjudicatorAgent
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.policies import Policy
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
@@ -46,11 +44,11 @@ from fixtures import _mock_ursula_reencrypts as mock_ursula_reencrypts
 
 
 ALGORITHM_SHA256 = 1
-TOKEN_ECONOMICS = TokenEconomics()
+TOKEN_ECONOMICS = StandardTokenEconomics()
 MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
 MIN_LOCKED_PERIODS = TOKEN_ECONOMICS.minimum_locked_periods
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
-MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_locked_periods
+MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_rewarded_periods
 
 
 class AnalyzeGas:
@@ -155,7 +153,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    testerchain, registry = TesterBlockchain.bootstrap_network()
+    economics = StandardTokenEconomics(
+        base_penalty=MIN_ALLOWED_LOCKED - 1,
+        penalty_history_coefficient=0,
+        percentage_penalty_coefficient=2,
+        reward_coefficient=2
+    )
+    testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
     web3 = testerchain.w3
 
     # Accounts

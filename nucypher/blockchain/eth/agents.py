@@ -101,7 +101,7 @@ class EthereumContractAgent:
 
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
-                                                                        self.contract_address,
+                                                                        self.contract.address,
                                                                         self.blockchain.provider_uri,
                                                                         self.registry))
 
@@ -111,7 +111,7 @@ class EthereumContractAgent:
         return r.format(class_name, self.registry, self.registry_contract_name)
 
     def __eq__(self, other):
-        return bool(self.contract_address == other.contract_address)
+        return bool(self.contract.address == other.contract.address)
 
     @property
     def contract(self):
@@ -124,6 +124,21 @@ class EthereumContractAgent:
     @property
     def contract_name(self) -> str:
         return self.registry_contract_name
+
+    @property
+    def owner(self):
+        if not self._proxy_name:
+            # Only upgradeable + ownable contracts can implement ownership transference.
+            return None
+        return self.contract.functions.owner().call()
+
+    @validate_checksum_address
+    def transfer_ownership(self, sender_address: str, checksum_address: str, transaction_gas_limit: int = None) -> dict:
+        contract_function = self.contract.functions.transferOwnership(checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=sender_address,
+                                                   transaction_gas_limit=transaction_gas_limit)
+        return receipt
 
 
 class NucypherTokenAgent(EthereumContractAgent):
@@ -176,6 +191,41 @@ class StakingEscrowAgent(EthereumContractAgent):
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
 
+    def get_stakers(self) -> List[str]:
+        """Returns a list of stakers"""
+        num_stakers = self.get_staker_population()
+        stakers = [self.contract.functions.stakers(i).call() for i in range(num_stakers)]
+        return stakers
+
+    def partition_stakers_by_activity(self) -> Tuple[List[str], List[str], List[str]]:
+        """Returns three lists of stakers depending on how they confirmed activity:
+        The first list contains stakers that already confirmed next period.
+        The second, stakers that confirmed for current period but haven't confirmed next yet.
+        The third contains stakers that have missed activity confirmation before current period"""
+
+        num_stakers = self.get_staker_population()
+        current_period = self.get_current_period()
+
+        active_stakers, pending_stakers, missing_stakers = [], [], []
+        for i in range(num_stakers):
+            staker = self.contract.functions.stakers(i).call()
+            last_active_period = self.get_last_active_period(staker)
+            if last_active_period == current_period + 1:
+                active_stakers.append(staker)
+            elif last_active_period == current_period:
+                pending_stakers.append(staker)
+            else:
+                missing_stakers.append(staker)
+
+        return active_stakers, pending_stakers, missing_stakers
+
+    def get_all_locked_tokens(self, periods: int) -> int:
+        """Returns the current period"""
+        if not periods > 0:
+            raise ValueError("Period must be > 0")
+
+        return self.contract.functions.getAllLockedTokens(periods).call()
+
     #
     # StakingEscrow Contract API
     #
@@ -203,6 +253,9 @@ class StakingEscrowAgent(EthereumContractAgent):
             at_period = self.contract.functions.getCurrentPeriod().call()
         return self.contract.functions.lockedPerPeriod(at_period).call()
 
+    def get_staker_info(self, staker_address: str):
+        return self.contract.functions.stakerInfo(staker_address).call()
+
     def get_locked_tokens(self, staker_address: str, periods: int = 0) -> int:
         """
         Returns the amount of tokens this staker has locked
@@ -213,6 +266,9 @@ class StakingEscrowAgent(EthereumContractAgent):
         return self.contract.functions.getLockedTokens(staker_address, periods).call()
 
     def owned_tokens(self, staker_address: str) -> int:
+        """
+        Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
+        """
         return self.contract.functions.getAllTokens(staker_address).call()
 
     def get_substake_info(self, staker_address: str, stake_index: int) -> Tuple[int, int, int]:
@@ -359,7 +415,9 @@ class StakingEscrowAgent(EthereumContractAgent):
         stakers_population = self.get_staker_population()
         n_select = math.ceil(quantity * additional_ursulas)  # Select more Ursulas
         if n_select > stakers_population:
-            raise self.NotEnoughStakers(f'There are {stakers_population} active stakers, need at least {n_select}.')
+            raise self.NotEnoughStakers(
+                f'There are {stakers_population} active stakers - '
+                f'for {quantity} stakers we need a sample size of at least {n_select}.')
 
         system_random = random.SystemRandom()
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
@@ -621,3 +679,17 @@ class AdjudicatorAgent(EthereumContractAgent):
     def penalty_history(self, staker_address: str) -> int:
         return self.contract.functions.penaltyHistory(staker_address).call()
 
+    def slashing_parameters(self) -> Tuple:
+        parameter_signatures = (
+            'hashAlgorithm',                    # Hashing algorithm
+            'basePenalty',                      # Base for the penalty calculation
+            'penaltyHistoryCoefficient',        # Coefficient for calculating the penalty depending on the history
+            'percentagePenaltyCoefficient',     # Coefficient for calculating the percentage penalty
+            'rewardCoefficient',                # Coefficient for calculating the reward
+        )
+
+        def _call_function_by_name(name: str):
+            return getattr(self.contract.functions, name)().call()
+
+        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
+        return staking_parameters

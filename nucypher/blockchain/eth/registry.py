@@ -295,6 +295,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__registry_data = None
+        self.filepath = "::memory::"
 
     def clear(self):
         self.__registry_data = None

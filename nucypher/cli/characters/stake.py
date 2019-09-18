@@ -21,19 +21,14 @@ from web3 import Web3
 
 from nucypher.characters.lawful import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.characters.banners import NU_BANNER
 from nucypher.cli import painting, actions
 from nucypher.cli.actions import confirm_staged_stake, get_client_password, select_stake, select_client_account
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
-    STAKE_VALUE,
-    STAKE_DURATION,
-    STAKE_EXTENSION,
     EXISTING_READABLE_FILE
 )
 from nucypher.config.characters import StakeHolderConfiguration
@@ -142,6 +137,13 @@ def stake(click_config,
 
     STAKEHOLDER = stakeholder_config.produce(initial_address=staking_address)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
+    economics = STAKEHOLDER.economics
+
+    # Dynamic click types (Economics)
+    min_locked = economics.minimum_allowed_locked
+    stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
+    stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
+    stake_extension_range = click.IntRange(min=1, max=economics.maximum_allowed_locked, clamp=False)
 
     #
     # Eager Actions
@@ -179,10 +181,10 @@ def stake(click_config,
 
         # TODO: Double-check dates
         current_period = STAKEHOLDER.staking_agent.get_current_period()
-        bonded_date = datetime_at_period(period=current_period)
+        bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
         min_worker_periods = STAKEHOLDER.staking_agent.staking_parameters()[7]
         release_period = current_period + min_worker_periods
-        release_date = datetime_at_period(period=release_period)
+        release_date = datetime_at_period(period=release_period, seconds_per_period=economics.seconds_per_period)
 
         emitter.echo(f"\nWorker {worker_address} successfully bonded to staker {staking_address}", color='green')
         paint_receipt_summary(emitter=emitter,
@@ -217,7 +219,7 @@ def stake(click_config,
 
         # TODO: Double-check dates
         current_period = STAKEHOLDER.staking_agent.get_current_period()
-        bonded_date = datetime_at_period(period=current_period)
+        bonded_date = datetime_at_period(period=current_period, seconds_per_period=economics.seconds_per_period)
 
         emitter.echo(f"Successfully detached worker {worker_address} from staker {staking_address}", color='green')
         paint_receipt_summary(emitter=emitter,
@@ -249,13 +251,14 @@ def stake(click_config,
         #
 
         if not value:
-            min_locked = STAKEHOLDER.economics.minimum_allowed_locked
-            value = click.prompt(f"Enter stake value in NU", type=STAKE_VALUE, default=NU.from_nunits(min_locked).to_tokens())
+            value = click.prompt(f"Enter stake value in NU",
+                                 type=stake_value_range,
+                                 default=NU.from_nunits(min_locked).to_tokens())
         value = NU.from_tokens(value)
 
         if not lock_periods:
             prompt = f"Enter stake duration ({STAKEHOLDER.economics.minimum_locked_periods} periods minimum)"
-            lock_periods = click.prompt(prompt, type=STAKE_DURATION)
+            lock_periods = click.prompt(prompt, type=stake_duration_range)
 
         start_period = STAKEHOLDER.staking_agent.get_current_period()
         end_period = start_period + lock_periods
@@ -302,12 +305,12 @@ def stake(click_config,
         # Value
         if not value:
             value = click.prompt(f"Enter target value (must be less than or equal to {str(current_stake.value)})",
-                                 type=STAKE_VALUE)
+                                 type=stake_value_range)
         value = NU(value, 'NU')
 
         # Duration
         if not lock_periods:
-            extension = click.prompt("Enter number of periods to extend", type=STAKE_EXTENSION)
+            extension = click.prompt("Enter number of periods to extend", type=stake_extension_range)
         else:
             extension = lock_periods
 
@@ -366,5 +369,5 @@ def stake(click_config,
     # Catch-All for unknown actions
     else:
         ctx = click.get_current_context()
-        click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx).show()
-    return  # Exit
+        raise click.UsageError(message=f"Unknown action '{action}'.", ctx=ctx)
+

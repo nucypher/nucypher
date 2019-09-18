@@ -3,7 +3,7 @@ from decimal import InvalidOperation, Decimal
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -98,8 +98,13 @@ def test_NU(token_economics):
     with pytest.raises(InvalidOperation):
         _nan = NU(float('NaN'), 'NU')
 
+    # Rounding NUs
+    assert round(pi_nus, 2) == NU("3.14", "NU")
+    assert round(pi_nus, 1) == NU("3.1", "NU")
+    assert round(pi_nus, 0) == round(pi_nus) == NU("3", "NU")
 
-def test_stake(testerchain, agency):
+
+def test_stake(testerchain, token_economics, agency):
     token_agent, staking_agent, _policy_agent = agency
 
     class FakeUrsula:
@@ -110,7 +115,6 @@ def test_stake(testerchain, agency):
         staking_agent = staking_agent
         token_agent = token_agent
         blockchain = testerchain
-        economics = TokenEconomics()
 
     ursula = FakeUrsula()
     stake = Stake(checksum_address=ursula.checksum_address,
@@ -118,7 +122,8 @@ def test_stake(testerchain, agency):
                   final_locked_period=100,
                   value=NU(100, 'NU'),
                   index=0,
-                  staking_agent=staking_agent)
+                  staking_agent=staking_agent,
+                  economics=token_economics)
 
     assert stake.value, 'NU' == NU(100, 'NU')
 

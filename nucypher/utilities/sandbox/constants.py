@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import os
 import socket
+import tempfile
 import time
 from datetime import datetime
 from random import SystemRandom
@@ -29,6 +30,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
+from nucypher.crypto.api import keccak_digest
 
 
 def select_test_port() -> int:
@@ -81,6 +83,10 @@ ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = NU(1_000_000, 'NU')
 
+MIN_STAKE_FOR_TESTS = NU(750_000, 'NU').to_nunits()
+
+BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_nunits()
+
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().toWei(100, 'ether'))
 
 NUMBER_OF_ALLOCATIONS_IN_TESTS = 100  # TODO: Move to constants
@@ -105,19 +111,20 @@ ADJUDICATOR_DEPLOYMENT_SECRET = INSECURE_DEVELOPMENT_PASSWORD + str(os.urandom(1
 # Temporary Directories and Files
 #
 
-BASE_TEMP_DIR = os.path.join('/', 'tmp')
+BASE_TEMP_DIR = tempfile.gettempdir()
 
 BASE_TEMP_PREFIX = 'nucypher-tmp-'
+DATETIME_FORMAT = "%Y-%m-%d_%H-%M-%S.%f"
 
-MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{str(datetime.now())}')
+MOCK_CUSTOM_INSTALLATION_PATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-custom-{str(datetime.now().strftime(DATETIME_FORMAT))}')
 
-MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{str(datetime.now())}.json')
+MOCK_ALLOCATION_INFILE = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocations-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
-MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now())}.json')
+MOCK_ALLOCATION_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}test-allocation-registry-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
 
-MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now())}.json')
+MOCK_REGISTRY_FILEPATH = os.path.join(BASE_TEMP_DIR, f'{BASE_TEMP_PREFIX}mock-registry-{str(datetime.now().strftime(DATETIME_FORMAT))}.json')
 
 TEMPORARY_DOMAIN = ':TEMPORARY_DOMAIN:'  # for use with `--dev` node runtimes
 
@@ -148,3 +155,5 @@ TEST_GAS_LIMIT = 8_000_000  # gas
 
 PYEVM_GAS_LIMIT = TEST_GAS_LIMIT  # TODO: move elsewhere (used to set pyevm gas limit in tests)?
 
+INSECURE_DEPLOYMENT_SECRET_PLAINTEXT = os.urandom(32)
+INSECURE_DEPLOYMENT_SECRET_HASH = keccak_digest(INSECURE_DEPLOYMENT_SECRET_PLAINTEXT)

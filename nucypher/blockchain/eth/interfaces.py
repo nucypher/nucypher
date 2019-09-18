@@ -334,6 +334,7 @@ class BlockchainInterface:
                          contract_function: ContractFunction,
                          sender_address: str,
                          payload: dict = None,
+                         transaction_gas_limit: int = None,
                          ) -> dict:
 
         if self.transacting_power is READ_ONLY_INTERFACE:
@@ -347,12 +348,13 @@ class BlockchainInterface:
             payload = {}
 
         nonce = self.client.w3.eth.getTransactionCount(sender_address)
-        payload.update({'chainId': int(self.client.net_version),
+        payload.update({'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address,
-                        'gasPrice': self.client.gas_price,
-                        # 'gas': 0,  # TODO: Gas Management
-                        })
+                        'gasPrice': self.client.gas_price})
+
+        if transaction_gas_limit:
+            payload['gas'] = int(transaction_gas_limit)
 
         # Get interface name
         deployment = True if isinstance(contract_function, ContractConstructor) else False
@@ -373,14 +375,15 @@ class BlockchainInterface:
         # Build transaction payload
         try:
             unsigned_transaction = contract_function.buildTransaction(payload)
-        except ValidationError as e:
+        except (ValidationError, ValueError) as e:
             # TODO: Handle validation failures for gas limits, invalid fields, etc.
-            self.log.warn(f"Validation error: {e}")
+            # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
+            # Treat this condition as "Transaction Failed".
+            self.log.critical(f"Validation error: {e}")
             raise
         else:
             if deployment:
                 self.log.info(f"Deploying contract: {len(unsigned_transaction['data'])} bytes")
-
 
         #
         # Broadcast
@@ -466,7 +469,10 @@ class BlockchainInterface:
                 raise self.InterfaceError(message.format(name))
 
             else:
-                selected_address, selected_abi = results[0]
+                try:
+                    selected_address, selected_abi = results[0]
+                except IndexError:
+                    raise self.UnknownContract(f"There are no Dispatcher records targeting '{name}'")
 
         else:  # It's not upgradeable
             if len(target_contract_records) != 1:

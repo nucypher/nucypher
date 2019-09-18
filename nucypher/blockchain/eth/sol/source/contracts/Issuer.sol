@@ -121,21 +121,15 @@ contract Issuer is Upgradeable {
             Math.min(currentSupply1, currentSupply2) :
             Math.max(currentSupply1, currentSupply2);
 
-        //totalSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
-        //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
+        //(totalSupply - currentSupply) * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
         uint256 allLockedPeriods = uint256(_allLockedPeriods <= rewardedPeriods ?
             _allLockedPeriods : rewardedPeriods)
             .add(lockedPeriodsCoefficient);
         uint256 denominator = _totalLockedValue.mul(miningCoefficient);
-        amount =
-            totalSupply
-                .mul(_lockedValue)
-                .mul(allLockedPeriods)
-                .div(denominator).sub(
-            currentSupply
-                .mul(_lockedValue)
-                .mul(allLockedPeriods)
-                .div(denominator));
+        amount = totalSupply.sub(currentSupply)
+                            .mul(_lockedValue)
+                            .mul(allLockedPeriods)
+                            .div(denominator);
         // rounding the last reward
         if (amount == 0) {
             amount = 1;

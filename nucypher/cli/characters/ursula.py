@@ -339,7 +339,7 @@ def ursula(click_config,
             blockchain = URSULA.staking_agent.blockchain
 
             emitter.echo("BLOCKCHAIN ----------\n")
-            painting.paint_contract_status(emitter=emitter, blockchain=URSULA.blockchain)
+            painting.paint_contract_status(emitter=emitter, registry=URSULA.registry)
             current_block = blockchain.w3.eth.blockNumber
             emitter.echo(f'Block # {current_block}')
             # TODO: 1231

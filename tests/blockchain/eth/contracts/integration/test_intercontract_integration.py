@@ -17,17 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from mock import Mock
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
+from nucypher.blockchain.economics import TokenEconomics
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
-from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
 
@@ -44,26 +43,34 @@ adjudicator_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
-def token(testerchain, deploy_contract):
+def token_economics():
+    economics = TokenEconomics(initial_supply=10 ** 9,
+                               total_supply=2 * 10 ** 9,
+                               staking_coefficient=8 * 10 ** 7,
+                               locked_periods_coefficient=4,
+                               maximum_rewarded_periods=4,
+                               hours_per_period=1,
+                               minimum_locked_periods=6,
+                               minimum_allowed_locked=100,
+                               maximum_allowed_locked=2000,
+                               minimum_worker_periods=2,
+                               base_penalty=300,
+                               percentage_penalty_coefficient=2)
+    return economics
+
+
+@pytest.fixture()
+def token(token_economics, deploy_contract):
     # Create an ERC20 token
-    contract, _ = deploy_contract('NuCypherToken', _totalSupply=int(NU(2 * 10 ** 9, 'NuNit')))
+    contract, _ = deploy_contract('NuCypherToken', _totalSupply=token_economics.erc20_total_supply)
     return contract
 
 
 @pytest.fixture()
-def escrow(testerchain, token, deploy_contract):
+def escrow(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        contract_name='StakingEscrow',
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=8*10**7,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=6,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=2000,
-        _minWorkerPeriods=2
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
 
     secret_hash = testerchain.w3.keccak(escrow_secret)
@@ -101,22 +108,17 @@ def policy_manager(testerchain, escrow, deploy_contract):
 
 
 @pytest.fixture()
-def adjudicator(testerchain, escrow, slashing_economics, deploy_contract):
+def adjudicator(testerchain, escrow, token_economics, deploy_contract):
     escrow, _ = escrow
     creator = testerchain.client.accounts[0]
 
     secret_hash = testerchain.w3.keccak(adjudicator_secret)
 
-    deployment_parameters = list(slashing_economics.deployment_parameters)
-    # TODO: For some reason this test used non-standard slashing parameters (#354)
-    deployment_parameters[1] = 300
-    deployment_parameters[3] = 2
-
     # Creator deploys the contract
     contract, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
-        *deployment_parameters)
+        *token_economics.slashing_deployment_parameters)
 
     dispatcher, _ = deploy_contract('Dispatcher', contract.address, secret_hash)
 
@@ -160,7 +162,7 @@ def worklock(testerchain, token, escrow, deploy_contract):
     return contract
 
 
-def mock_ursula(testerchain, account):
+def mock_ursula(testerchain, account, mocker):
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
@@ -168,7 +170,7 @@ def mock_ursula(testerchain, account):
     signed_stamp = testerchain.client.sign_message(account=account,
                                                    message=bytes(ursula_stamp))
 
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
 
 
@@ -243,6 +245,7 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
 
 @pytest.mark.slow
 def test_all(testerchain,
+             token_economics,
              token,
              escrow,
              policy_manager,
@@ -250,9 +253,9 @@ def test_all(testerchain,
              worklock,
              user_escrow_proxy,
              multisig,
-             slashing_economics,
              mock_ursula_reencrypts,
-             deploy_contract):
+             deploy_contract,
+             mocker):
 
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
@@ -266,9 +269,9 @@ def test_all(testerchain,
     contracts_owners = sorted(contracts_owners)
 
     # We'll need this later for slashing these Ursulas
-    ursula1_with_stamp = mock_ursula(testerchain, ursula1)
-    ursula2_with_stamp = mock_ursula(testerchain, ursula2)
-    ursula3_with_stamp = mock_ursula(testerchain, ursula3)
+    ursula1_with_stamp = mock_ursula(testerchain, ursula1, mocker=mocker)
+    ursula2_with_stamp = mock_ursula(testerchain, ursula2, mocker=mocker)
+    ursula3_with_stamp = mock_ursula(testerchain, ursula3, mocker=mocker)
 
     # Give clients some ether
     tx = testerchain.client.send_transaction(
@@ -304,8 +307,7 @@ def test_all(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Initialize escrow
-    reward = 10 ** 9
-    tx = token.functions.transfer(escrow.address, reward).transact({'from': creator})
+    tx = token.functions.transfer(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
@@ -361,7 +363,7 @@ def test_all(testerchain,
     tx = worklock.functions.claim().transact({'from': ursula2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.getRemainingWork(ursula2).call() == deposit_rate * deposited_eth
-    assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 1000 == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.getAllTokens(ursula2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
@@ -474,7 +476,7 @@ def test_all(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    assert reward + 2000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 2000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(ursula1).call()
     assert 0 == escrow.functions.getLockedTokens(ursula1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula1, 1).call()
@@ -494,7 +496,7 @@ def test_all(testerchain,
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 10).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address, 11).call()
-    assert reward + 3000 == token.functions.balanceOf(escrow.address).call()
+    assert token_economics.erc20_reward_supply + 3000 == token.functions.balanceOf(escrow.address).call()
     assert 9000 == token.functions.balanceOf(user_escrow_1.address).call()
 
     # Only user can deposit tokens to the staking escrow
@@ -680,16 +682,7 @@ def test_all(testerchain,
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
     escrow_v2, _ = deploy_contract(
-        contract_name='StakingEscrow',
-        _token=token.address,
-        _hoursPerPeriod=1,
-        _miningCoefficient=8 * 10 ** 7,
-        _lockedPeriodsCoefficient=4,
-        _rewardedPeriods=4,
-        _minLockedPeriods=6,
-        _minAllowableLockedTokens=100,
-        _maxAllowableLockedTokens=2000,
-        _minWorkerPeriods=2
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
     # Ursula and Alice can't upgrade contracts, only owner can
@@ -839,12 +832,7 @@ def test_all(testerchain,
     total_lock = escrow.functions.lockedPerPeriod(current_period).call()
     alice1_balance = token.functions.balanceOf(alice1).call()
 
-    deployment_parameters = list(slashing_economics.deployment_parameters)
-    # TODO: For some reason this test used non-stadard slashing parameters (#354)
-    deployment_parameters[1] = 300
-    deployment_parameters[3] = 2
-
-    algorithm_sha256, base_penalty, *coefficients = deployment_parameters
+    algorithm_sha256, base_penalty, *coefficients = token_economics.slashing_deployment_parameters
     penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
 
     data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
@@ -912,7 +900,7 @@ def test_all(testerchain,
     adjudicator_v2, _ = deploy_contract(
         'Adjudicator',
         escrow.address,
-        *slashing_economics.deployment_parameters)
+        *token_economics.slashing_deployment_parameters)
     adjudicator_secret2 = os.urandom(SECRET_LENGTH)
     adjudicator_secret2_hash = testerchain.w3.keccak(adjudicator_secret2)
     # Ursula and Alice can't upgrade library, only owner can

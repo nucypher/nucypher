@@ -15,24 +15,34 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import time
 import webbrowser
+from collections import Counter
 from decimal import Decimal
+from typing import List
 
 import click
 import maya
 from constant_sorrow.constants import NO_KNOWN_NODES
+from web3 import Web3
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, AdjudicatorAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    AdjudicatorAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent
+)
+from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
+from nucypher.blockchain.eth.deployers import DispatcherDeployer, LibraryLinkerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.blockchain.eth.utils import etherscan_url
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import datetime_at_period, etherscan_url
 from nucypher.characters.banners import NUCYPHER_BANNER, NU_BANNER
 from nucypher.config.constants import SEEDNODES
-from nucypher.blockchain.eth.token import NU
-from web3 import Web3
+from nucypher.network.nicknames import nickname_from_seed
 
 
 def echo_version(ctx, param, value):
@@ -89,7 +99,6 @@ def build_fleet_state_status(ursula) -> str:
 
 
 def paint_node_status(emitter, ursula, start_time):
-
     # Build Learning status line
     learning_status = "Unknown"
     if ursula._learning_task.running:
@@ -173,36 +182,143 @@ def paint_known_nodes(emitter, ursula) -> None:
         emitter.echo(row_template.format(node.rest_url().ljust(20), node), color=color_index[node_type])
 
 
-def paint_contract_status(blockchain, emitter):
+def paint_contract_status(registry, emitter):
+    blockchain = BlockchainInterfaceFactory.get_interface()
 
-    token_agent = NucypherTokenAgent(blockchain=blockchain)
-    staking_agent = StakingEscrowAgent(blockchain=blockchain)
-    policy_agent = PolicyManagerAgent(blockchain=blockchain)
-    adjudicator_agent = AdjudicatorAgent(blockchain=blockchain)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
+    adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
 
-    contract_payload = f"""
-| NuCypher Contracts |
-
-Chain .................... {blockchain.client.chain_name}
-Provider URI ............. {blockchain.provider_uri}
-Registry Path ............ {blockchain.registry.filepath}
-
-NucypherToken ............ {token_agent.contract_address}
-StakingEscrow ............ {staking_agent.contract_address}
-PolicyManager ............ {policy_agent.contract_address}
-Adjudicator .............. {adjudicator_agent.contract_address} 
+    contracts = f"""
+| Contract Deployments |
+{token_agent.contract_name} ............ {token_agent.contract_address}
+{staking_agent.contract_name} ............ {staking_agent.contract_address}
+{policy_agent.contract_name} ............ {policy_agent.contract_address}
+{adjudicator_agent.contract_name} .............. {adjudicator_agent.contract_address} 
     """
 
-    network_payload = f"""
-| Staking |
+    blockchain = f"""    
+| '{blockchain.client.chain_name}' Blockchain Network |
+Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {registry.filepath}
+    """
 
+    confirmed, pending, inactive = staking_agent.partition_stakers_by_activity()
+
+    staking = f"""
+| Staking |
 Current Period ........... {staking_agent.get_current_period()}
 Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
-Published Stakes ......... {staking_agent.get_staker_population()}
-Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
+Stakers population ....... {staking_agent.get_staker_population()}
+   Confirmed ............. {len(confirmed)}
+   Pending confirmation .. {len(pending)}
+   Inactive .............. {len(inactive)}
+
     """
+
+    sep = '-' * 45
+    emitter.echo(sep)
+    emitter.echo(contracts)
+    emitter.echo(sep)
+    emitter.echo(blockchain)
+    emitter.echo(sep)
+    emitter.echo(staking)
+    emitter.echo(sep)
+
+
+def paint_deployer_contract_inspection(emitter, administrator) -> None:
+
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=administrator.registry)
+
+    sep = '-' * 45
+    emitter.echo(sep)
+
+    contract_payload = f"""
+
+* Web3 Provider
+====================================================================
+
+Provider URI ............. {blockchain.provider_uri}
+Registry  ................ {administrator.registry.filepath}
+
+* Standard Deployments
+=====================================================================
+
+NucypherToken ........... {token_agent.contract_address}
+    ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
+    ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
     emitter.echo(contract_payload)
-    emitter.echo(network_payload)
+
+    banner = """
+* Proxy-Contract Deployments
+====================================================================="""
+    emitter.echo(banner)
+
+    for contract_deployer_class in administrator.dispatched_upgradeable_deployer_classes:
+        try:
+            bare_contract = blockchain.get_contract_by_name(name=contract_deployer_class.contract_name,
+                                                            proxy_name=DispatcherDeployer.contract_name,
+                                                            registry=administrator.registry,
+                                                            use_proxy_address=False)
+
+            dispatcher_deployer = DispatcherDeployer(registry=administrator.registry,
+                                                     target_contract=bare_contract,
+                                                     deployer_address=administrator.deployer_address,
+                                                     bare=True)  # acquire agency for the dispatcher itself.
+
+            agent = contract_deployer_class.agency(registry=administrator.registry, contract=bare_contract)
+
+            proxy_payload = f"""
+{agent.contract_name} .... {bare_contract.address}
+    ~ Owner .............. {bare_contract.functions.owner().call()}
+    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}
+    ~ Dispatcher ......... {dispatcher_deployer.contract_address}
+        ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
+        ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
+        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
+            emitter.echo(proxy_payload)
+            emitter.echo(sep, nl=False)
+
+        except BaseContractRegistry.UnknownContract:
+            message = f"\n{contract_deployer_class.contract_name} is not enrolled in {administrator.registry.filepath}"
+            emitter.echo(message, color='yellow')
+            emitter.echo(sep, nl=False)
+
+    try:
+
+        #
+        # UserEscrowProxy
+        #
+
+        user_escrow_proxy_agent = UserEscrowAgent.UserEscrowProxyAgent(registry=administrator.registry)
+        bare_contract = blockchain.get_contract_by_name(name=user_escrow_proxy_agent.contract_name,
+                                                        proxy_name=LibraryLinkerDeployer.contract_name,
+                                                        use_proxy_address=False,
+                                                        registry=administrator.registry)
+
+        linker_deployer = LibraryLinkerDeployer(registry=administrator.registry,
+                                                target_contract=bare_contract,
+                                                deployer_address=administrator.deployer_address,
+                                                bare=True)  # acquire agency for the dispatcher itself.
+
+        user_escrow_payload = f"""
+UserEscrowProxy .......... {bare_contract.address}
+    ~ LibraryLinker ...... {linker_deployer.contract.address}
+        ~ Owner .......... {linker_deployer.contract.functions.owner().call()}
+        ~ Target ......... {linker_deployer.contract.functions.target().call()}"""
+        emitter.echo(user_escrow_payload)
+        emitter.echo(sep)
+
+    except BaseContractRegistry.UnknownContract:
+        message = f"\nUserEscrowProxy is not enrolled in {administrator.registry.filepath}"
+        emitter.echo(message, color='yellow')
+
+    return
 
 
 def paint_staged_stake(emitter,
@@ -213,7 +329,6 @@ def paint_staged_stake(emitter,
                        start_period,
                        end_period,
                        division_message: str = None):
-
     if division_message:
         emitter.echo(f"\n{'=' * 30} ORIGINAL STAKE {'=' * 28}", bold=True)
         emitter.echo(division_message)
@@ -225,8 +340,10 @@ Staking address: {staking_address}
 ~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({Decimal(int(stake_value)):.2E} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
-~ Enactment  -> {datetime_at_period(period=start_period)} (period #{start_period})
-~ Expiration -> {datetime_at_period(period=end_period)} (period #{end_period})
+~ Enactment  -> {datetime_at_period(period=start_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{start_period})
+~ Expiration -> {datetime_at_period(period=end_period,
+                                    seconds_per_period=stakeholder.economics.seconds_per_period)} (period #{end_period})
     """)
 
     # TODO: periods != Days - Do we inform the user here?
@@ -266,7 +383,6 @@ def prettify_stake(stake, index: int = None) -> str:
 
 
 def paint_stakes(emitter, stakes):
-
     title = "======================================= Active Stakes =========================================\n"
 
     header = f'| ~ | Staker | Worker | # | Value    | Duration     | Enactment          '
@@ -287,7 +403,6 @@ def paint_staged_stake_division(emitter,
                                 original_stake,
                                 target_value,
                                 extension):
-
     new_end_period = original_stake.end_period + extension
     new_duration_periods = new_end_period - original_stake.start_period
     staking_address = original_stake.owner_address
@@ -330,7 +445,6 @@ def paint_contract_deployment(emitter,
                               receipts: dict,
                               chain_name: str = None,
                               open_in_browser: bool = False):
-
     # TODO: switch to using an explicit emitter
 
     is_token_contract = contract_name == NUCYPHER_TOKEN_CONTRACT_NAME
@@ -385,3 +499,77 @@ def paint_deployment_delay(emitter, delay: int = 3) -> None:
     for i in range(delay)[::-1]:
         emitter.echo(f"{i}...", color='yellow')
         time.sleep(1)
+
+
+def paint_stakers(emitter, stakers: List[str], agent) -> None:
+    current_period = agent.get_current_period()
+    emitter.echo(f"\nCurrent period: {current_period}")
+    emitter.echo("\n| Stakers |\n")
+    emitter.echo(f"{'Checksum address':42}  Staker information")
+    emitter.echo('=' * (42 + 2 + 53))
+
+    for staker in stakers:
+        nickname, pairs = nickname_from_seed(staker)
+        symbols = f"{pairs[0][1]}  {pairs[1][1]}"
+        emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
+        tab = " " * len(staker)
+
+        stake = agent.owned_tokens(staker)
+        last_confirmed_period = agent.get_last_active_period(staker)
+        worker = agent.get_worker_from_staker(staker)
+
+        missing_confirmations = current_period - last_confirmed_period
+        stake_in_nu = round(NU.from_nunits(stake), 2)
+        locked_tokens = round(NU.from_nunits(agent.get_locked_tokens(staker)), 2)
+
+        emitter.echo(f"{tab}  {'Stake:':10} {stake_in_nu}  (Locked: {locked_tokens})")
+        emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
+        if missing_confirmations == -1:
+            emitter.echo(f"Next period confirmed (#{last_confirmed_period})", color='green')
+        elif missing_confirmations == 0:
+            emitter.echo(f"Current period confirmed (#{last_confirmed_period}). "
+                         f"Pending confirmation of next period.", color='yellow')
+        elif missing_confirmations == current_period:
+            emitter.echo(f"Never confirmed activity", color='red')
+        else:
+            emitter.echo(f"Missing {missing_confirmations} confirmations "
+                         f"(last time for period #{last_confirmed_period})", color='red')
+
+        emitter.echo(f"{tab}  {'Worker:':10} ", nl=False)
+        if worker == BlockchainInterface.NULL_ADDRESS:
+            emitter.echo(f"Worker not set\n", color='red')
+        else:
+            emitter.echo(f"{worker}\n")
+
+
+def paint_locked_tokens_status(emitter, agent, periods) -> None:
+
+    MAX_ROWS = 30
+    period_range = list(range(1, periods + 1))
+    token_counter = Counter({day: agent.get_all_locked_tokens(day) for day in period_range})
+
+    width = 60  # Adjust to desired width
+    longest_key = max(len(str(key)) for key in token_counter)
+    graph_width = width - longest_key - 2
+    widest = token_counter.most_common(1)[0][1]
+    scale = graph_width / float(widest)
+
+    bucket_size = periods // MAX_ROWS if periods > MAX_ROWS else 1
+
+    emitter.echo(f"\n| Locked Tokens for next {periods} periods |\n")
+
+    buckets = [period_range[i:i + bucket_size] for i in range(0, len(period_range), bucket_size)]
+
+    for bucket in buckets:
+        bucket_start = bucket[0]
+        bucket_end = bucket[-1]
+
+        bucket_max = max([token_counter[period] for period in bucket])
+        bucket_min = min([token_counter[period] for period in bucket])
+        delta = bucket_max - bucket_min
+
+        bucket_range = f"{bucket_start} - {bucket_end}"
+        box_plot = f"{int(bucket_min * scale) * '■'}{int(delta * scale) * '□'}"
+        emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
+                     f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
+

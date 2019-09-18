@@ -40,7 +40,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 def test_evaluate_cfrag(testerchain,
                         escrow,
                         adjudicator,
-                        slashing_economics,
+                        token_economics,
                         blockchain_ursulas,
                         mock_ursula_reencrypts
                         ):
@@ -56,10 +56,10 @@ def test_evaluate_cfrag(testerchain,
     number_of_evaluations = 0
 
     def compute_penalty_and_reward(stake: int, penalty_history: int) -> Tuple[int, int]:
-        penalty_ = slashing_economics.base_penalty
-        penalty_ += slashing_economics.penalty_history_coefficient * penalty_history
-        penalty_ = min(penalty_, stake // slashing_economics.percentage_penalty_coefficient)
-        reward_ = penalty_ // slashing_economics.reward_coefficient
+        penalty_ = token_economics.base_penalty
+        penalty_ += token_economics.penalty_history_coefficient * penalty_history
+        penalty_ = min(penalty_, stake // token_economics.percentage_penalty_coefficient)
+        reward_ = penalty_ // token_economics.reward_coefficient
         return penalty_, reward_
 
     # Prepare one staker
@@ -206,7 +206,7 @@ def test_evaluate_cfrag(testerchain,
     previous_penalty = penalty
     penalty, reward = compute_penalty_and_reward(worker_stake, worker_penalty_history)
     # Penalty was increased because it's the second violation
-    assert penalty == previous_penalty + slashing_economics.penalty_history_coefficient
+    assert penalty == previous_penalty + token_economics.penalty_history_coefficient
     worker_stake -= penalty
     investigator_balance += reward
     worker_penalty_history += 1
@@ -252,7 +252,7 @@ def test_evaluate_cfrag(testerchain,
 
     penalty, reward = compute_penalty_and_reward(worker_stake, worker_penalty_history)
     # Penalty has reached maximum available percentage of value
-    assert penalty == worker_stake // slashing_economics.percentage_penalty_coefficient
+    assert penalty == worker_stake // token_economics.percentage_penalty_coefficient
     worker_stake -= penalty
     investigator_balance += reward
     worker_penalty_history += 1

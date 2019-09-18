@@ -17,18 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 
 import maya
-from pytest_ethereum.deployer import Deployer
 from twisted.logger import Logger
 from web3 import Web3
 
-from nucypher.blockchain.economics import TokenEconomics
+from nucypher.blockchain.economics import TokenEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -39,11 +37,8 @@ from nucypher.utilities.sandbox.constants import (
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    STAKING_ESCROW_DEPLOYMENT_SECRET,
-    POLICY_MANAGER_DEPLOYMENT_SECRET,
-    ADJUDICATOR_DEPLOYMENT_SECRET,
-    USER_ESCROW_PROXY_DEPLOYMENT_SECRET,
-    INSECURE_DEVELOPMENT_PASSWORD)
+    INSECURE_DEVELOPMENT_PASSWORD
+)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -86,6 +81,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
     _stakers_range = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
     _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
     _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+
+    _default_token_economics = StandardTokenEconomics()
 
     def __init__(self,
                  test_accounts=None,
@@ -181,8 +178,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
         if periods:
-            duration = (TokenEconomics.hours_per_period * periods) * (60 * 60)
-            base = TokenEconomics.hours_per_period * 60 * 60
+            duration = self._default_token_economics.seconds_per_period * periods
+            base = self._default_token_economics.seconds_per_period
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
@@ -200,11 +197,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
-                      f"| period {epoch_to_period(epoch=end_timestamp)} "
+                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self._default_token_economics.seconds_per_period)} "
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls) -> 'TesterBlockchain':
+    def bootstrap_network(cls,
+                          economics: TokenEconomics = None
+                          ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()
@@ -216,7 +215,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin, registry=registry)
+        deployer = ContractAdministrator(deployer_address=origin, 
+                                         registry=registry, 
+                                         economics=economics or cls._default_token_economics)
         secrets = dict()
         for deployer_class in deployer.upgradeable_deployer_classes:
             secrets[deployer_class.contract_name] = INSECURE_DEVELOPMENT_PASSWORD

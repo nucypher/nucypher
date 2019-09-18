@@ -1,8 +1,19 @@
+.. _staking-guide:
+
 =======================
 NuCypher Staking Guide
 =======================
 
-All staking-related operations are performed through the ``nucypher stake`` command:
+The account which is actively doing work for the network (re-encryptions) needs to be a hot
+wallet. However, it doesn't have to be the same account as the one which receives and
+sends NU tokens. The account which holds NU tokens is called StakeHolder, or
+Staker, and the account which participates in the network as an Ursula node is
+called Worker.
+It is highly recommended that StakeHolder and Worker have separate Ethereum
+accounts: StakeHolder controlled by a hardware wallet, and Worker
+having an address controlled by geth.
+
+All staking-related operations done by StakeHolder are performed through the ``nucypher stake`` command:
 
 .. code:: bash
 
@@ -28,9 +39,9 @@ All staking-related operations are performed through the ``nucypher stake`` comm
 +----------------------+-------------------------------------------------------------------------------+
 |  ``detach-worker``   | Detach worker currently bonded to a staker                                    |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``divide``          | Create a new stake from part of an existing one                               |
+|  ``collect-reward``  | Withdraw staking compensation from the contract to your wallet                |
 +----------------------+-------------------------------------------------------------------------------+
-| ``collect-reward``   | Withdraw staking or policy rewards                                            |
+|  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
 
 
@@ -45,6 +56,8 @@ All staking-related operations are performed through the ``nucypher stake`` comm
 +-----------------+--------------------------------------------+
 |  ``--index``    | Stake index                                |
 +-----------------+--------------------------------------------+
+| ``--hw-wallet`` | Use a hardware wallet                      |
++-----------------+--------------------------------------------+
 
 
 Staking Overview
@@ -53,31 +66,71 @@ Staking Overview
 
 Most stakers on the Goerli testnet will complete the following steps:
 
-1) Install nucypher https://docs.nucypher.com/en/latest/guides/installation_guide.html
-2) Install and run Geth, Parity or another ethereum node.
+1) Install nucypher on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
+2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet).
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
-5) Initialize a Worker node and bond it to your Staker (`set-worker`) https://docs.nucypher.com/en/latest/guides/ursula_configuration_guide.html
-6) Run the Worker, and keep it online!
+5) Install another Ethereum node at the Worker instance
+6) Initialize a Worker node [:ref:`ursula-config-guide`] and bond it to your Staker (``set-worker``)
+7) Configure and run the Worker, and keep it online [:ref:`ursula-config-guide`]!
 
 Interactive Method
 ------------------
 
-*Initialize a new stakeholder*
+Run an Ethereum node for stakeholder
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Assuming you have ``geth`` installed, let's run a node on Görli testnet.
+On StakeHolder side, it's ok to run a light node.
+
+.. code:: bash
+
+    $ geth --goerli --syncmode light
+
+If you want to use your hardware wallet, just connect it to your machine. You'll
+see something like this in logs:
+
+.. code:: bash
+
+    INFO [08-30|15:50:39.153] New wallet appeared      url=ledger://0001:000b:00      status="Ethereum app v1.2.7 online"
+
+If you see something like ``New wallet appeared, failed to open`` in the logs,
+you need to reconnect the hardware wallet (without turning the ``geth`` node
+off).
+
+If you don't have a hardware wallet, you can create a software one:
+
+.. code:: bash
+
+    $ geth attach /home/<username>/.ethereum/goerli/geth.ipc
+    > personal.newAccount();
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
+
+Where ``0x287a817426dd1ae78ea23e9918e2273b6733a43d`` is your newly created
+account address and ``<username>`` is your user.
+
+Initialize a new stakeholder
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
     (nucypher)$ nucypher stake init-stakeholder --provider <PROVIDER>  --poa
 
+If you ran ``geth`` node as above, your ``<PROVIDER>`` is
+``ipc:///home/<username>/.ethereum/goerli/geth.ipc``.
 
-*Initialize a new stake*
+Please note that you want to use ``--hw-wallet`` if you use a hardware wallet in
+order for ``nucypher`` to not ask you for the password.
+
+Initialize a new stake
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init
+    (nucypher)$ nucypher stake create --hw-wallet
 
     Select staking account [0]: 0
-    Enter password to unlock 0xbb01c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA:
     Enter stake value in NU [15000]: 15000
     Enter stake duration (30 periods minimum): 30
 
@@ -123,8 +176,11 @@ Interactive Method
 
     Successfully transmitted stake initialization transactions.
 
+If you used a hardware wallet, you will need to confirm two transactions here.
 
-*List existing stakes*
+
+List existing stakes
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -134,37 +190,99 @@ Interactive Method
 
     | ~ | Staker | Worker | # | Value    | Duration     | Enactment
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 |    -   | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
+    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
+    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
+    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
+
+If the Worker in the list is shown as ``0x0000``, it means that you haven't yet
+attached a Worker node to your Staker, so you still have to do it!
 
 
-*Bond an Ursula to a Staker*
+Bond an Ursula to a Staker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After you create an Ethereum node for your worker (see below about the worker),
+you can set the worker. Stakes which don't yet have a worker will be
+highlighted in yellow:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake set-worker
+    (nucypher)$ nucypher stake set-worker --hw-wallet
 
     ======================================= Active Stakes =========================================
 
     | ~ | Staker | Worker | # | Value    | Duration     | Enactment
     |   | ------ | ------ | - | -------- | ------------ | -----------------------------------------
-    | 0 | 0xbb01 | 0xbb02 | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
-    | 1 | 0xbb01 | 0xbb02 | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
-    | 2 | 0xbb03 |   -    | 0 | 30000 NU | 39 periods . | Aug 09 12:15:16 CEST - Sep 16 12:15:16 CEST
+    | 0 | 0xbb01 | 0xdead | 0 | 15000 NU | 41 periods . | Aug 04 12:15:16 CEST - Sep 13 12:15:16 CEST
+    | 1 | 0xbb02 | 0xbeef | 1 | 15000 NU | 30 periods . | Aug 20 12:15:16 CEST - Sep 18 12:15:16 CEST
+    | 2 | 0xbb03 | 0x0000 | 0 | 30000 NU | 30 periods . | Aug 09 12:15:16 CEST - Sep 9 12:15:16 CEST
 
     Select Stake: 2
-    Enter Worker Address: 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
+    Enter Worker Address: 0xbeefc4fE50f91eF73c5dD6eD89f38D55A6b1EdCA
     Worker 0xbb04c4fE50f91eF73c5dD6eD89f38D55A6b1EdCA successfully bonded to staker 0xbb03...
 
     OK!
 
+Please note that the address should be in the format where checksum is encoded
+in the address. However, geth shows addresses in the lower case. You can convert
+the address to checksum format in geth console:
 
-*Divide an existing stake*
+.. code:: bash
+    $ geth attach ~/.ethereum/goerli/geth.ipc
+    > eth.accounts
+    ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
+    > web3.toChecksumAddress(eth.accounts[0])
+    "0x287A817426DD1AE78ea23e9918e2273b6733a43D"
+
+After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
+
+
+Collect rewards earned by the staker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Choose your staking address to withdraw compensation from
+(``nucypher stake accounts`` will show). Then, use
+``nucypher stake collect-reward`` with an option ``--staking-reward`` to collect
+inflation rewards in NU or ``--policy-reward`` to collect Ethers earned as
+fees, or both:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake divide
+    nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+
+     ____    __            __
+    /\  _`\ /\ \__        /\ \
+    \ \,\L\_\ \ ,_\    __ \ \ \/'\      __   _ __
+     \/_\__ \\ \ \/  /'__`\\ \ , <    /'__`\/\`'__\
+       /\ \L\ \ \ \_/\ \L\.\\ \ \\`\ /\  __/\ \ \/
+       \ `\____\ \__\ \__/.\_\ \_\ \_\ \____\\ \_\
+        \/_____/\/__/\/__/\/_/\/_/\/_/\/____/ \/_/
+
+    The Holder of Stakes.
+
+    OK | 0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa (55062 gas)
+    Block #1245170 | 0x63e4da39056873adaf869674db4002e016c80466f38256a4c251516a0e25e547
+     See https://goerli.etherscan.io/tx/0xb0625030224e228198faa3ed65d43f93247cf6067aeb62264db6f31b5bf411fa
+
+    OK | 0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372 (25070 gas)
+    Block #1245171 | 0x0d8180a69213c240e2bf2045179976d5f18de56a82f17a9d59db54756b6604e4
+     See https://goerli.etherscan.io/tx/0xe6d555be43263702b74727ce29dc4bcd6e32019159ccb15120791dfda0975372
+
+You can run ``nuycpher stake accounts`` to verify that your staking compensation
+is indeed in your wallet. Use your favorite Ethereum wallet (MyCrypto or Metamask
+are suitable) to transfer out the compensation earned (NU tokens or ETH) after
+that.
+
+Note that you will need to confirm two transactions if you collect both types of
+staking compensation if you use a hardware wallet.
+
+
+Divide an existing stake
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake divide --hw-wallet
 
     Select Stake: 2
     Enter target value (must be less than or equal to 30000 NU): 15000
@@ -218,17 +336,24 @@ Inline Method
 +----------------+----------------+--------------+
 
 
-*Stake 30000 NU for 90 Periods*
+Stake 30000 NU for 90 Periods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init --value 30000 --duration 90
+    (nucypher)$ nucypher stake init --value 30000 --duration 90 --hw-wallet
     ...
 
 
-*Divide stake at index 0, at 15000 NU for 30 additional Periods*
+Divide stake at index 0, at 15000 NU for 30 additional Periods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30
+    (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30 --hw-wallet
     ...
+
+Worker configuration
+------------------------
+
+See :ref:`ursula-config-guide`.

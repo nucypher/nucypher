@@ -23,23 +23,9 @@ import pytest
 from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProxyDeployer
 
 
-@pytest.fixture(scope='function')
-def user_escrow_proxy(session_agency, test_registry):
-    token_agent, staking_agent, policy_agent = session_agency
-    testerchain = policy_agent.blockchain
-    deployer = testerchain.etherbase_account
-
-    escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer, registry=test_registry)
-
-    _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy(secret_hash=os.urandom(32))
-    testerchain.time_travel(seconds=120)
-    yield escrow_proxy_deployer.contract_address
-    test_registry.clear()
-
-
 @pytest.mark.slow()
-def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics, test_registry):
-    token_agent, staking_agent, policy_agent = session_agency
+def test_deploy_and_allocate(agency, token_economics, test_registry):
+    token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain
     origin = testerchain.etherbase_account
 
@@ -74,7 +60,7 @@ def test_deploy_and_allocate(session_agency, user_escrow_proxy, token_economics,
     for address, deployer in deployments.items():
         assert deployer.deployer_address == origin
 
-        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_locked_periods)
+        deposit_receipt = deployer.initial_deposit(value=allocation, duration_seconds=token_economics.maximum_rewarded_periods)
         deposit_receipts.append(deposit_receipt)
 
         beneficiary = random.choice(testerchain.unassigned_accounts)
