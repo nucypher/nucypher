@@ -279,7 +279,11 @@ def test_stake_restake(click_runner,
                        manual_staker,
                        custom_filepath,
                        testerchain,
+                       test_registry,
                        stakeholder_configuration_file_location):
+
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    assert not staker.is_restaking
 
     restake_args = ('stake', 'restake',
                     '--enable',
@@ -293,8 +297,34 @@ def test_stake_restake(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+    assert staker.is_restaking
+    assert "Successfully enabled" in result.output
 
-    restake_args = ('stake', 'restake',
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    current_period = staking_agent.get_current_period()
+    release_period = current_period + 1
+    lock_args = ('stake', 'restake',
+                 '--lock',
+                 '--release-period', release_period,
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--staking-address', manual_staker,
+                 '--force',
+                 '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 lock_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.restaking_lock_enabled
+    assert "Successfully enabled" in result.output
+    assert str(release_period) in result.output
+
+    # Wait until release period
+    testerchain.time_travel(periods=1)
+    assert not staker.restaking_lock_enabled
+
+    disable_args = ('stake', 'restake',
                     '--disable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
@@ -302,10 +332,12 @@ def test_stake_restake(click_runner,
                     '--debug')
 
     result = click_runner.invoke(nucypher_cli,
-                                 restake_args,
+                                 disable_args,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+    assert not staker.is_restaking
+    assert "Successfully disabled" in result.output
 
 
 def test_collect_rewards_integration(click_runner,

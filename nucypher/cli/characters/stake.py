@@ -307,7 +307,7 @@ def stake(click_config,
             password = get_client_password(checksum_address=staking_address)
         STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
 
-        # Inner Switch
+        # Inner Exclusive Switch
         if lock:
             if not force:
                 click.confirm(f"Confirm enable restaking lock for staker {staking_address} until {release_period}?", abort=True)
@@ -315,6 +315,8 @@ def stake(click_config,
                 current_period = STAKEHOLDER.staking_agent.get_current_period()
                 release_period = click.prompt("Enter release period", type=click.IntRange(min=current_period+1))
             receipt = STAKEHOLDER.enable_restaking_lock(release_period=release_period)
+            emitter.echo(f'Successfully enabled restaking lock for {staking_address} until {release_period}',
+                         color='green', verbosity=1)
         elif enable:
             if not force:
                 click.confirm(f"Confirm enable restaking for staker {staking_address}?", abort=True)
@@ -323,7 +325,7 @@ def stake(click_config,
         else:
             if not force:
                 click.confirm(f"Confirm disable restaking for staker {staking_address}?", abort=True)
-            receipt = STAKEHOLDER.enable_restaking()
+            receipt = STAKEHOLDER.disable_restaking()
             emitter.echo(f'Successfully disabled restaking for {staking_address}', color='green', verbosity=1)
 
         paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
