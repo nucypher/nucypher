@@ -74,7 +74,6 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH,
     TEST_GAS_LIMIT,
     INSECURE_DEPLOYMENT_SECRET_HASH,
-    NUMBER_OF_ETH_TEST_ACCOUNTS,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import generate_random_label
