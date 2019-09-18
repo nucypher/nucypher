@@ -61,8 +61,15 @@ def test_run_felix(click_runner,
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
                  '--provider', TEST_PROVIDER_URI)
+    _original_read_function = LocalContractRegistry.read
 
-    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+    try:
+        # Mock live contract registry reads
+        LocalContractRegistry.read = lambda *a, **kw: test_registry.read()
+        result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+    finally:
+        # Restore original read function.
+        LocalContractRegistry.read = _original_read_function
     assert result.exit_code == 0
 
     configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
