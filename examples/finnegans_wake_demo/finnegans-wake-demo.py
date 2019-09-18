@@ -142,7 +142,7 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     # Now Bob can retrieve the original message.
     alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
-    delivered_cleartexts = BOB.retrieve(message_kit=single_passage_ciphertext,
+    delivered_cleartexts = BOB.retrieve(single_passage_ciphertext,
                                         enrico=enrico_as_understood_by_bob,
                                         alice_verifying_key=alice_pubkey_restored_from_ancient_scroll,
                                         label=label)
