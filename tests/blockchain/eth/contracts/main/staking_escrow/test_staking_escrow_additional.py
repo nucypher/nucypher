@@ -35,6 +35,7 @@ secret2 = (654321).to_bytes(32, byteorder='big')
 def test_upgrading(testerchain, token, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
+    worker = testerchain.client.accounts[2]
 
     secret_hash = keccak(secret)
     secret2_hash = keccak(secret2)
@@ -86,6 +87,8 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
+    tx = token.functions.transfer(contract.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
     tx = contract.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.transfer(staker, 1000).transact({'from': creator})
@@ -100,6 +103,13 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.setWorkMeasurement(staker, True).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = contract.functions.setWorker(worker).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = contract.functions.confirmActivity().transact({'from': worker})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
+    tx = contract.functions.confirmActivity().transact({'from': worker})
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
