@@ -95,7 +95,7 @@ def test_decentralized_cli_lifecycle(click_runner,
                                      test_registry,
                                      mock_primary_registry_filepath):
 
-    registry_filepath = test_registry.commit(filepath=mock_primary_registry_filepath)
+    registry_filepath = test_registry.commit(filepath=mock_primary_registry_filepath, overwrite=True)
     yield _cli_lifecycle(click_runner,
                          testerchain,
                          random_policy_label,

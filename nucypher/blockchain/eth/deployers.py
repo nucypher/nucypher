@@ -234,6 +234,26 @@ class UpgradeableContractMixin:
                                                    use_proxy_address=False)
         return contract
 
+    def retarget(self, target_address: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        if not self._upgradeable:
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
+
+        # 1 - Get Bare Contracts
+        existing_bare_contract = self.get_latest_version(registry=self.registry,
+                                                         provider_uri=self.blockchain.provider_uri)
+
+        proxy_deployer = self._proxy_deployer(registry=self.registry,
+                                              target_contract=existing_bare_contract,
+                                              deployer_address=self.deployer_address,
+                                              bare=True)  # acquire agency for the dispatcher itself.
+
+        # 2 - Retarget
+        receipt = proxy_deployer.retarget(new_target=target_address,
+                                          existing_secret_plaintext=existing_secret_plaintext,
+                                          new_secret_hash=new_secret_hash,
+                                          gas_limit=2_000_000)  # TODO: Gas Management - Failed during live upgrade
+        return receipt
+
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
@@ -359,14 +379,10 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
         if new_target == self._contract.address:
             raise self.ContractDeploymentError(f"{self.contract_name} {self._contract.address} cannot target itself.")
 
-        origin_args = {}  # TODO: Gas management
-        if gas_limit:
-            origin_args.update({'gas': gas_limit})
-
         upgrade_function = self._contract.functions.upgrade(new_target, existing_secret_plaintext, new_secret_hash)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
-                                                           payload=origin_args)
+                                                           transaction_gas_limit=gas_limit)
         return upgrade_receipt
 
     @validate_secret

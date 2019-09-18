@@ -48,6 +48,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--retarget', '-d', help="Retarget a contract;s proxy.", is_flag=True)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
@@ -68,6 +69,7 @@ def deploy(action,
            registry_outfile,
            value,
            target_address,
+           retarget,
            config_root,
            hw_wallet,
            force,
@@ -199,9 +201,20 @@ def deploy(action,
             raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
         existing_secret = click.prompt('Enter existing contract upgrade secret', hide_input=True)
         new_secret = click.prompt('Enter new contract upgrade secret', hide_input=True, confirmation_prompt=True)
-        ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
-                                       existing_plaintext_secret=existing_secret,
-                                       new_plaintext_secret=new_secret)
+
+        if retarget:
+            if not target_address:
+                raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
+            click.confirm(f"Confirm retarget {contract_name}'s proxy to {target_address}?", abort=True)
+            ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
+                                         target_address=target_address,
+                                         existing_plaintext_secret=existing_secret,
+                                         new_plaintext_secret=new_secret)
+            return  # Exit
+        else:
+            ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
+                                           existing_plaintext_secret=existing_secret,
+                                           new_plaintext_secret=new_secret)
         return  # Exit
 
     elif action == 'rollback':
