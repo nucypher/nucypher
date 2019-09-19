@@ -280,7 +280,8 @@ def stake(click_config,
             if staking_address:
                 message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
                 emitter.echo(message, color='yellow', verbosity=1)
-                click.confirm("Is this correct?", abort=True)
+                if not force:
+                    click.confirm("Is this correct?", abort=True)
             else:
                 message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
                            f"Are you sure you are using the right allocation registry?\n"
