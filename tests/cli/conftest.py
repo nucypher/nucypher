@@ -26,7 +26,7 @@ from click.testing import CliRunner
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.utilities.sandbox.constants import (
     MOCK_ALLOCATION_REGISTRY_FILEPATH,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -125,3 +125,17 @@ def custom_filepath_2():
     finally:
         with contextlib.suppress(FileNotFoundError):
             shutil.rmtree(_custom_filepath, ignore_errors=True)
+
+
+@pytest.fixture(scope='module')
+def worker_configuration_file_location(custom_filepath):
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
+                                                UrsulaConfiguration.generate_filename())
+    return _configuration_file_location
+
+
+@pytest.fixture(scope='module')
+def stakeholder_configuration_file_location(custom_filepath):
+    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
+                                                StakeHolderConfiguration.generate_filename())
+    return _configuration_file_location
