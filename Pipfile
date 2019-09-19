@@ -32,12 +32,14 @@ sentry-sdk = "==0.9.0"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
+# UI
 flask-limiter = "*"
 dash = {extras = ["testing"],version = "*"}
 dash-core-components = "*"
 dash-html-components = "*"
 dash_daq = "*"
 plotly = "3.10.0"
+influxdb = "*"
 
 [dev-packages]
 # Pytest
