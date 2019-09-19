@@ -19,12 +19,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from web3 import Web3
 
-from nucypher.characters.lawful import StakeHolder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.characters.lawful import StakeHolder
 from nucypher.cli import painting, actions
-from nucypher.cli.actions import confirm_staged_stake, get_client_password, select_stake, select_client_account
+from nucypher.cli.actions import (
+    confirm_staged_stake,
+    get_client_password,
+    select_stake,
+    select_client_account,
+    confirm_enable_restaking_lock,
+    confirm_enable_restaking
+)
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_receipt_summary
 from nucypher.cli.types import (
@@ -308,13 +315,13 @@ def stake(click_config,
         # Inner Exclusive Switch
         if lock_until:
             if not force:
-                click.confirm(f"Confirm enable re-staking lock for staker {staking_address} until {lock_until}?", abort=True)
+                confirm_enable_restaking_lock(emitter, staking_address=staking_address, release_period=lock_until)
             receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
             emitter.echo(f'Successfully enabled re-staking lock for {staking_address} until {lock_until}',
                          color='green', verbosity=1)
         elif enable:
             if not force:
-                click.confirm(f"Confirm enable re-staking for staker {staking_address}?", abort=True)
+                confirm_enable_restaking(emitter, staking_address=staking_address)
             receipt = STAKEHOLDER.enable_restaking()
             emitter.echo(f'Successfully enabled re-staking for {staking_address}', color='green', verbosity=1)
         else:
