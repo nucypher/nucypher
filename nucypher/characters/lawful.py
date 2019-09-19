@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, Stake
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, ContractAgency, UserEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, AllocationRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, AllocationRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import StakeList, WorkTracker, NU
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER, STAKEHOLDER_BANNER
 from nucypher.characters.base import Character, Learner
@@ -1420,8 +1420,6 @@ class StakeHolder(Staker):
         super().__init__(is_me=is_me, checksum_address=initial_address, *args, **kwargs)
         self.log = Logger(f"stakeholder")
 
-        self.allocation_registry = AllocationRegistry()  # FIXME
-
         # Wallet
         self.wallet = self.StakingWallet(registry=self.registry, checksum_addresses=checksum_addresses)
         if initial_address:
@@ -1433,18 +1431,9 @@ class StakeHolder(Staker):
 
     @validate_checksum_address
     def assimilate(self, checksum_address: str, password: str = None) -> None:
-        # In case the account stakes via a contract
-        has_staking_contract = self.allocation_registry.is_beneficiary_enrolled(checksum_address)
-        if has_staking_contract:
-            self.beneficiary_address = checksum_address
-            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
-                                                     allocation_registry=self.allocation_registry,
-                                                     beneficiary=self.beneficiary_address)
-            staking_address = self.user_escrow_agent.principal_contract.address
-        else:
-            staking_address = checksum_address
-            self.user_escrow_agent = None
-            self.beneficiary_address = None
+        # This handles both regular staking and staking via a contract
+        staking_contract_address = self.check_if_staking_via_contract(checksum_address)
+        staking_address = staking_contract_address or checksum_address
 
         self.wallet.activate_account(checksum_address=checksum_address, password=password)
         original_form = self.checksum_address

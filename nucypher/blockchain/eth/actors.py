@@ -21,7 +21,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from json import JSONDecodeError
-from typing import Tuple, List, Dict, Union
+from typing import Tuple, List, Dict, Union, Optional
 
 import click
 import maya
@@ -40,6 +40,7 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     AdjudicatorAgent,
     ContractAgency,
+    UserEscrowAgent,
 )
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
@@ -53,7 +54,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker
 from nucypher.blockchain.eth.utils import datetime_to_period, calculate_period_duration, datetime_at_period
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -526,6 +527,7 @@ class Staker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
+                 allocation_registry: AllocationRegistry = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -540,10 +542,29 @@ class Staker(NucypherTokenActor):
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
-        # FIXME: I don't like this pattern of setting to None here and changing it in the subclass (StakeHolder),
-        # but my hands are tied at the moment (not literally, you pervs)
+        # Staking via contract
+        self.allocation_registry = allocation_registry or InMemoryAllocationRegistry()  # FIXME: This is a workaround for regular stakers
         self.beneficiary_address = None
         self.user_escrow_agent = None
+        self.check_if_staking_via_contract(self.checksum_address)
+
+    # TODO: This function not only "checks". Find a better name
+    def check_if_staking_via_contract(self, checksum_address: str) -> Optional[str]:
+        if not checksum_address:
+            return None
+
+        has_staking_contract = self.allocation_registry.is_beneficiary_enrolled(checksum_address)
+        if has_staking_contract:
+            self.beneficiary_address = checksum_address
+            self.user_escrow_agent = UserEscrowAgent(registry=self.registry,
+                                                     allocation_registry=self.allocation_registry,
+                                                     beneficiary=self.beneficiary_address)
+            staking_address = self.user_escrow_agent.principal_contract.address
+            return staking_address
+        else:
+            self.user_escrow_agent = None
+            self.beneficiary_address = None
+            return None
 
     @property
     def is_contract(self) -> bool:
@@ -670,7 +691,6 @@ class Staker(NucypherTokenActor):
 
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
-
         if self.is_contract:
             approve_receipt = self.token_agent.approve_transfer(amount=amount,
                                                                 target_address=self.staking_agent.contract_address,
