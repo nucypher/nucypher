@@ -143,7 +143,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     from nucypher.cli import actions
 
-    def substitue_bob(*args, **kwargs):
+    def substitute_bob(*args, **kwargs):
         this_fuckin_guy = enacted_federated_policy.bob
         somebody_else = Ursula.from_teacher_uri(teacher_uri=kwargs['teacher_uri'],
                                                 min_stake=0,
@@ -153,20 +153,24 @@ def test_bob_retrieves_twice_via_cli(click_runner,
         this_fuckin_guy.controller.emitter = JSONRPCStdoutEmitter()
         return this_fuckin_guy
 
-    actions.make_cli_character = substitue_bob
+    _old_make_character_function = actions.make_cli_character
+    try:
+        actions.make_cli_character = substitute_bob
 
-    # Once...
-    retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
-    assert retrieve_response.exit_code == 0
+        # Once...
+        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        assert retrieve_response.exit_code == 0
 
-    retrieve_response = json.loads(retrieve_response.output)
-    for cleartext in retrieve_response['result']['cleartexts']:
-        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+        retrieve_response = json.loads(retrieve_response.output)
+        for cleartext in retrieve_response['result']['cleartexts']:
+            assert cleartext.encode() == capsule_side_channel.plaintexts[1]
 
-    # and again!
-    retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
-    assert retrieve_response.exit_code == 0
+        # and again!
+        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        assert retrieve_response.exit_code == 0
 
-    retrieve_response = json.loads(retrieve_response.output)
-    for cleartext in retrieve_response['result']['cleartexts']:
-        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+        retrieve_response = json.loads(retrieve_response.output)
+        for cleartext in retrieve_response['result']['cleartexts']:
+            assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+    finally:
+        actions.make_cli_character = _old_make_character_function
