@@ -50,6 +50,7 @@ hyperlink==19.0.0
 idna==2.8
 importlib-metadata==0.22 ; python_version < '3.8'
 incremental==17.5.0
+influxdb==5.2.3
 ipfshttpclient==0.4.12
 itsdangerous==1.1.0
 jinja2==2.10.1
