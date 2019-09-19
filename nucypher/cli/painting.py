@@ -525,7 +525,7 @@ def paint_stakers(emitter, stakers: List[str], agent) -> None:
 
         emitter.echo(f"{tab}  {'Stake:':10} {stake_in_nu}  (Locked: {locked_tokens})")
         if is_restaking:
-            if agent.is_restake_locked(staker):
+            if agent.is_restaking_locked(staker):
                 unlock_period = agent.get_restake_unlock_period(staker)
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
             else:

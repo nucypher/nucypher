@@ -43,7 +43,7 @@ All staking-related operations done by StakeHolder are performed through the ``n
 +----------------------+-------------------------------------------------------------------------------+
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``restke``          | Manage automatic reward re-staking                                            |
+|  ``restake``          | Manage automatic reward re-staking                                            |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
@@ -62,17 +62,15 @@ All staking-related operations done by StakeHolder are performed through the ``n
 
 **ReStake Command Options**
 
-+-------------------------+--------------------------------------------+
-| Option                  |  Description                               |
-+=========================+============================================+
-|  ``--enable``           | Enable restaking (default)                 |
-+-------------------------+--------------------------------------------+
-|  ``--disable``          | Disable restaking                          |
-+-------------------------+--------------------------------------------+
-|  ``--lock ``            | Enable restaking lock                      |
-+-------------------------+--------------------------------------------+
-|  ``--release-period``   | Expiration period of restaking lock        |
-+-------------------------+--------------------------------------------+
++-------------------------+---------------------------------------------+
+| Option                  |  Description                                |
++=========================+=============================================+
+|  ``--enable``           | Enable re-staking                           |
++-------------------------+---------------------------------------------+
+|  ``--disable``          | Disable re-staking                          |
++-------------------------+---------------------------------------------+
+|  ``--lock-until``       | Enable re-staking lock until release period |
++-------------------------+---------------------------------------------+
 
 
 Staking Overview
@@ -87,7 +85,7 @@ Most stakers on the Goerli testnet will complete the following steps:
 4) Stake tokens (See Below)
 5) Install another Ethereum node at the Worker instance
 6) Initialize a Worker node [:ref:`ursula-config-guide`] and bond it to your Staker (``set-worker``)
-7) Optoinally, enable restaking
+7) Optionally, enable re-staking
 8) Configure and run the Worker, and keep it online [:ref:`ursula-config-guide`]!
 
 Interactive Method
@@ -253,8 +251,8 @@ the address to checksum format in geth console:
 After this step, you're finished with the Staker, and you can proceed to :ref:`ursula-config-guide`.
 
 
-Manage automatic reward restaking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Manage automatic reward re-staking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As your Ursula performs work, you can optionally enable the automatic addition of
 all rewards to your existing stake to optimize earnings.  By default this feature is disabled,
@@ -277,7 +275,7 @@ allow **restaking** to be disabled until the release period begins, even if you 
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake restake --lock --release-period 12345
+    (nucypher)$ nucypher stake restake --lock-until 12345
 
 No action is needed to release the restaking lock once the release period begins.
 

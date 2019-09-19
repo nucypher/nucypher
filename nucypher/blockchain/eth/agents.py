@@ -288,22 +288,6 @@ class StakingEscrowAgent(EthereumContractAgent):
         for stake_index in range(stakes_length):
             yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
 
-    @validate_checksum_address
-    def is_restaking(self, staker_address: str) -> bool:
-        staker_info = self.get_staker_info(staker_address)
-        restake_flag = bool(staker_info[3])
-        return restake_flag
-
-    @validate_checksum_address
-    def is_restake_locked(self, staker_address: str) -> bool:
-        return self.contract.functions.isReStakeLocked(staker_address).call()
-
-    @validate_checksum_address
-    def get_restake_unlock_period(self, staker_address: str) -> int:
-        staker_info = self.get_staker_info(staker_address)
-        restake_unlock_period = int(staker_info[4])
-        return restake_unlock_period
-
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str):
         """Send tokens to the escrow from the staker's address"""
         contract_function = self.contract.functions.deposit(amount, lock_periods)
@@ -380,9 +364,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @validate_checksum_address
-    def get_restaking_lock_status(self, staker_address: str) -> bool:
-        status = self.contract.functions.isReStakeLocked(staker_address).call()
-        return status
+    def is_restaking(self, staker_address: str) -> bool:
+        staker_info = self.get_staker_info(staker_address)
+        restake_flag = bool(staker_info[3])  # TODO: #1348 Use constant or enum
+        return restake_flag
+
+    @validate_checksum_address
+    def is_restaking_locked(self, staker_address: str) -> bool:
+        return self.contract.functions.isReStakeLocked(staker_address).call()
 
     @validate_checksum_address
     def set_restaking(self, staker_address: str, value: bool) -> dict:
@@ -403,6 +392,12 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=staker_address)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
+
+    @validate_checksum_address
+    def get_restake_unlock_period(self, staker_address: str) -> int:
+        staker_info = self.get_staker_info(staker_address)
+        restake_unlock_period = int(staker_info[4])  # TODO: #1348 Use constant or enum
+        return restake_unlock_period
 
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (

@@ -225,32 +225,42 @@ def test_divide_stake(agency, token_economics):
 
 
 @pytest.mark.slow()
-def test_enable_restaking(agency, testerchain):
-    token_agent, staking_agent, _policy_agent = agency
+def test_enable_restaking(agency, testerchain, test_registry):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
+
+    assert not staking_agent.is_restaking(staker_account)
     receipt = staking_agent.set_restaking(staker_account, value=True)
-    assert receipt['status'] == 1, "Transaction Rejected"
+    assert receipt['status'] == 1
+    assert staking_agent.is_restaking(staker_account)
 
 
 @pytest.mark.slow()
-def test_lock_restaking(agency, testerchain):
-    token_agent, staking_agent, _policy_agent = agency
+def test_lock_restaking(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_period = staking_agent.get_current_period()
     terminal_period = current_period + 2
+    
+    assert staking_agent.is_restaking(staker_account)
+    assert not staking_agent.is_restaking_locked(staker_account)
     receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
     assert receipt['status'] == 1, "Transaction Rejected"
+    assert staking_agent.is_restaking_locked(staker_account)
+    
+    testerchain.time_travel(periods=2)  # Wait for re-staking lock to be released.
+    assert not staking_agent.is_restaking_locked(staker_account)
 
 
 @pytest.mark.slow()
-def test_disable_restaking(agency, testerchain):
-    token_agent, staking_agent, _policy_agent = agency
+def test_disable_restaking(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
-    assert staking_agent.get_restaking_lock_status(staker_account)
-    testerchain.time_travel(periods=2)  # Wait for restake lock to be released.
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+
+    assert staking_agent.is_restaking(staker_account)
     receipt = staking_agent.set_restaking(staker_account, value=False)
     assert receipt['status'] == 1, "Transaction Rejected"
-    assert not staking_agent.get_restaking_lock_status(staker_account)
+    assert not staking_agent.is_restaking(staker_account)
 
 
 @pytest.mark.slow()

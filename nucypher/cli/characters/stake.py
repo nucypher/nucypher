@@ -53,9 +53,8 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--value', help="Token value of stake", type=click.INT)
 @click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
-@click.option('--enable/--disable', help="Used to enable and disable restaking", is_flag=True, default=True)
-@click.option('--lock', help="Used with restake to enable restaking lock", is_flag=True)
-@click.option('--release-period', help="Period to release restaking lock", type=click.IntRange(min=0))
+@click.option('--enable/--disable', help="Used to enable and disable re-staking", is_flag=True, default=True)
+@click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -84,8 +83,7 @@ def stake(click_config,
           policy_reward,
           staking_reward,
           enable,
-          lock,
-          release_period
+          lock_until,
 
           ) -> None:
     """
@@ -101,7 +99,7 @@ def stake(click_config,
     set-worker        Bond a worker to a staker
     detach-worker     Detach worker currently bonded to a staker
     init              Create a new stake
-    restake           Manage restaking with --enable or --disable
+    restake           Manage re-staking with --enable or --disable
     divide            Create a new stake from part of an existing one
     collect-reward    Withdraw staking reward
 
@@ -308,25 +306,22 @@ def stake(click_config,
         STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
 
         # Inner Exclusive Switch
-        if lock:
+        if lock_until:
             if not force:
-                click.confirm(f"Confirm enable restaking lock for staker {staking_address} until {release_period}?", abort=True)
-            if not release_period:
-                current_period = STAKEHOLDER.staking_agent.get_current_period()
-                release_period = click.prompt("Enter release period", type=click.IntRange(min=current_period+1))
-            receipt = STAKEHOLDER.enable_restaking_lock(release_period=release_period)
-            emitter.echo(f'Successfully enabled restaking lock for {staking_address} until {release_period}',
+                click.confirm(f"Confirm enable re-staking lock for staker {staking_address} until {lock_until}?", abort=True)
+            receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
+            emitter.echo(f'Successfully enabled re-staking lock for {staking_address} until {lock_until}',
                          color='green', verbosity=1)
         elif enable:
             if not force:
-                click.confirm(f"Confirm enable restaking for staker {staking_address}?", abort=True)
+                click.confirm(f"Confirm enable re-staking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.enable_restaking()
-            emitter.echo(f'Successfully enabled restaking for {staking_address}', color='green', verbosity=1)
+            emitter.echo(f'Successfully enabled re-staking for {staking_address}', color='green', verbosity=1)
         else:
             if not force:
-                click.confirm(f"Confirm disable restaking for staker {staking_address}?", abort=True)
+                click.confirm(f"Confirm disable re-staking for staker {staking_address}?", abort=True)
             receipt = STAKEHOLDER.disable_restaking()
-            emitter.echo(f'Successfully disabled restaking for {staking_address}', color='green', verbosity=1)
+            emitter.echo(f'Successfully disabled re-staking for {staking_address}', color='green', verbosity=1)
 
         paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
         return  # Exit

@@ -304,8 +304,7 @@ def test_stake_restake(click_runner,
     current_period = staking_agent.get_current_period()
     release_period = current_period + 1
     lock_args = ('stake', 'restake',
-                 '--lock',
-                 '--release-period', release_period,
+                 '--lock-until', release_period,
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  '--force',
@@ -316,13 +315,19 @@ def test_stake_restake(click_runner,
                                  input=INSECURE_DEVELOPMENT_PASSWORD,
                                  catch_exceptions=False)
     assert result.exit_code == 0
+
+    # Still staking and the lock is enabled
+    assert staker.is_restaking
     assert staker.restaking_lock_enabled
+
+    # CLI Output includes success message
     assert "Successfully enabled" in result.output
     assert str(release_period) in result.output
 
     # Wait until release period
     testerchain.time_travel(periods=1)
     assert not staker.restaking_lock_enabled
+    assert staker.is_restaking
 
     disable_args = ('stake', 'restake',
                     '--disable',

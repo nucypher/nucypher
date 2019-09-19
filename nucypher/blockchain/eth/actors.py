@@ -589,7 +589,7 @@ class Staker(NucypherTokenActor):
 
     @property
     def restaking_lock_enabled(self) -> bool:
-        status = self.staking_agent.get_restaking_lock_status(staker_address=self.checksum_address)
+        status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
         return status
 
     def disable_restaking(self) -> dict:
