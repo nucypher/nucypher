@@ -91,11 +91,12 @@ contract UserEscrowProxy {
     * @notice Deposit tokens to the staking escrow
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
+    * @dev Assume that `this` is the UserEscrow contract
     **/
     function depositAsStaker(uint256 _value, uint16 _periods) public {
         UserEscrowProxy state = getStateContract();
         NuCypherToken tokenFromState = state.token();
-        require(tokenFromState.balanceOf(address(this)) > _value);
+        require(tokenFromState.balanceOf(address(this)) >= _value);
         StakingEscrow escrowFromState = state.escrow();
         tokenFromState.approve(address(escrowFromState), _value);
         escrowFromState.deposit(_value, _periods);
