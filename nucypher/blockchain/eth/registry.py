@@ -78,7 +78,7 @@ class BaseContractRegistry(ABC):
         return bool(self.id == other.id)
 
     def __repr__(self) -> str:
-        r = f"{self.__class__.__name__}"
+        r = f"{self.__class__.__name__}(id={self.id[:6]})"
         return r
 
     @property

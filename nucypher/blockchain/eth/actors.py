@@ -512,7 +512,7 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration) - current_stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
             if additional_periods <= 0:
                 raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
                                          f"current stake's end period ({current_stake.final_locked_period}).")
@@ -539,7 +539,8 @@ class Staker(NucypherTokenActor):
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if expiration:
-            lock_periods = calculate_period_duration(future_time=expiration)
+            lock_periods = calculate_period_duration(future_time=expiration,
+                                                     seconds_per_period=self.economics.seconds_per_period)
 
         # Value
         if entire_balance and amount:
@@ -566,6 +567,36 @@ class Staker(NucypherTokenActor):
 
         return new_stake
 
+    @property
+    def is_restaking(self) -> bool:
+        restaking = self.staking_agent.is_restaking(staker_address=self.checksum_address)
+        return restaking
+
+    @only_me
+    @save_receipt
+    def enable_restaking(self) -> dict:
+        receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=True)
+        return receipt
+
+    @only_me
+    @save_receipt
+    def enable_restaking_lock(self, release_period: int):
+        current_period = self.staking_agent.get_current_period()
+        if release_period < current_period:
+            raise ValueError(f"Terminal restaking period must be in the future.  "
+                             f"Current period is {current_period}, got '{release_period}'.")
+        receipt = self.staking_agent.lock_restaking(staker_address=self.checksum_address,
+                                                    release_period=release_period)
+        return receipt
+
+    @property
+    def restaking_lock_enabled(self) -> bool:
+        status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
+        return status
+
+    def disable_restaking(self) -> dict:
+        receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=False)
+        return receipt
     #
     # Reward and Collection
     #

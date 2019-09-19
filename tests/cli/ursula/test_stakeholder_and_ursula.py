@@ -275,6 +275,76 @@ def test_ursula_run(click_runner,
     assert result.exit_code == 0
 
 
+def test_stake_restake(click_runner,
+                       manual_staker,
+                       custom_filepath,
+                       testerchain,
+                       test_registry,
+                       stakeholder_configuration_file_location):
+
+    staker = Staker(is_me=True, checksum_address=manual_staker, registry=test_registry)
+    assert not staker.is_restaking
+
+    restake_args = ('stake', 'restake',
+                    '--enable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force',
+                    '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.is_restaking
+    assert "Successfully enabled" in result.output
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    current_period = staking_agent.get_current_period()
+    release_period = current_period + 1
+    lock_args = ('stake', 'restake',
+                 '--lock-until', release_period,
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--staking-address', manual_staker,
+                 '--force',
+                 '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 lock_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Still staking and the lock is enabled
+    assert staker.is_restaking
+    assert staker.restaking_lock_enabled
+
+    # CLI Output includes success message
+    assert "Successfully enabled" in result.output
+    assert str(release_period) in result.output
+
+    # Wait until release period
+    testerchain.time_travel(periods=1)
+    assert not staker.restaking_lock_enabled
+    assert staker.is_restaking
+
+    disable_args = ('stake', 'restake',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--staking-address', manual_staker,
+                    '--force',
+                    '--debug')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 disable_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert not staker.is_restaking
+    assert "Successfully disabled" in result.output
+
+
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
                                      test_registry,
@@ -397,8 +467,8 @@ def test_collect_rewards_integration(click_runner,
     current_period += 1
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
-    # Half of the tokens are unlocked.
-    assert staker.locked_tokens() == token_economics.minimum_allowed_locked
+    # At least half of the tokens are unlocked (restaking was enabled for some prior periods)
+    assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
 
     # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
     testerchain.transacting_power = TransactingPower(account=staker_address,

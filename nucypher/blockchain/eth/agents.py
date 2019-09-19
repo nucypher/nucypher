@@ -363,6 +363,42 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                    sender_address=staker_address)
         return receipt
 
+    @validate_checksum_address
+    def is_restaking(self, staker_address: str) -> bool:
+        staker_info = self.get_staker_info(staker_address)
+        restake_flag = bool(staker_info[3])  # TODO: #1348 Use constant or enum
+        return restake_flag
+
+    @validate_checksum_address
+    def is_restaking_locked(self, staker_address: str) -> bool:
+        return self.contract.functions.isReStakeLocked(staker_address).call()
+
+    @validate_checksum_address
+    def set_restaking(self, staker_address: str, value: bool) -> dict:
+        """
+        Enable automatic restaking for a fixed duration of lock periods.
+        If set to True, then all staking rewards will be automatically added to locked stake.
+        """
+        contract_function = self.contract.functions.setReStake(value)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        # TODO: Handle ReStakeSet event (see #1193)
+        return receipt
+
+    @validate_checksum_address
+    def lock_restaking(self, staker_address: str, release_period: int) -> dict:
+        contract_function = self.contract.functions.lockReStake(release_period)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
+        # TODO: Handle ReStakeLocked event (see #1193)
+        return receipt
+
+    @validate_checksum_address
+    def get_restake_unlock_period(self, staker_address: str) -> int:
+        staker_info = self.get_staker_info(staker_address)
+        restake_unlock_period = int(staker_info[4])  # TODO: #1348 Use constant or enum
+        return restake_unlock_period
+
     def staking_parameters(self) -> Tuple:
         parameter_signatures = (
             # Period
