@@ -53,6 +53,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
 @click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True)
+@click.option('--bare', help="Deploy a contract *only* without any additional operations.", is_flag=True)
 @click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @click.option('--allocation-outfile', help="Output path for token allocation JSON file", type=click.Path(exists=False, file_okay=True))
@@ -70,6 +71,7 @@ def deploy(action,
            value,
            target_address,
            retarget,
+           bare,
            config_root,
            hw_wallet,
            force,
@@ -240,19 +242,29 @@ def deploy(action,
                 message = f"No such contract {contract_name}. Available contracts are {ADMINISTRATOR.deployers.keys()}"
                 emitter.echo(message, color='red', bold=True)
                 raise click.Abort()
+
+            # Deploy
+            emitter.echo(f"Deploying {contract_name}")
+            if contract_deployer._upgradeable and not bare:
+                # NOTE: Bare deployments do not engage the proxy contract
+                secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
+                receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                plaintext_secret=secret,
+                                                                gas_limit=gas,
+                                                                bare=bare)
             else:
-                emitter.echo(f"Deploying {contract_name}")
-                if contract_deployer._upgradeable:
-                    secret = ADMINISTRATOR.collect_deployment_secret(deployer=contract_deployer)
-                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name, plaintext_secret=secret)
-                else:
-                    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name, gas_limit=gas)
-                paint_contract_deployment(contract_name=contract_name,
-                                          contract_address=agent.contract_address,
-                                          receipts=receipts,
-                                          emitter=emitter,
-                                          chain_name=deployer_interface.client.chain_name,
-                                          open_in_browser=etherscan)
+                # Non-Upgradeable or Bare
+                receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                                gas_limit=gas,
+                                                                bare=bare)
+
+            # Report
+            paint_contract_deployment(contract_name=contract_name,
+                                      contract_address=agent.contract_address,
+                                      receipts=receipts,
+                                      emitter=emitter,
+                                      chain_name=deployer_interface.client.chain_name,
+                                      open_in_browser=etherscan)
             return  # Exit
 
         #

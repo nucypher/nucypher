@@ -211,22 +211,27 @@ class ContractAdministrator(NucypherTokenActor):
                         contract_name: str,
                         gas_limit: int = None,
                         plaintext_secret: str = None,
+                        bare: bool = False,
                         progress=None,
-                        *args,
-                        **kwargs,
+                        *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
 
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry,
                             deployer_address=self.deployer_address,
                             economics=self.economics,
-                            *args,
-                            **kwargs)
+                            *args, **kwargs)
+
         if Deployer._upgradeable:
-            if not plaintext_secret:
-                raise ValueError("Upgrade plaintext_secret must be passed to deploy an upgradeable contract.")
+            is_initial_deployment = not bare
+            if is_initial_deployment:
+                raise ValueError("An upgrade secret must be passed to perform an initial deployment series"
+                                 "on an upgradeable contract.")
             secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
-            txhashes = deployer.deploy(secret_hash=secret_hash, gas_limit=gas_limit, progress=progress)
+            txhashes = deployer.deploy(secret_hash=secret_hash,
+                                       gas_limit=gas_limit,
+                                       initial_deployment=is_initial_deployment,
+                                       progress=progress)
         else:
             txhashes = deployer.deploy(gas_limit=gas_limit, progress=progress)
         return txhashes, deployer

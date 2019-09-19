@@ -166,7 +166,6 @@ class BaseContractDeployer:
         return agent
 
 
-
 class OwnableContractMixin:
 
     _ownable = True
@@ -213,7 +212,7 @@ class UpgradeableContractMixin:
     class ContractNotUpgradeable(RuntimeError):
         pass
     
-    def deploy(self, secret_hash: bytes, gas_limit: int, progress) -> dict:
+    def deploy(self, secret_hash: bytes, initial_deployment: bool = True, gas_limit: int = None, progress = None) -> dict:
         """
         Provides for the setup, deployment, and initialization of ethereum smart contracts.
         Emits the configured blockchain network transactions for single contract instance publication.
@@ -234,7 +233,16 @@ class UpgradeableContractMixin:
                                                    use_proxy_address=False)
         return contract
 
-    def retarget(self, target_address: str, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+    def retarget(self,
+                 target_address: str,
+                 existing_secret_plaintext: bytes,
+                 new_secret_hash: bytes,
+                 gas_limit: int = None):
+        """
+        Directly engage a proxy contract for an existing deployment, executing the proxy's
+        upgrade interfaces to verify upgradeability and modify the on-chain contract target.
+        """
+
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
@@ -251,10 +259,14 @@ class UpgradeableContractMixin:
         receipt = proxy_deployer.retarget(new_target=target_address,
                                           existing_secret_plaintext=existing_secret_plaintext,
                                           new_secret_hash=new_secret_hash,
-                                          gas_limit=2_000_000)  # TODO: Gas Management - Failed during live upgrade
+                                          gas_limit=gas_limit)
         return receipt
 
     def upgrade(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        """
+        Deploy a new version of a contract, then engage the proxy contract's upgrade interfaces.
+        """
+
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
@@ -290,6 +302,11 @@ class UpgradeableContractMixin:
         return upgrade_transaction
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
+        """
+        Execute an existing deployments proxy contract, engaging the upgrade rollback intrfaces,
+        modifying the proxy's on-chain contract target to the most recet previous target.
+        """
+
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
@@ -308,6 +325,13 @@ class UpgradeableContractMixin:
 
         return rollback_receipt
 
+    def _finish_deploy_essential(self, deployment_receipt: dict, progress = None):
+        """Used to divert flow control for bare contract deployments."""
+        deployment_step_name = self.deployment_steps[0]
+        result = {deployment_step_name: deployment_receipt}
+        if progress:
+            progress.update(len(deployment_step_name))  # Update the progress bar to completion.
+        return result
 
 
 class NucypherTokenDeployer(BaseContractDeployer):
@@ -433,7 +457,12 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         return the_escrow_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> dict:
         """
         Deploy and publish the StakingEscrow contract
         to the blockchain network specified in self.blockchain.network.
@@ -449,6 +478,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         Returns transaction hashes in a dict.
         """
 
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         # Raise if not all-systems-go
         self.check_deployment_readiness()
 
@@ -459,6 +492,12 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         # 1 - Deploy #
         the_escrow_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
+                                                 progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -540,11 +579,27 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                                   gas_limit=gas_limit)
         return policy_manager_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, dict]:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> Dict[str, dict]:
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         self.check_deployment_readiness()
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
+                                                 progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -668,13 +723,29 @@ class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
                                                                        gas_limit=gas_limit)
         return contract, deployment_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None
+               ) -> dict:
         """
         Deploys a new UserEscrowProxy contract, and a new UserEscrowLibraryLinker, targeting the first.
         This is meant to be called only once per general deployment.
         """
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         # 1 - UserEscrowProxy
         user_escrow_proxy_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            return self._finish_deploy_essential(deployment_receipt=deployment_receipt,
+                                                 progress=progress)
+
         if progress:
             progress.update(1)
 
@@ -781,8 +852,13 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
         self.enroll_principal_contract()
         return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
 
-    def deploy(self, gas_limit: int = None, progress=None) -> dict:
+    def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         self.check_deployment_readiness()
         linker_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                name=self._linker_deployer.contract_name)
@@ -826,10 +902,25 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                                gas_limit=gas_limit)
         return adjudicator_contract, deploy_receipt
 
-    def deploy(self, secret_hash: bytes, gas_limit: int = None, progress=None) -> Dict[str, str]:
+    def deploy(self,
+               initial_deployment: bool = True,
+               secret_hash: bytes = None,
+               gas_limit: int = None,
+               progress=None) -> Dict[str, str]:
+
+        if initial_deployment and not secret_hash:
+            raise ValueError(f"An upgrade secret hash is required to perform an initial"
+                             f" deployment series for {self.contract_name}.")
+
         self.check_deployment_readiness()
 
         adjudicator_contract, deploy_receipt = self._deploy_essential(gas_limit=gas_limit)
+
+        # This is the end of bare deployment.
+        if not initial_deployment:
+            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
+                                                 progress=progress)
+
         if progress:
             progress.update(1)
 

@@ -21,7 +21,8 @@ from eth_utils import keccak
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer,
                                                DispatcherDeployer)
-from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET
+from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.sandbox.constants import STAKING_ESCROW_DEPLOYMENT_SECRET, TEST_PROVIDER_URI
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):
@@ -109,8 +110,8 @@ def test_rollback(testerchain, test_registry):
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
+
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -135,3 +136,63 @@ def test_rollback(testerchain, test_registry):
     new_target = staking_agent.contract.functions.target().call()
     assert new_target != current_target
     assert new_target == old_target
+
+
+def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, token_economics):
+    deployer = StakingEscrowDeployer(registry=test_registry,
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=token_economics)
+
+    enrolled_names = list(test_registry.enrolled_names)
+    old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
+    old_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
+
+    receipts = deployer.deploy(initial_deployment=False)
+    for title, receipt in receipts.items():
+        assert receipt['status'] == 1
+
+    enrolled_names = list(test_registry.enrolled_names)
+    new_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
+    new_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
+
+    # The prinicipal contract was deployed.
+    assert new_number_of_enrollments == (old_number_of_enrollments + 1)
+
+    # The Dispatcher was not deployed.
+    assert new_number_of_proxy_enrollments == old_number_of_proxy_enrollments
+
+
+def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
+
+    deployer = StakingEscrowDeployer(registry=test_registry,
+                                     deployer_address=testerchain.etherbase_account,
+                                     economics=token_economics)
+
+    # Get Proxy-Direct
+    existing_bare_contract = deployer.get_latest_version(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    proxy_deployer = StakingEscrowDeployer._proxy_deployer(registry=test_registry,
+                                                           target_contract=existing_bare_contract,
+                                                           deployer_address=testerchain.etherbase_account,
+                                                           bare=True)  # acquire agency for the proxy itself.
+
+    # Re-Deploy Staking Escrow
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    old_target = proxy_deployer.contract.functions.target().call()
+
+    old_secret = bytes("...maybe not.", encoding='utf-8')
+    new_secret = keccak_digest(bytes('thistimeforsure', encoding='utf-8'))
+    receipt = deployer.retarget(target_address=staking_agent.contract_address,
+                                existing_secret_plaintext=old_secret,
+                                new_secret_hash=new_secret)
+
+    assert receipt['status'] == 1
+
+    #
+    # Post-Retargeting
+    #
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    new_target = proxy_deployer.contract.functions.target().call()
+
+    assert old_target != new_target
+    assert new_target == staking_agent.contract_address
