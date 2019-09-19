@@ -20,6 +20,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
@@ -62,6 +63,7 @@ from nucypher.config.characters import StakeHolderConfiguration
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @click.option('--escrow', help="Use a pre-allocation escrow contract", is_flag=True)  # TODO: #1351 - Refactor allocation registry?
 @click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--allocation-filepath', help="Custom allocation registry filepath", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
 def stake(click_config,
           action,
@@ -89,8 +91,11 @@ def stake(click_config,
           staking_reward,
           enable,
           lock_until,
+
+          # Allocation stakers
           escrow,
           beneficiary_address,
+          allocation_filepath,
           ) -> None:
     """
     Manage stakes and other staker-related operations.
@@ -152,7 +157,17 @@ def stake(click_config,
     if staking_address and is_preallocation_staker:
         raise click.BadOptionUsage("--escrow and --beneficiary-address are incompatible with --staking-address")
 
-    STAKEHOLDER = stakeholder_config.produce(initial_address=staking_address)
+    if is_preallocation_staker:
+        # This assumes the user has an allocation registry in disk,
+        # in a specified filepath or in a default location (when filepath is None)
+        allocation_registry = AllocationRegistry(allocation_filepath)
+        initial_address = beneficiary_address
+    else:
+        allocation_registry = None
+        initial_address = staking_address
+
+    STAKEHOLDER = stakeholder_config.produce(initial_address=initial_address,
+                                             allocation_registry=allocation_registry)
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)  # Eager connection
     economics = STAKEHOLDER.economics
 
@@ -261,6 +276,17 @@ def stake(click_config,
                 client_account = select_client_account(prompt="Select beneficiary account",
                                                        emitter=emitter,
                                                        provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
+            staking_address = STAKEHOLDER.check_if_staking_via_contract(checksum_address=client_account)
+            if staking_address:
+                message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
+                emitter.echo(message, color='yellow', verbosity=1)
+                click.confirm("Is this correct?", abort=True)
+            else:
+                message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
+                           f"Are you sure you are using the right allocation registry?\n"
+                           f"Currently using {STAKEHOLDER.allocation_registry.filepath}")
+                emitter.echo(message, color='red', verbosity=1)
+                raise click.Abort()
         else:
             if staking_address:
                 client_account = staking_address
@@ -298,13 +324,13 @@ def stake(click_config,
         if not force:
             painting.paint_staged_stake(emitter=emitter,
                                         stakeholder=STAKEHOLDER,
-                                        staking_address=staking_address,  # FIXME
+                                        staking_address=staking_address,
                                         stake_value=value,
                                         lock_periods=lock_periods,
                                         start_period=start_period,
                                         end_period=end_period)
 
-            confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)  # FIXME
+            confirm_staged_stake(staker_address=staking_address, value=value, lock_periods=lock_periods)
 
         # Last chance to bail
         click.confirm("Publish staged stake to the blockchain?", abort=True)
