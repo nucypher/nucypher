@@ -67,12 +67,9 @@ def test_new_stakeholder(click_runner,
                  '--poa',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
-                 '--no-sync',
                  '--registry-filepath', mock_registry_filepath)
 
-    result = click_runner.invoke(nucypher_cli,
-                                 init_args,
-                                 catch_exceptions=False)
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
 
     # Files and Directories
@@ -106,11 +103,10 @@ def test_stake_init(click_runner,
                   '--config-file', stakeholder_configuration_file_location,
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
-                  '--no-sync',
                   '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
 
-    # TODO: This test it writing to the default system directory and ignoring updates to the passes filepath
+    # TODO: This test is writing to the default system directory and ignoring updates to the passed filepath
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -166,7 +162,6 @@ def test_staker_divide_stakes(click_runner,
                    '--force',
                    '--staking-address', manual_staker,
                    '--index', 0,
-                   '--no-sync',
                    '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
                    '--lock-periods', 10)
 
@@ -197,7 +192,6 @@ def test_stake_set_worker(click_runner,
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
                  '--worker-address', manual_worker,
-                 '--no-sync',
                  '--force')
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'

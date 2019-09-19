@@ -492,7 +492,8 @@ class ContractAdministrator(NucypherTokenActor):
                                                      interactive=interactive)
         # Save transaction metadata
         receipts_filepath = self.save_deployment_receipts(receipts=receipts, filename_prefix='allocation')
-        emitter.echo(f"Saved allocation receipts to {receipts_filepath}", color='blue', bold=True)
+        if emitter:
+            emitter.echo(f"Saved allocation receipts to {receipts_filepath}", color='blue', bold=True)
         return receipts
 
     def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
