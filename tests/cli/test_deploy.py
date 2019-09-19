@@ -48,7 +48,6 @@ def registry_filepath():
 
 
 def test_nucypher_deploy_contracts(click_runner,
-                                   mock_allocation_infile,
                                    token_economics,
                                    registry_filepath):
 
@@ -352,7 +351,7 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
 
     deploy_command = ('allocations',
                       '--registry-infile', registry_filepath,
-                      '--allocation-infile', mock_allocation_infile.filepath,
+                      '--allocation-infile', mock_allocation_infile,
                       '--allocation-outfile', MOCK_ALLOCATION_REGISTRY_FILEPATH,
                       '--provider', TEST_PROVIDER_URI,
                       '--poa')
@@ -376,4 +375,4 @@ def test_nucypher_deploy_allocation_contracts(click_runner,
     user_escrow_agent = UserEscrowAgent(registry=registry,
                                         beneficiary=beneficiary,
                                         allocation_registry=allocation_registry)
-    assert user_escrow_agent.unvested_tokens == token_economics.minimum_allowed_locked
+    assert user_escrow_agent.unvested_tokens == 2 * token_economics.minimum_allowed_locked
