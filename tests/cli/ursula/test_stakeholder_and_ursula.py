@@ -1,10 +1,26 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import datetime
 import json
 import os
 import random
 
 import maya
-import pytest
 from twisted.logger import Logger
 
 from nucypher.blockchain.eth.actors import Staker
@@ -12,10 +28,9 @@ from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, BobConfiguration, StakeHolderConfiguration
+from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.sandbox.constants import (
-    MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI,
     MOCK_URSULA_STARTING_PORT,
@@ -25,37 +40,6 @@ from nucypher.utilities.sandbox.constants import (
     select_test_port,
 )
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-
-@pytest.fixture(scope='module')
-def worker_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, UrsulaConfiguration.generate_filename())
-    return _configuration_file_location
-
-
-@pytest.fixture(scope='module')
-def stakeholder_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH, StakeHolderConfiguration.generate_filename())
-    return _configuration_file_location
-
-
-@pytest.fixture(scope="module")
-def charlie_blockchain_test_config(blockchain_ursulas, agency):
-    token_agent, staking_agent, policy_agent = agency
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.client.accounts
-
-    config = BobConfiguration(dev_mode=True,
-                              provider_uri=TEST_PROVIDER_URI,
-                              checksum_address=bob_address,
-                              network_middleware=MockRestMiddleware(),
-                              known_nodes=blockchain_ursulas,
-                              start_learning_now=False,
-                              abort_on_learning_error=True,
-                              federated_only=False,
-                              save_metadata=False,
-                              reload_metadata=False)
-    yield config
-    config.cleanup()
 
 
 def test_new_stakeholder(click_runner,
