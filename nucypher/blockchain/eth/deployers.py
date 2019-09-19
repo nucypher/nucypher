@@ -165,6 +165,13 @@ class BaseContractDeployer:
         agent = self.agency(registry=self.registry, contract=self._contract)
         return agent
 
+    def get_latest_enrollment(self, registry: BaseContractRegistry) -> Contract:
+        """Get the latest enrolled version of the contract from the registry."""
+        contract = self.blockchain.get_contract_by_name(name=self.contract_name,
+                                                        registry=registry,
+                                                        use_proxy_address=False,
+                                                        version='latest')
+        return contract
 
 class OwnableContractMixin:
 
@@ -221,15 +228,17 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         raise NotImplementedError
 
-    @classmethod
-    def get_latest_version(cls, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
-        """Get the latest version of the contract without assembling it with it's proxy."""
-        if not cls._upgradeable:
-            raise cls.ContractNotUpgradeable(f"{cls.contract_name} is not upgradeable.")
+    def get_principal_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
+        """
+        Get the on-chain targeted version of the principal contract directly
+        without assembling it with it's proxy.
+        """
+        if not self._upgradeable:
+            raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-        contract = blockchain.get_contract_by_name(name=cls.contract_name,
+        contract = blockchain.get_contract_by_name(name=self.contract_name,
                                                    registry=registry,
-                                                   proxy_name=cls._proxy_deployer.contract_name,
+                                                   proxy_name=self._proxy_deployer.contract_name,
                                                    use_proxy_address=False)
         return contract
 
@@ -247,8 +256,8 @@ class UpgradeableContractMixin:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
 
         # 1 - Get Bare Contracts
-        existing_bare_contract = self.get_latest_version(registry=self.registry,
-                                                         provider_uri=self.blockchain.provider_uri)
+        existing_bare_contract = self.get_principal_contract(registry=self.registry,
+                                                             provider_uri=self.blockchain.provider_uri)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
                                               target_contract=existing_bare_contract,
@@ -275,8 +284,8 @@ class UpgradeableContractMixin:
         self.check_deployment_readiness()
 
         # 2 - Get Bare Contracts
-        existing_bare_contract = self.get_latest_version(registry=self.registry,
-                                                         provider_uri=self.blockchain.provider_uri)
+        existing_bare_contract = self.get_principal_contract(registry=self.registry,
+                                                             provider_uri=self.blockchain.provider_uri)
 
         proxy_deployer = self._proxy_deployer(registry=self.registry,
                                               target_contract=existing_bare_contract,

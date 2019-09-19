@@ -425,6 +425,7 @@ class BlockchainInterface:
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,
                              name: str,
+                             version: int = None,
                              proxy_name: str = None,
                              use_proxy_address: bool = True
                              ) -> Union[Contract, List[tuple]]:
@@ -438,9 +439,9 @@ class BlockchainInterface:
         if not target_contract_records:
             raise self.UnknownContract(f"No such contract records with name {name}.")
 
-        if proxy_name:  # It's upgradeable
-            # Lookup proxies; Search for a published proxy that targets this contract record
+        if proxy_name:
 
+            # Lookup proxies; Search for a published proxy that targets this contract record
             proxy_records = registry.search(contract_name=proxy_name)
 
             results = list()
@@ -474,11 +475,21 @@ class BlockchainInterface:
                 except IndexError:
                     raise self.UnknownContract(f"There are no Dispatcher records targeting '{name}'")
 
-        else:  # It's not upgradeable
+        else:
+            # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
-                m = "Multiple records registered for non-upgradeable contract {}"
-                raise self.InterfaceError(m.format(name))
-            _target_contract_name, selected_address, selected_abi = target_contract_records[0]
+                if version is None:
+                    m = f"{len(target_contract_records)} records enrolled for contract {name} " \
+                        f"and no version index was supplied."
+                    raise self.InterfaceError(m.format(name))
+                version = self.__get_version_index(name=name,
+                                                   version_index=version,
+                                                   enrollments=len(target_contract_records))
+
+            else:
+                version = -1  # default
+
+            _target_contract_name, selected_address, selected_abi = target_contract_records[version]
 
         # Create the contract from selected sources
         unified_contract = self.client.w3.eth.contract(abi=selected_abi,
@@ -486,6 +497,23 @@ class BlockchainInterface:
                                                        ContractFactoryClass=self._contract_factory)
 
         return unified_contract
+
+    @staticmethod
+    def __get_version_index(version_index: Union[int, str], enrollments: int, name: str):
+        version_names = {'latest': -1, 'earliest': 0}
+        try:
+            version = version_names[version_index]
+        except KeyError:
+            try:
+                version = int(version_index)
+            except ValueError:
+                what_is_this = version_index
+                raise ValueError(f"'{what_is_this}' is a valid version number")
+            else:
+                if version > enrollments - 1:
+                    message = f"Version index '{version}' is larger than the number of enrollments for {name}."
+                    raise ValueError(message)
+        return version
 
 
 class BlockchainDeployerInterface(BlockchainInterface):

@@ -22,11 +22,12 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from os.path import dirname, abspath
-from typing import Union
+from typing import Union, Iterator
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
 from twisted.logger import Logger
+from web3.contract import Contract
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -129,16 +130,16 @@ class BaseContractRegistry(ABC):
         return instance
 
     @property
-    def enrolled_names(self):
+    def enrolled_names(self) -> Iterator:
         entries = iter(record[0] for record in self.read())
         return entries
 
     @property
-    def enrolled_addresses(self):
+    def enrolled_addresses(self) -> Iterator:
         entries = iter(record[1] for record in self.read())
         return entries
 
-    def enroll(self, contract_name, contract_address, contract_abi):
+    def enroll(self, contract_name, contract_address, contract_abi) -> None:
         """
         Enrolls a contract to the chain registry by writing the name, address,
         and abi information to the filesystem as JSON.
@@ -157,7 +158,7 @@ class BaseContractRegistry(ABC):
         self.write(registry_data)
         self.log.info("Enrolled {}:{} into registry.".format(contract_name, contract_address))
 
-    def search(self, contract_name: str = None, contract_address: str = None):
+    def search(self, contract_name: str = None, contract_address: str = None) -> tuple:
         """
         Searches the registry for a contract with the provided name or address
         and returns the contracts component data.
@@ -185,7 +186,8 @@ class BaseContractRegistry(ABC):
             self.log.critical(m)
             raise self.IllegalRegistry(m.format(contract_address))
 
-        return contracts if contract_name else contracts[0]
+        result = tuple(contracts) if contract_name else contracts[0]
+        return result
 
 
 class LocalContractRegistry(BaseContractRegistry):

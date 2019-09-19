@@ -155,7 +155,7 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     new_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
     new_number_of_proxy_enrollments = enrolled_names.count(StakingEscrowDeployer._proxy_deployer.contract_name)
 
-    # The prinicipal contract was deployed.
+    # The principal contract was deployed.
     assert new_number_of_enrollments == (old_number_of_enrollments + 1)
 
     # The Dispatcher was not deployed.
@@ -169,30 +169,31 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
                                      economics=token_economics)
 
     # Get Proxy-Direct
-    existing_bare_contract = deployer.get_latest_version(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    existing_bare_contract = deployer.get_principal_contract(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
     proxy_deployer = StakingEscrowDeployer._proxy_deployer(registry=test_registry,
                                                            target_contract=existing_bare_contract,
                                                            deployer_address=testerchain.etherbase_account,
                                                            bare=True)  # acquire agency for the proxy itself.
 
     # Re-Deploy Staking Escrow
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     old_target = proxy_deployer.contract.functions.target().call()
 
     old_secret = bytes("...maybe not.", encoding='utf-8')
     new_secret = keccak_digest(bytes('thistimeforsure', encoding='utf-8'))
-    receipt = deployer.retarget(target_address=staking_agent.contract_address,
+
+    # Get the latest un-targeted contract from the registry
+    latest_deployment = deployer.get_latest_enrollment(registry=test_registry)
+    receipt = deployer.retarget(target_address=latest_deployment.address,
                                 existing_secret_plaintext=old_secret,
                                 new_secret_hash=new_secret)
 
     assert receipt['status'] == 1
 
-    #
-    # Post-Retargeting
-    #
-
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    # Check proxy targets
     new_target = proxy_deployer.contract.functions.target().call()
-
     assert old_target != new_target
-    assert new_target == staking_agent.contract_address
+    assert new_target == latest_deployment.address
+
+    # Check address consistency
+    new_bare_contract = deployer.get_principal_contract(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    assert new_bare_contract.address == latest_deployment.address == new_target
