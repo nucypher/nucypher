@@ -234,11 +234,12 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
         new_version = current_version + 1
-        user_input = upgrade_inputs[new_version]
+        user_input = upgrade_inputs[new_version] + f'Y\n'  # Yes to confirm
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0  # TODO: Console painting
+        assert result.exit_code == 0
+        assert "Successfully deployed" in result.output
 
         # Mutate the version tracking
         version_tracker[contract_name] += 1

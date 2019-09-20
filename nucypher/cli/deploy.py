@@ -33,8 +33,8 @@ from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
     paint_contract_deployment,
-    paint_deployer_contract_inspection
-)
+    paint_deployer_contract_inspection,
+    paint_receipt_summary)
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -204,17 +204,25 @@ def deploy(action,
         if retarget:
             if not target_address:
                 raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
-            click.confirm(f"Confirm retarget {contract_name}'s proxy to {target_address}?", abort=True)
-            ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
-                                         target_address=target_address,
-                                         existing_plaintext_secret=existing_secret,
-                                         new_plaintext_secret=new_secret)
+            if not force:
+                click.confirm(f"Confirm re-target {contract_name}'s proxy to {target_address}?", abort=True)
+            receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
+                                                   target_address=target_address,
+                                                   existing_plaintext_secret=existing_secret,
+                                                   new_plaintext_secret=new_secret)
+            emitter.message(f"Successfully re-targeted {contract_name} proxy to {target_address}", color='green')
+            paint_receipt_summary(emitter=emitter, receipt=receipt)
             return  # Exit
         else:
-            ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
-                                           existing_plaintext_secret=existing_secret,
-                                           new_plaintext_secret=new_secret)
-        return  # Exit
+            if not force:
+                click.confirm(f"Confirm deploy new version of {contract_name} and retarget proxy?", abort=True)
+            receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
+                                                      existing_plaintext_secret=existing_secret,
+                                                      new_plaintext_secret=new_secret)
+            emitter.message(f"Successfully deployed and upgraded {contract_name}", color='green')
+            for name, receipt in receipts.items():
+                paint_receipt_summary(emitter=emitter, receipt=receipt)
+            return  # Exit
 
     elif action == 'rollback':
         if not contract_name:
