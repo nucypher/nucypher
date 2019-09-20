@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+import shutil
 
 import click
 
@@ -150,17 +151,24 @@ def deploy(action,
         paint_deployer_contract_inspection(emitter=emitter, administrator=administrator)
         return  # Exit
 
-
     #
     # Establish Registry
     #
 
     # Establish a contract registry from disk if specified
+    filepath = registry_infile
     default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
-    registry_filepath = (registry_outfile or registry_infile) or default_registry_filepath
+    if registry_outfile:
+        registry_infile = registry_infile or default_registry_filepath
+        try:
+            _result = shutil.copyfile(registry_infile, registry_outfile)
+        except shutil.SameFileError:
+            raise click.BadArgumentUsage("--registry-infile and --registry-outfile must not be the same path.")
+        filepath = registry_outfile
     if dev:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        registry_filepath = os.path.join(config_root, 'dev_contract_registry.json')
+        filepath = os.path.join(config_root, 'dev_contract_registry.json')
+    registry_filepath = filepath or default_registry_filepath
     registry = LocalContractRegistry(filepath=registry_filepath)
     emitter.message(f"Configured to registry filepath {registry_filepath}")
 

@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from nucypher.blockchain.eth.agents import (
@@ -10,10 +12,15 @@ from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH, \
-    INSECURE_DEVELOPMENT_PASSWORD, INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
+from nucypher.utilities.sandbox.constants import (
+    TEST_PROVIDER_URI,
+    MOCK_REGISTRY_FILEPATH,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
+)
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
+alternate_registry_filepath = '/tmp/nucypher-test-registry-alternate.json'
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -21,6 +28,9 @@ def temp_registry(testerchain, test_registry, agency):
     # Disable registry fetching, use the mock one instead
     InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
     test_registry.commit(filepath=registry_filepath, overwrite=True)
+    yield registry_filepath
+    if os.path.exists(registry_filepath):
+        os.remove(registry_filepath)
 
 
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain):
@@ -55,7 +65,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, testerchain, agenc
     assert adjudicator_agent.owner in result.output
 
 
-def test_transfer_ownership(click_runner, testerchain, agency):
+def test_transfer_ownership(click_runner, testerchain, agency, test_registry):
 
     local_registry = LocalContractRegistry(filepath=registry_filepath)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=local_registry)
@@ -69,7 +79,7 @@ def test_transfer_ownership(click_runner, testerchain, agency):
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
-                         '--registry-infile', registry_filepath,
+                         '--registry-infile', MOCK_REGISTRY_FILEPATH,
                          '--provider', TEST_PROVIDER_URI,
                          '--target-address', maclane,
                          '--poa')
@@ -108,37 +118,69 @@ def test_transfer_ownership(click_runner, testerchain, agency):
     assert staking_agent.owner == michwill
 
 
-def test_bare_contract_deployment(click_runner, test_registry):
+def test_bare_contract_deployment_to_alternate_registry(click_runner, test_registry):
+
+    if os.path.exists(alternate_registry_filepath):
+        os.remove(alternate_registry_filepath)
+    assert not os.path.exists(alternate_registry_filepath)
 
     command = ('contracts',
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--bare',
                '--provider', TEST_PROVIDER_URI,
-               '--registry-outfile', registry_filepath,
+               '--registry-infile', MOCK_REGISTRY_FILEPATH,
+               '--registry-outfile', alternate_registry_filepath,
                '--poa')
 
     user_input = '0\n' + 'Y\n' + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
+    # Verify alternate registry output
+    assert os.path.exists(MOCK_REGISTRY_FILEPATH)
+    assert os.path.exists(alternate_registry_filepath)
+    old_registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
+    new_registry = LocalContractRegistry(filepath=alternate_registry_filepath)
+    assert old_registry != new_registry
+
+    old_enrolled_names = list(old_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
+    new_enrolled_names = list(new_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
+    assert new_enrolled_names == old_enrolled_names + 1
+
 
 def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, token_economics):
-    local_registry = LocalContractRegistry(filepath=registry_filepath)
+
+    # A local, alternate filepath registry exists
+    assert os.path.exists(alternate_registry_filepath)
+    local_registry = LocalContractRegistry(filepath=alternate_registry_filepath)
     deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
                                      registry=local_registry,
                                      economics=token_economics)
+    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
 
+    # Untargeted enrollment is indeed un targeted by the proxy
     untargeted_deployment = deployer.get_latest_enrollment(registry=local_registry)
+    assert proxy_deployer.target_contract.address != untargeted_deployment.address
+
+    # MichWill still owns this proxy.
+    michwill = testerchain.unassigned_accounts[1]
+    assert proxy_deployer.target_contract.functions.owner().call() == michwill
+
     command = ('upgrade',
                '--retarget',
+               '--deployer-address', michwill,
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--target-address', untargeted_deployment.address,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', registry_filepath,
-               '--registry-outfile', registry_filepath,
+               '--registry-infile', alternate_registry_filepath,
                '--poa')
 
+    # Reveal the secret and upgrade
     old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT.decode()
     user_input = '0\n' + 'Y\n' + f'{old_secret}\n' + (f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2) + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
+
+    # The proxy target has been updated.
+    proxy_deployer = deployer.get_proxy_deployer(registry=local_registry)
+    assert proxy_deployer.target_contract.address == untargeted_deployment.address
