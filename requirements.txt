@@ -19,7 +19,7 @@ constant-sorrow==0.1.0a8
 constantly==15.1.0
 cryptography==2.7
 cytoolz==0.10.0 ; implementation_name == 'cpython'
-dateparser==0.7.1
+dateparser==0.7.2
 eth-abi==2.0.0
 eth-account==0.4.0
 eth-bloom==1.0.3
@@ -42,7 +42,7 @@ incremental==17.5.0
 ipfshttpclient==0.4.12
 itsdangerous==1.1.0
 jinja2==2.10.1
-jsonschema==2.6.0
+jsonschema==3.0.2
 limits==1.3
 lru-dict==1.1.6
 markupsafe==1.1.1
@@ -67,6 +67,7 @@ pyethash==0.1.27
 pyhamcrest==1.9.0
 pynacl==1.3.0
 pyopenssl==19.0.0
+pyrsistent==0.15.4
 pysha3==1.0.2
 python-dateutil==2.8.0
 pytz==2019.2
@@ -87,10 +88,10 @@ twisted==19.7.0
 txaio==18.8.1
 tzlocal==2.0.0
 umbral==0.1.3a2
-urllib3==1.25.3
+urllib3==1.25.4
 varint==1.0.2
 watchdog==0.9.0
-web3==5.0.2
+web3==5.1.0
 websockets==7.0
-werkzeug==0.15.6
+werkzeug==0.16.0
 zope.interface==4.6.0
