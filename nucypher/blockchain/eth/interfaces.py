@@ -642,10 +642,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                        ContractFactoryClass=self._contract_factory)
         return wrapped_contract
 
-    def get_proxy(self,
-                  registry: BaseContractRegistry,
-                  target_address: str,
-                  proxy_name: str) -> Contract:
+    def get_proxy_contract(self,
+                           registry: BaseContractRegistry,
+                           target_address: str,
+                           proxy_name: str) -> Contract:
 
         # Lookup proxies; Search for a registered proxy that targets this contract record
         records = registry.search(contract_name=proxy_name)
