@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+from typing import Dict, List
+
 from twisted.internet import task
 from twisted.logger import Logger
 
@@ -10,6 +13,9 @@ from maya import MayaDT
 
 
 class MoeBlockchainCrawler:
+    """
+    Obtain Blockchain information for Moe and output to a DB
+    """
     DEFAULT_REFRESH_RATE = 15  # every 15s
 
     # InfluxDB Line Protocol Format (note the spaces, commas):
@@ -19,8 +25,8 @@ class MoeBlockchainCrawler:
     MEASUREMENT = 'moe_network_info'
     LINE_PROTOCOL = '{measurement},staker_address={staker_address} ' \
                         'worker_address="{worker_address}",' \
-                        'start_date="{start_date}",' \
-                        'end_date="{end_date}",' \
+                        'start_date={start_date},' \
+                        'end_date={end_date},' \
                         'stake={stake},' \
                         'locked_stake={locked_stake},' \
                         'current_period={current_period}i,' \
@@ -82,8 +88,12 @@ class MoeBlockchainCrawler:
             economics = TokenEconomicsFactory.get_economics(registry=self._moe.registry)
             stakes = StakeList(checksum_address=staker_address, registry=self._moe.registry)
             stakes.refresh()
-            start_date = datetime_at_period(current_period, seconds_per_period=economics.seconds_per_period)
-            end_date = datetime_at_period(stakes.terminal_period, seconds_per_period=economics.seconds_per_period)
+
+            # store dates as floats for comparison purposes
+            start_date = datetime_at_period(current_period,
+                                            seconds_per_period=economics.seconds_per_period).datetime().timestamp()
+            end_date = datetime_at_period(stakes.terminal_period,
+                                          seconds_per_period=economics.seconds_per_period).datetime().timestamp()
 
             last_confirmed_period = agent.get_last_active_period(staker_address)
 
@@ -145,3 +155,35 @@ class MoeBlockchainCrawler:
         :return: True if currently running, False otherwise
         """
         return self._learning_task.running
+
+    def get_db_client(self):
+        return MoeCrawlerDBClient(host='localhost', port=8086, database=self.DB_NAME)
+
+
+class MoeCrawlerDBClient:
+    def __init__(self, host, port, database):
+        self._client = InfluxDBClient(host=host, port=port, database=database)
+
+    def get_future_locked_tokens_over_day_range(self, days: int) -> Dict[int, float]:
+        tomorrow = datetime.utcnow() + timedelta(days=1)
+        period_0 = datetime(year=tomorrow.year, month=tomorrow.month,
+                            day=tomorrow.day, hour=0, minute=0, second=0, microsecond=0)
+
+        node_data = list(self._client.query("SELECT staker_address, start_date, end_date, LAST(locked_stake) as "
+                                            "locked_stake from moe_network_info GROUP BY staker_address").get_points())
+        result = dict()
+        day_range = list(range(1, days + 1))
+        current_period = period_0
+        for day in day_range:
+            current_period = current_period + timedelta(days=1)
+            total_locked_tokens = 0
+            for node_dict in node_data:
+                start_date = datetime.utcfromtimestamp(node_dict['start_date'])
+                end_date = datetime.utcfromtimestamp(node_dict['end_date'])
+
+                if start_date <= current_period <= end_date:
+                    total_locked_tokens += node_dict['locked_stake']
+
+            result[day] = total_locked_tokens
+
+        return result
