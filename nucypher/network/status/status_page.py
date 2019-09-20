@@ -6,7 +6,6 @@ from string import Template
 import dash_core_components as dcc
 import dash_daq as daq
 import dash_html_components as html
-import plotly.figure_factory as ff
 import plotly.graph_objs as go
 from constant_sorrow.constants import UNKNOWN_FLEET_STATE
 from dash import Dash
@@ -16,11 +15,9 @@ from maya import MayaDT
 from twisted.logger import Logger
 
 import nucypher
-from nucypher.blockchain.economics import TokenEconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.token import NU, StakeList
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.token import NU
 from nucypher.characters.base import Character
 from nucypher.network.nodes import Learner
 
@@ -95,7 +92,7 @@ class NetworkStatusPage:
         for index, node_info in enumerate(nodes):
             row = []
             for col in self.NODE_TABLE_COLUMNS:
-                components = self.generate_node_table_components(node_info=node_info, registry=registry)
+                components = NetworkStatusPage.generate_node_table_components(node_info=node_info, registry=registry)
                 cell = components[col]
                 if cell:
                     row.append(cell)
@@ -146,7 +143,7 @@ class NetworkStatusPage:
         current_period = agent.get_current_period()
         staker_address = node_info['staker_address']
         last_confirmed_period = agent.get_last_active_period(staker_address)
-        status = create_status_component(agent, staker_address, current_period, last_confirmed_period)
+        status = NetworkStatusPage.create_status_component(agent, staker_address, current_period, last_confirmed_period)
 
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
@@ -196,6 +193,12 @@ class MoeStatusPage(NetworkStatusPage):
         self.ws_port = ws_port
         self.moe = moe
 
+        from nucypher.network.status.utility.moe_crawler import MoeBlockchainCrawler
+        self.moe_crawler = MoeBlockchainCrawler(moe=moe)
+        self.moe_crawler.start()
+
+        self.moe_db_client = self.moe_crawler.get_db_client()
+
         # updates can be directly provided included in javascript snippet
         # TODO: Configurable template path
         template_path = os.path.join(abspath(dirname(__file__)), 'moe.html')
@@ -224,8 +227,8 @@ class MoeStatusPage(NetworkStatusPage):
                     html.Div(id='active-stakers'),
                     html.Div(id='registry-uri'),
                     html.Div(id='staked-tokens'),
-                    html.Div(id='graph'),
-                    html.Div(id='schedule'),
+                    html.Div(id='locked-stake-graph'),
+                    #html.Div(id='schedule'),
                 ], id='widgets'),
 
                 html.Div([
@@ -273,9 +276,9 @@ class MoeStatusPage(NetworkStatusPage):
         @self.dash_app.callback(Output('time-remaining', 'children'),
                                 [Input('interval-component', 'n_intervals')])
         def time_remaining(n):
-            tomorrow = datetime.now() + timedelta(days=1)
+            tomorrow = datetime.utcnow() + timedelta(days=1)
             midnight = datetime(year=tomorrow.year, month=tomorrow.month,
-                                day=tomorrow.day, hour=0, minute=0, second=0)
+                                day=tomorrow.day, hour=0, minute=0, second=0, microsecond=0)
             seconds_remaining = MayaDT.from_datetime(midnight).slang_time()
             return html.Div([html.H4("Next Period"),
                              html.H5(seconds_remaining)])
@@ -318,14 +321,12 @@ class MoeStatusPage(NetworkStatusPage):
                        target='_blank'),
             ], className='stacked-widget')
 
-        @self.dash_app.callback(Output('graph', 'children'),
-                                [Input('url', 'pathname')])
-        def graph(pathname):
-
+        @self.dash_app.callback(Output('locked-stake-graph', 'children'),
+                                [Input('hidden-node-button', 'n_clicks')])
+        def future_locked_tokens(pathname):
             periods = 30
+            token_counter = self.moe_db_client.get_future_locked_tokens_over_day_range(periods)
             period_range = list(range(1, periods + 1))
-            token_counter = {day: moe.staking_agent.get_all_locked_tokens(day) for day in period_range}
-
             fig = go.Figure(data=[
                                 go.Bar(
                                     textposition='auto',
@@ -348,59 +349,59 @@ class MoeStatusPage(NetworkStatusPage):
                       'responsive': True,
                       'fillFrame': False,
                       'displayModeBar': False}
-            return dcc.Graph(figure=fig, id='my-graph', config=config)
+            return dcc.Graph(figure=fig, id='locked-graph', config=config)
 
-        @self.dash_app.callback(Output('schedule', 'children'), [Input('url', 'pathname')])
-        def schedule(pathname):
-
-            current_period = moe.staking_agent.get_current_period()
-            staker_addresses = moe.staking_agent.get_stakers()
-
-            df = []
-            for index, address in enumerate(staker_addresses):
-                stakes = StakeList(checksum_address=address, registry=moe.registry)
-                stakes.refresh()
-                end = stakes.terminal_period
-                delta = end - current_period
-
-                economics = TokenEconomicsFactory.get_economics(registry=moe.registry)
-                start_date = datetime_at_period(current_period, seconds_per_period=economics.seconds_per_period)
-                end_date = datetime_at_period(stakes.terminal_period, seconds_per_period=economics.seconds_per_period)
-                stake = moe.staking_agent.get_locked_tokens(staker_address=address, periods=delta)
-                nu_stake = float(NU.from_nunits(stake).to_tokens())
-
-                row = dict(Task=address[:10],
-                           Start=str(start_date.date),
-                           Finish=str(end_date.date),
-                           Stake=nu_stake)
-                df.append(row)
-
-            # Normalize, Scale and Mutate
-            total = sum(row['Stake'] for row in df)
-            for row in df:
-                row['Stake'] = (row['Stake'] // total) * 100
-
-            color_scale = ['rgb(31, 141, 143)', 'rgb(31, 243, 243)']
-            fig = ff.create_gantt(df,
-                                  colors=color_scale,
-                                  index_col='Stake',
-                                  title="Ursula Fleet Staking Schedule",
-                                  bar_width=0.3,
-                                  showgrid_x=True,
-                                  showgrid_y=True)
-
-            fig['layout'].update(autosize=True,
-                                 width=None,
-                                 height=None)
-
-            config = {"displaylogo": False,
-                      'autosizable': True,
-                      'responsive': True,
-                      'fillFrame': False,
-                      'displayModeBar': False}
-
-            schedule_graph = dcc.Graph(figure=fig, id='llamas-graph', config=config)
-            return schedule_graph
+        # @self.dash_app.callback(Output('schedule', 'children'), [Input('url', 'pathname')])
+        # def schedule(pathname):
+        #
+        #     current_period = moe.staking_agent.get_current_period()
+        #     staker_addresses = moe.staking_agent.get_stakers()
+        #
+        #     df = []
+        #     for index, address in enumerate(staker_addresses):
+        #         stakes = StakeList(checksum_address=address, registry=moe.registry)
+        #         stakes.refresh()
+        #         end = stakes.terminal_period
+        #         delta = end - current_period
+        #
+        #         economics = TokenEconomicsFactory.get_economics(registry=moe.registry)
+        #         start_date = datetime_at_period(current_period, seconds_per_period=economics.seconds_per_period)
+        #         end_date = datetime_at_period(stakes.terminal_period, seconds_per_period=economics.seconds_per_period)
+        #         stake = moe.staking_agent.get_locked_tokens(staker_address=address, periods=delta)
+        #         nu_stake = float(NU.from_nunits(stake).to_tokens())
+        #
+        #         row = dict(Task=address[:10],
+        #                    Start=str(start_date.date),
+        #                    Finish=str(end_date.date),
+        #                    Stake=nu_stake)
+        #         df.append(row)
+        #
+        #     # Normalize, Scale and Mutate
+        #     total = sum(row['Stake'] for row in df)
+        #     for row in df:
+        #         row['Stake'] = (row['Stake'] // total) * 100
+        #
+        #     color_scale = ['rgb(31, 141, 143)', 'rgb(31, 243, 243)']
+        #     fig = ff.create_gantt(df,
+        #                           colors=color_scale,
+        #                           index_col='Stake',
+        #                           title="Ursula Fleet Staking Schedule",
+        #                           bar_width=0.3,
+        #                           showgrid_x=True,
+        #                           showgrid_y=True)
+        #
+        #     fig['layout'].update(autosize=True,
+        #                          width=None,
+        #                          height=None)
+        #
+        #     config = {"displaylogo": False,
+        #               'autosizable': True,
+        #               'responsive': True,
+        #               'fillFrame': False,
+        #               'displayModeBar': False}
+        #
+        #     schedule_graph = dcc.Graph(figure=fig, id='llamas-graph', config=config)
+        #     return schedule_graph
 
 
 class UrsulaStatusPage(NetworkStatusPage):
