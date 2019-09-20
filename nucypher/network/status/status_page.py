@@ -91,8 +91,9 @@ class NetworkStatusPage:
         rows = []
         for index, node_info in enumerate(nodes):
             row = []
+            # TODO: could return list (skip column for-loop); however, dict is good in case of re-ordering of columns
+            components = NetworkStatusPage.generate_node_table_components(node_info=node_info, registry=registry)
             for col in self.NODE_TABLE_COLUMNS:
-                components = NetworkStatusPage.generate_node_table_components(node_info=node_info, registry=registry)
                 cell = components[col]
                 if cell:
                     row.append(cell)
@@ -139,11 +140,11 @@ class NetworkStatusPage:
             fleet_state_div = icon_list
         fleet_state = html.Td(children=html.Div(fleet_state_div))
 
+        staker_address = node_info['staker_address']
         agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = agent.get_current_period()
-        staker_address = node_info['staker_address']
         last_confirmed_period = agent.get_last_active_period(staker_address)
-        status = NetworkStatusPage.create_status_component(agent, staker_address, current_period, last_confirmed_period)
+        status = NetworkStatusPage.get_node_status(agent, staker_address, current_period, last_confirmed_period)
 
         etherscan_url = f'https://goerli.etherscan.io/address/{node_info["checksum_address"]}'
         components = {
@@ -161,25 +162,24 @@ class NetworkStatusPage:
         return components
 
     @staticmethod
-    def create_status_component(agent, staker_address, current_period, last_confirmed_period):
-
+    def get_node_status(agent, staker_address, current_period, last_confirmed_period):
         missing_confirmations = current_period - last_confirmed_period
-
         worker = agent.get_worker_from_staker(staker_address)
         if worker == BlockchainInterface.NULL_ADDRESS:
             missing_confirmations = BlockchainInterface.NULL_ADDRESS
 
         color_codex = {-1: ('green', ''),  # Confirmed Next Period
                        0: ('#e0b32d', 'Pending'),  # Pending Confirmation of Next Period
-                       current_period: ('#4d525ae3', 'Idle'),  # Never confirmed
+                       current_period: ('#525ae3', 'Idle'),  # Never confirmed
                        BlockchainInterface.NULL_ADDRESS: ('red', 'Headless')  # Headless Staker (No Worker)
                        }
         try:
             color, status_message = color_codex[missing_confirmations]
         except KeyError:
-            color, status_message = 'red', f'{missing_confirmations} Missed Confirmations'
-        status_cell = [daq.Indicator(id='Status', color=color, value=True), status_message]
-        status = html.Td(status_cell, className='status-indicator')
+            color, status_message = 'red', f'{missing_confirmations} Unconfirmed'
+        status_cell = daq.Indicator(id='Status', color=color, value=True,
+                                    label=status_message, labelPosition='right', size=10)
+        status = html.Td(status_cell)
         return status
 
 
@@ -337,7 +337,9 @@ class MoeStatusPage(NetworkStatusPage):
                                 )
                             ],
                             layout=go.Layout(
-                                title='Staked NU over the next 30 days.',
+                                title=f'Staked NU over the next {periods} days.',
+                                xaxis={'title': 'Days'},
+                                yaxis={'title': 'NU Tokens'},
                                 showlegend=False,
                                 legend=go.layout.Legend(x=0, y=1.0),
                                 paper_bgcolor='rgba(0,0,0,0)',
