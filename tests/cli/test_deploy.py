@@ -39,7 +39,7 @@ INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGR
 @pytest.fixture(scope="module")
 def registry_filepath(test_registry):
     # TODO: Use temp module
-    registry_filepath = os.path.join('tmp', 'nucypher-deploy-test.json')
+    registry_filepath = os.path.join('/', 'tmp', 'nucypher-deploy-test.json')
     if os.path.exists(registry_filepath):
         os.remove(registry_filepath)
     yield registry_filepath

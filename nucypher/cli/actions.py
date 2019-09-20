@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+import shutil
 from typing import List
 
 import click
@@ -35,11 +36,12 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli import painting
 from nucypher.cli.types import IPV4_ADDRESS
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import CharacterConfiguration
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.teachers import TEACHER_NODES
@@ -387,3 +389,32 @@ def confirm_enable_restaking(emitter, staking_address: str) -> bool:
     emitter.message(restaking_lock_agreement)
     click.confirm(f"Confirm enable automatic re-staking for staker {staking_address}?", abort=True)
     return True
+
+
+def establish_deployer_registry(emitter,
+                                registry_infile: str = None,
+                                registry_outfile:str = None,
+                                use_existing_registry: bool = False,
+                                dev: bool = False
+                                ) -> LocalContractRegistry:
+
+    # Establish a contract registry from disk if specified
+    filepath = registry_infile
+    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+    if registry_outfile:
+        registry_infile = registry_infile or default_registry_filepath
+        if use_existing_registry:
+            try:
+                _result = shutil.copyfile(registry_infile, registry_outfile)
+            except shutil.SameFileError:
+                raise click.BadArgumentUsage("--registry-infile and --registry-outfile must not be the same path.")
+        filepath = registry_outfile
+    if dev:
+        # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
+        filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME)
+    registry_filepath = filepath or default_registry_filepath
+
+    # All Done.
+    registry = LocalContractRegistry(filepath=registry_filepath)
+    emitter.message(f"Configured to registry filepath {registry_filepath}")
+    return registry

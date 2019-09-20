@@ -48,6 +48,7 @@ class BaseContractRegistry(ABC):
 
     # Registry
     REGISTRY_NAME = 'contract_registry.json'  # TODO: Save registry with ID-time-based filename
+    DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
     __PUBLICATION_USER = "nucypher"
     __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"

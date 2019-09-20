@@ -27,7 +27,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Bloc
 from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment
+from nucypher.cli.actions import get_client_password, select_client_account, confirm_deployment, \
+    establish_deployer_registry
 from nucypher.cli.painting import (
     paint_staged_deployment,
     paint_deployment_delay,
@@ -154,23 +155,11 @@ def deploy(action,
     #
     # Establish Registry
     #
-
-    # Establish a contract registry from disk if specified
-    filepath = registry_infile
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
-    if registry_outfile:
-        registry_infile = registry_infile or default_registry_filepath
-        try:
-            _result = shutil.copyfile(registry_infile, registry_outfile)
-        except shutil.SameFileError:
-            raise click.BadArgumentUsage("--registry-infile and --registry-outfile must not be the same path.")
-        filepath = registry_outfile
-    if dev:
-        # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        filepath = os.path.join(config_root, 'dev_contract_registry.json')
-    registry_filepath = filepath or default_registry_filepath
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    emitter.message(f"Configured to registry filepath {registry_filepath}")
+    local_registry = establish_deployer_registry(emitter=emitter,
+                                                 use_existing_registry=bool(contract_name),
+                                                 registry_infile=registry_infile,
+                                                 registry_outfile=registry_outfile,
+                                                 dev=dev)
 
     #
     # Make Authenticated Deployment Actor
@@ -192,7 +181,7 @@ def deploy(action,
         password = get_client_password(checksum_address=deployer_address)
 
     # Produce Actor
-    ADMINISTRATOR = ContractAdministrator(registry=registry,
+    ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                           client_password=password,
                                           deployer_address=deployer_address)
 
@@ -280,11 +269,11 @@ def deploy(action,
         #
 
         # Confirm filesystem registry writes.
-        if os.path.isfile(registry_filepath):
-            emitter.echo(f"\nThere is an existing contract registry at {registry_filepath}.\n"
+        if os.path.isfile(local_registry.filepath):
+            emitter.echo(f"\nThere is an existing contract registry at {local_registry.filepath}.\n"
                          f"Did you mean 'nucypher-deploy upgrade'?\n", color='yellow')
             click.confirm("*DESTROY* existing local registry and continue?", abort=True)
-            os.remove(registry_filepath)
+            os.remove(local_registry.filepath)
 
         # Stage Deployment
         secrets = ADMINISTRATOR.collect_deployment_secrets()
@@ -304,7 +293,7 @@ def deploy(action,
                                                                      etherscan=etherscan)
 
         # Paint outfile paths
-        registry_outfile = registry_filepath
+        registry_outfile = local_registry.filepath
         emitter.echo('Generated registry {}'.format(registry_outfile), bold=True, color='blue')
 
         # Save transaction metadata
@@ -321,7 +310,7 @@ def deploy(action,
         return  # Exit
 
     elif action == "transfer-tokens":
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)
         if not target_address:
             target_address = click.prompt("Enter recipient's checksum address", type=EIP55_CHECKSUM_ADDRESS)
         if not value:
