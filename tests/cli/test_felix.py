@@ -1,12 +1,12 @@
 import os
 
+import pytest
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import BaseContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.main import nucypher_cli
@@ -15,8 +15,20 @@ from nucypher.utilities.sandbox.constants import (
     TEMPORARY_DOMAIN,
     TEST_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_CUSTOM_INSTALLATION_PATH_2
-)
+    MOCK_CUSTOM_INSTALLATION_PATH_2,
+    MOCK_REGISTRY_FILEPATH)
+
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_local_registry_reads(testerchain, test_registry):
+    # Mock live contract registry reads
+    READ_FUNCTION = LocalContractRegistry.read
+    try:
+        # WARNING: Ensure this patch is unmocked!!!
+        LocalContractRegistry.read = lambda *a, **kw: test_registry.read()
+        yield
+    finally:
+        LocalContractRegistry.read = READ_FUNCTION
 
 
 @pytest_twisted.inlineCallbacks
@@ -24,8 +36,7 @@ def test_run_felix(click_runner,
                    testerchain,
                    test_registry,
                    agency,
-                   deploy_user_input,
-                   mock_primary_registry_filepath):
+                   deploy_user_input):
 
     clock = Clock()
     Felix._CLOCK = clock
@@ -36,9 +47,6 @@ def test_run_felix(click_runner,
     # Main thread (Flask)
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
-    # Mock live contract registry reads
-    LocalContractRegistry.read = lambda *a, **kw: test_registry.read()
-
     # Test subproc (Click)
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
@@ -47,7 +55,7 @@ def test_run_felix(click_runner,
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', mock_primary_registry_filepath,
+                 '--registry-filepath', MOCK_REGISTRY_FILEPATH,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--network', TEMPORARY_DOMAIN,
@@ -84,7 +92,7 @@ def test_run_felix(click_runner,
 
         # Init an equal Felix to the already running one.
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
-                                                                  registry_filepath=mock_primary_registry_filepath)
+                                                                  registry_filepath=MOCK_REGISTRY_FILEPATH)
 
         felix_config.attach_keyring()
         felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)

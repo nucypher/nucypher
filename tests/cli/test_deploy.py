@@ -32,19 +32,19 @@ def generate_insecure_secret() -> str:
     return formatted_secret
 
 
+# TODO: Use temp module
+DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', f'nucypher-test-autodeploy.json')
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 
 
 @pytest.fixture(scope="module")
-def registry_filepath(test_registry):
-    # TODO: Use temp module
-    registry_filepath = os.path.join('/', 'tmp', 'nucypher-deploy-test.json')
-    if os.path.exists(registry_filepath):
-        os.remove(registry_filepath)
-    yield registry_filepath
-    if os.path.exists(registry_filepath):
-        os.remove(registry_filepath)
+def registry_filepath():
+    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
+        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
+    yield DEPLOYMENT_REGISTRY_FILEPATH
+    if os.path.exists(DEPLOYMENT_REGISTRY_FILEPATH):
+        os.remove(DEPLOYMENT_REGISTRY_FILEPATH)
 
 
 def test_nucypher_deploy_contracts(click_runner,
@@ -55,6 +55,9 @@ def test_nucypher_deploy_contracts(click_runner,
     #
     # Main
     #
+
+    assert not os.path.exists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
+    assert not os.path.lexists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
 
     command = ['contracts',
                '--registry-outfile', registry_filepath,

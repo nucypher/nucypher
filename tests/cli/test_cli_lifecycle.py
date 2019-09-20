@@ -13,7 +13,8 @@ from web3 import Web3
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN, TEST_PROVIDER_URI, \
+    MOCK_REGISTRY_FILEPATH
 from nucypher.utilities.sandbox.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
@@ -92,10 +93,9 @@ def test_decentralized_cli_lifecycle(click_runner,
                                      blockchain_ursulas,
                                      custom_filepath,
                                      custom_filepath_2,
-                                     test_registry,
-                                     mock_primary_registry_filepath):
+                                     test_registry):
 
-    registry_filepath = test_registry.commit(filepath=mock_primary_registry_filepath, overwrite=True)
+    registry_filepath = test_registry.commit(filepath=MOCK_REGISTRY_FILEPATH, overwrite=True)
     yield _cli_lifecycle(click_runner,
                          testerchain,
                          random_policy_label,

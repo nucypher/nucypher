@@ -25,7 +25,7 @@ import sys
 import pytest
 from click.testing import CliRunner
 
-from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryContractRegistry
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -74,16 +74,17 @@ def mock_allocation_infile(testerchain, token_economics):
     os.remove(MOCK_ALLOCATION_INFILE)
 
 
-@pytest.mark.usefixtures("agency")  # TODO: usesfixtures not working here
 @pytest.fixture(scope='module', autouse=True)
-def mock_primary_registry_filepath(test_registry, agency):
-    # Create filesystem registry from memory.
-    filepath = test_registry.commit(filepath=MOCK_REGISTRY_FILEPATH)
+def temp_registry(testerchain, test_registry, agency):
+    registry_filepath = MOCK_REGISTRY_FILEPATH
+    # Disable registry fetching, use the mock one instead
+    InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
+    filepath = test_registry.commit(filepath=registry_filepath, overwrite=True)
     assert filepath == MOCK_REGISTRY_FILEPATH
     assert os.path.isfile(MOCK_REGISTRY_FILEPATH)
-    yield MOCK_REGISTRY_FILEPATH
-    if os.path.isfile(MOCK_REGISTRY_FILEPATH):
-        os.remove(MOCK_REGISTRY_FILEPATH)
+    yield registry_filepath
+    if os.path.exists(registry_filepath):
+        os.remove(registry_filepath)
 
 
 @pytest.fixture(scope='module')

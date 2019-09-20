@@ -417,4 +417,5 @@ def establish_deployer_registry(emitter,
     # All Done.
     registry = LocalContractRegistry(filepath=registry_filepath)
     emitter.message(f"Configured to registry filepath {registry_filepath}")
+
     return registry
