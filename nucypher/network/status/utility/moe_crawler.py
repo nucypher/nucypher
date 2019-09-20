@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict
 
 from twisted.internet import task
 from twisted.logger import Logger
@@ -161,6 +161,11 @@ class MoeBlockchainCrawler:
 
 
 class MoeCrawlerDBClient:
+    """
+    Performs operations on data in the MoeBlockchainCrawler DB.
+
+    Helpful for data intensive long-running graphing calculations on data
+    """
     def __init__(self, host, port, database):
         self._client = InfluxDBClient(host=host, port=port, database=database)
 
