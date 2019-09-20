@@ -184,30 +184,33 @@ class OwnableContractMixin:
         if not self._ownable:
             raise self.ContractNotOwnable(f"{self.contract_name} is not ownable.")
 
-        # Get Bare Contracts
-        existing_bare_contract = self.get_latest_version(registry=self.registry,
-                                                         provider_uri=self.blockchain.provider_uri)
+        receipts = dict()
+        if self._upgradeable:
 
-        proxy_deployer = self._proxy_deployer(registry=self.registry,
-                                              target_contract=existing_bare_contract,
-                                              deployer_address=self.deployer_address,
-                                              bare=True)  # acquire agency for the dispatcher itself.
+            #
+            # Upgrade Proxy
+            #
 
-        # Stage
+            existing_bare_contract = self.get_principal_contract(registry=self.registry,
+                                                                 provider_uri=self.blockchain.provider_uri)
+
+            proxy_deployer = self.get_proxy_deployer(registry=self.registry)
+            proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
+            proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
+                                                             contract_function=proxy_contract_function,
+                                                             transaction_gas_limit=transaction_gas_limit)
+
+            receipts['proxy'] = proxy_receipt
+
+        #
+        # Upgrade Pricipal
+        #
+
         contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
-        proxy_contract_function = proxy_deployer.contract.functions.transferOwnership(new_owner)
-
-        # Execute
         principal_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                              contract_function=contract_function,
                                                              transaction_gas_limit=transaction_gas_limit)
-
-        proxy_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                         contract_function=proxy_contract_function,
-                                                         transaction_gas_limit=transaction_gas_limit)
-
-        # Report
-        receipts = {'principal': principal_receipt, 'proxy': proxy_receipt}
+        receipts['principal'] = proxy_receipt
         return receipts
 
 

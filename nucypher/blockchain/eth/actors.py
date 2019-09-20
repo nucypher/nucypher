@@ -224,10 +224,12 @@ class ContractAdministrator(NucypherTokenActor):
 
         if Deployer._upgradeable:
             is_initial_deployment = not bare
-            if is_initial_deployment:
+            if is_initial_deployment and not plaintext_secret:
                 raise ValueError("An upgrade secret must be passed to perform an initial deployment series"
                                  "on an upgradeable contract.")
-            secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
+            secret_hash = None
+            if plaintext_secret:
+                secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
             txhashes = deployer.deploy(secret_hash=secret_hash,
                                        gas_limit=gas_limit,
                                        initial_deployment=is_initial_deployment,
