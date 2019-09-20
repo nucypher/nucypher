@@ -219,9 +219,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
                                                              use_proxy_address=False)
 
         # Ensure the proxy targets the current deployed contract
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=real_old_contract.address,
-                                      proxy_name=proxy_name)
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=real_old_contract.address,
+                                               proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address == real_old_contract.address
 
@@ -274,9 +274,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert old_address != new_address
 
         # Ensure the proxy now targets the new deployment
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=new_address,
-                                      proxy_name=proxy_name)
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=new_address,
+                                               proxy_name=proxy_name)
         targeted_address = proxy.functions.target().call()
         assert targeted_address != old_address
         assert targeted_address == new_address
@@ -323,13 +323,13 @@ def test_rollback(click_runner, testerchain, registry_filepath):
 
         # Ensure the proxy targets the rollback target (previous version)
         with pytest.raises(BlockchainInterface.UnknownContract):
-            testerchain.get_proxy(registry=registry,
-                                  target_address=current_target_address,
-                                  proxy_name='Dispatcher')
+            testerchain.get_proxy_contract(registry=registry,
+                                           target_address=current_target_address,
+                                           proxy_name='Dispatcher')
 
-        proxy = testerchain.get_proxy(registry=registry,
-                                      target_address=rollback_target_address,
-                                      proxy_name='Dispatcher')
+        proxy = testerchain.get_proxy_contract(registry=registry,
+                                               target_address=rollback_target_address,
+                                               proxy_name='Dispatcher')
 
         # Deeper - Ensure the proxy targets the old deployment on-chain
         targeted_address = proxy.functions.target().call()

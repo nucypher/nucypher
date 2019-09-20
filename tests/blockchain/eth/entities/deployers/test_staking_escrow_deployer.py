@@ -80,21 +80,19 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
-def test_upgrade(testerchain, test_registry):
+def test_upgrade(testerchain, test_registry, token_economics):
     wrong_secret = b"on second thoughts..."
     old_secret = bytes(STAKING_ESCROW_DEPLOYMENT_SECRET, encoding='utf-8')
     new_secret_hash = keccak(b'new'+old_secret)
 
     deployer = StakingEscrowDeployer(registry=test_registry,
+                                     economics=token_economics,
                                      deployer_address=testerchain.etherbase_account)
 
     with pytest.raises(deployer.ContractDeploymentError):
-        deployer.upgrade(existing_secret_plaintext=wrong_secret,
-                         new_secret_hash=new_secret_hash)
+        deployer.upgrade(existing_secret_plaintext=wrong_secret, new_secret_hash=new_secret_hash)
 
-    receipts = deployer.upgrade(existing_secret_plaintext=old_secret,
-                                new_secret_hash=new_secret_hash)
-
+    receipts = deployer.upgrade(existing_secret_plaintext=old_secret, new_secret_hash=new_secret_hash)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -162,6 +160,20 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     assert new_number_of_proxy_enrollments == old_number_of_proxy_enrollments
 
 
+def test_deployer_version_management(testerchain, test_registry, token_economics):
+    deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
+                                     registry=test_registry,
+                                     economics=token_economics)
+
+    untargeted_deployment = deployer.get_latest_enrollment(registry=test_registry)
+    latest_targeted_deployment = deployer.get_principal_contract(registry=test_registry)
+
+    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
+    proxy_target = proxy_deployer.target_contract.address
+    assert latest_targeted_deployment.address == proxy_target
+    assert untargeted_deployment.address != latest_targeted_deployment.address
+
+
 def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
 
     deployer = StakingEscrowDeployer(registry=test_registry,
@@ -169,14 +181,10 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
                                      economics=token_economics)
 
     # Get Proxy-Direct
-    existing_bare_contract = deployer.get_principal_contract(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
-    proxy_deployer = StakingEscrowDeployer._proxy_deployer(registry=test_registry,
-                                                           target_contract=existing_bare_contract,
-                                                           deployer_address=testerchain.etherbase_account,
-                                                           bare=True)  # acquire agency for the proxy itself.
+    proxy_deployer = deployer.get_proxy_deployer(registry=test_registry, provider_uri=TEST_PROVIDER_URI)
 
     # Re-Deploy Staking Escrow
-    old_target = proxy_deployer.contract.functions.target().call()
+    old_target = proxy_deployer.target_contract.address
 
     old_secret = bytes("...maybe not.", encoding='utf-8')
     new_secret = keccak_digest(bytes('thistimeforsure', encoding='utf-8'))

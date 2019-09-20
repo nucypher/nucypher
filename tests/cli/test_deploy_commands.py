@@ -7,9 +7,11 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency
 )
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.deploy import deploy
-from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH
+from nucypher.utilities.sandbox.constants import TEST_PROVIDER_URI, MOCK_REGISTRY_FILEPATH, \
+    INSECURE_DEVELOPMENT_PASSWORD, INSECURE_DEPLOYMENT_SECRET_PLAINTEXT
 
 registry_filepath = '/tmp/nucypher-test-registry.json'
 
@@ -18,7 +20,7 @@ registry_filepath = '/tmp/nucypher-test-registry.json'
 def temp_registry(testerchain, test_registry, agency):
     # Disable registry fetching, use the mock one instead
     InMemoryContractRegistry.download_latest_publication = lambda: registry_filepath
-    test_registry.commit(filepath=registry_filepath)
+    test_registry.commit(filepath=registry_filepath, overwrite=True)
 
 
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain):
@@ -104,3 +106,39 @@ def test_transfer_ownership(click_runner, testerchain, agency):
     assert result.exit_code == 0
     assert staking_agent.owner != maclane
     assert staking_agent.owner == michwill
+
+
+def test_bare_contract_deployment(click_runner, test_registry):
+
+    command = ('contracts',
+               '--contract-name', StakingEscrowDeployer.contract_name,
+               '--bare',
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-outfile', registry_filepath,
+               '--poa')
+
+    user_input = '0\n' + 'Y\n' + 'DEPLOY'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+
+def test_manual_proxy_retargeting(testerchain, click_runner, test_registry, token_economics):
+    local_registry = LocalContractRegistry(filepath=registry_filepath)
+    deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
+                                     registry=local_registry,
+                                     economics=token_economics)
+
+    untargeted_deployment = deployer.get_latest_enrollment(registry=local_registry)
+    command = ('upgrade',
+               '--retarget',
+               '--contract-name', StakingEscrowDeployer.contract_name,
+               '--target-address', untargeted_deployment.address,
+               '--provider', TEST_PROVIDER_URI,
+               '--registry-infile', registry_filepath,
+               '--registry-outfile', registry_filepath,
+               '--poa')
+
+    old_secret = INSECURE_DEPLOYMENT_SECRET_PLAINTEXT.decode()
+    user_input = '0\n' + 'Y\n' + f'{old_secret}\n' + (f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2) + 'Y\n'
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
