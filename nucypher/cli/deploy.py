@@ -48,7 +48,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--retarget', '-d', help="Retarget a contract;s proxy.", is_flag=True)
+@click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--target-address', help="Recipient's checksum address for token or ownership transference.", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 @click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
