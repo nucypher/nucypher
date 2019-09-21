@@ -2,6 +2,8 @@ import json
 import os
 from base64 import b64encode
 
+from twisted.logger import Logger
+
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions import SUCCESSFUL_DESTRUCTION
@@ -11,6 +13,8 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.utilities.sandbox.constants import MOCK_IP_ADDRESS, MOCK_CUSTOM_INSTALLATION_PATH
+
+log = Logger()
 
 
 def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_runner):
@@ -93,18 +97,15 @@ def test_bob_destroy(click_runner, custom_filepath):
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output
     assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"
-    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
-    assert result.exit_code == 2
-    assert 'Cannot create a persistent development character' in result.output, 'Missing or invalid error message was produced.'
 
 
 def test_bob_retrieves_twice_via_cli(click_runner,
-                           capsule_side_channel,
-                           enacted_federated_policy,
-                           federated_ursulas,
-                           custom_filepath_2,
-                           federated_alice
-                           ):
+                                     capsule_side_channel,
+                                     enacted_federated_policy,
+                                     federated_ursulas,
+                                     custom_filepath_2,
+                                     federated_alice
+                                     ):
     teacher = list(federated_ursulas)[0]
 
     first_message = capsule_side_channel.reset(plaintext_passthrough=True)
@@ -124,6 +125,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
 
+    log.info("Init'ing a normal Bob; we'll substitute the Policy Bob in shortly.")
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
 
     message_kit_bytes = bytes(three_message_kits[0])
@@ -144,6 +146,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
     from nucypher.cli import actions
 
     def substitute_bob(*args, **kwargs):
+        log.info("Substituting the Policy's Bob in CLI runtime.")
         this_fuckin_guy = enacted_federated_policy.bob
         somebody_else = Ursula.from_teacher_uri(teacher_uri=kwargs['teacher_uri'],
                                                 min_stake=0,
@@ -155,6 +158,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     _old_make_character_function = actions.make_cli_character
     try:
+        log.info("Patching make_cli_character with substitute_bob")
         actions.make_cli_character = substitute_bob
 
         # Once...
@@ -173,4 +177,5 @@ def test_bob_retrieves_twice_via_cli(click_runner,
         for cleartext in retrieve_response['result']['cleartexts']:
             assert cleartext.encode() == capsule_side_channel.plaintexts[1]
     finally:
+        log.info("un-patching make_cli_character")
         actions.make_cli_character = _old_make_character_function
