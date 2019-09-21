@@ -163,6 +163,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
         # Once...
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        log.info(f"First retrieval response: {retrieve_response.output}")
         assert retrieve_response.exit_code == 0
 
         retrieve_response = json.loads(retrieve_response.output)
@@ -171,6 +172,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
         # and again!
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        log.info(f"Second retrieval response: {retrieve_response.output}")
         assert retrieve_response.exit_code == 0
 
         retrieve_response = json.loads(retrieve_response.output)
