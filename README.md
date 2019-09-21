@@ -19,7 +19,7 @@ There are no gate-keepers and anyone can use it.
 * Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
 (with additional characters where appropriate). This character-based narrative permeates the code-base and helps
 developers write safe, misuse-resistant code.
-* Extensible - The network currently supports proxy re-encryption but can be extended to provide support other cryptographic primitives.
+* Extensible - The network currently supports proxy re-encryption but can be extended to provide support for other cryptographic primitives.
 
 Access permissions are baked into the underlying encryption,
 and access can only be explicitly granted by the data owner via sharing policies.

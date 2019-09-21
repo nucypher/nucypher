@@ -43,7 +43,7 @@ All staking-related operations done by StakeHolder are performed through the ``n
 +----------------------+-------------------------------------------------------------------------------+
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``restake``          | Manage automatic reward re-staking                                            |
+|  ``restake``          | Manage automatic reward re-staking                                           |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
