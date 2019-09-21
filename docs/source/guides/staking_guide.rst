@@ -79,7 +79,7 @@ Staking Overview
 
 Most stakers on the Goerli testnet will complete the following steps:
 
-1) Install nucypher on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
+1) Install ``nucypher`` on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
 2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet).
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
@@ -91,7 +91,7 @@ Most stakers on the Goerli testnet will complete the following steps:
 Interactive Method
 ------------------
 
-Run an Ethereum node for stakeholder
+Run an Ethereum node for Stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming you have ``geth`` installed, let's run a node on Görli testnet.
@@ -291,7 +291,7 @@ fees, or both:
 
 .. code:: bash
 
-    nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
+    (nucypher)$ nucypher stake collect-reward --staking-reward --policy-reward --staking-address 0x287A817426DD1AE78ea23e9918e2273b6733a43D --hw-wallet
 
      ____    __            __
     /\  _`\ /\ \__        /\ \

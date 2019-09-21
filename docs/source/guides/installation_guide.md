@@ -154,8 +154,8 @@ $ ./scripts/installation/install_solc.sh
 
 ## Systemd Service Installation
 
-1. Use this template to create a file named _ursula.service_ and place it in */etc/systemd/system/*.
-
+1. Use this template to create a file named `ursula.service` and place it in `/etc/systemd/system/`.
+ 
     ```
     [Unit]
     Description="Run 'Ursula', a NuCypher Staking Node."
