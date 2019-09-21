@@ -298,6 +298,7 @@ commands:
           command: |
             mkdir -p ~/test-logs/
             mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
+          when: always
       - store_artifacts:
           path: ~/test-logs/
 
