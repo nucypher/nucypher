@@ -14,6 +14,9 @@
 
 ## Deployment Procedure
 
+This section describes how NuCypher contracts are deployed, step-by-step.
+For a guide of how to deploy these contracts automatically, see the [Deployment guide](/guides/deployment_guide).
+
 1. Deploy `NuCypherToken` with all future supply tokens
 2. Deploy `StakingEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it

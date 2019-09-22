@@ -43,7 +43,7 @@ All staking-related operations done by StakeHolder are performed through the ``n
 +----------------------+-------------------------------------------------------------------------------+
 |  ``divide``          | Create a new stake from part of an existing one                               |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``restake``          | Manage automatic reward re-staking                                           |
+|  ``restake``         | Manage automatic reward re-staking                                            |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
@@ -60,7 +60,7 @@ All staking-related operations done by StakeHolder are performed through the ``n
 | ``--hw-wallet`` | Use a hardware wallet                      |
 +-----------------+--------------------------------------------+
 
-**ReStake Command Options**
+**Re-stake Command Options**
 
 +-------------------------+---------------------------------------------+
 | Option                  |  Description                                |
@@ -79,7 +79,7 @@ Staking Overview
 
 Most stakers on the Goerli testnet will complete the following steps:
 
-1) Install ``nucypher`` on StakeHolder node https://docs.nucypher.com/en/latest/guides/installation_guide.html
+1) Install ``nucypher`` on StakeHolder node (See :doc:`/guides/installation_guide`)
 2) Install and run Geth, Parity or another ethereum node (can be used with software or hardware Ethereum wallet).
 3) Request testnet tokens from faucet
 4) Stake tokens (See Below)
@@ -242,6 +242,7 @@ in the address. However, geth shows addresses in the lower case. You can convert
 the address to checksum format in geth console:
 
 .. code:: bash
+
     $ geth attach ~/.ethereum/goerli/geth.ipc
     > eth.accounts
     ["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
@@ -262,22 +263,22 @@ to enable it run:
 
     (nucypher)$ nucypher stake restake --enable
 
-To disable restaking:
+To disable re-staking:
 
 .. code:: bash
 
     (nucypher)$ nucypher stake restake --disable
 
 
-Additionally, you can enable **restake locking**, an on-chain commitment to continue restaking
+Additionally, you can enable **re-stake locking**, an on-chain commitment to continue re-staking
 until a future period (`release_period`). Once enabled, the `StakingEscrow` contract will not
-allow **restaking** to be disabled until the release period begins, even if you are the stake owner.
+allow **re-staking** to be disabled until the release period begins, even if you are the stake owner.
 
 .. code:: bash
 
     (nucypher)$ nucypher stake restake --lock-until 12345
 
-No action is needed to release the restaking lock once the release period begins.
+No action is needed to release the re-staking lock once the release period begins.
 
 
 Collect rewards earned by the staker

@@ -1,5 +1,5 @@
 Policy
 ======
 
-.. automodule:: nucypher.policy.models
+.. automodule:: nucypher.policy.policies
     :members:
