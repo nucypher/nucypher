@@ -14,7 +14,7 @@ from maya import MayaDT
 
 class MoeBlockchainCrawler:
     """
-    Obtain Blockchain information for Moe and output to a DB
+    Obtain Blockchain information for Moe and output to a DB.
     """
     DEFAULT_REFRESH_RATE = 15  # every 15s
 
@@ -22,18 +22,21 @@ class MoeBlockchainCrawler:
     # +-----------+--------+-+---------+-+---------+
     # |measurement|,tag_set| |field_set| |timestamp|
     # +-----------+--------+-+---------+-+---------+
-    MEASUREMENT = 'moe_network_info'
-    LINE_PROTOCOL = '{measurement},staker_address={staker_address} ' \
-                        'worker_address="{worker_address}",' \
-                        'start_date={start_date},' \
-                        'end_date={end_date},' \
-                        'stake={stake},' \
-                        'locked_stake={locked_stake},' \
-                        'current_period={current_period}i,' \
-                        'last_confirmed_period={last_confirmed_period}i ' \
-                    '{timestamp}'
+    DB_MEASUREMENT = 'moe_network_info'
+    DB_LINE_PROTOCOL = '{measurement},staker_address={staker_address} ' \
+                           'worker_address="{worker_address}",' \
+                           'start_date={start_date},' \
+                           'end_date={end_date},' \
+                           'stake={stake},' \
+                           'locked_stake={locked_stake},' \
+                           'current_period={current_period}i,' \
+                           'last_confirmed_period={last_confirmed_period}i ' \
+                       '{timestamp}'
     DB_NAME = 'network'
-    RETENTION_POLICY = 'network_info_retention'
+
+    DB_RETENTION_POLICY_NAME = 'network_info_retention'
+    DB_RETENTION_POLICY_PERIOD = '1w'  # 1 week of data
+    DB_RETENTION_POLICY_REPLICATION = '1'
 
     def __init__(self,
                  moe: Moe,
@@ -59,9 +62,9 @@ class MoeBlockchainCrawler:
             self.log.info(f'Database {self.DB_NAME} not found, creating it')
             self._client.create_database(self.DB_NAME)
             # TODO: review defaults for retention policy
-            self._client.create_retention_policy(name=self.RETENTION_POLICY,
-                                                 duration='1w',
-                                                 replication='1',
+            self._client.create_retention_policy(name=self.DB_RETENTION_POLICY_NAME,
+                                                 duration=self.DB_RETENTION_POLICY_PERIOD,
+                                                 replication=self.DB_RETENTION_POLICY_REPLICATION,
                                                  database=self.DB_NAME,
                                                  default=True)
         else:
@@ -99,8 +102,8 @@ class MoeBlockchainCrawler:
 
             # TODO: do we need to worry about how much information is in memory if number of nodes is
             #  large i.e. should I check for size of data and write within loop if too big
-            data.append(self.LINE_PROTOCOL.format(
-                measurement=self.MEASUREMENT,
+            data.append(self.DB_LINE_PROTOCOL.format(
+                measurement=self.DB_MEASUREMENT,
                 staker_address=staker_address,
                 worker_address=worker,
                 start_date=start_date,
