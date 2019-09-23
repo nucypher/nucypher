@@ -425,7 +425,7 @@ contract StakingEscrow is Issuer {
     }
 
     /**
-    * @notice Set `reStake` parameter. If true then all mining reward will be added to locked stake
+    * @notice Set `reStake` parameter. If true then all staking rewards will be added to locked stake
     * Only if this parameter is not locked
     * @param _reStake Value for parameter
     **/
