@@ -14,6 +14,9 @@
 
 ## Deployment Procedure
 
+This section provides a step-by-step guide of how NuCypher contracts are deployed.
+For a guide of how to deploy these contracts automatically, see the [Deployment guide](/guides/deployment_guide).
+
 1. Deploy `NuCypherToken` with all future supply tokens
 2. Deploy `StakingEscrow` with a dispatcher targeting it
 3. Deploy `PolicyManager` with its own dispatcher, also targeting it
@@ -56,10 +59,10 @@ Execution of these methods results in Alice recovering all fees for future perio
 Alice can refund ETH for any inactive periods without revoking the policy by using the method `PolicyManager.refund(bytes16)` or `PolicyManager.refund(bytes16, address)`.
 
 
-## Ursula's Contract Interaction
+## Staker's Contract Interaction
 
 
-### Ursula Locks Tokens
+### Staker Locks Tokens
 
 In order to become a participant of the network, a staker stakes tokens in the `StakingEscrow` contract.
 The staker allows the (staking) contract to perform a transaction using the `NuCypherToken.approve(address, uint256)` method
@@ -82,9 +85,15 @@ The first parameter is used to identify the stake to divide and the last two for
 When calculating locked tokens using the `StakingEscrow.getLockedTokens(address, uint16)` method, all stakes that are active during the specified period are summed.
 
 
+### The Staker Bonds to a Worker ("Ursula")
+The staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the `StakingEscrow.setWorker(address)` method.
+Changing a worker is allowed no more than once within `StakingEscrow.minWorkerPeriods()`.
+Only the worker can confirm activity.
+
+
 ### Ursula Confirms Activity
 
-In order to confirm activity every period, stakers call `StakingEscrow.confirmActivity()` wherein activities for the next period are registered.
+In order to confirm activity every period, workers call `StakingEscrow.confirmActivity()` wherein activities for the next period are registered.
 The staker gets a reward for every confirmed period.
 
 ### Ursula Generates Staking Rewards
@@ -110,10 +119,6 @@ The staker can set a minimum reward rate for a policy. For that, the staker shou
 Some users will have locked but not staked tokens.
 In that case, an instance of the `UserEscrow` contract will hold their tokens (method `UserEscrow.initialDeposit(uint256, uint256)`).
 All tokens will be unlocked after a specified time and the user can retrieve them using the `UserEscrow.withdraw(uint256)` method.
-When the user wants to become a staker - he uses the `UserEscrow` contract as a proxy for the `StakingEscrow` and `PolicyManager` contracts.
+When the user wants to become a staker - they use the `UserEscrow` contract as a proxy for the `StakingEscrow` and `PolicyManager` contracts.
 
 
-### Ursula's Worker
-The staker must specify a worker who will confirm the activity and sign on behalf of this staker by calling the `StakingEscrow.setWorker(address)` method.
-Changing a worker is allowed no more than 1 time in `StakingEscrow.minWorkerPeriods()`.
-Only the worker can confirm activity.

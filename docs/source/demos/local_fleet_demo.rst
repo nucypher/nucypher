@@ -18,7 +18,7 @@ All Demo Ursulas:
  * Using temporary resources (files, database, etc.)
 
 
-Running A Local Fleet
+Running a Local Fleet
 ---------------------
 
 1. Install NuCypher

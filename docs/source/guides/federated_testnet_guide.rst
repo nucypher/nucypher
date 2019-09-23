@@ -1,3 +1,8 @@
+..
+   TODO: #1354 - Find a home for this guide
+
+:orphan:
+
 =============================================
 NuCypher Federated Testnet (NuFT) Setup Guide
 =============================================

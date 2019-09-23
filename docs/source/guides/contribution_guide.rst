@@ -21,7 +21,7 @@ Here is the recommended procedure for acquiring the code in preparation for
 contributing proposed changes:
 
 
-1. Use GitHub to Fork the `nucypher/nucypher` repository
+1. Use GitHub to fork the ``nucypher/nucypher`` repository
 
 2. Clone your fork's repository to your local machine
 
@@ -29,19 +29,19 @@ contributing proposed changes:
 
    $ git clone https://github.com/<YOUR-GITHUB-USERNAME>/nucypher.git
 
-3. Change Directories into ``nucypher``
+3. Change directory to ``nucypher``
 
 .. code-block:: bash
 
-   cd nucypher
+   $ cd nucypher
 
-3. Add `nucypher/nucypher` as an upstream remote
+4. Add ``nucypher/nucypher`` as an upstream remote
 
 .. code-block:: bash
 
    $ git remote add upstream https://github.com/nucypher/nucypher.git
 
-4. Update your remote tracking branches
+5. Update your remote tracking branches
 
 .. code-block:: bash
 
@@ -49,7 +49,7 @@ contributing proposed changes:
 
 .. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/guides/installation_guide.html
 
-5. Install the project dependencies: see the `Developer Installation Guide`_
+6. Install the project dependencies: see the `Developer Installation Guide`_
 
 
 Running the Tests
@@ -81,7 +81,7 @@ Optionally, to run the full, slow, verbose test suite run:
   (nucypher)$ pytest --runslow -s
 
 
-Making A Commit
+Making a Commit
 ---------------
 
 NuCypher takes pride in its commit history.
@@ -98,10 +98,10 @@ are first-time contributors to open source, so feel free to join our `Discord <h
 how we can best support the submission of your proposed changes.
 
 
-Opening A Pull Request
+Opening a Pull Request
 ----------------------
 
-When considering including commits as part of a pull request into `nucypher/nucypher`,
+When considering including commits as part of a pull request into ``nucypher/nucypher``,
 we *highly* recommend opening the pull request early, before it is finished with
 the mark "[WIP]" prepended to the title.  We understand PRs marked "WIP" to be subject to change,
 history rewrites, and CI failures. Generally we will not review a WIP PR until the "[WIP]" marker
@@ -129,7 +129,7 @@ Generally speaking the preferred process of doing so is with an `interactive reb
    $ git remote update
    ...  (some upstream changes are reported)
 
-2. Initiate an interactive rebase over `nucypher/nucypher@master`
+2. Initiate an interactive rebase over ``nucypher/nucypher@master``
 
 .. note::
 
