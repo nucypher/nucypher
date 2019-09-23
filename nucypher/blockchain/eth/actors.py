@@ -739,7 +739,7 @@ class Staker(NucypherTokenActor):
         return receipt
 
     #
-    # Reward and Collection
+    # Bonding with Worker
     #
 
     @only_me
@@ -765,6 +765,20 @@ class Staker(NucypherTokenActor):
         if self.__worker_address == BlockchainInterface.NULL_ADDRESS:
             return NO_WORKER_ASSIGNED.bool_value(False)
         return self.__worker_address
+
+    @only_me
+    @save_receipt
+    def detach_worker(self) -> str:
+        if self.is_contract:
+            receipt = self.user_escrow_agent.release_worker()
+        else:
+            receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
+        self.__worker_address = BlockchainInterface.NULL_ADDRESS
+        return receipt
+
+    #
+    # Reward and Collection
+    #
 
     @only_me
     @save_receipt
