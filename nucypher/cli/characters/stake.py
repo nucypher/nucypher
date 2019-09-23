@@ -20,7 +20,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import AllocationRegistry, InMemoryAllocationRegistry
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import StakeHolder
@@ -29,9 +29,9 @@ from nucypher.cli.actions import (
     confirm_staged_stake,
     get_client_password,
     select_stake,
-    select_client_account,
     confirm_enable_restaking_lock,
-    confirm_enable_restaking
+    confirm_enable_restaking,
+    handle_client_account_for_staking,
 )
 from nucypher.cli.config import nucypher_click_config
 from nucypher.cli.painting import paint_receipt_summary
@@ -268,38 +268,16 @@ def stake(click_config,
         # Get Staking Account
         #
 
-        password = None
-        if is_preallocation_staker:
-            if beneficiary_address:
-                client_account = beneficiary_address
-            else:
-                client_account = select_client_account(prompt="Select beneficiary account",
-                                                       emitter=emitter,
-                                                       provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
-            staking_address = STAKEHOLDER.check_if_staking_via_contract(checksum_address=client_account)
-            if staking_address:
-                message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
-                emitter.echo(message, color='yellow', verbosity=1)
-                if not force:
-                    click.confirm("Is this correct?", abort=True)
-            else:
-                message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
-                           f"Are you sure you are using the right allocation registry?\n"
-                           f"Currently using {STAKEHOLDER.allocation_registry.filepath}")
-                emitter.echo(message, color='red', verbosity=1)
-                raise click.Abort()
-        else:
-            if staking_address:
-                client_account = staking_address
-            else:
-                client_account = select_client_account(prompt="Select staking account",
-                                                       emitter=emitter,
-                                                       provider_uri=STAKEHOLDER.wallet.blockchain.provider_uri)
+        client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                            stakeholder=STAKEHOLDER,
+                                                                            staking_address=staking_address,
+                                                                            is_preallocation_staker=is_preallocation_staker,
+                                                                            beneficiary_address=beneficiary_address,
+                                                                            force=force)
 
+        password = None
         if not hw_wallet and not blockchain.client.is_local:
-            password = click.prompt(f"Enter password to unlock {client_account}",
-                                    hide_input=True,
-                                    confirmation_prompt=False)
+            password = get_client_password(checksum_address=client_account)
 
         #
         # Stage Stake
