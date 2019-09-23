@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import AllocationRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -196,8 +196,12 @@ def stake(click_config,
 
     elif action == 'set-worker':
 
-        if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+        client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                            stakeholder=STAKEHOLDER,
+                                                                            staking_address=staking_address,
+                                                                            is_preallocation_staker=is_preallocation_staker,
+                                                                            beneficiary_address=beneficiary_address,
+                                                                            force=force)
 
         if not worker_address:
             worker_address = click.prompt("Enter worker address", type=EIP55_CHECKSUM_ADDRESS)
@@ -206,9 +210,9 @@ def stake(click_config,
 
         password = None
         if not hw_wallet and not blockchain.client.is_local:
-            password = get_client_password(checksum_address=staking_address)
+            password = get_client_password(checksum_address=client_account)
 
-        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
         receipt = STAKEHOLDER.set_worker(worker_address=worker_address)
 
         # TODO: Double-check dates
@@ -230,8 +234,12 @@ def stake(click_config,
 
     elif action == 'detach-worker':
 
-        if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+        client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                            stakeholder=STAKEHOLDER,
+                                                                            staking_address=staking_address,
+                                                                            is_preallocation_staker=is_preallocation_staker,
+                                                                            beneficiary_address=beneficiary_address,
+                                                                            force=force)
 
         if worker_address:
             raise click.BadOptionUsage(message="detach-worker cannot be used together with --worker-address",
@@ -243,11 +251,10 @@ def stake(click_config,
 
         password = None
         if not hw_wallet and not blockchain.client.is_local:
-            password = get_client_password(checksum_address=staking_address)
+            password = get_client_password(checksum_address=client_account)
 
-        # TODO: Create Stakeholder.detach_worker() and use it here
-        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
-        receipt = STAKEHOLDER.set_worker(worker_address=BlockchainInterface.NULL_ADDRESS)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+        receipt = STAKEHOLDER.detach_worker()
 
         # TODO: Double-check dates
         current_period = STAKEHOLDER.staking_agent.get_current_period()
@@ -326,12 +333,17 @@ def stake(click_config,
     elif action == "restake":
 
         # Authenticate
-        if not staking_address:
-            staking_address = select_stake(stakeholder=STAKEHOLDER, emitter=emitter).staker_address
+        client_account, staking_address = handle_client_account_for_staking(emitter=emitter,
+                                                                            stakeholder=STAKEHOLDER,
+                                                                            staking_address=staking_address,
+                                                                            is_preallocation_staker=is_preallocation_staker,
+                                                                            beneficiary_address=beneficiary_address,
+                                                                            force=force)
+
         password = None
         if not hw_wallet and not blockchain.client.is_local:
-            password = get_client_password(checksum_address=staking_address)
-        STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+            password = get_client_password(checksum_address=client_account)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
         # Inner Exclusive Switch
         if lock_until:
