@@ -29,7 +29,7 @@ contributing proposed changes:
 
    $ git clone https://github.com/<YOUR-GITHUB-USERNAME>/nucypher.git
 
-3. Change directories into ``nucypher``
+3. Change directory to ``nucypher``
 
 .. code-block:: bash
 
