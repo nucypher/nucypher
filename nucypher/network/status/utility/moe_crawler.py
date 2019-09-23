@@ -90,7 +90,7 @@ class MoeBlockchainCrawler:
             stakes.refresh()
 
             # store dates as floats for comparison purposes
-            start_date = datetime_at_period(current_period,
+            start_date = datetime_at_period(stakes.initial_period,
                                             seconds_per_period=economics.seconds_per_period).datetime().timestamp()
             end_date = datetime_at_period(stakes.terminal_period,
                                           seconds_per_period=economics.seconds_per_period).datetime().timestamp()
