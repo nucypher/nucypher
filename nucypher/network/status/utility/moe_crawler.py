@@ -137,6 +137,8 @@ class MoeBlockchainCrawler:
         """
         if not self.is_running:
             self.log.info('Starting Moe Crawler')
+            if self._client is None:
+                self._client = InfluxDBClient(host='localhost', port=8086, database=self.DB_NAME)
             learner_deferred = self._learning_task.start(interval=self._refresh_rate, now=True)
             learner_deferred.addErrback(self._handle_errors)
 
@@ -146,6 +148,8 @@ class MoeBlockchainCrawler:
         """
         if not self.is_running:
             self.log.info('Stopping Moe Crawler')
+            self._client.close()
+            self._client = None
             self._learning_task.stop()
 
     @property
@@ -192,3 +196,6 @@ class MoeCrawlerDBClient:
             result[day] = total_locked_tokens
 
         return result
+
+    def close(self):
+        self._client.close()
