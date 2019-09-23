@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import shutil
-from typing import List
+from typing import List, Tuple
 
 import click
 import requests
@@ -358,6 +358,53 @@ def select_client_account(emitter,
     choice = click.prompt(prompt, type=account_range, default=default)
     chosen_account = enumerated_accounts[choice]
     return chosen_account
+
+
+def handle_client_account_for_staking(emitter,
+                                      stakeholder,
+                                      staking_address: str,
+                                      is_preallocation_staker: bool,
+                                      beneficiary_address: str,
+                                      force: bool,
+                                      ) -> Tuple[str, str]:
+    """
+    Manages client account selection for stake-related operations.
+    It always returns a tuple of addresses: the first is the local client account and the second is the staking address.
+
+    When this is not a preallocation staker (which is the normal use case), both addresses are the same.
+    Otherwise, when the staker is a contract managed by a beneficiary account,
+    then the local client account is the beneficiary, and the staking address is the address of the staking contract.
+    """
+
+    if is_preallocation_staker:
+        if beneficiary_address:
+            client_account = beneficiary_address
+        else:
+            client_account = select_client_account(prompt="Select beneficiary account",
+                                                   emitter=emitter,
+                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
+        staking_address = stakeholder.check_if_staking_via_contract(checksum_address=client_account)
+        if staking_address:
+            message = f"Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
+            emitter.echo(message, color='yellow', verbosity=1)
+            if not force:
+                click.confirm("Is this correct?", abort=True)
+        else:
+            message = (f"Beneficiary {client_account} doesn't have a preallocation contract in current registry.\n"
+                       f"Are you sure you are using the right allocation registry?\n"
+                       f"Currently using {stakeholder.allocation_registry.filepath}")
+            emitter.echo(message, color='red', verbosity=1)
+            raise click.Abort()
+    else:
+        if staking_address:
+            client_account = staking_address
+        else:
+            client_account = select_client_account(prompt="Select staking account",
+                                                   emitter=emitter,
+                                                   provider_uri=stakeholder.wallet.blockchain.provider_uri)
+            staking_address = client_account
+
+    return client_account, staking_address
 
 
 def confirm_deployment(emitter, deployer_interface) -> bool:
