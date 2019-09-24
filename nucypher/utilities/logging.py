@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from contextlib import contextmanager
 from functools import lru_cache
 import pathlib
 
@@ -78,6 +78,16 @@ class GlobalLoggerSettings:
     @classmethod
     def stop_console_logging(cls):
         globalLogPublisher.removeObserver(console_observer)
+
+    @classmethod
+    @contextmanager
+    def pause_console_logging_while(cls):
+        was_already_going = console_observer in globalLogPublisher._observers
+        if was_already_going:
+             globalLogPublisher.removeObserver(console_observer)
+        yield
+        if was_already_going:
+            globalLogPublisher.addObserver(console_observer)
 
     @classmethod
     def start_text_file_logging(cls):
