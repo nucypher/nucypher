@@ -377,6 +377,44 @@ Divide an existing stake
     | 3 | 0xbb03 | 0xbb04 | 1 | 15000 NU | 40 periods . | Aug 09 12:30:38 CEST - Sep 17 12:30:38 CEST
 
 
+Staking using a preallocation contract
+---------------------------------------
+
+Each NuCypher staker with a preallocation will have some amount of tokens locked
+in a preallocation contract named ``UserEscrow``, which is used to stake and
+perform other staker-related operations.
+From the perspective of the main NuCypher contracts, each ``UserEscrow``
+contract represents a staker, no different from "regular" stakers.
+However, from the perspective of the preallocation user, things are different
+since the contract can't perform transactions, and it's the preallocation user
+(also known as the "`beneficiary`" of the contract) who have to operate.
+
+In general, preallocation users can use all staking-related operations offered
+by the CLI in the same way as described above, except that they have to include
+the ``--escrow`` flag to indicate they are acting as beneficiaries.
+
+For example, to create a stake:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake create --hw-wallet --escrow
+
+
+Or to set a worker:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake set-worker --hw-wallet --escrow
+
+
+Alternatively to the ``--escrow`` flag, preallocation users can directly specify
+their beneficiary address with the ``--beneficiary-address ADDRESS`` flag.
+
+The CLI will automatically look for a file named ``allocation_registry.json`` in
+the default installation path, although a custom path can be used with the flag
+``--allocation-filepath /path/to/allocation_registry.json``.
+
+
 Inline Method
 --------------
 
