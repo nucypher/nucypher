@@ -225,45 +225,44 @@ class ContractAdministrator(NucypherTokenActor):
         if Deployer._upgradeable:
             is_initial_deployment = not bare
             if is_initial_deployment and not plaintext_secret:
-                raise ValueError("An upgrade secret must be passed to perform an initial deployment series"
-                                 "on an upgradeable contract.")
+                raise ValueError("An upgrade secret must be passed to perform initial deployment of a Dispatcher.")
             secret_hash = None
             if plaintext_secret:
                 secret_hash = keccak(bytes(plaintext_secret, encoding='utf-8'))
-            txhashes = deployer.deploy(secret_hash=secret_hash,
+            receipts = deployer.deploy(secret_hash=secret_hash,
                                        gas_limit=gas_limit,
                                        initial_deployment=is_initial_deployment,
                                        progress=progress)
         else:
-            txhashes = deployer.deploy(gas_limit=gas_limit, progress=progress)
-        return txhashes, deployer
+            receipts = deployer.deploy(gas_limit=gas_limit, progress=progress)
+        return receipts, deployer
 
     def upgrade_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        txhashes = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+        receipts = deployer.upgrade(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
                                     new_secret_hash=new_secret_hash)
-        return txhashes
+        return receipts
 
     def retarget_proxy(self, contract_name: str, target_address: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        txhash = deployer.retarget(target_address=target_address,
-                                   existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                   new_secret_hash=new_secret_hash)
-        return txhash
+        receipts = deployer.retarget(target_address=target_address,
+                                     existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                     new_secret_hash=new_secret_hash)
+        return receipts
 
     def rollback_contract(self, contract_name: str, existing_plaintext_secret: str, new_plaintext_secret: str):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         new_secret_hash = keccak(bytes(new_plaintext_secret, encoding='utf-8'))
-        txhash = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
-                                   new_secret_hash=new_secret_hash)
-        return txhash
+        receipts = deployer.rollback(existing_secret_plaintext=bytes(existing_plaintext_secret, encoding='utf-8'),
+                                     new_secret_hash=new_secret_hash)
+        return receipts
 
-    def deploy_user_escrow(self, allocation_registry: AllocationRegistry):
+    def deploy_user_escrow(self, allocation_registry: AllocationRegistry) -> UserEscrowDeployer:
         user_escrow_deployer = UserEscrowDeployer(registry=self.registry,
                                                   deployer_address=self.deployer_address,
                                                   allocation_registry=allocation_registry)

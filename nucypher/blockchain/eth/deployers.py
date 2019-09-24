@@ -74,7 +74,7 @@ class BaseContractDeployer:
         # Defaults
         #
         self.registry = registry
-        self.deployment_receipts = CONTRACT_NOT_DEPLOYED
+        self.deployment_receipts = dict()
         self._contract = CONTRACT_NOT_DEPLOYED
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
@@ -173,6 +173,7 @@ class BaseContractDeployer:
                                                         version='latest')
         return contract
 
+
 class OwnableContractMixin:
 
     _ownable = True
@@ -203,14 +204,14 @@ class OwnableContractMixin:
             receipts['proxy'] = proxy_receipt
 
         #
-        # Upgrade Pricipal
+        # Upgrade Principal
         #
 
         contract_function = existing_bare_contract.functions.transferOwnership(new_owner)
         principal_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
                                                              contract_function=contract_function,
                                                              transaction_gas_limit=transaction_gas_limit)
-        receipts['principal'] = proxy_receipt
+        receipts['principal'] = principal_receipt
         return receipts
 
 
@@ -234,10 +235,10 @@ class UpgradeableContractMixin:
     def get_principal_contract(self, registry: BaseContractRegistry, provider_uri: str = None) -> Contract:
         """
         Get the on-chain targeted version of the principal contract directly
-        without assembling it with it's proxy.
+        without assembling it with its proxy.
         """
         if not self._upgradeable:
-            raise cls.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
+            raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
         principal_contract = blockchain.get_contract_by_name(name=self.contract_name,
                                                              registry=registry,
@@ -325,8 +326,8 @@ class UpgradeableContractMixin:
 
     def rollback(self, existing_secret_plaintext: bytes, new_secret_hash: bytes, gas_limit: int = None):
         """
-        Execute an existing deployments proxy contract, engaging the upgrade rollback intrfaces,
-        modifying the proxy's on-chain contract target to the most recet previous target.
+        Execute an existing deployment's proxy contract, engaging the upgrade rollback interfaces,
+        modifying the proxy's on-chain contract target to the most recent previous target.
         """
 
         if not self._upgradeable:
@@ -343,12 +344,13 @@ class UpgradeableContractMixin:
 
         return rollback_receipt
 
-    def _finish_deploy_essential(self, deployment_receipt: dict, progress = None):
+    def _finish_bare_deployment(self, deployment_receipt: dict, progress = None) -> dict:
         """Used to divert flow control for bare contract deployments."""
         deployment_step_name = self.deployment_steps[0]
         result = {deployment_step_name: deployment_receipt}
+        self.deployment_receipts.update(result)
         if progress:
-            progress.update(len(deployment_step_name))  # Update the progress bar to completion.
+            progress.update(len(self.deployment_steps))  # Update the progress bar to completion.
         return result
 
 
@@ -412,6 +414,7 @@ class DispatcherDeployer(BaseContractDeployer, OwnableContractMixin):
             progress.update(1)
 
         self._contract = dispatcher_contract
+        self.deployment_receipts.update({'deployment': receipt})
         return {self.deployment_steps[0]: receipt}
 
     @validate_secret
@@ -514,8 +517,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # This is the end of bare deployment.
         if not initial_deployment:
             self._contract = the_escrow_contract
-            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
-                                                 progress=progress)
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
 
         if progress:
             progress.update(1)
@@ -617,8 +620,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         # This is the end of bare deployment.
         if not initial_deployment:
             self._contract = policy_manager_contract
-            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
-                                                 progress=progress)
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
 
         if progress:
             progress.update(1)
@@ -764,8 +767,8 @@ class UserEscrowProxyDeployer(BaseContractDeployer, UpgradeableContractMixin):
         # This is the end of bare deployment.
         if not initial_deployment:
             self._contract = user_escrow_proxy_contract
-            return self._finish_deploy_essential(deployment_receipt=deployment_receipt,
-                                                 progress=progress)
+            return self._finish_bare_deployment(deployment_receipt=deployment_receipt,
+                                                progress=progress)
 
         if progress:
             progress.update(1)
@@ -868,10 +871,10 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
 
         """
 
-        deposit_txhash = self.initial_deposit(value=value, duration_seconds=duration)
-        assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
+        deposit_receipt = self.initial_deposit(value=value, duration_seconds=duration)
+        assign_receipt = self.assign_beneficiary(beneficiary_address=beneficiary_address)
         self.enroll_principal_contract()
-        return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
+        return dict(deposit_receipt=deposit_receipt, assign_receipt=assign_receipt)
 
     def deploy(self, initial_deployment: bool = True, gas_limit: int = None, progress=None) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
@@ -889,7 +892,7 @@ class UserEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownable
             progress.update(1)
 
         self._contract = user_escrow_contract
-        # TODO: Homogenize with rest of deployer receipts
+        self.deployment_receipts.update({'deployment': deploy_receipt})
         return deploy_receipt
 
 
@@ -935,8 +938,8 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         # This is the end of bare deployment.
         if not initial_deployment:
             self._contract = adjudicator_contract
-            return self._finish_deploy_essential(deployment_receipt=deploy_receipt,
-                                                 progress=progress)
+            return self._finish_bare_deployment(deployment_receipt=deploy_receipt,
+                                                progress=progress)
 
         if progress:
             progress.update(1)

@@ -481,7 +481,7 @@ class BlockchainInterface:
                 if version is None:
                     m = f"{len(target_contract_records)} records enrolled for contract {name} " \
                         f"and no version index was supplied."
-                    raise self.InterfaceError(m.format(name))
+                    raise self.InterfaceError(m)
                 version = self.__get_version_index(name=name,
                                                    version_index=version,
                                                    enrollments=len(target_contract_records))
@@ -508,7 +508,7 @@ class BlockchainInterface:
                 version = int(version_index)
             except ValueError:
                 what_is_this = version_index
-                raise ValueError(f"'{what_is_this}' is a valid version number")
+                raise ValueError(f"'{what_is_this}' is not a valid version number")
             else:
                 if version > enrollments - 1:
                     message = f"Version index '{version}' is larger than the number of enrollments for {name}."

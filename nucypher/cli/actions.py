@@ -407,7 +407,7 @@ def establish_deployer_registry(emitter,
             try:
                 _result = shutil.copyfile(registry_infile, registry_outfile)
             except shutil.SameFileError:
-                raise click.BadArgumentUsage("--registry-infile and --registry-outfile must not be the same path.")
+                raise click.BadArgumentUsage(f"--registry-infile and --registry-outfile must not be the same path '{registry_infile}'.")
         filepath = registry_outfile
     if dev:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)

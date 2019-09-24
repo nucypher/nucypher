@@ -122,7 +122,7 @@ def deploy(action,
 
     if action == "download-registry":
         if not force:
-            prompt = f"Fetch and download latest registry from {BaseContractRegistry._PUBLICATION_ENDPOINT}?"
+            prompt = f"Fetch and download latest registry from {BaseContractRegistry.PUBLICATION_ENDPOINT}?"
             click.confirm(prompt, abort=True)
         registry = InMemoryContractRegistry.from_latest_publication()
         output_filepath = registry.commit(filepath=registry_outfile, overwrite=force)

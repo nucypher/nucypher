@@ -33,7 +33,7 @@ def generate_insecure_secret() -> str:
 
 
 # TODO: Use temp module
-DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', f'nucypher-test-autodeploy.json')
+DEPLOYMENT_REGISTRY_FILEPATH = os.path.join('/', 'tmp', 'nucypher-test-autodeploy.json')
 PLANNED_UPGRADES = 4
 INSECURE_SECRETS = {v: generate_insecure_secret() for v in range(1, PLANNED_UPGRADES+1)}
 

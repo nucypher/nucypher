@@ -53,7 +53,7 @@ class BaseContractRegistry(ABC):
     __PUBLICATION_USER = "nucypher"
     __PUBLICATION_REPO = f"{__PUBLICATION_USER}/ethereum-contract-registry"
     __PUBLICATION_BRANCH = 'goerli'          # TODO: Allow other branches to be used
-    _PUBLICATION_ENDPOINT = f'https://raw.githubusercontent.com/{__PUBLICATION_REPO}/{__PUBLICATION_BRANCH}/{REGISTRY_NAME}'
+    PUBLICATION_ENDPOINT = f'https://raw.githubusercontent.com/{__PUBLICATION_REPO}/{__PUBLICATION_BRANCH}/{REGISTRY_NAME}'
 
     class RegistryError(Exception):
         pass
@@ -112,12 +112,12 @@ class BaseContractRegistry(ABC):
         """
 
         # Setup
-        cls.logger.debug(f"Downloading contract registry from {cls._PUBLICATION_ENDPOINT}")
-        response = requests.get(cls._PUBLICATION_ENDPOINT)
+        cls.logger.debug(f"Downloading contract registry from {cls.PUBLICATION_ENDPOINT}")
+        response = requests.get(cls.PUBLICATION_ENDPOINT)
 
         # Fetch
         if response.status_code != 200:
-            error = f"Failed to fetch registry from {cls._PUBLICATION_ENDPOINT} with status code {response.status_code}"
+            error = f"Failed to fetch registry from {cls.PUBLICATION_ENDPOINT} with status code {response.status_code}"
             raise cls.RegistrySourceUnavailable(error)
 
         registry_data = response.content
