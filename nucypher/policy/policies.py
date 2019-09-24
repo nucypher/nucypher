@@ -137,7 +137,7 @@ class BlockchainArrangement(Arrangement):
 
     def revoke(self) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
-
+        # TODO: #1355 - Revoke arrangements only
         txhash = self.policy_agent.revoke_policy(self.id, author_address=self.author.checksum_address)
         self.revoke_transaction = txhash
         self.is_revoked = True

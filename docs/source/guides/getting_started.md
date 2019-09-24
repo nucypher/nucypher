@@ -1,4 +1,4 @@
-# NuCypher Quickstart
+# Getting Started with Characters
 
 
 ## A Note about Side Channels
@@ -29,13 +29,13 @@ a connection to an Ethereum node and wallet.
 To run a Goerli-connected Geth node in *fast* syncing mode:
 
 ```bash
-$ geth --goerl
+$ geth --goerli
 ```
 
 To run a Goerli-connected Geth node in *light* syncing mode:
 
 ```bash
-$ geth --goerl --syncmode light
+$ geth --goerli --syncmode light
 ```
 
 Note that using `--syncmode light` is not 100% stable but can be a life savior when using 
@@ -54,15 +54,24 @@ $ geth attach ~/.ethereum/goerli/geth.ipc
 
 ### Wallets
 
-To list available accounts on your geth node:
+To list available accounts on your geth node (Hardware wallet addresses will also be listed here 
+if one is attached to the system hardware):
 
 ```bash
 $ geth attach ~/.ethereum/goerli/geth.ipc
 > eth.accounts
-["0x287a817426dd1ae78ea23e9918e2273b6733a43d", "0xc080708026a3a280894365efd51bb64521c45147"]
+["0x287a817426dd1ae78ea23e9918e2273b6733a43d"]
 ```
 
-Hardware wallet addresses will also be listed here if one is attached to the system hardware.
+To create a new software based Geth account:
+
+```bash
+$ geth attach ~/.ethereum/goerli/geth.ipc
+> personal.newAccount()
+...
+"0xc080708026a3a280894365efd51bb64521c45147"
+```
+
 Note that the Geth console does not return EIP-55 compliant checksum addresses, and instead will output
 the *lowercase* version of the address.  Since Nucypher requires EIP-55 checksum addresses, you will need 
 to convert your address to checksum format:
@@ -87,10 +96,13 @@ When initializing an `Alice`, `Bob`, or `Ursula`, an initial "Stranger-`Ursula`"
 the role of a `Teacher`, or "seednode":
 
 ```python
-from nucypher.characters.lawful import Ursula, Alice
+from nucypher.characters.lawful import Ursula
 
-ursula = Ursula.from_seed_and_stake_info(seed_uri=<URI>, federated_only=False)  # ie. https://0.0.0.0:9151
-another_ursula = Ursula.from_seed_and_stake_info(seed_uri=<URI>, federated_only=False)
+seed_uri = "https://0.0.0.0:9151"
+seed_uri2 = "https://0.0.0.0:9151"
+
+ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri, federated_only=False)
+another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2, federated_only=False)
 ```
 
 Stranger `Ursula`s can be created by invoking the `from_seed_and_stake_info` method, then a `list` of `known_nodes`
@@ -98,40 +110,47 @@ can be passed into any `Character`'s init. The `known_nodes` will inform your ch
 they know about network-wide, then kick-off the automated node-discovery loop:
 
 ```python
+from nucypher.characters.lawful import Alice
 alice = Alice(known_nodes=[ursula, another_ursula], ...)
 ```
 
 ## Alice: Grant Access to a Secret
 
 ```python
-from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.characters.lawful import Alice, Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-
-# Application Side-Channel
-# --------------------------
-# bob_encrypting_key = <Side Channel>
-# bob_verifying_key = <Side Channel>
 
 ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151', federated_only=False)
 alice = Alice(known_nodes=[ursula],
               checksum_address="0x287A817426DD1AE78ea23e9918e2273b6733a43D", 
               registry=InMemoryContractRegistry.from_latest_publication(),
               network_middleware=RestMiddleware())
-bob = Bob.from_public_keys(verifying_key=bob_verifying_key, encrypting_key=bob_encrypting_key)
 ```
 
+Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through 
+the application side channel:
+
 ```python
+from umbral.keys import UmbralPublicKey
+
+verifying_key = UmbralPublicKey.from_hex(verifying_key),
+encrypting_key = UmbralPublicKey.from_hex(encryption_key)
+
+```
+
+Then, Alice can grant access to Bob:
+
+```python
+from nucypher.characters.lawful import Bob
 from datetime import datetime
 import maya
 
-#
-# Grant
-#
 
+bob = Bob.from_public_keys(verifying_key=bob_verifying_key,  encrypting_key=bob_encrypting_key)
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)  # Five days from now
 policy = alice.grant(bob,
-                     label=b'my-secret-stuff',
+                     label=b'my-secret-stuff',  # Sent to Bob via side channel
                      m=2, n=3,
                      expiration=policy_end_datetime)
 
@@ -140,17 +159,18 @@ policy_encrypting_key = policy.public_key
 
 ## Enrico: Encrypt a Secret
 
+First, A `policy_encrypting_key` must be retrieved from the application side channel, then 
+to encrypt a secret using Enrico:
+
 ```python
 from nucypher.characters.lawful import Enrico
-
-# Application Side-Channel
-# --------------------------
-# policy_encrypting_key = <Side Channel>
 
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 ciphertext, signature = enrico.encrypt_message(message=b'Peace at dawn.')
 ```
-    
+
+The ciphertext can then be sent to Bob via the application side channel.
+
 Note that Alice can get the public key even before creating the policy.
 From this moment on, any Data Source (Enrico) that knows the public key
 can encrypt data originally intended for Alice, but can be shared with
@@ -160,6 +180,9 @@ any Bob that Alice grants access.
 
 
 ## Bob: Decrypt a Secret
+
+For Bob to retrieve a secret, The ciphertext, label, policy encrypting key, and Alice's veryfying key must all
+be fetched from the application side channel.  Then, Bob constructs his perspective of the policy's network actors:
 
 ```python
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
@@ -177,19 +200,23 @@ from nucypher.network.middleware import RestMiddleware
 ursula = Ursula.from_seed_and_stake_info(seed_uri='https://0.0.0.0:9151', federated_only=False)
 alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
 bob = Bob(known_nodes=[ursula],
-          checksum_address="0xc080708026a3a280894365efd51bb64521c45147",
+          checksum_address="0xC080708026a3A280894365Efd51Bb64521c45147",
           registry=InMemoryContractRegistry.from_latest_publication(),
           network_middleware=RestMiddleware())
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 ```
 
-```python
-#
-# Decrypt
-#
+Next, Bob needs to join the policy:
 
+```python
+bob.join_policy(label=label, alice_verifying_key=alice.public_keys(SigningPower), block=True)
+```
+
+Then Bob can retrieve, and decrypt the ciphertext:
+
+```python
 cleartext = bob.retrieve(label=label,
                          message_kit=ciphertext,
                          data_source=enrico,
-                         alice_verifying_key=bytes(alice.stamp))
+                         alice_verifying_key=alice.public_keys(SigningPower))
 ```

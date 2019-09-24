@@ -122,7 +122,7 @@ Whitepapers
    :maxdepth: 1
    :caption: Guides
 
-   guides/quickstart
+   guides/getting_started
    guides/installation_guide
    guides/staking_guide
    guides/ursula_configuration_guide
