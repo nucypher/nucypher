@@ -90,10 +90,8 @@ def test_bob_retrieves_twice_via_cli(click_runner,
         actions.make_cli_character = substitute_bob
 
         # Once...
-        # TODO: Add invocation wrapper #1353
-        GlobalLoggerSettings.stop_console_logging()
-        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
-        GlobalLoggerSettings.start_console_logging()
+        with GlobalLoggerSettings.pause_console_logging_while():
+            retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
 
         log.info(f"First retrieval response: {retrieve_response.output}")
         assert retrieve_response.exit_code == 0
@@ -103,10 +101,8 @@ def test_bob_retrieves_twice_via_cli(click_runner,
             assert cleartext.encode() == capsule_side_channel.plaintexts[1]
 
         # and again!
-        # TODO: Add invocation wrapper #1353
-        GlobalLoggerSettings.stop_console_logging()
-        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
-        GlobalLoggerSettings.start_console_logging()
+        with GlobalLoggerSettings.pause_console_logging_while():
+            retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
 
         log.info(f"Second retrieval response: {retrieve_response.output}")
         assert retrieve_response.exit_code == 0
