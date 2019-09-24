@@ -267,8 +267,7 @@ def test_stake_restake(click_runner,
                     '--enable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
-                    '--force',
-                    '--debug')
+                    '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  restake_args,
@@ -285,8 +284,7 @@ def test_stake_restake(click_runner,
                  '--lock-until', release_period,
                  '--config-file', stakeholder_configuration_file_location,
                  '--staking-address', manual_staker,
-                 '--force',
-                 '--debug')
+                 '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  lock_args,
@@ -311,8 +309,7 @@ def test_stake_restake(click_runner,
                     '--disable',
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
-                    '--force',
-                    '--debug')
+                    '--force')
 
     result = click_runner.invoke(nucypher_cli,
                                  disable_args,

@@ -423,7 +423,7 @@ def confirm_deployment(emitter, deployer_interface) -> bool:
 def confirm_enable_restaking_lock(emitter, staking_address: str, release_period: int) -> bool:
     restaking_lock_agreement = f"""
 By enabling the re-staking lock for {staking_address}, you are committing to automatically 
-re-stake all rewards until period a future period.  You will not be able to disable re-staking until {release_period}.
+re-stake all rewards until a future period.  You will not be able to disable re-staking until {release_period}.
     """
     emitter.message(restaking_lock_agreement)
     click.confirm(f"Confirm enable re-staking lock for staker {staking_address} until {release_period}?", abort=True)
@@ -431,9 +431,9 @@ re-stake all rewards until period a future period.  You will not be able to disa
 
 
 def confirm_enable_restaking(emitter, staking_address: str) -> bool:
-    restaking_lock_agreement = f"By enabling the re-staking for {staking_address}, " \
-                               f"All staking rewards will be automatically added to your existing stake."
-    emitter.message(restaking_lock_agreement)
+    restaking_agreement = f"By enabling the re-staking for {staking_address}, " \
+                          f"all staking rewards will be automatically added to your existing stake."
+    emitter.message(restaking_agreement)
     click.confirm(f"Confirm enable automatic re-staking for staker {staking_address}?", abort=True)
     return True
 
