@@ -122,8 +122,8 @@ Whitepapers
    :maxdepth: 1
    :caption: Guides
 
-   guides/getting_started
    guides/installation_guide
+   guides/getting_started
    guides/staking_guide
    guides/ursula_configuration_guide
    guides/character_control_guide

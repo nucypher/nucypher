@@ -1,5 +1,23 @@
 # Getting Started with Characters
 
+- [Side Channels](#a-note-about-side-channels)
+- [Running an Ethereum Node](#running-an-ethereum-node)
+- [Connecting Nucypher to an Etheruem Node](#connecting-to-the-nucypher-network)
+
+- [Alice: Grant Access to a Secret](#alice-grant-access-to-a-secret)
+    + [Setup](#setup-alice)
+    + [Grant](#grant)
+
+- [Enrico: Encrypt a Secret](#enrico-encrypt-a-secret)
+    * [Setup](#setup-enrico)
+    * [Encrypt](#encrypt)
+
+- [Bob: Decrypt a Secret](#bob-decrypt-a-secret)
+    * [Setup](#setup-bob)
+    * [Join a Policy](#join-a-policy)
+    * [Decrypt](#retrieve-and-decrypt)
+
+
 
 ## A Note about Side Channels
 
@@ -10,21 +28,29 @@ In all cases, NuCypher must be integrated with a storage and transport layer in 
 Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob 
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
  
-##### Side Channel Data:
+##### Side Channel Application Data
   - Secrets:
-    - Message Kits (Ciphertext)
+    - Message Kits - Encrypted Messages, or "Ciphertexts"
   - Identities:
-    - Alice Verifying Key
-    - Bob Encrypting Key
-    - Bob Verifying Key
+    - Alice Verifying Key - Public key used for verifying Alice 
+    - Bob Encrypting Key - Public key used to encrypt for Bob
+    - Bob Verifying Key - Public key used to verify Bob
   - Policies:
-    - Policy Encrypting Key 
-    - Labels
+    - Policy Encrypting Key - Public key used to encrypt messages for a Policy.
+    - Labels - A label for specifying a Policy's target, like a filepath
 
 ## Running an Ethereum Node
 
 Operation of a decentralized NuCypher character [`Alice`, `Bob`, `Ursula`] requires
-a connection to an Ethereum node and wallet.
+a connection to an Ethereum node and wallet to interact with smart
+contracts (<https://docs.nucypher.com/en/latest/architecture/contracts.html>). 
+
+For general background information about choosing a node technology and operation,
+see <https://web3py.readthedocs.io/en/stable/node.html>. 
+
+In this guide, a local Geth node connected to the Goerli Testnet is used.
+For detailed information on using the geth CLI and Javascript console,
+see <https://geth.ethereum.org/interface/Command-Line-Options>.
 
 To run a Goerli-connected Geth node in *fast* syncing mode:
 
@@ -40,12 +66,6 @@ $ geth --goerli --syncmode light
 
 Note that using `--syncmode light` is not 100% stable but can be a life savior when using 
 a mobile connection (or congested hackathon wifi...).
-
-### Provider URI
-
-Nucypher uses the node's IPC-File to communicate, specified by `provider_uri`.
-By default in ubuntu, the path is `~/.ethereum/goerli/geth.ipc` - This path
-will also be logged to the geth-running console on startup. 
 
 Connect to the Geth Console to test your ethereum node's IPC:
 ```bash
@@ -83,6 +103,12 @@ to convert your address to checksum format:
 
 ## Connecting to The NuCypher Network
 
+### Provider URI
+
+Nucypher uses the ethereum node's IPC-File to communicate, specified by `provider_uri`.
+By default in ubuntu, the path is `~/.ethereum/goerli/geth.ipc` - This path
+will also be logged to the geth-running console on startup. 
+
 ### Connecting Nucypher to an Ethereum Provider
 
 ```python
@@ -114,7 +140,12 @@ from nucypher.characters.lawful import Alice
 alice = Alice(known_nodes=[ursula, another_ursula], ...)
 ```
 
+For information on how to run a staking Ursula node via CLI,
+see <https://docs.nucypher.com/en/latest/guides/staking_guide.html>
+
 ## Alice: Grant Access to a Secret
+
+### Setup Alice
 
 ```python
 from nucypher.characters.lawful import Alice, Ursula
@@ -139,16 +170,18 @@ encrypting_key = UmbralPublicKey.from_hex(encryption_key)
 
 ```
 
+### Grant
+
 Then, Alice can grant access to Bob:
 
 ```python
 from nucypher.characters.lawful import Bob
-from datetime import datetime
+from datetime import timedelta
 import maya
 
 
 bob = Bob.from_public_keys(verifying_key=bob_verifying_key,  encrypting_key=bob_encrypting_key)
-policy_end_datetime = maya.now() + datetime.timedelta(days=5)  # Five days from now
+policy_end_datetime = maya.now() + timedelta(days=5)  # Five days from now
 policy = alice.grant(bob,
                      label=b'my-secret-stuff',  # Sent to Bob via side channel
                      m=2, n=3,
@@ -159,8 +192,12 @@ policy_encrypting_key = policy.public_key
 
 ## Enrico: Encrypt a Secret
 
+### Setup Enrico
+
 First, A `policy_encrypting_key` must be retrieved from the application side channel, then 
 to encrypt a secret using Enrico:
+
+### Encrypt
 
 ```python
 from nucypher.characters.lawful import Enrico
@@ -184,6 +221,8 @@ any Bob that Alice grants access.
 For Bob to retrieve a secret, The ciphertext, label, policy encrypting key, and Alice's veryfying key must all
 be fetched from the application side channel.  Then, Bob constructs his perspective of the policy's network actors:
 
+### Setup Bob
+
 ```python
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -206,17 +245,20 @@ bob = Bob(known_nodes=[ursula],
 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 ```
 
+### Join a Policy
+
 Next, Bob needs to join the policy:
 
 ```python
 bob.join_policy(label=label, alice_verifying_key=alice.public_keys(SigningPower), block=True)
 ```
 
+### Retrieve and Decrypt
 Then Bob can retrieve, and decrypt the ciphertext:
 
 ```python
-cleartext = bob.retrieve(label=label,
-                         message_kit=ciphertext,
-                         data_source=enrico,
-                         alice_verifying_key=alice.public_keys(SigningPower))
+cleartexts = bob.retrieve(label=label,
+                          message_kit=ciphertext,
+                          data_source=enrico,
+                          alice_verifying_key=alice.public_keys(SigningPower))
 ```
