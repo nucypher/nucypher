@@ -541,13 +541,15 @@ class Staker(NucypherTokenActor):
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = TokenEconomicsFactory.get_economics(registry=self.registry)
-        self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
         # Staking via contract
         self.allocation_registry = allocation_registry or InMemoryAllocationRegistry()  # FIXME: This is a workaround for regular stakers
         self.beneficiary_address = None
         self.user_escrow_agent = None
         self.check_if_staking_via_contract(self.checksum_address)
+
+        # Check stakes
+        self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
     # TODO: This function not only "checks". Find a better name
     def check_if_staking_via_contract(self, checksum_address: str) -> Optional[str]:
@@ -561,6 +563,7 @@ class Staker(NucypherTokenActor):
                                                      allocation_registry=self.allocation_registry,
                                                      beneficiary=self.beneficiary_address)
             staking_address = self.user_escrow_agent.principal_contract.address
+            self.checksum_address = staking_address
             return staking_address
         else:
             self.user_escrow_agent = None
@@ -767,6 +770,7 @@ class Staker(NucypherTokenActor):
     @property
     def worker_address(self) -> str:
         if self.__worker_address:
+            # TODO: This is broken for StakeHolder with different stakers - See #1358
             return self.__worker_address
         else:
             worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)

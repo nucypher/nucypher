@@ -17,8 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 
+import pytest
 from web3 import Web3
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, UserEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.cli.main import nucypher_cli
@@ -27,9 +29,33 @@ from nucypher.utilities.sandbox.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
 )
 
-
-# This test is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,
+#
+# This test module is intended to mirror tests/cli/ursula/test_stakeholder_and_ursula.py,
 # but using a staking contract (namely, UserEscrow)
+#
+
+
+@pytest.fixture(scope='module')
+def beneficiary(testerchain):
+    # First, let's be give the beneficiary some cash for TXs
+    beneficiary = testerchain.unassigned_accounts[0]
+    tx = {'to': beneficiary,
+          'from': testerchain.etherbase_account,
+          'value': Web3.toWei('1', 'ether')}
+
+    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    _receipt = testerchain.wait_for_receipt(txhash)
+    return beneficiary
+
+
+@pytest.fixture(scope='module')
+def user_escrow_agent(beneficiary, test_registry, mock_allocation_registry):
+    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary,
+                                        registry=test_registry,
+                                        allocation_registry=mock_allocation_registry)
+    return user_escrow_agent
+
+
 def test_stake_via_contract(click_runner,
                             custom_filepath,
                             test_registry,
@@ -40,28 +66,18 @@ def test_stake_via_contract(click_runner,
                             stake_value,
                             token_economics,
                             agency,
+                            beneficiary,
+                            user_escrow_agent
                             ):
 
     #
-    # Inital checks: beneficiary and pre-allocation contract
+    # Inital setup and checks: beneficiary and pre-allocation contract
     #
 
-    # First, let's be give the beneficiary some cash for TXs
-    beneficiary = testerchain.unassigned_accounts[0]
-    tx = {'to': beneficiary,
-          'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-
-    # Next, let's be sure the beneficiary is in the allocation registry...
+    # First, let's be sure the beneficiary is in the allocation registry...
     assert mock_allocation_registry.is_beneficiary_enrolled(beneficiary)
 
     # ... and that the pre-allocation contract has enough tokens
-    user_escrow_agent = UserEscrowAgent(beneficiary=beneficiary,
-                                        registry=test_registry,
-                                        allocation_registry=mock_allocation_registry)
     preallocation_contract_address = user_escrow_agent.principal_contract.address
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     assert token_agent.get_balance(preallocation_contract_address) >= token_economics.minimum_allowed_locked
@@ -121,3 +137,119 @@ def test_stake_via_contract(click_runner,
                                   economics=token_economics)
     assert stake.value == stake_value
     assert stake.duration == token_economics.minimum_locked_periods
+
+
+def test_stake_set_worker(click_runner,
+                          beneficiary,
+                          mock_allocation_registry,
+                          test_registry,
+                          manual_worker,
+                          stakeholder_configuration_file_location):
+
+    init_args = ('stake', 'set-worker',
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--escrow',
+                 '--beneficiary-address', beneficiary,
+                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--worker-address', manual_worker,
+                 '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}'
+    result = click_runner.invoke(nucypher_cli,
+                                 init_args,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    staker = Staker(is_me=True,
+                    checksum_address=beneficiary,
+                    allocation_registry=mock_allocation_registry,
+                    registry=test_registry)
+
+    assert staker.worker_address == manual_worker
+
+
+def test_stake_restake(click_runner,
+                       beneficiary,
+                       user_escrow_agent,
+                       mock_allocation_registry,
+                       test_registry,
+                       manual_worker,
+                       testerchain,
+                       stakeholder_configuration_file_location):
+
+    staker = Staker(is_me=True,
+                    checksum_address=beneficiary,
+                    registry=test_registry,
+                    allocation_registry=mock_allocation_registry)
+    assert not staker.is_restaking
+
+    restake_args = ('stake', 'restake',
+                    '--enable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--escrow',
+                    '--beneficiary-address', beneficiary,
+                    '--allocation-filepath', mock_allocation_registry.filepath,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 restake_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+    assert staker.is_restaking
+    assert "Successfully enabled" in result.output
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    current_period = staking_agent.get_current_period()
+    release_period = current_period + 1
+    lock_args = ('stake', 'restake',
+                 '--lock-until', release_period,
+                 '--config-file', stakeholder_configuration_file_location,
+                 '--escrow',
+                 '--beneficiary-address', beneficiary,
+                 '--allocation-filepath', mock_allocation_registry.filepath,
+                 '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 lock_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Still staking and the lock is enabled
+    assert staker.is_restaking
+    assert staker.restaking_lock_enabled
+
+    # CLI Output includes success message
+    assert "Successfully enabled" in result.output
+    assert str(release_period) in result.output
+
+    # Wait until release period
+    testerchain.time_travel(periods=1)
+    assert not staker.restaking_lock_enabled
+    assert staker.is_restaking
+
+    disable_args = ('stake', 'restake',
+                    '--disable',
+                    '--config-file', stakeholder_configuration_file_location,
+                    '--escrow',
+                    '--beneficiary-address', beneficiary,
+                    '--allocation-filepath', mock_allocation_registry.filepath,
+                    '--force')
+
+    result = click_runner.invoke(nucypher_cli,
+                                 disable_args,
+                                 input=INSECURE_DEVELOPMENT_PASSWORD,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0
+
+    allocation_contract_address = user_escrow_agent.principal_contract.address
+    assert not staking_agent.is_restaking(allocation_contract_address)
+
+    staker = Staker(is_me=True,
+                    checksum_address=beneficiary,
+                    registry=test_registry,
+                    allocation_registry=mock_allocation_registry)
+    assert not staker.is_restaking
+    assert "Successfully disabled" in result.output
