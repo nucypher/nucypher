@@ -95,7 +95,7 @@ class NU:
         return cls(value, denomination='NU')
 
     def to_tokens(self) -> Decimal:
-        """Returns an decimal value of NU"""
+        """Returns a decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
     def to_nunits(self) -> int:
