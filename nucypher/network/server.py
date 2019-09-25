@@ -271,19 +271,18 @@ def make_rest_app(
         log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation).hex(), id_as_hex))
         try:
             with ThreadedSession(db_engine) as session:
+
                 # Verify the Notice was signed by Alice
-                policy_arrangement = datastore.get_policy_arrangement(
-                    id_as_hex.encode(), session=session)
-                alice_pubkey = UmbralPublicKey.from_bytes(
-                    policy_arrangement.alice_verifying_key.key_data)
+                policy_arrangement = datastore.get_policy_arrangement(id_as_hex.encode(), session=session)
+                alice_pubkey = UmbralPublicKey.from_bytes(policy_arrangement.alice_verifying_key.key_data)
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
                     log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
-                    return Response(status_code=400)
+                    return Response(status=400)
                 elif revocation.verify_signature(alice_pubkey):
-                    datastore.del_policy_arrangement(
-                        id_as_hex.encode(), session=session)
+                    datastore.del_policy_arrangement(id_as_hex.encode(), session=session)
+
         except (NotFound, InvalidSignature) as e:
             log.debug("Exception attempting to revoke: {}".format(e))
             return Response(response='KFrag not found or revocation signature is invalid.', status=404)

@@ -1,22 +1,20 @@
-import math
 import random
 from abc import abstractmethod, ABC
 from collections import OrderedDict, deque
-from random import SystemRandom
 from typing import Generator, Set, List
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
-from nucypher.blockchain.eth.utils import calculate_period_duration
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import secure_random, keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, BLAKE2B
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
@@ -88,7 +86,7 @@ class Arrangement:
         return bytes(self.kfrag)
 
     @abstractmethod
-    def revoke(self):
+    def revoke(self, ursula_address: str):
         """
         Revoke arrangement.
         """
@@ -107,6 +105,7 @@ class BlockchainArrangement(Arrangement):
     def __init__(self,
                  alice: Alice,
                  ursula: Ursula,
+                 first_period_reward: int,
                  rate: int,
                  expiration: maya.MayaDT,
                  duration_periods: int,
@@ -122,6 +121,7 @@ class BlockchainArrangement(Arrangement):
         # Arrangement rate and duration in periods
         self.rate = rate
         self.duration_periods = duration_periods
+        self.first_period_reward = first_period_reward
 
         # Status
         self.is_published = False
@@ -136,12 +136,34 @@ class BlockchainArrangement(Arrangement):
         return r
 
     def revoke(self) -> str:
-        """Revoke this arrangement and return the transaction hash as hex."""
-        # TODO: #1355 - Revoke arrangements only
-        txhash = self.policy_agent.revoke_policy(self.id, author_address=self.author.checksum_address)
-        self.revoke_transaction = txhash
+        """Revoke this arrangement on-chain and return the transaction receipt."""
+        receipt = self.policy_agent.revoke_arrangement(policy_id=self.id,
+                                                       author_address=self.author.checksum_address,
+                                                       node_address=self.ursula.checksum_address)
+        self.revoke_transaction = receipt
         self.is_revoked = True
-        return txhash
+        return receipt
+
+    @classmethod
+    def from_arrangement_info(cls, alice: Alice, onchain_info: list) -> 'BlockchainArrangement':
+
+        ursula_address, rate, first_period_reward, initial_period, terminal_period, is_disabled = onchain_info
+        duration_periods = terminal_period - initial_period
+        arrangement_digest = BLAKE2B.digest(onchain_info)
+        expiration = datetime_at_period(period=terminal_period, seconds_per_period=alice.economics.seconds_per_period)
+        ursula = alice.known_nodes[ursula_address]
+
+        instance = cls(alice=alice,
+                       ursula=ursula,
+                       rate=rate,
+                       expiration=expiration,
+                       duration_periods=duration_periods,
+                       arrangement_id=arrangement_digest,
+                       first_period_reward=first_period_reward)
+
+        instance.is_published = True
+        instance.is_revoked = is_disabled
+        return instance
 
 
 class Policy(ABC):
@@ -489,7 +511,6 @@ class BlockchainPolicy(Policy):
 
     def __init__(self,
                  alice: Alice,
-                 value: int,
                  rate: int,
                  duration_periods: int,
                  expiration: maya.MayaDT,
@@ -499,7 +520,6 @@ class BlockchainPolicy(Policy):
         self.first_period_reward = first_period_reward
         self.duration_periods = duration_periods
         self.expiration = expiration
-        self.value = value
         self.rate = rate
         self.author = alice
 
@@ -512,6 +532,11 @@ class BlockchainPolicy(Policy):
 
         self.selection_buffer = 1.5
         self.validate_reward_value()
+
+    @property
+    def value(self) -> int:
+        result = ((self.rate * self.duration_periods) + self.first_period_reward) * self.n
+        return result
 
     def validate_reward_value(self) -> None:
         rate_per_period = ((self.value // self.n) - self.first_period_reward) // self.duration_periods  # wei
@@ -641,6 +666,12 @@ class BlockchainPolicy(Policy):
         super().publish(network_middleware=self.alice.network_middleware)
         return receipt
 
+    def revoke(self) -> dict:
+        receipt = self.alice.policy_agent.revoke_policy(policy_id=self.id, author_address=self.author.checksum_address)
+        self.revoke_transaction = receipt['transactionHash']
+        self.is_revoked = True
+        return receipt
+
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
         return self._arrangement_class(alice=self.alice,
                                        expiration=self.expiration,
@@ -648,3 +679,30 @@ class BlockchainPolicy(Policy):
                                        rate=self.rate,
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
+
+    @classmethod
+    def _read_arrangements(cls, alice, policy_id: bytes) -> List[BlockchainArrangement]:
+        if len(policy_id) != cls.POLICY_ID_LENGTH:
+            raise ValueError(f'Invalid policy ID length - Expected {cls.POLICY_ID_LENGTH} got length {len(policy_id)}')
+        arrangement_infos = list(alice.policy_agent.fetch_policy_arrangements(policy_id=policy_id))
+        arrangements = list()
+        for arrangement_info in arrangement_infos:
+            arrangement = BlockchainArrangement.from_arrangement_info(alice=alice, onchain_info=arrangement_info)
+            arrangements.append(arrangement)
+        return arrangements
+
+    @classmethod
+    def from_alice(cls, alice: Alice, policy_id: bytes) -> 'BlockchainPolicy':
+        if len(policy_id) != cls.POLICY_ID_LENGTH:
+            raise ValueError(f'Invalid policy ID length - Expected {cls.POLICY_ID_LENGTH} got length {len(policy_id)}')
+        arrangements = cls._read_arrangements(alice=alice, policy_id=policy_id)
+        arrangement = arrangements[0]
+        instance = cls(alice=alice,
+                       expiration=arrangement.expiration,
+                       duration_periods=arrangement.duration_periods,
+                       rate=arrangement.rate,
+                       first_period_reward=arrangement.first_period_reward)
+        instance._published_arrangements = arrangements
+        instance.is_published = True
+        instance._is_revoked = all(not a.is_revoked for a in arrangements)
+        return instance
