@@ -69,12 +69,15 @@ def test_create_policy(testerchain, agency, token_economics):
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_fetch_policies(agency, policy_meta):
+def test_fetch_policy(agency, policy_meta):
     token_agent, staking_agent, policy_agent = agency
     agent = policy_agent
 
-    arrangements = list(agent.fetch_policy(policy_id=policy_meta.policy_id))
-    assert False
+    policy_record = list(agent.fetch_policy(policy_id=policy_meta.policy_id))
+    assert policy_record
+    assert len(policy_record) == 6  # size of contract Policy Struct
+    author_address, rate, first_period_reward, initial_period, terminal_period, is_disabled = policy_record
+    assert author_address == policy_meta.author
 
 
 @pytest.mark.slow()
