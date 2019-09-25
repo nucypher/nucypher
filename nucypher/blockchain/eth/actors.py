@@ -996,7 +996,11 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             raise ValueError(f"Policy rate of ({self.rate}) per period must be greater "
                              f"than the first period rate of ({self.first_period_reward})")
 
-        self.__policies = list()
+        self.__policies = dict()
+
+    @property
+    def policies(self) -> Dict[bytes, 'BlockchainPolicy']:
+        return self.__policies
 
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
@@ -1061,6 +1065,19 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
         return blockchain_policy
+
+    def read_policies(self, policy_ids: List[bytes]) -> list:
+        policies = list()
+        for policy_id in policy_ids:
+            policy = self.read_policy(policy_id=policy_id)
+            policies.append(policy)
+        return policies
+
+    def read_policy(self, policy_id: bytes, *args, **kwargs):
+        from nucypher.policy.policies import BlockchainPolicy
+        policy = BlockchainPolicy.from_alice_and_policy_details(alice=self, policy_id=policy_id, *args, **kwargs)
+        self.__policies[policy_id] = policy
+        return policy
 
 
 class Investigator(NucypherTokenActor):
