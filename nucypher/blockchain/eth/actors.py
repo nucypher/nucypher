@@ -760,6 +760,8 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             raise ValueError(f"Policy rate of ({self.rate}) per period must be greater "
                              f"than the first period rate of ({self.first_period_reward})")
 
+        self.__policies = list()
+
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
                                    duration_periods: int = None,
