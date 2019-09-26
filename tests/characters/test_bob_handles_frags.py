@@ -639,3 +639,28 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   use_precedent_work_orders=True)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+    federated_bob.network_middleware.all_nodes_up()
+
+
+def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
+                                                   federated_alice,
+                                                   capsule_side_channel,
+                                                   enacted_federated_policy,
+                                                   ):
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
+    message1, enrico1 = capsule_side_channel.reset()  # First message
+    message2, enrico2 = capsule_side_channel.reset()  # Second message
+    message3, enrico3 = capsule_side_channel.reset()  # Third message
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    delivered_cleartexts = federated_bob.retrieve(message1,
+                                                  message2,
+                                                  message3,
+                                                  alice_verifying_key=alices_verifying_key,
+                                                  label=enacted_federated_policy.label,
+                                                  use_precedent_work_orders=True)
+
+    assert False
