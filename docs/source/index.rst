@@ -65,7 +65,7 @@ a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchang
 in fees and token rewards. Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.
 
-3. Using her policy's public key, any entity (Enrico) can encrypt data on Alice's behalf.
+3. Using a configurable asymmetric encryption key, any entity (Enrico) can encrypt data on Alice's behalf.
 This entity could be an IoT device in her car, a collaborator assigned
 the task of writing data to her policy, or even a third-party creating
 data that belongs to her – for example, a lab analyzing medical tests.
@@ -75,6 +75,8 @@ or any other storage layer.
 4. Bob, a data recipient, obtains the encrypted data from the storage layer and sends an access request
 to the NuCypher network. If the policy is satisfied, the data is re-encrypted to his public key
 and he can decrypt it with his private key.
+
+5. Ursulas earn fees and token rewards for availability and performing re-encryption operations.
 
 More detailed information:
 
@@ -137,6 +139,7 @@ Whitepapers
    :maxdepth: 1
    :caption: Architecture
 
+   architecture/character
    architecture/contracts
    architecture/upgradeable_proxy_contracts
    architecture/slashing
