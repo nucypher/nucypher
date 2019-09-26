@@ -31,7 +31,7 @@ eth-tester==0.2.0b2
 eth-typing==2.1.0
 eth-utils==1.7.0
 flask-limiter==1.0.1
-flask-sqlalchemy==2.4.0
+flask-sqlalchemy==2.4.1
 flask==1.1.1
 hendrix==3.2.5
 hexbytes==0.2.0
@@ -88,7 +88,7 @@ twisted==19.7.0
 txaio==18.8.1
 tzlocal==2.0.0
 umbral==0.1.3a2
-urllib3==1.25.5
+urllib3==1.25.6
 varint==1.0.2
 watchdog==0.9.0
 web3==5.1.0
