@@ -516,7 +516,7 @@ class PolicyManagerAgent(EthereumContractAgent):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
-    def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
+    def revoke_arrangement(self, policy_id: bytes, node_address: str, author_address: str):
         contract_function = self.contract.functions.revokeArrangement(policy_id, node_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
         return receipt

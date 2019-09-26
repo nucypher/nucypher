@@ -830,11 +830,15 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
         return blockchain_policy
 
-    def read_policies(self, policy_ids: List[bytes]) -> list:
-        policies = list()
+    def revoke_policy(self, policy_id: bytes) -> dict:
+        receipt = self.policy_agent.revoke_policy(policy_id=policy_id, author_address=self.checksum_address)
+        return receipt
+
+    def read_policies(self, policy_ids: List[bytes]) -> dict:
+        policies = dict()
         for policy_id in policy_ids:
             policy = self.read_policy(policy_id=policy_id)
-            policies.append(policy)
+            policies[policy_id] = policy
         return policies
 
     def read_policy(self, policy_id: bytes, *args, **kwargs):

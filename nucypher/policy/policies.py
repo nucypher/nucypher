@@ -7,13 +7,14 @@ from typing import Generator, Set, List
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG, FEDERATED_POLICY, UNKNOWN_ARRANGEMENTS, UNKNOWN_KFRAGS
 from nacl.hashlib import blake2b
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Staker
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.utils import calculate_period_duration, datetime_at_period
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import secure_random, keccak_digest
@@ -89,7 +90,7 @@ class Arrangement:
         return bytes(self.kfrag)
 
     @abstractmethod
-    def revoke(self, ursula_address: str):
+    def revoke(self):
         """
         Revoke arrangement.
         """
@@ -100,7 +101,9 @@ class BlockchainArrangement(Arrangement):
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
+
     federated = False
+    ID_LENGTH = 16
 
     class InvalidArrangement(Exception):
         pass
@@ -127,9 +130,9 @@ class BlockchainArrangement(Arrangement):
         self.first_period_reward = first_period_reward
 
         # Status
-        self.is_published = False
+        self._is_published = False
         self.publish_transaction = None
-        self.is_revoked = False
+        self._is_revoked = True if ursula == BlockchainInterface.NULL_ADDRESS else False
         self.revoke_transaction = None
 
     def __repr__(self):
@@ -144,7 +147,7 @@ class BlockchainArrangement(Arrangement):
                                                        author_address=self.author.checksum_address,
                                                        node_address=self.ursula.checksum_address)
         self.revoke_transaction = receipt
-        self.is_revoked = True
+        self._is_revoked = True
         return receipt
 
 
@@ -172,7 +175,7 @@ class Policy(ABC):
                  label,
                  expiration: maya.MayaDT,
                  bob=None,
-                 kfrags=(UNKNOWN_KFRAG,),
+                 kfrags=UNKNOWN_KFRAGS,
                  public_key=None,
                  m: int = None,
                  alice_signature=NOT_SIGNED) -> None:
@@ -183,6 +186,7 @@ class Policy(ABC):
         """
         from nucypher.policy.collections import TreasureMap  # TODO: Circular Import
 
+        self.__id = None
         self.alice = alice                     # type: Alice
         self.label = label                     # type: bytes
         self.bob = bob                         # type: Bob
@@ -211,11 +215,32 @@ class Policy(ABC):
 
     @property
     def n(self) -> int:
-        return len(self.kfrags)
+        if self.kfrags is not UNKNOWN_KFRAGS:
+            return len(self.kfrags)
+        elif self._published_arrangements:
+            return len(self._published_arrangements)
+        else:
+            raise RuntimeError(f"Cannot determine N-value for Policy.  "
+                               f"There are no KFrags and no Published Arrangements.")
 
     @property
     def id(self) -> bytes:
-        return construct_policy_id(self.label, bytes(self.bob.stamp))
+        if self.bob:
+            return construct_policy_id(self.label, bytes(self.bob.stamp))
+        elif self.__id:
+            # Support for policies without Bob, but direct access to the ID.
+            return self.__id
+        else:
+            raise RuntimeError("Cannot determine policy ID. "
+                               "There is no Bob available and a manual policy ID is not set.")
+
+    @id.setter
+    def id(self, id: bytes):
+        """Allow the setting of a pre-existing known policy ID"""
+        if self.bob:
+            if construct_policy_id(self.label, bytes(self.bob.stamp)) != id:
+                raise ValueError(f"Cannot set invalid policy ID '{id}'.")
+        self.__id = id
 
     @property
     def accepted_ursulas(self) -> Set[Ursula]:
@@ -478,6 +503,7 @@ class BlockchainPolicy(Policy):
     A collection of n BlockchainArrangements representing a single Policy
     """
     _arrangement_class = BlockchainArrangement
+    selection_buffer = 1.5
 
     class NoSuchPolicy(Exception):
         pass
@@ -495,6 +521,7 @@ class BlockchainPolicy(Policy):
                  alice: Alice,
                  rate: int,
                  first_period_reward: int,
+                 value: int = None,  # TODO
                  duration_periods: int = None,
                  expiration: maya.MayaDT = None,
                  verify_params: bool = True,
@@ -504,24 +531,19 @@ class BlockchainPolicy(Policy):
         self.duration_periods = duration_periods
         self.expiration = expiration
         self.rate = rate
+        self.value = value
         self.author = alice
 
         # Initial State
         self.publish_transaction = None
-        self.is_published = False
+        self._is_published = False
+        self._is_revoked = None
         self.receipt = None
 
         super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
 
-        self.selection_buffer = 1.5  # TODO
-
         if verify_params:
             self.validate_reward_value()
-
-    @property
-    def value(self) -> int:
-        result = ((self.rate * self.duration_periods) + self.first_period_reward) * self.n
-        return result
 
     def validate_reward_value(self) -> None:
         rate_per_period = ((self.value // self.n) - self.first_period_reward)   # wei
@@ -646,7 +668,7 @@ class BlockchainPolicy(Policy):
         # Capture Response
         self.receipt = receipt
         self.publish_transaction = receipt['transactionHash']
-        self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
+        self.sync()
 
         # Call super publish (currently publishes TMap)
         super().publish(network_middleware=self.alice.network_middleware)
@@ -654,9 +676,9 @@ class BlockchainPolicy(Policy):
 
     def revoke(self) -> dict:
         """Revoke the policy on-chain and update the local state, returning the receipt"""
-        receipt = self.alice.policy_agent.revoke_policy(policy_id=self.id, author_address=self.author.checksum_address)
+        receipt = self.alice.revoke_policy(policy_id=self.id)
         self.revoke_transaction = receipt['transactionHash']
-        self.is_revoked = True
+        self.sync()
         return receipt
 
     def _make_arrangement(self, ursula: Ursula, *args, **kwargs) -> BlockchainArrangement:
@@ -674,7 +696,15 @@ class BlockchainPolicy(Policy):
         arrangements = list()
         arrangement_infos = list(alice.policy_agent.fetch_policy_arrangements(policy_id=policy_id))
         for ursula_address, last_downtime_period, last_refund_period in arrangement_infos:
-            arrangement = self._make_arrangement(ursula=alice.known_nodes[ursula_address])
+            try:
+                ursula = alice.known_nodes[ursula_address]
+            except KeyError:
+                if ursula_address != BlockchainInterface.NULL_ADDRESS:
+                    raise self.NotEnoughBlockchainUrsulas(f"Cannot read on-chain arrangement - "
+                                                          f"{ursula_address} is not a known node.")
+                else:
+                    ursula = BlockchainInterface.NULL_ADDRESS
+            arrangement = self._make_arrangement(ursula=ursula)
             arrangements.append(arrangement)
         return arrangements
 
@@ -697,7 +727,17 @@ class BlockchainPolicy(Policy):
                        *args, **kwargs)
 
         arrangements = instance._read_arrangements(alice=alice, policy_id=policy_id)
+        instance.id = policy_id
         instance._published_arrangements = arrangements
-        instance.is_published = True
+        instance._is_published = True
         instance._is_revoked = is_disabled
         return instance
+
+    def sync(self):
+        policy_record = list(self.alice.policy_agent.fetch_policy(policy_id=self.id))
+        author_address, rate, first_period_reward, initial_period, terminal_period, is_disabled = policy_record
+        self.duration_periods = terminal_period - initial_period
+        self.expiration = datetime_at_period(period=terminal_period, seconds_per_period=self.author.economics.seconds_per_period)
+        self._published_arrangements = self._read_arrangements(alice=self.author, policy_id=self.id)
+        self._is_published = True
+        self._is_revoked = is_disabled
