@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
+from collections import OrderedDict
 
 import maya
 import msgpack
@@ -291,16 +292,15 @@ class WorkOrder:
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        tasks, tasks_bytes = {}, []
+        tasks = OrderedDict()
         for capsule in capsules:
             task = cls.PRETask(capsule, signature=None)
             specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
             task.signature = bob.stamp(specification)
             tasks[capsule] = task
-            tasks_bytes.append(bytes(task))
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks.values()])
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -317,11 +317,6 @@ class WorkOrder:
         signature, bob_verifying_key, (tasks_bytes, blockhash) = payload_elements
 
         # TODO: check freshness of blockhash?
-
-        # Check receipt
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + msgpack.dumps(tasks_bytes)
-        if not signature.verify(receipt_bytes, bob_verifying_key):
-            raise InvalidSignature()
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
@@ -340,6 +335,11 @@ class WorkOrder:
 
             if not task.signature.verify(specification, bob_verifying_key):
                 raise InvalidSignature()
+
+        # Check receipt
+        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks])
+        if not signature.verify(receipt_bytes, bob_verifying_key):
+            raise InvalidSignature()
 
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
