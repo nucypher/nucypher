@@ -499,7 +499,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                 point = points[point_index]
                 assert point >= previous_point
                 if sum_of_locked_tokens <= point < next_sum_value:
-                    addresses.add(current_staker)
+                    addresses.add(to_checksum_address(current_staker))
                     point_index += 1
                     previous_point = point
                 else:
