@@ -12,8 +12,8 @@ role.
 .. _Umbral: https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
 
-Character Functions
--------------------
+Character Actions
+-----------------
 
 
 Alice::Grant

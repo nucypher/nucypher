@@ -76,7 +76,8 @@ or any other storage layer.
 to the NuCypher network. If the policy is satisfied, the data is re-encrypted to his public key
 and he can decrypt it with his private key.
 
-5. Ursulas earn fees and token rewards for availability and performing re-encryption operations.
+5. Ursulas earn fees and token rewards for availability and performing
+re-encryption operations.
 
 More detailed information:
 
