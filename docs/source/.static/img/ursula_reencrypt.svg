@@ -724,8 +724,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.51436036"
-     inkscape:cx="1165.635"
-     inkscape:cy="746.28444"
+     inkscape:cx="1255.1997"
+     inkscape:cy="581.3168"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -793,13 +793,13 @@
            x="164.96764"
            y="858.93011" /></flowRegion><flowPara
          id="flowPara31763" /></flowRoot>    <rect
-       ry="64.531189"
-       y="-713.98022"
-       x="276.70865"
-       height="560.61487"
-       width="752.00781"
+       ry="64.517075"
+       y="-713.91888"
+       x="195.11514"
+       height="560.49219"
+       width="833.53998"
        id="rect34980"
-       style="fill:#d7e3f4;fill-opacity:1;fill-rule:evenodd;stroke:#0044aa;stroke-width:2.32720137;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:9.30880395, 2.32720102;stroke-dashoffset:0;stroke-opacity:1" />
+       style="fill:#d7e3f4;fill-opacity:1;fill-rule:evenodd;stroke:#0044aa;stroke-width:2.44984436;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:9.79937588, 2.44984401;stroke-dashoffset:0;stroke-opacity:1" />
     <g
        transform="matrix(128.59023,0,0,-185.53733,577.9405,422.59505)"
        id="g4467">
@@ -826,7 +826,7 @@
          style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:45px;line-height:125%;font-family:'Basis Grotesque';-inkscape-font-specification:'Basis Grotesque, Medium';text-align:start;writing-mode:lr-tb;text-anchor:start">Bob</tspan></text>
     <g
        id="g22552"
-       transform="matrix(1.0648771,0,0,1.0648771,1287.3207,-1970.5079)">
+       transform="matrix(1.0648771,0,0,1.0648771,1215.3207,-1970.5079)">
       <g
          id="g28-8-6"
          transform="matrix(1.1935921,0,0,1.1935921,-1039.1496,1252.1078)"
@@ -881,12 +881,12 @@
        sodipodi:linespacing="125%"
        id="text22546"
        y="-423.03558"
-       x="298.82364"
+       x="226.82364"
        style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:45px;line-height:125%;font-family:'Basis Grotesque';-inkscape-font-specification:'Basis Grotesque, Medium';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:45px;line-height:125%;font-family:'Basis Grotesque';-inkscape-font-specification:'Basis Grotesque, Medium';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="-423.03558"
-         x="298.82364"
+         x="226.82364"
          id="tspan22548"
          sodipodi:role="line">Ursula<tspan
    style="font-size:64.99999762%;baseline-shift:sub"
@@ -1036,25 +1036,63 @@
     <path
        sodipodi:nodetypes="cc"
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:10;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker36038)"
-       d="m 458.6702,-598.24087 185.5321,0"
+       d="m 358.7362,-598.24087 278.85188,0"
        id="path36036"
        inkscape:connector-curvature="0" />
     <text
        sodipodi:linespacing="125%"
        id="text36336"
        y="-665.92841"
-       x="549.39075"
+       x="505.44751"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:31.25px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:34.99999619px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
          y="-665.92841"
-         x="549.39075"
+         x="505.44751"
          sodipodi:role="line"
-         id="tspan36344">Verify policy</tspan><tspan
+         id="tspan4483">Verify access</tspan><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:34.99999619px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
          y="-622.17841"
-         x="549.39075"
+         x="505.44751"
          sodipodi:role="line"
-         id="tspan36348">for Bob</tspan></text>
-  </g>
+         id="tspan4561">policy for Bob</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4533"
+       y="-6.6898298"
+       x="294.20285"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:31.25px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         id="tspan4537"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:34.99999619px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+         y="-6.6898298"
+         x="294.20285"
+         sodipodi:role="line">Send Capsule</tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:34.99999619px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+         y="37.060165"
+         x="294.20285"
+         sodipodi:role="line"
+         id="tspan4541">to Ursula</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="1207.2115"
+       y="-527.43762"
+       id="text4543"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4545"
+         x="1207.2115"
+         y="-527.43762"></tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4547"
+       style="fill:black;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;fill-opacity:1;font-family:sans-serif;font-style:normal;font-weight:normal;font-size:15px;line-height:125%;letter-spacing:0px;word-spacing:0px"><flowRegion
+         id="flowRegion4549"><rect
+           id="rect4551"
+           width="272.18271"
+           height="184.69542"
+           x="1901.3907"
+           y="162.84857" /></flowRegion><flowPara
+         id="flowPara4553"></flowPara></flowRoot>  </g>
 </svg>

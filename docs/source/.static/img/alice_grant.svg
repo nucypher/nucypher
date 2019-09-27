@@ -51,22 +51,6 @@
          inkscape:connector-curvature="0" />
     </marker>
     <marker
-       inkscape:isstock="true"
-       style="overflow:visible"
-       id="marker5381"
-       refX="0"
-       refY="0"
-       orient="auto"
-       inkscape:stockid="Arrow2Send"
-       inkscape:collect="always">
-      <path
-         inkscape:connector-curvature="0"
-         transform="matrix(-0.3,0,0,-0.3,0.69,0)"
-         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
-         id="path5383" />
-    </marker>
-    <marker
        inkscape:stockid="Arrow2Send"
        orient="auto"
        refY="0"
@@ -625,9 +609,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.27242191"
-     inkscape:cx="300.15858"
-     inkscape:cy="539.85536"
+     inkscape:zoom="0.77052552"
+     inkscape:cx="1546.3873"
+     inkscape:cy="728.00567"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -1037,19 +1021,19 @@
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:31.25px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        x="-1057.1515"
-       y="-645.11005"
+       y="-679.11005"
        id="text9443"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          x="-1057.1515"
-         y="-645.11005"
+         y="-679.11005"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
          id="tspan6246">Provide asymmetric</tspan><tspan
          sodipodi:role="line"
          x="-1057.1515"
-         y="-598.23505"
+         y="-632.23505"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
-         id="tspan4512">encryption key</tspan></text>
+         id="tspan4508">encryption key</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text9886"
@@ -1078,23 +1062,12 @@
          x="-490.62302"
          y="-1596.1482"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
-         id="tspan11784">Issue policy to blockchain </tspan><tspan
+         id="tspan11784">Issue policy for Bob to blockchain </tspan><tspan
          sodipodi:role="line"
          x="-495.78659"
          y="-1549.2732"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
          id="tspan6267">and escrow policy fee</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="-710.70984"
-       y="-629.20862"
-       id="text4433"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         id="tspan4435"
-         x="-710.70984"
-         y="-629.20862">s</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -1360,7 +1333,12 @@
          sodipodi:role="line"
          x="-827.84155"
          y="-773.04553"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle">Policy</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle">Policy</tspan><tspan
+         sodipodi:role="line"
+         x="-827.84155"
+         y="-726.17053"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.50000381px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan4506">for Bob</tspan></text>
     <rect
        style="fill:#87e369;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        id="rect15122"
@@ -1375,13 +1353,6 @@
        width="80.757088"
        id="rect15124"
        style="fill:#0f7fd6;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
-    <rect
-       style="fill:#2491c3;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       id="rect15126"
-       width="80.757088"
-       height="80.757088"
-       x="140.45894"
-       y="-837.23962" />
     <rect
        y="-937.56036"
        x="140.45894"
@@ -1425,12 +1396,6 @@
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <path
-       sodipodi:nodetypes="cc"
-       inkscape:connector-curvature="0"
-       id="path5379"
-       d="m 275.2778,-796.81304 837.0198,0"
-       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:10;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5381)" />
-    <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:10;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5531)"
        d="m 275.2778,-897.13378 837.0198,0"
        id="path5529"
@@ -1442,5 +1407,108 @@
        id="path5685"
        d="m 275.2778,-997.45452 837.0198,0"
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:10;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5687)" />
+    <g
+       id="g4730"
+       transform="translate(0,11.476379)">
+      <text
+         sodipodi:linespacing="125%"
+         id="text4699"
+         y="-832.78076"
+         x="181.5159"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:97.46507263px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           id="tspan4712"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           y="-832.78076"
+           x="181.5159"
+           sodipodi:role="line">.</tspan><tspan
+           id="tspan4714"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           y="-686.58313"
+           x="181.5159"
+           sodipodi:role="line" /></text>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:97.46507263px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         x="181.5159"
+         y="-802.60657"
+         id="text4718"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           x="181.5159"
+           y="-802.60657"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           id="tspan4720">.</tspan><tspan
+           sodipodi:role="line"
+           x="181.5159"
+           y="-656.40894"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           id="tspan4722" /></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text4724"
+         y="-772.43237"
+         x="181.5159"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:97.46507263px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+         xml:space="preserve"><tspan
+           id="tspan4726"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           y="-772.43237"
+           x="181.5159"
+           sodipodi:role="line">.</tspan><tspan
+           id="tspan4728"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:116.95809937px;line-height:125%;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro, Normal';text-align:center;writing-mode:lr-tb;text-anchor:middle"
+           y="-626.23474"
+           x="181.5159"
+           sodipodi:role="line" /></text>
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="172.41248"
+       y="-1080.3231"
+       id="text4741"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4743"
+         x="172.41248"
+         y="-1080.3231"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro'">1</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4745"
+       y="-979.65259"
+       x="166.68748"
+       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro'"
+         y="-979.65259"
+         x="166.68748"
+         id="tspan4747"
+         sodipodi:role="line">2</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="165.98749"
+       y="-879.68182"
+       id="text4749"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4751"
+         x="165.98749"
+         y="-879.68182"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro'">3</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text4753"
+       y="-683.79041"
+       x="166.56248"
+       style="font-style:normal;font-weight:normal;font-size:15px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'Basis Grotesque Pro';-inkscape-font-specification:'Basis Grotesque Pro'"
+         y="-683.79041"
+         x="166.56248"
+         id="tspan4755"
+         sodipodi:role="line">n</tspan></text>
   </g>
 </svg>

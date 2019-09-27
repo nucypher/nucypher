@@ -22,7 +22,7 @@ without revealing data keys to intermediary entities.
 +======+===========+==============================================================================================+
 | 1    | Alice     | Alice sets a Policy on the NuCypher network (2-of-3) and grants access to Bob                |
 +------+-----------+----------------------------------------------------------------------------------------------+
-| 2    | Alice     | Label and Alice's key public key provided to Bob                                             |
+| 2    | Alice     | Label and Alice's public key provided to Bob                                                 |
 +------+-----------+----------------------------------------------------------------------------------------------+
 | 3    | Bob       | Bob joins the policy with Label and Alice's public key                                       |
 +------+-----------+----------------------------------------------------------------------------------------------+
