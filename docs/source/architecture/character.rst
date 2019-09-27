@@ -22,16 +22,16 @@ Alice::Grant
 .. image:: ../.static/img/alice_grant.svg
     :target: ../.static/img/alice_grant.svg
 
-Alice may have data that she may want to share. It is conceivable to think that she would want to classify/categorize her data according
-to how she envisions sharing her data, each with their own set of permissions - within NuCypher this concept is called
-a `label`. Alice uses this `label`  to categorize data and creates an asymmetric encryption key for Enrico based
-on the `label`. For example, Alice may use different `labels` and therefore different Enricos for health data,
-personal data, work-related data. Essentially `labels` are a way to categorize data for sharing - you can think of
-file system folders as being analogous to `labels`. Alice can delegate access permissions to the encrypted data
-classified under a `label` to any recipient she sees fit.
+Alice may have data that she wants to share and it is conceivable to think that she would want to classify/categorize
+her data according to how she envisions sharing her data, each with their own set of permissions - within NuCypher
+this concept is called a `label`. Alice uses this `label`  to categorize data and creates an asymmetric encryption key
+for Enrico based on the `label`. For example, Alice may use different `labels` and therefore different Enricos for
+health data, personal data, work-related data. Essentially, `labels` are a way to categorize data for sharing - you
+can think of file system folders as being somewhat analogous to `labels`. Alice can delegate access permissions to
+the encrypted data classified under a `label` to any recipient she sees fit.
 
-The same encryption key can be used by Enrico even though multiple policies for the generated data can be created
-for multiple Bobs. Enrico, therefore, only has to encrypt data once using a configurable asymmetric encryption
+The same encryption key can be used by Enrico even though multiple policies for the data can be created
+for different Bobs. Enrico, therefore, only has to encrypt data using the provided encryption key
 key and data can later be re-encrypted for all Bobs who have been granted access.
 
 When Alice wants to share this information with Bob, she can create a
