@@ -5,7 +5,7 @@ NuCypher's API is written as characters within a cryptological narrative/archety
 role.
 
 * **Alice**:  *"The Data Owner"* - retains full control over the data encrypted for her and determines whom to share the data with
-* **Enrico**: *"The Encryptor"* - a data source that encrypts data on behalf of Alice for a configurable encryption key
+* **Enrico**: *"The Encryptor"* - a data source that encrypts data on behalf of Alice
 * **Bob**:    *"The Data Recipient"* - the data recipient that Alice intends to share data with
 * **Ursula**: *"The Proxy in PRE"* - the nodes on the NuCypher Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
 
@@ -23,7 +23,7 @@ Alice::Grant
     :target: ../.static/img/alice_grant.svg
 
 Alice may have data that she wants to share and it is conceivable that she would want to classify/categorize
-her data according to how she intends to share it with. Each of these subsets should have their own set of permissions - within NuCypher
+her data according to how she intends to share it. Each of these subsets should have their own set of permissions - within NuCypher
 this concept is called a `label`. Alice uses this `label`  to categorize data and she creates an asymmetric encryption key
 for Enrico based on the `label`. For example, Alice may use different `labels` and therefore different Enricos for
 health data, personal data, and work-related data. Essentially, `labels` are a way to categorize data for sharing - you
