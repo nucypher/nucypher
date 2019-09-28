@@ -66,14 +66,14 @@ class CharacterSpecification(ABC):
 class AliceSpecification(CharacterSpecification):
 
     __create_policy = {'in': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
-                       'optional': ('value',),
+                       'optional': ('value', 'first_period_reward', 'rate'),
                        'out': ('label', 'policy_encrypting_key')}
 
     __derive_policy_encrypting_key = {'in': ('label', ),
                                       'out': ('policy_encrypting_key', 'label')}
 
     __grant = {'in': ('bob_encrypting_key', 'bob_verifying_key', 'm', 'n', 'label', 'expiration'),
-               'optional': ('value',),
+               'optional': ('value', 'first_period_reward', 'rate'),
                'out': ('treasure_map', 'policy_encrypting_key', 'alice_verifying_key')}
 
     __revoke = {'in': ('label', 'bob_verifying_key', ),
