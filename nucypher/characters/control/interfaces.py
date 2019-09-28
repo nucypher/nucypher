@@ -27,7 +27,7 @@ def character_control_interface(func):
         interface_name = func.__name__
         input_specification, optional_specification, output_specification =\
             instance.get_specifications(interface_name=interface_name)
-        # XXX
+        input_specification = input_specification + optional_specification
 
         if request and instance.serialize:
 
