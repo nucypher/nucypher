@@ -1,13 +1,13 @@
 Character Concepts
 ==================
 
-NuCypher's API is written as characters within a cryptological narrative/archetype each fulfilling a particular
+NuCypher's API is written as characters within a cryptological narrative/archetype, each fulfilling a particular
 role.
 
 * **Alice**:  *"The Data Owner"* - retains full control over the data encrypted for her and determines whom to share the data with
 * **Enrico**: *"The Encryptor"* - a data source that encrypts data on behalf of Alice for a configurable encryption key
 * **Bob**:    *"The Data Recipient"* - the data recipient that Alice intends to share data with
-* **Ursula**: *"The Proxy in PRE"* - the node on the NuCypher Network that stands ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
+* **Ursula**: *"The Proxy in PRE"* - the nodes on the NuCypher Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
 
 .. _Umbral: https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
@@ -22,17 +22,17 @@ Alice::Grant
 .. image:: ../.static/img/alice_grant.svg
     :target: ../.static/img/alice_grant.svg
 
-Alice may have data that she wants to share and it is conceivable to think that she would want to classify/categorize
-her data according to how she envisions sharing her data, each with their own set of permissions - within NuCypher
-this concept is called a `label`. Alice uses this `label`  to categorize data and creates an asymmetric encryption key
+Alice may have data that she wants to share and it is conceivable that she would want to classify/categorize
+her data according to how she intends to share it with. Each of these subsets should have their own set of permissions - within NuCypher
+this concept is called a `label`. Alice uses this `label`  to categorize data and she creates an asymmetric encryption key
 for Enrico based on the `label`. For example, Alice may use different `labels` and therefore different Enricos for
-health data, personal data, work-related data. Essentially, `labels` are a way to categorize data for sharing - you
+health data, personal data, and work-related data. Essentially, `labels` are a way to categorize data for sharing - you
 can think of file system folders as being somewhat analogous to `labels`. Alice can delegate access permissions to
 the encrypted data classified under a `label` to any recipient she sees fit.
 
 The same encryption key can be used by Enrico even though multiple policies for the data can be created
 for different Bobs. Enrico, therefore, only has to encrypt data using the provided encryption key
-key and data can later be re-encrypted for all Bobs who have been granted access.
+and data can later be re-encrypted for all Bobs who have been granted access.
 
 When Alice wants to share this information with Bob, she can create a
 policy in the NuCypher Network to grant access to him. To grant access to Bob, Alice must:
@@ -49,10 +49,10 @@ Enrico::Encrypt
 .. image:: ../.static/img/enrico_encrypt.svg
     :target: ../.static/img/enrico_encrypt.svg
 
-NuCypher uses the Umbral_ threshold proxy re-encryption scheme which employs a key encapsulation mechanism (KEM)/ data
+The NuCypher Network uses the Umbral_ threshold proxy re-encryption scheme which employs a key encapsulation mechanism (KEM)/data
 encapsulation mechanism (DEM). In this approach, an ephemeral symmetric key is used to encrypt the data, and the
 symmetric key is encrypted using an asymmetric encryption key. The encrypted data (the DEM portion) and the
-encrypted symmetric key (the KEM portion called a `capsule`) are stored collectively.
+encrypted symmetric key (the KEM portion, called a `capsule`) are stored together.
 
 Even though different blocks of newly generated bulk data may use different symmetric keys, the same asymmetric
 encryption key provided by Alice is used to encrypt the symmetric key. How and when Enrico uses a new symmetric key
@@ -68,8 +68,8 @@ Bob::Retrieve
 When Bob wants to access the data, he must first obtain the encrypted data and `capsule` from encrypted storage.
 However, this data is currently encrypted and inaccessible to Bob.
 
-Bob will need to get the `capsule` re-encrypted from being under the encryption key configured by Alice, to
-instead be encrypted under his public key. Remember that when Alice granted access to Bob, she distributed `n`
+Bob will need to get the `capsule` re-encrypted from the encryption key configured by Alice to
+his public key. Remember that when Alice granted access to Bob, she distributed `n`
 `kFrags` of a re-encryption key for Bob to `n` Ursulas on the network. Therefore, Bob sends his `capsule` to `n`
 Ursulas in the NuCypher Network that have a corresponding `kFrag` for that policy. Those Ursulas
 will use their `kFrag` to perform a partial re-encryption operation on the `capsule` and produce a corresponding
