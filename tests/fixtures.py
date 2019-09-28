@@ -251,11 +251,12 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob, token_economics):
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    expiration = maya.now().add(days=token_economics.minimum_locked_periods//2)
+    days = token_economics.minimum_locked_periods // 2
+    expiration = maya.now().add(days=days)
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
                                             m=2, n=3,
-                                            value=20*100,
+                                            value=3*days*100,
                                             expiration=expiration)
     return policy
 
@@ -263,13 +264,14 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob, token_economics):
 @pytest.fixture(scope="module")
 def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # Alice has a policy in mind and knows of enough qualified Ursulas; she crafts an offer for them.
-    deposit = NON_PAYMENT(b"0000000")
-    contract_end_datetime = maya.now() + datetime.timedelta(days=5)
+
+    # value and expiration were set when creating idle_blockchain_policy already
+    # cannot set them again
+    # deposit = NON_PAYMENT(b"0000000")
+    # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
     idle_blockchain_policy.make_arrangements(network_middleware,
-                                             value=deposit,
-                                             expiration=contract_end_datetime,
                                              ursulas=list(blockchain_ursulas))
 
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
