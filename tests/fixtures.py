@@ -271,8 +271,8 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
-    idle_blockchain_policy.make_arrangements(network_middleware,
-                                             ursulas=list(blockchain_ursulas))
+    idle_blockchain_policy.make_arrangements(
+            network_middleware, handpicked_ursulas=list(blockchain_ursulas))
 
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
     return idle_blockchain_policy
