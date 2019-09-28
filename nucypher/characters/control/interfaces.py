@@ -25,7 +25,9 @@ def character_control_interface(func):
 
         # Get specification
         interface_name = func.__name__
-        input_specification, output_specification = instance.get_specifications(interface_name=interface_name)
+        input_specification, optional_specification, output_specification =\
+            instance.get_specifications(interface_name=interface_name)
+        # XXX
 
         if request and instance.serialize:
 
@@ -234,4 +236,3 @@ class EnricoInterface(CharacterPublicInterface, EnricoSpecification):
         message_kit, signature = self.enrico.encrypt_message(bytes(message, encoding='utf-8'))
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data
-

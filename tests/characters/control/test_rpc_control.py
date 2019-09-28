@@ -8,7 +8,7 @@ enrico_specification = EnricoSpecification()
 
 
 def validate_json_rpc_response_data(response, method_name, specification):
-    _input_fields, required_output_fileds = specification.get_specifications(interface_name=method_name)
+    _input_fields, _optional_fields, required_output_fileds = specification.get_specifications(interface_name=method_name)
     assert 'jsonrpc' in response.data
     for output_field in required_output_fileds:
         assert output_field in response.content
@@ -22,7 +22,7 @@ def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create
     assert rpc_response.success is True
     assert rpc_response.id == 1
 
-    _input_fields, required_output_fileds = alice_specification.get_specifications(interface_name=method_name)
+    _input_fields, _optional_fields, required_output_fileds = alice_specification.get_specifications(interface_name=method_name)
 
     assert 'jsonrpc' in rpc_response.data
     for output_field in required_output_fileds:
