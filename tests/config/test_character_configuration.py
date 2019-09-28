@@ -11,7 +11,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, FelixConfiguration
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.storage.node import ForgetfulNodeStorage
 from nucypher.utilities.sandbox.constants import TEMPORARY_DOMAIN
 
 # Main Cast

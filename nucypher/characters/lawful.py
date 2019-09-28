@@ -56,7 +56,8 @@ from nucypher.characters.control.controllers import (
     EnricoJSONController,
     WebController
 )
-from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
+from nucypher.policy.policies import BlockchainPolicy, FederatedPolicy
+from nucypher.storage.node import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -69,6 +70,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.storage.policy import PolicyCredentialStorage, InMemoryPolicyCredentialStorage
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -86,7 +88,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  checksum_address: str = None,
                  client_password: str = None,
 
-                 # Ursulas
+                 # Policy Settings
                  m: int = None,
                  n: int = None,
 
@@ -94,6 +96,12 @@ class Alice(Character, BlockchainPolicyAuthor):
                  rate: int = None,
                  duration_periods: int = None,
                  first_period_reward: int = 0,
+
+                 # Policy Credentials
+                 credential_storage: PolicyCredentialStorage = None,
+                 save_policy_credentials: bool = True,
+                 eager_credentials: bool = False,
+                 load_policies_now: bool = False,
 
                  # Middleware
                  timeout: int = 10,  # seconds  # TODO: configure
@@ -140,8 +148,24 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
 
-        self.active_policies = dict()
+        self.__active_policies = dict()
         self.revocation_kits = dict()
+
+        self.credential_storage = credential_storage or InMemoryPolicyCredentialStorage()
+        self.store_policy_credentials = save_policy_credentials
+        self.eager_credentials = eager_credentials
+        if credential_storage and load_policies_now:
+            self.restore_policies()
+
+    def restore_policies(self):
+        if self.federated_only:
+            policy_class = FederatedPolicy
+        else:
+            policy_class = BlockchainPolicy
+        policy_credentials = self.credential_storage.all()
+        for credential in policy_credentials:
+            active_policy = policy_class.from_alice_and_credential(alice=self, policy_credential=credential)
+            self.add_active_policy(active_policy=active_policy)
 
     def add_active_policy(self, active_policy):
         """
@@ -149,9 +173,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         `active_policies` dictionary by the policy ID.
         The policy ID is a Keccak hash of the policy label and Bob's stamp bytes
         """
-        if active_policy.id in self.active_policies:
+        if active_policy.id in self.__active_policies:
             raise KeyError("Policy already exists in active_policies.")
-        self.active_policies[active_policy.id] = active_policy
+        self.__active_policies[active_policy.id] = active_policy
 
     def generate_kfrags(self,
                         bob: 'Bob',
@@ -200,16 +224,21 @@ class Alice(Character, BlockchainPolicyAuthor):
                        m=policy_params['m'],
                        expiration=policy_params['expiration'])
 
+        # Use known nodes
         if self.federated_only:
-            # Use known nodes
             from nucypher.policy.policies import FederatedPolicy
             policy = FederatedPolicy(alice=self, **payload)
 
+        # Sample from blockchain via PolicyManager
         else:
-            # Sample from blockchain via PolicyManager
             from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
             policy = BlockchainPolicy(alice=self, **payload)
+
+        # Handle eager policy credential storage
+        if self.eager_credentials and self.store_policy_credentials:
+            credential = policy.credential()
+            self.credential_storage.save(credential=credential)
 
         return policy
 
@@ -251,15 +280,13 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         timeout = timeout or self.timeout
 
-        #
-        # Policy Creation
-        #
-
+        # If there are handpicked Ursulas, remember them...
+        # This might be the first time alice learns about the handpicked Ursulas.
         if handpicked_ursulas:
-            # This might be the first time alice learns about the handpicked Ursulas.
             for handpicked_ursula in handpicked_ursulas:
                 self.remember_node(node=handpicked_ursula)
 
+        # Create an in-memory representation of a Policy.
         policy = self.create_policy(bob=bob, label=label, **policy_params)
 
         #
@@ -281,12 +308,19 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
                     "or run the learning loop on a network with enough Ursulas.".format(policy.n))
 
-        policy.make_arrangements(network_middleware=self.network_middleware,
-                                 handpicked_ursulas=handpicked_ursulas)
+        # Make policy arrangements with N Ursulas
+        policy.make_arrangements(network_middleware=self.network_middleware, handpicked_ursulas=handpicked_ursulas)
 
-        # REST call happens here, as does population of TreasureMap.
+        # On-chain publication, REST negotiation, and population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
-        return policy  # Now with TreasureMap affixed!
+
+        # Create the policy's credential, and store it it Alice
+        # has a PolicyCredential Storage configured.
+        credential = policy.credential()
+        if self.credential_storage and self.store_policy_credentials:
+            self.credential_storage.save(credential=credential)
+
+        return policy
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)

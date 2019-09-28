@@ -35,7 +35,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
+from nucypher.storage.node import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 
@@ -482,7 +482,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def load_node_storage(cls, storage_payload: dict, federated_only: bool):
-        from nucypher.config.storages import NodeStorage
+        from nucypher.storage.node import NodeStorage
         node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = node_storage_subclasses[storage_type]

@@ -173,7 +173,6 @@ class BaseContractDeployer:
                                                         version='latest')
         return contract
 
-
 class OwnableContractMixin:
 
     _ownable = True

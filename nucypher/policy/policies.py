@@ -21,6 +21,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.collections import PolicyCredential
 
 
 class Arrangement:
@@ -310,14 +311,14 @@ class Policy(ABC):
         policy unless `with_treasure_map` is False.
         """
         from nucypher.policy.collections import PolicyCredential
-
         treasure_map = self.treasure_map
         if not with_treasure_map:
             treasure_map = None
-
-        return PolicyCredential(self.alice.stamp, self.label, self.expiration,
-                                self.public_key, treasure_map)
-
+        return PolicyCredential(alice_verifying_key=self.alice.stamp,
+                                bob_verifying_key=self.bob.stamp,
+                                label=self.label,
+                                policy_encrypting_key=self.public_key,
+                                treasure_map=treasure_map)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
@@ -728,6 +729,15 @@ class BlockchainPolicy(Policy):
         instance._published_arrangements = arrangements
         instance._is_published = True
         instance._is_revoked = is_disabled
+        return instance
+
+    @classmethod
+    def from_alice_and_credential(cls, alice: Alice, policy_credential: PolicyCredential) -> 'BlockchainPolicy':
+        if bytes(alice.stamp) != policy_credential.alice_verifying_key:
+            raise ValueError(f"Cannot load policy with verifying key for another Alice.")
+        instance = cls.from_alice_and_policy_details(alice=alice, policy_id=policy_credential.id)
+        if policy_credential.treasure_map:
+            instance.treasure_map = policy_credential.treasure_map
         return instance
 
     def sync(self):

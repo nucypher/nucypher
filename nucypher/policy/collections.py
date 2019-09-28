@@ -36,14 +36,15 @@ from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Bob, Character
+from nucypher.config.base import BaseConfiguration
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter
+from nucypher.crypto.signing import Signature, InvalidSignature, signature_splitter, SignatureStamp
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
-                                   get_signature_recovery_value)
+                                   get_signature_recovery_value, construct_policy_id)
 from nucypher.network.middleware import NotFound
 
 
@@ -218,61 +219,74 @@ class PolicyCredential:
     """
     A portable structure that contains information necessary for Alice or Bob
     to utilize the policy on the network that the credential describes.
+
+    Alice can use this to revoke.
+    Bob can use this to retrieve.
     """
 
-    def __init__(self, alice_verifying_key, label, expiration, policy_pubkey,
-                 treasure_map=None):
-        self.alice_verifying_key = alice_verifying_key
+    def __init__(self,
+                 label: bytes,
+                 policy_encrypting_key: UmbralPublicKey,
+                 alice_verifying_key: UmbralPublicKey,
+                 bob_verifying_key: UmbralPublicKey,
+                 treasure_map: TreasureMap = None):
+
         self.label = label
-        self.expiration = expiration
-        self.policy_pubkey = policy_pubkey
+        self.policy_encrypting_key = policy_encrypting_key
+        self.alice_verifying_key = alice_verifying_key
+        self.bob_verifying_key = bob_verifying_key
         self.treasure_map = treasure_map
 
-    def to_json(self):
+    def __eq__(self, other) -> bool:
+        return self.id == other.id
+
+    @property
+    def id(self) -> bytes:
+        return construct_policy_id(self.label, bytes(self.bob_verifying_key))
+
+    def to_json(self) -> str:
         """
         Serializes the PolicyCredential to JSON.
         """
-        cred_dict = {
-            'alice_verifying_key': bytes(self.alice_verifying_key).hex(),
+        payload = {
             'label': self.label.hex(),
-            'expiration': self.expiration.iso8601(),
-            'policy_pubkey': bytes(self.policy_pubkey).hex()
+            'policy_encrypting_key': bytes(self.policy_encrypting_key).hex()
         }
+        if self.treasure_map:
+            payload['treasure_map'] = bytes(self.treasure_map).hex()
+        if self.id:
+            payload['policy_id'] = bytes(self.id).hex()
 
-        if self.treasure_map is not None:
-            cred_dict['treasure_map'] = bytes(self.treasure_map).hex()
-
-        return json.dumps(cred_dict)
+        return json.dumps(payload)
 
     @classmethod
-    def from_json(cls, data: str):
+    def from_json(cls, data: str) -> 'PolicyCredential':
         """
         Deserializes the PolicyCredential from JSON.
         """
-        cred_json = json.loads(data)
+        payload = json.loads(data)
 
-        alice_verifying_key = UmbralPublicKey.from_bytes(
-                                    cred_json['alice_verifying_key'],
-                                    decoder=bytes().fromhex)
-        label = bytes().fromhex(cred_json['label'])
-        expiration = maya.MayaDT.from_iso8601(cred_json['expiration'])
-        policy_pubkey = UmbralPublicKey.from_bytes(
-                            cred_json['policy_pubkey'],
-                            decoder=bytes().fromhex)
+        label = bytes().fromhex(payload['label'])
+
+        pek_hex = payload['policy_encrypting_key']
+        policy_encrypting_key = UmbralPublicKey.from_bytes(pek_hex, decoder=bytes.fromhex)
+
+        avk_hex = payload['alice_verifying_key']
+        alice_verifying_key = UmbralPublicKey.from_bytes(avk_hex, decoder=bytes.fromhex)
+
+        bvk_hex = payload['bob_verifying_key']
+        bob_verifying_key = UmbralPublicKey.from_bytes(bvk_hex, decoder=bytes.fromhex)
+
         treasure_map = None
+        if 'treasure_map' in payload:
+            treasure_map_hex = payload['treasure_map']
+            treasure_map = TreasureMap.from_bytes(bytes.fromhex(treasure_map_hex))
 
-        if 'treasure_map' in cred_json:
-            treasure_map = TreasureMap.from_bytes(
-                                bytes().fromhex(cred_json['treasure_map']))
-
-        return cls(alice_verifying_key, label, expiration, policy_pubkey,
-                   treasure_map)
-
-    def __eq__(self, other):
-        return ((self.alice_verifying_key == other.alice_verifying_key) and
-                (self.label == other.label) and
-                (self.expiration == other.expiration) and
-                (self.policy_pubkey == other.policy_pubkey))
+        return cls(label=label,
+                   policy_encrypting_key=policy_encrypting_key,
+                   treasure_map=treasure_map,
+                   alice_verifying_key=alice_verifying_key,
+                   bob_verifying_key=bob_verifying_key)
 
 
 class WorkOrder:
