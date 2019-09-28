@@ -21,7 +21,6 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.collections import PolicyCredential
 
 
 class Arrangement:
@@ -29,7 +28,7 @@ class Arrangement:
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     federated = True
-    ID_LENGTH = 32
+    ID_LENGTH = 16
 
     splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
                                   (bytes, ID_LENGTH),  # arrangement_ID
@@ -162,7 +161,7 @@ class Policy(ABC):
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
 
-    POLICY_ID_LENGTH = 16
+    ID_LENGTH = 16
     _arrangement_class = NotImplemented
 
     class Rejected(RuntimeError):
@@ -223,21 +222,25 @@ class Policy(ABC):
 
     @property
     def id(self) -> bytes:
-        if self.bob:
-            return construct_policy_id(self.label, bytes(self.bob.stamp))
-        elif self.__id:
+        if self.__id:
             # Support for policies without Bob, but direct access to the ID.
             return self.__id
+        elif self.bob:
+            _id = construct_policy_id(self.label, bytes(self.bob.stamp), truncate=self.ID_LENGTH)
+            return _id
         else:
             raise RuntimeError("Cannot determine policy ID. "
                                "There is no Bob available and a manual policy ID is not set.")
 
     @id.setter
-    def id(self, id: bytes):
+    def id(self, value: bytes):
         """Allow the setting of a pre-existing known policy ID"""
+        if len(value) != self.ID_LENGTH:
+            raise ValueError(f"Invalid policy ID length. Expected {self.ID_LENGTH} got {len(value)}")
         if self.bob:
-            if construct_policy_id(self.label, bytes(self.bob.stamp)) != id:
-                raise ValueError(f"Cannot set invalid policy ID '{id}'.")
+            self.__id = construct_policy_id(self.label, bytes(self.bob.stamp), truncate=self.ID_LENGTH)
+            if self.__id != value:
+                raise ValueError(f"Cannot set invalid policy ID '{value}' on policy {self.__id}.")
         self.__id = id
 
     @property
@@ -689,8 +692,8 @@ class BlockchainPolicy(Policy):
                                        *args, **kwargs)
 
     def _read_arrangements(self, alice, policy_id: bytes) -> List[BlockchainArrangement]:
-        if len(policy_id) != self.POLICY_ID_LENGTH:
-            raise ValueError(f'Invalid policy ID length - Expected {self.POLICY_ID_LENGTH} got length {len(policy_id)}')
+        if len(policy_id) != self.ID_LENGTH:
+            raise ValueError(f'Invalid policy ID length - Expected {self.ID_LENGTH} got length {len(policy_id)}')
         arrangements = list()
         arrangement_infos = list(alice.policy_agent.fetch_policy_arrangements(policy_id=policy_id))
         for ursula_address, last_downtime_period, last_refund_period in arrangement_infos:
@@ -708,8 +711,8 @@ class BlockchainPolicy(Policy):
 
     @classmethod
     def from_alice_and_policy_details(cls, alice: Alice, policy_id: bytes, *args, **kwargs) -> 'BlockchainPolicy':
-        if len(policy_id) != cls.POLICY_ID_LENGTH:
-            raise ValueError(f'Invalid policy ID length - Expected {cls.POLICY_ID_LENGTH} got length {len(policy_id)}')
+        if len(policy_id) != cls.ID_LENGTH:
+            raise ValueError(f'Invalid policy ID length - Expected {cls.ID_LENGTH} got length {len(policy_id)}')
 
         policy_record = list(alice.policy_agent.fetch_policy(policy_id=policy_id))
         author_address, rate, first_period_reward, initial_period, terminal_period, is_disabled = policy_record
@@ -732,7 +735,7 @@ class BlockchainPolicy(Policy):
         return instance
 
     @classmethod
-    def from_alice_and_credential(cls, alice: Alice, policy_credential: PolicyCredential) -> 'BlockchainPolicy':
+    def from_alice_and_credential(cls, alice: Alice, policy_credential: "PolicyCredential") -> 'BlockchainPolicy':
         if bytes(alice.stamp) != policy_credential.alice_verifying_key:
             raise ValueError(f"Cannot load policy with verifying key for another Alice.")
         instance = cls.from_alice_and_policy_details(alice=alice, policy_id=policy_credential.id)
@@ -744,7 +747,8 @@ class BlockchainPolicy(Policy):
         policy_record = list(self.alice.policy_agent.fetch_policy(policy_id=self.id))
         author_address, rate, first_period_reward, initial_period, terminal_period, is_disabled = policy_record
         self.duration_periods = terminal_period - initial_period
-        self.expiration = datetime_at_period(period=terminal_period, seconds_per_period=self.author.economics.seconds_per_period)
+        self.expiration = datetime_at_period(period=terminal_period,
+                                             seconds_per_period=self.author.economics.seconds_per_period)
         self._published_arrangements = self._read_arrangements(alice=self.author, policy_id=self.id)
         self._is_published = True
         self._is_revoked = is_disabled

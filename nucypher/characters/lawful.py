@@ -56,8 +56,6 @@ from nucypher.characters.control.controllers import (
     EnricoJSONController,
     WebController
 )
-from nucypher.policy.policies import BlockchainPolicy, FederatedPolicy
-from nucypher.storage.node import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -70,7 +68,7 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
-from nucypher.storage.policy import PolicyCredentialStorage, InMemoryPolicyCredentialStorage
+from nucypher.storage.node import NodeStorage, ForgetfulNodeStorage
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -98,7 +96,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  first_period_reward: int = 0,
 
                  # Policy Credentials
-                 credential_storage: PolicyCredentialStorage = None,
+                 credential_storage: 'PolicyCredentialStorage' = None,
                  save_policy_credentials: bool = True,
                  eager_credentials: bool = False,
                  load_policies_now: bool = False,
@@ -151,16 +149,25 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.__active_policies = dict()
         self.revocation_kits = dict()
 
+        from nucypher.storage.policy import InMemoryPolicyCredentialStorage
+
         self.credential_storage = credential_storage or InMemoryPolicyCredentialStorage()
         self.store_policy_credentials = save_policy_credentials
         self.eager_credentials = eager_credentials
         if credential_storage and load_policies_now:
             self.restore_policies()
 
-    def restore_policies(self):
+    @property
+    def active_policies(self) -> Dict[bytes, 'Policy']:
+        return self.__active_policies
+
+    def restore_policies(self) -> None:
         if self.federated_only:
+            from nucypher.policy.policies import FederatedPolicy
             policy_class = FederatedPolicy
         else:
+            from nucypher.policy.policies import BlockchainPolicy
+
             policy_class = BlockchainPolicy
         policy_credentials = self.credential_storage.all()
         for credential in policy_credentials:

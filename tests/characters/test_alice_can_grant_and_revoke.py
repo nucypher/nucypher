@@ -29,7 +29,10 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.crypto.utils import construct_policy_id
 from nucypher.policy.collections import Revocation, PolicyCredential
+from nucypher.policy.policies import BlockchainPolicy, Policy
+from nucypher.storage.policy import LocalFilePolicyCredentialStorage
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
@@ -52,7 +55,9 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
                                     expiration=policy_end_datetime)
 
     # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    policy_id = construct_policy_id(label=label,
+                                    stamp=bytes(policy.bob.stamp),
+                                    truncate=BlockchainPolicy.ID_LENGTH)
     assert policy_id == policy.id
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
@@ -71,12 +76,38 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
         assert kfrag == retrieved_kfrag
 
+
+def test_read_cached_policies(blockchain_alice):
+    assert len(blockchain_alice.active_policies) == 1
+    policy_id, cached_policy = list(blockchain_alice.active_policies.items())[0]
+    assert len(policy_id) == BlockchainPolicy.ID_LENGTH
+    assert cached_policy.n == 3
+
+
+def test_read_policy_credential_storage(blockchain_alice):
+    cached_policy = list(blockchain_alice.active_policies.values())[0]
+    loaded_credential = blockchain_alice.credential_storage.load(policy_id=cached_policy.id)
+    assert loaded_credential.id == cached_policy.id
+
+    all_credentials = list(blockchain_alice.credential_storage.all())
+    assert len(all_credentials) == 1
+
+
+def test_manual_policy_credential_creation(blockchain_alice):
+
+    def assert_content_is_valid(c):
+        assert c.alice_verifying_key == policy.alice.stamp
+        assert c.bob_verifying_key == policy.bob.stamp
+        assert c.label == policy.label
+        assert c.policy_encrypting_key == policy.public_key
+        return True
+
+    policy = list(blockchain_alice.active_policies.values())[0]
+
     # Test PolicyCredential w/o TreasureMap
     credential = policy.credential(with_treasure_map=False)
-    assert credential.alice_verifying_key == policy.alice.stamp
-    assert credential.label == policy.label
-    assert credential.expiration == policy.expiration
-    assert credential.policy_pubkey == policy.public_key
+
+    assert assert_content_is_valid(c=credential)
     assert credential.treasure_map is None
 
     cred_json = credential.to_json()
@@ -85,15 +116,30 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
 
     # Test PolicyCredential w/ TreasureMap
     credential = policy.credential()
-    assert credential.alice_verifying_key == policy.alice.stamp
-    assert credential.label == policy.label
-    assert credential.expiration == policy.expiration
-    assert credential.policy_pubkey == policy.public_key
+    assert assert_content_is_valid(c=credential)
     assert credential.treasure_map == policy.treasure_map
 
     cred_json = credential.to_json()
     deserialized_cred = PolicyCredential.from_json(cred_json)
     assert credential == deserialized_cred
+
+
+def test_restore_policy_from_credential_storage(blockchain_alice):
+    test_credentials_dir = os.path.join('/', 'tmp', 'nucypher-test-credentials')
+    file_storage = LocalFilePolicyCredentialStorage(credential_dir=test_credentials_dir)
+
+    policy = list(blockchain_alice.active_policies.values())[0]
+    credential = policy.credential()
+    original_credential_storage = blockchain_alice.credential_storage
+    try:
+        blockchain_alice.credential_storage = file_storage
+        filepath = file_storage.save(credential=credential)
+        expected_filename = f"{credential.id.hex()}.{LocalFilePolicyCredentialStorage.extension}"
+        expected_filepath = os.path.join(test_credentials_dir, expected_filename)
+        assert filepath == expected_filepath
+    finally:
+        blockchain_alice.credential_storage = original_credential_storage
+
 
 @pytest.mark.usefixtures('federated_ursulas')
 def test_federated_grant(federated_alice, federated_bob):
@@ -107,7 +153,7 @@ def test_federated_grant(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))[:Policy.ID_LENGTH]
     assert policy_id == policy.id
 
     # Check Alice's active policies
@@ -172,7 +218,7 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
 
 
 @pytest.mark.usefixtures('federated_ursulas')
-def test_revocation(federated_alice, federated_bob):
+def test_federated_revocation(federated_alice, federated_bob):
     m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"revocation test"
