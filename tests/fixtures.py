@@ -299,6 +299,26 @@ def capsule_side_channel(enacted_federated_policy):
 
 
 @pytest.fixture(scope="module")
+def capsule_side_channel_blockchain(enacted_blockchain_policy):
+    class _CapsuleSideChannel:
+        def __init__(self):
+            self.reset()
+
+        def __call__(self):
+            enrico = Enrico(policy_encrypting_key=enacted_blockchain_policy.public_key)
+            message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
+            message_kit, _signature = enrico.encrypt_message(message)
+            self.messages.append((message_kit, enrico))
+            return message_kit, enrico
+
+        def reset(self):
+            self.messages = []
+            self()
+
+    return _CapsuleSideChannel()
+
+
+@pytest.fixture(scope="module")
 def random_policy_label():
     yield generate_random_label()
 

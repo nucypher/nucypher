@@ -21,8 +21,8 @@ def bob_web_controller_test_client(blockchain_bob):
 
 
 @pytest.fixture(scope='module')
-def enrico_web_controller_test_client(capsule_side_channel):
-    _message_kit, enrico = capsule_side_channel()
+def enrico_web_controller_test_client(capsule_side_channel_blockchain):
+    _message_kit, enrico = capsule_side_channel_blockchain()
     web_controller = enrico.make_web_controller(crash_on_error=True)
     yield web_controller.test_client()
 
@@ -51,10 +51,10 @@ def bob_rpc_controller(blockchain_bob):
 
 
 @pytest.fixture(scope='module')
-def enrico_rpc_controller_test_client(capsule_side_channel):
+def enrico_rpc_controller_test_client(capsule_side_channel_blockchain):
 
     # Side Channel
-    _message_kit, enrico = capsule_side_channel()
+    _message_kit, enrico = capsule_side_channel_blockchain()
 
     # RPC Controler
     rpc_controller = enrico.make_rpc_controller(crash_on_error=True)
@@ -114,9 +114,9 @@ def join_control_request(blockchain_bob, enacted_blockchain_policy):
 
 
 @pytest.fixture(scope='module')
-def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel):
+def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
     method_name = 'retrieve'
-    message_kit, data_source = capsule_side_channel()
+    message_kit, data_source = capsule_side_channel_blockchain()
 
     params = {
         'label': enacted_blockchain_policy.label.decode(),
