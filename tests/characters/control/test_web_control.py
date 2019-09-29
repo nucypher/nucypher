@@ -7,7 +7,6 @@ import pytest
 from click.testing import CliRunner
 
 import nucypher
-from nucypher.characters.control.serializers import AliceControlJSONSerializer
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.collections import TreasureMap
@@ -85,23 +84,24 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     assert response.status_code == 400
 
 
-def test_alice_character_control_revoke(alice_web_controller_test_client, federated_bob):
-    bob_pubkey_enc = federated_bob.public_keys(DecryptingPower)
+def test_alice_character_control_revoke(alice_web_controller_test_client, blockchain_bob):
+    bob_pubkey_enc = blockchain_bob.public_keys(DecryptingPower)
 
     grant_request_data = {
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
-        'bob_verifying_key': bytes(federated_bob.stamp).hex(),
+        'bob_verifying_key': bytes(blockchain_bob.stamp).hex(),
         'label': 'test-revoke',
         'm': 2,
         'n': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'value': 100500 * 3 * 3,
     }
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(grant_request_data))
     assert response.status_code == 200
 
     revoke_request_data = {
         'label': 'test',
-        'bob_verifying_key': bytes(federated_bob.stamp).hex()
+        'bob_verifying_key': bytes(blockchain_bob.stamp).hex()
     }
 
     response = alice_web_controller_test_client.delete(f'/revoke', data=json.dumps(revoke_request_data))
@@ -114,13 +114,13 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
 
 
 def test_alice_character_control_decrypt(alice_web_controller_test_client,
-                                         enacted_federated_policy,
-                                         capsule_side_channel):
+                                         enacted_blockchain_policy,
+                                         capsule_side_channel_blockchain):
 
-    message_kit, data_source = capsule_side_channel()
+    message_kit, data_source = capsule_side_channel_blockchain()
 
-    label = enacted_federated_policy.label.decode()
-    policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
+    label = enacted_blockchain_policy.label.decode()
+    # policy_encrypting_key = bytes(enacted_blockchain_policy.public_key).hex()
     message_kit = b64encode(message_kit.to_bytes()).decode()
 
     request_data = {
@@ -146,14 +146,14 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert response.status_code == 405
 
 
-def test_bob_character_control_join_policy(bob_web_controller_test_client, enacted_federated_policy):
+def test_bob_character_control_join_policy(bob_web_controller_test_client, enacted_blockchain_policy):
     request_data = {
-        'label': enacted_federated_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'label': enacted_blockchain_policy.label.decode(),
+        'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
     }
 
     # Simulate passing in a teacher-uri
-    enacted_federated_policy.bob.remember_node(list(enacted_federated_policy.accepted_ursulas)[0])
+    enacted_blockchain_policy.bob.remember_node(list(enacted_blockchain_policy.accepted_ursulas)[0])
 
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO
@@ -216,9 +216,9 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
 def test_web_character_control_lifecycle(alice_web_controller_test_client,
                                          bob_web_controller_test_client,
                                          enrico_web_controller_from_alice,
-                                         federated_alice,
-                                         federated_bob,
-                                         federated_ursulas,
+                                         blockchain_alice,
+                                         blockchain_bob,
+                                         blockchain_ursulas,
                                          random_policy_label):
 
     random_label = random_policy_label.decode()  # Unicode string
@@ -242,7 +242,8 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
         'm': 1,
         'n': 1,
         'label': random_label,
-        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'value': 3 * 10 ** 10
     }
 
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(alice_request_data))
@@ -291,8 +292,8 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     }
 
     # Give bob a node to remember
-    teacher = list(federated_ursulas)[1]
-    federated_bob.remember_node(teacher)
+    teacher = list(blockchain_ursulas)[1]
+    blockchain_bob.remember_node(teacher)
 
     response = bob_web_controller_test_client.post('/retrieve', data=json.dumps(bob_request_data))
     assert response.status_code == 200
