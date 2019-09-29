@@ -16,6 +16,7 @@ def validate_json_rpc_response_data(response, method_name, specification):
 
 
 def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create_policy_control_request):
+    alice_rpc_test_client.__class__.MESSAGE_ID = 0
     method_name, params = create_policy_control_request
     request_data = {'method': method_name, 'params': params}
     rpc_response = alice_rpc_test_client.send(request=request_data)
