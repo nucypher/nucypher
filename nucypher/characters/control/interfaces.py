@@ -119,23 +119,20 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
-                         'alice_verifying_key': new_policy.alice.stamp}
+                         'alice_verifying_key': new_policy.alice.stamp,
+                         'policy_credential': new_policy.credential()}
         return response_data
 
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
-
-        # TODO: Move deeper into characters
-        policy_id = construct_policy_id(label=label, stamp=bob_verifying_key) # TODO
+        from nucypher.policy.policies import Policy
+        policy_id = construct_policy_id(label=label, stamp=bob_verifying_key, truncate=Policy.ID_LENGTH)
         policy = self.character.active_policies[policy_id]
-
-        receipt, failed_revocations = self.character.revoke(policy)
+        receipt, failed_revocations = self.character.revoke(policy=policy)
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
                 if fail_reason == NotFound:
                     del(failed_revocations[node_id])
-        if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
-            del(self.character.active_policies[policy_id])
 
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data

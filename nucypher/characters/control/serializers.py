@@ -137,14 +137,15 @@ class AliceControlJSONSerializer(CharacterControlJSONSerializer, MessageHandlerM
 
         response_data = {'treasure_map': treasure_map_base64,
                          'policy_encrypting_key': policy_encrypting_key_hex,
-                         'alice_verifying_key': alice_verifying_key_hex}
+                         'alice_verifying_key': alice_verifying_key_hex,
+                         'policy_credential': response['policy_credential'].to_json()}
 
         return response_data
 
     @staticmethod
     def parse_revoke_input(request: dict):
-        parsed_input = dict(label=request['label'].encode(),
-                            bob_verifying_key=bytes.fromhex(request['bob_verifying_key']))
+        treasure_map_bytes = b64decode(request['treasure_map'])
+        parsed_input = dict(treasure_map=treasure_map_bytes)
         return parsed_input
 
     @staticmethod

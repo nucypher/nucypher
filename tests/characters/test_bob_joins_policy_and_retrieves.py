@@ -116,16 +116,17 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
 
     # Let's try retrieve again, but Alice revoked the policy.
-    receipt, failed_revocations = federated_alice.revoke(policy)
+    failed_revocations = federated_alice.revoke(policy.treasure_map)
     assert len(failed_revocations) == 0
 
-    # One thing to note here is that Bob *can* still retrieve with the cached CFrags, even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve(message_kit,
-                               enrico=enrico,
+    # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
+    # even though this Policy has been revoked.  #892
+    _cleartexts = bob.retrieve(message_kit=message_kit,
+                               data_source=enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
-                               use_precedent_work_orders=True,
-                               )
+                               use_precedent_work_orders=True)
+    
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     # OK, but we imagine that the message_kit is fresh here.
@@ -156,8 +157,7 @@ def test_treasure_map_serialization(enacted_federated_policy, federated_bob):
     with pytest.raises(TypeError):
         deserialized_map.destinations
 
-    compass = federated_bob.make_compass_for_alice(
-        enacted_federated_policy.alice)
+    compass = federated_bob.make_compass_for_alice(enacted_federated_policy.alice)
     deserialized_map.orient(compass)
     assert deserialized_map.m == treasure_map.m
     assert deserialized_map.destinations == treasure_map.destinations

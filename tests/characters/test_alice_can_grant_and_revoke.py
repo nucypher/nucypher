@@ -16,20 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
-
 import datetime
+import os
 import shutil
 
 import maya
 import pytest
-
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.policy.collections import Revocation, PolicyCredential
@@ -37,7 +35,6 @@ from nucypher.policy.policies import BlockchainPolicy, Policy
 from nucypher.storage.policy import LocalFilePolicyCredentialStorage
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
@@ -188,10 +185,6 @@ def test_federated_grant(federated_alice, federated_bob):
     policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))[:Policy.ID_LENGTH]
     assert policy_id == policy.id
 
-    # Check Alice's active policies
-    assert policy_id in federated_alice.active_policies
-    assert federated_alice.active_policies[policy_id] == policy
-
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
 
@@ -258,15 +251,16 @@ def test_federated_revocation(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Test that all arrangements are included in the RevocationKit
+    revocation_kit = RevocationKit(policy.treasure_map, federated_alice.stamp)
     for node_id, arrangement_id in policy.treasure_map:
-        assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
+        assert revocation_kit[node_id].arrangement_id == arrangement_id
 
     # Test revocation kit's signatures
-    for revocation in policy.revocation_kit:
+    for revocation in revocation_kit:
         assert revocation.verify_signature(federated_alice.stamp.as_umbral_pubkey())
 
     # Test Revocation deserialization
-    revocation = policy.revocation_kit[node_id]
+    revocation = revocation_kit[node_id]
     revocation_bytes = bytes(revocation)
     deserialized_revocation = Revocation.from_bytes(revocation_bytes)
     assert deserialized_revocation == revocation

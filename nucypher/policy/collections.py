@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import json
 from collections import OrderedDict
@@ -53,17 +52,21 @@ class TreasureMap:
     from nucypher.policy.policies import Arrangement
     ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
 
-    splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )
-
     class NowhereToBeFound(NotFound):
         """
         Called when no known nodes have it.
         """
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
+
+    splitter = BytestringSplitter(Signature,
+                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
+                                  (UmbralMessageKit, VariableLengthBytestring)
+                                  )
+
+    __plaintext_splitter = BytestringSplitter(Signature,
+                                              (bytes, KECCAK_DIGEST_LENGTH)  # hrac
+                                              )
 
     from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
@@ -166,6 +169,27 @@ class TreasureMap:
         _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
         return _id
 
+    def _serialize_plaintext(self) -> bytes:
+        """
+        WAIT! This is probably not what you want. Use `bytes(my_treasure_map)` instead.
+        """
+        plaintext = self._public_signature + self._hrac + self._m.to_bytes(1, 'big') + self.nodes_as_bytes()
+        return plaintext
+
+    @classmethod
+    def from_plaintext_bytes(cls, bytes_representation: bytes) -> 'TreasureMap':
+        """
+        This method can only be used to instantiate TreasureMaps from serialized plaintext.
+        Use `TreasureMap.from_bytes(my_tmap_as_bytes)` for encrypted payloads instead.
+        """
+        signature, hrac, remainder = cls.__plaintext_splitter(bytes_representation, return_remainder=True)
+        m, destinations = remainder[0], remainder[1::]
+        destinations = dict(cls.node_id_splitter.repeat(destinations))
+        return cls(m=m,
+                   destinations=destinations,
+                   public_signature=signature,
+                   hrac=hrac)
+
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
         signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
@@ -262,7 +286,7 @@ class PolicyCredential:
             'bob_stamp': bytes(self.bob_stamp).hex()
         }
         if self.treasure_map is not None:
-            payload['treasure_map'] = bytes(self.treasure_map).hex()
+            payload['treasure_map'] = self.treasure_map._serialize_plaintext().hex()
         if self.id:
             payload['policy_id'] = bytes(self.id).hex()
 
@@ -288,7 +312,7 @@ class PolicyCredential:
         treasure_map = None
         if 'treasure_map' in payload:
             treasure_map_hex = payload['treasure_map']
-            treasure_map = TreasureMap.from_bytes(bytes.fromhex(treasure_map_hex))
+            treasure_map = TreasureMap.from_plaintext_bytes(bytes_representation=bytes.fromhex(treasure_map_hex))
 
         return cls(label=label,
                    policy_encrypting_key=policy_encrypting_key,

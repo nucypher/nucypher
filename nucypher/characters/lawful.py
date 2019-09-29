@@ -58,7 +58,7 @@ from nucypher.characters.control.controllers import (
 )
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, TransactingPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
@@ -321,6 +321,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         # On-chain publication, REST negotiation, and population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
 
+        # TODO: Add caching flags
+        self.add_active_policy(active_policy=policy)
+
         # Create the policy's credential, and store it it Alice
         # has a PolicyCredential Storage configured.
         credential = policy.credential()
@@ -341,11 +344,13 @@ class Alice(Character, BlockchainPolicyAuthor):
         dict as a key, and the revocation and Ursula's response is added as
         a value.
         """
+        revocation_kit = RevocationKit(policy.treasure_map, self.stamp)
+
         try:
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
             revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
             self.block_until_specific_nodes_are_known(
-                policy.revocation_kit.revokable_addresses,
+                revocation_kit.revokable_addresses,
                 allow_missing=(policy.n - revocation_threshold))
 
         except self.NotEnoughTeachers:
@@ -353,9 +358,9 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         else:
             failed_revocations = dict()
-            for node_id in policy.revocation_kit.revokable_addresses:
+            for node_id in revocation_kit.revokable_addresses:
                 ursula = self.known_nodes[node_id]
-                revocation = policy.revocation_kit[node_id]
+                revocation = revocation_kit[node_id]
                 try:
                     response = self.network_middleware.revoke_arrangement(ursula, revocation)
                 except NotFound:
@@ -364,10 +369,11 @@ class Alice(Character, BlockchainPolicyAuthor):
                     failed_revocations[node_id] = (revocation, UnexpectedResponse)
                 else:
                     if response.status_code != 200:
-                        raise self.ActorError(f"Failed to revoke {policy.id} with status code {response.status_code}")
+                        raise self.ActorError(f"Failed to revoke from {node_id} with status code {response.status_code}")
 
         if not self.federated_only:
             receipt = self.revoke_policy(policy_id=policy.id)
+            policy.sync()
             return receipt, failed_revocations
         else:
             return failed_revocations
