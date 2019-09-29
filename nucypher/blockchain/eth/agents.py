@@ -230,7 +230,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         if not periods > 0:
             raise ValueError("Period must be > 0")
 
-        return self.contract.functions.getAllLockedTokens(periods).call()
+        all_locked_tokens, _stakers = self.contract.functions.getAllActiveStakers(periods).call()
+        return all_locked_tokens
 
     #
     # StakingEscrow Contract API
