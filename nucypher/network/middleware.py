@@ -157,7 +157,7 @@ class RestMiddleware:
                                     path=f'kFrag/{kfrag_id.hex()}',
                                     data=payload,
                                     timeout=2)
-        return True, ursula.stamp.as_umbral_pubkey()
+        response
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)

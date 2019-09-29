@@ -226,8 +226,7 @@ class Policy(ABC):
             # Support for policies without Bob, but direct access to the ID.
             return self.__id
         elif self.bob:
-            _id = construct_policy_id(self.label, bytes(self.bob.stamp), truncate=self.ID_LENGTH)
-            return _id
+            return construct_policy_id(self.label, bytes(self.bob.stamp), truncate=self.ID_LENGTH)
         else:
             raise RuntimeError("Cannot determine policy ID. "
                                "There is no Bob available and a manual policy ID is not set.")
@@ -241,7 +240,7 @@ class Policy(ABC):
             self.__id = construct_policy_id(self.label, bytes(self.bob.stamp), truncate=self.ID_LENGTH)
             if self.__id != value:
                 raise ValueError(f"Cannot set invalid policy ID '{value}' on policy {self.__id}.")
-        self.__id = id
+        self.__id = value
 
     @property
     def accepted_ursulas(self) -> Set[Ursula]:
@@ -314,11 +313,12 @@ class Policy(ABC):
         policy unless `with_treasure_map` is False.
         """
         from nucypher.policy.collections import PolicyCredential
-        treasure_map = self.treasure_map
-        if not with_treasure_map:
+        if with_treasure_map:
+            treasure_map = self.treasure_map
+        else:
             treasure_map = None
-        return PolicyCredential(alice_verifying_key=self.alice.stamp,
-                                bob_verifying_key=self.bob.stamp,
+        return PolicyCredential(alice_stamp=self.alice.stamp,
+                                bob_stamp=self.bob.stamp,
                                 label=self.label,
                                 policy_encrypting_key=self.public_key,
                                 treasure_map=treasure_map)
@@ -658,7 +658,7 @@ class BlockchainPolicy(Policy):
 
         # Transact
         receipt = self.author.policy_agent.create_policy(
-                       policy_id=self.hrac()[:16],                    # bytes16 _policyID
+                       policy_id=self.id,                             # bytes16 _policyID
                        author_address=self.author.checksum_address,
                        value=self.value,
                        periods=self.duration_periods,                 # uint16 _numberOfPeriods
@@ -669,10 +669,11 @@ class BlockchainPolicy(Policy):
         # Capture Response
         self.receipt = receipt
         self.publish_transaction = receipt['transactionHash']
-        self.sync()
 
-        # Call super publish (currently publishes TMap)
+        # Call super publish (currently encrypts fr Bob publishes TMap)
         super().publish(network_middleware=self.alice.network_middleware)
+
+        self.sync()
         return receipt
 
     def revoke(self) -> dict:
@@ -736,10 +737,13 @@ class BlockchainPolicy(Policy):
 
     @classmethod
     def from_alice_and_credential(cls, alice: Alice, policy_credential: "PolicyCredential") -> 'BlockchainPolicy':
-        if bytes(alice.stamp) != policy_credential.alice_verifying_key:
+        if bytes(alice.stamp) != bytes(policy_credential.alice_stamp):
             raise ValueError(f"Cannot load policy with verifying key for another Alice.")
-        instance = cls.from_alice_and_policy_details(alice=alice, policy_id=policy_credential.id)
-        if policy_credential.treasure_map:
+        instance = cls.from_alice_and_policy_details(alice=alice,
+                                                     policy_id=policy_credential.id,
+                                                     label=policy_credential.label)
+
+        if policy_credential.treasure_map is not None:  # Do not evaluate __len__ of TMap
             instance.treasure_map = policy_credential.treasure_map
         return instance
 

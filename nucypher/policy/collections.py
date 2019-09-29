@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import binascii
 import json
 from collections import OrderedDict
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable
 
 import maya
 import msgpack
@@ -96,7 +96,6 @@ class TreasureMap:
                                 label):
 
         plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
-
         self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
                                                                 plaintext=plaintext,
                                                                 signer=alice_stamp,
@@ -125,7 +124,6 @@ class TreasureMap:
     def __bytes__(self):
         if self._payload is None:
             self._set_payload()
-
         return self._payload
 
     @property
@@ -141,7 +139,7 @@ class TreasureMap:
     @property
     def destinations(self):
         if self._destinations == NO_DECRYPTION_PERFORMED:
-            raise TypeError("The TreasureMap is probably encrypted. You must decrypt it first.")
+            raise TypeError("The TreasureMap is encrypted. You must decrypt it first.")
         return self._destinations
 
     def nodes_as_bytes(self):
@@ -192,7 +190,11 @@ class TreasureMap:
         else:
             raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
 
-    def orient(self, compass):
+    def _set_heading(self, plaintext_map: bytes):
+        self._m = plaintext_map[0]
+        self._destinations = dict(self.node_id_splitter.repeat(plaintext_map[1:]))
+
+    def orient(self, compass: Callable):
         """
         When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
         payload message kit).
@@ -203,8 +205,7 @@ class TreasureMap:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
         else:
-            self._m = map_in_the_clear[0]
-            self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
+            self._set_heading(plaintext_map=map_in_the_clear)
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
@@ -228,23 +229,26 @@ class PolicyCredential:
     def __init__(self,
                  label: bytes,
                  policy_encrypting_key: UmbralPublicKey,
-                 alice_verifying_key: UmbralPublicKey,
-                 bob_verifying_key: UmbralPublicKey,
+                 alice_stamp: SignatureStamp,
+                 bob_stamp: SignatureStamp,
                  treasure_map: TreasureMap = None):
 
         self.label = label
         self.policy_encrypting_key = policy_encrypting_key
-        self.alice_verifying_key = alice_verifying_key
-        self.bob_verifying_key = bob_verifying_key
+        self.alice_stamp = alice_stamp
+        self.bob_stamp = bob_stamp
         self.treasure_map = treasure_map
 
     def __eq__(self, other) -> bool:
-        return self.id == other.id
+        return all((self.id == other.id,
+                    self.label == other.label,
+                    self.alice_stamp == other.alice_stamp,
+                    self.bob_stamp == other.bob_stamp))
 
     @property
     def id(self) -> bytes:
         return construct_policy_id(self.label,
-                                   bytes(self.bob_verifying_key),
+                                   bytes(self.bob_stamp),
                                    truncate=Policy.ID_LENGTH)
 
     def to_json(self) -> str:
@@ -254,10 +258,10 @@ class PolicyCredential:
         payload = {
             'label': self.label.hex(),
             'policy_encrypting_key': bytes(self.policy_encrypting_key).hex(),
-            'alice_verifying_key': bytes(self.alice_verifying_key).hex(),
-            'bob_verifying_key': bytes(self.bob_verifying_key).hex()
+            'alice_stamp': bytes(self.alice_stamp).hex(),
+            'bob_stamp': bytes(self.bob_stamp).hex()
         }
-        if self.treasure_map:
+        if self.treasure_map is not None:
             payload['treasure_map'] = bytes(self.treasure_map).hex()
         if self.id:
             payload['policy_id'] = bytes(self.id).hex()
@@ -271,16 +275,15 @@ class PolicyCredential:
         """
         payload = json.loads(data)
 
-        label = bytes().fromhex(payload['label'])
+        label = bytes.fromhex(payload['label'])
 
-        pek_hex = payload['policy_encrypting_key']
-        policy_encrypting_key = UmbralPublicKey.from_bytes(pek_hex, decoder=bytes.fromhex)
+        policy_encrypting_key = UmbralPublicKey.from_bytes(payload['policy_encrypting_key'], decoder=bytes.fromhex)
 
-        avk_hex = payload['alice_verifying_key']
-        alice_verifying_key = UmbralPublicKey.from_bytes(avk_hex, decoder=bytes.fromhex)
+        alice_verifying_key = UmbralPublicKey.from_bytes(payload['alice_stamp'], decoder=bytes.fromhex)
+        alice_stamp = SignatureStamp(verifying_key=alice_verifying_key)
 
-        bvk_hex = payload['bob_verifying_key']
-        bob_verifying_key = UmbralPublicKey.from_bytes(bvk_hex, decoder=bytes.fromhex)
+        bob_verifying_key = UmbralPublicKey.from_bytes(payload['bob_stamp'], decoder=bytes.fromhex)
+        bob_stamp = SignatureStamp(verifying_key=bob_verifying_key)
 
         treasure_map = None
         if 'treasure_map' in payload:
@@ -290,8 +293,8 @@ class PolicyCredential:
         return cls(label=label,
                    policy_encrypting_key=policy_encrypting_key,
                    treasure_map=treasure_map,
-                   alice_verifying_key=alice_verifying_key,
-                   bob_verifying_key=bob_verifying_key)
+                   alice_stamp=alice_stamp,
+                   bob_stamp=bob_stamp)
 
 
 class WorkOrder:

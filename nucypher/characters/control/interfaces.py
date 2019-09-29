@@ -128,7 +128,7 @@ class AliceInterface(CharacterPublicInterface, AliceSpecification):
         policy_id = construct_policy_id(label=label, stamp=bob_verifying_key) # TODO
         policy = self.character.active_policies[policy_id]
 
-        failed_revocations = self.character.revoke(policy)
+        receipt, failed_revocations = self.character.revoke(policy)
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt

@@ -116,7 +116,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
 
     # Let's try retrieve again, but Alice revoked the policy.
-    failed_revocations = federated_alice.revoke(policy)
+    receipt, failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags, even though this Policy has been revoked.  #892

@@ -19,6 +19,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import datetime
+import shutil
+
 import maya
 import pytest
 
@@ -95,14 +97,17 @@ def test_read_policy_credential_storage(blockchain_alice):
 
 def test_manual_policy_credential_creation(blockchain_alice):
 
-    def assert_content_is_valid(c):
-        assert c.alice_verifying_key == policy.alice.stamp
-        assert c.bob_verifying_key == policy.bob.stamp
-        assert c.label == policy.label
-        assert c.policy_encrypting_key == policy.public_key
-        return True
-
     policy = list(blockchain_alice.active_policies.values())[0]
+
+    def assert_content_is_valid(c):
+        assert c.label == policy.label
+        assert c.alice_stamp == policy.alice.stamp
+        assert bytes(c.alice_stamp) == bytes(policy.alice.stamp)
+        assert c.bob_stamp == policy.bob.stamp
+        assert bytes(c.bob_stamp) == bytes(policy.bob.stamp)
+        assert c.policy_encrypting_key == policy.public_key
+        assert bytes(c.policy_encrypting_key) == bytes(policy.public_key)
+        return True
 
     # Test PolicyCredential w/o TreasureMap
     credential = policy.credential(with_treasure_map=False)
@@ -122,23 +127,50 @@ def test_manual_policy_credential_creation(blockchain_alice):
     cred_json = credential.to_json()
     deserialized_cred = PolicyCredential.from_json(cred_json)
     assert credential == deserialized_cred
+    assert credential.alice_stamp == deserialized_cred.alice_stamp
 
 
 def test_restore_policy_from_credential_storage(blockchain_alice):
     test_credentials_dir = os.path.join('/', 'tmp', 'nucypher-test-credentials')
+    if os.path.exists(test_credentials_dir):
+        shutil.rmtree(test_credentials_dir, ignore_errors=True)
     file_storage = LocalFilePolicyCredentialStorage(credential_dir=test_credentials_dir)
 
     policy = list(blockchain_alice.active_policies.values())[0]
     credential = policy.credential()
+
     original_credential_storage = blockchain_alice.credential_storage
     try:
         blockchain_alice.credential_storage = file_storage
-        filepath = file_storage.save(credential=credential)
         expected_filename = f"{credential.id.hex()}.{LocalFilePolicyCredentialStorage.extension}"
         expected_filepath = os.path.join(test_credentials_dir, expected_filename)
+
+        assert not os.path.exists(expected_filepath)
+        filepath = file_storage.save(credential=credential)
         assert filepath == expected_filepath
+        assert os.path.exists(filepath)
+
+        restored_credential = file_storage.load(policy_id=credential.id)
+        assert restored_credential == credential
+
+        blockchain_alice._Alice__active_policies = {}
+        assert len(blockchain_alice.active_policies) == 0
+        blockchain_alice.restore_policies()
+        assert len(blockchain_alice.active_policies) == 1
+
+        restored_policy = list(blockchain_alice.active_policies.values())[0]
+        assert restored_policy.id == policy.id
+
     finally:
         blockchain_alice.credential_storage = original_credential_storage
+
+
+def test_decentralized_revoke(testerchain, blockchain_alice):
+    policy = list(blockchain_alice.active_policies.values())[0]
+    receipt, failed_revocations = blockchain_alice.revoke(policy)
+    assert failed_revocations == {}  # No Failed Revocations  # TODO ... What if there *are* failed revocations?
+    assert receipt['status'] == 1
+    assert policy._is_revoked
 
 
 @pytest.mark.usefixtures('federated_ursulas')

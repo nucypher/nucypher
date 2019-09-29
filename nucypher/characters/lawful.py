@@ -167,8 +167,8 @@ class Alice(Character, BlockchainPolicyAuthor):
             policy_class = FederatedPolicy
         else:
             from nucypher.policy.policies import BlockchainPolicy
-
             policy_class = BlockchainPolicy
+
         policy_credentials = self.credential_storage.all()
         for credential in policy_credentials:
             active_policy = policy_class.from_alice_and_credential(alice=self, policy_credential=credential)
@@ -334,7 +334,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
 
-    def revoke(self, policy) -> Dict:
+    def revoke(self, policy) -> Union[Dict, Tuple[Dict, Dict]]:
         """
         Parses the treasure map and revokes arrangements in it.
         If any arrangements can't be revoked, then the node_id is added to a
@@ -366,7 +366,11 @@ class Alice(Character, BlockchainPolicyAuthor):
                     if response.status_code != 200:
                         raise self.ActorError(f"Failed to revoke {policy.id} with status code {response.status_code}")
 
-        return failed_revocations
+        if not self.federated_only:
+            receipt = self.revoke_policy(policy_id=policy.id)
+            return receipt, failed_revocations
+        else:
+            return failed_revocations
 
     def decrypt_message_kit(self,
                             message_kit: UmbralMessageKit,
