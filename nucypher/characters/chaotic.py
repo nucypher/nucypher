@@ -50,11 +50,25 @@ class Moe(Character):
     """
     banner = MOE_BANNER
 
-    def __init__(self, host: str, port: int, *args, **kwargs):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 tls_certificate_filepath: str = None,
+                 *args, **kwargs):
         self.host = host
         self.port = port
 
-        tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1, host=self.host)
+        # Pre-Signed
+        if tls_certificate_filepath:
+
+            tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1,
+                                                 host=self.host,
+                                                 certificate_filepath=tls_certificate_filepath)
+
+        # Self-Sign
+        else:
+            tls_hosting_keypair = HostingKeypair(curve=ec.SECP384R1, host=self.host)
+
         tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=self.host)
         super().__init__(*args, crypto_power_ups=[tls_hosting_power], **kwargs)
 
